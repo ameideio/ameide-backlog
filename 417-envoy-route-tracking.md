@@ -1,5 +1,7 @@
 # Backlog 417: Envoy Gateway route coverage
 
+> ⚠️ **Remote-first note:** The inventories below previously referred to a local k3d cluster. After [435-remote-first-development.md](435-remote-first-development.md), “dev” means the shared AKS namespace (`ameide-dev`) reached via Telepresence; treat any residual k3d wording as historical context.
+
 - Goal: align all public app/frontends to Envoy Gateway (Gateway API HTTPRoute/GRPCRoute) and remove residual Ingress usage that breaks health.
 - Actions:
   - Catalog current routes/hosts and their backends (gateway chart `additionalHttpRoutes` and route templates).
@@ -21,7 +23,7 @@
 
 ## Route inventory (rendered from charts)
 
-### Dev (k3d/local)
+### Dev (ameide-dev namespace on AKS)
 - GRPCRoute graph → apps-graph:8081 (internal listener)
 - GRPCRoute platform → apps-platform:8082 (internal)
 - GRPCRoute threads → apps-threads:8107 (internal)

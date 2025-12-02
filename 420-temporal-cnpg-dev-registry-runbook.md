@@ -1,5 +1,7 @@
 # 420 – Temporal CNPG creds + dev registry rollout (runbook and incident notes)
 
+> ⚠️ **Legacy workflow:** References to the k3d dev registry (`k3d-ameide.localhost:5001`) describe the previous local-cluster model. With the remote-first pivot (backlog/435), dev builds push directly to ACR and run on AKS; keep these notes only for historical incident context.
+
 ## What we configured
 - **Temporal DB ownership:** CNPG (`platform-postgres-clusters`) owns the `temporal` and `temporal_visibility` roles/secrets. The Temporal chart now uses `temporal`/`temporal_visibility` users via `temporal-db-credentials` and `temporal-visibility-db-credentials`. All Vault-authored ExternalSecrets for Temporal were removed; Vault is mirror-only if needed. See also `backlog/425-vendor-schema-ownership.md` for the general vendor schema pattern.
 - **Schema hook matches upstream flow:** `data-migrations-temporal` runs the same steps as Temporal’s `auto-setup.sh`. The Helm hook job:

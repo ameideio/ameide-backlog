@@ -42,7 +42,7 @@ We meet all three criteria:
 
 ## Version Pinning
 
-We standardize on **Telepresence 2.x** (currently 2.19). The exact version is pinned in `.devcontainer/Dockerfile`.
+We standardize on **Telepresence 2.x** (currently 2.25.1). The exact version is pinned in `.devcontainer/Dockerfile`.
 
 Some CLI flags and behaviors evolve between minor versions. If you see unexpected behavior, check:
 1. Your installed version: `telepresence version`
@@ -115,10 +115,10 @@ Some CLI flags and behaviors evolve between minor versions. If you see unexpecte
 
 ```bash
 # 1. Connect to cluster (VPN-like tunnel)
-telepresence connect --namespace ameide
+telepresence connect --context ameide-dev --namespace ameide-dev
 
 # 2. Intercept the service you're developing
-telepresence intercept www-ameide-platform --port 3000:3000 --env-file=.env.telepresence
+telepresence intercept www-ameide-platform --context ameide-dev --namespace ameide-dev --port 3000:3000 --env-file=.env.telepresence
 
 # 3. Run locally with pod environment
 source .env.telepresence && npm run dev
@@ -228,9 +228,10 @@ set -euo pipefail
 # Install dependencies
 pnpm install
 
-# Configure kubectl for AKS
-az aks get-credentials --resource-group Ameide-Dev --name ameide-dev-aks
+# Configure kubectl for AKS (dev namespace)
+az aks get-credentials --resource-group Ameide --name ameide --overwrite-existing --context ameide-dev
 kubelogin convert-kubeconfig -l azurecli
+kubectl config set-context ameide-dev --namespace=ameide-dev >/dev/null 2>&1 || true
 
 echo "✅ Ready! Run './tools/dev/telepresence.sh connect' to connect to the cluster."
 ```
@@ -245,12 +246,12 @@ set -euo pipefail
 
 case "${1:-}" in
   connect)
-    telepresence connect --namespace ameide
+    telepresence connect --context ameide-dev --namespace ameide-dev
     ;;
   intercept)
     SERVICE="${2:?Usage: $0 intercept <service> [port]}"
     PORT="${3:-3000:3000}"
-    telepresence intercept "$SERVICE" --port "$PORT" --env-file=.env.telepresence
+    telepresence intercept "$SERVICE" --context ameide-dev --namespace ameide-dev --port "$PORT" --env-file=.env.telepresence
     echo "Run: source .env.telepresence && <your-dev-command>"
     ;;
   status)
@@ -320,16 +321,18 @@ if config.tilt_subcommand == 'up' and os.getenv('TELEPRESENCE_INTERCEPT'):
 
 ---
 
-## AKS Dev Cluster Requirements
+## AKS Shared Cluster Requirements
 
-### Cluster: `ameide-dev-aks`
+### Cluster: `ameide`
 
-- **Resource Group:** `Ameide-Dev`
-- **Region:** Same as staging for latency
-- **Node Pool:** Cost-optimized (B-series, spot instances)
+- **Resource Group:** `Ameide`
+- **Region:** `westeurope` (shared across all environments)
+- **Node Pool:** Cost-optimized (B-series, spot instances) with autoscaling
 - **Namespaces:**
-  - `ameide` - Shared services + developer deployments
-  - `argocd` - ArgoCD installation
+  - `ameide-dev` – Dev workloads (default Telepresence namespace)
+  - `ameide-staging` – Staging workloads
+  - `ameide-prod` – Reserved for production workloads
+  - `argocd`, `observability`, etc. – Shared platform components
 
 ### Pre-installed Components
 
@@ -345,7 +348,7 @@ if config.tilt_subcommand == 'up' and os.getenv('TELEPRESENCE_INTERCEPT'):
 ### Access Control
 
 - Azure AD authentication via `kubelogin`
-- RBAC: Developers get `edit` role in `ameide` namespace
+- RBAC: Developers get `edit` role in `ameide-dev` namespace
 - Telepresence: Traffic Manager deployed cluster-side
 
 ### RBAC Requirements for Telepresence
@@ -402,7 +405,7 @@ spec:
 
 ```dockerfile
 # In .devcontainer/Dockerfile
-RUN curl -fL https://app.getambassador.io/download/tel2oss/releases/download/v2.19.1/telepresence-linux-amd64 \
+RUN curl -fL https://app.getambassador.io/download/tel2oss/releases/download/v2.25.1/telepresence-linux-amd64 \
     -o /usr/local/bin/telepresence && chmod +x /usr/local/bin/telepresence
 ```
 
@@ -410,7 +413,7 @@ RUN curl -fL https://app.getambassador.io/download/tel2oss/releases/download/v2.
 
 ```bash
 # Connect to cluster (VPN-like tunnel)
-telepresence connect --namespace ameide
+telepresence connect --context ameide-dev --namespace ameide-dev
 
 # Check connection status
 telepresence status
@@ -419,7 +422,7 @@ telepresence status
 telepresence list
 
 # Intercept a service (app container keeps running, traffic mirrored)
-telepresence intercept www-ameide-platform --port 3000:3000 --env-file=.env.telepresence
+telepresence intercept www-ameide-platform --context ameide-dev --namespace ameide-dev --port 3000:3000 --env-file=.env.telepresence
 
 # Replace a service (app container stopped, only your local process handles traffic)
 # Use this for queue consumers or when you need exclusive access
@@ -519,7 +522,7 @@ Telepresence can import the intercepted pod's environment into your local proces
 
 - [Telepresence Home](https://telepresence.io/)
 - [Telepresence Architecture](https://telepresence.io/docs/reference/architecture)
-- [Telepresence Intercept CLI](https://telepresence.io/docs/2.19/reference/intercepts/cli)
+- [Telepresence Intercept CLI](https://telepresence.io/docs/2.25/reference/intercepts/cli)
 - [Tilt: Local vs Remote](https://docs.tilt.dev/local_vs_remote.html)
 - [Tilt: Setting up any Image Registry](https://docs.tilt.dev/personal_registry.html)
 - [Kubernetes: Local Debugging with Telepresence](https://kubernetes.io/docs/tasks/debug/debug-cluster/local-debugging/)

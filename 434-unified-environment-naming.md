@@ -19,43 +19,45 @@
 
 | Environment | Kube Context | Namespace | Domain | Purpose | Status |
 |-------------|--------------|-----------|--------|---------|--------|
-| `ameide-local` | `k3d-ameide` | `ameide` | `local.ameide.io` | Inner-loop dev (devcontainer) | ✅ Active |
-| `ameide-dev` | `ameide` | `ameide` (legacy) | `dev.ameide.io` | Stable development | ⚠️ Legacy setup |
-| `ameide-staging` | `ameide-stg-aks` | TBD | `staging.ameide.io` | Staging | ✅ Cluster exists |
-| `ameide-prod` | `ameide` | TBD | `ameide.io` | Production | ⏸️ Not active |
+| `ameide-dev` | `ameide-dev` | `ameide-dev` | `dev.ameide.io` | Stable development | ✅ On shared AKS |
+| `ameide-staging` | `ameide-staging` | `ameide-staging` | `staging.ameide.io` | Staging | ✅ On shared AKS |
+| `ameide-prod` | `ameide-prod` | `ameide-prod` | `ameide.io` | Production | ⏸️ Namespace reserved |
 
-### Available Azure Clusters
-| Cluster | Resource Group | Status | K8s Version |
-|---------|----------------|--------|-------------|
-| `ameide` | `Ameide` | Running | 1.32.7 |
-| `ameide-stg-aks` | `Ameide-Staging` | Succeeded | 1.33.5 |
+> **Naming note:** As finalized in [435-remote-first-development.md](435-remote-first-development.md), local development tunnels into the shared AKS cluster. All contexts follow the `ameide-{environment}` convention and simply select different namespaces inside the single `ameide` cluster.
+
+### Shared AKS Cluster
+
+- **Resource group:** `Ameide`
+- **Cluster name:** `ameide`
+- **Kube contexts:** `ameide-dev`, `ameide-staging`, `ameide-prod` (all reference the same API server, differing only by namespace/user bindings)
+- **Namespaces:** `ameide-dev`, `ameide-staging`, `ameide-prod`, plus `argocd` and platform shared namespaces
 
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                              Developer Workflow                              │
+│                        Remote-First Developer Workflow                       │
 └─────────────────────────────────────────────────────────────────────────────┘
                                       │
-              ┌───────────────────────┼───────────────────────┐
-              │                       │                       │
-              ▼                       ▼                       ▼
-     ┌────────────────┐      ┌────────────────┐      ┌────────────────┐
-     │  ameide-local  │      │  ameide-dev    │      │  ameide-prod   │
-     │  (k3d-ameide)  │      │  (ameide-aks)  │      │  (ameide-aks)  │
-     └────────────────┘      └────────────────┘      └────────────────┘
-              │                       │                       │
-              │                       │                       │
-     ┌────────┴────────┐     ┌────────┴────────┐     ┌────────┴────────┐
-     │   Devcontainer  │     │   Azure AKS     │     │   Azure AKS     │
-     │   k3d cluster   │     │   ameide-dev ns │     │   ameide-prod   │
-     │   Tilt inner    │     │   Argo GitOps   │     │   Argo GitOps   │
-     │   loop          │     │   managed       │     │   managed       │
-     └─────────────────┘     └─────────────────┘     └─────────────────┘
-              │                       ▲
-              │    Telepresence       │
-              └───────────────────────┘
-                  (online-telepresence mode)
+                                      ▼
+                           ┌──────────────────────┐
+                           │  DevContainer        │
+                           │  (Tilt + Telepresence│
+                           │   against AKS)       │
+                           └─────────┬────────────┘
+                                     │
+                       Telepresence connect/intercept
+                                     │
+                                     ▼
+                    ┌──────────────────────────────────┐
+                    │    AKS Cluster: ameide           │
+                    │  ┌────────────────────────────┐  │
+                    │  │ Namespace: ameide-dev      │  │
+                    │  │ Namespace: ameide-staging  │  │
+                    │  │ Namespace: ameide-prod     │  │
+                    │  └────────────────────────────┘  │
+                    │   (Argo GitOps manages baseline)│
+                    └──────────────────────────────────┘
 ```
 
 ## Remote AKS Cluster Details
@@ -69,7 +71,7 @@
 | Location | `westeurope` |
 | Kubernetes Version | `1.32.7` |
 | Nodes | 8 (d2as VMSS) |
-| Kube Context | `ameide` |
+| Kube Contexts | `ameide-dev`, `ameide-staging`, `ameide-prod` |
 
 ### Current GitOps Configuration (LEGACY)
 ⚠️ **Note**: The remote AKS cluster uses an **older GitOps structure**:
@@ -83,8 +85,8 @@
 - Some applications showing `Degraded` or `ErrImagePull` status (cluster was stopped/starting)
 
 ### Current Namespaces
-- `ameide` - main workload namespace (legacy single-namespace setup)
-- `argocd` - ArgoCD control plane
+- `ameide-dev`, `ameide-staging`, `ameide-prod` – per-environment workloads (sharing the same AKS cluster)
+- `argocd` – ArgoCD control plane
 
 ### Migration Needed
 
@@ -100,9 +102,10 @@ To align with the new structure, the remote cluster needs:
 | **MIGRATE-2** | Point Argo CD at `ameide-gitops` repo with `environments/staging/` path | ⏳ Pending |
 | **MIGRATE-3** | Create `gitops/ameide-gitops/environments/staging/` structure | ⏳ Pending |
 | **MIGRATE-4** | Create `infra/environments/staging/bootstrap.yaml` | ⏳ Pending |
-| **MIGRATE-5** | Namespace split: `ameide` → `ameide-dev`, `ameide-staging`, `ameide-prod` | ⏳ Pending |
-| **MIGRATE-6** | Update ApplicationSets to use new environment pattern | ⏳ Pending |
-| **MIGRATE-7** | Verify cluster is fully reproducible via bootstrap-v2 | ⏳ Pending |
+| **MIGRATE-5** | Namespace split: `ameide` → `ameide-dev`, `ameide-staging`, `ameide-prod` within the single `ameide` cluster | ⏳ Pending |
+| **MIGRATE-6** | Create kube contexts/users `ameide-{env}` that target the shared cluster but default to the matching namespace | ⏳ Pending |
+| **MIGRATE-7** | Update ApplicationSets to use new environment pattern | ⏳ Pending |
+| **MIGRATE-8** | Verify cluster is fully reproducible via bootstrap-v2 | ⏳ Pending |
 
 **Approach:** The legacy GitOps content should be removed entirely (not migrated). The AKS cluster should be bootstrapped fresh using `bootstrap-v2.sh` once the staging environment config exists in `ameide-gitops`.
 
@@ -129,11 +132,11 @@ To align with the new structure, the remote cluster needs:
 
   Goal: Predictable context names across all environments.
 
-  | Environment | Context Name | Command |
-  |-------------|--------------|---------|
-  | Local (k3d) | `k3d-ameide` | ✅ Already correct |
-  | Staging (AKS) | `ameide-stg-aks` | `az aks get-credentials --name ameide-stg-aks --resource-group Ameide-Staging` |
-  | Production (AKS) | `ameide-aks` | `az aks get-credentials --name ameide --resource-group Ameide` |
+| Environment | Context Name | Command |
+|-------------|--------------|---------|
+| Dev (AKS) | `ameide-dev` | `az aks get-credentials --name ameide --resource-group Ameide --overwrite-existing --context ameide-dev && kubectl config set-context ameide-dev --namespace=ameide-dev` |
+| Staging (AKS) | `ameide-staging` | `az aks get-credentials --name ameide --resource-group Ameide --overwrite-existing --context ameide-staging && kubectl config set-context ameide-staging --namespace=ameide-staging` |
+| Production (AKS) | `ameide-prod` | `az aks get-credentials --name ameide --resource-group Ameide --overwrite-existing --context ameide-prod && kubectl config set-context ameide-prod --namespace=ameide-prod` |
 
   Update bootstrap configs and `postCreate.sh` to reference standardized names.
 
@@ -143,19 +146,19 @@ To align with the new structure, the remote cluster needs:
 
   | Environment | Namespace | Notes |
   |-------------|-----------|-------|
-  | Local (k3d) | `ameide` | Single namespace for dev simplicity |
-  | Staging (AKS) | `ameide` | Matches local for consistency (not `ameide-staging`) |
-  | Production (AKS) | `ameide` | Same namespace, isolated by cluster |
+  | Dev (AKS) | `ameide-dev` | Used by contexts/tools targeting `ameide-dev` |
+  | Staging (AKS) | `ameide-staging` | Used by contexts/tools targeting `ameide-staging` |
+  | Production (AKS) | `ameide-prod` | Reserved for prod workloads |
 
-  **Decision:** Use single `ameide` namespace across all environments for simplicity. Environment isolation is achieved at the cluster level, not namespace level.
+  **Decision:** A single AKS cluster hosts all environments; Kubernetes namespaces provide isolation while shared services (e.g., `argocd`, `observability`) remain cluster-scoped.
 
 ### Epic ENV-2 – Remote AKS Verification ✅ COMPLETED
 
 - **ENV-20 – Verify AKS cluster is running** ✅
   Goal: Confirm remote cluster is healthy and accessible.
   Result:
-  - Cluster `ameide` in `Ameide` RG is running (8 nodes, K8s 1.32.7)
-  - Cluster `ameide-stg-aks` in `Ameide-Staging` RG also available
+- Cluster `ameide` in `Ameide` RG is running (8 nodes, K8s 1.32.7) and serves all environments via namespaces
+- Shared `ameide` cluster hosts `ameide-dev`, `ameide-staging`, and `ameide-prod` namespaces; staging workloads now live in `ameide-staging`.
   - kubelogin installed for Azure AD auth
   Status: Completed.
 
@@ -171,7 +174,7 @@ To align with the new structure, the remote cluster needs:
 - **ENV-22 – Verify ameide namespace is healthy** ✅
   Goal: Confirm dev environment workloads are running.
   Result:
-  - Using single `ameide` namespace (not ameide-dev/staging/prod split)
+- Workloads run inside the per-environment namespaces (`ameide-dev`, `ameide-staging`, `ameide-prod`)
   - Pods starting up after cluster restart
   - Some image pull issues (likely registry auth after cluster scale-up)
   Status: Completed (cluster recovering).
@@ -188,10 +191,10 @@ To align with the new structure, the remote cluster needs:
 
 - **ENV-31 – Create telepresence connect helper script** ✅ Completed
 
-  `tools/dev/telepresence.sh` exposes `connect|leave|status`, defaults to `ameide-stg-aks` / `ameide`, and is invoked automatically from `postCreate.sh`.
+  `tools/dev/telepresence.sh` exposes `connect|leave|status`, defaults to context `ameide-dev` (override with `TELEPRESENCE_CONTEXT`) / namespace `ameide-dev`, and is invoked automatically from `postCreate.sh`.
 
 - **ENV-32 – Wire telepresence into online-telepresence mode** ✅ Completed
-  - `.devcontainer/postCreate.sh` reads the telepresence config, writes `~/.devcontainer-mode.env`, switches the kube context to `ameide-stg-aks`, and auto-connects via `tools/dev/telepresence.sh` when `autoConnect: true`.
+  - `.devcontainer/postCreate.sh` reads the telepresence config, writes `~/.devcontainer-mode.env`, switches the kube context to whichever `ameide-{env}` context is requested (default `ameide-dev`), and auto-connects via `tools/dev/telepresence.sh` when `autoConnect: true`.
   - Tilt picks up `DEV_REMOTE_CONTEXT`/`TILT_REMOTE=1` so remote registries/hosts are wired automatically.
 
 - **ENV-33 – Configure Tilt for remote mode (TILT_REMOTE)** ✅ Completed
@@ -210,7 +213,7 @@ To align with the new structure, the remote cluster needs:
 
 - **ENV-40 – Add bootstrap-telepresence.yaml** ✅ Completed
 
-  `infra/environments/dev/bootstrap-telepresence.yaml` defines the AKS context, sets `gitops.skip: true`, and enables `telepresence.autoConnect` for the `ameide` namespace.
+  `infra/environments/dev/bootstrap-telepresence.yaml` defines the AKS context, sets `gitops.skip: true`, and enables `telepresence.autoConnect` for the `ameide-dev` namespace.
 
 - **ENV-41 – Update postCreate.sh for telepresence bootstrap** ✅ Completed
   - Add `BOOTSTRAP_TELEPRESENCE_CONFIG` variable pointing to `bootstrap-telepresence.yaml`
@@ -226,7 +229,7 @@ To align with the new structure, the remote cluster needs:
   ```yaml
   env: staging
   cluster:
-    context: ameide-stg-aks
+    context: ameide-staging
     type: aks
   gitops:
     root: gitops/ameide-gitops
@@ -252,8 +255,8 @@ To align with the new structure, the remote cluster needs:
 
 ## Success Criteria
 
-1. ✅ `kubectl config get-contexts` shows `k3d-ameide` (local working)
-2. ⏳ `kubectl config get-contexts` shows `ameide-stg-aks` after migration
+1. ✅ `kubectl config get-contexts` shows `ameide-dev` (remote dev context in kubeconfig)
+2. ⏳ `kubectl config get-contexts` shows the `ameide-staging` context (same cluster, staging namespace) after migration
 3. ⏳ `telepresence connect` successfully connects to staging cluster
 4. ⏳ Tilt can deploy services to remote cluster via telepresence
 5. ✅ Domain naming is consistent (`local.ameide.io` for local, `*.ameide.io` for remote)

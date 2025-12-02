@@ -1,5 +1,7 @@
 # 415 – k3d dev registry end-to-end flow (implementation notes)
 
+> ⚠️ **Deprecated workflow:** These notes cover the legacy k3d dev registry. The supported approach is now remote-first AKS + Telepresence (backlog/435). Keep this file for archival purposes only.
+
 ## Objectives
 - Single dev registry endpoint: `k3d-ameide.localhost:5001/ameide`, used by builders, GitOps values, and cluster pulls.
 - No `k3d image import`; every dev build is pushed to the registry.

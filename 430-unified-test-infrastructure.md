@@ -17,6 +17,8 @@ This backlog defines the **target state** for all automated tests in the codebas
 
 **This document describes the end state only.** Transitional patterns, backward compatibility shims, fallbacks, and workarounds are explicitly forbidden. All implementations must conform to the target architecture.
 
+> ⚠️ **Remote-first reminder:** Wherever this backlog mentions a “cluster” profile or k3d-based execution, substitute the shared AKS namespace (`ameide-dev`) reached via Telepresence per [435-remote-first-development.md](435-remote-first-development.md).
+
 ---
 
 ## Non-Negotiable Principles
@@ -28,7 +30,7 @@ Every test suite supports exactly two modes:
 | Mode | Environment | Dependencies |
 |------|-------------|--------------|
 | `mock` | Local, DevContainer, CI pre-merge | In-memory stubs only |
-| `cluster` | k3d, CI nightly, staging | Real Kubernetes services |
+| `cluster` | AKS (`ameide-dev` namespace for dev profiles, staging/prod clusters in CI) | Real Kubernetes services |
 
 **Forbidden:**
 - Hybrid modes ("partial mock")
@@ -297,7 +299,7 @@ JUNIT_PATH="$(resolve_junit_path service-name)"
 | Target | Mode | Purpose |
 |--------|------|---------|
 | `test-all-mock` | mock | All integration tests, in-memory |
-| `test-all-cluster` | cluster | All integration tests, k3d |
+| `test-all-cluster` | cluster | All integration tests, AKS (`ameide-dev`) |
 | `e2e-playwright-run` | cluster | Playwright E2E suite |
 | `integration-<service>` | cluster | Per-service integration job |
 

@@ -2,6 +2,8 @@
 **Status:** Draft (2025-11-23)  
 **Intent:** Provide a MECE snapshot of what Ameide delivers today, anchored in shipped services, SDKs, guardrails, and pipelines. This is the “reality layer” to contrast with forward-looking scenarios.
 
+> ⚠️ **Remote-first update:** Delivery and DevContainer sections below describe the legacy k3d-based workflow (local registry + Argo bootstrap). The current source of truth for remote-first development is [435-remote-first-development.md](435-remote-first-development.md); treat any k3d references here as historical context.
+
 ## 1) Data & Governance Plane (metamodel, org, transformation)
 - **Graph/Repository (knowledge system):** `services/graph` and `services/repository` expose CRUD + version history over the unified metamodel via Connect/gRPC, backed by Postgres with Flyway, pg-mem unit tests, and Testcontainers e2e (`services/graph/README.md`, `services/repository/README.md`). Repository dual-writes metadata + elements; Graph hosts the element/relationship handlers.
 - **Platform (org/teams/roles):** `services/platform` serves `ameide_core_proto.platform.v1` for organizations, teams, roles, users, invitations (`services/platform/README.md`). Tilt/Helm deploy with Vault-managed DB creds.

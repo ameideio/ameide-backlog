@@ -1,5 +1,7 @@
 # Reality check (Jan 2025)
 
+> ⚠️ **Remote-first note:** References to “cluster mode” in this document still assume a local k3d environment. The default now is to run integration/e2e packs against the shared AKS dev namespace via Telepresence (see [435-remote-first-development.md](435-remote-first-development.md)). Update any k3d instructions before using them.
+
 **What exists**
 
 * Colocation: Most services/packages have `__tests__/unit` and `__tests__/integration`; some e2e exist (Playwright specs in `services/www_ameide_platform/.../__tests__/e2e`, minimal Python/Go e2e). Layout is uneven: many TS tests live deep under feature folders; agents runtime now lives at `services/agents_runtime` per the folder-underscore policy.

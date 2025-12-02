@@ -3,6 +3,8 @@
 **Status**: Draft  
 **Intent**: Introduce chart-level unit tests with `helm-unittest` plus optional `kubeconform` schema checks so Helm changes fail fast before Argo or cluster apply.
 
+> ⚠️ **Registry update:** Image-registry assertions referencing `k3d-ameide.localhost:5001` describe the retired local workflow. Dev images now live in ACR (`ameidedev.azurecr.io`) per [435-remote-first-development.md](435-remote-first-development.md); update the suites accordingly before enforcing them.
+
 ## Scope
 - All first-party charts under `gitops/ameide-gitops/sources/charts/**` (exclude `third_party/`).
 - Runner script in `scripts/ci` to install the plugin and execute suites across charts.
