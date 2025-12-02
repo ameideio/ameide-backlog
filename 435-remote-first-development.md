@@ -271,7 +271,7 @@ esac
 
 | Task | Description | Owner |
 |------|-------------|-------|
-| **TILT-10** | Add `default_registry('ameidedev.azurecr.io')` for ACR | - |
+| **TILT-10** | Add `default_registry('ghcr.io/ameideio')` for GHCR | - |
 | **TILT-11** | Update kubectl context defaults (remove k3d references) | - |
 | **TILT-12** | Keep all `apps-*-tilt` Helm releases (373/424 architecture) | - |
 | **TILT-13** | Add `local_resource` for Telepresence intercepts | - |
@@ -281,8 +281,8 @@ esac
 
 **Example Tiltfile additions:**
 ```python
-# Registry for AKS
-default_registry('ameidedev.azurecr.io')
+# Registry for AKS (GitHub Container Registry)
+default_registry('ghcr.io/ameideio')
 
 # Telepresence intercept mode (optional, for rapid iteration)
 if config.tilt_subcommand == 'up' and os.getenv('TELEPRESENCE_INTERCEPT'):
@@ -333,6 +333,17 @@ if config.tilt_subcommand == 'up' and os.getenv('TELEPRESENCE_INTERCEPT'):
   - `ameide-staging` – Staging workloads
   - `ameide-prod` – Reserved for production workloads
   - `argocd`, `observability`, etc. – Shared platform components
+
+### Argo CD control plane
+
+- A single Argo installation in the `argocd` namespace reconciles every environment namespace (`ameide-dev`, `ameide-staging`, `ameide-prod`) using ApplicationSets and Projects for boundaries.
+- There is no per-environment Argo; isolation is achieved through Projects + RBAC and the GitOps repo structure.
+
+### Image & tag authority
+
+- **Source of truth:** `ameide-gitops` defines the repository + tag per environment. CI builds push to GitHub Container Registry (`ghcr.io/ameideio/...`) and update the GitOps values; Argo syncs those tags.
+- **Tilt-only tags:** Developer iterations use the `*-tilt` releases and developer-scoped GHCR tags, never overwriting Argo-managed baselines.
+- **Telepresence:** Only hijacks traffic; it does not inject or override images/tags.
 
 ### Pre-installed Components
 
@@ -391,12 +402,11 @@ spec:
         - /spec/template/metadata/annotations/telepresence.getambassador.io~1inject-traffic-agent
 ```
 
-### Registry: ACR
+### Registry: GitHub Container Registry
 
-- **Registry:** `ameidedev.azurecr.io`
-- **Auth:** Azure AD (same as AKS)
-- **Used by:** Tilt image pushes, ArgoCD deployments
-
+- **Registry:** `ghcr.io/ameideio`
+- **Auth:** GitHub token scoped for the release workflows
+- **Used by:** Tilt image pushes, CI publishes, ArgoCD deployments (via GitOps values)
 ---
 
 ## Telepresence Reference

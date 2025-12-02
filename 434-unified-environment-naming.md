@@ -32,6 +32,12 @@
 - **Kube contexts:** `ameide-dev`, `ameide-staging`, `ameide-prod` (all reference the same API server, differing only by namespace/user bindings)
 - **Namespaces:** `ameide-dev`, `ameide-staging`, `ameide-prod`, plus `argocd` and platform shared namespaces
 
+### Control plane & image ownership
+
+- **Argo CD:** A single Argo instance in the `argocd` namespace reconciles every environment namespace using Projects and ApplicationSets. There are no per-namespace Argo installations; isolation is enforced by Git (Projects) and RBAC, not by multiple controllers.
+- **GitHub Container Registry (GHCR):** `ameide-gitops` defines the repository/tag per environment. CI pushes images to GHCR, updates the GitOps values, and Argo syncs. No doc/tooling should reference Azure Container Registry directly.
+- **Tilt-only releases:** Developers still run Tilt + Telepresence for the inner loop. Those resources carry the `-tilt` suffix and point at developer-scoped tags in GHCR but never alter the Argo-managed baselines.
+
 ## Architecture
 
 ```
@@ -200,7 +206,7 @@ To align with the new structure, the remote cluster needs:
 - **ENV-33 – Configure Tilt for remote mode (TILT_REMOTE)** ✅ Completed
   - Add `TILT_REMOTE=1` environment variable support
   - Update Tiltfile to switch registry/context based on env
-  - Update image push targets for remote ACR/registry (`ameidestgacr.azurecr.io`)
+  - Update image push targets for remote registry (`ghcr.io/ameideio/*`)
   - Maps to [432 DC-32](432-devcontainer-modes-offline-online.md#epic-dc-4--online-telepresence-mode)
 
 - **ENV-34 – Document telepresence workflow** ✅ Completed

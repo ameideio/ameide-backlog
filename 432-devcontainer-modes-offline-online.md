@@ -67,7 +67,7 @@ ApplicationSet (environments/dev/argocd/apps/ameide.yaml)
 ### Online-telepresence
 - Loads `infra/environments/dev/bootstrap-telepresence.yaml`, persists the mode in `~/.devcontainer-mode.env`, and switches `kubectl` to the remote AKS context (`ameide-stg-aks`).
 - Installs the Telepresence CLI and calls `tools/dev/telepresence.sh connect --context <ctx> --namespace ameide` when `autoConnect: true`.
-- Sets `DEV_REMOTE_CONTEXT`/`TILT_REMOTE=1` so Tilt pushes to the staging registry (`ameidestgacr.azurecr.io`) and restricts allowed contexts to the AKS cluster.
+- Sets `DEV_REMOTE_CONTEXT`/`TILT_REMOTE=1` so Tilt pushes to the staging repositories in GitHub Container Registry (`ghcr.io/ameideio/...`) and restricts allowed contexts to the AKS cluster.
 - Documents the workflow in `docs/dev-workflows/telepresence.md`.
 
 ### Retired: Offline-minimal
@@ -91,7 +91,7 @@ ApplicationSet (environments/dev/argocd/apps/ameide.yaml)
 
 - **DC-30 – Devcontainer bootstrap for online-telepresence** ✅ `.devcontainer/postCreate.sh` persists the mode, switches contexts, and logs mode selection.
 - **DC-31 – Telepresence connect helper** ✅ `tools/dev/telepresence.sh` wraps `telepresence connect|leave|status`, and the CLI is installed automatically inside the devcontainer.
-- **DC-32 – Tilt remote toggle (`TILT_REMOTE`)** ✅ `Tiltfile` reads `TILT_REMOTE=1`, restricts allowed contexts to AKS, and defaults the registry host to `ameidestgacr.azurecr.io` so `registry_image()` pushes remote tags.
+- **DC-32 – Tilt remote toggle (`TILT_REMOTE`)** ✅ `Tiltfile` reads `TILT_REMOTE=1`, restricts allowed contexts to AKS, and defaults the registry host to `ghcr.io/ameideio` so `registry_image()` pushes remote tags.
 - **DC-33 – Telepresence bootstrap config** ✅ `infra/environments/dev/bootstrap-telepresence.yaml` describes the AKS context and auto-connect settings; `postCreate.sh` consumes it.
 
 **Blocker:** Remote AKS cluster must be migrated to `ameide-gitops` structure before telepresence mode is fully functional. See [434 Migration Needed](434-unified-environment-naming.md#migration-needed) for the cluster-side work.

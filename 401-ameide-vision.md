@@ -34,8 +34,8 @@
 - **Proto clients in UI:** Both apps re-export proto namespaces and SDK clients from `src/proto` shims; no Buf/Verdaccio dependencies remain (per import policy).
 
 ## 5) Delivery, Ops, and Guardrails
-- **GitOps & bootstrap:** Argo CD drives deployments; `.devcontainer/postCreate.sh` calls `tools/bootstrap/bootstrap-v2.sh` to provision k3d, registry, Argo, and secrets (`README.md`). Tilt is the shared inner-loop; do not restart ad-hoc (`README.md`).
-- **Ingress & TLS:** Envoy Gateway is sole TLS terminator; Traefik disabled in k3d; wildcard DNS and CA automation scripts live under `.devcontainer/` (`README.md`).
+- **GitOps & bootstrap:** Argo CD (single control plane in the `argocd` namespace) reconciles every namespace (`ameide-dev`, `ameide-staging`, `ameide-prod`). DevContainers now only hydrate tooling (`pnpm`, Azure CLI, kubelogin, Telepresence) and fetch AKS credentials; there is no local k3d bootstrap. Tilt handles the inner loop by deploying the `*-tilt` releases and Telepresence routes cluster traffic back to the local dev process (`README.md`, `backlog/435-remote-first-development.md`).
+- **Ingress & TLS:** Envoy Gateway remains the sole TLS terminator. Wildcard DNS for `*.dev.ameide.io` plus the Telepresence-only `*.local.ameide.io` listener is managed under `.devcontainer/` (`README.md`, `backlog/417-envoy-route-tracking.md`).
 - **Secrets & compliance:** ExternalSecrets + Vault are mandatory; charts fail without `existingSecret` references. db-migration hooks and `infra/kubernetes/scripts/validate-hardened-charts.sh` enforce credentials and template validity (called out in service READMEs).
 - **Build & images:** BuildKit scripts under `build/scripts/` produce OCI images; service Dockerfiles copy `pnpm-lock.yaml` before frozen installs to pin deps (documented in per-service READMEs and policy in 393). Helm/Argo use image tags from publishes; GitOps repo lives at `gitops/ameide-gitops` (nested).
 

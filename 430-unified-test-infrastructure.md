@@ -19,6 +19,12 @@ This backlog defines the **target state** for all automated tests in the codebas
 
 > ⚠️ **Remote-first reminder:** Wherever this backlog mentions a “cluster” profile or k3d-based execution, substitute the shared AKS namespace (`ameide-dev`) reached via Telepresence per [435-remote-first-development.md](435-remote-first-development.md).
 
+### Cluster + image authority model
+
+- **Single Argo CD control plane:** A single Argo deployment in the `argocd` namespace reconciles every environment namespace (`ameide-dev`, `ameide-staging`, `ameide-prod`) using Projects for logical boundaries rather than multiple controllers.
+- **GitHub as source-of-truth:** `ameide-gitops` defines the image repository/tag per environment; CI publishes artifacts to GitHub Container Registry (GHCR) and updates GitOps values. Tests must never override images outside Git.
+- **Tilt + Telepresence only for inner loop:** Cluster test profiles run against the Argo baseline in AKS. Tilt-only releases (`*-tilt`) continue to exist for developer workflows but are not part of the unified test contract.
+
 ---
 
 ## Non-Negotiable Principles

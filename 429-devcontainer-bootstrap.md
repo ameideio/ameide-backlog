@@ -509,7 +509,7 @@ Potential follow-ups:
 
 ### Telepresence mode ([432](432-devcontainer-modes-offline-online.md), [434](434-unified-environment-naming.md))
 
-`online-telepresence` now loads `infra/environments/dev/bootstrap-telepresence.yaml`, persists the mode in `~/.devcontainer-mode.env`, sets `DEV_REMOTE_CONTEXT`/`TILT_REMOTE=1`, installs the Telepresence CLI, and invokes `tools/dev/telepresence.sh connect --context ameide-stg-aks --namespace ameide` when `autoConnect` is enabled. Tilt uses those env vars to push images to the remote registry (`ameidestgacr.azurecr.io`) and restricts kube contexts to the AKS staging cluster. See [docs/dev-workflows/telepresence.md](../docs/dev-workflows/telepresence.md) for the end-to-end workflow.
+`online-telepresence` now loads `infra/environments/dev/bootstrap-telepresence.yaml`, persists the mode in `~/.devcontainer-mode.env`, sets `DEV_REMOTE_CONTEXT`/`TILT_REMOTE=1`, installs the Telepresence CLI, and invokes `tools/dev/telepresence.sh connect --context ameide-staging --namespace ameide-staging` when `autoConnect` is enabled. Tilt uses those env vars to push images to GitHub Container Registry (`ghcr.io/ameideio/...`) and restricts kube contexts to the AKS staging namespace. See [docs/dev-workflows/telepresence.md](../docs/dev-workflows/telepresence.md) for the end-to-end workflow.
 
 ### Domain rename ([434](434-unified-environment-naming.md))
 
