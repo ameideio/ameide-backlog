@@ -1,0 +1,423 @@
+---
+title: 430 – Unified Test Infrastructure
+status: active
+owners:
+  - platform
+  - test-infra
+created: 2025-12-01
+updated: 2025-12-02
+supersedes:
+  - 371-e2e-playwright.md
+  - 376-integration-test-dual-modes.md
+---
+
+## Summary
+
+This backlog defines the **target state** for all automated tests in the codebase. It consolidates and supersedes backlogs 371 and 376.
+
+**This document describes the end state only.** Transitional patterns, backward compatibility shims, fallbacks, and workarounds are explicitly forbidden. All implementations must conform to the target architecture.
+
+---
+
+## Non-Negotiable Principles
+
+### 1. Two Modes, No Exceptions
+
+Every test suite supports exactly two modes:
+
+| Mode | Environment | Dependencies |
+|------|-------------|--------------|
+| `mock` | Local, DevContainer, CI pre-merge | In-memory stubs only |
+| `cluster` | k3d, CI nightly, staging | Real Kubernetes services |
+
+**Forbidden:**
+- Hybrid modes ("partial mock")
+- Environment-specific branches other than mock/cluster
+- Conditional skips based on mode
+- Graceful degradation when dependencies missing
+
+### 2. Single Implementation, Dual Execution
+
+Each test has **one implementation** that runs in both modes:
+
+```typescript
+// Target pattern
+const client = mode === 'cluster'
+  ? createLiveClient(requireEnv('GRPC_ADDRESS'))
+  : createMockClient(fixtures);
+
+it('lists repositories', async () => {
+  const repos = await client.listRepositories();
+  expect(repos.length).toBeGreaterThan(0);
+});
+```
+
+**Forbidden:**
+- Separate test files for mock vs cluster
+- `test.skip.if(mode === 'mock')`
+- Different assertions per mode
+- `JEST_EXTRA_ARGS` to filter tests by mode (transitional only)
+
+### 3. Fail Fast, Always
+
+| Scenario | Required Behavior |
+|----------|-------------------|
+| Missing env var (cluster mode) | **Exit 1** with clear message |
+| Missing fixture (mock mode) | **Exit 1** with clear message |
+| Unknown mode value | **Exit 1** at startup |
+| External service unavailable | **Fail test** (not skip) |
+
+**Forbidden:**
+- Silent skips
+- Default/fallback env var values in cluster mode
+- `try/catch` that swallows missing dependencies
+- Empty test suites that "pass" with no assertions
+
+### 4. Language Alignment
+
+| Test Type | Language | Framework |
+|-----------|----------|-----------|
+| Integration | Same as service | Jest (TS), pytest (Python), go test (Go) |
+| E2E | TypeScript only | Playwright only |
+
+**Forbidden:**
+- Cypress, Selenium, or other E2E frameworks
+- Python/Go E2E tests
+- Integration tests in different language than service
+
+### 5. Canonical Folder Structure
+
+```
+services/<service>/
+  __mocks__/                    # Mock implementations (required)
+    index.ts                    # Public API
+    client.ts                   # Mock client factory
+    fixtures.ts                 # Typed fixture data
+  __tests__/
+    unit/                       # Pure unit tests
+    integration/                # Dual-mode tests
+      run_integration_tests.sh  # Entry point (required)
+      helpers.ts                # Mode-aware factories
+      *.test.ts
+```
+
+**Forbidden:**
+- Mocks scattered in test files
+- Missing `__mocks__/` directory for services with integration tests
+- `__tests__/integration/` without `run_integration_tests.sh`
+- Fixture data inline in tests
+
+---
+
+## Mode Contract
+
+### Environment Variable
+
+```bash
+INTEGRATION_TEST_MODE=mock|cluster
+```
+
+**Rules:**
+- Default: `mock` (safe for local development)
+- Unknown values: **Exit 1** (never fallback)
+- Case-insensitive: `MOCK`, `Mock`, `mock` all valid
+
+### Runner Script Contract
+
+Every `run_integration_tests.sh` must:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+# 1. Source mode helper (required)
+source "tools/integration-runner/integration-mode.sh"
+
+# 2. Resolve and export mode (required)
+MODE="$(integration_mode)"
+export INTEGRATION_TEST_MODE="${MODE}"
+
+# 3. Mode-specific setup (required)
+if [[ "${MODE}" == "mock" ]]; then
+  # Mock mode: no env var requirements
+  echo "[service] INTEGRATION_TEST_MODE=mock"
+else
+  # Cluster mode: validate required env vars
+  require_cluster_mode "${MODE}"
+  for var in GRPC_ADDRESS DATABASE_URL; do
+    [[ -z "${!var:-}" ]] && { echo "${var} required"; exit 1; }
+  done
+fi
+
+# 4. Emit structured log (required)
+printf '%s\n' '{"event":"integration_test_started","mode":"'"${MODE}"'"}'
+
+# 5. Source JUnit helper and run tests
+source "tools/integration-runner/junit-path.sh"
+JUNIT_PATH="$(resolve_junit_path service-name)"
+```
+
+---
+
+## Mock Layer Architecture
+
+### Structure
+
+```
+services/<service>/
+  __mocks__/
+    index.ts         # export { createMockClient, fixtures }
+    client.ts        # createMockClient() implementation
+    fixtures.ts      # typed fixture data
+    handlers.ts      # MSW handlers (if HTTP service)
+```
+
+### gRPC Mock Pattern (TypeScript)
+
+```typescript
+// __mocks__/client.ts
+import { createRouterTransport } from '@connectrpc/connect';
+import { Service } from '@ameide/core-proto';
+import { fixtures } from './fixtures';
+
+export function createMockTransport() {
+  return createRouterTransport(({ service }) => {
+    service(Service, {
+      list: () => fixtures.items,
+      get: (req) => {
+        const item = fixtures.items.find(i => i.id === req.id);
+        if (!item) throw new ConnectError('Not found', Code.NotFound);
+        return item;
+      },
+    });
+  });
+}
+```
+
+### Fixture Pattern
+
+```typescript
+// __mocks__/fixtures.ts
+import { Item, ItemStatus } from '@ameide/core-proto';
+
+export const fixtures = {
+  items: [
+    { id: 'item-001', name: 'Test', status: ItemStatus.ACTIVE },
+  ] satisfies Item[],
+
+  empty: { items: [] },
+
+  errors: {
+    notFound: { id: 'does-not-exist' },
+  },
+};
+```
+
+### Client Factory Pattern
+
+```typescript
+// __tests__/integration/helpers.ts
+import { getIntegrationMode, requireEnv } from 'tools/integration-runner/ts/mode';
+import { createMockTransport } from '../../__mocks__';
+import { createConnectTransport } from '@connectrpc/connect-node';
+
+export function createClient() {
+  const mode = getIntegrationMode();
+
+  return mode === 'cluster'
+    ? createConnectTransport({ baseUrl: requireEnv('GRPC_ADDRESS') })
+    : createMockTransport();
+}
+```
+
+---
+
+## E2E Tests
+
+### Location
+
+```
+services/www_ameide_platform/
+  features/<feature>/
+    __tests__/
+      e2e/
+        *.spec.ts
+```
+
+### Mock Mode (Target State)
+
+E2E tests in mock mode use MSW to intercept API calls:
+
+```typescript
+// playwright.config.ts
+export default defineConfig({
+  webServer: {
+    command: process.env.INTEGRATION_TEST_MODE === 'mock'
+      ? 'pnpm dev:mock'    // MSW-enabled dev server
+      : undefined,         // Cluster deployment
+  },
+});
+```
+
+### Personas
+
+| Persona | Role | Source |
+|---------|------|--------|
+| `owner` | Org admin | `playwright-int-tests-secrets` |
+| `viewer` | Read-only | `playwright-int-tests-secrets` |
+| `newmember` | Fresh user | `playwright-int-tests-secrets` |
+
+---
+
+## Artifacts
+
+### JUnit Output
+
+All tests emit JUnit XML:
+
+```bash
+source tools/integration-runner/junit-path.sh
+JUNIT_PATH="$(resolve_junit_path service-name)"
+# → /artifacts/service-name/junit.xml
+```
+
+### Playwright Artifacts
+
+| Type | Path |
+|------|------|
+| Report | `/artifacts/e2e/playwright-report/` |
+| Traces | `/artifacts/e2e/traces/` |
+| Screenshots | `/artifacts/e2e/screenshots/` |
+| Videos | `/artifacts/e2e/videos/` |
+
+---
+
+## Tilt Targets
+
+| Target | Mode | Purpose |
+|--------|------|---------|
+| `test-all-mock` | mock | All integration tests, in-memory |
+| `test-all-cluster` | cluster | All integration tests, k3d |
+| `e2e-playwright-run` | cluster | Playwright E2E suite |
+| `integration-<service>` | cluster | Per-service integration job |
+
+---
+
+## CI Strategy
+
+### Pre-Merge (Gates PR)
+
+```yaml
+test-integration-mock:
+  mode: mock
+  timeout: 10m
+  required: true
+```
+
+### Post-Merge (Nightly)
+
+```yaml
+test-integration-cluster:
+  mode: cluster
+  timeout: 30m
+
+test-e2e-playwright:
+  mode: cluster
+  timeout: 45m
+```
+
+---
+
+## Forbidden Patterns
+
+### Transitional Shims (Remove All)
+
+| Pattern | Why Forbidden |
+|---------|---------------|
+| `JEST_EXTRA_ARGS` test filtering by mode | Tests must run same in both modes |
+| `${VAR:-default}` in cluster mode | Cluster must require all vars |
+| `resolve_junit_path()` inline fallback | Use helper consistently |
+| Multiple URL env var checks | Single canonical var per service |
+
+### Legacy Env Vars (Never Use)
+
+| Variable | Replacement |
+|----------|-------------|
+| `RUN_INTEGRATION_TESTS` | `INTEGRATION_TEST_MODE=cluster` |
+| `*_USE_LIVE_DB` | `INTEGRATION_TEST_MODE=cluster` |
+| `*_INTEGRATION_ENABLED` | `INTEGRATION_TEST_MODE=cluster` |
+| `SKIP_*_TESTS` | Remove; fail if dependencies missing |
+
+### Anti-Patterns
+
+```typescript
+// FORBIDDEN: Conditional skip
+test.skipIf(mode === 'mock')('requires cluster', () => {});
+
+// FORBIDDEN: Different behavior per mode
+const expected = mode === 'mock' ? 'mock-response' : 'real-response';
+
+// FORBIDDEN: Swallowing errors
+try { await client.call(); } catch { /* ignore in mock */ }
+
+// FORBIDDEN: Empty test file
+describe('cluster-only tests', () => {
+  // nothing runs in mock mode
+});
+```
+
+---
+
+## Observability
+
+### Structured Logging
+
+Every test run emits:
+
+```json
+{
+  "event": "integration_test_started",
+  "service": "platform",
+  "mode": "cluster",
+  "env": {
+    "INTEGRATION_TEST_MODE": "cluster",
+    "GRPC_ADDRESS": "envoy.ameide.svc:443"
+  }
+}
+```
+
+### Metrics
+
+| Metric | Labels |
+|--------|--------|
+| `integration_test_duration_seconds` | `service`, `mode`, `result` |
+| `integration_test_result_total` | `service`, `mode`, `result` |
+
+---
+
+## Cross-References
+
+| Backlog | Relationship |
+|---------|--------------|
+| [362-unified-secret-guardrails](./362-unified-secret-guardrails.md) | Test credentials via ExternalSecrets |
+| [428-onboarding](./428-onboarding.md) | E2E requirements for onboarding |
+
+### Superseded
+
+| Backlog | Status |
+|---------|--------|
+| [371-e2e-playwright](./371-e2e-playwright.md) | Deprecated |
+| [376-integration-test-dual-modes](./376-integration-test-dual-modes.md) | Deprecated |
+
+---
+
+## Decision Log
+
+| Date | Decision | Rationale |
+|------|----------|-----------|
+| 2025-12-01 | Consolidate 371 + 376 | Single source of truth |
+| 2025-12-01 | E2E = Playwright only | Consistent tooling |
+| 2025-12-01 | Default mock mode | Safe for local dev |
+| 2025-12-01 | No silent skips | Fail fast exposes gaps |
+| 2025-12-02 | Target-state only | Remove transitional cruft |
+| 2025-12-02 | Forbid shims explicitly | Clear migration pressure |

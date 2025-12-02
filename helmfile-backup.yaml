@@ -1,0 +1,1128 @@
+# AMEIDE Platform Helmfile
+# Declarative Helm release management for all platform components
+#
+# IMPORTANT: Always deploy everything together. DO NOT use --selector.
+# The 'needs' dependencies ensure correct deployment order.
+# Usage: helmfile -e local sync
+#
+# Required helm plugins:
+# - helm plugin install https://github.com/databus23/helm-diff
+
+# Helm repositories
+repositories:
+  - name: bitnami
+    url: https://charts.bitnami.com/bitnami
+  - name: neo4j
+    url: https://neo4j.github.io/helm-charts
+  - name: temporal
+    url: https://temporalio.github.io/helm-charts
+  - name: open-telemetry
+    url: https://open-telemetry.github.io/opentelemetry-helm-charts
+  - name: prometheus-community
+    url: https://prometheus-community.github.io/helm-charts
+  - name: grafana
+    url: https://grafana.github.io/helm-charts
+  - name: spotahome
+    url: https://spotahome.github.io/redis-operator
+  - name: jetstack
+    url: https://charts.jetstack.io
+  - name: cnpg
+    url: https://cloudnative-pg.github.io/charts
+  - name: strimzi
+    url: https://strimzi.io/charts/
+  - name: verdaccio
+    url: https://charts.verdaccio.org
+  - name: gitlab
+    url: https://charts.gitlab.io
+  - name: altinity
+    url: https://altinity.github.io/helm-charts
+  - name: langfuse
+    url: https://langfuse.github.io/langfuse-k8s
+
+# Environments configuration
+environments:
+  # Local environment - ONLY for infrastructure (Tilt handles application services)
+  local:
+    values:
+      - namespace: ameide
+      - environments/local/values.yaml
+    kubeContext: ameide-local
+
+  staging:
+    values:
+      - namespace: ameide
+      - environments/staging/values.yaml
+    kubeContext: ameide-staging
+
+  production:
+    values:
+      - namespace: ameide
+      - environments/production/values.yaml
+    kubeContext: ameide-prod
+
+---
+# Global settings and releases
+helmDefaults:
+  createNamespace: false  # Namespace is managed by the namespace chart
+  wait: true
+  timeout: 900  # Allow heavy first installs (e.g. MinIO, Argo CD) to finish
+  force: false
+  atomic: true        # Auto-rollback on failure for better error recovery
+  cleanupOnFail: true
+  # recreatePods is deprecated in Helm 3.x - removed
+
+# Release templates for reuse
+templates:
+  default: &default
+    namespace: ameide
+    missingFileHandler: Warn
+    wait: true
+
+# Releases organized by layer
+releases:
+  #############################################
+  # Layer -1: Namespace (must be first)
+  #############################################
+  
+  # Create the namespace with all required labels
+  - name: namespace
+    namespace: default  # Deploy to default namespace since it creates ameide
+    chart: ./charts/platform/namespace
+    labels:
+      layer: namespace
+      component: namespace
+    wait: true
+    createNamespace: false
+  
+  #############################################
+  # Layer 0: Kubernetes Operators
+  #############################################
+
+  
+  
+  # Prometheus CRDs - Required for ServiceMonitor resources
+  - name: prometheus-crds
+    namespace: default
+    missingFileHandler: Warn
+    wait: true
+    chart: prometheus-community/prometheus-operator-crds
+    version: 17.0.0
+    labels:
+      layer: operators
+      component: monitoring-crds
+  
+  # CloudNativePG - PostgreSQL Operator (in dedicated namespace with cluster-wide RBAC)
+  - name: cloudnative-pg
+    namespace: cnpg-system
+    missingFileHandler: Warn
+    wait: true
+    createNamespace: true
+    chart: cnpg/cloudnative-pg
+    version: 0.25.0
+    values:
+      - charts/values/operators/cloudnative-pg.yaml
+    set:
+      - name: config.clusterWide
+        value: true
+      - name: additionalEnv[0].name
+        value: WATCH_NAMESPACE
+      - name: additionalEnv[0].value
+        value: ameide
+    labels:
+      layer: operators
+      component: database-operator
+    needs:
+      - default/prometheus-crds  # Wait for Prometheus CRDs
+  
+  # Strimzi - Kafka Operator (in dedicated namespace)
+  - name: strimzi-kafka-operator
+    namespace: strimzi-system
+    createNamespace: true
+    missingFileHandler: Warn
+    wait: true
+    chart: strimzi/strimzi-kafka-operator
+    version: 0.47.0
+    values:
+      - charts/values/operators/strimzi.yaml
+    labels:
+      layer: operators
+      component: kafka-operator
+  
+  # Cert-Manager - Certificate Management (in dedicated namespace)
+  - name: cert-manager
+    namespace: cert-manager
+    missingFileHandler: Warn
+    wait: true
+    timeout: 600
+    createNamespace: true
+    chart: jetstack/cert-manager
+    version: v1.19.1
+    values:
+      - charts/values/operators/cert-manager.yaml
+    labels:
+      layer: operators
+      component: certificate-operator
+    needs:
+      - default/prometheus-crds  # Wait for Prometheus CRDs
+  
+  # Redis Failover Operator (Spotahome) - manages Redis/Sentinel clusters
+  - name: redis-operator
+    namespace: redis-operator
+    missingFileHandler: Warn
+    wait: true
+    createNamespace: true
+    chart: spotahome/redis-operator
+    version: 3.2.1
+    values:
+      - charts/values/operators/redis-operator.yaml
+    labels:
+      layer: operators
+      component: redis-operator
+    needs:
+      - default/prometheus-crds  # Ensure CRDs installed before operator metrics
+
+  # Keycloak Operator - manages Keycloak instances via CRDs
+  - name: keycloak-operator
+    namespace: ameide
+    missingFileHandler: Warn
+    wait: true
+    chart: ./charts/operators/keycloak-operator
+    values:
+      - charts/values/operators/keycloak-operator.yaml
+      - environments/{{ .Environment.Name }}/operators/keycloak-operator.yaml
+    labels:
+      layer: operators
+      component: auth-operator
+
+  # ClickHouse Operator - manages ClickHouseInstallation CRs
+  - name: clickhouse-operator
+    namespace: ameide
+    missingFileHandler: Warn
+    wait: true
+    chart: altinity/altinity-clickhouse-operator
+    version: 0.25.4
+    values:
+      - charts/values/operators/clickhouse-operator.yaml
+      - environments/{{ .Environment.Name }}/operators/clickhouse-operator.yaml
+    labels:
+      layer: operators
+      component: clickhouse-operator
+
+  # External Secrets Operator - syncs secrets from Azure Key Vault
+  - name: external-secrets
+    namespace: external-secrets
+    missingFileHandler: Warn
+    wait: true
+    createNamespace: true
+    chart: external-secrets/external-secrets
+    version: 0.20.3
+    values:
+      - charts/values/operators/external-secrets.yaml
+      - environments/{{ .Environment.Name }}/operators/external-secrets.yaml
+    labels:
+      layer: operators
+      component: secrets-operator
+    installed: true
+
+  # GitLab Operator - manages GitLab instances via CRDs
+  - name: gitlab-operator
+    <<: *default
+    chart: gitlab/gitlab-operator
+    version: 2.5.0
+    values:
+      - charts/values/operators/gitlab-operator.yaml
+      - environments/{{ .Environment.Name }}/operators/gitlab-operator.yaml
+    labels:
+      layer: operators
+      component: gitlab
+    installed: false
+
+  # Tekton Operator manages Pipelines, Triggers, and related CRDs
+  - name: tekton-operator
+    namespace: tekton-operator
+    missingFileHandler: Warn
+    wait: true
+    createNamespace: true
+    chart: ./charts/operators/tekton-operator
+    values:
+      - charts/values/operators/tekton-operator.yaml
+      - environments/{{ .Environment.Name }}/operators/tekton-operator.yaml
+    labels:
+      layer: operators
+      component: cicd
+    installed: {{ ne .Environment.Name "local" }}
+    needs:
+      - default/prometheus-crds
+
+  #############################################
+  # Layer 1: Infrastructure Services
+  #############################################
+
+  # Azure Key Vault secrets materialization
+  - name: azure-keyvault-secrets
+    <<: *default
+    chart: ./charts/common/raw-manifests
+    values:
+      - charts/values/platform/azure-keyvault-secrets.yaml
+      - environments/{{ .Environment.Name }}/platform/azure-keyvault-secrets.yaml
+    set:
+      - name: environment
+        value: {{ .Environment.Name }}
+    installed: true
+    labels:
+      layer: infrastructure
+      component: secrets
+    needs:
+      - default/namespace  # Ensure target namespace exists
+      - external-secrets/external-secrets  # Requires operator to reconcile ExternalSecrets
+
+  # Argo CD - GitOps control plane
+  - name: argocd
+    namespace: argocd
+    missingFileHandler: Warn
+    createNamespace: true
+    chart: oci://ghcr.io/argoproj/argo-helm/argo-cd
+    version: 8.6.4
+    values:
+      - values/common/argocd.yaml
+      - environments/{{ .Environment.Name }}/platform/argocd.yaml
+    labels:
+      layer: infrastructure
+      component: gitops-control-plane
+    # Skip in local environment - not needed for development
+    installed: {{ ne .Environment.Name "local" }}
+    needs:
+      - default/namespace
+      - external-secrets/external-secrets
+      - ameide/azure-keyvault-secrets
+
+  # Argo CD App-of-Apps - bootstraps platform workloads
+  - name: argocd-apps
+    namespace: argocd
+    missingFileHandler: Warn
+    chart: oci://ghcr.io/argoproj/argo-helm/argocd-apps
+    version: 2.0.2
+    values:
+      - values/common/argocd-apps.yaml
+      - environments/{{ .Environment.Name }}/platform/argocd-apps.yaml
+    labels:
+      layer: infrastructure
+      component: gitops-control-plane
+    # Skip in local environment - not needed for development
+    installed: {{ ne .Environment.Name "local" }}
+    needs:
+      - argocd/argocd
+
+  # Redis Failover cluster (managed by operator)
+  - name: redis-failover
+    <<: *default
+    chart: ./charts/platform/redis-failover
+    values:
+      - charts/values/infrastructure/redis.yaml
+      - environments/{{ .Environment.Name }}/infrastructure/redis.yaml
+    labels:
+      layer: infrastructure
+      component: cache
+    needs:
+      - redis-operator/redis-operator  # Wait for operator to be ready
+
+  # Kafka cluster (managed by Strimzi operator)
+  - name: kafka-cluster
+    <<: *default
+    chart: ./charts/platform/kafka-cluster
+    values:
+      - charts/platform/kafka-cluster/values.yaml
+    labels:
+      layer: infrastructure
+      component: messaging
+    needs:
+      - strimzi-system/strimzi-kafka-operator  # Wait for operator
+  
+  # MinIO - Object storage
+  - name: minio
+    <<: *default
+    chart: bitnami/minio
+    version: 12.10.0
+    values:
+      - charts/values/infrastructure/minio.yaml
+      - environments/{{ .Environment.Name }}/infrastructure/minio.yaml
+    installed: {{ eq .Environment.Name "local" }}  # Only local env keeps the embedded MinIO
+    labels:
+      layer: infrastructure
+      component: storage
+  
+  # PostgreSQL clusters (managed by CloudNativePG operator)
+  - name: postgres-clusters
+    <<: *default
+    chart: ./charts/platform/postgres-clusters
+    values:
+      - charts/platform/postgres-clusters/values.yaml
+      - environments/{{ .Environment.Name }}/platform/postgres-clusters.yaml
+    labels:
+      layer: infrastructure
+      component: database
+    needs:
+      - cnpg-system/cloudnative-pg  # Wait for operator
+      - ameide/azure-keyvault-secrets  # Requires database credentials materialized
+
+  # ClickHouse cluster for Plausible analytics
+  - name: clickhouse-plausible
+    <<: *default
+    chart: ./charts/platform/clickhouse-plausible
+    values:
+      - charts/values/platform/clickhouse-plausible.yaml
+      - environments/{{ .Environment.Name }}/platform/clickhouse-plausible.yaml
+    labels:
+      layer: infrastructure
+      component: analytics-database
+    needs:
+      - ameide/clickhouse-operator  # Ensure operator and CRDs installed
+
+  # Keycloak - Identity and access management (managed by Keycloak Operator)
+  - name: keycloak
+    <<: *default
+    chart: ./charts/platform/keycloak-instance
+    values:
+      - charts/values/infrastructure/keycloak.yaml
+      - environments/{{ .Environment.Name }}/infrastructure/keycloak.yaml
+    labels:
+      layer: infrastructure
+      component: auth
+    needs:
+      - ameide/keycloak-operator  # Ensure operator is ready
+      - ameide/postgres-clusters  # Wait for database
+      - cert-manager/cert-manager  # Ensure cert-manager controllers are running
+      - ameide/azure-keyvault-secrets  # Ensure Keycloak secrets are present
+
+  # GitLab - DevOps platform managed by GitLab Operator
+  - name: gitlab
+    <<: *default
+    chart: ./charts/platform/gitlab
+    values:
+      - charts/platform/gitlab/values.yaml
+      - environments/{{ .Environment.Name }}/platform/gitlab.yaml
+    labels:
+      layer: infrastructure
+      component: git
+    installed: false
+    needs:
+      - ameide/gitlab-operator
+      - ameide/gateway
+
+  # Neo4j - Graph database
+  - name: neo4j
+    <<: *default
+    chart: neo4j/neo4j
+    version: 2025.9.0
+    values:
+      - charts/values/infrastructure/neo4j.yaml
+      - environments/{{ .Environment.Name }}/infrastructure/neo4j.yaml
+    installed: false
+    labels:
+      layer: infrastructure
+      component: database
+  
+  # Verdaccio - Private npm registry for local development
+  # Note: Release named "npm-registry" to avoid K8s env var conflicts with VERDACCIO_*
+  - name: npm-registry
+    <<: *default
+    chart: verdaccio/verdaccio
+    version: 4.26.1
+    values:
+      - charts/values/infrastructure/verdaccio.yaml
+      - environments/{{ .Environment.Name }}/infrastructure/verdaccio.yaml
+    labels:
+      layer: infrastructure
+      component: npm-registry
+  
+  # Verdaccio HTTPRoute - Gateway routing for npm registry
+  - name: verdaccio-route
+    <<: *default
+    chart: ./charts/platform/verdaccio
+    values:
+      - charts/platform/verdaccio/values.yaml
+    labels:
+      layer: infrastructure
+      component: npm-registry
+    needs:
+      - ameide/npm-registry  # Wait for npm-registry service
+      - ameide/gateway       # Wait for Gateway
+  
+  # Temporal - Workflow orchestration
+  - name: temporal
+    <<: *default
+    chart: temporal/temporal
+    version: 0.68.1
+    timeout: 600  # Extended timeout for Temporal initialization
+    atomic: false  # Don't rollback on timeout, let pods initialize
+    values:
+      - charts/values/infrastructure/temporal.yaml
+      - environments/{{ .Environment.Name }}/infrastructure/temporal.yaml
+    labels:
+      layer: infrastructure
+      component: workflow
+    needs:
+      - ameide/postgres-clusters  # Needs PostgreSQL databases
+      - ameide/redis-failover  # Uses Redis for visibility
+  
+  # OAuth2 Proxy - Azure AD protection for Temporal Web UI
+  - name: temporal-oauth2-proxy
+    <<: *default
+    chart: bitnami/oauth2-proxy
+    version: 8.0.2
+    values:
+      - charts/values/infrastructure/temporal-oauth2-proxy.yaml
+      - environments/{{ .Environment.Name }}/infrastructure/temporal-oauth2-proxy.yaml
+    labels:
+      layer: infrastructure
+      component: workflow
+    needs:
+      - ameide/temporal  # Depends on Temporal service being present
+      - ameide/azure-keyvault-secrets  # Needs OIDC credentials materialized
+      - ameide/gateway  # Ensure ingress is ready
+  
+  # Inference Engine - Custom AI agent execution platform
+  - name: inference
+    <<: *default
+    chart: ./charts/platform/inference
+    values:
+      - charts/values/platform/inference.yaml
+      - environments/{{ .Environment.Name }}/platform/inference.yaml
+    timeout: 420
+    labels:
+      layer: application
+      component: ai-execution
+      service: inference
+    # Managed by Tilt (local) and Argo CD (staging/production)
+    installed: {{ ne .Environment.Name "local" }}
+    needs:
+      - ameide/postgres-clusters  # Uses PostgreSQL for state
+      - ameide/redis-failover              # Uses Redis for caching
+      {{- if ne .Environment.Name "local" }}
+      - ameide/azure-keyvault-secrets      # Needs materialized credentials
+      {{- end }}
+
+  # Inference Gateway - Connect-Go gateway for AI inference
+  - name: inference-gateway
+    <<: *default
+    chart: ./charts/platform/inference-gateway
+    values:
+      - charts/values/platform/inference-gateway.yaml
+      - environments/{{ .Environment.Name }}/platform/inference-gateway.yaml
+    labels:
+      layer: application
+      component: ai-gateway
+      service: inference
+    # Managed by Tilt (local) and Argo CD (staging/production)
+    installed: {{ ne .Environment.Name "local" }}
+    needs:
+      - ameide/redis-failover  # Uses Redis for caching
+      - ameide/envoy-gateway  # Exposes via gateway
+
+  # Agents control-plane - manages catalog + artifacts
+  - name: agents
+    <<: *default
+    chart: ./charts/platform/agents
+    values:
+      - charts/values/platform/agents.yaml
+      - environments/{{ .Environment.Name }}/platform/agents.yaml
+    labels:
+      layer: application
+      component: ai-registry
+      service: agents
+    installed: {{ ne .Environment.Name "local" }}
+    needs:
+      - ameide/postgres-clusters
+      {{- if ne .Environment.Name "local" }}
+      - ameide/azure-keyvault-secrets
+      {{- end }}
+
+  # Agents runtime service - gRPC interface for LangGraph execution
+  - name: agents-runtime
+    <<: *default
+    chart: ./charts/platform/agents-runtime
+    values:
+      - charts/values/platform/agents-runtime.yaml
+      - environments/{{ .Environment.Name }}/platform/agents-runtime.yaml
+    labels:
+      layer: application
+      component: ai-runtime
+      service: agents
+    installed: {{ ne .Environment.Name "local" }}
+    needs:
+      - ameide/agents
+      - ameide/minio
+      {{- if ne .Environment.Name "local" }}
+      - ameide/azure-keyvault-secrets
+      {{- end }}
+
+  # Langfuse - LLM observability and evaluations console
+  - name: langfuse
+    <<: *default
+    chart: langfuse/langfuse
+    version: 1.5.8
+    values:
+      - charts/values/platform/langfuse.yaml
+      - environments/{{ .Environment.Name }}/platform/langfuse.yaml
+    labels:
+      layer: application
+      component: ai-observability
+    installed: true
+    needs:
+      - ameide/postgres-clusters
+      - ameide/redis-failover
+      - ameide/clickhouse-plausible
+
+  # Langfuse Bootstrap - Admin user, organization, project, API keys
+  - name: langfuse-bootstrap
+    <<: *default
+    chart: ./charts/platform/langfuse-bootstrap
+    values:
+      - charts/values/platform/langfuse-bootstrap.yaml
+      - environments/{{ .Environment.Name }}/platform/langfuse-bootstrap.yaml
+    labels:
+      layer: application
+      component: ai-observability
+      service: inference
+    installed: true
+    needs:
+      - ameide/langfuse
+      - ameide/azure-keyvault-secrets
+      - ameide/postgres-clusters
+
+  # Workflow Service - Workflow orchestration API
+  - name: workflow
+    <<: *default
+    chart: ./charts/platform/workflow
+    values:
+      - charts/values/platform/workflow.yaml
+      - environments/{{ .Environment.Name }}/platform/workflow.yaml
+    labels:
+      layer: application
+      component: workflow
+      service: workflow
+    installed: false
+    needs:
+      - ameide/postgres-clusters
+
+  # Workflow Worker - Temporal workers processing workflow runs
+  - name: workflow-worker
+    <<: *default
+    chart: ./charts/platform/workflow-worker
+    values:
+      - charts/values/platform/workflow-worker.yaml
+      - environments/{{ .Environment.Name }}/platform/workflow-worker.yaml
+    labels:
+      layer: application
+      component: workflow
+      service: workflow
+      role: worker
+    installed: false
+  
+  # Envoy Gateway - API Gateway and ingress controller
+  - name: envoy-gateway
+    <<: *default
+    chart: oci://docker.io/envoyproxy/gateway-helm
+    version: v1.5.3
+    values:
+      - charts/values/infrastructure/envoy-gateway.yaml
+      - environments/{{ .Environment.Name }}/infrastructure/envoy-gateway.yaml
+    labels:
+      layer: infrastructure
+      component: gateway
+  
+  # Gateway resources (Gateway and GatewayClass)
+  - name: gateway
+    <<: *default
+    chart: ./charts/platform/gateway
+    values:
+      - environments/{{ .Environment.Name }}/values.yaml  # Global environment values (includes domain)
+      - charts/platform/gateway/values.yaml
+      - environments/{{ .Environment.Name }}/platform/gateway.yaml
+    labels:
+      layer: infrastructure
+      component: gateway
+    needs:
+      - ameide/envoy-gateway  # Gateway needs the controller first
+  
+  # CoreDNS configuration for *.dev.ameide.io domain resolution
+  - name: coredns-config
+    <<: *default
+    chart: ./charts/platform/coredns-config
+    values:
+      - charts/platform/coredns-config/values.yaml
+      - environments/{{ .Environment.Name }}/platform/coredns-config.yaml
+    labels:
+      layer: infrastructure
+      component: dns
+    needs:
+      - ameide/gateway  # Needs Gateway to be deployed first to get service name
+  
+  # OpenTelemetry Collector
+  - name: otel-collector
+    <<: *default
+    chart: open-telemetry/opentelemetry-collector
+    version: 0.73.1
+    values:
+      - charts/values/infrastructure/otel-collector.yaml
+      - environments/{{ .Environment.Name }}/infrastructure/otel-collector.yaml
+    labels:
+      layer: infrastructure
+      component: observability
+  
+  #############################################
+  # Layer 2: Observability Stack
+  #############################################
+  
+  # Prometheus - Metrics collection
+  - name: prometheus
+    <<: *default
+    chart: prometheus-community/kube-prometheus-stack
+    version: 75.17.0
+    values:
+      - charts/values/infrastructure/prometheus.yaml
+      - environments/{{ .Environment.Name }}/infrastructure/prometheus.yaml
+    labels:
+      layer: observability
+      component: metrics
+    needs:
+      - external-secrets/external-secrets
+      - ameide/azure-keyvault-secrets  # Ensure Prometheus secrets are ready for OIDC proxies
+
+  # OAuth2 Proxy - Azure AD protection for Prometheus UI
+  - name: prometheus-oauth2-proxy
+    <<: *default
+    chart: bitnami/oauth2-proxy
+    version: 8.0.2
+    values:
+      - charts/values/infrastructure/prometheus-oauth2-proxy.yaml
+      - environments/{{ .Environment.Name }}/infrastructure/prometheus-oauth2-proxy.yaml
+    labels:
+      layer: observability
+      component: metrics
+    needs:
+      - ameide/prometheus              # Require Prometheus service before fronting it
+      - external-secrets/external-secrets
+      - ameide/azure-keyvault-secrets  # Materialize client credentials
+      - ameide/gateway                 # Reuse existing Gateway routes
+
+  # OAuth2 Proxy - Azure AD protection for Alertmanager UI
+  - name: alertmanager-oauth2-proxy
+    <<: *default
+    chart: bitnami/oauth2-proxy
+    version: 8.0.2
+    values:
+      - charts/values/infrastructure/alertmanager-oauth2-proxy.yaml
+      - environments/{{ .Environment.Name }}/infrastructure/alertmanager-oauth2-proxy.yaml
+    labels:
+      layer: observability
+      component: metrics
+    needs:
+      - ameide/prometheus
+      - external-secrets/external-secrets
+      - ameide/azure-keyvault-secrets
+      - ameide/gateway
+ 
+  # Loki - Log aggregation
+  - name: loki
+    <<: *default
+    chart: grafana/loki
+    version: 6.35.0
+    values:
+      - charts/values/infrastructure/loki.yaml
+      - environments/{{ .Environment.Name }}/infrastructure/loki.yaml
+    labels:
+      layer: observability
+      component: logs
+    needs:
+      - ameide/azure-keyvault-secrets
+
+  # OAuth2 Proxy - Azure AD protection for Loki UI
+  - name: loki-oauth2-proxy
+    <<: *default
+    chart: bitnami/oauth2-proxy
+    version: 8.0.2
+    values:
+      - charts/values/infrastructure/loki-oauth2-proxy.yaml
+      - environments/{{ .Environment.Name }}/infrastructure/loki-oauth2-proxy.yaml
+    labels:
+      layer: observability
+      component: logs
+    needs:
+      - ameide/loki
+      - external-secrets/external-secrets
+      - ameide/azure-keyvault-secrets
+      - ameide/gateway
+
+  # Tempo - Distributed tracing
+  - name: tempo
+    <<: *default
+    chart: grafana/tempo
+    version: 1.23.2
+    values:
+      - charts/values/infrastructure/tempo.yaml
+      - environments/{{ .Environment.Name }}/infrastructure/tempo.yaml
+    labels:
+      layer: observability
+      component: traces
+    needs:
+      - external-secrets/external-secrets
+      - ameide/azure-keyvault-secrets
+
+  # OAuth2 Proxy - Azure AD protection for Tempo UI
+  - name: tempo-oauth2-proxy
+    <<: *default
+    chart: bitnami/oauth2-proxy
+    version: 8.0.2
+    values:
+      - charts/values/infrastructure/tempo-oauth2-proxy.yaml
+      - environments/{{ .Environment.Name }}/infrastructure/tempo-oauth2-proxy.yaml
+    labels:
+      layer: observability
+      component: traces
+    needs:
+      - ameide/tempo
+      - external-secrets/external-secrets
+      - ameide/azure-keyvault-secrets
+      - ameide/gateway
+  
+  # Grafana - Visualization
+  - name: grafana
+    <<: *default
+    chart: grafana/grafana
+    version: 9.3.1
+    values:
+      - charts/values/infrastructure/grafana.yaml
+      - environments/{{ .Environment.Name }}/infrastructure/grafana.yaml
+    labels:
+      layer: observability
+      component: visualization
+    needs:
+      - ameide/prometheus
+      - ameide/loki
+      - ameide/tempo
+      - external-secrets/external-secrets  # Wait for ExternalSecret reconciliation in managed environments
+      - ameide/azure-keyvault-secrets      # Ensure Grafana credentials secret exists
+
+  # Kubernetes Dashboard - Cluster UI
+  - name: kubernetes-dashboard
+    namespace: kubernetes-dashboard
+    missingFileHandler: Warn
+    wait: true
+    createNamespace: true
+    installed: false
+    chart: kubernetes-dashboard/kubernetes-dashboard
+    version: 7.13.0
+    values:
+      - charts/values/infrastructure/kubernetes-dashboard.yaml
+      - environments/{{ .Environment.Name }}/infrastructure/kubernetes-dashboard.yaml
+    labels:
+      layer: observability
+      component: cluster-ui
+    needs:
+      - default/prometheus-crds
+
+  # OAuth2 Proxy for Kubernetes Dashboard (SSO)
+  - name: kubernetes-dashboard-oauth2-proxy
+    namespace: kubernetes-dashboard
+    missingFileHandler: Warn
+    wait: true
+    installed: false
+    chart: bitnami/oauth2-proxy
+    version: 8.0.2
+    values:
+      - charts/values/infrastructure/kubernetes-dashboard-oauth2-proxy.yaml
+      - environments/{{ .Environment.Name }}/infrastructure/kubernetes-dashboard-oauth2-proxy.yaml
+    labels:
+      layer: observability
+      component: cluster-ui
+    needs:
+      - kubernetes-dashboard/kubernetes-dashboard
+      - external-secrets/external-secrets
+      - ameide/azure-keyvault-secrets
+
+  # pgAdmin - Database administration UI protected by Azure AD
+  - name: pgadmin
+    <<: *default
+    chart: ./charts/platform/pgadmin
+    values:
+      - charts/values/infrastructure/pgadmin.yaml
+      - environments/{{ .Environment.Name }}/infrastructure/pgadmin.yaml
+    labels:
+      layer: observability
+      component: database-admin
+    needs:
+      - external-secrets/external-secrets
+      - ameide/azure-keyvault-secrets
+  
+  #############################################
+  # Cert-Manager Configuration (Issuers and Certificates)
+  - name: cert-manager-config
+    <<: *default
+    chart: ./charts/platform/cert-manager
+    values:
+      - charts/platform/cert-manager/values.yaml
+      - environments/{{ .Environment.Name }}/platform/cert-manager.yaml
+    labels:
+      layer: infrastructure
+      component: certificates
+    needs:
+      - ameide/gateway  # Needs Gateway for cert-manager annotations
+      - cert-manager/cert-manager  # Ensure cert-manager operator + webhook ready
+  
+  # Keycloak Realm Configuration
+  - name: keycloak-realm
+    <<: *default
+    chart: ./charts/platform/keycloak-realm
+    values:
+      - charts/platform/keycloak-realm/values.yaml
+    labels:
+      layer: infrastructure
+      component: auth-config
+  
+  #############################################
+  # Layer 3: Application Services
+  #############################################
+
+  # Centralized DB Migrations (Flyway)
+  - name: db-migrations
+    <<: *default
+    chart: ./charts/platform/db-migrations
+    values:
+      - charts/platform/db-migrations/values.yaml
+      - environments/{{ .Environment.Name }}/platform/db-migrations.yaml
+    labels:
+      layer: application
+      component: migrations
+    # Managed by Tilt (local) and Argo CD (staging/production)
+    installed: false
+    needs:
+      - ameide/postgres-clusters
+
+  # Repository Service - Connect-based artifact repository API
+  - name: repository
+    <<: *default
+    chart: ./charts/platform/repository
+    values:
+      - charts/values/platform/repository.yaml
+      - environments/{{ .Environment.Name }}/platform/repository.yaml
+    labels:
+      layer: application
+      component: backend
+      service: repository
+    # Managed by Tilt (local) and Argo CD (staging/production)
+    installed: false
+    needs:
+      - ameide/postgres-clusters
+  
+  # Platform Service - Organization and team management API
+  - name: platform
+    <<: *default
+    chart: ./charts/platform/platform
+    values:
+      - charts/values/platform/platform.yaml
+      - environments/{{ .Environment.Name }}/platform/platform.yaml
+    labels:
+      layer: application
+      component: backend
+      service: platform
+    # Managed by Tilt (local) and Argo CD (staging/production)
+    installed: false
+    needs:
+      - ameide/postgres-clusters
+  
+  # Web Frontend - Main Application
+  - name: www-ameide
+    <<: *default
+    chart: ./charts/platform/www-ameide
+    values:
+      - charts/values/platform/www-ameide.yaml
+      - environments/{{ .Environment.Name }}/platform/www-ameide.yaml
+    labels:
+      layer: application
+      component: frontend
+      service: web
+    # Managed by Tilt (local) and Argo CD (staging/production)
+    installed: false
+
+  # Web Frontend - Main Platform (Authenticated)
+  - name: www-ameide-platform
+    <<: *default
+    chart: ./charts/platform/www-ameide-platform
+    values:
+      - charts/values/platform/www-ameide-platform.yaml
+      - environments/{{ .Environment.Name }}/platform/www-ameide-platform.yaml
+    labels:
+      layer: application
+      component: frontend
+      service: web
+    # Managed by Tilt (local) and Argo CD (staging/production)
+    installed: false
+
+  # Plausible Analytics
+  - name: plausible
+    <<: *default
+    chart: ./charts/platform/plausible
+    values:
+      - charts/values/platform/plausible.yaml
+      - environments/{{ .Environment.Name }}/platform/plausible.yaml
+    labels:
+      layer: application
+      component: analytics
+    needs:
+      - ameide/postgres-clusters
+      - ameide/clickhouse-plausible
+      - ameide/azure-keyvault-secrets
+
+  # Per-service integration test jobs (disabled by default, triggered via Tilt/CI)
+  - name: integration-chat
+    namespace: ameide-int-tests
+    missingFileHandler: Warn
+    wait: true
+    chart: ./charts/integration-test-job
+    values:
+      - charts/values/integration/chat-integration.yaml
+      - environments/{{ .Environment.Name }}/integration-tests/chat.yaml
+    labels:
+      layer: qa
+      component: integration-tests
+      service: chat
+    installed: false
+
+  - name: integration-platform
+    namespace: ameide-int-tests
+    missingFileHandler: Warn
+    wait: true
+    chart: ./charts/integration-test-job
+    values:
+      - charts/values/integration/platform-integration.yaml
+      - environments/{{ .Environment.Name }}/integration-tests/platform.yaml
+    labels:
+      layer: qa
+      component: integration-tests
+      service: platform
+    installed: false
+
+  - name: integration-repository
+    namespace: ameide-int-tests
+    missingFileHandler: Warn
+    wait: true
+    chart: ./charts/integration-test-job
+    values:
+      - charts/values/integration/repository-integration.yaml
+      - environments/{{ .Environment.Name }}/integration-tests/repository.yaml
+    labels:
+      layer: qa
+      component: integration-tests
+      service: repository
+    installed: false
+
+  - name: integration-workflow
+    namespace: ameide-int-tests
+    missingFileHandler: Warn
+    wait: true
+    chart: ./charts/integration-test-job
+    values:
+      - charts/values/integration/workflow-integration.yaml
+      - environments/{{ .Environment.Name }}/integration-tests/workflow.yaml
+    labels:
+      layer: qa
+      component: integration-tests
+      service: workflow
+    installed: false
+
+  - name: integration-www-ameide
+    namespace: ameide-int-tests
+    missingFileHandler: Warn
+    wait: true
+    chart: ./charts/integration-test-job
+    values:
+      - charts/values/integration/www-ameide-integration.yaml
+      - environments/{{ .Environment.Name }}/integration-tests/www_ameide.yaml
+    labels:
+      layer: qa
+      component: integration-tests
+      service: www-ameide
+    installed: false
+
+  - name: integration-www-ameide-platform
+    namespace: ameide-int-tests
+    missingFileHandler: Warn
+    wait: true
+    chart: ./charts/integration-test-job
+    values:
+      - charts/values/integration/www-ameide-platform-integration.yaml
+      - environments/{{ .Environment.Name }}/integration-tests/www_ameide_platform.yaml
+    labels:
+      layer: qa
+      component: integration-tests
+      service: www-ameide-platform
+    installed: false
+
+  - name: integration-inference
+    namespace: ameide-int-tests
+    missingFileHandler: Warn
+    wait: true
+    chart: ./charts/integration-test-job
+    values:
+      - charts/values/integration/inference-integration.yaml
+      - environments/{{ .Environment.Name }}/integration-tests/inference.yaml
+    labels:
+      layer: qa
+      component: integration-tests
+      service: inference
+    installed: false
+
+  - name: integration-inference-gateway
+    namespace: ameide-int-tests
+    missingFileHandler: Warn
+    wait: true
+    chart: ./charts/integration-test-job
+    values:
+      - charts/values/integration/inference-gateway-integration.yaml
+      - environments/{{ .Environment.Name }}/integration-tests/inference-gateway.yaml
+    labels:
+      layer: qa
+      component: integration-tests
+      service: inference-gateway
+    installed: false
+
+  - name: integration-agents-runtime
+    namespace: ameide-int-tests
+    missingFileHandler: Warn
+    wait: true
+    chart: ./charts/integration-test-job
+    values:
+      - charts/values/integration/agents-runtime-integration.yaml
+      - environments/{{ .Environment.Name }}/integration-tests/agents-runtime.yaml
+    labels:
+      layer: qa
+      component: integration-tests
+      service: agents-runtime
+    installed: false
+
+  - name: integration-agents
+    namespace: ameide-int-tests
+    missingFileHandler: Warn
+    wait: true
+    chart: ./charts/integration-test-job
+    values:
+      - charts/values/integration/agents-integration.yaml
+      - environments/{{ .Environment.Name }}/integration-tests/agents.yaml
+    labels:
+      layer: qa
+      component: integration-tests
+      service: agents
+    installed: false
+
+# Helmfile hooks for lifecycle management
+hooks:
+  - events: ["prepare"]
+    showlogs: true
+    command: "bash"
+    args: ["-c", "echo '🚀 Starting AMEIDE Platform deployment using Helmfile'"]
+  
+  - events: ["cleanup"]
+    showlogs: true
+    command: "bash"
+    args: ["-c", "echo '✅ AMEIDE Platform deployment completed'"]

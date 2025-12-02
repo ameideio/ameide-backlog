@@ -1,0 +1,155 @@
+# RollingSync inventory (generated)
+
+- components root: `/workspaces/ameide-core/gitops/ameide-gitops/environments/dev/components`
+- application set: `/workspaces/ameide-core/gitops/ameide-gitops/environments/dev/argocd/apps/ameide.yaml`
+
+## RollingSync steps
+- step 1: maxUpdate=3 phases=[010]
+- step 2: maxUpdate=2 phases=[020]
+- step 3: maxUpdate=2 phases=[099]
+- step 4: maxUpdate=3 phases=[100]
+- step 5: maxUpdate=3 phases=[110]
+- step 6: maxUpdate=2 phases=[120]
+- step 7: maxUpdate=4 phases=[130]
+- step 8: maxUpdate=4 phases=[140]
+- step 9: maxUpdate=6 phases=[150]
+- step 10: maxUpdate=2 phases=[155]
+- step 11: maxUpdate=2 phases=[199]
+- step 12: maxUpdate=3 phases=[210]
+- step 13: maxUpdate=2 phases=[220]
+- step 14: maxUpdate=4 phases=[230]
+- step 15: maxUpdate=4 phases=[240]
+- step 16: maxUpdate=6 phases=[250]
+- step 17: maxUpdate=2 phases=[260]
+- step 18: maxUpdate=2 phases=[299]
+- step 19: maxUpdate=3 phases=[310]
+- step 20: maxUpdate=2 phases=[320]
+- step 21: maxUpdate=4 phases=[330]
+- step 22: maxUpdate=4 phases=[340]
+- step 23: maxUpdate=6 phases=[350]
+- step 24: maxUpdate=2 phases=[355]
+- step 25: maxUpdate=2 phases=[399]
+- step 26: maxUpdate=3 phases=[410]
+- step 27: maxUpdate=2 phases=[420]
+- step 28: maxUpdate=4 phases=[430]
+- step 29: maxUpdate=4 phases=[440]
+- step 30: maxUpdate=6 phases=[450]
+- step 31: maxUpdate=2 phases=[455]
+- step 32: maxUpdate=2 phases=[499]
+- step 33: maxUpdate=3 phases=[510]
+- step 34: maxUpdate=2 phases=[520]
+- step 35: maxUpdate=4 phases=[530]
+- step 36: maxUpdate=4 phases=[540]
+- step 37: maxUpdate=6 phases=[550]
+- step 38: maxUpdate=2 phases=[599]
+- step 39: maxUpdate=3 phases=[610]
+- step 40: maxUpdate=2 phases=[620]
+- step 41: maxUpdate=4 phases=[630]
+- step 42: maxUpdate=4 phases=[640]
+- step 43: maxUpdate=10 phases=[650]
+- step 44: maxUpdate=3 phases=[699]
+
+## Components by phase
+- **phase10**
+  - `foundation-namespaces` (foundation/namespaces/component.yaml) – foundation / ameide / argocd
+  - `foundation-crds-external-secrets` (foundation/crds/external-secrets/component.yaml) – foundation / ameide / argocd
+- **phase110**
+  - `foundation-crds-cert-manager` (foundation/crds/cert-manager/component.yaml) – foundation / ameide / argocd
+- **phase120**
+  - `foundation-cert-manager` (foundation/operators/cert-manager/component.yaml) – foundation / ameide / cert-manager
+  - `foundation-external-secrets` (foundation/operators/external-secrets/component.yaml) – foundation / ameide / external-secrets
+- **phase130**
+  - `foundation-vault-webhook-certs` (foundation/operators/vault-webhook-certs/component.yaml) – foundation / ameide / vault
+- **phase140**
+  - `foundation-coredns-config` (foundation/coredns-config/component.yaml) – foundation / ameide / foundation-coredns
+  - `foundation-managed-storage` (foundation/storage/managed-storage/component.yaml) – foundation / ameide / platform-storage
+- **phase150**
+  - `foundation-vault-core` (foundation/operators/vault/component.yaml) – foundation / ameide / vault
+- **phase155**
+  - `foundation-vault-bootstrap` (foundation/operators/vault-bootstrap/component.yaml) – foundation / ameide / vault
+  - `foundation-vault-secret-store` (foundation/secrets/vault-secret-store/component.yaml) – foundation / ameide / argocd
+- **phase199**
+  - `foundation-operators-smoke` (foundation/operators-smoke/component.yaml) – foundation / ameide / ameide
+  - `foundation-bootstrap-smoke` (foundation/bootstrap-smoke/component.yaml) – foundation / ameide / ameide
+  - `foundation-external-secrets-ready` (foundation/operators/external-secrets-ready/component.yaml) – foundation / ameide / external-secrets
+- **phase210**
+  - `foundation-crds-redis` (foundation/crds/redis/component.yaml) – data / ameide / argocd
+  - `data-crds-clickhouse` (data/crds/clickhouse/component.yaml) – data / ameide / argocd
+  - `data-crds-cnpg` (data/crds/cnpg/component.yaml) – data / ameide / argocd
+  - `data-crds-strimzi` (data/crds/strimzi/component.yaml) – data / ameide / argocd
+- **phase220**
+  - `foundation-cloudnative-pg` (foundation/operators/cloudnative-pg/component.yaml) – data / ameide / cnpg-system
+  - `foundation-clickhouse-operator` (foundation/operators/clickhouse/component.yaml) – data / ameide / clickhouse-operator
+  - `foundation-redis-operator` (foundation/operators/redis/component.yaml) – data / ameide / redis-operator
+  - `foundation-strimzi-operator` (foundation/operators/strimzi/component.yaml) – data / ameide / strimzi-system
+- **phase230**
+  - `data-clickhouse-secrets` (data/core/clickhouse-secrets/component.yaml) – data / ameide / ameide
+- **phase240**
+  - `foundation-cnpg-monitoring` (foundation/operators/cnpg-monitoring/component.yaml) – data / ameide / ameide
+- **phase250**
+  - `platform-postgres-clusters` (platform/auth/postgres-clusters/component.yaml) – data / ameide / ameide
+  - `data-clickhouse` (data/core/clickhouse/component.yaml) – data / ameide / ameide
+  - `data-kafka-cluster` (data/core/kafka-cluster/component.yaml) – data / ameide / ameide
+  - `data-minio` (data/core/minio/component.yaml) – data / ameide / ameide
+  - `data-redis-failover` (data/core/redis-failover/component.yaml) – data / ameide / ameide
+- **phase260**
+  - `data-db-migrations` (data/db/db-migrations/component.yaml) – data / ameide / ameide
+- **phase299**
+  - `data-data-plane-smoke` (data/core/data-plane-smoke/component.yaml) – data / ameide / ameide
+- **phase310**
+  - `platform-keycloak-crds` (platform/auth/keycloak-crds/component.yaml) – platform / ameide / ameide
+  - `platform-envoy-crds` (platform/control-plane/envoy-crds/component.yaml) – platform / ameide / ameide
+  - `foundation-crds-gateway` (foundation/crds/gateway-api/component.yaml) – platform / ameide / argocd
+- **phase320**
+  - `platform-envoy-gateway` (platform/control-plane/envoy-gateway/component.yaml) – platform / ameide / ameide
+  - `foundation-keycloak-operator` (foundation/operators/keycloak/component.yaml) – platform / ameide / ameide
+- **phase340**
+  - `platform-cert-manager-config` (platform/control-plane/cert-manager-config/component.yaml) – platform / ameide / ameide
+  - `platform-gateway` (platform/control-plane/gateway/component.yaml) – platform / ameide / ameide
+- **phase350**
+  - `platform-keycloak` (platform/auth/keycloak/component.yaml) – platform / ameide / ameide
+- **phase355**
+  - `platform-keycloak-realm` (platform/auth/keycloak-realm/component.yaml) – platform / ameide / ameide
+- **phase399**
+  - `platform-auth-smoke` (platform/auth/auth-smoke/component.yaml) – platform / ameide / ameide
+  - `platform-secrets-smoke` (platform/secrets/secrets-smoke/component.yaml) – platform / ameide / ameide
+  - `platform-control-plane-smoke` (platform/control-plane/control-plane-smoke/component.yaml) – platform / ameide / ameide
+- **phase450**
+  - `data-temporal` (data/extended/temporal/component.yaml) – data / ameide / ameide
+  - `data-pgadmin` (data/extended/pgadmin/component.yaml) – data / ameide / ameide
+- **phase455**
+  - `data-temporal-namespace-bootstrap` (data/extended/temporal-namespace-bootstrap/component.yaml) – data / ameide / ameide
+- **phase499**
+  - `data-data-plane-ext-smoke` (data/extended/data-plane-ext-smoke/component.yaml) – data / ameide / ameide
+- **phase510**
+  - `foundation-crds-prometheus` (foundation/crds/prometheus-operator/component.yaml) – observability / ameide / argocd
+- **phase530**
+  - `foundation-vault-secrets-observability` (foundation/secrets/vault-secrets-observability/component.yaml) – observability / ameide / ameide
+- **phase540**
+  - `platform-grafana-datasources` (platform/observability/grafana-datasources/component.yaml) – observability / ameide / ameide
+- **phase550**
+  - `platform-langfuse` (platform/observability/langfuse/component.yaml) – observability / ameide / ameide
+  - `platform-loki` (platform/observability/loki/component.yaml) – observability / ameide / ameide
+  - `platform-grafana` (platform/observability/grafana/component.yaml) – observability / ameide / ameide
+  - `platform-alloy-logs` (platform/observability/alloy-logs/component.yaml) – observability / ameide / ameide
+  - `platform-tempo` (platform/observability/tempo/component.yaml) – observability / ameide / ameide
+  - `platform-langfuse-bootstrap` (platform/observability/langfuse-bootstrap/component.yaml) – observability / ameide / ameide
+  - `platform-otel-collector` (platform/observability/otel-collector/component.yaml) – observability / ameide / ameide
+  - `platform-prometheus` (platform/observability/prometheus/component.yaml) – observability / ameide / ameide
+- **phase599**
+  - `platform-observability-smoke` (platform/observability/observability-smoke/component.yaml) – observability / ameide / ameide
+- **phase650**
+  - `apps-platform` (apps/core/platform/component.yaml) – apps / ameide / ameide
+  - `apps-transformation` (apps/core/transformation/component.yaml) – apps / ameide / ameide
+  - `apps-graph` (apps/core/graph/component.yaml) – apps / ameide / ameide
+  - `apps-workflows` (apps/core/workflows/component.yaml) – apps / ameide / ameide
+  - `apps-workflows-runtime` (apps/core/workflows-runtime/component.yaml) – apps / ameide / ameide
+  - `apps-threads` (apps/core/threads/component.yaml) – apps / ameide / ameide
+  - `apps-www-ameide-platform` (apps/web/www-ameide-platform/component.yaml) – apps / ameide / ameide
+  - `apps-www-ameide` (apps/web/www-ameide/component.yaml) – apps / ameide / ameide
+  - `apps-agents` (apps/runtime/agents/component.yaml) – apps / ameide / ameide
+  - `apps-agents-runtime` (apps/runtime/agents-runtime/component.yaml) – apps / ameide / ameide
+  - `apps-inference-gateway` (apps/runtime/inference-gateway/component.yaml) – apps / ameide / ameide
+  - `apps-inference` (apps/runtime/inference/component.yaml) – apps / ameide / ameide
+- **phase699**
+  - `apps-platform-smoke` (apps/qa/platform-smoke/component.yaml) – apps / ameide / ameide
