@@ -26,6 +26,29 @@ Pivot from dual-mode (offline-full k3d + online-telepresence) to a single **AKS 
 - Per-developer isolated clusters (share dev namespace with developer-specific deployments)
 - Local k3d clusters (fully remote-first)
 
+## Why Remote Dev Cluster (No k3d)
+
+Tilt's [Choosing a Local Dev Cluster](https://docs.tilt.dev/choosing_clusters.html) guide recommends remote dev clusters when:
+- You have a dedicated infra team maintaining cluster setup
+- Team is large enough to justify shared infrastructure
+- You want consistent environments across all developers
+
+We meet all three criteria:
+- `ameide-gitops` repo + bootstrap scripts = dedicated infra
+- GitOps team maintains AKS clusters
+- Eliminates "works on my k3d" issues
+
+**Trade-off accepted:** Network dependency. No offline development.
+
+## Version Pinning
+
+We standardize on **Telepresence 2.x** (currently 2.19). The exact version is pinned in `.devcontainer/Dockerfile`.
+
+Some CLI flags and behaviors evolve between minor versions. If you see unexpected behavior, check:
+1. Your installed version: `telepresence version`
+2. The pinned version in Dockerfile
+3. The [Telepresence changelog](https://github.com/telepresenceio/telepresence/releases)
+
 ---
 
 ## Architecture
@@ -88,59 +111,28 @@ Pivot from dual-mode (offline-full k3d + online-telepresence) to a single **AKS 
 - Apply manifests to AKS
 - `local_resource` → Run local processes (including intercepted services)
 
-### Developer Workflow Options
-
-#### Option A: Full Tilt (image build per change)
+### Developer Workflow
 
 ```bash
-# 1. Connect to cluster
+# 1. Connect to cluster (VPN-like tunnel)
 telepresence connect --namespace ameide
 
-# 2. Run Tilt - builds images, pushes to ACR, deploys to AKS
-tilt up -- --only=apps-www-ameide-platform-tilt
+# 2. Intercept the service you're developing
+telepresence intercept www-ameide-platform --port 3000:3000 --env-file=.env.telepresence
+
+# 3. Run locally with pod environment
+source .env.telepresence && npm run dev
 ```
 
-- Every code change → image rebuild → push to ACR → pod restart
-- Slower but tests full container environment
-- Good for: Dockerfile changes, dependency updates, final testing
-
-#### Option B: Telepresence Intercept (no image rebuild)
-
-```bash
-# 1. Connect to cluster
-telepresence connect --namespace ameide
-
-# 2. Intercept the service
-telepresence intercept www-ameide-platform --port 3000:3000
-
-# 3. Run locally (traffic from AKS → your laptop)
-npm run dev
-```
-
+**What happens:**
+- Traffic from AKS cluster → routed to your local process
 - Code changes → instant (no container rebuild)
-- Traffic from cluster routed to local process
-- Good for: Rapid iteration, debugging, hot reload
+- Pod's ConfigMaps/Secrets → available via `--env-file`
 
-#### Option C: Hybrid (Tilt orchestrates Telepresence)
-
-```python
-# Tiltfile
-local_resource(
-    'www-platform-dev',
-    serve_cmd='npm run dev',
-    deps=['services/www_ameide_platform/'],
-    resource_deps=['telepresence-intercept-platform']
-)
-
-local_resource(
-    'telepresence-intercept-platform',
-    cmd='telepresence intercept www-ameide-platform --port 3000:3000',
-    resource_deps=['telepresence-connect']
-)
-```
-
-- Tilt manages the intercept lifecycle
-- Best of both worlds: Tilt UI + Telepresence speed
+**When to use full image builds (Tilt):**
+- Dockerfile changes
+- Dependency updates (package.json, go.mod, requirements.txt)
+- Final integration testing before PR
 
 ### Tilt + Argo Coexistence (from 373/424)
 
@@ -224,11 +216,11 @@ The **isolation pattern** from backlogs 373 and 424 is preserved:
 | **DC-11** | Remove k3d feature from devcontainer.json | - |
 | **DC-12** | Remove ArgoCD bootstrap logic (Argo lives in AKS, managed by gitops) | - |
 | **DC-13** | Add AKS credential setup (az login + kubelogin) | - |
-| **DC-14** | Add Telepresence connect to postCreate.sh | - |
+| **DC-14** | Create `tools/dev/telepresence.sh` helper script | - |
 | **DC-15** | Install Telepresence CLI in Dockerfile | - |
 | **DC-16** | Remove `.devcontainer/lib/k3d.sh` and related modules | - |
 
-**Target postCreate.sh (~50 lines):**
+**Target postCreate.sh (~30 lines):**
 ```bash
 #!/bin/bash
 set -euo pipefail
@@ -240,10 +232,38 @@ pnpm install
 az aks get-credentials --resource-group Ameide-Dev --name ameide-dev-aks
 kubelogin convert-kubeconfig -l azurecli
 
-# Connect telepresence to cluster
-telepresence connect --namespace ameide
+echo "✅ Ready! Run './tools/dev/telepresence.sh connect' to connect to the cluster."
+```
 
-echo "✅ Ready! Run 'tilt up' to start developing."
+> **Note:** `telepresence connect` is an explicit developer step, not run automatically in postCreate.
+> This lets developers see connection errors clearly and choose their namespace/context.
+
+**Helper script `tools/dev/telepresence.sh`:**
+```bash
+#!/bin/bash
+set -euo pipefail
+
+case "${1:-}" in
+  connect)
+    telepresence connect --namespace ameide
+    ;;
+  intercept)
+    SERVICE="${2:?Usage: $0 intercept <service> [port]}"
+    PORT="${3:-3000:3000}"
+    telepresence intercept "$SERVICE" --port "$PORT" --env-file=.env.telepresence
+    echo "Run: source .env.telepresence && <your-dev-command>"
+    ;;
+  status)
+    telepresence status
+    ;;
+  quit)
+    telepresence quit
+    ;;
+  *)
+    echo "Usage: $0 {connect|intercept|status|quit}"
+    exit 1
+    ;;
+esac
 ```
 
 ### Phase 3: Adapt Tiltfile for Remote Cluster
@@ -328,6 +348,46 @@ if config.tilt_subcommand == 'up' and os.getenv('TELEPRESENCE_INTERCEPT'):
 - RBAC: Developers get `edit` role in `ameide` namespace
 - Telepresence: Traffic Manager deployed cluster-side
 
+### RBAC Requirements for Telepresence
+
+Telepresence `intercept` and `replace` require permissions to patch workloads (Deployment/StatefulSet) in the target namespace. The `edit` ClusterRole provides this.
+
+Required permissions:
+- `get`, `list`, `watch` on deployments, statefulsets, services
+- `patch`, `update` on deployments, statefulsets (for Traffic Agent injection)
+- `create` on pods/exec (for some debugging features)
+
+### ArgoCD + Telepresence Drift Avoidance
+
+**Critical rule:** Only intercept Tilt-owned workloads (`apps-*-tilt`), never ArgoCD-managed baselines.
+
+When Telepresence intercepts a workload, it:
+- Injects a Traffic Agent sidecar container
+- Adds annotations like `telepresence.getambassador.io/*`
+- Modifies the pod spec
+
+If you intercept an ArgoCD-managed workload, ArgoCD will see constant drift and fight to restore the original spec.
+
+**Safe pattern:**
+```bash
+# ✅ Safe: Intercept Tilt-owned release
+telepresence intercept apps-www-ameide-platform-tilt --port 3000:3000
+
+# ❌ Avoid: Intercept ArgoCD-managed baseline
+telepresence intercept apps-www-ameide-platform --port 3000:3000
+```
+
+If you must intercept ArgoCD workloads in dev, configure ArgoCD to ignore Telepresence annotations:
+```yaml
+# In ArgoCD Application
+spec:
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/template/metadata/annotations/telepresence.getambassador.io~1inject-traffic-agent
+```
+
 ### Registry: ACR
 
 - **Registry:** `ameidedev.azurecr.io`
@@ -358,11 +418,12 @@ telepresence status
 # List available services to intercept
 telepresence list
 
-# Intercept a service (route traffic to local)
-telepresence intercept www-ameide-platform --port 3000:3000
+# Intercept a service (app container keeps running, traffic mirrored)
+telepresence intercept www-ameide-platform --port 3000:3000 --env-file=.env.telepresence
 
-# Intercept with replace (stop original container)
-telepresence intercept www-ameide-platform --port 3000:3000 --replace
+# Replace a service (app container stopped, only your local process handles traffic)
+# Use this for queue consumers or when you need exclusive access
+telepresence replace www-ameide-platform --port 3000:3000 -- npm run dev
 
 # Leave intercept
 telepresence leave www-ameide-platform
@@ -371,11 +432,26 @@ telepresence leave www-ameide-platform
 telepresence quit
 ```
 
+> **Note:** `--replace` flag on `intercept` is deprecated. Use `telepresence replace` instead.
+
 ### Environment Variables
 
-When intercepting, Telepresence injects pod environment variables into your local process:
-- `TELEPRESENCE_INTERCEPT_ID`
-- `TELEPRESENCE_ROOT` (mount point for pod filesystem)
+Telepresence can import the intercepted pod's environment into your local process via:
+
+1. **`--env-file`** (recommended) - Write env vars to a file:
+   ```bash
+   telepresence intercept my-service --port 3000:3000 --env-file=.env.telepresence
+   source .env.telepresence && npm run dev
+   ```
+
+2. **`replace -- <command>`** - Run command with pod env applied:
+   ```bash
+   telepresence replace my-service --port 3000:3000 -- npm run dev
+   ```
+
+**Available variables:**
+- `TELEPRESENCE_INTERCEPT_ID` - Unique intercept identifier
+- `TELEPRESENCE_ROOT` - Mount point for pod filesystem (volumes)
 - All env vars from the intercepted pod (ConfigMaps, Secrets)
 
 ### Architecture Diagram
