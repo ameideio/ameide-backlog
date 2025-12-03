@@ -41,8 +41,129 @@ Even with `data-migrations-temporal` owning the schema and automated sync/retry 
 - Temporal pods in `ameide` namespace all Running; no CrashLoopBackOff.
 - Database: `schema_version` exists and reflects latest Temporal version (as reported by `temporal-sql-tool`).
 
+## Recovery Incident: 2025-12-03
+
+### Root Cause Analysis
+
+The Temporal migration failed due to multiple compounding issues:
+
+1. **PostgreSQL 15+ Schema Ownership Change**: PostgreSQL 15+ no longer grants world-writable access to the `public` schema by default. The `temporal` user could not create tables in the `public` schema of its own database because CNPG creates databases with `dbuser` as the owner.
+
+2. **Partial Migration State**: The `temporal-sql-tool` ran `setup-schema` which created tables and set `schema_version` to `0.0`, but then `update-schema` failed on an INSERT statement (`INSERT INTO namespace_metadata`) because:
+   - The job has `backoffLimit: 3`, causing retries
+   - First pod created tables successfully
+   - Retry pods hit "duplicate key" errors on the INSERT
+   - The tool ignores "table already exists" but NOT "duplicate key" errors
+
+3. **ArgoCD Hook State**: The migration job got stuck in "Terminating" state due to finalizers, blocking subsequent syncs.
+
+### Fixes Applied
+
+#### 1. CNPG Database CRD with Schema Ownership (Declarative)
+
+Modified the postgres_clusters Helm chart to support the `schemas` field in the CNPG Database CRD:
+
+**File**: `sources/charts/foundation/operators-config/postgres_clusters/templates/databases.yaml`
+```yaml
+{{- if $db.schemas }}
+  schemas:
+{{ toYaml $db.schemas | indent 4 }}
+{{- end }}
+```
+
+**File**: `sources/values/_shared/data/platform-postgres-clusters.yaml`
+```yaml
+databases:
+  - name: temporal
+    owner: temporal
+    schemas:
+      - name: public
+        owner: temporal
+  - name: temporal-visibility
+    dbName: temporal_visibility
+    owner: temporal_visibility
+    schemas:
+      - name: public
+        owner: temporal_visibility
+  # ... similar for all other databases
+```
+
+This ensures each database's `public` schema is owned by the database owner, fixing the PostgreSQL 15+ permission issue.
+
+#### 2. Migration Job Idempotency (Added but Incomplete)
+
+Added version checking to the migration job to skip if schema is already at target version:
+
+**File**: `sources/charts/platform-layers/temporal-migrations/templates/job.yaml`
+- Added `version_gte()` function to compare version strings
+- Calls `temporal-sql-tool describe-schema` before running migrations
+- Skips migration if current version >= target version
+
+**File**: `sources/values/_shared/data/data-migrations-temporal.yaml`
+```yaml
+databases:
+  default:
+    targetVersion: "1.18"
+  visibility:
+    targetVersion: "1.9"
+```
+
+**Note**: This idempotency check helps for future runs but doesn't handle partial migration states where tables exist but version is 0.0.
+
+#### 3. Manual Recovery of Partial State
+
+When migration failed mid-way (tables created, version=0.0, namespace_metadata row inserted):
+
+```bash
+# Delete the conflicting row that caused duplicate key errors
+kubectl exec -n ameide data-temporal-admintools-... -- \
+  env PGPASSWORD=dbpassword psql \
+  -h platform-postgres-clusters-rw.ameide.svc.cluster.local \
+  -U temporal -d temporal \
+  -c "DELETE FROM namespace_metadata WHERE partition_id = 54321;"
+
+# Delete stuck job and clear ArgoCD operation state
+kubectl delete job data-migrations-temporal-temporal-migrations -n ameide --force --grace-period=0
+kubectl patch application data-migrations-temporal -n argocd --type=merge -p '{"operation": null}'
+
+# Trigger fresh sync
+kubectl annotate application data-migrations-temporal -n argocd argocd.argoproj.io/refresh=hard --overwrite
+kubectl patch application data-migrations-temporal -n argocd --type=merge -p '{"operation": {"initiatedBy": {"username": "admin"}, "sync": {"prune": true}}}'
+```
+
+### Final State
+
+After recovery:
+- `temporal` database: schema version **1.18**
+- `temporal_visibility` database: schema version **1.9**
+- All Temporal pods: **Running**
+- ArgoCD apps: `data-migrations-temporal`, `data-temporal`, `data-temporal-namespace-bootstrap` all **Synced/Healthy**
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `sources/charts/foundation/operators-config/postgres_clusters/templates/databases.yaml` | Added `schemas` field support |
+| `sources/charts/foundation/operators-config/postgres_clusters/values.yaml` | Added schemas to all database definitions |
+| `sources/values/_shared/data/platform-postgres-clusters.yaml` | Added schemas with correct owners for all databases |
+| `sources/charts/platform-layers/temporal-migrations/templates/job.yaml` | Added version checking for idempotency |
+| `sources/charts/platform-layers/temporal-migrations/values.yaml` | Added `targetVersion` to database configs |
+| `sources/values/_shared/data/data-migrations-temporal.yaml` | Added `targetVersion` for default (1.18) and visibility (1.9) |
+
+### Known Limitations
+
+1. **temporal-sql-tool limitations**: The tool's `update-schema` command doesn't treat "duplicate key" INSERT errors as ignorable (unlike "table already exists"). This can cause failures on retry if the first attempt partially succeeded.
+
+2. **Partial state recovery**: If a migration fails mid-way, manual intervention may be needed to either:
+   - Delete conflicting rows and re-run
+   - Drop the database entirely and re-run (destructive)
+
+3. **Hook triggering**: ArgoCD hooks only run when there are actual resource changes. Adding a `force-trigger` annotation to the job values can help trigger re-runs when needed.
+
 ## Guardrails / follow-ups
 
 - Keep Temporal schema ownership in the dedicated Temporal migrations job; rerun `data-migrations-temporal` before Temporal upgrades to ensure compatibility (see `backlog/425-vendor-schema-ownership.md`).
 - If Temporal pods crash with schema errors, rerun `data-migrations-temporal`, then restart pods or allow Argo to resync, then rerun namespace bootstrap as needed.
 - Monitor first rollout after Temporal version bumps for schema compatibility checks; document any vendor‑specific caveats in this backlog and cross‑link from `backlog/420-temporal-cnpg-dev-registry-runbook.md` and `backlog/429-devcontainer-bootstrap.md`.
+- **PostgreSQL 15+ compatibility**: Always ensure CNPG Database CRDs include `schemas` with correct ownership for the database owner.
+- **Partial migration recovery**: If migration job fails with "duplicate key" errors, check the database state and delete conflicting rows before re-running.
