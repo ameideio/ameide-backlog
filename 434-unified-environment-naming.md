@@ -192,7 +192,8 @@ To align with the new structure, the remote cluster needs:
 > **Blocker:** Requires [Remote GitOps Migration](#migration-needed) to be completed first.
 
 - **ENV-30 – Install telepresence in devcontainer** ✅ Completed
-  - `.devcontainer/postCreate.sh` installs the latest Telepresence release from GitHub and logs `telepresence version`.
+  - Telepresence CLI installed via `.devcontainer/Dockerfile` (pinned version in `TELEPRESENCE_VERSION` ARG).
+  - **Capabilities:** `devcontainer.json` includes `--cap-add=NET_ADMIN` and `--device=/dev/net/tun` in `runArgs` for VIF tunnel support.
   - Maps to [432 DC-31](432-devcontainer-modes-offline-online.md#epic-dc-4--online-telepresence-mode)
 
 - **ENV-31 – Create telepresence connect helper script** ✅ Completed

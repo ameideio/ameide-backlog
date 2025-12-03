@@ -1,5 +1,11 @@
 > Note: Chart and values paths are now under gitops/ameide-gitops/sources (charts/values); any infra/kubernetes/charts references below are historical.
 
+> **DEPRECATED**: This backlog has been superseded by [430-unified-test-infrastructure.md](./430-unified-test-infrastructure.md).
+>
+> The content below is retained for historical reference. All new work should follow backlog 430.
+
+---
+
 # Integration Testing Framework
 
 **Status**: ✅ Integration Test Infrastructure Complete (October 2026)

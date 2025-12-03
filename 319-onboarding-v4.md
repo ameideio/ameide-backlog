@@ -1,4 +1,10 @@
-Below is a complete, implementation‑ready specification for a **Temporal** (temporal.io) workflows that takes a customer from **unqualified lead** to **fully registered and provisioned**. It’s structured as a deterministic orchestration with activities, retries, signals, queries, timeouts, and compensations (Sagas).
+> **DEPRECATED**: This backlog has been superseded by [428-onboarding.md](./428-onboarding.md).
+>
+> The content below is retained for historical reference. All new work should follow backlog 428.
+
+---
+
+Below is a complete, implementation‑ready specification for a **Temporal** (temporal.io) workflows that takes a customer from **unqualified lead** to **fully registered and provisioned**. It's structured as a deterministic orchestration with activities, retries, signals, queries, timeouts, and compensations (Sagas).
 
 ---
 

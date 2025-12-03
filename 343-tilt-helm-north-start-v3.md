@@ -1,5 +1,15 @@
 > Note: Chart and values paths are now under gitops/ameide-gitops/sources (charts/values); any infra/kubernetes/charts references below are historical.
 
+> **⚠️ DEPRECATED – SUPERSEDED BY [435-remote-first-development.md](435-remote-first-development.md)**
+>
+> This document describes the **local k3d + Tilt/Helm** workflow which is no longer used.
+> The project has migrated to a **remote-first model** where:
+> - **No local k3d cluster** – All development targets shared AKS dev cluster
+> - **Telepresence intercepts** – Replace Tilt's `helm_resource` hot-swap with traffic routing
+> - **Tilt for tests/SDKs only** – Service development uses Telepresence, not Tilt Helm releases
+>
+> See [435-remote-first-development.md](435-remote-first-development.md) for the current approach.
+
 # 343 – Tilt + Helm North Star v3
 
 **Status:** Draft for review  

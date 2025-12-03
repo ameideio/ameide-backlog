@@ -1,5 +1,15 @@
 > Note: Chart and values paths are now under gitops/ameide-gitops/sources (charts/values); any infra/kubernetes/charts references below are historical.
 
+> **⚠️ DEPRECATED – SUPERSEDED BY [435-remote-first-development.md](435-remote-first-development.md)**
+>
+> This document describes the **local k3d registry** workflow which is no longer used.
+> The project has migrated to a **remote-first model** where:
+> - **No local k3d cluster** – All development targets shared AKS dev cluster
+> - **No local registry** – Images push to GHCR (`ghcr.io/ameideio/...`)
+> - **Telepresence intercepts** – Traffic routing without local container builds
+>
+> See [435-remote-first-development.md](435-remote-first-development.md) for the current approach.
+
 # Registry Routing Hardening
 
 **Created:** Jan 2030  

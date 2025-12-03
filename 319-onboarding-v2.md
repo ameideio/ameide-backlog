@@ -1,3 +1,9 @@
+> **DEPRECATED**: This backlog has been superseded by [428-onboarding.md](./428-onboarding.md).
+>
+> The content below is retained for historical reference. All new work should follow backlog 428.
+
+---
+
 ## Backlog 319 – Realm-Per-Tenant Onboarding (v2)
 
 This document defines the **end-to-end onboarding flow** for the target architecture where each customer tenant receives its own Keycloak realm (no fallbacks, no partial provisioning). It supersedes the interim guidance in `backlog/319-onboarding.md` and pulls together decisions from:

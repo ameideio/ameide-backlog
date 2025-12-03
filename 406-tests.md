@@ -1,3 +1,9 @@
+> **DEPRECATED**: This backlog has been superseded by [430-unified-test-infrastructure.md](./430-unified-test-infrastructure.md).
+>
+> The content below is retained for historical reference. All new work should follow backlog 430.
+
+---
+
 # Reality check (Jan 2025)
 
 > ⚠️ **Remote-first note:** References to “cluster mode” in this document still assume a local k3d environment. The default now is to run integration/e2e packs against the shared AKS dev namespace via Telepresence (see [435-remote-first-development.md](435-remote-first-development.md)). Update any k3d instructions before using them.

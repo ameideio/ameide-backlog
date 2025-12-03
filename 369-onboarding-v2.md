@@ -1,3 +1,9 @@
+> **DEPRECATED**: This backlog has been superseded by [428-onboarding.md](./428-onboarding.md).
+>
+> The content below is retained for historical reference. All new work should follow backlog 428.
+
+---
+
 Edge Layer
 
 Marketing → product handoff is manual, so users still get dropped between ameide.io and the platform even though the reference flow expects a single, progressive orchestrator (backlog/319-onboarding.md:205-209).

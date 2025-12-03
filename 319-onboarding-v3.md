@@ -1,3 +1,9 @@
+> **DEPRECATED**: This backlog has been superseded by [428-onboarding.md](./428-onboarding.md).
+>
+> The content below is retained for historical reference. All new work should follow backlog 428.
+
+---
+
 ## Backlog 319 – Realm-Per-Tenant Onboarding (v3, Temporal-Orchestrated)
 
 This revision replaces the imperative `IdentityOrchestrator` with a **Temporal workflows** while preserving the existing HTTP surface (`/registrations/bootstrap`, `/registrations/complete`) and the Auth.js gating (`hasRealOrganization`). The aim is to obtain reliable, observable, and extensible orchestration for tenant activation, realm provisioning, and future payment/infra steps—without introducing a brand-new “Onboarding Service”.

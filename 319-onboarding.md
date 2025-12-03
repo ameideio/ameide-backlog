@@ -1,5 +1,11 @@
 > Note: Chart and values paths are now under gitops/ameide-gitops/sources (charts/values); any infra/kubernetes/charts references below are historical.
 
+> **DEPRECATED**: This backlog has been superseded by [428-onboarding.md](./428-onboarding.md).
+>
+> The content below is retained for historical reference. All new work should follow backlog 428.
+
+---
+
 # Onboarding & Invitation System - Implementation Status
 
 **Last Updated**: 2026-01-07  

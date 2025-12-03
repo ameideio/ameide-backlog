@@ -1,8 +1,18 @@
+> **⚠️ DEPRECATED – SUPERSEDED BY [435-remote-first-development.md](435-remote-first-development.md)**
+>
+> This document describes the **local k3d cluster** vendor alignment which is no longer relevant.
+> The project has migrated to a **remote-first model** where:
+> - **No local k3d cluster** – All development targets shared AKS dev cluster
+> - **No local registry** – Images push to GHCR (`ghcr.io/ameideio/...`)
+> - **No Docker-in-Docker** – DevContainer only needs kubectl + telepresence CLI
+>
+> See [435-remote-first-development.md](435-remote-first-development.md) for the current approach.
+
 # k3d Cluster Vendor Alignment
 
 **Created:** 2025-01-11
 **Owner:** Platform DX / Developer Experience
-**Status:** ✅ Complete
+**Status:** ❌ DEPRECATED (superseded by remote-first development)
 
 ## Goal
 

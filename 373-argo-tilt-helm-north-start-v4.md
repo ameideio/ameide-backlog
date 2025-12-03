@@ -1,7 +1,18 @@
-# 373 – Argo + Tilt + Helm North Star v4 **DEPRECATED** (superseded by backlog/424-tilt-www-ameide-separate-release.md)
+> **⚠️ DEPRECATED – SUPERSEDED BY [435-remote-first-development.md](435-remote-first-development.md)**
+>
+> This document describes the **Argo + Tilt + k3d** local cluster workflow.
+> The project has migrated to a **remote-first model** where:
+> - **No local k3d cluster** – All development targets shared AKS dev cluster
+> - **Telepresence intercepts** – Replace Tilt Helm resource swapping with traffic routing
+> - **ArgoCD in AKS** – Single Argo instance manages all environments (dev/staging/prod)
+>
+> The `-tilt` release isolation pattern from this backlog is preserved in the new architecture.
+> See [435-remote-first-development.md](435-remote-first-development.md) for the current approach.
 
-**Status:** Implemented (Go/Node/Python inner loop restored)  
-**Owner:** Platform DX / Developer Experience  
+# 373 – Argo + Tilt + Helm North Star v4 **DEPRECATED**
+
+**Status:** ❌ DEPRECATED (superseded by remote-first development)
+**Owner:** Platform DX / Developer Experience
 **Updated:** 2025-11-21
 
 ## Intent

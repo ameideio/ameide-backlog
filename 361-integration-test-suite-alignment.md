@@ -1,5 +1,11 @@
 > Note: Chart and values paths are now under gitops/ameide-gitops/sources (charts/values); any infra/kubernetes/charts references below are historical.
 
+> **DEPRECATED**: This backlog has been superseded by [430-unified-test-infrastructure.md](./430-unified-test-infrastructure.md).
+>
+> The content below is retained for historical reference. All new work should follow backlog 430.
+
+---
+
 Cross-Cutting
 
 ✅ Integration Helm resources now depend on `ameide_core_proto` before applying (`Tiltfile:1171,1192-1201`), so Buf build/push always runs ahead of the jobs per backlog/356.
