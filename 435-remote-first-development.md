@@ -558,6 +558,9 @@ Telepresence can import the intercepted pod's environment into your local proces
 ### Preserved (Critical Architecture)
 - **373** (Argo + Tilt + Helm North Star v4) - Defines two-path architecture (Argo baseline + Tilt overlay)
 - **424** (Tilt-only releases) - `apps-*-tilt` isolation pattern
+- **[434](434-unified-environment-naming.md)** (Unified Environment Naming) - Domain matrix, static IP flow, ArgoCD at `argocd.ameide.io`
+- **[436](436-envoy-gateway-observability.md)** (Envoy Gateway Observability) - EnvoyProxy telemetry and static IP config
+- **[438](438-cert-manager-dns01-azure-workload-identity.md)** (cert-manager DNS-01) - Certificate issuance per environment
 
 ### Superseded
 - **367** (Bootstrap v2) - Bootstrap logic moves to gitops

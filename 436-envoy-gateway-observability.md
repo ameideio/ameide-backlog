@@ -1,6 +1,7 @@
 # Backlog 436: Envoy Gateway Observability
 
 **Status**: Implemented
+**Updated**: 2025-12-03
 
 ## Overview
 
@@ -10,8 +11,10 @@ This document specifies the observability configuration for Envoy Gateway, inclu
 
 | Backlog | Topic | Relationship |
 |---------|-------|--------------|
-| [386-envoy-gateway-cert-tls-docs.md](386-envoy-gateway-cert-tls-docs.md) | TLS & cert-manager PKI | Control-plane certificates for xDS; EnvoyProxy runs in `envoy-gateway-system` namespace |
+| [434-unified-environment-naming.md](434-unified-environment-naming.md) | Environment naming & gateway architecture | Defines static IP flow: Bicep → globals.yaml → EnvoyProxy template |
+| [386-envoy-gateway-cert-tls-docs.md](386-envoy-gateway-cert-tls-docs.md) | TLS & cert-manager PKI | Control-plane certificates for xDS |
 | [417-envoy-route-tracking.md](417-envoy-route-tracking.md) | Route inventory | All routes emit access logs via this telemetry configuration |
+| [438-cert-manager-dns01-azure-workload-identity.md](438-cert-manager-dns01-azure-workload-identity.md) | DNS-01 certificates | Certificate issuance for gateway TLS |
 
 ## Background
 
@@ -24,15 +27,24 @@ GatewayClass (envoy)
     |
     +-- parametersRef --> EnvoyProxy (ameide-proxy-config)
                               |
+                              +-- spec.provider.kubernetes.envoyService
+                              |       |
+                              |       +-- loadBalancerIP: <from globals.yaml>
+                              |       +-- annotations: azure-load-balancer-resource-group
+                              |
                               +-- spec.telemetry
                                     |
-                                    +-- metrics.prometheus.enabled: true
+                                    +-- metrics.prometheus: {}
                                     |
                                     +-- accessLog.settings
                                           |
                                           +-- format: JSON
                                           +-- sinks: OpenTelemetry -> otel-collector:4317
 ```
+
+> **Note (2025-12-03):** EnvoyProxy is deployed to `ameide` namespace (not `envoy-gateway-system`)
+> because the Envoy Gateway controller runs there. Static IP configuration added via
+> `spec.provider.kubernetes.envoyService.loadBalancerIP`. See [434](434-unified-environment-naming.md#appendix-certificate--gateway-architecture).
 
 ## Implementation
 
@@ -49,23 +61,34 @@ GatewayClass (envoy)
 
 ### EnvoyProxy Resource
 
-Deployed to `envoy-gateway-system` namespace:
+Deployed to `ameide` namespace (where Envoy Gateway controller runs):
 
 ```yaml
 apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: EnvoyProxy
 metadata:
   name: ameide-proxy-config
-  namespace: envoy-gateway-system
+  namespace: ameide
 spec:
+  # Static IP configuration - see 434 for Bicep → globals.yaml flow
+  provider:
+    type: Kubernetes
+    kubernetes:
+      envoyService:
+        loadBalancerIP: "52.136.217.181"  # From globals.yaml:azure.envoyPublicIpAddress
+        annotations:
+          service.beta.kubernetes.io/azure-load-balancer-resource-group: "Ameide"
   telemetry:
     metrics:
-      prometheus:
-        enabled: true
+      prometheus: {}  # Note: schema uses empty object, not "enabled: true"
     accessLog:
       settings:
         - format:
             type: JSON
+            json:
+              start_time: "%START_TIME%"
+              method: "%REQ(:METHOD)%"
+              # ... (full format in template)
           sinks:
             - type: OpenTelemetry
               openTelemetry:
@@ -89,7 +112,7 @@ spec:
     group: gateway.envoyproxy.io
     kind: EnvoyProxy
     name: ameide-proxy-config
-    namespace: envoy-gateway-system
+    namespace: ameide  # Updated: was envoy-gateway-system
 ```
 
 ### Values Configuration
@@ -100,16 +123,21 @@ Base values in `sources/charts/apps/gateway/values.yaml`:
 telemetry:
   enabled: true
   name: ameide-proxy-config
-  namespace: envoy-gateway-system
+  namespace: ameide  # Updated: controller runs in ameide namespace
   metrics:
-    prometheus:
-      enabled: true
+    prometheus: {}
   accessLog:
     openTelemetry:
       host: otel-collector.ameide.svc.cluster.local
       port: 4317
       resources:
         k8s.cluster.name: "ameide"
+
+# Static IP configuration (per-environment)
+infrastructure:
+  useStaticIP: true  # Template reads azure.envoyPublicIpAddress from globals
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-resource-group: "Ameide"
 ```
 
 ### Environment-Specific Cluster Names
@@ -193,8 +221,11 @@ Prometheus scraping configured via ServiceMonitors (file: `sources/charts/apps/g
 ### Check EnvoyProxy resource
 
 ```bash
-kubectl get envoyproxy -n envoy-gateway-system
-kubectl describe envoyproxy ameide-proxy-config -n envoy-gateway-system
+kubectl get envoyproxy -n ameide
+kubectl describe envoyproxy ameide-proxy-config -n ameide
+
+# Verify static IP is configured
+kubectl get envoyproxy ameide-proxy-config -n ameide -o jsonpath='{.spec.provider}'
 ```
 
 ### Check GatewayClass references EnvoyProxy

@@ -293,3 +293,82 @@ The ameide-gitops repository structure is ready; cluster-side reconfiguration re
 2. **Second**: [ENV-10](#epic-env-1--environment-naming-standardization) domain rename (`tilt.ameide.io` → `local.ameide.io`)
 3. **Third**: [ENV-3](#epic-env-3--telepresence-implementation) telepresence implementation
 4. **Fourth**: [ENV-4](#epic-env-4--bootstrap-config-updates) bootstrap configs for staging/telepresence
+
+---
+
+## Appendix: Certificate & Gateway Architecture
+
+### Domain and Certificate Matrix
+
+| Environment | Domain | DNS Zone | Issuer | Certificate |
+|-------------|--------|----------|--------|-------------|
+| dev | `*.dev.ameide.io` | `dev.ameide.io` | `letsencrypt-dev-dns01` | `ameide-wildcard-tls` |
+| staging | `*.staging.ameide.io` | `staging.ameide.io` | `letsencrypt-staging-dns01` | `ameide-wildcard-tls` |
+| production | `*.ameide.io` | `ameide.io` | `letsencrypt-prod-dns01` | `ameide-wildcard-tls` |
+| ArgoCD (cluster) | `argocd.ameide.io` | `ameide.io` | `letsencrypt-apex-dns01` | `argocd-ameide-io-tls` |
+
+**Key decisions:**
+- Production uses apex domain (`ameide.io`) directly — there is NO `prod.ameide.io`
+- ArgoCD is cluster-level at `argocd.ameide.io`, not tied to any environment
+- Each environment has its own DNS zone and ClusterIssuer
+
+### Bicep → Helm Data Flow
+
+Infrastructure values flow from Bicep to Helm via git:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ Bicep deployment                                                 │
+│   bicep/main.bicep → az deployment group create                 │
+│                                                                  │
+│ Outputs:                                                         │
+│   - envoyPublicIpAddress (static IP for gateway)                │
+│   - dnsManagedIdentityClientId (for cert-manager DNS-01)        │
+│   - keyVaultUri, vaultBootstrapIdentityClientId                 │
+└─────────────────────────┬───────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────────┐
+│ scripts/update-globals-from-bicep.sh <env>                      │
+│                                                                  │
+│ Reads: artifacts/bicep-outputs/<env>.json                       │
+│ Updates: sources/values/<env>/globals.yaml                      │
+└─────────────────────────┬───────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────────┐
+│ Git commit + push                                                │
+└─────────────────────────┬───────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────────┐
+│ ArgoCD syncs                                                     │
+│                                                                  │
+│ Helm templates reference:                                        │
+│   {{ .Values.azure.envoyPublicIpAddress }}                      │
+│   {{ .Values.azure.dnsManagedIdentityClientId }}                │
+│                                                                  │
+│ globals.yaml auto-included via ApplicationSet templatePatch     │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Configuration Files
+
+| Purpose | File Path |
+|---------|-----------|
+| Bicep outputs sync | `scripts/update-globals-from-bicep.sh` |
+| Dev globals | `sources/values/dev/globals.yaml` |
+| Staging globals | `sources/values/staging/globals.yaml` |
+| Production globals | `sources/values/production/globals.yaml` |
+| Dev cert-manager | `sources/values/dev/platform/platform-cert-manager-config.yaml` |
+| Staging cert-manager | `sources/values/staging/platform/platform-cert-manager-config.yaml` |
+| Production cert-manager | `sources/values/production/platform/platform-cert-manager-config.yaml` |
+| Gateway config (dev) | `sources/values/dev/platform/platform-gateway.yaml` |
+| ApplicationSet | `environments/dev/argocd/apps/ameide.yaml` |
+
+### Vendor Documentation References
+
+- **AKS LoadBalancer static IP**: [Azure docs](https://learn.microsoft.com/en-us/azure/aks/static-ip) — Bicep creates IP, Service uses `loadBalancerIP`
+- **cert-manager Azure DNS**: [cert-manager docs](https://cert-manager.io/docs/configuration/acme/dns01/azuredns/) — per-zone ClusterIssuers
+- **ArgoCD multi-tenant**: [ArgoCD docs](https://argo-cd.readthedocs.io/en/stable/operator-manual/multi-tenancy/) — single instance, Project isolation
+- **Envoy Gateway**: [Gateway API](https://gateway-api.sigs.k8s.io/) — host-based routing via HTTPRoute

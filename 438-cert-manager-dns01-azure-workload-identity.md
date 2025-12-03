@@ -1,6 +1,9 @@
 # 438 – cert-manager DNS-01 with Azure Workload Identity
 
+**Updated**: 2025-12-03
+
 > **Related backlogs:**
+> - [434-unified-environment-naming.md](434-unified-environment-naming.md) — Environment naming, domain matrix, and certificate architecture
 > - [386-envoy-gateway-cert-tls-docs.md](386-envoy-gateway-cert-tls-docs.md) — TLS strategy for Envoy Gateway and cert-manager PKI
 > - [418-secrets-strategy-map.md](418-secrets-strategy-map.md) — secrets posture overview (cert-manager is part of Layer 15)
 > - [436-envoy-gateway-observability.md](436-envoy-gateway-observability.md) — Envoy Gateway telemetry using `EnvoyProxy` resource
@@ -8,6 +11,22 @@
 ## Overview
 
 This document describes the configuration and troubleshooting for cert-manager DNS-01 challenges using Azure DNS and Azure Workload Identity. This setup enables automated TLS certificate issuance for `*.dev.ameide.io` (and other child zones) via Let's Encrypt without storing Azure credentials in Kubernetes Secrets.
+
+### Domain and Certificate Matrix
+
+Per [434](434-unified-environment-naming.md#appendix-certificate--gateway-architecture):
+
+| Environment | DNS Zone | ClusterIssuer | Certificate |
+|-------------|----------|---------------|-------------|
+| dev | `dev.ameide.io` | `letsencrypt-dev-dns01` | `ameide-wildcard-dev` |
+| staging | `staging.ameide.io` | `letsencrypt-staging-dns01` | `ameide-wildcard-staging` |
+| production | `ameide.io` | `letsencrypt-prod-dns01` | `ameide-wildcard-prod` |
+| ArgoCD (cluster) | `ameide.io` | `letsencrypt-apex-dns01` | `argocd-ameide-io` |
+
+**Key decisions:**
+- Production uses apex domain (`ameide.io`) directly — there is NO `prod.ameide.io`
+- ArgoCD uses apex issuer for `argocd.ameide.io` (cluster-level, not env-specific)
+- Each environment has its own DNS zone and ClusterIssuer
 
 ## Architecture
 
