@@ -48,6 +48,12 @@ Python:
 ## Guardrails
 
 - `scripts/policy/check_docker_sources.sh` expects SDK copies and fails on registry fetches, `packages/ameide_core_proto` copies, or GO_SDK_VERSION/PYTHON_SDK_VERSION/NPM-SDK version stamping in service Dockerfiles.
+- `scripts/policy/check_dockerfile_parity.sh` enforces consistency between `Dockerfile.dev` and `Dockerfile.release`:
+  - Neither should copy `packages/ameide_core_proto` (SDK-only surface)
+  - Python services must have consistent `PYTHONPATH` including SDK src in both variants
+  - TypeScript services must copy `packages/ameide_sdk_ts` in both variants
+  - Go services must copy `packages/ameide_sdk_go` and use `go_use_workspace_sdk.sh` in both variants
+  - No SDK version stamping in either variant
 - `scripts/policy/enforce_proto_imports.sh` and `scripts/policy/check_lock_hygiene.sh` enforce SDK-only imports (no `packages/ameide_core_proto` in runtime code) and buf/validate presence in SDK trees.
 - `scripts/ci/go_use_workspace_sdk.sh` provides a shared Go workspace-SDK hydration step (prime SDK module, disable GOPROXY, apply replace); dev and release Dockerfiles should use it for Go services.
-- CI should fail if `pnpm why @ameideio/ameide-sdk-ts`, Go `go.mod` resolution, or Python imports resolve anywhere other than the workspace SDK packages for Rings 1/2.
+- CI should fail if `pnpm why @ameideio/ameide-sdk-ts`, Go `go.mod` resolution, or Python imports resolve anywhere other than the workspace SDK packages for Rings 1/2.
