@@ -126,7 +126,7 @@ To align with the new structure, the remote cluster needs:
   **Updated components:**
   | File | Change |
   |------|--------|
-  | `.devcontainer/manage-host-domains.sh` | Defaults to `dev.ameide.io,local.ameide.io` |
+| *(legacy)* `.devcontainer/manage-host-domains.sh` | removed in the remote-first workflow; Telepresence handles DNS routing |
   | `gitops/ameide-gitops/sources/values/local/apps/platform/gateway.yaml` | `https-local` listener + `auth.local.ameide.io` route |
   | `gitops/ameide-gitops/sources/values/dev/platform/platform-cert-manager-config.yaml` | Wildcard SANs for `*.local.ameide.io` |
   | `gitops/ameide-gitops/sources/values/dev/apps/apps-www-ameide(-platform)-tilt.yaml` | Hostnames + cookie domains moved to `local.ameide.io` |

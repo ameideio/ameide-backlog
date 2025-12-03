@@ -153,7 +153,7 @@ The CLI can accept `--config` to load overrides per environment while still allo
 ### 3.8 Domain naming
 
 Local development now uses the `local.ameide.io` domain so hostnames match the unified environment matrix (see [434-unified-environment-naming.md](434-unified-environment-naming.md#epic-env-1)). DNS helpers, cert-manager SANs, the Gateway listeners, and the Tilt-only Helm values were updated accordingly:
-- `.devcontainer/manage-host-domains.sh` now defaults to `dev.ameide.io,local.ameide.io`.
+- Host dnsmasq scripts are no longer required; Telepresence routes the `dev.ameide.io`/`local.ameide.io` traffic directly to the AKS cluster.
 - `gitops/ameide-gitops/sources/values/local/apps/platform/gateway.yaml` exposes the `https-local` listener plus `auth.local.ameide.io`.
 - `gitops/ameide-gitops/sources/values/dev/platform/platform-cert-manager-config.yaml` includes the local wildcard SAN.
 - `gitops/ameide-gitops/sources/values/dev/apps/apps-www-ameide-tilt.yaml` & `apps-www-ameide-platform-tilt.yaml` reference `platform.local.ameide.io`.

@@ -513,7 +513,7 @@ Potential follow-ups:
 
 ### Domain rename ([434](434-unified-environment-naming.md))
 
-The domain rename from `tilt.ameide.io` → `local.ameide.io` is complete. DNS automation (`.devcontainer/manage-host-domains.sh`), Gateway listeners, cert-manager SANs, and the Tilt-only Helm values all reference `*.local.ameide.io`. See [367-bootstrap-v2.md](367-bootstrap-v2.md#38-domain-naming) for the authoritative list.
+The domain rename from `tilt.ameide.io` → `local.ameide.io` is complete. Gateway listeners, cert-manager SANs, and the Tilt-only Helm values all reference `*.local.ameide.io`; host-level dnsmasq helpers were removed now that we rely on the remote AKS cluster + Telepresence. See [367-bootstrap-v2.md](367-bootstrap-v2.md#38-domain-naming) for the authoritative list.
 
 ### Remote AKS bootstrap ([367](367-bootstrap-v2.md))
 

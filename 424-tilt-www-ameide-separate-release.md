@@ -36,11 +36,8 @@
   - Keycloak in dev: `auth.dev.ameide.io` (canonical issuer) and `auth.local.ameide.io` (local alias) both route via Envoy to the shared Keycloak instance; apps in dev and Tilt are configured to use the `auth.dev.ameide.io` issuer.
 - Redis auth: tilt platform values now wire `redis.passwordSecret` (`redis-auth/password`) to avoid NOAUTH and keep parity with Argo releases. No inline secrets introduced.
 
-### DNS / host resolution (devcontainer)
-- `.devcontainer/manage-host-domains.sh` now configures multiple wildcard domains. Use:
-  - `DEV_WILDCARD_DOMAIN=dev.ameide.io,local.ameide.io DEV_WILDCARD_ADDRESS=127.0.0.1 .devcontainer/manage-host-domains.sh setup`
-  - This registers dnsmasq + `/etc/resolver` on macOS so both Argo (`*.dev.ameide.io`) and local (`*.local.ameide.io`) resolve to the local LB/Envoy.
-- In-cluster CoreDNS rewrite covers both `*.dev.ameide.io` and `*.local.ameide.io` → `envoy.ameide.svc.cluster.local` to keep internal resolution consistent with the gateway listeners.
+### DNS / host resolution
+- With the remote-first architecture, developers hit the public `*.ameide.io` domains directly (Envoy in AKS serves both `dev` and `local` aliases), so the old dnsmasq helper was removed. Telepresence handles routing cluster traffic back to the local process without requiring host-level resolver tweaks.
 
 ---
 

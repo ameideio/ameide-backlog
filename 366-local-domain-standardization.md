@@ -50,7 +50,7 @@
 ---
 
 ## Progress – 2025-02-18
-- ✅ **Docs & onboarding** – `README.md`, `infra/README.md`, and `infra/kubernetes/environments/README.md` now prescribe HTTPS-only access, document the `.devcontainer/export-cert.sh` trust flow, and point to `.devcontainer/manage-host-domains.sh` for dnsmasq automation.
+- ✅ **Docs & onboarding** – `README.md`, `infra/README.md`, and `infra/kubernetes/environments/README.md` now prescribe HTTPS-only access and the `.devcontainer/export-cert.sh`/`install-cert.sh` trust flow. Host dnsmasq automation is no longer needed in the remote-first Telepresence workflow.
 - ✅ **k3d / Gateway plumbing** – `infra/docker/local/k3d.yaml`, `build/scripts/dev.sh`, `gitops/ameide-gitops/sources/values/local/apps/platform/gateway.yaml`, and the gateway chart README were updated to remove 8080/8443 listeners and describe the 80/443 mapping exclusively.
 - ✅ **DNS + TLS configs** – Local CoreDNS values and the cert-manager chart comments reference only `*.dev.ameide.io`; backlog text now mandates single-SAN dev certificates.
 - ✅ **Helm chart defaults / policies** – Gateway CORS defaults and inference-gateway `SecurityPolicy` derive HTTPS origins from `Values.domain`; Keycloak HTTPRoute templates inject `X-Forwarded-Port: 443`.

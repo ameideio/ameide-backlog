@@ -194,7 +194,7 @@ Added vendor compliance callout:
 > - Docker-from-docker via mounted socket (devcontainer accesses host Docker daemon)
 
 #### Host DNS & Certificates
-- Added `.devcontainer/manage-host-domains.sh` instructions so macOS resolves `*.dev.ameide.io` to localhost (required because only 443/6550 are published).
+- Removed host dnsmasq instructions; remote-first flow uses public DNS + Telepresence, so local host overrides are no longer needed.
 - Documented `.devcontainer/export-cert.sh` (run inside devcontainer) and `.devcontainer/install-cert.sh` (run on host) so browsers and CLI trust the AMEIDE Dev Root CA for all HTTPS endpoints.
 
 > **Config Source of Truth:** The devcontainer only bootstraps tooling (Docker, k3d, Helmfile, Tilt) and local DNS/CA trust. Runtime application configuration (e.g., `AUTH_URL`, `AUTH_KEYCLOAK_ISSUER`, `AUTH_SECRET`, Redis/DB URLs) is always derived from Helm values and ExternalSecrets applied to the cluster (including Tilt `*-tilt` releases); the devcontainer must not be treated as a source of truth for those env vars.
