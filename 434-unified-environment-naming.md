@@ -115,6 +115,24 @@ To align with the new structure, the remote cluster needs:
 
 **Approach:** The legacy GitOps content should be removed entirely (not migrated). The AKS cluster should be bootstrapped fresh using `bootstrap-v2.sh` once the staging environment config exists in `ameide-gitops`.
 
+### Migration Status Update (2025-12-03)
+
+> **Note:** This section tracks current implementation status. Original tasks above preserved for historical context.
+
+| Task | Original Status | Current Status | Notes |
+|------|-----------------|----------------|-------|
+| **MIGRATE-1** | Pending | ⏳ Blocked | Legacy path still in use on cluster |
+| **MIGRATE-2** | Pending | ⏳ Blocked | Requires MIGRATE-1 |
+| **MIGRATE-3** | Pending | ✅ Complete | `environments/staging/argocd/` exists |
+| **MIGRATE-4** | Pending | ✅ Complete | `bootstrap/configs/staging.yaml` exists |
+| **MIGRATE-5** | Pending | ✅ Complete | Namespaces `ameide-dev/staging/prod` exist |
+| **MIGRATE-6** | Pending | ✅ Complete | Contexts configured in `scripts/devcontainer/bootstrap-contexts.sh` |
+| **MIGRATE-7** | Pending | ⏳ Blocked | Requires MIGRATE-1/2 on cluster |
+| **MIGRATE-8** | Pending | ⏳ Blocked | Requires full migration completion |
+
+**Current Blocker:** AKS cluster still points at legacy GitOps path (`ameide.git/infra/kubernetes/gitops/`).
+The ameide-gitops repository structure is ready; cluster-side reconfiguration remains.
+
 ## Backlog
 
 ### Epic ENV-1 – Environment Naming Standardization

@@ -1,6 +1,8 @@
 # Backlog 417: Envoy Gateway route coverage
 
-> ⚠️ **Remote-first note:** The inventories below previously referred to a local k3d cluster. After [435-remote-first-development.md](435-remote-first-development.md), “dev” means the shared AKS namespace (`ameide-dev`) reached via Telepresence; treat any residual k3d wording as historical context.
+> **Related**: See [386-envoy-gateway-cert-tls-docs.md](386-envoy-gateway-cert-tls-docs.md) for TLS/cert-manager PKI, and [436-envoy-gateway-observability.md](436-envoy-gateway-observability.md) for telemetry (access logs to OTEL, Prometheus metrics).
+
+> ⚠️ **Remote-first note:** The inventories below previously referred to a local k3d cluster. After [435-remote-first-development.md](435-remote-first-development.md), "dev" means the shared AKS namespace (`ameide-dev`) reached via Telepresence; treat any residual k3d wording as historical context.
 
 - Goal: align all public app/frontends to Envoy Gateway (Gateway API HTTPRoute/GRPCRoute) and remove residual Ingress usage that breaks health.
 - Actions:

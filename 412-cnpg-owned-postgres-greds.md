@@ -275,3 +275,22 @@ If you’d like, I can also turn this into a shorter ADR-style one-pager with an
 - CNPG `platform-postgres-clusters` now declares managed roles and emits the app DB Secrets itself (platform/agents/agents_runtime/graph/transformation/threads/workflows/temporal/keycloak plus the base postgres auth). Secrets keep legacy names to avoid app changes.
 - Vault-authored ExternalSecrets for those DB credentials were removed (foundation-vault-secrets-platform, foundation-vault-secrets-temporal, keycloak-db-credentials), eliminating the split-brain path; rollout-phase 250 now delivers both cluster and creds.
 - Vault can be reintroduced later as a mirror (PushSecret) if needed, but is no longer authoritative for Postgres users/passwords.
+
+### Status Update (2025-12-03)
+
+> **Review finding:** The CNPG managed roles infrastructure is in place, but ExternalSecrets
+> in `sources/values/_shared/foundation/foundation-vault-secrets-platform.yaml` still pull
+> some credentials FROM Vault (e.g., `postgres-ameide-auth-sync`).
+
+**Current state:**
+- ✅ CNPG managed roles defined in `sources/values/_shared/data/platform-postgres-clusters.yaml`
+- ✅ CNPG generates app-specific Secrets with connection strings
+- ⚠️ Some ExternalSecrets still sync DB credentials from Vault → Kubernetes
+- ❌ No PushSecrets implemented for CNPG → Vault mirroring (audit/compliance)
+
+**Gap:** Authority model not fully switched. CNPG infrastructure ready, but some Vault→K8s
+ExternalSecrets remain active. These should be removed to achieve the documented north star.
+
+**Next steps:**
+1. Remove remaining Vault→K8s ExternalSecrets for DB credentials
+2. Optionally add PushSecrets for K8s→Vault mirroring (read-only audit trail)

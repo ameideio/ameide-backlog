@@ -1,5 +1,7 @@
 ## Envoy Gateway TLS & Cert Management (dev) — Vendor-aligned shape with cert-manager present
 
+> **Related**: See [436-envoy-gateway-observability.md](436-envoy-gateway-observability.md) for telemetry configuration using `EnvoyProxy` resource, and [417-envoy-route-tracking.md](417-envoy-route-tracking.md) for route inventory.
+
 ### What we’re targeting (matches vendor guidance)
 - Keep cert-manager as the CA/issuer and let it mint all EG control-plane and external TLS certs.
 - Leave `certgen` **enabled** in values; certgen becomes a no-op when secrets already exist, keeping us on the supported path for OIDC/OAuth2 and other internals.

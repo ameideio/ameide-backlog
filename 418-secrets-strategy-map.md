@@ -30,3 +30,6 @@ Purpose: single view of our current secrets posture, with pointers to the source
 - Latest inventory: `backlog/418-secrets-strategy-map-snapshot.md` (auto-generated).
 - Regenerate with `python3 scripts/secrets_inventory.py` (writes Markdown with embedded JSON by default; use `--output` for a raw `.json`).
 - Script lives at `scripts/secrets_inventory.py` and scans repo YAML for Secret/ExternalSecret/PushSecret/SealedSecret resources; template files that cannot parse record best-effort metadata and list a parse error.
+
+> **Note (2025-12-03):** `scripts/secrets_inventory.py` was planned but not yet implemented.
+> For manual audit, use: `grep -r "kind: Secret\|kind: ExternalSecret\|kind: PushSecret" sources/`
