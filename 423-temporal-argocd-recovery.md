@@ -139,6 +139,15 @@ After recovery:
 - All Temporal pods: **Running**
 - ArgoCD apps: `data-migrations-temporal`, `data-temporal`, `data-temporal-namespace-bootstrap` all **Synced/Healthy**
 
+### Automation Follow-up: Guaranteed Re-runs + Setup Guardrail (2025-12-04)
+
+To avoid manual intervention the next time the hook needs to run:
+
+1. **Hook auto-trigger** – The `data-migrations-temporal` Helm chart now derives the `force-trigger` annotation automatically from the chart version + target schema versions. Any bump to either value causes ArgoCD to see a diff and rerun the pre-install hook; no more timestamp edits in `sources/values/_shared/data/data-migrations-temporal.yaml`.
+2. **Skip duplicate `setup-schema`** – The hook template now calls `setup-schema` only if `describe-schema` fails. If the schema already exists (even if the version is stuck at `0.0`), the job jumps straight to `update-schema`, which prevents the duplicate-key crash that previously required manual clean-up.
+
+> **Reminder:** The namespace bootstrap job (`data-temporal-namespace-bootstrap`) still depends on Temporal’s gRPC endpoint. Run the migrations first, ensure the Temporal deployments are healthy, and only then re-sync the namespace bootstrap Application.
+
 ### Files Modified
 
 | File | Change |
