@@ -417,6 +417,7 @@ spec:
 - [x] foundation-namespaces only creates environment namespace
 - [x] NetworkPolicies for cross-namespace isolation
 - [x] Documentation for isolation architecture (this doc)
+- [x] Per-environment Azure infrastructure (see [449-per-environment-infrastructure.md](449-per-environment-infrastructure.md))
 - [ ] Monitoring dashboards per namespace
 - [ ] Runbook for namespace failure recovery
 
