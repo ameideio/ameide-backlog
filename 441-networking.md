@@ -6,6 +6,8 @@
 > - [442-environment-isolation.md](442-environment-isolation.md) – Environment isolation
 > - [434-unified-environment-naming.md](434-unified-environment-naming.md) – Environment naming conventions
 > - [240-cluster-rightsizing.md](240-cluster-rightsizing.md) – Cluster resource planning
+> - [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md) – Dual ApplicationSet architecture
+> - [436-envoy-gateway-observability.md](436-envoy-gateway-observability.md) – EnvoyProxy telemetry configuration
 
 ## Implementation Status (2025-12-04)
 
@@ -35,10 +37,26 @@ Current networking configuration lacks several production-ready features:
 
 ### Gateway Architecture
 
-- **Gateway Controller**: Envoy Gateway v1.6.0
+- **Gateway Controller**: Envoy Gateway v1.6.0 (runs in `envoy-gateway-system` namespace)
 - **API Version**: Kubernetes Gateway API
 - **TLS**: cert-manager with wildcard certificates per environment
-- **Load Balancer**: Azure Standard LB with static public IPs
+- **Load Balancer**: Azure Standard LB with static public IPs per environment
+
+### EnvoyProxy Per-Environment Architecture
+
+Each environment has its own EnvoyProxy resource with a dedicated static IP from Terraform:
+
+| Environment | EnvoyProxy | Namespace | Static IP | Azure Resource |
+|-------------|------------|-----------|-----------|----------------|
+| dev | ameide-proxy-config | envoy-gateway-system | 40.68.113.216 | ameide-dev-envoy-pip |
+| staging | ameide-proxy-config | envoy-gateway-system | 108.142.228.7 | ameide-staging-envoy-pip |
+| production | ameide-proxy-config | envoy-gateway-system | 4.180.130.190 | ameide-prod-envoy-pip |
+| argocd (cluster) | cluster-proxy-config | argocd | 20.160.216.7 | ameide-argocd-pip |
+
+Configuration files:
+- Per-env static IPs: `sources/values/{dev,staging,production}/platform/platform-gateway.yaml`
+- Cluster gateway: `sources/charts/cluster/gateway/values.yaml`
+- EnvoyProxy template: `sources/charts/apps/gateway/templates/envoyproxy-telemetry.yaml`
 
 ### Tenant Routing Patterns
 

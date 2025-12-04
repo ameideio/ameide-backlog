@@ -350,16 +350,23 @@ This keeps infrastructure provisioning (Bicep) and per-tenant workloads (GitOps)
 | `deploymentMode` | string | No | `shared` \| `namespaceTenant` \| `privateTenant` (default: `shared`) |
 | `tenantSlug` | string | No | Tenant identifier for cluster naming (used when `deploymentMode=privateTenant`) |
 
-**Outputs:**
+**Outputs (Normalized snake_case format - see [444-terraform.md](444-terraform.md) for parity):**
 
 | Output | Description |
 |--------|-------------|
-| `aksResourceId` | AKS cluster resource ID |
-| `aksOidcIssuer` | OIDC issuer URL for workload identity |
-| `keyVaultUri` | Key Vault URI |
-| `envoyPublicIpAddress` | Static IP for ingress |
-| `dnsManagedIdentityClientId` | Client ID for DNS automation |
-| `containerRegistryLoginServer` | ACR login server |
+| `aks_cluster_name` | AKS cluster name |
+| `aks_resource_id` | AKS cluster resource ID |
+| `aks_oidc_issuer` | OIDC issuer URL for workload identity |
+| `keyvault_name` | Key Vault name |
+| `keyvault_uri` | Key Vault URI |
+| `argocd_public_ip_address` | Static IP for ArgoCD ingress |
+| `envoy_public_ips` | Map of per-environment Envoy IPs (dev/staging/prod) |
+| `dns_identity_client_id` | Client ID for DNS automation |
+| `vault_bootstrap_identity_client_id` | Vault bootstrap identity |
+| `backup_storage_account_name` | Backup storage account (optional) |
+| `backup_identity_client_id` | Backup identity client ID (optional) |
+
+> **Consistency testing**: Run `./infra/scripts/test-iac-consistency.sh schema` to verify output parity with Terraform.
 
 ### modules/aks.bicep
 
@@ -544,11 +551,20 @@ export AMEIDE_SP_PROFILE=creds/ameide-deploy-sp.json
 - [x] DNS identity with workload identity federation
 - [x] Single parametrized ApplicationSet
 - [x] Bicep modules for backup storage (`storageAccount.bicep`, `backupIdentity.bicep`) → **2025-12-04**
+- [x] **DEPLOY-8**: Per-environment Envoy IPs in Bicep (4 IPs: ArgoCD + 3 env-specific) → **2025-12-04**
+- [x] **DEPLOY-9**: Normalized output schema (23 snake_case outputs matching Terraform) → **2025-12-04**
+- [x] **DEPLOY-10**: IaC consistency test script (`infra/scripts/test-iac-consistency.sh`) → **2025-12-04**
+- [x] **DEPLOY-11**: Terraform remote state backend enabled (`use_azuread_auth`) → **2025-12-04**
+- [x] **DEPLOY-12**: Auto-create Terraform backend storage (`deploy.sh` creates RG/SA/container if missing) → **2025-12-04**
+- [x] **DEPLOY-13**: Unify `.env` loading across both deployment scripts → **2025-12-04**
+- [x] **DEPLOY-14**: Add error trap with line numbers to `deploy.sh` → **2025-12-04**
+- [x] **DEPLOY-15**: Add Key Vault soft-delete recovery to `deploy.sh` → **2025-12-04**
+- [x] **DEPLOY-16**: Add ArgoCD CLI context refresh to `deploy.sh` → **2025-12-04**
 
 ### In Progress
 
 - [ ] **DEPLOY-1**: Add CI/CD pipeline for automated deployments
-- [ ] **DEPLOY-2**: Implement Bicep what-if validation in PR checks
+- [ ] **DEPLOY-2**: Implement Bicep what-if validation in PR checks (can use `test-iac-consistency.sh what-if`)
 - [ ] **DEPLOY-3**: Add health checks after bootstrap (ArgoCD sync status)
 
 ### Pending

@@ -72,6 +72,22 @@ ameide-gitops/
 
 ### State Management
 
+The Terraform backend storage is **auto-created** by `deploy.sh` if it doesn't exist:
+
+```bash
+# Backend storage configuration (can be overridden via environment variables)
+TF_STATE_RG="ameide-tfstate"           # Resource group
+TF_STATE_SA="ameidetfstate"            # Storage account
+TF_STATE_CONTAINER="tfstate"           # Blob container
+TF_STATE_LOCATION="westeurope"         # Location
+
+# deploy.sh automatically:
+# 1. Creates resource group if missing
+# 2. Creates storage account with TLS 1.2, no public blob access
+# 3. Creates container with Azure AD auth
+# 4. Assigns Storage Blob Data Contributor role to current user
+```
+
 ```hcl
 # Azure backend (infra/terraform/azure/versions.tf)
 terraform {
@@ -80,6 +96,7 @@ terraform {
     storage_account_name = "ameidetfstate"
     container_name       = "tfstate"
     key                  = "azure.tfstate"
+    use_azuread_auth     = true  # No storage keys needed
   }
 }
 ```
@@ -254,5 +271,14 @@ Outputs written to `artifacts/terraform-outputs/azure.json` for bootstrap consum
 - [x] **TF-5**: Create Azure workspace → `infra/terraform/azure/`
 - [x] **TF-6**: Validate parity with Bicep → 33 resources imported
 - [x] **TF-7**: Refactor deploy.sh → `infra/scripts/deploy.sh` with bootstrap integration
+- [x] **TF-10**: Enable remote state backend → `infra/terraform/azure/versions.tf` (use_azuread_auth)
+- [x] **TF-11**: Normalize output names → 23 outputs now use consistent snake_case across Terraform and Bicep
+- [x] **TF-12**: Add per-env Envoy IPs to Bicep → `main.bicep` now creates 4 IPs (ArgoCD + 3 env-specific)
+- [x] **TF-13**: Create consistency test script → `infra/scripts/test-iac-consistency.sh`
+- [x] **TF-14**: Auto-create backend storage → `deploy.sh` now auto-creates RG, storage account, and container → **2025-12-04**
+- [x] **TF-15**: Unify .env loading → `deploy.sh` now loads `.env`/`.env.local` like `deploy-bicep.sh` → **2025-12-04**
+- [x] **TF-16**: Add error trap with line numbers → Better debugging aligned with `deploy-bicep.sh` → **2025-12-04**
+- [x] **TF-17**: Add Key Vault soft-delete recovery → Pre-deployment recovery aligned with Bicep → **2025-12-04**
+- [x] **TF-18**: Add ArgoCD CLI context refresh → Auto-login after bootstrap → **2025-12-04**
 - [ ] **TF-8**: AWS EKS module (future)
 - [ ] **TF-9**: Local k3d setup (future)

@@ -14,8 +14,12 @@
 | **Premium storage class** | ✅ Done | PostgreSQL, Redis, ClickHouse, Kafka updated to `managed-csi-premium` |
 | **Kafka persistent storage** | ✅ Done | Template updated with configurable persistent-claim storage |
 | **CNPG backups Bicep** | ✅ Done | `storageAccount.bicep`, `backupIdentity.bicep` modules created |
-| **CNPG backups deployment** | ⏳ Pending | Run Bicep with `enableBackupStorage=true`, then enable in CNPG values |
+| **CNPG backups Terraform** | ✅ Done | Backup modules created in `modules/azure-identity/` |
+| **IaC backup output parity** | ✅ Done | `backup_storage_account_name`, `backup_identity_client_id` in both Bicep & Terraform |
+| **CNPG backups deployment** | ⏳ Pending | Run Bicep/Terraform with `enableBackupStorage=true`, then enable in CNPG values |
 | **Node affinity (data tier)** | ⏳ Blocked | Waiting for node pools from 442 |
+
+> **Consistency testing**: Run `./infra/scripts/test-iac-consistency.sh schema` to verify Bicep and Terraform output parity.
 
 ## Problem Statement
 

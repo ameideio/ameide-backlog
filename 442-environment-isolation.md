@@ -13,6 +13,9 @@
 | Component | Status | Notes |
 |-----------|--------|-------|
 | **Bicep 4-pool strategy** | ✅ Done | `infra/bicep/managed-application/modules/aks.bicep` - system/dev/staging/prod pools |
+| **Bicep per-env Envoy IPs** | ✅ Done | 4 public IPs (ArgoCD + 3 env-specific Envoys) matching Terraform |
+| **IaC output parity** | ✅ Done | 23 normalized snake_case outputs (test via `test-iac-consistency.sh`) |
+| **Terraform remote state** | ✅ Done | `use_azuread_auth` backend enabled in `versions.tf` |
 | **Service tier labels** | ✅ Done | `tier` field in 20+ values files (`_shared/apps/*.yaml`, `_shared/data/*.yaml`) |
 | **Pod tier labels** | ✅ Done | `tierLabels` helper in 14 app charts (`_helpers.tpl` + `deployment.yaml`) |
 | **Environment state field** | ✅ Done | `environmentState: "on"` in all 3 environment `globals.yaml` |

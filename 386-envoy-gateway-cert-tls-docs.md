@@ -1,6 +1,8 @@
 ## Envoy Gateway TLS & Cert Management (dev) — Vendor-aligned shape with cert-manager present
 
-> **Related**: See [436-envoy-gateway-observability.md](436-envoy-gateway-observability.md) for telemetry configuration using `EnvoyProxy` resource, and [417-envoy-route-tracking.md](417-envoy-route-tracking.md) for route inventory.
+> **Related**: See [436-envoy-gateway-observability.md](436-envoy-gateway-observability.md) for telemetry configuration using `EnvoyProxy` resource, [417-envoy-route-tracking.md](417-envoy-route-tracking.md) for route inventory, and [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md) for dual ApplicationSet architecture.
+>
+> **Updated 2025-12-04**: EnvoyProxy resources are now deployed per-environment to `envoy-gateway-system` namespace with dedicated static IPs. See 436 for IP table.
 
 ### What we’re targeting (matches vendor guidance)
 - Keep cert-manager as the CA/issuer and let it mint all EG control-plane and external TLS certs.
@@ -9,7 +11,7 @@
 
 ### Implementation shape (target)
 - GitOps: EG control-plane TLS surfaced via cert-manager Issuers/Certificates in the platform cert-manager config chart (dev path below); certgen stays enabled with plain manifests (no hook semantics).
-- Namespace: install remains in `ameide` (single namespace for EG + Gateway resources). If desired, can move to `envoy-gateway-system` later; DNS names/certs must be updated accordingly.
+- Namespace: Envoy Gateway operator runs in `envoy-gateway-system` namespace. EnvoyProxy resources are deployed per-environment with dedicated static IPs. Gateway resources (Gateway, HTTPRoute) are in environment namespaces (`ameide-dev`, `ameide-staging`, `ameide-prod`).
 - Chart/values: `certgen.enabled=true`; certgen job/RBAC are plain resources (no Helm/Argo hooks) so they reconcile cleanly while cert-manager provides the real certs.
 
 ### Control-plane TLS via cert-manager (vendor doc “Control Plane Authentication using custom certs”)
@@ -75,11 +77,12 @@ Per `backlog/387-argocd-waves-v2.md`, CRDs are split from the operator chart:
 - Optional enhancement: add `cert-manager.io/issuer`/`cluster-issuer` annotations on Gateway resources if preferring per-Gateway Certificates over the pre-created wildcard.
 
 ### 5) Namespacing considerations
-- Current: everything in `ameide` (EG control-plane + Gateway resources + certs).
-- If moving to vendor default `envoy-gateway-system`, update:
-  - Cert-manager Issuers/Certificates namespaces and SANs.
-  - Application destination namespace.
-  - Gateway secrets references if they stay in a different namespace.
+- Current architecture:
+  - Envoy Gateway operator: `envoy-gateway-system` namespace
+  - EnvoyProxy resources: `envoy-gateway-system` (per-environment with static IPs)
+  - Gateway/HTTPRoute resources: environment namespaces (`ameide-dev`, `ameide-staging`, `ameide-prod`)
+  - Control-plane TLS certs: `envoy-gateway-system` (managed by cert-manager)
+- See [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md) for dual ApplicationSet architecture.
 
 ### 6) Argo/RollingSync hygiene for certgen
 - Certgen resources are normal, non-hook resources; if migrating from an older hook-based release, delete any lingering `platform-envoy-gateway-gateway-helm-certgen*` RBAC/Jobs once, then re-sync so Argo reconciles the plain resources cleanly.

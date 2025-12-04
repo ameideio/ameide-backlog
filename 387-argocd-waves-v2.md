@@ -1,5 +1,9 @@
 # Argo CD rollout phases v2: single orchestrated ladder
 
+> **Note (2025-12-04)**: Phases 010-020 (CRDs and operators) are now managed by the **cluster** ApplicationSet.
+> See [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md) for the dual ApplicationSet architecture.
+> This document remains relevant for environment phases (100+) managed by the **ameide** ApplicationSet.
+
 Objective: a single ApplicationSet + RollingSync enforces global ordering (CRDs -> operators -> configs/secrets -> bootstraps -> smokes) across foundation, platform, data, and apps. ExternalSecrets CRDs stay with CRDs; cross-set races are eliminated.
 
 ## Dependency fixes to apply

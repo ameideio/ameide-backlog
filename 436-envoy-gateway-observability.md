@@ -1,7 +1,7 @@
 # Backlog 436: Envoy Gateway Observability
 
 **Status**: Implemented
-**Updated**: 2025-12-03
+**Updated**: 2025-12-04
 
 ## Overview
 
@@ -42,9 +42,16 @@ GatewayClass (envoy)
                                           +-- sinks: OpenTelemetry -> otel-collector:4317
 ```
 
-> **Note (2025-12-03):** EnvoyProxy is deployed to `ameide` namespace (not `envoy-gateway-system`)
-> because the Envoy Gateway controller runs there. Static IP configuration added via
-> `spec.provider.kubernetes.envoyService.loadBalancerIP`. See [434](434-unified-environment-naming.md#appendix-certificate--gateway-architecture).
+> **Note (2025-12-04):** EnvoyProxy is deployed to `envoy-gateway-system` namespace per environment.
+> Each environment has its own EnvoyProxy with a dedicated static IP from Terraform.
+> See [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md) for dual ApplicationSet architecture.
+>
+> | Environment | EnvoyProxy Name | Namespace | Static IP |
+> |-------------|-----------------|-----------|-----------|
+> | dev | ameide-proxy-config | envoy-gateway-system | 40.68.113.216 |
+> | staging | ameide-proxy-config | envoy-gateway-system | 108.142.228.7 |
+> | production | ameide-proxy-config | envoy-gateway-system | 4.180.130.190 |
+> | argocd (cluster) | cluster-proxy-config | argocd | 20.160.216.7 |
 
 ## Implementation
 
@@ -61,23 +68,25 @@ GatewayClass (envoy)
 
 ### EnvoyProxy Resource
 
-Deployed to `ameide` namespace (where Envoy Gateway controller runs):
+Deployed to `envoy-gateway-system` namespace per environment:
 
 ```yaml
 apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: EnvoyProxy
 metadata:
   name: ameide-proxy-config
-  namespace: ameide
+  namespace: envoy-gateway-system
 spec:
-  # Static IP configuration - see 434 for Bicep → globals.yaml flow
+  # Static IP configuration - see per-environment values files
   provider:
     type: Kubernetes
     kubernetes:
       envoyService:
-        loadBalancerIP: "52.136.217.181"  # From globals.yaml:azure.envoyPublicIpAddress
+        type: LoadBalancer
+        loadBalancerIP: "40.68.113.216"  # Dev IP from Terraform
         annotations:
           service.beta.kubernetes.io/azure-load-balancer-resource-group: "Ameide"
+          service.beta.kubernetes.io/azure-load-balancer-ipv4: "40.68.113.216"
   telemetry:
     metrics:
       prometheus: {}  # Note: schema uses empty object, not "enabled: true"
@@ -92,10 +101,10 @@ spec:
           sinks:
             - type: OpenTelemetry
               openTelemetry:
-                host: otel-collector.ameide.svc.cluster.local
+                host: otel-collector.ameide-dev.svc.cluster.local
                 port: 4317
                 resources:
-                  k8s.cluster.name: "ameide-{env}"
+                  k8s.cluster.name: "ameide-dev"
 ```
 
 ### GatewayClass Reference
@@ -112,7 +121,7 @@ spec:
     group: gateway.envoyproxy.io
     kind: EnvoyProxy
     name: ameide-proxy-config
-    namespace: ameide  # Updated: was envoy-gateway-system
+    namespace: envoy-gateway-system
 ```
 
 ### Values Configuration
@@ -123,7 +132,7 @@ Base values in `sources/charts/apps/gateway/values.yaml`:
 telemetry:
   enabled: true
   name: ameide-proxy-config
-  namespace: ameide  # Updated: controller runs in ameide namespace
+  namespace: envoy-gateway-system
   metrics:
     prometheus: {}
   accessLog:
@@ -133,11 +142,23 @@ telemetry:
       resources:
         k8s.cluster.name: "ameide"
 
-# Static IP configuration (per-environment)
+# Static IP configuration (per-environment in values files)
 infrastructure:
-  useStaticIP: true  # Template reads azure.envoyPublicIpAddress from globals
+  useStaticIP: true
+  loadBalancerIP: ""  # Set per-environment
   annotations:
     service.beta.kubernetes.io/azure-load-balancer-resource-group: "Ameide"
+```
+
+Per-environment values (e.g., `sources/values/dev/platform/platform-gateway.yaml`):
+
+```yaml
+infrastructure:
+  useStaticIP: true
+  loadBalancerIP: "40.68.113.216"
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-resource-group: "Ameide"
+    service.beta.kubernetes.io/azure-load-balancer-ipv4: "40.68.113.216"
 ```
 
 ### Environment-Specific Cluster Names
@@ -221,11 +242,14 @@ Prometheus scraping configured via ServiceMonitors (file: `sources/charts/apps/g
 ### Check EnvoyProxy resource
 
 ```bash
-kubectl get envoyproxy -n ameide
-kubectl describe envoyproxy ameide-proxy-config -n ameide
+kubectl get envoyproxy -n envoy-gateway-system
+kubectl describe envoyproxy ameide-proxy-config -n envoy-gateway-system
 
 # Verify static IP is configured
-kubectl get envoyproxy ameide-proxy-config -n ameide -o jsonpath='{.spec.provider}'
+kubectl get envoyproxy ameide-proxy-config -n envoy-gateway-system -o jsonpath='{.spec.provider}'
+
+# Check cluster gateway EnvoyProxy (argocd namespace)
+kubectl get envoyproxy cluster-proxy-config -n argocd
 ```
 
 ### Check GatewayClass references EnvoyProxy
@@ -244,7 +268,7 @@ curl -s "http://$LOKI_IP:3100/loki/api/v1/query_range" \
 ### Verify Prometheus metrics
 
 ```bash
-kubectl port-forward -n ameide svc/envoy-gateway 19001:19001
+kubectl port-forward -n envoy-gateway-system svc/envoy-gateway 19001:19001
 curl http://localhost:19001/metrics
 ```
 
