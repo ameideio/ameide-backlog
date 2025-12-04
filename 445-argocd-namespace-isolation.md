@@ -83,9 +83,22 @@ argocd/
 │   └── templates/
 │       ├── clusterissuer.yaml
 │       └── certificate.yaml
+├── applications/
+│   └── cluster-gateway.yaml # Envoy Gateway for argocd.ameide.io
 ├── projects/                # ArgoCD AppProjects
 ├── applicationsets/         # Root ApplicationSets
 └── repos/                   # Repository credentials
+
+sources/charts/cluster/
+└── gateway/                 # Cluster-scoped gateway chart
+    ├── Chart.yaml
+    ├── values.yaml
+    └── templates/
+        ├── gatewayclass.yaml
+        ├── envoyproxy.yaml
+        ├── gateway.yaml
+        ├── httproute-argocd.yaml
+        └── redirect-gateway.yaml
 ```
 
 ### Kubernetes Resources in `argocd` Namespace
@@ -103,9 +116,15 @@ argocd/
 | Deployment | `cert-manager-webhook` | Cert-manager admission webhook |
 | Deployment | `cert-manager-cainjector` | CA bundle injection |
 | Service | `argocd-server` | LoadBalancer with static IP |
-| Secret | `argocd-server-tls` | TLS certificate for HTTPS |
-| ClusterIssuer | `letsencrypt-argocd` | Let's Encrypt for argocd.ameide.io |
-| Certificate | `argocd-server` | TLS cert for argocd.ameide.io |
+              | Secret | `argocd-ameide-io-tls` | TLS certificate for HTTPS |
+              | ClusterIssuer | `letsencrypt-argocd` | Let's Encrypt for argocd.ameide.io |
+              | Certificate | `argocd-server` | TLS cert for argocd.ameide.io |
+              | GatewayClass | `envoy-cluster` | Envoy Gateway controller class |
+              | Gateway | `cluster` | HTTPS gateway for argocd.ameide.io |
+              | Gateway | `cluster-redirect` | HTTP→HTTPS redirect gateway |
+              | HTTPRoute | `argocd` | Routes traffic to argocd-server |
+              | HTTPRoute | `http-to-https-redirect` | 301 redirect from HTTP |
+              | EnvoyProxy | `cluster-proxy-config` | LoadBalancer with static IP |
 
 ## Value Flow for TLS
 
@@ -130,7 +149,7 @@ argocd/tls/ Helm chart
        │
        ▼
 ClusterIssuer (letsencrypt-argocd)
-Certificate (argocd-server → argocd-server-tls secret)
+Certificate (argocd-server → argocd-ameide-io-tls secret)
 ```
 
 ## Sync Waves
@@ -141,16 +160,17 @@ ArgoCD uses sync waves to ensure correct deployment order:
 |------|-------------|-----------|
 | -1 | `argocd-cert-manager` | cert-manager Deployment, CRDs, Webhook |
 | 0 | `argocd-tls` | ClusterIssuer, Certificate |
+| 1 | `cluster-gateway` | GatewayClass, EnvoyProxy, Gateway, HTTPRoute |
 | (default) | Projects, ApplicationSets | AppProjects, ApplicationSets |
 
 ## DNS Configuration
 
-| Domain | Type | Target | Purpose |
-|--------|------|--------|---------|
-| `argocd.ameide.io` | A | Static Public IP | ArgoCD UI/API |
-| `*.dev.ameide.io` | A | Dev Envoy IP | Dev environment apps |
-| `*.staging.ameide.io` | A | Staging Envoy IP | Staging environment apps |
-| `*.ameide.io` | A | Prod Envoy IP | Production apps |
+| Domain | Type | Target | IP Address | Purpose |
+|--------|------|--------|------------|---------|
+| `argocd.ameide.io` | A | Cluster Gateway | 20.160.216.7 | ArgoCD UI/API |
+| `*.dev.ameide.io` | A | Dev Gateway | 40.68.113.216 | Dev environment apps |
+| `*.staging.ameide.io` | A | Staging Gateway | 108.142.228.7 | Staging environment apps |
+| `*.ameide.io` | A | Prod Gateway | 4.180.130.190 | Production apps |
 
 ## Workload Identity
 
@@ -202,3 +222,5 @@ Key metrics to monitor:
 - `feat: add cluster-scoped ArgoCD TLS with Helm chart pattern`
 - `feat: add isolated cert-manager for ArgoCD namespace`
 - `chore: sync cluster globals from terraform outputs`
+- `feat: add cluster-gateway with Envoy for argocd.ameide.io`
+- `fix: align certificate secret name to argocd-ameide-io-tls`
