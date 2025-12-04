@@ -93,7 +93,7 @@ Per [434](434-unified-environment-naming.md#appendix-certificate--gateway-archit
 ### DNS Identity Module
 
 The DNS managed identity and role assignments are defined in:
-- `bicep/managed-application/modules/dnsIdentity.bicep`
+- `infra/bicep/managed-application/modules/dnsIdentity.bicep`
 
 Key resources:
 1. **User-Assigned Managed Identity** (`ameide-dns-mi`)
@@ -330,11 +330,11 @@ If certificate issuance is stuck:
 
 | Purpose | Path |
 |---------|------|
-| DNS identity Bicep | `bicep/managed-application/modules/dnsIdentity.bicep` |
-| DNS role assignment | `bicep/managed-application/modules/dnsIdentityRoleAssignment.bicep` |
-| Child zone creation | `bicep/managed-application/modules/dnsChildZone.bicep` |
-| NS delegation | `bicep/managed-application/modules/dnsNsDelegation.bicep` |
-| Main Bicep | `bicep/managed-application/main.bicep` |
+| DNS identity Bicep | `infra/bicep/managed-application/modules/dnsIdentity.bicep` |
+| DNS role assignment | `infra/bicep/managed-application/modules/dnsIdentityRoleAssignment.bicep` |
+| Child zone creation | `infra/bicep/managed-application/modules/dnsChildZone.bicep` |
+| NS delegation | `infra/bicep/managed-application/modules/dnsNsDelegation.bicep` |
+| Main Bicep | `infra/bicep/managed-application/main.bicep` |
 | Shared cert-manager values | `sources/values/_shared/foundation/foundation-cert-manager.yaml` |
 | Dev cert-manager values | `sources/values/dev/foundation/foundation-cert-manager.yaml` |
 | Platform cert-manager config | `sources/values/dev/platform/platform-cert-manager-config.yaml` |

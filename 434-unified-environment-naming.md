@@ -5,7 +5,8 @@
 > [435-remote-first-development.md](435-remote-first-development.md).
 
 > **Related documents:**
-> - [435-remote-first-development.md](435-remote-first-development.md) – **NEW**: Remote-first development architecture
+> - [443-tenancy-models.md](443-tenancy-models.md) – **Tenancy model overview (single source of truth)**
+> - [435-remote-first-development.md](435-remote-first-development.md) – Remote-first development architecture
 > - [367-bootstrap-v2.md](367-bootstrap-v2.md) – Bootstrap design (moved to ameide-gitops)
 > - [429-devcontainer-bootstrap.md](429-devcontainer-bootstrap.md) – DevContainer bootstrap (superseded)
 > - [432-devcontainer-modes-offline-online.md](432-devcontainer-modes-offline-online.md) – DevContainer modes (retired)
@@ -25,6 +26,20 @@
 
 > **Naming note:** As finalized in [435-remote-first-development.md](435-remote-first-development.md), local development tunnels into the shared AKS cluster. All contexts follow the `ameide-{environment}` convention and simply select different namespaces inside the single `ameide` cluster.
 
+## Tenancy & Environment Matrix
+
+In addition to dev/staging/production environments, AMEIDE supports three tenancy models. See [443-tenancy-models.md](443-tenancy-models.md) for comprehensive documentation.
+
+| Tenancy Model | Cluster Pattern | Namespace Pattern | Example Domains |
+|---------------|-----------------|-------------------|-----------------|
+| Shared SaaS | Single shared cluster `ameide` | `ameide-prod` | `*.ameide.io` |
+| Namespace-per-tenant | Single shared cluster per region | `tenant-<slug>-prod` (per tenant) | `<slug>.ameide.io`, `api.<slug>.ameide.io` |
+| Private cloud (per-tenant) | Dedicated cluster `ameide-<slug>` per tenant | `ameide-dev/staging/prod` inside tenant cluster | `*.customer-domain.tld` or `*.ameide-<slug>.io` |
+
+Tenancy is **orthogonal** to environment:
+- We always keep `ameide-dev`, `ameide-staging`, `ameide-prod` as internal environments.
+- For namespace-per-tenant and private cloud, each tenant gets its own "production" environment running the same components.
+
 ### Shared AKS Cluster
 
 - **Resource group:** `Ameide`
@@ -32,11 +47,168 @@
 - **Kube contexts:** `ameide-dev`, `ameide-staging`, `ameide-prod` (all reference the same API server, differing only by namespace/user bindings)
 - **Namespaces:** `ameide-dev`, `ameide-staging`, `ameide-prod`, plus `argocd` and platform shared namespaces
 
+### Namespace & Pod Labels
+
+All workloads MUST be labeled consistently to support environment and tenant isolation (see [441-networking.md](441-networking.md), [442-environment-isolation.md](442-environment-isolation.md)):
+
+| Label | Values | Description |
+|-------|--------|-------------|
+| `ameide.io/environment` | `dev`, `staging`, `production`, `cluster` | SDLC stage |
+| `ameide.io/tenant-kind` | `shared`, `namespace`, `private` | Tenancy model |
+| `ameide.io/tenant-id` | `<tenant-slug>` (e.g., `acme`, `contoso`) | Tenant identifier |
+| `ameide.io/tier` | `frontend`, `backend`, `data`, `platform`, `foundation` | Service tier |
+
+**Examples:**
+
+Shared SaaS `ameide-prod` namespace:
+```yaml
+metadata:
+  name: ameide-prod
+  labels:
+    ameide.io/environment: production
+    ameide.io/tenant-kind: shared
+```
+
+Namespace-per-tenant `tenant-acme-prod` namespace:
+```yaml
+metadata:
+  name: tenant-acme-prod
+  labels:
+    ameide.io/environment: production
+    ameide.io/tenant-kind: namespace
+    ameide.io/tenant-id: acme
+```
+
+Backend pod labels:
+```yaml
+metadata:
+  labels:
+    ameide.io/environment: production
+    ameide.io/tenant-kind: namespace
+    ameide.io/tenant-id: acme
+    ameide.io/tier: backend
+```
+
+> **Reference:** See [443-tenancy-models.md](443-tenancy-models.md) for complete label documentation.
+
 ### Control plane & image ownership
 
-- **Argo CD:** A single Argo instance in the `argocd` namespace reconciles every environment namespace using Projects and ApplicationSets. There are no per-namespace Argo installations; isolation is enforced by Git (Projects) and RBAC, not by multiple controllers.
+- **Argo CD:** A single Argo instance in the `argocd` namespace reconciles every environment namespace using a **single parametrized ApplicationSet**. There are no per-namespace Argo installations or per-environment ApplicationSet files; isolation is enforced by Git (Projects) and RBAC, not by multiple controllers.
 - **GitHub Container Registry (GHCR):** `ameide-gitops` defines the repository/tag per environment. CI pushes images to GHCR, updates the GitOps values, and Argo syncs. No doc/tooling should reference Azure Container Registry directly.
 - **Tilt-only releases:** Developers still run Tilt + Telepresence for the inner loop. Those resources carry the `-tilt` suffix and point at developer-scoped tags in GHCR but never alter the Argo-managed baselines.
+
+### GitOps Repository Structure
+
+```
+ameide-gitops/
+├── argocd/                              # Cluster-level ArgoCD config
+│   ├── applicationsets/
+│   │   └── ameide.yaml                  # Single ApplicationSet for ALL environments
+│   ├── projects/
+│   │   ├── apps.yaml                    # Shared project definitions
+│   │   ├── platform.yaml
+│   │   └── data-services.yaml
+│   └── kustomization.yaml
+├── environments/
+│   └── _shared/
+│       └── components/                  # Shared component definitions
+│           ├── apps/
+│           ├── data/
+│           ├── foundation/
+│           └── platform/
+└── sources/
+    ├── charts/                          # Helm charts
+    └── values/
+        ├── _shared/                     # Shared values across environments
+        ├── dev/
+        │   └── globals.yaml             # namespace: ameide-dev
+        ├── staging/
+        │   └── globals.yaml             # namespace: ameide-staging
+        └── production/
+            └── globals.yaml             # namespace: ameide-prod
+```
+
+### Single Parametrized ApplicationSet
+
+Instead of duplicating ApplicationSet files per environment, a **single ApplicationSet** generates Applications for all environments:
+
+```yaml
+# argocd/applicationsets/ameide.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: ameide
+  namespace: argocd
+spec:
+  generators:
+    - matrix:
+        generators:
+          - list:
+              elements:
+                - env: dev
+                  namespace: ameide-dev
+                - env: staging
+                  namespace: ameide-staging
+                - env: production
+                  namespace: ameide-prod
+          - git:
+              repoURL: https://github.com/ameideio/ameide-gitops.git
+              revision: main
+              files:
+                - path: environments/_shared/components/**/component.yaml
+  template:
+    metadata:
+      name: '{{ .env }}-{{ .name }}'
+    spec:
+      destination:
+        namespace: '{{ .namespace }}'  # From list generator
+      sources:
+        - helm:
+            valueFiles:
+              - '$values/sources/values/{{ .env }}/globals.yaml'
+              - '$values/sources/values/_shared/{{ .domain }}/{{ .name }}.yaml'
+              - '$values/sources/values/{{ .env }}/{{ .domain }}/{{ .name }}.yaml'
+```
+
+**Benefits:**
+- Zero duplication of ApplicationSet logic
+- Namespace is explicit per environment in the list generator
+- Component.yaml files remain environment-agnostic
+- Adding a new environment = adding one list element
+
+#### ApplicationSet – Tenant-aware Generator (Future)
+
+For namespace-per-tenant deployments, extend the `list` generator with tenants:
+
+```yaml
+generators:
+  - matrix:
+      generators:
+        - list:
+            elements:
+              # Shared SaaS
+              - env: production
+                tenantKind: shared
+                tenantId: shared
+                namespace: ameide-prod
+              # Namespace-per-tenant
+              - env: production
+                tenantKind: namespace
+                tenantId: acme
+                namespace: tenant-acme-prod
+              - env: production
+                tenantKind: namespace
+                tenantId: contoso
+                namespace: tenant-contoso-prod
+        - git:
+            files:
+              - path: environments/_shared/components/**/component.yaml
+```
+
+Tenants only add new `list.elements` and per-tenant values under `sources/values/tenants/<tenant-id>/...`.
+
+> **Scaling note**: For >20 tenants, consider replacing the `list` generator with a
+> `git` generator that reads tenant definitions from `sources/values/tenants/*/tenant.yaml` files.
 
 ## Architecture
 
@@ -105,33 +277,53 @@ To align with the new structure, the remote cluster needs:
 | Task | Description | Status |
 |------|-------------|--------|
 | **MIGRATE-1** | Delete legacy GitOps path (`ameide.git/infra/kubernetes/gitops/`) | ⏳ Pending |
-| **MIGRATE-2** | Point Argo CD at `ameide-gitops` repo with `environments/staging/` path | ⏳ Pending |
-| **MIGRATE-3** | Create `gitops/ameide-gitops/environments/staging/` structure | ⏳ Pending |
-| **MIGRATE-4** | Create `infra/environments/staging/bootstrap.yaml` | ⏳ Pending |
+| **MIGRATE-2** | Point Argo CD at `ameide-gitops` repo with `argocd/` path | ⏳ Pending |
+| **MIGRATE-3** | Create `argocd/` structure with single parametrized ApplicationSet | ⏳ Pending |
+| **MIGRATE-4** | Create `bootstrap/configs/` for each environment | ⏳ Pending |
 | **MIGRATE-5** | Namespace split: `ameide` → `ameide-dev`, `ameide-staging`, `ameide-prod` within the single `ameide` cluster | ⏳ Pending |
 | **MIGRATE-6** | Create kube contexts/users `ameide-{env}` that target the shared cluster but default to the matching namespace | ⏳ Pending |
-| **MIGRATE-7** | Update ApplicationSets to use new environment pattern | ⏳ Pending |
+| **MIGRATE-7** | Consolidate ApplicationSets into single parametrized file | ⏳ Pending |
 | **MIGRATE-8** | Verify cluster is fully reproducible via bootstrap-v2 | ⏳ Pending |
+| **MIGRATE-9** | Update service URLs in values files to use `{{ .Values.namespace }}` | ✅ Complete |
+| **MIGRATE-10** | Remove hardcoded `namespace: ameide` from shared values; use `{{ .Release.Namespace }}` | ✅ Complete |
 
-**Approach:** The legacy GitOps content should be removed entirely (not migrated). The AKS cluster should be bootstrapped fresh using `bootstrap-v2.sh` once the staging environment config exists in `ameide-gitops`.
+**Approach:** The legacy GitOps content should be removed entirely (not migrated). The AKS cluster should be bootstrapped fresh using `bootstrap-v2.sh` once the `argocd/` structure exists in `ameide-gitops`.
 
-### Migration Status Update (2025-12-03)
+### Migration Status Update (2025-12-04)
 
-> **Note:** This section tracks current implementation status. Original tasks above preserved for historical context.
+> **Note:** This section tracks current implementation status.
 
-| Task | Original Status | Current Status | Notes |
-|------|-----------------|----------------|-------|
-| **MIGRATE-1** | Pending | ⏳ Blocked | Legacy path still in use on cluster |
-| **MIGRATE-2** | Pending | ⏳ Blocked | Requires MIGRATE-1 |
-| **MIGRATE-3** | Pending | ✅ Complete | `environments/staging/argocd/` exists |
-| **MIGRATE-4** | Pending | ✅ Complete | `bootstrap/configs/staging.yaml` exists |
-| **MIGRATE-5** | Pending | ✅ Complete | Namespaces `ameide-dev/staging/prod` exist |
-| **MIGRATE-6** | Pending | ✅ Complete | Contexts configured in `scripts/devcontainer/bootstrap-contexts.sh` |
-| **MIGRATE-7** | Pending | ⏳ Blocked | Requires MIGRATE-1/2 on cluster |
-| **MIGRATE-8** | Pending | ⏳ Blocked | Requires full migration completion |
+| Task | Current Status | Notes |
+|------|----------------|-------|
+| **MIGRATE-1** | ⏳ Blocked | Legacy path still in use on cluster |
+| **MIGRATE-2** | ⏳ Blocked | Requires MIGRATE-1 |
+| **MIGRATE-3** | ✅ Complete | `argocd/applicationsets/ameide.yaml` created |
+| **MIGRATE-4** | ✅ Complete | `bootstrap/configs/` exists |
+| **MIGRATE-5** | ✅ Complete | Namespaces `ameide-dev/staging/prod` exist on cluster |
+| **MIGRATE-6** | ✅ Complete | Contexts configured in `scripts/devcontainer/bootstrap-contexts.sh` |
+| **MIGRATE-7** | ✅ Complete | Single parametrized ApplicationSet in `argocd/applicationsets/ameide.yaml` |
+| **MIGRATE-8** | ⏳ Blocked | Requires MIGRATE-1 & MIGRATE-2 |
+| **MIGRATE-9** | ✅ Complete | Service URLs updated to use short names (Kubernetes DNS resolves within namespace) |
+| **MIGRATE-10** | ✅ Complete | Hardcoded `namespace: ameide` removed from shared values; templates use `{{ .Release.Namespace }}` |
 
 **Current Blocker:** AKS cluster still points at legacy GitOps path (`ameide.git/infra/kubernetes/gitops/`).
-The ameide-gitops repository structure is ready; cluster-side reconfiguration remains.
+
+**Repository Refactoring (Complete):**
+- [x] Create `argocd/applicationsets/ameide.yaml` (single parametrized ApplicationSet)
+- [x] Create `argocd/projects/` (shared project definitions)
+- [x] Create `argocd/kustomization.yaml`
+- [x] Add `namespace` field to `globals.yaml` for each environment
+- [x] Update service URLs to use short names (same-namespace DNS resolution)
+- [x] Remove `environments/*/argocd/` directories (replaced by `argocd/`)
+- [x] Remove hardcoded `namespace: ameide` from all shared values files
+- [x] Update ExternalSecret manifests to use `{{ .Release.Namespace }}`
+- [x] Update CNPG postgres cluster to use dynamic namespace (removed `namespaceOverride`)
+- [x] Add tier labels (`tier`, `domain`, `exposure`) to all app values files for NetworkPolicy support
+
+**Remaining Operational Steps:**
+- [ ] Point ArgoCD on AKS cluster at `ameide-gitops` repo with `argocd/` path
+- [ ] Delete legacy GitOps path from `ameide.git`
+- [ ] Verify full cluster sync with new structure
 
 ## Backlog
 
@@ -356,15 +548,21 @@ Infrastructure values flow from Bicep to Helm via git:
 
 | Purpose | File Path |
 |---------|-----------|
-| Bicep outputs sync | `scripts/update-globals-from-bicep.sh` |
+| **ArgoCD (cluster-level)** | |
+| ApplicationSet (all envs) | `argocd/applicationsets/ameide.yaml` |
+| Projects | `argocd/projects/*.yaml` |
+| **Environment globals** | |
 | Dev globals | `sources/values/dev/globals.yaml` |
 | Staging globals | `sources/values/staging/globals.yaml` |
 | Production globals | `sources/values/production/globals.yaml` |
+| **Infrastructure** | |
+| Bicep outputs sync | `scripts/update-globals-from-bicep.sh` |
 | Dev cert-manager | `sources/values/dev/platform/platform-cert-manager-config.yaml` |
 | Staging cert-manager | `sources/values/staging/platform/platform-cert-manager-config.yaml` |
 | Production cert-manager | `sources/values/production/platform/platform-cert-manager-config.yaml` |
 | Gateway config (dev) | `sources/values/dev/platform/platform-gateway.yaml` |
-| ApplicationSet | `environments/dev/argocd/apps/ameide.yaml` |
+| **Components** | |
+| Shared components | `environments/_shared/components/` |
 
 ### Vendor Documentation References
 
