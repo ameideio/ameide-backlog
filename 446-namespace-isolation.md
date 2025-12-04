@@ -36,7 +36,8 @@ This document describes the namespace isolation architecture for the Ameide plat
 │  │                                                                         │ │
 │  │  ArgoCD (argocd namespace - self-managed)                              │ │
 │  │  ├── argocd-server, repo-server, controller                            │ │
-│  │  └── cert-manager (isolated instance for ArgoCD TLS)                   │ │
+│  │  ├── cert-manager (isolated instance for ArgoCD TLS)                   │ │
+│  │  └── envoy-gateway (isolated controller for cluster gateway)           │ │
 │  │                                                                         │ │
 │  └────────────────────────────────────────────────────────────────────────┘ │
 │                              │                                               │
@@ -74,7 +75,7 @@ These namespaces contain operators that watch ALL namespaces:
 
 | Namespace | Operator | Watches | Can Scale to Zero? |
 |-----------|----------|---------|-------------------|
-| `argocd` | ArgoCD + cert-manager | All namespaces | No |
+| `argocd` | ArgoCD + cert-manager + envoy-gateway | All namespaces | No |
 | `cert-manager` | cert-manager | All namespaces | No |
 | `external-secrets` | external-secrets | All namespaces | No |
 | `cnpg-system` | cloudnative-pg | All namespaces | No |
@@ -158,7 +159,7 @@ Each environment has completely isolated data:
 
 ### Principle 4: ArgoCD Independence
 
-ArgoCD has its own isolated cert-manager to avoid dependency on any environment:
+ArgoCD has its own isolated cert-manager and envoy-gateway to avoid dependency on any environment:
 
 ```
 argocd namespace:
@@ -166,7 +167,42 @@ argocd namespace:
 ├── argocd-repo-server
 ├── argocd-application-controller
 ├── argocd-cert-manager (isolated instance)
-└── argocd-ameide-io-tls (certificate)
+├── envoy-gateway (isolated controller for cluster gateway)
+├── argocd-ameide-io-tls (certificate)
+└── cluster-gateway (Gateway + HTTPRoute for argocd.ameide.io)
+```
+
+### Principle 5: CRDs are Cluster-Scoped
+
+CRDs must be installed once per cluster, separate from operators:
+
+```
+✅ CORRECT: CRDs managed by cluster ApplicationSet
+
+   cluster-crds-gateway (ArgoCD App)
+   └── Gateway API CRDs (installed once)
+           │
+           │ Used by controllers in:
+           ├── argocd (cluster-gateway)
+           ├── ameide-dev (envoy-gateway)
+           ├── ameide-staging (envoy-gateway)
+           └── ameide-prod (envoy-gateway)
+
+❌ WRONG: CRDs bundled in each Helm chart
+
+   argocd/cluster-gateway (Helm chart with CRDs)
+   ameide-dev/envoy-gateway (Helm chart with CRDs)
+   ameide-staging/envoy-gateway (Helm chart with CRDs)
+   └── CRD version conflicts and ownership issues
+```
+
+When including Helm charts that bundle CRDs (like Envoy Gateway), use `skipCrds: true`:
+
+```yaml
+# argocd/applications/cluster-gateway.yaml
+helm:
+  releaseName: cluster-gateway
+  skipCrds: true  # CRDs managed by cluster ApplicationSet
 ```
 
 ## ApplicationSet Architecture
@@ -370,11 +406,13 @@ spec:
 ## Implementation Checklist
 
 - [x] ArgoCD has isolated cert-manager instance
+- [x] ArgoCD has isolated envoy-gateway controller for cluster gateway
 - [x] ArgoCD TLS independent of environment namespaces
 - [x] Cluster ApplicationSet for operators and CRDs
 - [x] Environment ApplicationSet for workloads only
 - [x] Operators deployed to dedicated `-system` namespaces
 - [x] CRDs deployed once (cluster-scoped)
+- [x] Helm charts with bundled CRDs use `skipCrds: true`
 - [x] Component.yaml files specify correct namespace
 - [x] foundation-namespaces only creates environment namespace
 - [x] NetworkPolicies for cross-namespace isolation
