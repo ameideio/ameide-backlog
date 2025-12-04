@@ -304,7 +304,7 @@ To align with the new structure, the remote cluster needs:
 | **MIGRATE-7** | ✅ Complete | Single parametrized ApplicationSet in `argocd/applicationsets/ameide.yaml` |
 | **MIGRATE-8** | ⏳ Blocked | Requires MIGRATE-1 & MIGRATE-2 |
 | **MIGRATE-9** | ✅ Complete | Service URLs updated to use short names (Kubernetes DNS resolves within namespace) |
-| **MIGRATE-10** | ✅ Complete | Hardcoded `namespace: ameide` removed from shared values; templates use `{{ .Release.Namespace }}` |
+| **MIGRATE-10** | ✅ Complete | Hardcoded `namespace: ameide` removed from ~50 files; templates use `{{ .Release.Namespace }}` or `{{ .Values.namespace }}` |
 
 **Current Blocker:** AKS cluster still points at legacy GitOps path (`ameide.git/infra/kubernetes/gitops/`).
 
@@ -319,6 +319,11 @@ To align with the new structure, the remote cluster needs:
 - [x] Update ExternalSecret manifests to use `{{ .Release.Namespace }}`
 - [x] Update CNPG postgres cluster to use dynamic namespace (removed `namespaceOverride`)
 - [x] Add tier labels (`tier`, `domain`, `exposure`) to all app values files for NetworkPolicy support
+- [x] Update chart defaults to use `.Release.Namespace` (gateway, redis, kafka, clickhouse, etc.)
+- [x] Update environment gateway configs to use `{{ .Values.namespace }}`
+- [x] Update observability smoke tests to use `{{ .Release.Namespace }}`
+- [x] Update cert-manager issuer templates to use dynamic gateway namespace
+- [x] Update Grafana datasources to use dynamic service URLs
 
 **Remaining Operational Steps:**
 - [ ] Point ArgoCD on AKS cluster at `ameide-gitops` repo with `argocd/` path

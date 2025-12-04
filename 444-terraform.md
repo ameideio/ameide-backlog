@@ -26,7 +26,7 @@ Terraform-first infrastructure provisioning for multi-cloud deployment. Bicep re
 ## Command Interface
 
 ```bash
-./scripts/deploy.sh [target]
+./infra/scripts/deploy.sh [target] -e [environment]
 
 Targets:
   azure         Terraform Azure (default)
@@ -41,28 +41,33 @@ Targets:
 ### Directory Structure
 
 ```
-infra/
-├── terraform/
-│   ├── modules/                    # Reusable modules
-│   │   ├── azure-aks/             # AKS cluster
-│   │   ├── azure-keyvault/        # Key Vault + secrets
-│   │   ├── azure-dns/             # DNS zones + records
-│   │   ├── azure-identity/        # Managed identities + federation
-│   │   ├── aws-eks/               # EKS cluster (future)
-│   │   └── kubernetes-bootstrap/  # ArgoCD install (any cluster)
-│   ├── azure/                     # Azure workspace
-│   │   ├── main.tf
-│   │   ├── variables.tf
-│   │   ├── outputs.tf
-│   │   ├── versions.tf
-│   │   └── terraform.tfvars
-│   ├── aws/                       # AWS workspace (future)
-│   └── local/                     # Local k3d workspace (future)
-├── infra/bicep/                         # Azure Marketplace ONLY
-│   └── managed-application/       # Existing Bicep (unchanged)
-└── bootstrap/                     # Provider-agnostic ArgoCD
-    ├── bootstrap.sh
-    └── lib/
+ameide-gitops/
+├── argocd/                        # ArgoCD configuration (shared)
+│   ├── applicationsets/           # Root ApplicationSets
+│   ├── projects/                  # AppProjects
+│   └── repos/                     # Repository credentials
+├── bootstrap/                     # ArgoCD bootstrap scripts
+│   ├── bootstrap.sh               # Main entry point
+│   ├── configs/                   # Environment-specific configs
+│   └── lib/                       # Library functions
+├── infra/
+│   ├── terraform/
+│   │   ├── modules/               # Reusable modules
+│   │   │   ├── azure-aks/         # AKS cluster
+│   │   │   ├── azure-keyvault/    # Key Vault + secrets
+│   │   │   ├── azure-dns/         # DNS zones + records
+│   │   │   └── azure-identity/    # Managed identities + federation
+│   │   └── azure/                 # Azure workspace
+│   │       ├── main.tf
+│   │       ├── variables.tf
+│   │       ├── outputs.tf
+│   │       └── terraform.tfvars
+│   ├── bicep/                     # Azure Marketplace ONLY
+│   │   └── managed-application/
+│   └── scripts/
+│       ├── deploy.sh              # Main entry point
+│       └── deploy-bicep.sh        # Bicep deployment
+└── sources/                       # Helm charts + values
 ```
 
 ### State Management
@@ -172,46 +177,18 @@ module "dns_identity" {
 
 ## Deploy Script
 
+Location: `infra/scripts/deploy.sh`
+
 ```bash
-#!/usr/bin/env bash
-# scripts/deploy.sh
-
-set -euo pipefail
-
-TARGET="${1:-azure}"
-REPO_ROOT="$(git rev-parse --show-toplevel)"
-
-case "${TARGET}" in
-  azure)
-    echo "[deploy] Terraform Azure"
-    terraform -chdir="${REPO_ROOT}/infra/terraform/azure" init
-    terraform -chdir="${REPO_ROOT}/infra/terraform/azure" apply -auto-approve
-    "${REPO_ROOT}/bootstrap/bootstrap.sh" --install-argo --apply-root-apps
-    ;;
-  azure-bicep)
-    echo "[deploy] Bicep Azure (Marketplace)"
-    "${REPO_ROOT}/scripts/deploy-managed-app.sh" "${2:-production}"
-    ;;
-  aws)
-    echo "[deploy] Terraform AWS"
-    terraform -chdir="${REPO_ROOT}/infra/terraform/aws" apply -auto-approve
-    "${REPO_ROOT}/bootstrap/bootstrap.sh" --install-argo --apply-root-apps
-    ;;
-  local)
-    echo "[deploy] Local k3d"
-    k3d cluster create ameide --config "${REPO_ROOT}/infra/k3d/config.yaml"
-    "${REPO_ROOT}/bootstrap/bootstrap.sh" --install-argo --apply-root-apps
-    ;;
-  bootstrap)
-    echo "[deploy] Bootstrap only"
-    "${REPO_ROOT}/bootstrap/bootstrap.sh" --install-argo --apply-root-apps
-    ;;
-  *)
-    echo "Usage: deploy.sh [azure|azure-bicep|aws|local|bootstrap]"
-    exit 1
-    ;;
-esac
+./infra/scripts/deploy.sh azure -e dev        # Terraform + bootstrap
+./infra/scripts/deploy.sh azure-bicep -e dev  # Bicep + bootstrap
+./infra/scripts/deploy.sh bootstrap           # Bootstrap only
 ```
+
+The script orchestrates:
+1. Terraform/Bicep infrastructure provisioning
+2. AKS credential retrieval
+3. ArgoCD bootstrap via `bootstrap/bootstrap.sh --install-argo --apply-root-apps`
 
 ## Migration from Bicep
 
@@ -270,12 +247,12 @@ Outputs written to `artifacts/terraform-outputs/azure.json` for bootstrap consum
 ## Backlog
 
 - [x] Design Terraform architecture
-- [ ] **TF-1**: Create azure-aks module
-- [ ] **TF-2**: Create azure-keyvault module
-- [ ] **TF-3**: Create azure-dns module
-- [ ] **TF-4**: Create azure-identity module
-- [ ] **TF-5**: Create Azure workspace with state backend
-- [ ] **TF-6**: Validate parity with Bicep
-- [ ] **TF-7**: Refactor deploy.sh
+- [x] **TF-1**: Create azure-aks module → `infra/terraform/modules/azure-aks/`
+- [x] **TF-2**: Create azure-keyvault module → `infra/terraform/modules/azure-keyvault/`
+- [x] **TF-3**: Create azure-dns module → `infra/terraform/modules/azure-dns/`
+- [x] **TF-4**: Create azure-identity module → `infra/terraform/modules/azure-identity/`
+- [x] **TF-5**: Create Azure workspace → `infra/terraform/azure/`
+- [x] **TF-6**: Validate parity with Bicep → 33 resources imported
+- [x] **TF-7**: Refactor deploy.sh → `infra/scripts/deploy.sh` with bootstrap integration
 - [ ] **TF-8**: AWS EKS module (future)
 - [ ] **TF-9**: Local k3d setup (future)
