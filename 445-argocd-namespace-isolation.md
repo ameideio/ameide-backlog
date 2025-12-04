@@ -217,6 +217,23 @@ Key metrics to monitor:
 - [442-environment-isolation.md](442-environment-isolation.md) - Environment isolation patterns
 - [444-terraform.md](444-terraform.md) - Terraform infrastructure
 
+## System Node Pool Tolerations
+
+The ArgoCD cert-manager requires tolerations to run on system node pools that have `CriticalAddonsOnly` taints:
+
+```yaml
+# argocd/cert-manager.yaml
+tolerations:
+  - key: CriticalAddonsOnly
+    operator: Exists
+    effect: NoSchedule
+```
+
+This is applied to:
+- `cert-manager` controller
+- `cert-manager-webhook`
+- `cert-manager-cainjector`
+
 ## Implementation Commits
 
 - `feat: add cluster-scoped ArgoCD TLS with Helm chart pattern`
@@ -224,3 +241,4 @@ Key metrics to monitor:
 - `chore: sync cluster globals from terraform outputs`
 - `feat: add cluster-gateway with Envoy for argocd.ameide.io`
 - `fix: align certificate secret name to argocd-ameide-io-tls`
+- `fix: add system node tolerations to argocd cert-manager`
