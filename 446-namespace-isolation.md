@@ -23,18 +23,20 @@ These namespaces contain infrastructure that must be operational regardless of e
 
 | Namespace | Purpose | Dependencies | Can Scale to Zero? |
 |-----------|---------|--------------|-------------------|
-| `argocd` | GitOps controller, TLS | None (self-contained) | No |
+| `argocd` | GitOps controller, TLS, cert-manager | None (self-contained) | No |
 | `kube-system` | Kubernetes system components | None | No |
 
 ### 2. Environment Namespaces (Scalable)
 
-These namespaces contain application workloads that can be independently scaled:
+These namespaces contain ALL application workloads AND operators that can be independently scaled:
 
 | Namespace | Purpose | Dependencies | Can Scale to Zero? |
 |-----------|---------|--------------|-------------------|
-| `ameide-dev` | Development environment | ArgoCD | Yes |
-| `ameide-staging` | Staging environment | ArgoCD | Yes |
-| `ameide-prod` | Production environment | ArgoCD | Yes (not recommended) |
+| `ameide-dev` | Development environment (apps + operators) | ArgoCD | Yes |
+| `ameide-staging` | Staging environment (apps + operators) | ArgoCD | Yes |
+| `ameide-prod` | Production environment (apps + operators) | ArgoCD | Yes (not recommended) |
+
+**Key Principle**: All operators (cert-manager, CNPG, Strimzi, Redis, etc.) deploy INTO the environment namespace, NOT into separate cluster-scoped namespaces. This ensures complete environment isolation.
 
 ### 3. Tenant Namespaces (Future)
 
@@ -65,23 +67,47 @@ Each namespace must be self-sufficient for its core functions:
    └── cert-manager (if dev is down, ArgoCD breaks)
 ```
 
-### Principle 2: Shared Resources Must Be Cluster-Scoped
+### Principle 2: Operators Deploy INTO Environment Namespaces
 
-Resources shared across namespaces should be:
-- Deployed in a dedicated namespace (not environment-tied)
-- Or be truly cluster-scoped (CRDs, ClusterRoles)
+**All operators deploy INTO the environment namespace**, not into separate cluster-scoped namespaces:
+
+```
+✅ CORRECT: Operators in environment namespace
+   ameide-dev namespace:
+   ├── foundation-cert-manager (operator)
+   ├── foundation-cloudnative-pg (operator)
+   ├── foundation-strimzi-operator (operator)
+   ├── foundation-redis-operator (operator)
+   ├── foundation-external-secrets (operator)
+   ├── dev-data-postgres-cluster (workload)
+   ├── dev-data-kafka-cluster (workload)
+   └── dev-apps-* (applications)
+
+❌ WRONG: Operators in separate namespaces
+   cnpg-system namespace:     ← Shared, breaks isolation
+   └── cloudnative-pg operator
+
+   strimzi-system namespace:  ← Shared, breaks isolation
+   └── strimzi operator
+
+   ameide-dev namespace:
+   └── applications only
+```
+
+### Principle 3: Only Truly Cluster-Scoped Resources Are Shared
 
 | Resource Type | Correct Location | Wrong Location |
 |---------------|------------------|----------------|
 | CRDs | Cluster-scoped | Any namespace |
-| ClusterIssuers | Cluster-scoped (managed by isolated cert-manager) | Environment namespace |
-| ArgoCD | `argocd` namespace | `ameide-dev` |
-| Cert-manager for ArgoCD | `argocd` namespace | `ameide-dev` |
-| Cert-manager for apps | Per-environment namespace | Shared namespace |
+| ClusterRoles | Cluster-scoped | Any namespace |
+| ClusterIssuers | Cluster-scoped (but managed by namespace cert-managers) | N/A |
+| StorageClasses | Cluster-scoped | Any namespace |
+| ArgoCD | `argocd` namespace | Environment namespace |
+| All operators | Environment namespace (`ameide-*`) | Separate `-system` namespaces |
 
-### Principle 3: Environment Independence
+### Principle 4: Environment Independence
 
-Each environment must operate independently:
+Each environment must operate completely independently:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -89,6 +115,7 @@ Each environment must operate independently:
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                      │
 │  [argocd]          Independent of all environments                   │
+│      │             Contains: ArgoCD + cert-manager                   │
 │      │                                                               │
 │      │ Manages (GitOps)                                             │
 │      │                                                               │
@@ -96,11 +123,17 @@ Each environment must operate independently:
 │      ▼                  ▼                  ▼                  │     │
 │  [ameide-dev]      [ameide-staging]   [ameide-prod]          │     │
 │      │                  │                  │                  │     │
-│  Independent        Independent        Independent           │     │
-│  cert-manager       cert-manager       cert-manager          │     │
-│  postgres           postgres           postgres              │     │
-│  redis              redis              redis                 │     │
-│  apps...            apps...            apps...               │     │
+│  EVERYTHING:        EVERYTHING:        EVERYTHING:           │     │
+│  - cert-manager     - cert-manager     - cert-manager        │     │
+│  - cnpg operator    - cnpg operator    - cnpg operator       │     │
+│  - strimzi operator - strimzi operator - strimzi operator    │     │
+│  - redis operator   - redis operator   - redis operator      │     │
+│  - external-secrets - external-secrets - external-secrets    │     │
+│  - vault            - vault            - vault               │     │
+│  - postgres         - postgres         - postgres            │     │
+│  - redis            - redis            - redis               │     │
+│  - kafka            - kafka            - kafka               │     │
+│  - apps...          - apps...          - apps...             │     │
 │                                                               │     │
 │  Can scale to 0 ✓   Can scale to 0 ✓   Always running        │     │
 │                                                               │     │
@@ -109,26 +142,79 @@ Each environment must operate independently:
 
 ## Resource Duplication Strategy
 
-### What Gets Duplicated Per Namespace
+### What Gets Duplicated Per Environment Namespace
 
 | Resource | Duplicated? | Reason |
 |----------|-------------|--------|
-| cert-manager | Yes | Independent TLS management |
+| cert-manager operator | Yes | Independent TLS management |
 | external-secrets operator | Yes | Namespace-scoped secret sync |
-| Prometheus | Yes | Environment-specific metrics |
-| Loki | Yes | Environment-specific logs |
+| cloudnative-pg operator | Yes | Independent PostgreSQL management |
+| strimzi-kafka operator | Yes | Independent Kafka management |
+| redis operator | Yes | Independent Redis management |
+| clickhouse operator | Yes | Independent ClickHouse management |
+| vault | Yes | Per-environment secret management |
 | PostgreSQL clusters | Yes | Data isolation |
 | Redis clusters | Yes | Cache isolation |
+| Kafka clusters | Yes | Event isolation |
 | Application deployments | Yes | Environment-specific versions |
+| Prometheus | Yes | Environment-specific metrics |
+| Loki | Yes | Environment-specific logs |
 
 ### What Remains Cluster-Scoped
 
 | Resource | Location | Reason |
 |----------|----------|--------|
 | ArgoCD | `argocd` namespace | Single GitOps controller |
-| CRDs | Cluster-scoped | API definitions |
+| ArgoCD cert-manager | `argocd` namespace | ArgoCD TLS independence |
+| CRDs | Cluster-scoped | API definitions shared by all |
 | ClusterRoles | Cluster-scoped | RBAC definitions |
-| ClusterIssuers | Cluster-scoped | But managed by namespace cert-managers |
+| ClusterIssuers | Cluster-scoped | But managed by per-namespace cert-managers |
+| StorageClasses | Cluster-scoped | Storage provisioners |
+
+## ApplicationSet Configuration
+
+### How Namespace Inheritance Works
+
+The ApplicationSet matrix generator provides the namespace to each component:
+
+```yaml
+# argocd/applicationsets/ameide.yaml
+generators:
+  - matrix:
+      generators:
+        - list:
+            elements:
+              - env: dev
+                namespace: ameide-dev      # ← Environment namespace
+              - env: staging
+                namespace: ameide-staging
+              - env: production
+                namespace: ameide-prod
+        - git:
+            files:
+              - path: environments/_shared/components/**/component.yaml
+
+template:
+  spec:
+    destination:
+      namespace: '{{ .namespace }}'  # ← Inherited from list generator
+```
+
+### Component Configuration
+
+Components do NOT specify a namespace - they inherit from the ApplicationSet:
+
+```yaml
+# environments/_shared/components/foundation/operators/cloudnative-pg/component.yaml
+# CNPG operator - deploys to environment namespace (ameide-dev, ameide-staging, ameide-prod)
+name: foundation-cloudnative-pg
+project: ameide
+# namespace: inherited from ApplicationSet ({{ .namespace }})
+domain: foundation
+dependencyPhase: "controllers"
+componentType: "operator"
+rolloutPhase: "220"
+```
 
 ## Cert-Manager Architecture
 
@@ -142,9 +228,9 @@ The cluster runs **multiple cert-manager instances**, each managing certificates
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                      │
 │  argocd namespace                                                   │
-│  ├── cert-manager (v1.16.2)                                        │
+│  ├── argocd-cert-manager (v1.16.2)                                 │
 │  ├── ClusterIssuer: letsencrypt-argocd                             │
-│  └── Certificate: argocd-server → argocd-server-tls                │
+│  └── Certificate: argocd-server → argocd-ameide-io-tls             │
 │      DNS Zone: ameide.io                                            │
 │                                                                      │
 │  ameide-dev namespace                                               │
@@ -175,69 +261,6 @@ The cluster runs **multiple cert-manager instances**, each managing certificates
 3. **Cleaner failures**: Issues are contained to one namespace
 4. **Workload Identity scoping**: Each cert-manager uses its own managed identity
 
-### ClusterIssuer Management
-
-Even though ClusterIssuers are cluster-scoped, each cert-manager instance manages specific ClusterIssuers:
-
-| ClusterIssuer | Managed By | DNS Zone | Purpose |
-|---------------|------------|----------|---------|
-| `letsencrypt-argocd` | argocd cert-manager | `ameide.io` | ArgoCD TLS |
-| `letsencrypt-dev-dns01` | ameide-dev cert-manager | `dev.ameide.io` | Dev wildcard |
-| `letsencrypt-staging-dns01` | ameide-staging cert-manager | `staging.ameide.io` | Staging wildcard |
-| `letsencrypt-prod-dns01` | ameide-prod cert-manager | `ameide.io` | Prod wildcard |
-
-## Values Flow Architecture
-
-### Terraform → Globals → Helm
-
-Infrastructure values flow from Terraform to Helm charts via globals.yaml:
-
-```
-Terraform outputs (azure.json)
-        │
-        ▼
-sync-globals.sh <target>
-        │
-        ├── cluster → sources/values/cluster/globals.yaml
-        │                    │
-        │                    └── argocd/tls/ Helm chart
-        │
-        ├── dev → sources/values/dev/globals.yaml
-        │              │
-        │              └── Environment charts
-        │
-        ├── staging → sources/values/staging/globals.yaml
-        │
-        └── production → sources/values/production/globals.yaml
-```
-
-### Globals Structure
-
-```yaml
-# sources/values/cluster/globals.yaml
-# Used by argocd namespace resources
-azure:
-  subscriptionId: "..."
-  resourceGroup: "Ameide"
-  dnsZone: "ameide.io"
-  dnsZoneResourceGroup: "Ameide"
-  dnsManagedIdentityClientId: "..."
-
-# sources/values/dev/globals.yaml
-# Used by ameide-dev namespace resources
-environment: dev
-namespace: ameide-dev
-domain: dev.ameide.io
-
-azure:
-  subscriptionId: "..."
-  resourceGroup: "Ameide"
-  dnsZone: "dev.ameide.io"
-  dnsManagedIdentityClientId: "..."
-  envoyPublicIpAddress: "..."
-  keyVaultUri: "..."
-```
-
 ## Network Isolation
 
 ### Cross-Namespace NetworkPolicy
@@ -245,26 +268,32 @@ azure:
 Environments are network-isolated from each other:
 
 ```yaml
-# Deny traffic from other environment namespaces
+# Created by foundation-namespaces for each environment
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: deny-cross-environment
-  namespace: ameide-dev
+  namespace: ameide-dev  # (or ameide-staging, ameide-prod)
 spec:
   podSelector: {}
   policyTypes:
     - Ingress
   ingress:
-    # Allow from same namespace
+    # Allow from same environment namespace
     - from:
-        - podSelector: {}
-    # Allow from argocd (for sync operations)
+        - namespaceSelector:
+            matchLabels:
+              ameide.io/environment: dev
+    # Allow from argocd (for GitOps sync operations)
     - from:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: argocd
-    # Deny from other ameide-* namespaces (implicit)
+    # Allow from kube-system (DNS, metrics-server)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
 ```
 
 ### Allowed Cross-Namespace Traffic
@@ -274,6 +303,7 @@ spec:
 | argocd | ameide-dev | GitOps sync | Yes |
 | argocd | ameide-staging | GitOps sync | Yes |
 | argocd | ameide-prod | GitOps sync | Yes |
+| kube-system | ameide-* | DNS, metrics | Yes |
 | ameide-dev | ameide-staging | Cross-env access | No |
 | ameide-dev | ameide-prod | Cross-env access | No |
 | ameide-staging | ameide-prod | Cross-env access | No |
@@ -302,23 +332,29 @@ spec:
            └── ApplicationSets
 
 5. ArgoCD ApplicationSets generate environment apps
-   └── dev-foundation-*, dev-data-*, dev-platform-*, dev-apps-*
-   └── staging-foundation-*, staging-data-*, ...
-   └── production-foundation-*, production-data-*, ...
+   └── All apps deploy to environment namespace (ameide-dev, etc.)
+   └── Operators: dev-foundation-cert-manager, dev-foundation-cloudnative-pg, ...
+   └── Data: dev-data-postgres-cluster, dev-data-kafka-cluster, ...
+   └── Platform: dev-platform-envoy-gateway, dev-platform-keycloak, ...
+   └── Apps: dev-www-ameide, dev-inference, ...
 ```
 
 ### Sync Wave Order Within Environments
 
-Each environment follows the same sync wave order:
+Each environment follows the same sync wave order (via rolloutPhase):
 
 ```
-Wave -10: CRDs (cert-manager, external-secrets, gateway, etc.)
-Wave -5:  Namespaces
-Wave 0:   Operators (cert-manager, external-secrets, CNPG, etc.)
-Wave 5:   Secrets (ExternalSecrets, vault bootstrap)
-Wave 10:  Data layer (PostgreSQL, Redis, Kafka)
-Wave 15:  Platform layer (Envoy, Keycloak, observability)
-Wave 20:  Applications
+010: Namespace (foundation-namespaces)
+110: CRDs (foundation-crds-*)
+120: Operators (foundation-cert-manager, foundation-external-secrets, ...)
+130: Secrets infrastructure (vault-webhook-certs)
+140: Configs (coredns-config, managed-storage)
+150: State stores (vault-core)
+199: Smoke tests (operators-smoke)
+220: Data operators (cloudnative-pg, strimzi, redis, clickhouse)
+250: Data runtimes (postgres-clusters, kafka-cluster, redis-failover)
+350: Platform runtimes (envoy-gateway, keycloak, prometheus, grafana)
+650: Application runtimes (www-ameide, inference, agents, ...)
 ```
 
 ## Failure Scenarios
@@ -328,12 +364,13 @@ Wave 20:  Applications
 **Impact:**
 - Dev applications unavailable
 - Dev cert-manager not running
+- Dev operators not running (CNPG, Strimzi, etc.)
 - Dev certificates may expire (if down > 30 days)
 
 **Not Impacted:**
 - ArgoCD (has own cert-manager)
-- Staging environment
-- Production environment
+- Staging environment (has its own operators)
+- Production environment (has its own operators)
 
 ### Scenario 2: ArgoCD Namespace Down
 
@@ -355,12 +392,12 @@ Wave 20:  Applications
 ### Scenario 3: cert-manager CRDs Deleted
 
 **Impact:**
-- All cert-manager instances fail
+- All cert-manager instances fail (argocd + all environments)
 - Certificate resources become orphaned
 - TLS certificates stop renewing
 
 **Recovery:**
-1. Reinstall CRDs (ArgoCD will resync)
+1. ArgoCD resync restores CRDs (foundation-crds-cert-manager)
 2. cert-manager instances restart
 3. Certificates resume renewal
 
@@ -386,6 +423,7 @@ Grafana Dashboards:
 │   ├── cert-manager health
 │   └── Application sync status
 ├── Dev Environment
+│   ├── All operators health
 │   ├── cert-manager health
 │   ├── Application health
 │   └── Resource usage
@@ -401,7 +439,15 @@ Grafana Dashboards:
 - [x] ArgoCD TLS independent of environment namespaces
 - [x] Cluster globals separated from environment globals
 - [x] sync-globals.sh supports cluster target
+- [x] All operators deploy to environment namespace (not cluster-scoped)
+- [x] Component.yaml files inherit namespace from ApplicationSet
+- [x] foundation-namespaces only creates environment namespace
+- [x] NetworkPolicies deployed for cross-namespace isolation
 - [x] Documentation for isolation architecture (this doc)
-- [ ] NetworkPolicies deployed for cross-namespace isolation
 - [ ] Monitoring dashboards per namespace
 - [ ] Runbook for namespace failure recovery
+
+## Implementation Commits
+
+- `refactor: implement 446 namespace isolation - operators per environment`
+- `fix: remove platform-storage namespace creation (cluster-scoped StorageClass)`
