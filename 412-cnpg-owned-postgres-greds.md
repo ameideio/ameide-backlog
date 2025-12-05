@@ -342,3 +342,43 @@ kubectl get secret postgres-ameide-auth -n ameide-prod -o jsonpath='{.data.passw
 3. Helm regenerates with new random password
 4. CNPG reconciles the new password to Postgres role
 5. Restart dependent applications to pick up new credentials
+
+### Status Update (2025-12-05) - Inference Service Migration
+
+> **Complete**: Migrated inference service from Vault-driven ExternalSecrets to CNPG-owned credentials.
+
+The inference service was the **last remaining service** using Vault-driven ExternalSecrets for database credentials.
+
+**Changes (commit `332bb87`):**
+- Added `inference` role to CNPG `managed.roles`
+- Added `inference` appUser to `credentials.appUsers` (database: `langgraph`)
+- Updated `langgraph` database owner from `dbuser` to `inference`
+- Added `inference` secret template to `app-secrets.yaml`
+- Split ExternalSecret: DB credentials now from CNPG, API keys still from Vault
+
+**Files modified:**
+- `sources/values/_shared/data/platform-postgres-clusters.yaml`
+- `sources/charts/foundation/operators-config/postgres_clusters/templates/app-secrets.yaml`
+- `sources/values/_shared/apps/inference.yaml`
+
+**Secret architecture:**
+- `inference-db-credentials` - CNPG-managed (32-char password, connection URIs)
+- `inference-api-credentials` - Vault-synced (LangSmith, OpenAI, Langfuse API keys)
+
+**Current state - all services on CNPG:**
+| Service | Secret | Template |
+|---------|--------|----------|
+| platform | platform-db-credentials | platform |
+| agents | agents-db-secret | agents |
+| agents-runtime | agents-runtime-db-secret | agents-runtime |
+| graph | graph-db-credentials | graph |
+| transformation | transformation-db-credentials | transformation |
+| threads | threads-db-credentials | threads |
+| workflows | workflows-db-secret | workflows |
+| temporal | temporal-db-env | temporal-env |
+| temporal-visibility | temporal-visibility-db-env | temporal-visibility-env |
+| plausible | plausible-db-credentials | plausible |
+| keycloak | keycloak-db-credentials | keycloak |
+| **inference** | **inference-db-credentials** | **inference** |
+
+✅ **North star achieved**: All 12 application services now use CNPG-owned database credentials.
