@@ -51,6 +51,61 @@
 - `data-crds-strimzi`: Synced/Healthy (Strimzi CRDs match vendored 0.48.0; Argo ignores server-side changes under `.spec.versions` for the Strimzi CRDs via targeted `ignoreDifferences`).  
 - Orphan warnings: still present (11 Secrets); unchanged by this work.
 
+## Additional fixes (2025-12-05)
+
+### Strimzi operator namespace watching
+**Problem:** Strimzi operator was only watching `strimzi-system` namespace (using `metadata.namespace` in `STRIMZI_NAMESPACE` env var), so Kafka CRs in app namespaces like `ameide-dev` were never reconciled.
+
+**Fix:** Updated `sources/values/_shared/cluster/strimzi-operator.yaml`:
+```yaml
+# Watch ALL namespaces for Kafka CRs
+watchAnyNamespace: true
+```
+This sets `STRIMZI_NAMESPACE: "*"` in the operator deployment.
+
+**Commit:** `83b2674` – fix(strimzi): enable watchAnyNamespace for all Kafka CRs
+
+**Note:** ArgoCD may show server-side diff conflict when transitioning from `valueFrom.fieldRef` to `value: "*"`. If sync fails, manually apply via:
+```bash
+helm template foundation-strimzi-operator sources/charts/cluster/strimzi-operator \
+  -f sources/values/_shared/cluster/strimzi-operator.yaml \
+  -n strimzi-system | kubectl apply -f -
+```
+
+### Kafka cluster tolerations and nodeAffinity
+**Problem:** Kafka pods stayed Pending with `0/15 nodes are available: 5 node(s) had untolerated taint {ameide.io/environment: dev}`. The chart template didn't propagate tolerations from values.
+
+**Fix:** Modified `sources/charts/foundation/operators-config/kafka_cluster/templates/kafka.yaml`:
+- Added `{{- with .Values.kafka.template }}` block to KafkaNodePool spec
+- Added `{{- with .Values.entityOperator.template }}` block to Kafka CR
+
+Environment-specific values (e.g., `sources/values/dev/data/data-kafka-cluster.yaml`) now correctly inject:
+```yaml
+kafka:
+  template:
+    pod:
+      tolerations:
+        - key: "ameide.io/environment"
+          value: "dev"
+          effect: "NoSchedule"
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: ameide.io/pool
+                    operator: In
+                    values:
+                      - dev
+```
+
+**Commit:** `aa5a29c` – fix(kafka): add template support for tolerations and nodeAffinity
+
+**Recovery:** If Kafka pods remain Pending after sync, delete the StrimziPodSet to force recreation:
+```bash
+kubectl delete strimzipodset -n ameide-dev kafka-pool
+```
+
 ## Follow-ups (optional)
 - Add a replicas-based KafkaNodePool health script only if needed (check `status.replicas` vs `spec.replicas`), but keep Kafka Ready as the authoritative signal.
 - Keep Strimzi CRDs in sync with the operator version by updating `files/strimzi/040-049` from the corresponding tag in the Strimzi repo and re-running `kubectl replace` plus an Argo sync on `data-crds-strimzi` during each upgrade.
