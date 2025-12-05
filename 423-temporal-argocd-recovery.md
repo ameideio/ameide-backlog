@@ -176,3 +176,151 @@ To avoid manual intervention the next time the hook needs to run:
 - Monitor first rollout after Temporal version bumps for schema compatibility checks; document any vendor‑specific caveats in this backlog and cross‑link from `backlog/420-temporal-cnpg-dev-registry-runbook.md` and `backlog/429-devcontainer-bootstrap.md`.
 - **PostgreSQL 15+ compatibility**: Always ensure CNPG Database CRDs include `schemas` with correct ownership for the database owner.
 - **Partial migration recovery**: If migration job fails with "duplicate key" errors, check the database state and delete conflicting rows before re-running.
+
+## Recovery Incident: 2025-12-05
+
+### Root Cause Analysis
+
+This incident combined password mismatch with the existing partial migration state issues:
+
+1. **Password Mismatch Between CNPG and Temporal Services**: The CNPG credential consolidation created TWO separate entries that generated DIFFERENT passwords:
+   - `temporal-db-env` (used by Temporal services) - one random password
+   - `temporal-db-credentials` (used by CNPG role) - different random password
+
+   Result: Temporal services couldn't authenticate to Postgres because CNPG set the role password from `temporal-db-credentials`, but services connected using `temporal-db-env`.
+
+2. **Migration Job Missing Tolerations**: The `temporal-migrations` Helm chart didn't support `nodeSelector`/`tolerations`, causing pods to remain Pending on dev nodes with `ameide.io/environment: dev` taint.
+
+3. **Partial Migration State** (same as 2025-12-03): Multiple job retries caused duplicate key errors on `INSERT INTO namespace_metadata`.
+
+### Fixes Applied
+
+#### 1. Consolidated Temporal Credentials (commit `8d4a519`)
+
+Removed duplicate credential entries and updated CNPG to use the same secret as Temporal services:
+
+**File**: `sources/values/_shared/data/platform-postgres-clusters.yaml`
+```yaml
+# Before: CNPG and Temporal used different secrets
+managed:
+  roles:
+    - name: temporal
+      passwordSecret:
+        name: temporal-db-credentials  # Different password!
+
+# After: CNPG uses same secret as Temporal
+managed:
+  roles:
+    - name: temporal
+      passwordSecret:
+        name: temporal-db-env  # Same password as Temporal services
+    - name: temporal_visibility
+      passwordSecret:
+        name: temporal-visibility-db-env
+```
+
+Also removed duplicate entries `temporal-password` and `temporal-visibility-password` from `credentials.appUsers`.
+
+#### 2. Updated Temporal Helm Values (commit `6adcdb6`)
+
+Changed secret references in Temporal chart to use the consolidated `-db-env` secrets:
+
+**File**: `sources/values/_shared/data/data-temporal.yaml`
+```yaml
+server:
+  config:
+    persistence:
+      default:
+        sql:
+          existingSecret: temporal-db-env  # was: temporal-db-credentials
+      visibility:
+        sql:
+          existingSecret: temporal-visibility-db-env  # was: temporal-visibility-db-credentials
+```
+
+#### 3. Added Tolerations to Migration Job (commit `2e9acb0`)
+
+**File**: `sources/charts/platform-layers/temporal-migrations/templates/job.yaml`
+```yaml
+spec:
+  template:
+    spec:
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+```
+
+This allows the migration job to schedule on environment-specific nodes using tolerations from `globals.yaml`.
+
+### Recovery Steps (for partial state)
+
+When migration failed mid-way with databases in partial state:
+
+```bash
+# 1. Drop and recreate databases cleanly
+kubectl exec -n ameide-dev postgres-ameide-1 -- psql -U postgres -c "DROP DATABASE IF EXISTS temporal;"
+kubectl exec -n ameide-dev postgres-ameide-1 -- psql -U postgres -c "DROP DATABASE IF EXISTS temporal_visibility;"
+
+# 2. Delete CNPG Database CRDs to trigger recreation
+kubectl delete database postgres-ameide-temporal postgres-ameide-temporal-visibility -n ameide-dev
+
+# 3. Sync postgres-clusters to recreate databases
+kubectl annotate application dev-platform-postgres-clusters -n argocd argocd.argoproj.io/refresh=hard --overwrite
+kubectl patch application dev-platform-postgres-clusters -n argocd --type=merge \
+  -p '{"operation": {"initiatedBy": {"username": "admin"}, "sync": {"prune": true}}}'
+
+# 4. Wait for databases to be created, then trigger migration
+kubectl delete application dev-data-migrations-temporal -n argocd --wait=false
+# ApplicationSet will recreate it and trigger hooks
+
+# 5. After migration completes, refresh Temporal app
+kubectl annotate application dev-data-temporal -n argocd argocd.argoproj.io/refresh=hard --overwrite
+kubectl rollout restart deployment -n ameide-dev -l app.kubernetes.io/name=temporal
+```
+
+### Environment Isolation
+
+The credential consolidation preserves per-environment password isolation:
+
+1. **Helm lookup is namespace-scoped**: `lookup "v1" "Secret" $namespace $secretName` only finds secrets in the target namespace
+2. **Each environment gets unique passwords**: Dev/staging/prod have separate secrets generated in their respective ArgoCD syncs
+3. **No cross-env secret sharing**: The consolidation only affects secrets **within** each environment
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `sources/values/_shared/data/platform-postgres-clusters.yaml` | Removed duplicate temporal-password entries; updated CNPG managed.roles to use `-db-env` secrets |
+| `sources/values/_shared/data/data-temporal.yaml` | Updated existingSecret references to use `-db-env` secrets |
+| `sources/charts/platform-layers/temporal-migrations/templates/job.yaml` | Added nodeSelector and tolerations support |
+| `sources/charts/platform-layers/temporal-namespace-bootstrap/templates/namespace-bootstrap-job.yaml` | Added nodeSelector and tolerations support (commit `7270a0b`) |
+
+### Verification
+
+```bash
+# Passwords match within environment (CNPG role and Temporal service use same)
+kubectl get secret temporal-db-env -n ameide-dev -o jsonpath='{.data.password}' | base64 -d
+
+# Schema versions after successful migration
+kubectl exec -n ameide-dev postgres-ameide-1 -- psql -U postgres -d temporal -c "SELECT curr_version FROM schema_version;"
+# Should show: 1.18
+
+kubectl exec -n ameide-dev postgres-ameide-1 -- psql -U postgres -d temporal_visibility -c "SELECT curr_version FROM schema_version;"
+# Should show: 1.9
+
+# Temporal pods healthy
+kubectl get pods -n ameide-dev -l app.kubernetes.io/name=temporal
+```
+
+### Final State
+
+Recovery completed successfully:
+- `temporal` database: schema version **1.18**
+- `temporal_visibility` database: schema version **1.9**
+- All 10 Temporal pods: **Running**
+- ArgoCD apps: `dev-data-migrations-temporal`, `dev-data-temporal`, `dev-data-temporal-namespace-bootstrap` all **Synced/Healthy**
