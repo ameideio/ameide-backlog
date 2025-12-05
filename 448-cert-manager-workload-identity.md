@@ -93,6 +93,57 @@ kubectl get pod -l app.kubernetes.io/instance=foundation-cert-manager -n ameide-
 # Should include: AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_FEDERATED_TOKEN_FILE
 ```
 
+## DNS-01 Issuer Pattern
+
+We use **namespaced Issuer** (not ClusterIssuer) for DNS-01 challenges with Azure Workload Identity due to our multi-identity architecture:
+
+**Why Issuer instead of ClusterIssuer:**
+- Each environment has its own cert-manager instance with isolated Workload Identity
+- ClusterIssuer requires a single controller to process challenges from all environments
+- That single controller's ServiceAccount would need access to all per-env managed identities
+- Namespaced Issuer + `--issuer-ambient-credentials=true` allows each env's controller to use its own identity
+
+**Configuration pattern:**
+```yaml
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: letsencrypt-dev-dns01
+  namespace: ameide-dev
+spec:
+  acme:
+    email: admin@ameide.io
+    server: https://acme-v02.api.letsencrypt.org/directory
+    privateKeySecretRef:
+      name: letsencrypt-dev-dns01-key
+    solvers:
+    - dns01:
+        azureDNS:
+          hostedZoneName: dev.ameide.io
+          resourceGroupName: Ameide
+          subscriptionID: "..."
+          environment: AzurePublicCloud
+          managedIdentity:
+            clientID: "<MI client ID from globals.yaml>"
+```
+
+**Certificate resources** reference the Issuer:
+```yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+spec:
+  issuerRef:
+    kind: Issuer  # Namespace-scoped
+    name: letsencrypt-dev-dns01
+```
+
+**Required controller args:**
+```yaml
+extraArgs:
+  - --namespace=$(POD_NAMESPACE)  # Only watch own namespace
+  - --issuer-ambient-credentials=true  # Enable WI for Issuers
+```
+
 ## Related
 
 - [434: Unified Environment Naming](434-unified-environment-naming.md) - sync-globals.sh pattern

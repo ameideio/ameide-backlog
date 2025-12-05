@@ -2,7 +2,7 @@
 
 **Status**: Implemented
 **Supersedes**: 387-argocd-waves-v2.md (partially - phase numbering retained, architecture updated)
-**Related**: [446-namespace-isolation.md](446-namespace-isolation.md), [448-per-environment-service-verification.md](448-per-environment-service-verification.md), [449-per-environment-infrastructure.md](449-per-environment-infrastructure.md)
+**Related**: [446-namespace-isolation.md](446-namespace-isolation.md), [448-per-environment-service-verification.md](448-per-environment-service-verification.md), [449-per-environment-infrastructure.md](449-per-environment-infrastructure.md), [452-observability-namespace-isolation.md](452-observability-namespace-isolation.md)
 
 ## Problem Statement
 

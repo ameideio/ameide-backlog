@@ -4,6 +4,7 @@
 > - [442-environment-isolation.md](442-environment-isolation.md) – Environment isolation strategy (parent issue)
 > - [446-namespace-isolation.md](446-namespace-isolation.md) – Namespace isolation
 > - [240-cluster-rightsizing.md](240-cluster-rightsizing.md) – Cluster resource planning
+> - [452-observability-namespace-isolation.md](452-observability-namespace-isolation.md) – Observability RBAC namespace isolation
 
 ## Summary
 
