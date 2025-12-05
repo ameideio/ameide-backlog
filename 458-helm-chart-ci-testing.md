@@ -9,7 +9,7 @@
 
 Implement GitHub Actions workflow to validate Helm charts before merge. Currently, chart issues (wrong value paths, missing tolerations, template errors) are only discovered after ArgoCD sync fails in the cluster.
 
-**Status**: 🚧 In Progress
+**Status**: ✅ Implemented
 
 ---
 
@@ -80,7 +80,18 @@ find sources/charts/{apps,foundation,platform-layers,data,cluster} \
 
 **Catches**: YAML syntax, missing required values, Chart.yaml issues
 
-#### Level 2: Helm Template (Per Environment)
+#### Level 2: Helm Unit Tests (helm-unittest)
+
+```bash
+# Run unit tests for charts with tests/ directory
+helm unittest sources/charts/apps/inference-gateway
+```
+
+**Catches**: Template logic errors, conditional rendering issues, incorrect values
+
+**Charts with unit tests**: 14 charts including `agents`, `agents-runtime`, `gateway`, `inference`, `inference-gateway`, `platform`, `workflows`, `workflows-runtime`, `helm-test-jobs`, `postgres_clusters`, `vault-bootstrap`, `vault-webhook-certs`, `db-migrations`, `pgadmin`
+
+#### Level 3: Helm Template (Per Environment)
 
 ```bash
 # Template with composed values (mimics ArgoCD)
@@ -92,7 +103,7 @@ helm template www-ameide sources/charts/apps/www-ameide \
 
 **Catches**: Template rendering errors, value path mismatches, missing required values
 
-#### Level 3: Kubeconform (Schema Validation)
+#### Level 4: Kubeconform (Schema Validation)
 
 ```bash
 # Validate against K8s API schemas
@@ -187,8 +198,39 @@ helm template ... | kubeconform -strict -kubernetes-version 1.30.0
 
 ---
 
+## Implementation Notes
+
+### Workflow File: `.github/workflows/helm-test.yaml`
+
+The workflow implements four jobs:
+
+1. **discover-charts**: Finds all custom charts and charts with unit tests
+2. **lint**: Runs `helm lint` on all custom charts
+3. **unit-test**: Runs `helm unittest` on charts with `tests/*_test.yaml` files
+4. **template-test**: Runs `helm template` with environment-specific values for dev/staging/production
+5. **summary**: Aggregates results from all jobs
+
+### Key Features
+
+- **Path filters**: Only runs on changes to `sources/charts/**` or `sources/values/**`
+- **Matrix testing**: Template tests run in parallel for all three environments
+- **Skip non-charts**: Directories without `Chart.yaml` are skipped
+- **Kubeconform validation**: Generated manifests are validated against K8s schemas
+- **CRD skip list**: Custom resources (Application, Certificate, Kafka, etc.) are skipped in kubeconform
+
+### Test Fixes Made
+
+| Chart | Issue | Fix |
+|-------|-------|-----|
+| `agents` | Missing minio secret values | Use shared values file instead of inline values |
+| `agents-runtime` | Missing minio secret values | Use shared values file instead of inline values |
+| `vault-webhook-certs` | Template directive not working | Split into separate tests per template |
+
+---
+
 ## References
 
 - [Helm lint docs](https://helm.sh/docs/helm/helm_lint/)
 - [Kubeconform](https://github.com/yannh/kubeconform)
+- [helm-unittest](https://github.com/helm-unittest/helm-unittest)
 - [chart-testing (ct)](https://github.com/helm/chart-testing)
