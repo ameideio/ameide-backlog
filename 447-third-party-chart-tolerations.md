@@ -223,6 +223,12 @@ langfuse:
 - `sources/values/staging/observability/platform-langfuse.yaml` (created)
 - `sources/values/production/observability/platform-langfuse.yaml` (created)
 
+**Image Path Note**: The Langfuse chart expects image repositories at:
+- `langfuse.web.image.repository` (for web pods)
+- `langfuse.worker.image.repository` (for worker pods)
+
+NOT at `langfuse.image.repository` (which only sets global tag/pullSecrets). Fixed in commit `8ffc0e0`.
+
 ---
 
 ### 6. Prometheus (kube-prometheus-stack)
@@ -260,13 +266,18 @@ grafana:
   tolerations: [...]
   nodeSelector: {...}
 
-# IMPORTANT: DaemonSet must run on ALL nodes
+# IMPORTANT: Each environment runs node-exporter on its own nodes only
+# Using operator: "Exists" across all environments causes hostPort 9100 conflicts
 prometheus-node-exporter:
   tolerations:
-    - operator: "Exists"  # Tolerates ALL taints
+    - key: "ameide.io/environment"
+      value: "dev"
+      effect: "NoSchedule"
+  nodeSelector:
+    ameide.io/pool: dev
 ```
 
-**DaemonSet Note**: `prometheus-node-exporter` collects host metrics and must run on every node including tainted ones. Using `operator: "Exists"` without a key tolerates all taints.
+**DaemonSet Correction**: Originally documented as using `operator: "Exists"` to run on all nodes. This causes **hostPort 9100 conflicts** when multiple environments deploy node-exporter to the same cluster. Each environment's node-exporter must use `nodeSelector` to run only on its own node pool. Fixed in commit `1beb8cc`.
 
 **Files modified**:
 - `sources/values/dev/observability/platform-prometheus.yaml` (added node-exporter)
@@ -371,11 +382,71 @@ entityOperator:
 
 ---
 
+### 10. Redis Failover (Spotahome Operator)
+
+**Chart**: `spotahome/redis-operator` RedisFailover CR (sources/charts/data/redis-failover)
+
+**Issue**: Staging and production had no environment-specific values files. Redis and Sentinel pods remained Pending.
+
+**Correct paths**:
+```yaml
+# sources/values/{env}/data/data-redis-failover.yaml
+redis:
+  tolerations:
+    - key: "ameide.io/environment"
+      value: "dev"
+      effect: "NoSchedule"
+  nodeSelector:
+    ameide.io/pool: dev
+
+sentinel:
+  tolerations:
+    - key: "ameide.io/environment"
+      value: "dev"
+      effect: "NoSchedule"
+  nodeSelector:
+    ameide.io/pool: dev
+```
+
+**Files modified**:
+- `sources/values/dev/data/data-redis-failover.yaml` (already existed)
+- `sources/values/staging/data/data-redis-failover.yaml` (created)
+- `sources/values/production/data/data-redis-failover.yaml` (created)
+
+---
+
+### 11. Langfuse Bootstrap
+
+**Chart**: Custom chart (sources/charts/platform-layers/langfuse-bootstrap)
+
+**Issue**: Bootstrap job (ArgoCD PostSync hook) had no tolerations, causing jobs to stay Pending in all environments.
+
+**Correct path**:
+```yaml
+# sources/values/{env}/platform/platform-langfuse-bootstrap.yaml
+tolerations:
+  - key: "ameide.io/environment"
+    value: "dev"
+    effect: "NoSchedule"
+nodeSelector:
+  ameide.io/pool: dev
+```
+
+**Files modified**:
+- `sources/values/dev/platform/platform-langfuse-bootstrap.yaml` (updated)
+- `sources/values/staging/platform/platform-langfuse-bootstrap.yaml` (created)
+- `sources/values/production/platform/platform-langfuse-bootstrap.yaml` (created)
+
+---
+
 ## Commits
 
 | Commit | Description |
 |--------|-------------|
 | `fdf9593` | fix(tolerations): add tolerations to third-party chart components |
+| `1beb8cc` | fix(prometheus): restrict node-exporter to environment-specific nodes |
+| `8ffc0e0` | fix(langfuse): correct image path for GHCR mirror |
+| `dbb8dd1` | fix(tolerations): add tolerations for redis-failover and langfuse-bootstrap |
 
 ---
 
@@ -467,7 +538,7 @@ done
 
 1. **New third-party charts**: When adding new charts, always check tolerations path
 2. **Chart upgrades**: Major version upgrades may change tolerations paths
-3. **DaemonSets**: Always use `operator: "Exists"` for monitoring DaemonSets
+3. **DaemonSets with hostPort**: Restrict to per-environment nodeSelector to avoid port conflicts (e.g., prometheus-node-exporter uses hostPort 9100)
 4. **GHCR mirrors**: Docker Hub images should be mirrored to GHCR to avoid rate limiting - see [456-ghcr-mirror.md](456-ghcr-mirror.md)
 
 ---
