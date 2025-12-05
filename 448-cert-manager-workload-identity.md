@@ -70,9 +70,12 @@ azure:
 
 **cert-manager chart** (third-party, strict schema):
 ```yaml
+# Per-environment naming for complete RBAC isolation
+fullnameOverride: cert-manager-dev  # cert-manager-staging, cert-manager-prod
+
 serviceAccount:
   create: false  # Don't create, use external SA
-  name: foundation-cert-manager
+  name: cert-manager-dev  # cert-manager-staging, cert-manager-prod
 ```
 
 ## Rollout Order
@@ -83,12 +86,16 @@ serviceAccount:
 ## Verification
 
 ```bash
-# Check SA has correct client ID from globals
-kubectl get sa foundation-cert-manager -n ameide-dev \
+# Check SA has correct client ID from globals (per-environment)
+kubectl get sa cert-manager-dev -n ameide-dev \
+  -o jsonpath='{.metadata.annotations.azure\.workload\.identity/client-id}'
+kubectl get sa cert-manager-staging -n ameide-staging \
+  -o jsonpath='{.metadata.annotations.azure\.workload\.identity/client-id}'
+kubectl get sa cert-manager-prod -n ameide-prod \
   -o jsonpath='{.metadata.annotations.azure\.workload\.identity/client-id}'
 
-# Check pods have WI env vars injected
-kubectl get pod -l app.kubernetes.io/instance=foundation-cert-manager -n ameide-dev \
+# Check pods have WI env vars injected (per-environment)
+kubectl get pod -l app.kubernetes.io/instance=dev-foundation-cert-manager -n ameide-dev \
   -o jsonpath='{.items[0].spec.containers[0].env[*].name}'
 # Should include: AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_FEDERATED_TOKEN_FILE
 ```
@@ -144,7 +151,36 @@ extraArgs:
   - --issuer-ambient-credentials=true  # Enable WI for Issuers
 ```
 
+## Per-Environment RBAC Isolation
+
+Each environment uses a unique `fullnameOverride` to ensure complete RBAC isolation:
+
+| Environment | fullnameOverride | ClusterRole/ClusterRoleBinding prefix |
+|-------------|------------------|--------------------------------------|
+| dev | `cert-manager-dev` | `cert-manager-dev-*` |
+| staging | `cert-manager-staging` | `cert-manager-staging-*` |
+| prod | `cert-manager-prod` | `cert-manager-prod-*` |
+
+**Why per-environment naming:**
+- Helm generates ClusterRoles and ClusterRoleBindings using `fullnameOverride`
+- Multiple releases with the same name would overwrite each other's cluster-scoped resources
+- The last ArgoCD sync "wins", leaving other environments' SAs without RBAC permissions
+- Per-env naming creates unique cluster-scoped resources that don't conflict
+
+**Federated credential subjects** (in Bicep/Terraform):
+```
+argocd:  system:serviceaccount:argocd:argocd-cert-manager
+dev:     system:serviceaccount:ameide-dev:cert-manager-dev
+staging: system:serviceaccount:ameide-staging:cert-manager-staging
+prod:    system:serviceaccount:ameide-prod:cert-manager-prod
+```
+
 ## Related
 
 - [434: Unified Environment Naming](434-unified-environment-naming.md) - sync-globals.sh pattern
+- [438: DNS-01 Azure Workload Identity](438-cert-manager-dns01-azure-workload-identity.md) - Detailed WI configuration
 - [447: Third-Party Chart Tolerations](447-third-party-chart-tolerations.md) - excludeGlobals pattern
+
+## Changelog
+
+- **2025-12-05**: Added per-environment RBAC isolation section with `fullnameOverride` pattern and updated verification commands.

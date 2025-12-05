@@ -1,12 +1,13 @@
 # 438 – cert-manager DNS-01 with Azure Workload Identity
 
-**Updated**: 2025-12-03
+**Updated**: 2025-12-05
 
 > **Related backlogs:**
 > - [434-unified-environment-naming.md](434-unified-environment-naming.md) — Environment naming, domain matrix, and certificate architecture
 > - [386-envoy-gateway-cert-tls-docs.md](386-envoy-gateway-cert-tls-docs.md) — TLS strategy for Envoy Gateway and cert-manager PKI
 > - [418-secrets-strategy-map.md](418-secrets-strategy-map.md) — secrets posture overview (cert-manager is part of Layer 15)
 > - [436-envoy-gateway-observability.md](436-envoy-gateway-observability.md) — Envoy Gateway telemetry using `EnvoyProxy` resource
+> - [448-cert-manager-workload-identity.md](448-cert-manager-workload-identity.md) — ServiceAccount externalization and multi-identity architecture
 
 ## Overview
 
@@ -16,113 +17,131 @@ This document describes the configuration and troubleshooting for cert-manager D
 
 Per [434](434-unified-environment-naming.md#appendix-certificate--gateway-architecture):
 
-| Environment | DNS Zone | ClusterIssuer | Certificate |
-|-------------|----------|---------------|-------------|
-| dev | `dev.ameide.io` | `letsencrypt-dev-dns01` | `ameide-wildcard-dev` |
-| staging | `staging.ameide.io` | `letsencrypt-staging-dns01` | `ameide-wildcard-staging` |
-| production | `ameide.io` | `letsencrypt-prod-dns01` | `ameide-wildcard-prod` |
-| ArgoCD (cluster) | `ameide.io` | `letsencrypt-apex-dns01` | `argocd-ameide-io` |
+| Environment | DNS Zone | Issuer | Certificate |
+|-------------|----------|--------|-------------|
+| dev | `dev.ameide.io` | `letsencrypt-dev-dns01` (Issuer) | `ameide-wildcard-dev` |
+| staging | `staging.ameide.io` | `letsencrypt-staging-dns01` (Issuer) | `ameide-wildcard-staging` |
+| production | `ameide.io` | `letsencrypt-prod-dns01` (Issuer) | `ameide-wildcard-prod` |
+| ArgoCD (cluster) | `ameide.io` | `letsencrypt-argocd` (ClusterIssuer) | `argocd-ameide-io` |
 
 **Key decisions:**
 - Production uses apex domain (`ameide.io`) directly — there is NO `prod.ameide.io`
-- ArgoCD uses apex issuer for `argocd.ameide.io` (cluster-level, not env-specific)
-- Each environment has its own DNS zone and ClusterIssuer
+- ArgoCD uses ClusterIssuer for `argocd.ameide.io` (cluster-level, processed by argocd-cert-manager)
+- **Environment issuers use namespaced Issuer** (not ClusterIssuer) for multi-identity architecture
+- Each environment has its own cert-manager instance with isolated Workload Identity (see [448](448-cert-manager-workload-identity.md))
 
 ## Architecture
+
+### Multi-Identity Per-Environment Architecture
+
+Each environment (dev, staging, prod) has its own:
+1. **Managed Identity** in Azure (e.g., `ameide-dns-dev-mi`, `ameide-dns-staging-mi`, `ameide-dns-prod-mi`)
+2. **Federated Credential** for its ServiceAccount (e.g., `system:serviceaccount:ameide-dev:cert-manager-dev`)
+3. **cert-manager instance** in its namespace (namespace-scoped with `--namespace=$(POD_NAMESPACE)`)
+4. **Namespaced Issuer** (not ClusterIssuer) for DNS-01 challenges
+5. **Unique ClusterRoles/ClusterRoleBindings** via per-env `fullnameOverride` (e.g., `cert-manager-dev`)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                          Azure Subscription                              │
 │                                                                          │
 │  ┌─────────────────────┐      ┌─────────────────────────────────────┐  │
-│  │   Managed Identity   │      │           Azure DNS                  │  │
-│  │  (ameide-dns-mi)     │─────▶│  Parent: ameide.io                  │  │
-│  │                       │      │  Child:  dev.ameide.io              │  │
-│  │  Federated Cred:     │      │          staging.ameide.io          │  │
-│  │  system:serviceaccount│      │                                     │  │
-│  │  :cert-manager:       │      │  Role: DNS Zone Contributor         │  │
-│  │  foundation-cert-mgr  │      └─────────────────────────────────────┘  │
-│  └─────────────────────┘                                                 │
-│                                                                          │
+│  │  Per-Env Managed ID  │      │           Azure DNS                  │  │
+│  │  ameide-dns-dev-mi   │─────▶│  Zone: dev.ameide.io                │  │
+│  │  ameide-dns-staging  │─────▶│  Zone: staging.ameide.io            │  │
+│  │  ameide-dns-prod-mi  │─────▶│  Zone: ameide.io                    │  │
+│  │                       │      │                                     │  │
+│  │  Federated Creds:    │      │  Role: DNS Zone Contributor          │  │
+│  │  Per SA/namespace    │      │  (per identity per zone)             │  │
+│  └─────────────────────┘      └─────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────────────┘
-              │ OIDC Token Exchange
-              ▼
+                │ OIDC Token Exchange (per environment)
+                ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                              AKS Cluster                                 │
 │                                                                          │
 │  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │                      cert-manager namespace                       │   │
+│  │                      ameide-dev namespace                         │   │
 │  │                                                                   │   │
-│  │  ServiceAccount: foundation-cert-manager                         │   │
+│  │  ServiceAccount: cert-manager-dev                                │   │
 │  │    annotations:                                                   │   │
-│  │      azure.workload.identity/client-id: <dns-mi-client-id>       │   │
-│  │      azure.workload.identity/tenant-id: <tenant-id>              │   │
+│  │      azure.workload.identity/client-id: <dev-mi-client-id>       │   │
 │  │    labels:                                                        │   │
 │  │      azure.workload.identity/use: "true"                         │   │
 │  │                                                                   │   │
-│  │  Pod: foundation-cert-manager                                     │   │
-│  │    labels:                                                        │   │
-│  │      azure.workload.identity/use: "true"                         │   │
+│  │  Pod: cert-manager-dev                                            │   │
 │  │    args:                                                          │   │
+│  │      --namespace=$(POD_NAMESPACE)  # Only watches own namespace  │   │
+│  │      --issuer-ambient-credentials=true  # Enable WI for Issuers  │   │
 │  │      --dns01-recursive-nameservers=8.8.8.8:53,1.1.1.1:53        │   │
-│  │      --dns01-recursive-nameservers-only                          │   │
-│  └─────────────────────────────────────────────────────────────────┘   │
-│                                                                          │
-│  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │                        ameide namespace                           │   │
 │  │                                                                   │   │
-│  │  ClusterIssuer: letsencrypt-dev-dns01                            │   │
+│  │  Issuer: letsencrypt-dev-dns01  (namespace-scoped)               │   │
 │  │    solver:                                                        │   │
 │  │      dns01:                                                       │   │
 │  │        azureDNS:                                                  │   │
 │  │          hostedZoneName: dev.ameide.io                           │   │
-│  │          resourceGroupName: Ameide                                │   │
-│  │          subscriptionID: <sub-id>                                 │   │
-│  │          environment: AzurePublicCloud                            │   │
 │  │          managedIdentity:                                         │   │
-│  │            clientID: <dns-mi-client-id>                          │   │
+│  │            clientID: <dev-mi-client-id>                          │   │
 │  │                                                                   │   │
 │  │  Certificate: ameide-wildcard-dev                                 │   │
-│  │    dnsNames: ["dev.ameide.io", "*.dev.ameide.io"]                │   │
+│  │    issuerRef:                                                     │   │
+│  │      kind: Issuer  # Not ClusterIssuer                           │   │
+│  │      name: letsencrypt-dev-dns01                                  │   │
 │  └─────────────────────────────────────────────────────────────────┘   │
+│                                                                          │
+│  (Similar for ameide-staging and ameide-prod namespaces)                │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-## Bicep Infrastructure
+### Why Issuer Instead of ClusterIssuer
 
-### DNS Identity Module
+Per [448](448-cert-manager-workload-identity.md), we use namespaced Issuers because:
+- Each environment has its own cert-manager instance with isolated Workload Identity
+- ClusterIssuer requires a single controller to process challenges from all environments
+- That single controller's ServiceAccount would need access to all per-env managed identities
+- Namespaced Issuer + `--issuer-ambient-credentials=true` allows each env's controller to use its own identity
 
-The DNS managed identity and role assignments are defined in:
-- `infra/bicep/managed-application/modules/dnsIdentity.bicep`
+## Bicep/Terraform Infrastructure
 
-Key resources:
-1. **User-Assigned Managed Identity** (`ameide-dns-mi`)
-2. **Federated Identity Credential** for cert-manager service account
-3. **DNS Zone Contributor role** on parent zone (`ameide.io`)
-4. **DNS Zone Contributor role** on each child zone (`dev.ameide.io`, `staging.ameide.io`)
-5. **Child zone creation** via `dnsChildZone.bicep` module
-6. **NS delegation records** from parent to child zones
+### Per-Environment DNS Identity Module
+
+Each environment has its own managed identity with federated credentials. Defined in:
+- `infra/bicep/managed-application/modules/dnsIdentity.bicep` (creates 4 identities)
+- `infra/terraform/azure/main.tf` (outputs `dns_identity_client_ids`)
+
+Key resources per environment:
+1. **User-Assigned Managed Identity** (e.g., `ameide-dns-dev-mi`, `ameide-dns-prod-mi`)
+2. **Federated Identity Credential** for that environment's ServiceAccount
+3. **DNS Zone Contributor role** on the environment's DNS zone
 
 ### Critical Configuration Points
 
 ```bicep
-// main.bicep
-var certManagerServiceAccountSubject = 'system:serviceaccount:cert-manager:foundation-cert-manager'
-
-module dnsIdentity './modules/dnsIdentity.bicep' = {
-  params: {
-    enableFederatedIdentity: enableDnsFederatedIdentity  // Must be true
-    oidcIssuer: aks.outputs.oidcIssuer
-    certManagerServiceAccount: certManagerServiceAccountSubject
-    childZones: dnsChildZones  // ['dev.ameide.io', 'staging.ameide.io']
-  }
-}
+// dnsIdentity.bicep creates 4 identities with per-env SA names:
+var dnsIdentities = [
+  { name: 'ameide-dns-argocd-mi', zone: 'ameide.io', namespace: 'argocd', sa: 'argocd-cert-manager' }
+  { name: 'ameide-dns-dev-mi', zone: 'dev.ameide.io', namespace: 'ameide-dev', sa: 'cert-manager-dev' }
+  { name: 'ameide-dns-staging-mi', zone: 'staging.ameide.io', namespace: 'ameide-staging', sa: 'cert-manager-staging' }
+  { name: 'ameide-dns-prod-mi', zone: 'ameide.io', namespace: 'ameide-prod', sa: 'cert-manager-prod' }
+]
 ```
 
-The federated identity credential binds:
+Each federated identity credential binds:
 - **Issuer**: AKS OIDC issuer URL
-- **Subject**: `system:serviceaccount:cert-manager:foundation-cert-manager`
+- **Subject**: `system:serviceaccount:<namespace>:cert-manager-<env>` (per-env naming for RBAC isolation)
 - **Audience**: `api://AzureADTokenExchange`
+
+### Data Flow
+
+```
+Terraform → sync-globals.sh → globals.yaml → cert-manager-wi chart → ServiceAccount annotation
+```
+
+The client ID flows from infrastructure to Kubernetes via:
+1. Terraform outputs `dns_identity_client_ids` map
+2. `sync-globals.sh` writes to `sources/values/<env>/globals.yaml`
+3. `foundation-cert-manager-wi` chart reads `azure.dnsManagedIdentityClientId` from globals
+4. Creates ServiceAccount with `azure.workload.identity/client-id` annotation
 
 ## Helm Values Configuration
 
@@ -138,44 +157,69 @@ crds:
   keep: true
 
 # DNS-01 challenge propagation check configuration
-# Use well-known recursive nameservers for reliable propagation checks
 dns01RecursiveNameservers: "8.8.8.8:53,1.1.1.1:53"
 dns01RecursiveNameserversOnly: true
 
-# Azure Workload Identity labels
-serviceAccount:
-  labels:
-    azure.workload.identity/use: "true"
+# Namespace-scoped watching for environment isolation
+extraArgs:
+  - --namespace=$(POD_NAMESPACE)
+  - --enable-certificate-owner-ref=true
+  - --issuer-ambient-credentials=true  # Required for WI with Issuers
 
+# Azure Workload Identity labels
 podLabels:
   azure.workload.identity/use: "true"
 
-cainjector:
-  podLabels:
-    azure.workload.identity/use: "true"
-
-webhook:
-  podLabels:
-    azure.workload.identity/use: "true"
-
-startupapicheck:
-  podLabels:
-    azure.workload.identity/use: "true"
+# ServiceAccounts managed externally by cert-manager-wi chart
+# Names set per-environment: cert-manager-dev, cert-manager-staging, cert-manager-prod
 ```
 
-### Per-environment values (dev)
+### Per-environment values (dev example)
 
 File: `sources/values/dev/foundation/foundation-cert-manager.yaml`
 
 ```yaml
-# Azure Workload Identity annotations for DNS-01 validation
+# Per-environment naming for complete RBAC isolation
+# Each environment gets unique ClusterRoles and ClusterRoleBindings
+fullnameOverride: cert-manager-dev
+
+# ServiceAccount matches the fullnameOverride for RBAC binding
 serviceAccount:
-  annotations:
-    azure.workload.identity/client-id: "<dns-mi-client-id>"
-    azure.workload.identity/tenant-id: "<tenant-id>"
+  create: false
+  name: cert-manager-dev
 ```
 
-**Important**: The `client-id` must match the DNS managed identity, not the AKS managed identity.
+### ServiceAccount Management
+
+ServiceAccounts are managed by the `foundation-cert-manager-wi` chart (see [448](448-cert-manager-workload-identity.md)):
+- Reads client ID from `globals.yaml` (`azure.dnsManagedIdentityClientId`)
+- Creates ServiceAccount with proper WI annotations
+- Deployed at rolloutPhase 115 (before cert-manager at 120)
+
+### Per-environment values (dev)
+
+File: `sources/values/dev/platform/platform-cert-manager-config.yaml`
+
+```yaml
+certManager:
+  enabled: true
+  issuers:
+    letsencrypt:
+      dns01:
+        enabled: true
+        kind: Issuer  # Not ClusterIssuer
+        name: letsencrypt-dev-dns01
+        provider:
+          azureDNS:
+            hostedZoneName: "{{ .Values.azure.dnsZone }}"
+            managedIdentity:
+              clientID: "{{ .Values.azure.dnsManagedIdentityClientId }}"
+
+  certificates:
+    - name: ameide-wildcard-dev
+      issuer: letsencrypt-dev-dns01
+      issuerKind: Issuer  # Match the Issuer kind
+```
 
 ## Troubleshooting
 
@@ -198,11 +242,54 @@ dns01RecursiveNameserversOnly: true
 
 Verify the setting is active:
 ```bash
-kubectl logs deployment/foundation-cert-manager -n cert-manager | grep "configured acme dns01 nameservers"
+# Per-environment deployments (use appropriate namespace)
+kubectl logs deployment/cert-manager-dev -n ameide-dev | grep "configured acme dns01 nameservers"
+kubectl logs deployment/cert-manager-staging -n ameide-staging | grep "configured acme dns01 nameservers"
+kubectl logs deployment/cert-manager-prod -n ameide-prod | grep "configured acme dns01 nameservers"
 # Should show: nameservers=["8.8.8.8:53","1.1.1.1:53"]
 ```
 
-#### 2. 401 Unauthorized from Azure AD
+#### 2. 400 Bad Request from Azure AD Token Exchange
+
+**Symptom:**
+```
+authentication failed:
+POST https://login.microsoftonline.com/<tenant>/oauth2/v2.0/token
+RESPONSE 400 Bad Request
+```
+
+**Causes:**
+- Federated identity credential doesn't exist for this namespace/ServiceAccount combination
+- Subject mismatch between Kubernetes SA and Azure federated credential
+
+**Diagnosis:**
+```bash
+# Check federated credentials on the per-env managed identity
+az identity federated-credential list \
+  --identity-name ameide-dns-prod-mi \
+  --resource-group Ameide
+
+# The subject should be: system:serviceaccount:ameide-prod:cert-manager-prod
+# Verify service account annotations
+kubectl get sa cert-manager-prod -n ameide-prod -o yaml
+
+# Check WI env vars are injected into the pod
+kubectl get pod -l app.kubernetes.io/instance=cert-manager-prod -n ameide-prod \
+  -o jsonpath='{.items[0].spec.containers[0].env}' | jq .
+```
+
+**Fix:** Create the federated credential in Azure for the correct namespace:
+```bash
+az identity federated-credential create \
+  --name "ameide-prod-cert-manager" \
+  --identity-name "ameide-dns-prod-mi" \
+  --resource-group "Ameide" \
+  --issuer "<aks-oidc-issuer-url>" \
+  --subject "system:serviceaccount:ameide-prod:cert-manager-prod" \
+  --audience "api://AzureADTokenExchange"
+```
+
+#### 3. 401 Unauthorized from Azure AD
 
 **Symptom:**
 ```
@@ -212,24 +299,24 @@ RESPONSE 401 Unauthorized
 ```
 
 **Causes:**
-- Federated identity credential not created or misconfigured
-- Service account subject mismatch
+- Federated identity credential expired or revoked
+- AKS OIDC issuer URL changed
 - Missing `azure.workload.identity/use: "true"` labels/annotations
 
 **Diagnosis:**
 ```bash
 # Check federated credentials on the managed identity
 az identity federated-credential list \
-  --identity-name ameide-dns-mi \
+  --identity-name ameide-dns-dev-mi \
   --resource-group Ameide
 
 # Verify service account annotations
-kubectl get sa foundation-cert-manager -n cert-manager -o yaml
+kubectl get sa cert-manager-dev -n ameide-dev -o yaml
 ```
 
-**Fix:** Ensure Bicep parameter `enableDnsFederatedIdentity: true` and redeploy.
+**Fix:** Verify federated credential configuration matches the AKS OIDC issuer.
 
-#### 3. 403 Forbidden on Azure DNS
+#### 4. 403 Forbidden on Azure DNS
 
 **Symptom:**
 ```
@@ -290,8 +377,10 @@ kubectl describe certificate ameide-wildcard-dev -n ameide
 kubectl get challenges -A
 kubectl describe challenge <name> -n ameide
 
-# Check cert-manager logs
-kubectl logs deployment/foundation-cert-manager -n cert-manager --tail=50
+# Check cert-manager logs (per-environment)
+kubectl logs deployment/cert-manager-dev -n ameide-dev --tail=50
+kubectl logs deployment/cert-manager-staging -n ameide-staging --tail=50
+kubectl logs deployment/cert-manager-prod -n ameide-prod --tail=50
 
 # Verify DNS record exists
 dig @8.8.8.8 TXT _acme-challenge.dev.ameide.io +short
@@ -323,7 +412,10 @@ If certificate issuance is stuck:
 
 4. **Force cert-manager restart** if configuration changed:
    ```bash
-   kubectl rollout restart deployment/foundation-cert-manager -n cert-manager
+   # Restart per-environment deployments
+   kubectl rollout restart deployment/cert-manager-dev -n ameide-dev
+   kubectl rollout restart deployment/cert-manager-staging -n ameide-staging
+   kubectl rollout restart deployment/cert-manager-prod -n ameide-prod
    ```
 
 ## File Reference
@@ -341,4 +433,5 @@ If certificate issuance is stuck:
 
 ## Changelog
 
+- **2025-12-05**: Updated for per-environment cert-manager naming (`cert-manager-dev`, `cert-manager-staging`, `cert-manager-prod`) for complete RBAC isolation. Federated credential subjects updated in Bicep/Terraform.
 - **2025-12-03**: Initial documentation after debugging DNS-01 propagation check failures and 403 errors on child zones.

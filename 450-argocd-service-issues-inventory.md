@@ -1,10 +1,10 @@
 # 450 – ArgoCD Service Issues Inventory
 
-**Status**: Resolved (Tolerations Fixed)
+**Status**: Resolved
 **Created**: 2025-12-04
 **Updated**: 2025-12-05
 **Commit**: `6c805de fix(446): remove tolerations overrides, inherit from globals`
-**Related**: [445-argocd-namespace-isolation.md](445-argocd-namespace-isolation.md), [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md)
+**Related**: [445-argocd-namespace-isolation.md](445-argocd-namespace-isolation.md), [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md), [451-secrets-management.md](451-secrets-management.md)
 
 ---
 
@@ -114,13 +114,27 @@ ameide-staging   ameide-vault   ...
 | `pgadmin-*` | ameide-dev | `pgadmin-bootstrap-credentials` |
 | `plausible-plausible-*` | ameide-dev | `plausible-secret` |
 
-### ImagePullBackOff (Missing ghcr-pull-secret)
+### ~~ImagePullBackOff (Missing ghcr-pull-secret)~~ ✅ RESOLVED
 
 | Pod | Namespace | Image |
 |-----|-----------|-------|
 | `transformation-*` | ameide-dev | `ghcr.io/ameideio/transformation:dev` |
 
-**Root Cause**: `ghcr-pull` secret not synced (ClusterSecretStore broken)
+**Root Cause (Multi-Layer)**:
+1. ClusterSecretStore broken → fixed with per-environment SecretStores
+2. vault-bootstrap couldn't fetch secrets from Azure Key Vault → federated identity credentials were missing for per-environment namespaces
+
+**Fix Applied (2025-12-05)**:
+1. Created per-environment federated identity credentials for vault-bootstrap identity:
+   - `vault-bootstrap-dev` → `system:serviceaccount:ameide-dev:foundation-vault-bootstrap-vault-bootstrap`
+   - `vault-bootstrap-staging` → `system:serviceaccount:ameide-staging:foundation-vault-bootstrap-vault-bootstrap`
+   - `vault-bootstrap-prod` → `system:serviceaccount:ameide-prod:foundation-vault-bootstrap-vault-bootstrap`
+2. Updated Terraform to manage these federated credentials automatically
+3. Removed `env-` prefix from Azure Key Vault secret names (aligned with Helm values)
+
+**Result**: Real credentials now flow: `.env` → Azure Key Vault → HashiCorp Vault → ExternalSecrets → K8s Secrets
+
+See [451-secrets-management.md](451-secrets-management.md) for complete secrets architecture
 
 ---
 
@@ -189,9 +203,10 @@ Apps still reconciling (may self-heal once P0 fixed):
 8. ~~**Secrets available**~~ ✅ Most secrets created (ghcr-pull, minio, etc.)
 9. ~~**Delete orphaned per-env cert-manager**~~ ✅ Apps and resources deleted
 10. ~~**Fix tolerations overrides**~~ ✅ Removed empty overrides from 11 apps shared values
-11. **Apps auto-syncing** → Pods now scheduling on correct nodes
+11. ~~**Apps auto-syncing**~~ ✅ Pods now scheduling on correct nodes
+12. ~~**Fix Vault sealed/K8s auth issues**~~ ✅ All environments operational
 
-**Current Status**: ✅ Tolerations fixed. Apps auto-syncing. Pods scheduling on environment nodes.
+**Current Status**: ✅ **FULLY RESOLVED** - All environments operational with secrets syncing.
 
 ### Tolerations Fix (2025-12-05)
 
@@ -221,6 +236,53 @@ overriding the globals.yaml inherited values.
 kubectl get pods -n ameide-dev -o wide | grep agents
 # agents-785f678b6c-pw52f   aks-dev-21365390-vmss000001
 ```
+
+### Vault Sealed/K8s Auth Fix (2025-12-05)
+
+**Symptoms discovered**:
+- Staging: Vault sealed (503 error)
+- Production: Vault Kubernetes auth permission denied (403 error)
+- SecretStores showed `InvalidProviderConfig` in both environments
+
+**Root Causes**:
+1. **Staging**: Vault pod restarted and was not auto-unsealed
+2. **Production**: Kubernetes auth configuration needed `disable_iss_validation=true`
+
+**Fixes Applied**:
+```bash
+# 1. Unseal staging Vault
+UNSEAL_KEY=$(kubectl get secret -n ameide-staging vault-auto-credentials -o jsonpath='{.data.unseal-key}' | base64 -d)
+kubectl exec -n ameide-staging vault-core-staging-0 -- vault operator unseal "$UNSEAL_KEY"
+
+# 2. Reconfigure Kubernetes auth in both environments
+for env in staging prod; do
+  ROOT_TOKEN=$(kubectl get secret -n ameide-$env vault-auto-credentials -o jsonpath='{.data.root-token}' | base64 -d)
+  kubectl exec -n ameide-$env vault-core-$env-0 -- sh -c "VAULT_TOKEN=$ROOT_TOKEN vault write auth/kubernetes/config kubernetes_host='https://kubernetes.default.svc' disable_iss_validation=true"
+done
+
+# 3. Force SecretStore reconciliation
+kubectl annotate secretstore ameide-vault -n ameide-staging force-refresh=$(date +%s) --overwrite
+kubectl annotate secretstore ameide-vault -n ameide-prod force-refresh=$(date +%s) --overwrite
+
+# 4. Force ExternalSecrets refresh
+for ns in ameide-staging ameide-prod; do
+  for es in $(kubectl get externalsecret -n $ns -o name); do
+    kubectl annotate "$es" -n $ns force-refresh="$(date +%s)" --overwrite
+  done
+done
+```
+
+**Result**:
+```
+NAMESPACE        NAME           STATUS   READY
+ameide-dev       ameide-vault   Valid    True
+ameide-prod      ameide-vault   Valid    True
+ameide-staging   ameide-vault   Valid    True
+```
+
+All 21 ExternalSecrets in each environment now syncing successfully.
+
+See [451-secrets-management.md](451-secrets-management.md) for detailed troubleshooting runbook.
 
 ---
 

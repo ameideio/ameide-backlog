@@ -2,8 +2,8 @@
 
 **Status**: Implemented
 **Created**: 2025-12-04
-**Implemented**: 2025-12-04
-**Related**: [446-namespace-isolation.md](446-namespace-isolation.md), [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md), [448-per-environment-service-verification.md](448-per-environment-service-verification.md)
+**Updated**: 2025-12-05
+**Related**: [446-namespace-isolation.md](446-namespace-isolation.md), [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md), [448-per-environment-service-verification.md](448-per-environment-service-verification.md), [451-secrets-management.md](451-secrets-management.md)
 
 ---
 
@@ -20,10 +20,10 @@ Infrastructure was designed for a single-environment cluster. With namespace iso
 | Resource | Namespace/Scope | Rationale |
 |----------|-----------------|-----------|
 | AKS Cluster | N/A | Single cluster, multi-environment |
-| Key Vault | N/A | Shared secrets across environments |
+| Key Vault | N/A | Shared secrets across environments (see [451](451-secrets-management.md)) |
 | Log Analytics | N/A | Centralized observability |
 | ArgoCD Public IP | `argocd` | Single ArgoCD instance |
-| Vault Bootstrap Identity | `vault` | Vault is cluster-scoped |
+| Vault Bootstrap Identity | Per-env federated | vault-bootstrap runs in each env namespace |
 | DNS Identity | Multiple | Cert-manager shares DNS access |
 | DNS Zones | N/A | Shared DNS infrastructure |
 
@@ -136,6 +136,42 @@ cnpg_backup_subjects = {
   prod    = "system:serviceaccount:ameide-prod:postgres-ameide"
 }
 ```
+
+### Vault Bootstrap Identity (Updated 2025-12-05)
+
+The vault-bootstrap CronJob runs in per-environment namespaces (`ameide-dev`, `ameide-staging`, `ameide-prod`) and needs Azure Workload Identity to fetch secrets from Key Vault. This requires federated credentials for each namespace:
+
+```hcl
+# infra/terraform/azure/main.tf
+vault_bootstrap_subjects = {
+  dev     = "system:serviceaccount:ameide-dev:foundation-vault-bootstrap-vault-bootstrap"
+  staging = "system:serviceaccount:ameide-staging:foundation-vault-bootstrap-vault-bootstrap"
+  prod    = "system:serviceaccount:ameide-prod:foundation-vault-bootstrap-vault-bootstrap"
+}
+
+module "vault_bootstrap_identity" {
+  source = "../modules/azure-identity"
+
+  name = "ameide-vault-bootstrap-mi"
+  # ...
+
+  federated_credentials = {
+    for name, subject in local.vault_bootstrap_subjects : "vault-bootstrap-${name}" => {
+      issuer  = module.aks.oidc_issuer_url
+      subject = subject
+    }
+  }
+
+  role_assignments = {
+    keyvault-secrets-user = {
+      scope = module.keyvault.id
+      role  = "Key Vault Secrets User"
+    }
+  }
+}
+```
+
+**Important**: Without per-environment federated credentials, vault-bootstrap cannot authenticate to Azure Key Vault and falls back to placeholder secrets. See [451-secrets-management.md](451-secrets-management.md) for the full secrets flow.
 
 ---
 

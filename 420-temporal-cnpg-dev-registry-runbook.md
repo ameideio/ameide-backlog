@@ -4,8 +4,8 @@
 
 ## What we configured
 - **Temporal DB ownership:** CNPG (`platform-postgres-clusters`) owns the `temporal` and `temporal_visibility` roles/secrets. The Temporal chart now uses `temporal`/`temporal_visibility` users via `temporal-db-credentials` and `temporal-visibility-db-credentials`. All Vault-authored ExternalSecrets for Temporal were removed; Vault is mirror-only if needed. See also `backlog/425-vendor-schema-ownership.md` for the general vendor schema pattern.
-- **Schema hook matches upstream flow:** `data-migrations-temporal` runs the same steps as Temporal’s `auto-setup.sh`. The Helm hook job:
-  - Uses the official `temporalio/admin-tools` image and runs the bundled `temporal-sql-tool` (version pinned via `values.schema.toolVersion`, kept in lockstep with the Temporal server image tag) instead of downloading it at runtime, matching Temporal’s self-hosted guidance.
+- **Schema hook matches upstream flow:** `data-migrations-temporal` runs the same steps as Temporal's `auto-setup.sh`. The Helm hook job:
+  - Uses the GHCR-mirrored `ghcr.io/ameideio/mirror/temporalio-admin-tools` image (see `backlog/456-ghcr-mirror.md`) and runs the bundled `temporal-sql-tool` (version pinned via `values.schema.toolVersion`, kept in lockstep with the Temporal server image tag) instead of downloading it at runtime, matching Temporal's self-hosted guidance.
   - Always executes `setup-schema -v 0.0` for both databases (`postgresql/v12/temporal` and `/visibility`). This is idempotent and initializes `schema_version` if missing.
   - Immediately follows with `update-schema --schema-name ...` so the database is migrated to the latest manifest bundled with the chart. There is no manual `TargetVersion`; whatever is in `postgresql/v12/**/versioned` is what gets applied.
   - Uses only the CNPG-provided secrets (`temporal-db-env`, `temporal-visibility-db-env`) for connection info; no Flyway secrets or additional RBAC required.
@@ -90,3 +90,4 @@ For related design and runbooks, see:
 - `backlog/425-vendor-schema-ownership.md` – vendor vs Flyway schema ownership (Temporal pattern).
 - `backlog/423-temporal-argocd-recovery.md` – detailed recovery flows when Temporal or namespace bootstrap fail in Argo.
 - `backlog/429-devcontainer-bootstrap.md` – how the DevContainer + `bootstrap-v2.sh` orchestrate k3d, Argo, and GitOps end-to-end.
+- `backlog/456-ghcr-mirror.md` – GHCR mirroring for Docker Hub rate limiting (Temporal uses GHCR mirrors for server, admin-tools, and UI images).

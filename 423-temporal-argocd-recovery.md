@@ -14,6 +14,7 @@ See also:
 - `backlog/425-vendor-schema-ownership.md` – vendor‑owned schema pattern (Temporal, CNPG).
 - `backlog/420-temporal-cnpg-dev-registry-runbook.md` – broader Temporal + CNPG + dev registry story.
 - `backlog/429-devcontainer-bootstrap.md` – how DevContainer bootstrap drives Argo/Temporal in dev.
+- `backlog/456-ghcr-mirror.md` – GHCR mirroring for Docker Hub rate limiting; Temporal images use GHCR mirrors.
 
 ## Issues encountered
 
@@ -324,3 +325,81 @@ Recovery completed successfully:
 - `temporal_visibility` database: schema version **1.9**
 - All 10 Temporal pods: **Running**
 - ArgoCD apps: `dev-data-migrations-temporal`, `dev-data-temporal`, `dev-data-temporal-namespace-bootstrap` all **Synced/Healthy**
+
+## Recovery Incident: 2025-12-05 (GHCR Mirror Alignment)
+
+### Root Cause Analysis
+
+This incident occurred during GHCR mirror alignment (backlog/456-ghcr-mirror.md):
+
+1. **Busybox init container missing `nc` command**: The Temporal init container was using `cgr.dev/chainguard/busybox` which doesn't include the `nc` (netcat) command needed for the wait-for-backends script.
+
+2. **Migration job using Docker Hub image**: The `temporal-migrations` job was using `temporalio/admin-tools` from Docker Hub, which was rate-limited.
+
+3. **Partial migration state**: Previous failed migration attempts left the databases in partial state with `schema_version` at 0.0 and duplicate key conflicts in `namespace_metadata`.
+
+4. **Old pods stuck in Init:0/1**: Old ReplicaSets had pods stuck waiting on the old busybox image.
+
+### Fixes Applied
+
+#### 1. GHCR Busybox Mirror (commit in session)
+
+Changed Temporal init container to use GHCR mirror with netcat support:
+
+**File**: `sources/values/_shared/data/data-temporal.yaml`
+```yaml
+additionalInitContainers:
+  - name: wait-for-backends
+    # Using GHCR mirror to avoid Docker Hub rate limits
+    image: ghcr.io/ameideio/mirror/busybox:1.36.1
+```
+
+#### 2. GHCR Migration Job Image (commit in session)
+
+**File**: `sources/values/_shared/data/data-migrations-temporal.yaml`
+```yaml
+image:
+  repository: ghcr.io/ameideio/mirror/temporalio-admin-tools
+  tag: "1.29.1-tctl-1.18.4-cli-1.5.0"
+imagePullSecrets:
+  - ghcr-pull
+```
+
+### Recovery Steps
+
+```bash
+# 1. Delete conflicting namespace_metadata row
+kubectl exec -n ameide-dev data-temporal-admintools-... -- \
+  env PGPASSWORD=... psql -h platform-postgres-clusters-rw.ameide-dev.svc.cluster.local \
+  -U temporal -d temporal -c "DELETE FROM namespace_metadata WHERE partition_id = 54321;"
+
+# 2. Delete old stuck pods (Init:0/1 from old ReplicaSets)
+kubectl delete pod -n ameide-dev <old-init-stuck-pods> --force --grace-period=0
+
+# 3. Restart affected Temporal deployments
+kubectl rollout restart deployment -n ameide-dev \
+  data-temporal-frontend data-temporal-matching data-temporal-worker
+
+# 4. Delete failed namespace-bootstrap job and re-sync
+kubectl delete job data-temporal-namespace-bootstrap-temporal-namespace-bootstrap \
+  -n ameide-dev --force --grace-period=0
+kubectl annotate application dev-data-temporal-namespace-bootstrap -n argocd \
+  argocd.argoproj.io/refresh=hard --overwrite
+kubectl patch application dev-data-temporal-namespace-bootstrap -n argocd \
+  --type merge -p '{"operation":{"initiatedBy":{"username":"admin"},"sync":{"prune":true}}}'
+```
+
+### Final State
+
+Recovery completed successfully:
+- `temporal` database: schema version **1.18**
+- `temporal_visibility` database: schema version **1.9**
+- All 10 Temporal pods: **Running**
+- ArgoCD apps: `dev-data-migrations-temporal`, `dev-data-temporal`, `dev-data-temporal-namespace-bootstrap` all **Synced/Healthy**
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `sources/values/_shared/data/data-temporal.yaml` | Changed busybox to GHCR mirror |
+| `sources/values/_shared/data/data-migrations-temporal.yaml` | Added GHCR mirror for admin-tools image |

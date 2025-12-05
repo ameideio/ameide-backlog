@@ -166,16 +166,17 @@ sidecar:
 
 | File | Changes |
 |------|---------|
-| `sources/values/_shared/data/data-temporal.yaml` | GHCR mirrors for server/web/admintools + imagePullSecrets |
-| `sources/values/_shared/observability/platform-loki.yaml` | `loki.image` path, sidecar image, imagePullSecrets |
-| `sources/values/_shared/observability/platform-grafana.yaml` | global.imagePullSecrets, GHCR image |
-| `sources/values/_shared/observability/platform-tempo.yaml` | `tempo.pullSecrets` format, GHCR image |
-| `sources/values/_shared/observability/platform-alloy-logs.yaml` | global.image.pullSecrets, GHCR image |
-| `sources/values/_shared/observability/platform-otel-collector.yaml` | imagePullSecrets, GHCR image |
+| `sources/values/_shared/data/data-temporal.yaml` | GHCR mirrors for server + busybox init container + imagePullSecrets |
+| `sources/values/_shared/data/data-migrations-temporal.yaml` | GHCR mirror for temporalio-admin-tools + imagePullSecrets |
+| `sources/values/_shared/platform/platform-loki.yaml` | `loki.image` path, sidecar image, imagePullSecrets |
+| `sources/values/_shared/platform/platform-grafana.yaml` | global.imagePullSecrets, GHCR image, downloadDashboardsImage |
+| `sources/values/_shared/platform/platform-tempo.yaml` | `tempo.pullSecrets` format, GHCR image |
+| `sources/values/_shared/platform/platform-alloy-logs.yaml` | global.image.pullSecrets, GHCR image |
+| `sources/values/_shared/platform/platform-otel-collector.yaml` | imagePullSecrets, GHCR image |
 | `sources/values/_shared/data/data-redis-failover.yaml` | imagePullSecrets on redis/sentinel, GHCR image |
 | `sources/values/_shared/data/data-clickhouse.yaml` | imagePullSecrets, GHCR images |
 | `sources/values/_shared/foundation/foundation-vault-bootstrap.yaml` | imagePullSecrets, GHCR image |
-| `sources/values/_shared/observability/platform-langfuse.yaml` | pullSecrets on web/worker, GHCR images |
+| `sources/values/_shared/platform/platform-langfuse.yaml` | pullSecrets on web/worker, GHCR images |
 | `sources/values/common/argocd.yaml` | global.imagePullSecrets for Redis |
 | `sources/charts/platform-layers/pgadmin/values.yaml` | imagePullSecrets, GHCR image |
 | `sources/charts/platform-layers/plausible/values.yaml` | imagePullSecrets, GHCR image |
@@ -236,3 +237,17 @@ sidecar:
 - Verify DOCKERHUB_USERNAME/TOKEN secrets are set
 - Check for Docker Hub rate limiting during pull phase
 - Review workflow logs in GitHub Actions
+
+## Related Incidents
+
+- **2025-12-05 Temporal Recovery**: During GHCR mirror alignment, Temporal pods were stuck due to:
+  1. Busybox init container (`cgr.dev/chainguard/busybox`) missing `nc` command - fixed by switching to GHCR mirror
+  2. Migration job using Docker Hub image (rate limited) - fixed by adding GHCR mirror for `temporalio-admin-tools`
+
+  See [backlog/423-temporal-argocd-recovery.md](423-temporal-argocd-recovery.md) for full incident details.
+
+## Related Documentation
+
+- [423-temporal-argocd-recovery.md](423-temporal-argocd-recovery.md) - Temporal ArgoCD recovery procedures
+- [420-temporal-cnpg-dev-registry-runbook.md](420-temporal-cnpg-dev-registry-runbook.md) - Temporal CNPG dev registry runbook
+- [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md) - Cluster operator tolerations (related to node scheduling)

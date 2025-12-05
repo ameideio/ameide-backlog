@@ -1,11 +1,14 @@
 # 444 – Terraform Infrastructure
 
 **Created**: 2025-12-04
+**Updated**: 2025-12-05
 
 > **Related documents:**
 > - [439-deploy-infrastructure.md](439-deploy-infrastructure.md) – Deployment flow and scripts
 > - [443-tenancy-models.md](443-tenancy-models.md) – Multi-tenant architecture
 > - [148-azure-managed-offering.md](148-azure-managed-offering.md) – Azure Marketplace (Bicep required)
+> - [449-per-environment-infrastructure.md](449-per-environment-infrastructure.md) – Per-environment Azure resources
+> - [451-secrets-management.md](451-secrets-management.md) – Secrets flow from .env to Kubernetes
 
 ## Overview
 
@@ -261,6 +264,58 @@ output "envoy_public_ip" { value = azurerm_public_ip.envoy.ip_address }
 
 Outputs written to `artifacts/terraform-outputs/azure.json` for bootstrap consumption.
 
+## Secrets Seeding from .env
+
+The `deploy.sh` script automatically seeds secrets from `.env` and `.env.local` to Azure Key Vault during Terraform deployment. See [451-secrets-management.md](451-secrets-management.md) for the complete flow.
+
+### How It Works
+
+1. **Parse .env files** → `deploy.sh` reads `.env` and `.env.local`
+2. **Sanitize keys** → `GHCR_TOKEN` becomes `ghcr-token` (lowercase, underscores to dashes)
+3. **Create tfvars.json** → Temporary file with `env_secrets` variable
+4. **Terraform apply** → `azurerm_key_vault_secret` resources created
+5. **vault-bootstrap** → CronJob fetches from Key Vault, writes to HashiCorp Vault
+6. **ExternalSecrets** → Syncs from Vault to Kubernetes Secrets
+
+```bash
+# Example .env file
+GHCR_TOKEN=ghp_xxx
+GHCR_USER=myuser
+LANGFUSE_SECRET_KEY=xxx
+
+# Results in Azure Key Vault secrets:
+# - ghcr-token
+# - ghcr-user
+# - langfuse-secret-key
+```
+
+### Terraform Configuration
+
+```hcl
+# infra/terraform/azure/main.tf
+resource "azurerm_key_vault_secret" "env_secrets" {
+  for_each = nonsensitive(toset(keys(var.env_secrets)))
+
+  name         = each.key   # Already sanitized by deploy.sh
+  value        = var.env_secrets[each.key]
+  key_vault_id = module.keyvault.id
+}
+```
+
+### Helm Values for vault-bootstrap
+
+```yaml
+# sources/values/dev/foundation/foundation-vault-bootstrap.yaml
+azure:
+  workloadIdentity:
+    enabled: true
+    clientId: "<vault-bootstrap-mi-client-id>"
+    tenantId: "<tenant-id>"
+  keyVault:
+    uri: "https://ameidekv.vault.azure.net/"
+    secretPrefix: ""   # No prefix - matches sanitized .env keys
+```
+
 ## Backlog
 
 - [x] Design Terraform architecture
@@ -280,5 +335,8 @@ Outputs written to `artifacts/terraform-outputs/azure.json` for bootstrap consum
 - [x] **TF-16**: Add error trap with line numbers → Better debugging aligned with `deploy-bicep.sh` → **2025-12-04**
 - [x] **TF-17**: Add Key Vault soft-delete recovery → Pre-deployment recovery aligned with Bicep → **2025-12-04**
 - [x] **TF-18**: Add ArgoCD CLI context refresh → Auto-login after bootstrap → **2025-12-04**
+- [x] **TF-19**: Parse .env secrets to Azure Key Vault → `deploy.sh` now seeds secrets via `env_secrets` Terraform variable → **2025-12-05**
+- [x] **TF-20**: Federated identity credentials per environment → vault-bootstrap can authenticate from ameide-dev/staging/prod namespaces → **2025-12-05**
+- [ ] **TF-21**: Clean up legacy `env-*` prefixed secrets from Azure Key Vault (19 secrets) → now using non-prefixed secrets with `secretPrefix: ""`
 - [ ] **TF-8**: AWS EKS module (future)
 - [ ] **TF-9**: Local k3d setup (future)

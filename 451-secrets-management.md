@@ -282,6 +282,59 @@ spec:
 | vault-bootstrap fails silently | Missing `AZURE_FEDERATED_TOKEN_FILE` | Verify workload identity webhook running |
 | SecretStore not Ready | Vault not initialized | Wait for vault-bootstrap to complete |
 | ExternalSecret shows `SecretSyncError` | Vault path incorrect | Check `secretPrefix` in values |
+| SecretStore `InvalidProviderConfig` | Vault sealed | Unseal Vault (see below) |
+| SecretStore `permission denied` (403) | Kubernetes auth not configured | Run vault-bootstrap or reconfigure manually |
+
+### Vault Sealed (503 Error)
+
+If Vault is sealed, the SecretStore shows `InvalidProviderConfig` with error:
+```
+unable to log in with Kubernetes auth: Error making API request.
+Code: 503. Errors: * Vault is sealed
+```
+
+**Resolution:**
+```bash
+# Get unseal key (replace <env> with dev/staging/prod)
+UNSEAL_KEY=$(kubectl get secret -n ameide-<env> vault-auto-credentials -o jsonpath='{.data.unseal-key}' | base64 -d)
+
+# Unseal vault
+kubectl exec -n ameide-<env> vault-core-<env>-0 -- vault operator unseal "$UNSEAL_KEY"
+
+# Verify
+kubectl exec -n ameide-<env> vault-core-<env>-0 -- vault status
+```
+
+### Kubernetes Auth Permission Denied (403 Error)
+
+If SecretStore shows `InvalidProviderConfig` with error:
+```
+Code: 403. Errors: * permission denied
+```
+
+This indicates Vault's Kubernetes auth is not properly configured.
+
+**Resolution:**
+```bash
+# Get root token
+ROOT_TOKEN=$(kubectl get secret -n ameide-<env> vault-auto-credentials -o jsonpath='{.data.root-token}' | base64 -d)
+
+# Reconfigure kubernetes auth
+kubectl exec -n ameide-<env> vault-core-<env>-0 -- sh -c "VAULT_TOKEN=$ROOT_TOKEN vault write auth/kubernetes/config kubernetes_host='https://kubernetes.default.svc' disable_iss_validation=true"
+
+# Force SecretStore reconciliation
+kubectl annotate secretstore ameide-vault -n ameide-<env> force-refresh=$(date +%s) --overwrite
+```
+
+### Force ExternalSecrets Refresh
+
+After fixing SecretStore issues, ExternalSecrets may be cached as failed:
+```bash
+# Refresh all ExternalSecrets in a namespace
+for es in $(kubectl get externalsecret -n ameide-<env> -o name); do
+  kubectl annotate "$es" -n ameide-<env> force-refresh="$(date +%s)" --overwrite
+done
+```
 
 ---
 
