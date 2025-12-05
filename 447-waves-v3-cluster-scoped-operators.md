@@ -299,3 +299,66 @@ Check cluster apps:
 ```bash
 kubectl get applications -n argocd -l scope=cluster
 ```
+
+---
+
+## Troubleshooting
+
+### Altinity ClickHouse Operator CHI Informer Issue (2025-12-05)
+
+**Symptom**: CHIs exist but have empty `.status`, no StatefulSets created, operator logs show no `chiInformer` events.
+
+**Root cause**: The Helm-deployed operator in `clickhouse-system` had a broken CHI informer. Operator logs showed:
+- `podInformer.AddFunc/UpdateFunc` ✓
+- `configMapInformer.AddFunc` ✓
+- `endpointSliceInformer.UpdateFunc` ✓
+- **No `chiInformer` events at all** ✗
+
+The CHI controller workers started but never received any work items.
+
+**Resolution**: Reinstall from official bundle instead of Helm chart:
+
+```bash
+# Install from official bundle (goes to kube-system namespace by default)
+kubectl apply -f https://raw.githubusercontent.com/Altinity/clickhouse-operator/0.25.5/deploy/operator/clickhouse-operator-install-bundle.yaml
+
+# Delete the broken Helm-managed operator
+kubectl delete deployment clickhouse-operator -n clickhouse-system
+
+# Add CriticalAddonsOnly toleration for system node scheduling
+kubectl patch deployment clickhouse-operator -n kube-system --type='json' \
+  -p='[{"op": "add", "path": "/spec/template/spec/tolerations", "value": [{"key": "CriticalAddonsOnly", "operator": "Exists"}]}]'
+```
+
+**Verification**:
+```bash
+# Check operator is processing CHIs (should see ENQUEUE lines)
+kubectl logs -n kube-system deployment/clickhouse-operator | grep -E "ENQUEUE.*ReconcileCHI"
+
+# Check CHI status (should not be empty)
+kubectl get chi -A
+
+# Check StatefulSets created with correct tolerations
+kubectl get sts -n ameide-dev -l clickhouse.altinity.com/chi=data-clickhouse
+kubectl get sts <name> -o jsonpath='{.spec.template.spec.tolerations}' | jq .
+```
+
+**Key difference**: The official bundle creates informers correctly; the Helm chart deployment had a broken informer initialization path. After fix, CHI dev completed in ~1 minute with correct tolerations propagated to StatefulSet/Pod.
+
+### CNPG Postgres Affinity Configuration
+
+CNPG uses `spec.affinity` (not `spec.tolerations`) on the Cluster CR:
+
+```yaml
+# Correct structure per CloudNativePG docs
+cluster:
+  affinity:
+    tolerations:
+      - key: "ameide.io/environment"
+        value: "dev"
+        effect: "NoSchedule"
+    nodeSelector:
+      ameide.io/pool: dev
+```
+
+Reference: https://cloudnative-pg.io/documentation/current/scheduling/
