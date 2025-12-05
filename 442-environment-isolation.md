@@ -8,7 +8,7 @@
 > - [435-remote-first-development.md](435-remote-first-development.md) – Remote-first development
 > - [240-cluster-rightsizing.md](240-cluster-rightsizing.md) – Cluster resource planning
 
-## Implementation Status (2025-12-04)
+## Implementation Status (2025-12-05)
 
 | Component | Status | Notes |
 |-----------|--------|-------|
@@ -23,6 +23,7 @@
 | **Deployment scheduling** | ✅ Done | All 14 app deployment templates use `nodeSelector`/`tolerations` from values |
 | **Remove empty overrides** | ✅ Done | Fixed `6c805de` - removed `nodeSelector: {}` and `tolerations: []` from 11 shared values that blocked globals.yaml inheritance |
 | **Cross-env NetworkPolicy** | ✅ Done | `deny-cross-environment` policy in `foundation-namespaces.yaml` |
+| **3rd-party chart subcomponents** | ✅ Done | Fixed `9e54a78` - added `console.tolerations`, `provisioning.tolerations` for Bitnami MinIO |
 | **Deploy node pools** | ⏳ Pending | Requires `az deployment` - infrastructure change |
 
 ### GitOps Implementation Complete ✅
@@ -1017,6 +1018,7 @@ vaultSecretPath: "ameide/{{ .Values.environment }}"
 ### Node Affinity
 - [x] nodeSelector configured in globals.yaml per environment
 - [x] Tolerations configured in globals.yaml per environment
+- [x] Third-party chart subcomponents have tolerations (console, provisioning jobs) → Fixed `9e54a78`
 - [ ] Production workloads run on prod pool only (needs deploy)
 - [ ] Dev workloads run on dev pool only (needs deploy)
 - [ ] Staging workloads run on staging pool only (needs deploy)
