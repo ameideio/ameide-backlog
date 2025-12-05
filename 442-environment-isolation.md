@@ -21,6 +21,7 @@
 | **Environment state field** | ✅ Done | `environmentState: "on"` in all 3 environment `globals.yaml` |
 | **Node affinity config** | ✅ Done | `nodeSelector` + `tolerations` in all 3 environment `globals.yaml` |
 | **Deployment scheduling** | ✅ Done | All 14 app deployment templates use `nodeSelector`/`tolerations` from values |
+| **Remove empty overrides** | ✅ Done | Fixed `6c805de` - removed `nodeSelector: {}` and `tolerations: []` from 11 shared values that blocked globals.yaml inheritance |
 | **Cross-env NetworkPolicy** | ✅ Done | `deny-cross-environment` policy in `foundation-namespaces.yaml` |
 | **Deploy node pools** | ⏳ Pending | Requires `az deployment` - infrastructure change |
 
