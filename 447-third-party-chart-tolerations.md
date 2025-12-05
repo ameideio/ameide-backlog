@@ -5,6 +5,7 @@
 > - [446-namespace-isolation.md](446-namespace-isolation.md) – Namespace isolation
 > - [240-cluster-rightsizing.md](240-cluster-rightsizing.md) – Cluster resource planning
 > - [452-observability-namespace-isolation.md](452-observability-namespace-isolation.md) – Observability RBAC namespace isolation
+> - [456-ghcr-mirror.md](456-ghcr-mirror.md) – GHCR image mirroring for Docker Hub rate limits
 
 ## Summary
 
@@ -467,6 +468,7 @@ done
 1. **New third-party charts**: When adding new charts, always check tolerations path
 2. **Chart upgrades**: Major version upgrades may change tolerations paths
 3. **DaemonSets**: Always use `operator: "Exists"` for monitoring DaemonSets
+4. **GHCR mirrors**: Docker Hub images should be mirrored to GHCR to avoid rate limiting - see [456-ghcr-mirror.md](456-ghcr-mirror.md)
 
 ---
 
