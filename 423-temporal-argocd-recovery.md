@@ -403,3 +403,132 @@ Recovery completed successfully:
 |------|--------|
 | `sources/values/_shared/data/data-temporal.yaml` | Changed busybox to GHCR mirror |
 | `sources/values/_shared/data/data-migrations-temporal.yaml` | Added GHCR mirror for admin-tools image |
+
+## Recovery Incident: 2025-12-05 (workflows-runtime Namespace Mismatch)
+
+### Root Cause Analysis
+
+This incident affected **staging and production** environments, causing `workflows-runtime` pods to CrashLoopBackOff after Temporal was deployed:
+
+1. **Temporal Namespace Configuration Mismatch**: The `temporal-namespace-bootstrap` job creates a namespace called `ameide`, but the `workflows-runtime` values files for staging/production were configured to connect to the `default` namespace:
+   - `sources/values/staging/apps/workflows-runtime.yaml`: `config.temporal.namespace: default` ❌
+   - `sources/values/production/apps/workflows-runtime.yaml`: `config.temporal.namespace: default` ❌
+   - `sources/values/dev/apps/workflows-runtime.yaml`: `config.temporal.namespace: ameide` ✓
+
+   Result: `workflows-runtime` crashed with error: *"Temporal namespace is missing; create it or update configuration"*
+
+2. **Missing Tolerations**: Staging/production `workflows-runtime` values files were missing tolerations and nodeSelector for environment isolation, causing pods to either not schedule or schedule on wrong nodes.
+
+3. **Node Label/Taint Naming Inconsistency**: Production nodes have inconsistent naming:
+   - **Taint**: `ameide.io/environment: production`
+   - **Label**: `ameide.io/pool: prod`
+
+   This required different values for tolerations (value: `production`) vs nodeSelector (pool: `prod`).
+
+### Fixes Applied
+
+#### 1. Staging workflows-runtime (commit `a4a9b3a`)
+
+**File**: `sources/values/staging/apps/workflows-runtime.yaml`
+```yaml
+config:
+  temporal:
+    namespace: ameide  # was: default
+
+# Tolerations for staging node pool
+tolerations:
+  - key: "ameide.io/environment"
+    value: "staging"
+    effect: "NoSchedule"
+nodeSelector:
+  ameide.io/pool: staging
+```
+
+#### 2. Production workflows-runtime (commit `a4a9b3a`)
+
+**File**: `sources/values/production/apps/workflows-runtime.yaml`
+```yaml
+config:
+  temporal:
+    namespace: ameide  # was: default
+
+# Tolerations for production node pool
+# Note: taint value is "production" but label value is "prod"
+tolerations:
+  - key: "ameide.io/environment"
+    value: "production"
+    effect: "NoSchedule"
+nodeSelector:
+  ameide.io/pool: prod
+```
+
+### Recovery Steps
+
+```bash
+# 1. Push the fix
+git add sources/values/staging/apps/workflows-runtime.yaml sources/values/production/apps/workflows-runtime.yaml
+git commit -m "fix(workflows-runtime): align Temporal namespace with dev and add tolerations"
+git push
+
+# 2. Refresh ArgoCD apps
+kubectl annotate application staging-workflows-runtime production-workflows-runtime -n argocd \
+  argocd.argoproj.io/refresh=hard --overwrite
+
+# 3. Restart deployments to pick up new config
+kubectl rollout restart deployment workflows-runtime -n ameide-staging
+kubectl rollout restart deployment workflows-runtime -n ameide-prod
+```
+
+### Verification
+
+```bash
+# Check pods are running
+kubectl get pods -n ameide-staging -l app=workflows-runtime
+kubectl get pods -n ameide-prod -l app=workflows-runtime
+
+# Verify ConfigMap has correct namespace
+kubectl get configmap workflows-runtime-config -n ameide-staging -o jsonpath='{.data.TEMPORAL_NAMESPACE}'
+# Should return: ameide
+
+kubectl get configmap workflows-runtime-config -n ameide-prod -o jsonpath='{.data.TEMPORAL_NAMESPACE}'
+# Should return: ameide
+```
+
+### Final State
+
+Recovery completed successfully:
+- **Staging** `workflows-runtime`: Running ✓
+- **Production** `workflows-runtime`: Running ✓
+- ConfigMap `TEMPORAL_NAMESPACE`: `ameide` ✓
+- Pod tolerations and nodeSelector correctly configured ✓
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `sources/values/staging/apps/workflows-runtime.yaml` | Changed namespace from `default` to `ameide`; added tolerations/nodeSelector |
+| `sources/values/production/apps/workflows-runtime.yaml` | Changed namespace from `default` to `ameide`; added tolerations/nodeSelector |
+
+### Key Takeaway: Reproducible Temporal Deployment
+
+This fix addresses the root cause of non-reproducible Temporal deployments in staging/production. The configuration is now aligned with dev:
+
+| Component | Creates/Uses | Namespace |
+|-----------|--------------|-----------|
+| `temporal-namespace-bootstrap` | Creates | `ameide` |
+| `workflows-runtime` | Uses | `ameide` ✓ |
+
+### Environment Naming Gotcha
+
+Production has inconsistent naming between taints and labels:
+- Taint key/value: `ameide.io/environment: production`
+- Label key/value: `ameide.io/pool: prod`
+
+When configuring tolerations and nodeSelector, use the correct values for each:
+```yaml
+tolerations:
+  - key: "ameide.io/environment"
+    value: "production"  # matches taint
+nodeSelector:
+  ameide.io/pool: prod   # matches label
+```
