@@ -24,7 +24,45 @@
 | **Remove empty overrides** | ✅ Done | Fixed `6c805de` - removed `nodeSelector: {}` and `tolerations: []` from 11 shared values that blocked globals.yaml inheritance |
 | **Cross-env NetworkPolicy** | ✅ Done | `deny-cross-environment` policy in `foundation-namespaces.yaml` |
 | **3rd-party chart subcomponents** | ✅ Done | Fixed `9e54a78` - added `console.tolerations`, `provisioning.tolerations` for Bitnami MinIO |
+| **Data layer tolerations** | ✅ Done | Added tolerations to CNPG Postgres and ClickHouse values (see below) |
 | **Deploy node pools** | ⏳ Pending | Requires `az deployment` - infrastructure change |
+
+### Data Layer Tolerations (2025-12-05)
+
+Added tolerations/nodeSelector to data layer components for environment isolation:
+
+| Component | Files | Commit |
+|-----------|-------|--------|
+| **CNPG Postgres** | `sources/values/{dev,staging,production}/data/platform-postgres-clusters.yaml` | `1b622e9` |
+| **ClickHouse** | `sources/values/{dev,staging,production}/data/data-clickhouse.yaml` | `b0e63b5` |
+
+**Postgres structure** (uses CNPG `cluster.affinity` format):
+```yaml
+cluster:
+  affinity:
+    tolerations:
+      - key: "ameide.io/environment"
+        value: "dev"  # or staging/production
+        effect: "NoSchedule"
+    nodeSelector:
+      ameide.io/pool: dev  # or staging/prod
+```
+
+**ClickHouse structure** (uses Altinity chart `clickhouse.tolerations` format):
+```yaml
+clickhouse:
+  tolerations:
+    - key: "ameide.io/environment"
+      value: "dev"
+      effect: "NoSchedule"
+  nodeSelector:
+    ameide.io/pool: dev
+```
+
+**Known issue**: The Altinity ClickHouse operator may need a restart after CHI spec changes to apply tolerations to StatefulSets. The operator restart command:
+```bash
+kubectl rollout restart deployment clickhouse-operator -n clickhouse-system
+```
 
 ### GitOps Implementation Complete ✅
 
