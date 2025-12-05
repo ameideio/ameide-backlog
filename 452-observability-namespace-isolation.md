@@ -1,6 +1,6 @@
 # 452 – Observability Stack Namespace Isolation
 
-**Status**: Implemented
+**Status**: Partial - Prometheus Operator requires additional work
 **Created**: 2025-12-05
 **Related**: [445-argocd-namespace-isolation.md](445-argocd-namespace-isolation.md), [446-namespace-isolation.md](446-namespace-isolation.md), [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md), [447-third-party-chart-tolerations.md](447-third-party-chart-tolerations.md)
 
@@ -150,6 +150,60 @@ For future reference when adding new observability components:
 | grafana/alloy | `rbac.namespaces: [<namespace>]` |
 | prometheus-community/kube-prometheus-stack | `prometheus.prometheusSpec.*NamespaceSelector` |
 | prometheus-community/kube-state-metrics | `namespaces: "<namespace>"` |
+
+---
+
+## Remaining Work: Prometheus Operator
+
+The kube-prometheus-stack chart bundles several components with different scope requirements:
+
+| Component | Current | Should Be | Status |
+|-----------|---------|-----------|--------|
+| Prometheus CRDs | cluster (`cluster-crds-prometheus`) | cluster | ✅ Done |
+| Prometheus Operator | per-env (ClusterRole conflicts) | cluster | ❌ Needs work |
+| Prometheus Server | per-env | per-env | ✅ Done |
+| Alertmanager | per-env | per-env | ✅ Done |
+| kube-state-metrics | per-env | per-env | ✅ Done |
+| Grafana | per-env (separate chart) | per-env | ✅ Done |
+
+### Prometheus Operator Cluster-Scoped Resources
+
+The Prometheus Operator creates these cluster-scoped resources that cause conflicts:
+
+```
+ClusterRole/platform-prometheus-kube-p-operator
+ClusterRole/platform-prometheus-kube-p-prometheus
+ClusterRoleBinding/platform-prometheus-kube-p-operator
+ClusterRoleBinding/platform-prometheus-kube-p-prometheus
+MutatingWebhookConfiguration/platform-prometheus-kube-p-admission
+ValidatingWebhookConfiguration/platform-prometheus-kube-p-admission
+Service/platform-prometheus-kube-p-coredns (kube-dns ServiceMonitor)
+```
+
+### Options to Resolve
+
+**Option A: Single Cluster-Scoped Prometheus Operator** (Recommended)
+1. Create `cluster-prometheus-operator` application
+2. Deploy operator + webhooks to cluster scope (e.g., `prometheus-system` namespace)
+3. Disable operator in per-env deployments: `prometheusOperator.enabled: false`
+4. Per-env apps deploy only Prometheus server, Alertmanager, kube-state-metrics
+
+**Option B: Unique Names per Environment**
+1. Configure unique ClusterRole/ClusterRoleBinding names per environment
+2. Requires chart modifications or post-render patches
+3. Wastes resources (3 identical operators)
+
+**Option C: ArgoCD Ignore Differences**
+1. Configure ArgoCD to ignore cluster-scoped resources
+2. Let one environment "own" them
+3. Fragile - ownership can shift unexpectedly
+
+### Next Steps
+
+1. Implement Option A by creating `cluster-prometheus-operator` component
+2. Add to cluster ApplicationSet (wave 1, with other operators)
+3. Update per-env prometheus values: `prometheusOperator.enabled: false`
+4. Test and verify
 
 ---
 
