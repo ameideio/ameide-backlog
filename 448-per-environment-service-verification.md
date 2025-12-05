@@ -81,6 +81,28 @@ The template uses `{{ .Values.targetNamespace | default .Release.Namespace }}`, 
 
 **Commit**: `d65a48a` - fix(cnpg-monitoring): use Release.Namespace instead of hardcoded ameide
 
+### ClickHouse Secrets ExternalSecret
+
+Fixed hardcoded `secret.namespace` requirement (2025-12-05):
+
+| File | Change |
+|------|--------|
+| `sources/charts/data/clickhouse-secrets/templates/externalsecret.yaml` | Changed `required "secret.namespace is required"` to `.Release.Namespace` |
+
+**Commit**: `8b20254` - fix(clickhouse-secrets): use Release.Namespace instead of required
+
+### Plausible ClickHouse Host
+
+Fixed incorrect ClickHouse service name (2025-12-05):
+
+| File | Change |
+|------|--------|
+| `sources/charts/platform-layers/plausible/values.yaml` | Changed `clickhouse-data-clickhouse` to `chi-data-clickhouse-data-clickhouse-0-0` |
+
+The Altinity ClickHouse operator creates services with naming pattern: `chi-{chi-name}-{cluster-name}-{shard}-{replica}`
+
+**Commit**: `8cf354f` - fix(plausible): correct ClickHouse service name for Altinity operator
+
 ---
 
 ## Remaining Work
