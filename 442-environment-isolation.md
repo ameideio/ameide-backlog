@@ -89,6 +89,19 @@ kubectl logs -n clickhouse-system deployment/clickhouse-operator -c altinity-cli
 kubectl get chi -n ameide-dev data-clickhouse -o jsonpath='{.status.status}'
 ```
 
+### Secret Management (2025-12-05)
+
+Per-environment unique passwords implemented using Helm lookup+randAlphaNum pattern:
+- Template: `sources/charts/foundation/operators-config/postgres_clusters/templates/app-secrets.yaml`
+- Commit: `d10ab77`
+
+**How it works:**
+1. First install: Helm generates random 32-char passwords for all Postgres users
+2. Subsequent upgrades: Helm `lookup` function finds existing secrets and preserves passwords
+3. Each namespace (dev/staging/prod) gets unique passwords automatically
+
+This achieves environment isolation for database secrets without requiring Vault path migration. See [412-cnpg-owned-postgres-greds.md](412-cnpg-owned-postgres-greds.md) for the full CNPG credential ownership model.
+
 ### GitOps Implementation Complete ✅
 
 All Helm chart and values file changes for environment isolation are complete. The remaining work is:
@@ -1117,6 +1130,6 @@ vaultSecretPath: "ameide/{{ .Values.environment }}"
 - [ ] Node drain respects PDB
 
 ### Secret Management
-- [ ] Each environment has isolated secrets
-- [ ] No cross-environment secret access
-- [ ] Secret rotation works per-environment
+- [x] Each environment has isolated secrets → **Helm lookup+randAlphaNum pattern generates unique passwords per namespace**
+- [x] No cross-environment secret access → **Secrets generated in-namespace, not shared**
+- [ ] Secret rotation works per-environment → **Planned: Delete secret + ArgoCD sync regenerates**

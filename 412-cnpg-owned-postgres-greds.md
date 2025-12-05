@@ -294,3 +294,51 @@ ExternalSecrets remain active. These should be removed to achieve the documented
 **Next steps:**
 1. Remove remaining Vault→K8s ExternalSecrets for DB credentials
 2. Optionally add PushSecrets for K8s→Vault mirroring (read-only audit trail)
+
+### Status Update (2025-12-05)
+
+> **Complete**: Per-environment unique passwords now generated via Helm lookup+randAlphaNum pattern.
+
+The north star goal has been achieved - CNPG/Helm is now the single authority for Postgres credentials:
+
+**Implementation:**
+- Template: `sources/charts/foundation/operators-config/postgres_clusters/templates/app-secrets.yaml`
+- Commit: `d10ab77`
+
+**How it works:**
+```yaml
+{{- $existingSecret := lookup "v1" "Secret" $namespace $secretName -}}
+{{- $password := "" -}}
+{{- if .password -}}
+  {{- $password = .password -}}
+{{- else if $existingSecret -}}
+  {{- $password = index $existingSecret.data "password" | default "" | b64dec -}}
+{{- end -}}
+{{- if not $password -}}
+  {{- $password = randAlphaNum 32 -}}
+{{- end -}}
+```
+
+**Final state:**
+- ✅ CNPG managed roles defined in values
+- ✅ Helm generates unique 32-char passwords per namespace (first install)
+- ✅ Helm preserves existing passwords on upgrade (via `lookup`)
+- ✅ No hardcoded `dbpassword` in shared values
+- ✅ Each environment (dev/staging/prod) has unique database credentials
+- ✅ No Vault→K8s ExternalSecrets for DB credentials (authority is Helm, not Vault)
+- ⚪ Optional: PushSecrets for Vault mirroring (not implemented - deemed unnecessary for now)
+
+**Verification:**
+```bash
+# Passwords should be different across environments
+kubectl get secret postgres-ameide-auth -n ameide-dev -o jsonpath='{.data.password}' | base64 -d
+kubectl get secret postgres-ameide-auth -n ameide-staging -o jsonpath='{.data.password}' | base64 -d
+kubectl get secret postgres-ameide-auth -n ameide-prod -o jsonpath='{.data.password}' | base64 -d
+```
+
+**Rotation procedure:**
+1. Delete the target secret: `kubectl delete secret <name> -n <namespace>`
+2. Sync ArgoCD app: `argocd app sync <app-name>`
+3. Helm regenerates with new random password
+4. CNPG reconciles the new password to Postgres role
+5. Restart dependent applications to pick up new credentials
