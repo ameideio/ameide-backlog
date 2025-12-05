@@ -11,6 +11,7 @@ This document describes the per-environment Envoy Gateway architecture where eac
 
 | Backlog | Topic | Status |
 |---------|-------|--------|
+| [457-azure-lb-redirect-gateway-consolidation.md](457-azure-lb-redirect-gateway-consolidation.md) | HTTP redirect consolidation, Azure LB fix | Current |
 | [386-envoy-gateway-cert-tls-docs.md](386-envoy-gateway-cert-tls-docs.md) | TLS termination, cert-manager PKI | Partially superseded |
 | [436-envoy-gateway-observability.md](436-envoy-gateway-observability.md) | Telemetry, access logs, Prometheus | Partially superseded |
 | [446-namespace-isolation.md](446-namespace-isolation.md) | Namespace architecture | Current |
@@ -61,9 +62,8 @@ The solution is **one GatewayClass per environment**, each referencing its own E
 │  │ environment=dev │ environment=    │ environment=    │ Only            │         │
 │  │                 │ staging         │ production      │                 │         │
 │  ├─────────────────┼─────────────────┼─────────────────┼─────────────────┤         │
-│  │ Gateway:        │ Gateway:        │ Gateway:        │ Gateway:        │         │
-│  │ ameide          │ ameide          │ ameide          │ cluster         │         │
-│  │ ameide-redirect │ ameide-redirect │ ameide-redirect │ cluster-redirect│         │
+│  │ Gateway: ameide │ Gateway: ameide │ Gateway: ameide │ Gateway: cluster│         │
+│  │ (HTTP+HTTPS)    │ (HTTP+HTTPS)    │ (HTTP+HTTPS)    │ (HTTP+HTTPS)    │         │
 │  └─────────────────┴─────────────────┴─────────────────┴─────────────────┘         │
 │                                                                                      │
 │  Envoy Pods: All run in argocd namespace (managed by Envoy Gateway controller)      │
@@ -135,22 +135,64 @@ spec:
 
 ### HTTP to HTTPS Redirect
 
-Each environment also has a redirect gateway for HTTP→HTTPS:
+> **Updated 2025-12-05**: HTTP redirect is now handled by an HTTP listener on the main gateway,
+> not a separate redirect gateway. See [457-azure-lb-redirect-gateway-consolidation.md](457-azure-lb-redirect-gateway-consolidation.md).
+
+Each environment's main gateway includes an HTTP listener (port 80) for redirect:
 
 ```yaml
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
-  name: ameide-redirect
+  name: ameide
   namespace: ameide-dev
 spec:
-  gatewayClassName: envoy-dev  # Same as main gateway
+  gatewayClassName: envoy-dev
   listeners:
+    # HTTP listener for HTTP→HTTPS redirect
     - name: http
       port: 80
       protocol: HTTP
       hostname: "*.dev.ameide.io"
+      allowedRoutes:
+        namespaces:
+          from: Same
+    # HTTPS listener for TLS termination
+    - name: https
+      port: 443
+      protocol: HTTPS
+      hostname: "*.dev.ameide.io"
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: ameide-wildcard-tls
 ```
+
+An HTTPRoute on the HTTP listener issues the redirect:
+
+```yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: ameide-redirect
+  namespace: ameide-dev
+spec:
+  parentRefs:
+    - name: ameide
+      sectionName: http
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301
+```
+
+**Why single gateway instead of separate redirect gateway?**
+
+Azure LoadBalancer doesn't reliably support multiple `LoadBalancer` Services sharing the same static IP.
+Creating a separate redirect gateway caused Azure to reject the second service with IP conflicts.
+The single-gateway pattern follows Gateway API / Envoy Gateway vendor recommendations.
 
 ## Observability
 
@@ -223,8 +265,8 @@ Request → Envoy Proxy
 |------|---------|
 | `sources/charts/apps/gateway/templates/gatewayclass.yaml` | GatewayClass with parametersRef to EnvoyProxy |
 | `sources/charts/apps/gateway/templates/envoyproxy-telemetry.yaml` | EnvoyProxy with static IP, tolerations, telemetry |
-| `sources/charts/apps/gateway/templates/gateway.yaml` | Main HTTPS Gateway |
-| `sources/charts/apps/gateway/templates/redirect-gateway.yaml` | HTTP→HTTPS redirect Gateway |
+| `sources/charts/apps/gateway/templates/gateway.yaml` | Main Gateway (HTTP+HTTPS listeners) |
+| `sources/charts/apps/gateway/templates/http-redirect.yaml` | HTTP→HTTPS redirect HTTPRoute |
 
 ### Per-Environment Values
 
@@ -254,7 +296,8 @@ kubectl get gatewayclass
 
 ```bash
 kubectl get gateway -A
-# Expected: All PROGRAMMED: True with correct IPs
+# Expected: One 'ameide' gateway per environment, PROGRAMMED: True with correct IPs
+# Note: No separate 'ameide-redirect' gateways (consolidated into main gateway)
 ```
 
 ### Check EnvoyProxy Resources
@@ -268,7 +311,8 @@ kubectl get envoyproxy -A
 
 ```bash
 kubectl get pods -A -l gateway.envoyproxy.io/owning-gateway-name
-# Expected: 8 pods (2 per environment), all Running
+# Expected: 4 pods (1 per environment), all Running
+# Note: Single gateway per environment means single Envoy deployment per environment
 ```
 
 ### Check Services with IPs

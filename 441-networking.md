@@ -8,6 +8,8 @@
 > - [240-cluster-rightsizing.md](240-cluster-rightsizing.md) – Cluster resource planning
 > - [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md) – Dual ApplicationSet architecture
 > - [436-envoy-gateway-observability.md](436-envoy-gateway-observability.md) – EnvoyProxy telemetry configuration
+> - [450-envoy-gateway-per-environment-architecture.md](450-envoy-gateway-per-environment-architecture.md) – Per-environment gateway architecture
+> - [457-azure-lb-redirect-gateway-consolidation.md](457-azure-lb-redirect-gateway-consolidation.md) – HTTP redirect consolidation
 
 ## Implementation Status (2025-12-04)
 
@@ -37,10 +39,11 @@ Current networking configuration lacks several production-ready features:
 
 ### Gateway Architecture
 
-- **Gateway Controller**: Envoy Gateway v1.6.0 (runs in `envoy-gateway-system` namespace)
+- **Gateway Controller**: Envoy Gateway v1.6.0 (runs in `argocd` namespace)
 - **API Version**: Kubernetes Gateway API
 - **TLS**: cert-manager with wildcard certificates per environment
 - **Load Balancer**: Azure Standard LB with static public IPs per environment
+- **HTTP Redirect**: Consolidated into main gateway HTTP listener (see [457](457-azure-lb-redirect-gateway-consolidation.md))
 
 ### EnvoyProxy Per-Environment Architecture
 
@@ -48,9 +51,9 @@ Each environment has its own EnvoyProxy resource with a dedicated static IP from
 
 | Environment | EnvoyProxy | Namespace | Static IP | Azure Resource |
 |-------------|------------|-----------|-----------|----------------|
-| dev | ameide-proxy-config | envoy-gateway-system | 40.68.113.216 | ameide-dev-envoy-pip |
-| staging | ameide-proxy-config | envoy-gateway-system | 108.142.228.7 | ameide-staging-envoy-pip |
-| production | ameide-proxy-config | envoy-gateway-system | 4.180.130.190 | ameide-prod-envoy-pip |
+| dev | ameide-proxy-config | ameide-dev | 40.68.113.216 | ameide-dev-envoy-pip |
+| staging | ameide-proxy-config | ameide-staging | 108.142.228.7 | ameide-staging-envoy-pip |
+| production | ameide-proxy-config | ameide-prod | 4.180.130.190 | ameide-prod-envoy-pip |
 | argocd (cluster) | cluster-proxy-config | argocd | 20.160.216.7 | ameide-argocd-pip |
 
 Configuration files:
