@@ -337,6 +337,7 @@ azure:
 - [x] **TF-18**: Add ArgoCD CLI context refresh → Auto-login after bootstrap → **2025-12-04**
 - [x] **TF-19**: Parse .env secrets to Azure Key Vault → `deploy.sh` now seeds secrets via `env_secrets` Terraform variable → **2025-12-05**
 - [x] **TF-20**: Federated identity credentials per environment → vault-bootstrap can authenticate from ameide-dev/staging/prod namespaces → **2025-12-05**
+- [x] **TF-22**: Add explicit DNS subdomain records → explicit A records (www, platform, api, etc.) override wildcards and must be Terraform-managed → **2025-12-05**
 - [ ] **TF-21**: Clean up legacy `env-*` prefixed secrets from Azure Key Vault (19 secrets) → now using non-prefixed secrets with `secretPrefix: ""`
 - [ ] **TF-8**: AWS EKS module (future)
 - [ ] **TF-9**: Local k3d setup (future)

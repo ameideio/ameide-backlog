@@ -56,6 +56,8 @@ Each environment has its own EnvoyProxy resource with a dedicated static IP from
 | production | ameide-proxy-config | ameide-prod | 4.180.130.190 | ameide-prod-envoy-pip |
 | argocd (cluster) | cluster-proxy-config | argocd | 20.160.216.7 | ameide-argocd-pip |
 
+**DNS Records**: Explicit subdomain A records (www, platform, api, grafana, etc.) are Terraform-managed alongside wildcard (`*`) and apex (`@`) records. This ensures DNS always points to the correct Envoy IP per environment. See [444-terraform.md](444-terraform.md) TF-22.
+
 Configuration files:
 - Per-env static IPs: `sources/values/{dev,staging,production}/platform/platform-gateway.yaml`
 - Cluster gateway: `sources/charts/cluster/gateway/values.yaml`
