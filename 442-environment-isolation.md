@@ -25,7 +25,7 @@
 | **Cross-env NetworkPolicy** | ✅ Done | `deny-cross-environment` policy in `foundation-namespaces.yaml` |
 | **3rd-party chart subcomponents** | ✅ Done | Fixed `9e54a78` - added `console.tolerations`, `provisioning.tolerations` for Bitnami MinIO |
 | **Data layer tolerations** | ✅ Done | Added tolerations to CNPG Postgres and ClickHouse values (see below) |
-| **Deploy node pools** | ⏳ Pending | Requires `az deployment` - infrastructure change |
+| **Deploy node pools** | ✅ Done | 4 pools deployed: system(2), dev(3), staging(2), prod(3) - verified 2025-12-05 |
 
 ### Data Layer Tolerations (2025-12-05)
 
@@ -59,9 +59,34 @@ clickhouse:
     ameide.io/pool: dev
 ```
 
-**Known issue**: The Altinity ClickHouse operator may need a restart after CHI spec changes to apply tolerations to StatefulSets. The operator restart command:
+### Altinity ClickHouse Operator Issue (2025-12-05)
+
+**Problem**: Altinity ClickHouse operator v0.25.5 is not reconciling CHI resources. Investigation shows:
+
+- CHI specs have correct tolerations/nodeSelector in `spec.templates.podTemplates[*].spec`
+- Operator logs show `podInformer`, `configMapInformer`, `serviceInformer` activity
+- **No `chiInformer` events are logged** - the CHI informer isn't watching resources
+- CHI status remains empty (never processed)
+- StatefulSets are not created
+
+**Root cause**: Suspected bug in Altinity operator v0.25.5 where the CHI informer factory isn't properly initialized.
+
+**Workaround options**:
+1. **Wait for fix**: Monitor Altinity releases for v0.25.6+ with informer fixes
+2. **Manual StatefulSet patch** (temporary):
+   ```bash
+   # Create StatefulSet manually based on CHI spec (not recommended)
+   kubectl patch sts <name> -n <ns> --type merge -p '{"spec":{"template":{"spec":{"tolerations":[...]}}}}'
+   ```
+3. **Downgrade operator**: Try earlier version (e.g., 0.24.x) if informer worked there
+
+**Verification commands**:
 ```bash
-kubectl rollout restart deployment clickhouse-operator -n clickhouse-system
+# Check if operator is receiving CHI events
+kubectl logs -n clickhouse-system deployment/clickhouse-operator -c altinity-clickhouse-operator | grep -i "chiInformer"
+
+# Check CHI status (should show status, not empty)
+kubectl get chi -n ameide-dev data-clickhouse -o jsonpath='{.status.status}'
 ```
 
 ### GitOps Implementation Complete ✅
@@ -997,10 +1022,10 @@ vaultSecretPath: "ameide/{{ .Values.environment }}"
 ### Phase 2: Node Pool Strategy (Option B - Per-Environment)
 9. [x] Add `system`, `dev`, `staging`, `prod` node pool definitions to Bicep → **2025-12-04**
 10. [x] Configure dev/staging pools with `minCount: 0` for shutdown capability → **Done**
-11. [ ] Deploy node pools to AKS cluster (requires `az deployment`)
+11. [x] Deploy node pools to AKS cluster → **Deployed via Terraform 2025-12-05**
 12. [x] Add nodeSelector to globals.yaml per environment → **2025-12-04**
 13. [x] Add prod tolerations for production taint → **2025-12-04**
-14. [ ] Verify workloads schedule on correct pools
+14. [x] Verify workloads schedule on correct pools → **Verified 2025-12-05** (dev→aks-dev-*, staging→aks-staging-*, prod→aks-prod-*)
 
 ### Phase 3: Environment Shutdown Capability
 15. [x] Add `environmentState` field to all globals.yaml files → **2025-12-04**
@@ -1041,7 +1066,7 @@ vaultSecretPath: "ameide/{{ .Values.environment }}"
 
 ### Bicep & Node Pools
 - [x] Single canonical Bicep source exists → `infra/bicep/managed-application/modules/aks.bicep`
-- [ ] Node pools created: system, dev, staging, prod (Bicep ready, needs deploy)
+- [x] Node pools created: system, dev, staging, prod → **Deployed 2025-12-05** (system:2, dev:3, staging:2, prod:3)
 - [x] Dev/staging pools have `minCount: 0` configured in Bicep
 - [x] Prod pool has autoscaling enabled (3-8 nodes) configured in Bicep
 - [x] All pools have correct `ameide.io/pool` labels configured in Bicep
@@ -1057,10 +1082,10 @@ vaultSecretPath: "ameide/{{ .Values.environment }}"
 - [x] nodeSelector configured in globals.yaml per environment
 - [x] Tolerations configured in globals.yaml per environment
 - [x] Third-party chart subcomponents have tolerations (console, provisioning jobs) → Fixed `9e54a78`
-- [ ] Production workloads run on prod pool only (needs deploy)
-- [ ] Dev workloads run on dev pool only (needs deploy)
-- [ ] Staging workloads run on staging pool only (needs deploy)
-- [ ] System workloads run on system pool (needs deploy)
+- [x] Production workloads run on prod pool only → **Verified 2025-12-05** (pods→aks-prod-*)
+- [x] Dev workloads run on dev pool only → **Verified 2025-12-05** (pods→aks-dev-*)
+- [x] Staging workloads run on staging pool only → **Verified 2025-12-05** (pods→aks-staging-*)
+- [x] System workloads run on system pool → **Verified 2025-12-05** (argocd, cert-manager on system nodes)
 
 ### Environment Shutdown
 - [x] `environmentState` field exists in all globals.yaml
