@@ -13,6 +13,7 @@ This document describes the namespace isolation architecture for the Ameide plat
 - [443-tenancy-models.md](443-tenancy-models.md) - Multi-tenant architecture
 - [441-networking.md](441-networking.md) - Network policies
 - [452-observability-namespace-isolation.md](452-observability-namespace-isolation.md) - Observability stack namespace isolation
+- [454-coredns-cluster-scoped.md](454-coredns-cluster-scoped.md) - CoreDNS config cluster-scoped migration
 
 ## Architecture Overview
 

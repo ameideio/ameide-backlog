@@ -2,7 +2,7 @@
 
 **Status**: Implemented
 **Created**: 2025-12-05
-**Related**: [445-argocd-namespace-isolation.md](445-argocd-namespace-isolation.md), [446-namespace-isolation.md](446-namespace-isolation.md), [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md), [447-third-party-chart-tolerations.md](447-third-party-chart-tolerations.md)
+**Related**: [445-argocd-namespace-isolation.md](445-argocd-namespace-isolation.md), [446-namespace-isolation.md](446-namespace-isolation.md), [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md), [447-third-party-chart-tolerations.md](447-third-party-chart-tolerations.md), [454-coredns-cluster-scoped.md](454-coredns-cluster-scoped.md)
 
 ---
 
