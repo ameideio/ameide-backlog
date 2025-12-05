@@ -1,5 +1,6 @@
 # 439 – Deploy Infrastructure
 
+**Status:** ✅ Implemented (core infra complete, CI/CD automation pending)
 **Created**: 2025-12-04
 
 > **Related documents:**
