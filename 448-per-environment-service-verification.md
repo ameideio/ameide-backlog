@@ -1,8 +1,8 @@
 # 448 – Per-Environment Service Verification
 
-**Status**: P0 Complete - P1 Pending
+**Status**: Complete
 **Created**: 2025-12-04
-**Updated**: 2025-12-04
+**Updated**: 2025-12-05
 **Related**: [445-argocd-namespace-isolation.md](445-argocd-namespace-isolation.md), [446-namespace-isolation.md](446-namespace-isolation.md), [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md), [449-per-environment-infrastructure.md](449-per-environment-infrastructure.md)
 
 ---
@@ -17,12 +17,15 @@ Services running in environment-specific namespaces (`ameide-dev`, `ameide-stagi
 
 ### Database Connection Strings
 
-Added `postgresHost` override to per-environment vault-secrets-platform.yaml files:
+Removed fallback defaults from shared config and added explicit `postgresHost` per environment:
 
 | Environment | File | Value |
 |-------------|------|-------|
+| dev | `sources/values/dev/foundation/foundation-vault-secrets-platform.yaml` | `postgres-ameide-rw.ameide-dev.svc.cluster.local` |
 | staging | `sources/values/staging/apps/platform/vault-secrets-platform.yaml` | `postgres-ameide-rw.ameide-staging.svc.cluster.local` |
 | production | `sources/values/production/apps/platform/vault-secrets-platform.yaml` | `postgres-ameide-rw.ameide-prod.svc.cluster.local` |
+
+Shared config (`_shared/foundation/foundation-vault-secrets-platform.yaml`) now uses `.Values.postgresHost` directly without fallback.
 
 ### CoreDNS Configuration
 
@@ -45,21 +48,17 @@ Shared config (`_shared/foundation/foundation-coredns-config.yaml`) cleared - pe
 
 ### Gateway OTEL Endpoints
 
-Already fixed - per-environment gateway files use correct FQDNs:
+Per-environment gateway files use correct FQDNs:
 - dev: `otel-collector.ameide-dev.svc.cluster.local`
 - staging: `otel-collector.ameide-staging.svc.cluster.local`
 - production: `otel-collector.ameide-prod.svc.cluster.local`
 
----
+### Smoke Tests
 
-## Remaining Work
+Replaced 61 hardcoded `--namespace ameide` references with `{{ .Release.Namespace }}` across 8 files:
 
-### P1 - Smoke Tests
-
-60 hardcoded `--namespace ameide` references across 7 files:
-
-| File | Count |
-|------|-------|
+| File | Refs Fixed |
+|------|-----------|
 | `_shared/data/data-data-plane-smoke.yaml` | 17 |
 | `_shared/platform/platform-observability-smoke.yaml` | 14 |
 | `_shared/platform/platform-auth-smoke.yaml` | 10 |
@@ -67,8 +66,24 @@ Already fixed - per-environment gateway files use correct FQDNs:
 | `_shared/platform/platform-control-plane-smoke.yaml` | 5 |
 | `_shared/foundation/foundation-operators-smoke.yaml` | 3 |
 | `_shared/platform/platform-secrets-smoke.yaml` | 2 |
+| `_shared/foundation/foundation-bootstrap-smoke.yaml` | 1 |
 
-**Fix**: Replace hardcoded namespace with `{{ .Release.Namespace }}` template variable.
+### CNPG Monitoring ConfigMap
+
+Fixed hardcoded `targetNamespace: ameide` in two values files (2025-12-05):
+
+| File | Change |
+|------|--------|
+| `sources/values/_shared/foundation/foundation-cnpg-monitoring.yaml` | Removed `targetNamespace: ameide` |
+| `sources/values/_shared/data/foundation-cnpg-monitoring.yaml` | Removed `targetNamespace: ameide` |
+
+The template uses `{{ .Values.targetNamespace | default .Release.Namespace }}`, so removing `targetNamespace` allows per-environment deployment to correct namespaces.
+
+**Commit**: `d65a48a` - fix(cnpg-monitoring): use Release.Namespace instead of hardcoded ameide
+
+---
+
+## Remaining Work
 
 ### P2 - CI Validation
 
@@ -107,9 +122,9 @@ Per [445](445-argocd-namespace-isolation.md) and [447](447-waves-v3-cluster-scop
 ## Validation
 
 ```bash
-# Should return empty after P0 fixes
+# Should return empty - all hardcoded references fixed
 grep -rn "\.ameide\.svc" sources/values/ | grep -v "ameide-dev\|ameide-staging\|ameide-prod"
 
-# P1: Will still show smoke test references until fixed
+# Should return empty - smoke tests now use {{ .Release.Namespace }}
 grep -rn "\-\-namespace ameide[^-]" sources/values/
 ```
