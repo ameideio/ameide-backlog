@@ -12,6 +12,7 @@ This document describes the namespace isolation architecture for the Ameide plat
 - [445-argocd-namespace-isolation.md](445-argocd-namespace-isolation.md) - ArgoCD namespace isolation details
 - [443-tenancy-models.md](443-tenancy-models.md) - Multi-tenant architecture
 - [441-networking.md](441-networking.md) - Network policies
+- [450-argocd-service-issues-inventory.md](450-argocd-service-issues-inventory.md) - Implementation status tracking
 - [452-observability-namespace-isolation.md](452-observability-namespace-isolation.md) - Observability stack namespace isolation
 - [454-coredns-cluster-scoped.md](454-coredns-cluster-scoped.md) - CoreDNS config cluster-scoped migration
 - [455-traffic-manager-ignoredifferences.md](455-traffic-manager-ignoredifferences.md) - Traffic-manager ignoreDifferences namespace templating

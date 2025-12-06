@@ -2,7 +2,7 @@
 
 **Status**: Implemented
 **Date**: 2025-12-05
-**Related**: [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md)
+**Related**: [345-ci-cd-unified-playbook.md](345-ci-cd-unified-playbook.md), [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md), [450-argocd-service-issues-inventory.md](450-argocd-service-issues-inventory.md)
 
 ## Problem Statement
 

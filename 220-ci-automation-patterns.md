@@ -1,5 +1,7 @@
 # 220 — Continuous Delivery Automation Patterns
 
+**Related**: [345-ci-cd-unified-playbook.md](345-ci-cd-unified-playbook.md), [450-argocd-service-issues-inventory.md](450-argocd-service-issues-inventory.md)
+
 ## Purpose
 This reference note captures quality and automation practices used to keep Ameide’s transformation journeys reliable. It complements the 230-journey series by explaining how end-to-end tests, CI pipelines, and observability hooks should operate across repositories, governance, transformations, and change telemetry.
 

@@ -1,10 +1,10 @@
 # 450 – ArgoCD Service Issues Inventory
 
-**Status**: Resolved
+**Status**: Partially Resolved (CI/CD blocking staging/prod)
 **Created**: 2025-12-04
 **Updated**: 2025-12-05
 **Commit**: `6c805de fix(446): remove tolerations overrides, inherit from globals`
-**Related**: [445-argocd-namespace-isolation.md](445-argocd-namespace-isolation.md), [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md), [451-secrets-management.md](451-secrets-management.md)
+**Related**: [442-environment-isolation.md](442-environment-isolation.md), [445-argocd-namespace-isolation.md](445-argocd-namespace-isolation.md), [446-namespace-isolation.md](446-namespace-isolation.md), [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md), [451-secrets-management.md](451-secrets-management.md), [456-ghcr-mirror.md](456-ghcr-mirror.md)
 
 ---
 
@@ -206,7 +206,22 @@ Apps still reconciling (may self-heal once P0 fixed):
 11. ~~**Apps auto-syncing**~~ ✅ Pods now scheduling on correct nodes
 12. ~~**Fix Vault sealed/K8s auth issues**~~ ✅ All environments operational
 
-**Current Status**: ✅ **FULLY RESOLVED** - All environments operational with secrets syncing.
+**Current Status**: ⚠️ **PARTIALLY RESOLVED** - Dev healthy, staging/prod have CI/CD-related issues.
+
+### Remaining Issues (2025-12-05)
+
+| Issue | Environment | Root Cause | Resolution |
+|-------|-------------|------------|------------|
+| `www-ameide-platform` ImagePullBackOff | staging, prod | `main` tag not pushed to GHCR | CI/CD pipeline needs to push `main` tag |
+| `plausible-seed` ImagePullBackOff | staging, prod | Missing `main` tag | CI/CD pipeline issue |
+| `workflows-runtime` CrashLoopBackOff | staging, prod | Likely missing `main` tag | CI/CD pipeline issue |
+| Bootstrap jobs Pending | staging, prod | Helm hooks need ArgoCD re-sync | Delete jobs and sync apps |
+
+**Image Tagging Strategy**:
+- `dev` environment → `dev` tag (working)
+- `staging`/`production` environments → `main` tag (not pushed by CI/CD yet)
+
+The GitOps configuration is correct. The issue is that the source repositories' CI/CD pipelines are not pushing `main` tagged images to GHCR.
 
 ### Tolerations Fix (2025-12-05)
 

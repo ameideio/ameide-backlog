@@ -7,6 +7,8 @@
 > - [434-unified-environment-naming.md](434-unified-environment-naming.md) – Environment naming conventions
 > - [435-remote-first-development.md](435-remote-first-development.md) – Remote-first development
 > - [240-cluster-rightsizing.md](240-cluster-rightsizing.md) – Cluster resource planning
+> - [450-argocd-service-issues-inventory.md](450-argocd-service-issues-inventory.md) – Implementation status tracking
+> - [451-secrets-management.md](451-secrets-management.md) – Per-environment secrets architecture
 
 ## Implementation Status (2025-12-05)
 

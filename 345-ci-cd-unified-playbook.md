@@ -2,9 +2,14 @@
 
 > **Update (2026-02-17):** Buf Managed Mode now publishes SDKs directly through the Buf BSR. The sections that reference `*.packages.dev.ameide.io` mirrors document the pre-Managed-Mode architecture and are due for rewrite as the new pipelines land.
 
-**Status:** Draft for review  
-**Owner:** Platform DX / Developer Experience  
+**Status:** Draft for review
+**Owner:** Platform DX / Developer Experience
 **Updated:** 2025-11-04
+**Related**: [220-ci-automation-patterns.md](220-ci-automation-patterns.md), [450-argocd-service-issues-inventory.md](450-argocd-service-issues-inventory.md), [456-ghcr-mirror.md](456-ghcr-mirror.md)
+
+## Known Issues
+
+- **`main` tag not pushed to GHCR**: Staging/production environments use `main` tag for images, but CI/CD pipelines are not pushing this tag. See [450-argocd-service-issues-inventory.md](450-argocd-service-issues-inventory.md) for affected services.
 
 ## Why this doc exists
 
