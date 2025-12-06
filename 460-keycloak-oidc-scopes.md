@@ -41,7 +41,7 @@ The `ameide` realm JSON in `keycloak_realm/values.yaml` defines only custom scop
 | 460-2 | Commit OIDC scopes fix | ✅ Done | `59d6e93` | fix(keycloak-realm): remove erroneous openid client scope (460) |
 | 460-3 | Apply fix to dev Keycloak database | ✅ Done | N/A | KeycloakRealmImport is create-only—applied fix directly to PostgreSQL via `kubectl exec`. Added `profile` and `email` client scopes with protocol mappers, linked to all clients. |
 | 460-4 | Verify dev OIDC discovery | ✅ Done | N/A | `scopes_supported` now includes `profile`, `email`. Verified 2025-12-06. |
-| 460-5 | Apply fix to staging/production if needed | ⬜ Pending | | Same chart, but requires similar database fix since KeycloakRealmImport is create-only. |
+| 460-5 | Apply fix to staging/production if needed | ✅ N/A | | Staging/production only have `master` realm—`ameide` realm not yet created. When created, it will use the fixed `values.yaml` with correct scopes. No database fix needed. |
 
 ### Phase 2: Documentation Updates
 
