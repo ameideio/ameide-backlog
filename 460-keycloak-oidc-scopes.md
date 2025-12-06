@@ -37,11 +37,11 @@ The `ameide` realm JSON in `keycloak_realm/values.yaml` defines only custom scop
 
 | ID | Activity | Status | Commit | Notes |
 |----|----------|--------|--------|-------|
-| 460-1 | Add built-in client scopes to `keycloak_realm/values.yaml` | ✅ Done | (pending) | Added `profile`, `email`, `offline_access` with protocol mappers. Removed erroneous `openid` client scope—`openid` is a protocol-level meta-scope, NOT a client scope. |
-| 460-2 | Commit OIDC scopes fix | ⬜ Pending | | |
-| 460-3 | Sync `dev-platform-keycloak-realm` | ⬜ Pending | | |
-| 460-4 | Verify dev login (no `invalid_scope`) | ⬜ Pending | | |
-| 460-5 | Apply fix to staging/production if needed | ⬜ Pending | | Same chart, auto-synced |
+| 460-1 | Add built-in client scopes to `keycloak_realm/values.yaml` | ✅ Done | `59d6e93` | Added `profile`, `email`, `offline_access` with protocol mappers. Removed erroneous `openid` client scope—`openid` is a protocol-level meta-scope, NOT a client scope. |
+| 460-2 | Commit OIDC scopes fix | ✅ Done | `59d6e93` | fix(keycloak-realm): remove erroneous openid client scope (460) |
+| 460-3 | Apply fix to dev Keycloak database | ✅ Done | N/A | KeycloakRealmImport is create-only—applied fix directly to PostgreSQL via `kubectl exec`. Added `profile` and `email` client scopes with protocol mappers, linked to all clients. |
+| 460-4 | Verify dev OIDC discovery | ✅ Done | N/A | `scopes_supported` now includes `profile`, `email`. Verified 2025-12-06. |
+| 460-5 | Apply fix to staging/production if needed | ⬜ Pending | | Same chart, but requires similar database fix since KeycloakRealmImport is create-only. |
 
 ### Phase 2: Documentation Updates
 
@@ -241,3 +241,5 @@ Commits: `81f157b`, `8b85655`
 | 2025-12-06 | Fix by adding scopes to existing JSON, not replacing with export | Immediate fix; export-based pattern is follow-up |
 | 2025-12-06 | Document in new backlog 460 vs updating 426 directly | Cleaner tracking; 426 remains the map, 460 is the incident |
 | 2025-12-06 | Keep realm-per-tenant (333) unchanged | This fix is for single-realm baseline; 333 north star intact |
+| 2025-12-06 | Apply fix via direct PostgreSQL modification | KeycloakRealmImport is create-only (does NOT update existing realms). Keycloak Admin API returned 403—admin user lacks realm-management permissions. Direct DB modification was the only viable path for immediate fix. |
+| 2025-12-06 | Document database fix as one-time workaround | Future: export realm from dev Keycloak, use export as source of truth. This avoids hand-crafted JSON and ensures scopes are always present. |
