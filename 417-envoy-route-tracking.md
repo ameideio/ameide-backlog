@@ -1,6 +1,6 @@
 # Backlog 417: Envoy Gateway route coverage
 
-> **Related**: See [386-envoy-gateway-cert-tls-docs.md](386-envoy-gateway-cert-tls-docs.md) for TLS/cert-manager PKI, and [436-envoy-gateway-observability.md](436-envoy-gateway-observability.md) for telemetry (access logs to OTEL, Prometheus metrics).
+> **Related**: See [386-envoy-gateway-cert-tls-docs.md](386-envoy-gateway-cert-tls-docs.md) for TLS/cert-manager PKI, [436-envoy-gateway-observability.md](436-envoy-gateway-observability.md) for telemetry, and [459-httproute-ownership.md](459-httproute-ownership.md) for HTTPRoute ownership migration (apps own their routes).
 
 > ⚠️ **Remote-first note:** The inventories below previously referred to a local k3d cluster. After [435-remote-first-development.md](435-remote-first-development.md), "dev" means the shared AKS namespace (`ameide-dev`) reached via Telepresence; treat any residual k3d wording as historical context.
 
@@ -22,6 +22,20 @@
 - Duplicate HTTPRoutes exist for some hosts (prometheus/alertmanager/loki/tempo UI vs. base routes); consider consolidating to a single route per host.
 - Local dev now renders a second HTTPS listener (`https-local`) plus dedicated HTTPRoutes for `www.local.ameide.io` and `platform.local.ameide.io`, so tilt-only releases stay isolated from the Argo baseline.
 - The Envoy xDS certificate chain is now managed by `platform-cert-manager-config` (`ameidet-ca` root, `envoy-gateway-ca` intermediate, and `envoy`/`envoy-gateway` TLS secrets), and `platform-control-plane-smoke` asserts this PKI wiring and the `gateway/ameide` `Accepted=True, Programmed=True` conditions so broken xDS/TLS cannot hide behind green HTTPRoute inventories.
+
+## HTTPRoute Ownership Migration (2025-12-06)
+
+Per [459-httproute-ownership.md](459-httproute-ownership.md), routes are migrating from gateway chart to app charts ("apps own their routes"). The following routes now render from their respective app charts instead of the gateway:
+
+| Route | Old Location | New Location |
+|-------|--------------|--------------|
+| keycloak | gateway `httpRoutes.keycloak` | `apps/keycloak/templates/httproute.yaml` (paths restricted to `/realms/`, `/resources/`, `/.well-known/`, `/js/`) |
+| plausible | gateway `httproute-plausible-https.yaml` | `platform-layers/plausible/templates/httproute.yaml` |
+| langfuse-web | gateway `extraHttpRoutes` | `apps/langfuse-route/templates/httproute.yaml` |
+| www-ameide | gateway `extraHttpRoutes` | `apps/www-ameide/templates/httproute.yaml` |
+| www-ameide-platform | gateway `extraHttpRoutes` | `apps/www-ameide-platform/templates/httproute.yaml` |
+
+Remaining routes still in gateway chart are candidates for future migration (see 459 backlog).
 
 ## Route inventory (rendered from charts)
 

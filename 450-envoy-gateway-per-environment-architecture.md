@@ -17,6 +17,7 @@ This document describes the per-environment Envoy Gateway architecture where eac
 | [446-namespace-isolation.md](446-namespace-isolation.md) | Namespace architecture | Current |
 | [438-cert-manager-dns01-azure-workload-identity.md](438-cert-manager-dns01-azure-workload-identity.md) | DNS-01 certificate issuance | Current |
 | [417-envoy-route-tracking.md](417-envoy-route-tracking.md) | HTTPRoute/GRPCRoute inventory | Current |
+| [459-httproute-ownership.md](459-httproute-ownership.md) | HTTPRoute ownership migration (apps own routes) | Current |
 | [old/115-keycloak-ssl-update.md](old/115-keycloak-ssl-update.md) | Legacy TLS termination docs | Archived |
 | [old/107-gateway-api-migration.md](old/107-gateway-api-migration.md) | Gateway API migration | Archived |
 

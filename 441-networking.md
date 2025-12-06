@@ -10,6 +10,7 @@
 > - [436-envoy-gateway-observability.md](436-envoy-gateway-observability.md) – EnvoyProxy telemetry configuration
 > - [450-envoy-gateway-per-environment-architecture.md](450-envoy-gateway-per-environment-architecture.md) – Per-environment gateway architecture
 > - [457-azure-lb-redirect-gateway-consolidation.md](457-azure-lb-redirect-gateway-consolidation.md) – HTTP redirect consolidation
+> - [459-httproute-ownership.md](459-httproute-ownership.md) – HTTPRoute ownership ("apps own routes" pattern)
 
 ## Implementation Status (2025-12-04)
 
@@ -102,6 +103,8 @@ spec:
 ```
 
 All tenancy models reuse the same Gateway + HTTPRoute patterns; only hostnames and target namespaces change.
+
+> **HTTPRoute ownership**: Per [459-httproute-ownership.md](459-httproute-ownership.md), apps own their HTTPRoutes (rendered from their Helm charts), while the gateway chart owns infrastructure-level routes (apex redirects, CORS policies). This follows Gateway API best practices for the "app developer" vs "cluster operator" personas.
 
 ### Existing Gateway Policies
 

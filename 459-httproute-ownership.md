@@ -1,7 +1,7 @@
 # 459 – HTTPRoute Ownership Alignment
 
 **Created**: 2025-12-05
-**Updated**: 2025-12-05
+**Updated**: 2025-12-06
 
 > **Related documents:**
 > - [441-networking.md](441-networking.md) – Networking architecture
@@ -34,6 +34,11 @@ environments/_shared/components/apps/{category}/{app-name}/component.yaml
 ## Completed
 
 - [x] **RT-1**: Keycloak HTTPRoute → `sources/charts/apps/keycloak/` → **2025-12-05**
+- [x] **RT-9**: Plausible HTTPRoute → `sources/charts/platform-layers/plausible/` → **2025-12-06**
+- [x] **RT-12**: Langfuse HTTPRoute → `sources/charts/apps/langfuse-route/` → **2025-12-06**
+- [x] **RT-13**: www-ameide extraHttpRoute removed (verified duplicate, enabled chart route) → **2025-12-06**
+- [x] **RT-14**: www-ameide-platform extraHttpRoute removed (verified duplicate, enabled chart route) → **2025-12-06**
+- [x] **RT-16**: Keycloak paths restricted per vendor security docs → **2025-12-06**
 
 ## Routes in Gateway Chart Templates (to migrate)
 
@@ -46,7 +51,7 @@ environments/_shared/components/apps/{category}/{app-name}/component.yaml
 | RT-6 | `httproute-tempo-https.yaml` | tempo | `platform-layers/tempo` | Low |
 | RT-7 | `httproute-metrics-https.yaml` | otel-collector | New `apps/otel-collector` | Low |
 | RT-8 | `httproute-telemetry-https.yaml` | otel-collector | New `apps/otel-collector` | Low |
-| RT-9 | `httproute-plausible-https.yaml` | plausible | Existing `apps/platform/plausible` | High |
+| RT-9 | `httproute-plausible-https.yaml` | plausible | ✅ `platform-layers/plausible` | ~~High~~ Done |
 
 ## Routes in extraHttpRoutes (to migrate)
 
@@ -54,9 +59,9 @@ environments/_shared/components/apps/{category}/{app-name}/component.yaml
 |----|-------|---------|--------------|----------|
 | RT-10 | `pgadmin` | pgadmin | New `apps/pgadmin` | Low (dev only) |
 | RT-11 | `temporal-web` | data-temporal-web | `platform-layers/temporal` | Medium |
-| RT-12 | `langfuse-web` | platform-langfuse-web | `platform-layers/langfuse` | High |
-| RT-13 | `www-ameide` | www-ameide | **Verify duplicate** - has `apps/www-ameide` | High |
-| RT-14 | `www-ameide-platform` | www-ameide-platform | **Verify duplicate** - has `apps/www-ameide-platform` | High |
+| RT-12 | `langfuse-web` | platform-langfuse-web | ✅ `apps/langfuse-route` | ~~High~~ Done |
+| RT-13 | `www-ameide` | www-ameide | ✅ Enabled in `apps/www-ameide` | ~~High~~ Done |
+| RT-14 | `www-ameide-platform` | www-ameide-platform | ✅ Enabled in `apps/www-ameide-platform` | ~~High~~ Done |
 | RT-15 | `graph-connect-internal` | graph | Existing `apps/graph` | Medium |
 
 ## Keep in Gateway (legitimate gateway concerns)
@@ -83,10 +88,11 @@ environments/_shared/components/apps/{category}/{app-name}/component.yaml
 
 ## Priorities
 
-### High Priority (existing charts, just add route)
-- RT-9: Plausible
-- RT-12: Langfuse
-- RT-13/14: Verify www-ameide duplicates
+### ~~High Priority~~ ✅ All Completed (2025-12-06)
+- ~~RT-9: Plausible~~ → Done
+- ~~RT-12: Langfuse~~ → Done
+- ~~RT-13/14: Verify www-ameide duplicates~~ → Done
+- ~~RT-16: Keycloak path security~~ → Done
 
 ### Medium Priority (may need new charts)
 - RT-2/3/4: Observability (grafana, prometheus, alertmanager)
@@ -100,15 +106,14 @@ environments/_shared/components/apps/{category}/{app-name}/component.yaml
 
 ## Backlog
 
-- [ ] **RT-9**: Move plausible route to `apps/platform/plausible`
-- [ ] **RT-12**: Move langfuse route to `platform-layers/langfuse`
-- [ ] **RT-13**: Verify www-ameide extraHttpRoute is duplicate, remove if so
-- [ ] **RT-14**: Verify www-ameide-platform extraHttpRoute is duplicate, remove if so
+### Medium Priority (need new charts or additions)
 - [ ] **RT-2**: Create `apps/grafana` chart with HTTPRoute
 - [ ] **RT-3**: Create `apps/prometheus` chart with HTTPRoute
 - [ ] **RT-4**: Create `apps/alertmanager` chart with HTTPRoute
 - [ ] **RT-11**: Add HTTPRoute to temporal chart
 - [ ] **RT-15**: Add internal route to graph chart
+
+### Low Priority (dev-only or complex)
 - [ ] **RT-5**: Move loki route to its chart
 - [ ] **RT-6**: Move tempo route to its chart
 - [ ] **RT-7/8**: Create otel-collector chart or add routes
