@@ -37,6 +37,16 @@ TypeScript:
 - `pnpm-lock.yaml` stamped for third-party deps; `@ameideio/ameide-sdk-ts` stays `workspace:*`.
 - `pnpm install --frozen-lockfile` should resolve to the copied workspace SDK; fail builds that pull from npm.
 
+Next.js Standalone (www-ameide, www-ameide-platform):
+- `outputFileTracingRoot: repoRoot` in next.config.ts to include shared packages and resolve pnpm symlinks.
+- Standalone output preserves monorepo directory structure; server.js is at `services/<name>/server.js`.
+- Dockerfile.release COPY and CMD must use nested paths:
+  ```dockerfile
+  COPY --from=builder /app/services/<name>/.next/standalone ./
+  CMD ["node", "services/<name>/server.js"]
+  ```
+- Reference: https://nextjs.org/docs/pages/api-reference/config/next-config-js/output
+
 Go:
 - Vendor/copy `packages/ameide_sdk_go`; set `GOPROXY=off`; use the shared helper to prime the SDK module, apply the replace to the vendored path, and `go mod download`/`go mod tidy` with tags as needed.
 - `go.mod` should use the SDK module path with a replace to the vendored path; no `buf.build/gen/...` modules in service images; no `GO_SDK_VERSION` stamping.
