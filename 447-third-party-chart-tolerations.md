@@ -439,6 +439,47 @@ nodeSelector:
 
 ---
 
+### 12. Keycloak (Operator-Managed)
+
+**Chart**: Custom chart wrapping Keycloak operator CR (sources/charts/foundation/operators-config/keycloak_instance)
+
+**Issue**: Realm import jobs (created by Keycloak operator) were pending because tolerations in `unsupported.podTemplate` don't propagate to jobs.
+
+**Root cause**: Per [Keycloak operator docs](https://www.keycloak.org/operator/advanced-configuration):
+- Import jobs **inherit** from `spec.scheduling` on the Keycloak CR
+- `spec.unsupported.podTemplate` applies **only to server pods**, NOT import jobs
+
+**Correct paths** (unique dual-path requirement):
+```yaml
+# sources/values/{env}/platform/platform-keycloak.yaml
+
+# Import jobs inherit from spec.scheduling
+scheduling:
+  tolerations:
+    - key: "ameide.io/environment"
+      value: "dev"
+      effect: "NoSchedule"
+
+# Server pods use unsupported.podTemplate for nodeSelector
+# (spec.scheduling.nodeSelector not yet supported by operator)
+unsupported:
+  podTemplate:
+    spec:
+      nodeSelector:
+        ameide.io/pool: dev
+```
+
+**Files modified**:
+- `sources/values/dev/platform/platform-keycloak.yaml`
+- `sources/values/staging/platform/platform-keycloak.yaml`
+- `sources/values/production/platform/platform-keycloak.yaml`
+
+**Commit**: `8b85655`
+
+> **Cross-reference**: See [426-keycloak-config-map.md](426-keycloak-config-map.md) §5.1 for import job lifecycle details.
+
+---
+
 ## Commits
 
 | Commit | Description |
@@ -447,6 +488,7 @@ nodeSelector:
 | `1beb8cc` | fix(prometheus): restrict node-exporter to environment-specific nodes |
 | `8ffc0e0` | fix(langfuse): correct image path for GHCR mirror |
 | `dbb8dd1` | fix(tolerations): add tolerations for redis-failover and langfuse-bootstrap |
+| `8b85655` | fix(keycloak): add spec.scheduling for staging/production import jobs |
 
 ---
 

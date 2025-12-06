@@ -33,10 +33,11 @@
 
 Added tolerations/nodeSelector to data layer components for environment isolation:
 
-| Component | Files | Commit |
-|-----------|-------|--------|
-| **CNPG Postgres** | `sources/values/{dev,staging,production}/data/platform-postgres-clusters.yaml` | `1b622e9` |
-| **ClickHouse** | `sources/values/{dev,staging,production}/data/data-clickhouse.yaml` | `b0e63b5` |
+| Component | Files | Commit | Notes |
+|-----------|-------|--------|-------|
+| **CNPG Postgres** | `sources/values/{dev,staging,production}/data/platform-postgres-clusters.yaml` | `1b622e9` | Uses `cluster.affinity.tolerations` |
+| **ClickHouse** | `sources/values/{dev,staging,production}/data/data-clickhouse.yaml` | `b0e63b5` | Uses `clickhouse.tolerations` |
+| **Keycloak** | `sources/values/{dev,staging,production}/platform/platform-keycloak.yaml` | `8b85655` | Uses `spec.scheduling` for import jobs (NOT `unsupported.podTemplate`) - see [447-third-party-chart-tolerations.md](447-third-party-chart-tolerations.md) §12 |
 
 **Postgres structure** (uses CNPG `cluster.affinity` format):
 ```yaml

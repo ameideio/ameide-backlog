@@ -178,6 +178,46 @@ Argo CD and the Keycloak Operator interact via CRDs and status conditions. This 
     - Admin secrets exist before Keycloak tries to bootstrap admin users or service accounts.  
     - Dex and the gateway are wired only after the `ameide` realm is reachable.
 
+### 5.1 Import Job Scheduling (2025-12-06)
+
+Keycloak realm imports run as Jobs created by the Keycloak operator. Per [operator docs](https://www.keycloak.org/operator/advanced-configuration):
+
+- Import jobs **inherit** tolerations/nodeSelector from `spec.scheduling` on the Keycloak CR
+- `spec.unsupported.podTemplate` applies **only to server pods**, NOT import jobs
+- When using node taints (e.g., `ameide.io/environment=dev:NoSchedule`), `spec.scheduling.tolerations` MUST be set
+
+**Values file pattern** (per-environment):
+
+```yaml
+# sources/values/{env}/platform/platform-keycloak.yaml
+
+# Import jobs inherit from spec.scheduling
+scheduling:
+  tolerations:
+    - key: "ameide.io/environment"
+      value: "dev"
+      effect: "NoSchedule"
+
+# Server pods use unsupported.podTemplate for nodeSelector
+# (spec.scheduling.nodeSelector not yet supported by operator)
+unsupported:
+  podTemplate:
+    spec:
+      nodeSelector:
+        ameide.io/pool: dev
+```
+
+**Helm template** (`keycloak_instance/templates/keycloak.yaml`):
+
+```yaml
+{{- with .Values.scheduling }}
+scheduling:
+{{ toYaml . | indent 4 }}
+{{- end }}
+```
+
+> **Cross-reference**: See [442-environment-isolation.md](442-environment-isolation.md) for the node pool strategy and [447-third-party-chart-tolerations.md](447-third-party-chart-tolerations.md) §12 for Keycloak-specific details.
+
 ---
 
 ## 6. Cross-references & next steps
