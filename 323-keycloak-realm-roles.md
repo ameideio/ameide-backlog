@@ -27,7 +27,7 @@ Keycloak Realm: "ameide"
 └─ JWT issuer: https://keycloak/realms/ameide
 ```
 
-> **⚠️ OIDC Scopes Dependency**: The realm **must retain** built-in OIDC client scopes `profile` and `email`. When Auth.js sends `scope=openid profile email`, the `openid` value is the mandatory OIDC protocol-level scope (NOT a client scope), while `profile` and `email` are looked up as client scopes linked to the client. Removing them causes `OAuthCallbackError` / `invalid_scope` errors. See [460-keycloak-oidc-scopes.md](460-keycloak-oidc-scopes.md).
+> **⚠️ Vendor OIDC Scopes**: This design assumes the realm keeps the built-in OIDC client scopes `profile`, `email`, and (optionally) `offline_access`, and that we do NOT create a client scope called `openid`. The `openid` value in Auth.js's `scope=openid profile email` is the protocol-level meta-scope—Keycloak only looks up `profile` and `email` as client scopes. For details, see [426-keycloak-config-map.md §3.1](426-keycloak-config-map.md) and [460-keycloak-oidc-scopes.md](460-keycloak-oidc-scopes.md).
 
 ### Realm-Per-Tenant Configuration (Target)
 ```
