@@ -37,7 +37,7 @@ The `ameide` realm JSON in `keycloak_realm/values.yaml` defines only custom scop
 
 | ID | Activity | Status | Commit | Notes |
 |----|----------|--------|--------|-------|
-| 460-1 | Add built-in client scopes to `keycloak_realm/values.yaml` | ✅ Done | (pending) | `profile`, `email`, `offline_access` with protocol mappers. We do NOT create a client scope called `openid`—it remains the protocol-level meta-scope. |
+| 460-1 | Add built-in client scopes to `keycloak_realm/values.yaml` | ✅ Done | (pending) | Added `profile`, `email`, `offline_access` with protocol mappers. Removed erroneous `openid` client scope—`openid` is a protocol-level meta-scope, NOT a client scope. |
 | 460-2 | Commit OIDC scopes fix | ⬜ Pending | | |
 | 460-3 | Sync `dev-platform-keycloak-realm` | ⬜ Pending | | |
 | 460-4 | Verify dev login (no `invalid_scope`) | ⬜ Pending | | |
