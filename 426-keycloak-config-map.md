@@ -100,9 +100,31 @@ Realm behavior and role/tenant claims are governed by backlog 323:
     - `tenantId` – tenant context (until realm-per-tenant rollout completes).  
   - Application code uses these claims for RBAC and navigation (see 320-header.md, 322-rbac.md, 330-dynamic-tenant-resolution.md).
 
-- **Realm-per-tenant target**:  
-  - Longer-term goal (Section 4 of 323‑v2 and 333-realms.md) is to move to **realm-per-tenant** and drop the `tenant` and `groups` scopes.  
+- **Realm-per-tenant target**:
+  - Longer-term goal (Section 4 of 323‑v2 and 333-realms.md) is to move to **realm-per-tenant** and drop the `tenant` and `groups` scopes.
   - This backlog (426) documents the current single-realm baseline and how it is wired through GitOps; it does **not** change the realm-per-tenant roadmap or token shape described in 323‑v2.
+
+### 3.1 OIDC Scopes (2025-12-06)
+
+The `ameide` realm MUST include built-in OIDC client scopes alongside custom scopes:
+
+| Scope | Type | Purpose | Required By |
+|-------|------|---------|-------------|
+| `openid` | **Protocol scope (meta)** | Mandatory OIDC scope—tells Keycloak "this is an OpenID Connect request". NOT a client scope. | Auth.js Keycloak provider |
+| `profile` | **Built-in client scope** | Maps user profile claims (`preferred_username`, `name`, `family_name`, `given_name`) | Auth.js session |
+| `email` | **Built-in client scope** | Maps email claims (`email`, `email_verified`) | User identification |
+| `offline_access` | **Built-in client scope** | Enables refresh tokens for long-lived sessions | Optional |
+
+**How it works**: When Auth.js sends `scope=openid profile email`:
+1. `openid` signals this is an OIDC request (not a client scope lookup)
+2. `profile` and `email` are looked up as client scopes linked to `platform-app`
+3. Protocol mappers from those scopes populate the token claims
+
+**Warning**: If `clientScopes[]` is present in realm JSON, Keycloak treats it as the COMPLETE list. Missing client scopes cause `invalid_scope` errors.
+
+**Source of realm JSON**: `keycloak-realm-import` should ideally be generated from a Keycloak realm export (`RealmRepresentation`). Treat Keycloak as the configuration authority—export after tests pass, commit to Git.
+
+> **Cross-reference**: See [460-keycloak-oidc-scopes.md](460-keycloak-oidc-scopes.md) for the incident details and vendor-aligned realm pattern.
 
 ---
 
@@ -224,10 +246,11 @@ scheduling:
 
 Use this backlog as the **entry point**; follow these for deeper dives:
 
-- **Realm & roles**  
-  - `backlog/323-keycloak-realm-roles.md` – original realm roles design.  
-  - `backlog/323-keycloak-realm-roles-v2.md` – current single-realm `ameide` baseline and realm-per-tenant roadmap.  
+- **Realm & roles**
+  - `backlog/323-keycloak-realm-roles.md` – original realm roles design.
+  - `backlog/323-keycloak-realm-roles-v2.md` – current single-realm `ameide` baseline and realm-per-tenant roadmap.
   - `backlog/333-realms.md` – broader realm/multi-tenancy architecture.
+  - `backlog/460-keycloak-oidc-scopes.md` – OIDC scopes incident and vendor-aligned realm pattern.
 
 - **Argo CD / GitOps orchestration**  
   - `backlog/364-argo-configuration-v5.md` – Argo CD layering, RollingSync, and argocd-cm health overrides.  

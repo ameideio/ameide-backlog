@@ -163,6 +163,9 @@ export async function deleteOrganizationRealm(realmName: string): Promise<void>
 ```
 
 **Realm Configuration Template:**
+
+> **⚠️ Best Practice**: Realm templates should be derived from an exported, working realm (Keycloak RealmRepresentation) to ensure built-in OIDC client scopes (`profile`, `email`) and protocol mappers remain aligned with Keycloak defaults. Note: `openid` is the mandatory OIDC protocol-level scope (NOT a client scope)—it tells Keycloak "this is an OpenID Connect request". See [460-keycloak-oidc-scopes.md](460-keycloak-oidc-scopes.md).
+
 ```typescript
 const realmTemplate = {
   realm: orgSlug,
