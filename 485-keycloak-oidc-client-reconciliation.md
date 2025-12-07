@@ -511,6 +511,55 @@ kubectl patch app dev-platform-keycloak-realm -n argocd --type merge \
 kubectl create job --from=cronjob/foundation-vault-bootstrap-vault-bootstrap vault-bootstrap-manual-$(date +%s) -n ameide-dev
 ```
 
+#### Issue 8: KeycloakRealmImport PostSync Hook Creates Bootstrap Deadlock
+
+**Problem**: Staging and Production environments were stuck in Degraded state because the `ameide` realm was never created. The `KeycloakRealmImport` resource was configured as a `PostSync` hook, creating a bootstrap deadlock.
+
+**Root Cause**: ArgoCD's PostSync hooks only execute **after all resources are Healthy**. This created a circular dependency:
+
+```
+PostSync: KeycloakRealmImport → creates realm + clients
+    ↑ NEVER RUNS (app never reaches Healthy)
+Sync: ExternalSecret → DEGRADED (secret doesn't exist in Vault)
+    ↑
+PreSync: client-patcher → skips (realm doesn't exist, no clients to extract)
+```
+
+**Symptom**:
+- Staging/Prod keycloak-realm apps showed "Degraded"
+- ExternalSecret `keycloak-realm-oidc-clients` error: `Secret does not exist`
+- Only `master` realm existed in Keycloak (no `ameide` realm)
+- Dev worked because the realm was created before this hook ordering issue was introduced
+
+**Vendor Confirmation**: Per ArgoCD docs: "PostSync executes after all Sync hooks completed and were successful, a successful application, and **all resources in a Healthy state**."
+
+**Solution**: Changed `KeycloakRealmImport` from PostSync to PreSync with wave `-10`:
+```yaml
+# Before (broken):
+annotations:
+  argocd.argoproj.io/hook: PostSync
+  argocd.argoproj.io/hook-delete-policy: HookSucceeded
+  argocd.argoproj.io/sync-wave: "10"
+
+# After (fixed):
+annotations:
+  # Run realm import BEFORE client-patcher (wave -1) and BEFORE ExternalSecrets (Sync phase)
+  # This breaks the bootstrap deadlock: realm must exist before secrets can be extracted
+  argocd.argoproj.io/hook: PreSync
+  argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+  argocd.argoproj.io/sync-wave: "-10"
+```
+
+**Target Flow**:
+```
+PreSync wave -10: KeycloakRealmImport → creates realm + clients
+PreSync wave -1:  client-patcher → extracts secrets to Vault
+Sync:             ExternalSecret → fetches secrets from Vault ✓
+PostSync:         master-bootstrap → assigns roles (if needed)
+```
+
+**File Modified**: `sources/charts/foundation/operators-config/keycloak_realm/templates/realm-import.yaml`
+
 ### 10.2 Final Architecture
 
 ```
