@@ -847,7 +847,11 @@ spec:
 - RBAC roles (control plane access)
 - ResourceQuota (resource consumption)
 
-**Action**: Cross-reference RBAC and quota docs in 441; ensure `ameide.io/*` labels are write-protected from tenant namespaces.
+**Action**: Create dedicated backlog `463-multi-tenant-rbac-quotas.md` covering:
+- Tenant RBAC roles (namespace-scoped)
+- ResourceQuota per tenant namespace
+- Label protection (`ameide.io/*` labels write-protected from tenants)
+- LimitRange defaults
 
 **Reference**: [Kubernetes Multi-tenancy](https://kubernetes.io/docs/concepts/security/multi-tenancy/)
 
