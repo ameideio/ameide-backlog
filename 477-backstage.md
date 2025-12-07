@@ -16,6 +16,7 @@
 > | [473-ameide-technology.md](473-ameide-technology.md) | §2.3 – Backstage as "factory" for controllers |
 > | [475-ameide-domains.md](475-ameide-domains.md) | §2 Principle 5, §6 – Internal factory, not tenant UI |
 > | [476-ameide-security-trust.md](476-ameide-security-trust.md) | §5.5 – Backstage security baseline |
+> | [478-ameide-extensions.md](478-ameide-extensions.md) | Extension scaffolding workflow |
 >
 > **Deployment Architecture Suite**:
 >
@@ -1008,6 +1009,26 @@ Per [472-ameide-information-application.md](472-ameide-information-application.m
 
 **Note**: ProcessDefinitions and AgentDefinitions are **design-time artifacts** stored in Transformation DomainController. Backstage templates can scaffold the runtime controllers that **execute** these definitions, but the definitions themselves come from the custom React Flow modeller (and other UAF UIs).
 
+#### Tenant Extension Templates
+
+Per [478-ameide-extensions.md](478-ameide-extensions.md) §4-5, templates include **namespace calculation logic** that determines target deployment based on:
+
+* `tenant_id` - identifies the tenant
+* `sku` - Shared / Namespace / Private
+* `code_origin` - platform vs tenant
+
+**Namespace calculation**:
+
+```
+if origin == "platform":
+  if sku == "Shared": return "ameide-{env}"
+  else: return "tenant-{id}-{env}-base"
+else:  # tenant/agent origin
+  return "tenant-{id}-{env}-cust"
+```
+
+**Security invariant**: Custom code never targets `ameide-*` namespaces. See [478-ameide-extensions.md](478-ameide-extensions.md) §7 for enforcement details.
+
 ### 10.2 Catalog Population
 
 Populate Software Catalog with existing Ameide services per the entity mapping in [472](472-ameide-information-application.md) §4.1:
@@ -1025,11 +1046,13 @@ Populate Software Catalog with existing Ameide services per the entity mapping i
 
 | Item | Description |
 |------|-------------|
-| 478-backstage-templates | DomainController, ProcessController, AgentController scaffold templates |
-| 479-backstage-catalog | Populate catalog with existing Ameide services and APIs |
-| 480-backstage-techdocs | TechDocs publishing pipeline (from backlog markdown) |
-| 481-backstage-argocd | ArgoCD plugin for deployment visibility |
-| 482-backstage-uaf-integration | Link ProcessDefinition/AgentDefinition catalog entries to UAF |
+| 479-backstage-templates | DomainController, ProcessController, AgentController scaffold templates |
+| 480-backstage-catalog | Populate catalog with existing Ameide services and APIs |
+| 481-backstage-techdocs | TechDocs publishing pipeline (from backlog markdown) |
+| 482-backstage-argocd | ArgoCD plugin for deployment visibility |
+| 483-backstage-uaf-integration | Link ProcessDefinition/AgentDefinition catalog entries to UAF |
+
+**Note**: 478-ameide-extensions.md now documents the tenant extension model that will inform template development.
 
 ---
 
@@ -1050,6 +1073,7 @@ Populate Software Catalog with existing Ameide services per the entity mapping i
 | [473-ameide-technology.md](473-ameide-technology.md) | §2.3, §4 | Technology blueprint, templates |
 | [475-ameide-domains.md](475-ameide-domains.md) | §2, §6 | Internal factory principle |
 | [476-ameide-security-trust.md](476-ameide-security-trust.md) | §8 | Security baseline |
+| [478-ameide-extensions.md](478-ameide-extensions.md) | §4-6 | Tenant extension scaffolding, namespace strategy |
 
 ### Deployment Architecture Suite
 | Document | Section | Relationship |

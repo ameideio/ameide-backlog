@@ -31,6 +31,19 @@ This distinction prevents the anti-pattern where cluster-generated secrets (like
 | **Cluster-Managed (Helm-Generated)** | MinIO root, Grafana admin, bootstrap secrets | K8s Secret (created by Helm) | Helm `randAlphaNum` + `lookup` | Helm generates on first install → K8s Secret → (optional) PushSecret → Vault |
 | **Cluster-Managed (Service-Generated)** | Keycloak client secrets, OIDC tokens | Service (Keycloak, etc.) | client-patcher Job extracts from service API | Service generates → Job extracts via API → Vault → ExternalSecrets → K8s |
 
+### Vendor Documentation References (2025-12-07)
+
+All classifications are backed by upstream vendor documentation:
+
+| Classification | Vendor | Documentation | Key Quote |
+|---------------|--------|---------------|-----------|
+| OIDC client secrets = service-generated | Keycloak | [Confidential Client Credentials](https://wjw465150.gitbooks.io/keycloak-documentation/content/server_admin/topics/clients/oidc/confidential.html) | *"The secret is automatically generated for you"* |
+| Bootstrap admin is one-time only | Keycloak | [All Config](https://www.keycloak.org/server/all-config) | *"Used only when the master realm is created"* |
+| Bootstrap admin ignored after creation | RHBK | [Operator Guide](https://docs.redhat.com/en/documentation/red_hat_build_of_keycloak/26.2/html-single/operator_guide/) | *"spec.bootstrapAdmin is effectively ignored"* |
+| CNPG manages DB roles from Secrets | CloudNativePG | [Declarative Role Management](https://cloudnative-pg.io/documentation/current/declarative_role_management/) | K8s Secret → CNPG reconciles DB role |
+| PushSecret semantics | ESO | [PushSecret Guide](https://external-secrets.io/latest/guides/pushsecrets/) | `updatePolicy: Replace` for K8s authority |
+| Service account auth for automation | Keycloak | [Admin CLI](https://wjw465150.gitbooks.io/keycloak-documentation/content/server_admin/topics/admin-cli.html) | *"only specify a client id... service account"* |
+
 ---
 
 ## Detailed Classification

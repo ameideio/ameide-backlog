@@ -401,6 +401,10 @@ This section documents all issues encountered during implementation for future r
 error processing spec.data[2] (key: backstage-oidc-client-secret), err: Secret does not exist
 ```
 
+**Vendor Confirmation (2025-12-07)**: Per ArgoCD docs: *"PostSync executes after all Sync hooks completed and were successful, a successful application, and **all resources in a Healthy state.**"* ([source](https://argo-cd.readthedocs.io/en/release-2.0/user-guide/resource_hooks/))
+
+This confirms PostSync was architecturally unsuitable for bootstrap operations.
+
 **Solution**: Changed to `PreSync` hook with sync-wave `-1`:
 ```yaml
 annotations:
@@ -531,7 +535,11 @@ PreSync: client-patcher → skips (realm doesn't exist, no clients to extract)
 - Only `master` realm existed in Keycloak (no `ameide` realm)
 - Dev worked because the realm was created before this hook ordering issue was introduced
 
-**Vendor Confirmation**: Per ArgoCD docs: "PostSync executes after all Sync hooks completed and were successful, a successful application, and **all resources in a Healthy state**."
+**Vendor Confirmation (2025-12-07)**:
+- ArgoCD docs: *"PostSync executes after all Sync hooks completed and were successful, a successful application, and **all resources in a Healthy state.**"* ([source](https://argo-cd.readthedocs.io/en/release-2.0/user-guide/resource_hooks/))
+- RHBK Realm Import docs: *"The Realm Import CR only supports creation of new realms and does not update or delete those."* ([source](https://docs.redhat.com/pt-br/documentation/red_hat_build_of_keycloak/22.0/html/operator_guide/realm-import-))
+
+Combined with ArgoCD PostSync semantics, this created an unrecoverable bootstrap deadlock in staging/production.
 
 **Solution**: Changed `KeycloakRealmImport` from PostSync to PreSync with wave `-10`:
 ```yaml

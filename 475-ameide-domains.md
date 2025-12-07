@@ -9,6 +9,7 @@ Got it — let's re-cut the **Domains Architecture** layer with those correction
 > | [472-ameide-information-application.md](472-ameide-information-application.md) | Application architecture |
 > | [473-ameide-technology.md](473-ameide-technology.md) | Technology stack |
 > | [476-ameide-security-trust.md](476-ameide-security-trust.md) | Security architecture |
+> | [478-ameide-extensions.md](478-ameide-extensions.md) | Tenant controller patterns |
 >
 > **Deployment Implementation**:
 > - [461-ipc-idc-iac.md](461-ipc-idc-iac.md) – Infrastructure as Code patterns
@@ -286,6 +287,17 @@ AgentControllers are **not** a separate domain. They are cross-cutting runtimes 
 
 Backstage templates (for DomainController/ProcessController/AgentController) are **internal implementation details**; they live in the Application/Tech layer and are used by engineers and transformation agents to spin up new controllers, not by business users directly.
 
+### 4.7 Tenant-Specific Controllers
+
+When tenants require custom controllers beyond the standard product:
+
+* **Platform controllers** run in `ameide-{env}` (Shared SKU) or `tenant-{id}-{env}-base` (Namespace/Private SKU)
+* **Tenant custom controllers** always run in `tenant-{id}-{env}-cust` namespaces
+* Custom code is scaffolded via Backstage templates with tenant-specific parameters
+* Code lives in `tenant-{id}-controllers` repos, manifests in `tenant-{id}-gitops` repos
+
+> **See [478-ameide-extensions.md](478-ameide-extensions.md)** for the complete tenant extension model, namespace strategy by SKU, and the E2E flow from requirement to running controller.
+
 ---
 
 ## 5. End‑to‑End Example: Generic E2E Process Pattern
@@ -420,6 +432,7 @@ This Domains Architecture should be read with the following documents:
 | [367 series](367-0-feedback-intake.md) | Transformation methodology | Strong ✅ |
 | [319‑onboarding](319-onboarding.md) | Platform & Identity domain | See §10.1 |
 | [333‑realms](333-realms.md) | Realm‑per‑tenant for Identity | Strong ✅ |
+| [478‑ameide‑extensions](478-ameide-extensions.md) | Tenant controller patterns | See §10.5 |
 
 ### 10.1 Onboarding alignment (319)
 
@@ -457,6 +470,17 @@ The Element graph (300) and Domains Architecture (475) coexist:
 > **Important**: Transformation remains the source of truth for design artifacts; the graph stores references and read-optimised views, not the authoritative records.
 
 **Gap**: 300's Element graph is partially implemented. Ontology-specific adapters (ArchiMate, BPMN, Document) route through legacy artifacts; converters to Element service remain TODO per 300 §Implementation Progress.
+
+### 10.5 Extension alignment (478)
+
+478 describes how tenant-specific controllers fit into the domain portfolio:
+
+* **Platform controllers** (§3, §4) run in shared or dedicated namespaces depending on SKU
+* **Tenant custom controllers** (478 §4.7) always run in isolated `tenant-{id}-{env}-cust` namespaces
+* The E2E flow (478 §6) describes how custom controllers are scaffolded via Backstage and deployed via GitOps
+* **ControllerImplementationDraft** (478 §8) is a first-class artifact in Transformation for tracking controller creation
+
+This extends the domain portfolio in §3 with tenant-specific variants while maintaining the security invariants in §7.
 
 ---
 

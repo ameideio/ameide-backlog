@@ -9,6 +9,7 @@ Here we go — Business Architecture time 🔧🏗️
 > | [473-ameide-technology.md](473-ameide-technology.md) | Technology stack |
 > | [475-ameide-domains.md](475-ameide-domains.md) | Domain portfolio |
 > | [476-ameide-security-trust.md](476-ameide-security-trust.md) | Security architecture |
+> | [478-ameide-extensions.md](478-ameide-extensions.md) | Tenant extension lifecycle |
 >
 > **Deployment Implementation**:
 > - [465-applicationset-architecture.md](465-applicationset-architecture.md) – Per-environment deployments
@@ -218,6 +219,16 @@ Business‑wise, this gives you:
 
 * A "**service catalog**" of reusable domain/process/agent/workspace building blocks.
 * A standard place where **transformation AgentControllers** "press the buttons" to generate new features rather than talking to ad‑hoc APIs.
+
+### 4.1 Tenant Extensions
+
+When tenants require custom controllers beyond what the standard product provides:
+
+* Backstage templates calculate the correct **target namespace** based on tenant SKU
+* Custom code is always isolated in `tenant-{id}-{env}-cust` namespaces
+* The full E2E flow from requirement to running controller is managed via the **ControllerImplementationDraft** pattern
+
+> **See [478-ameide-extensions.md](478-ameide-extensions.md)** for the complete tenant extension model, namespace strategy by SKU, and the step-by-step controller creation workflow.
 
 ---
 
@@ -498,6 +509,7 @@ This Business Architecture should be read with the following documents:
 | [319‑onboarding](319-onboarding.md) | Identity/Onboarding domain | Strong ✅ |
 | [333‑realms](333-realms.md) | Multi‑tenant realm model | Strong ✅ |
 | [367‑series](367-1-safe.md) | Transformation methodologies | Strong ✅ |
+| [478‑ameide‑extensions](478-ameide-extensions.md) | Tenant extension lifecycle | Strong ✅ |
 
 ### 10.1 Metamodel alignment (300)
 

@@ -290,6 +290,20 @@ These templates are *also* what agents pick from when “auto‑rolling” a new
 * Argo CD Apps-of-Apps structure; each environment is a separate Argo Application tree.
 * Backstage templates and Ameide controllers always deploy via GitOps—no ad-hoc `kubectl apply`.
 
+### 6.3 Tenant Extension Namespaces
+
+For tenants with custom controllers, additional namespaces are provisioned based on SKU:
+
+| SKU | Product Runtime | Custom Code |
+|-----|-----------------|-------------|
+| Shared | `ameide-{env}` (shared) | `tenant-{id}-{env}-cust` |
+| Namespace | `tenant-{id}-{env}-base` | `tenant-{id}-{env}-cust` |
+| Private | `tenant-{id}-{env}-base` | `tenant-{id}-{env}-cust` |
+
+**Security invariant**: Custom code never runs in shared `ameide-*` namespaces. This is enforced at scaffolding time (Backstage templates) and deployment time (GitOps policies).
+
+> **See [478-ameide-extensions.md](478-ameide-extensions.md)** for the complete namespace strategy, repository model, and E2E controller creation flow.
+
 ---
 
 ## 7. Observability, Quality & Tooling
@@ -352,6 +366,7 @@ This Technology Architecture should be read with the following documents:
 | [305‑workflow](305-workflow.md) | Temporal/ProcessController runtime | See §10.1 |
 | [310‑agents‑v2](310-agents-v2.md) | AgentController layer | See §10.2 |
 | [388‑ameide‑sdks‑north‑star](388-ameide-sdks-north-star.md) | SDK publish strategy | See §10.3 |
+| [478‑ameide‑extensions](478-ameide-extensions.md) | Namespace topology & extension deployment | See §10.4 |
 
 ### 10.1 Workflow alignment (305)
 
@@ -369,6 +384,18 @@ This Technology Architecture should be read with the following documents:
 
 * 388 defines SDK publish strategy; 473 §5 depends on published SDKs for all controller types.
 * **Gap**: Per 470 §9.2.3, TypeScript SDK is not yet published to npmjs. This blocks external consumers from using the TS SDK as 473 §5.1 requires.
+
+### 10.4 Extension alignment (478)
+
+478 defines the namespace topology for tenant extensions:
+
+* **Shared SKU**: Product in `ameide-{env}`, custom code in `tenant-{id}-{env}-cust`
+* **Namespace SKU**: Product in `tenant-{id}-{env}-base`, custom code in `tenant-{id}-{env}-cust`
+* **Private SKU**: Product in `tenant-{id}-{env}-base`, custom code in `tenant-{id}-{env}-cust`
+
+**Key invariant**: Custom services always run in dedicated tenant namespaces, never in shared `ameide-*` namespaces.
+
+The E2E flow in 478 §6 describes how controllers are scaffolded via Backstage and deployed via GitOps, extending the patterns in 473 §4.
 
 ---
 

@@ -9,6 +9,7 @@ Totally agree — we can't keep evolving Ameide without locking down the securit
 > | [472-ameide-information-application.md](472-ameide-information-application.md) | Application architecture |
 > | [473-ameide-technology.md](473-ameide-technology.md) | Technology stack |
 > | [475-ameide-domains.md](475-ameide-domains.md) | Domain portfolio |
+> | [478-ameide-extensions.md](478-ameide-extensions.md) | Extension security model |
 >
 > **Secrets & Security Implementation**:
 > - [462-secrets-origin-classification.md](462-secrets-origin-classification.md) – Secret origin taxonomy
@@ -212,6 +213,31 @@ The proto/API backlogs already define the right building blocks; we just declare
 * `AmeideClient` automatically attaches tokens, tenant headers, retries, and tracing metadata.
 * For browser clients, CORS is locked down to platform UIs; no generic cross‑origin wildcards.
 
+### 6.1 Custom Code Isolation Invariant
+
+A critical security principle for tenant extensions:
+
+> **No custom code in shared namespaces**: Any controller whose origin is `tenant` (or "untrusted") **cannot** target `ameide-*` namespaces.
+
+This is enforced at multiple layers:
+
+| Layer | Enforcement |
+|-------|-------------|
+| **Transformation** | Validates tenant SKU and computes target namespace before scaffolding |
+| **Backstage Templates** | Namespace calculation logic enforces isolation rules |
+| **GitOps Policy** | ArgoCD ApplicationSets validate namespace targeting |
+| **NetworkPolicy** | Denies ingress from `tenant-*-cust` to `ameide-*` internal services |
+
+Namespace topology by SKU:
+
+| SKU | Product Runtime | Custom Code |
+|-----|-----------------|-------------|
+| Shared | `ameide-{env}` | `tenant-{id}-{env}-cust` |
+| Namespace | `tenant-{id}-{env}-base` | `tenant-{id}-{env}-cust` |
+| Private | `tenant-{id}-{env}-base` | `tenant-{id}-{env}-cust` |
+
+> **See [478-ameide-extensions.md](478-ameide-extensions.md)** for the complete namespace strategy and E2E controller creation flow.
+
 ---
 
 ## 7. Agents & AI Safety
@@ -256,6 +282,18 @@ We generalize:
     * Human or policy‑based approval
     * GitOps pipeline for deployment.
 * Transformation DomainController logs "write intents" with full diff and user/tenant context.
+
+#### ControllerImplementationDraft Pattern
+
+Per [478-ameide-extensions.md](478-ameide-extensions.md) §6, agents creating new controllers use a controlled workflow:
+
+1. **Agent never gets Git or K8s credentials** directly
+2. Agent uses `GetControllerDraftFiles(draft_id)` to read current state
+3. Agent uses `UpdateControllerDraftFiles(draft_id, patches)` to propose changes
+4. A **deterministic worker** applies patches, runs checks, and commits
+5. `RequestPromotion(draft_id, env)` triggers CI and GitOps deployment
+
+This pattern ensures all agent-generated code passes through the same governance as human-written code.
 
 ---
 
@@ -365,6 +403,7 @@ This Security & Trust Architecture should be read with the following documents:
 | [462‑secrets‑origin‑classification](462-secrets-origin-classification.md) | Secrets classification | Strong ✅ |
 | [310‑agents‑v2](310-agents-v2.md) | Agent domain implementation | See §11.3 |
 | [388‑ameide‑sdks‑north‑star](388-ameide-sdks-north-star.md) | SDK publish strategy | See §11.4 |
+| [478‑ameide‑extensions](478-ameide-extensions.md) | Extension security model | See §11.5 |
 
 ### 11.1 RBAC alignment (322)
 
@@ -449,6 +488,23 @@ This Security & Trust Architecture should be read with the following documents:
 **Impact on 476 compliance:**
 - §6 (AmeideClient requirement): ⚠️ PARTIAL - TS consumers cannot use secure SDK patterns until TS SDK is published
 - "Open by design" principle: ❌ Compromised for external TS consumers
+
+### 11.5 Extension alignment (478)
+
+478 defines the security model for tenant extensions:
+
+* **§6.1 Custom Code Isolation Invariant**: Aligns with 478 §7.1 (No custom code in shared namespaces)
+* **§7.3 ControllerImplementationDraft Pattern**: Operationalizes 478 §6 (E2E flow)
+* **Namespace topology**: 478 §4 provides the SKU-based namespace strategy enforced by §6.1
+
+**Key security invariants from 478**:
+
+| Invariant | 476 Enforcement |
+|-----------|-----------------|
+| No custom code in `ameide-*` | §6.1 namespace isolation |
+| Agents don't touch Git directly | §7.3 draft pattern |
+| All calls via tenant-aware auth | §6 API security contract |
+| NetworkPolicies isolate tenant code | §6.1 + §8.2 |
 
 ---
 

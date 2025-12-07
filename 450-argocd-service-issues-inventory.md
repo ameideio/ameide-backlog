@@ -180,6 +180,20 @@ Apps still reconciling (may self-heal once P0 fixed):
 
 ---
 
+## Controller Noise – DiffFromCache Errors
+
+**Symptom**: `kubectl logs -n argocd argocd-application-controller-0 --since=30m | grep 'DiffFromCache error'` emits dozens of messages such as `DiffFromCache error: error getting managed resources for app production-platform-envoy-crds: cache: key is missing`.
+
+**Root Cause**: Per the Argo CD operator manual (`docs/operator-manual/server-commands/argocd-application-controller.md`), the application controller stores managed-resource diffs in a one-hour cache (`--app-state-cache-expiration`, default `1h0m0s`). With ~200 apps reconciling every three minutes, entries naturally expire every hour and the next reconciliation logs an error when the cache miss occurs—even though the controller immediately recomputes the diff and continues.
+
+**Fix Applied**: Extended the cache TTL to six hours by setting `controller.env[ARGOCD_APP_STATE_CACHE_EXPIRATION]=6h` in `sources/values/common/argocd.yaml`. Helm installs/`tools/bootstrap/bootstrap-v2.sh` now render the updated environment variable so the controller retains app-state cache entries between hourly polls.
+
+**Validation**:
+1. `helm upgrade --install argocd ... -f sources/values/common/argocd.yaml` (or rerun bootstrap) to roll out the new env var.
+2. `kubectl logs -n argocd argocd-application-controller-0 --since=2h | grep 'DiffFromCache error'` should show at most one entry immediately after rollout; subsequent hourly cache sweeps no longer spam errors.
+
+---
+
 ## Node Topology
 
 | Node Pool | Count | Taint | Capacity |

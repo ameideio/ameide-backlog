@@ -13,6 +13,7 @@
 > | [473-ameide-technology.md](473-ameide-technology.md) | Technology stack and GitOps patterns |
 > | [475-ameide-domains.md](475-ameide-domains.md) | Domain portfolio and structure |
 > | [476-ameide-security-trust.md](476-ameide-security-trust.md) | Security principles and threat model |
+> | [478-ameide-extensions.md](478-ameide-extensions.md) | Tenant extension model & namespace strategy |
 >
 > **Deployment Implementation**:
 > - [465-applicationset-architecture.md](465-applicationset-architecture.md) – GitOps deployment model
@@ -194,6 +195,8 @@ Backstage is the **factory** that turns Transformation DomainController decision
 * **Bridge**:
 
   * Listens to Transformation domain events and runs templates with specific parameters (e.g. "create L2O ProcessController variant for tenant X").
+
+> **Extension Model**: For tenant-specific controllers and custom code isolation, see [478-ameide-extensions.md](478-ameide-extensions.md) which defines the namespace strategy by SKU and the E2E flow for controller creation.
 
 ---
 

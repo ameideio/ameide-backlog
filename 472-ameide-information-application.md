@@ -542,6 +542,7 @@ This Application & Information Architecture should be read with:
 | [305‑workflow](305-workflow.md) | ProcessController implementation | See §8.2 |
 | [310‑agents‑v2](310-agents-v2.md) | AgentController implementation | See §8.3 |
 | [370‑event‑sourcing](370-event-sourcing.md) | Event sourcing exploration | See §8.4 |
+| [478‑ameide‑extensions](478-ameide-extensions.md) | Extension namespace topology | See §8.5 |
 
 ### 8.1 Metamodel alignment (300)
 
@@ -580,6 +581,24 @@ This means: Transformation domain entities project to `graph.elements`, but the 
 * **Target path**: Event contracts per domain, outbox + relay, projections from streams
 
 This should be treated as target architecture; current implementation uses traditional persistence. The event-sourced pattern is an internal implementation detail of the Transformation DomainController, not a separate "UAF service".
+
+### 8.5 Extension alignment (478)
+
+478 describes how tenant-specific controllers are cataloged and deployed:
+
+* **Platform repo** contains `service_catalog/` with base controller structure
+* **Tenant repos** (`tenant-{id}-controllers`, `tenant-{id}-gitops`) hold custom code and manifests
+* Backstage catalog uses **Locations** pointing at tenant repos, so tenant controllers appear in the internal portal
+* Namespace topology by SKU determines where controllers deploy (§4 of 478)
+
+The catalog entity mappings in §4.1 extend to tenant controllers:
+
+| Ameide Concept | Backstage Kind | Repository |
+|----------------|----------------|------------|
+| Platform DomainController | `Component` | Platform repo |
+| Tenant DomainController | `Component` | `tenant-{id}-controllers` |
+| Platform ProcessController | `Component` | Platform repo |
+| Tenant ProcessController | `Component` | `tenant-{id}-controllers` |
 
 ---
 

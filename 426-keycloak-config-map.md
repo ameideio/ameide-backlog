@@ -382,6 +382,68 @@ Use this backlog as the **entry point**; follow these for deeper dives:
 
 **Future work for this backlog (426):**
 
-- [ ] Add an explicit `Keycloak` CR health customization in `argocd-cm` mirroring the operator’s `Ready` condition (following the pattern used for Strimzi/Kafka).  
-- [ ] Document a rotation runbook for admin credentials (`keycloak-bootstrap-admin`, `keycloak-master-bootstrap`, `platform-app-master-client`) that ties Vault paths → ExternalSecrets → Keycloak operator behavior.  
+- [ ] Add an explicit `Keycloak` CR health customization in `argocd-cm` mirroring the operator's `Ready` condition (following the pattern used for Strimzi/Kafka).
+- [ ] Document a rotation runbook for admin credentials (`keycloak-bootstrap-admin`, `keycloak-master-bootstrap`, `platform-app-master-client`) that ties Vault paths → ExternalSecrets → Keycloak operator behavior.
 - [ ] Update this map once realm-per-tenant becomes the default, especially how realm imports and Keycloak instances are templated per organization.
+
+---
+
+## 7. Vendor Documentation Validation (2025-12-07)
+
+All architectural decisions in this document have been validated against upstream vendor documentation.
+
+### 7.1 Bootstrap Admin Behavior
+
+**Statement**: `KC_BOOTSTRAP_ADMIN_*` environment variables are only read when the master realm is created. Subsequent changes to the `keycloak-bootstrap-admin` Secret are ignored.
+
+**Vendor Confirmation**:
+- Keycloak "all config" docs: *"Temporary bootstrap admin password. **Used only when the master realm is created.**"* ([source](https://www.keycloak.org/server/all-config))
+- RHBK Operator Guide: *"If a master realm has already been created for your cluster, then the spec.bootstrapAdmin is effectively ignored."* ([source](https://docs.redhat.com/en/documentation/red_hat_build_of_keycloak/26.2/html-single/operator_guide/))
+
+**Implication**: Admin credential drift cannot be fixed by updating the Secret. Use `kc.sh bootstrap-admin service` for recovery. See [486-keycloak-admin-recovery.md](486-keycloak-admin-recovery.md).
+
+### 7.2 KeycloakRealmImport CREATE-ONLY Behavior
+
+**Statement**: `KeycloakRealmImport` CRs only create new realms; they do not update or delete existing realms.
+
+**Vendor Confirmation**:
+- RHBK Realm Import docs: *"If a Realm with the same name already exists… it will not be overwritten."* *"The Realm Import CR only supports creation of new realms and does not update or delete those."* ([source](https://docs.redhat.com/pt-br/documentation/red_hat_build_of_keycloak/22.0/html/operator_guide/realm-import-))
+
+**Implication**: OIDC clients added to Git after initial realm creation require the `client-patcher` reconciliation pattern. See [485-keycloak-oidc-client-reconciliation.md](485-keycloak-oidc-client-reconciliation.md).
+
+### 7.3 ArgoCD PostSync Hook Requirements
+
+**Statement**: PostSync hooks only run after all resources are Healthy. This creates bootstrap deadlocks when secrets depend on PostSync operations.
+
+**Vendor Confirmation**:
+- ArgoCD Resource Hooks: *"PostSync executes after all Sync hooks completed and were successful, **a successful application, and all resources in a Healthy state.**"* ([source](https://argo-cd.readthedocs.io/en/release-2.0/user-guide/resource_hooks/))
+
+**Implication**: Bootstrap operations that must complete before ExternalSecrets can sync must use PreSync hooks with sync-waves.
+
+### 7.4 OIDC Client Secrets are Service-Generated
+
+**Statement**: Keycloak generates OIDC client secrets; they should not be stored in external systems like Azure Key Vault.
+
+**Vendor Confirmation**:
+- Keycloak Confidential Client Credentials: *"The secret is automatically generated for you and the **Regenerate Secret** button allows you to recreate this secret if you want or need to."* ([source](https://wjw465150.gitbooks.io/keycloak-documentation/content/server_admin/topics/clients/oidc/confidential.html))
+
+**Implication**: Use `client-patcher` to extract Keycloak-generated secrets to Vault. Do not use Azure KV fixtures for OIDC secrets. See [462-secrets-origin-classification.md](462-secrets-origin-classification.md).
+
+### 7.5 Service Account Authentication for Automation
+
+**Statement**: Automated jobs (like `client-patcher`) should use service account client credentials rather than admin user/password.
+
+**Vendor Confirmation**:
+- Keycloak Admin CLI: *"When logging in with Admin CLI you specify… username, or alternatively **only specify a client id**, which will result in special service account being used… When you log in using a clientId, you need the client secret only."* ([source](https://wjw465150.gitbooks.io/keycloak-documentation/content/server_admin/topics/admin-cli.html))
+- Keycloak Service Accounts: *"Service accounts are explicitly recommended for non-human / automated tasks and use the **client credentials** grant."* ([source](https://www.keycloak.org/securing-apps/client-registration-cli))
+
+**Implication**: Switch `client-patcher` to service account auth to avoid admin password drift issues. See [486-keycloak-admin-recovery.md](486-keycloak-admin-recovery.md).
+
+### 7.6 Helm Values Merge Behavior
+
+**Statement**: Helm performs key-based map merges; environment values can replace entire sections.
+
+**Vendor Confirmation**:
+- Helm Charts: *"When a user supplies custom values, these values will override the values in the chart's values.yaml file."* ([source](https://helm.sh/docs/topics/charts))
+
+**Clarification**: Helm merges maps recursively at key boundaries. If an environment values file defines `clientPatcher:`, it replaces the base `clientPatcher` map unless subkeys are re-declared.
