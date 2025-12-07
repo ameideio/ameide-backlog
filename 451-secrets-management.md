@@ -10,9 +10,14 @@
 
 This document describes the end-to-end secrets flow from developer `.env` files to Kubernetes Secrets in environment namespaces. The architecture uses Azure Key Vault as the external source of truth for **external/third-party secrets**, HashiCorp Vault as the internal secret store, and ExternalSecrets Operator to sync secrets to Kubernetes.
 
-> **Important:** This flow applies only to **external/third-party secrets** (API keys, registry tokens, etc.).
-> **Cluster-managed secrets** (database credentials, Keycloak client secrets) have different authorities.
-> See [462-secrets-origin-classification.md](462-secrets-origin-classification.md) for the full taxonomy.
+> **Scope Clarification:** This document covers **external/third-party secrets only**—secrets that originate outside the cluster (API keys, registry tokens, DNS credentials). These flow: `.env` → Azure KV → vault-bootstrap → Vault → ExternalSecrets → K8s.
+>
+> **Cluster-managed secrets** follow different authority models and are NOT covered here:
+> - **Database credentials** (CNPG-owned) → See [412-cnpg-owned-postgres-greds.md](412-cnpg-owned-postgres-greds.md)
+> - **OIDC client secrets** (Keycloak-generated, client-patcher extracted) → See [426-keycloak-config-map.md §3.2](426-keycloak-config-map.md)
+> - **Helm-generated secrets** (MinIO, Grafana admin) → See [462-secrets-origin-classification.md](462-secrets-origin-classification.md)
+>
+> For the complete secrets authority taxonomy, see [462-secrets-origin-classification.md](462-secrets-origin-classification.md).
 
 ---
 

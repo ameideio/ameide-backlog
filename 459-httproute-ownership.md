@@ -1,7 +1,7 @@
 # 459 – HTTPRoute Ownership Alignment
 
 **Created**: 2025-12-05
-**Updated**: 2025-12-06
+**Updated**: 2025-12-07
 
 > **Related documents:**
 > - [441-networking.md](441-networking.md) – Networking architecture
@@ -34,7 +34,7 @@ environments/_shared/components/apps/{category}/{app-name}/component.yaml
 ## Completed
 
 - [x] **RT-1**: Keycloak HTTPRoute → `sources/charts/apps/keycloak/` → **2025-12-05**
-- [x] **RT-9**: Plausible HTTPRoute → `sources/charts/platform-layers/plausible/` → **2025-12-06**
+- [x] **RT-9**: Plausible HTTPRoute → `sources/charts/apps/plausible/` → **2025-12-07** (corrected from platform-layers)
 - [x] **RT-12**: Langfuse HTTPRoute → `sources/charts/apps/langfuse-route/` → **2025-12-06**
 - [x] **RT-13**: www-ameide extraHttpRoute removed (verified duplicate, enabled chart route) → **2025-12-06**
 - [x] **RT-14**: www-ameide-platform extraHttpRoute removed (verified duplicate, enabled chart route) → **2025-12-06**
@@ -51,7 +51,7 @@ environments/_shared/components/apps/{category}/{app-name}/component.yaml
 | RT-6 | `httproute-tempo-https.yaml` | tempo | `platform-layers/tempo` | Low |
 | RT-7 | `httproute-metrics-https.yaml` | otel-collector | New `apps/otel-collector` | Low |
 | RT-8 | `httproute-telemetry-https.yaml` | otel-collector | New `apps/otel-collector` | Low |
-| RT-9 | `httproute-plausible-https.yaml` | plausible | ✅ `platform-layers/plausible` | ~~High~~ Done |
+| RT-9 | `httproute-plausible-https.yaml` | plausible | ✅ `apps/plausible` | ~~High~~ Done |
 
 ## Routes in extraHttpRoutes (to migrate)
 

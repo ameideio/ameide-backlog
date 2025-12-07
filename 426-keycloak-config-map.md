@@ -214,9 +214,14 @@ This ensures fixtures are bootstrap-only; once client-patcher writes the real se
 
 ---
 
-## 4. Secrets & ownership model (tie-in to 418)
+## 4. Secrets & ownership model (tie-in to 418, 462)
 
-Backlog 418-secrets-strategy-map.md defines the high-level secrets posture (CNPG owns DB creds, Vault + External Secrets own app credentials, charts consume). Keycloak now conforms to that model:
+Backlog 418-secrets-strategy-map.md defines the high-level secrets posture (CNPG owns DB creds, Vault + External Secrets own app credentials, charts consume). Keycloak now conforms to that model.
+
+> **Secret origin classification:** All Keycloak-related secrets follow the authority taxonomy in [462-secrets-origin-classification.md](462-secrets-origin-classification.md):
+> - **Database credentials** → Cluster-managed (CNPG-owned)
+> - **Admin/bootstrap secrets** → External (Vault/ESO from Azure KV)
+> - **OIDC client secrets** (`platform-app`, `platform-app-master`, `argocd`, `k8s-dashboard`) → Cluster-managed (Service-generated, extracted by client-patcher)
 
 - **Database credentials**  
   - Authority: CNPG (see 412-cnpg-owned-postgres-greds.md).  

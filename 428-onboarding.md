@@ -1021,7 +1021,9 @@ export async function CustomerOnboardingWorkflow(input: OnboardingInput): Promis
 
 ## 13. Infrastructure Constraints (from Related Backlogs)
 
-### 13.1 Secrets (from 412, 418)
+### 13.1 Secrets (from 412, 418, 462)
+
+> **Secret origin classification:** All secrets referenced by onboarding follow the authority taxonomy in [462-secrets-origin-classification.md](./462-secrets-origin-classification.md). In particular, OIDC client secrets (`platform-app-master`) are **service-generated** and extracted by client-patcher—not sourced from Azure KV fixtures.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
