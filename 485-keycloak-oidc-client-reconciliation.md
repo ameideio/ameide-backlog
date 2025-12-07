@@ -1,7 +1,8 @@
 # 485 – Keycloak OIDC Client Reconciliation
 
-**Status**: Draft
+**Status**: ✅ Implemented
 **Created**: 2025-12-07
+**Completed**: 2025-12-07
 **Priority**: P1 (Blocking Backstage OIDC)
 **Related**: [426-keycloak-config-map.md](426-keycloak-config-map.md), [462-secrets-origin-classification.md](462-secrets-origin-classification.md), [477-backstage.md](477-backstage.md)
 
@@ -364,12 +365,12 @@ helm template keycloak-realm \
 
 ## 8. Success Criteria
 
-- [ ] `backstage` client exists in Keycloak `ameide` realm
-- [ ] `backstage-oidc-client-secret` exists in Vault
-- [ ] `keycloak-realm-oidc-clients` K8s Secret contains `backstage-client-secret` key
-- [ ] Backstage deployment starts successfully
-- [ ] OIDC login to Backstage works via Keycloak
-- [ ] client-patcher is idempotent (safe to re-run)
+- [x] `backstage` client exists in Keycloak `ameide` realm ✅
+- [x] `backstage-oidc-client-secret` exists in Vault ✅
+- [x] `keycloak-realm-oidc-clients` K8s Secret contains `backstage-client-secret` key ✅
+- [ ] Backstage deployment starts successfully (pending: Backstage not yet deployed)
+- [ ] OIDC login to Backstage works via Keycloak (pending: Backstage not yet deployed)
+- [x] client-patcher is idempotent (safe to re-run) ✅
 
 ---
 
@@ -382,7 +383,195 @@ helm template keycloak-realm \
 
 ---
 
-## 10. Related Documents
+## 10. Implementation Notes
+
+### 10.1 Issues Encountered During Implementation
+
+This section documents all issues encountered during implementation for future reference.
+
+#### Issue 1: ArgoCD Hook Timing (PostSync vs PreSync)
+
+**Problem**: Initially the client-patcher Job used `PostSync` hook, but this created a chicken-and-egg problem:
+- PostSync hooks only run AFTER all resources become healthy
+- ExternalSecrets were failing because they couldn't find secrets in Vault
+- ArgoCD marked app as "OutOfSync/Degraded" and retried indefinitely
+
+**Symptom**:
+```
+error processing spec.data[2] (key: backstage-oidc-client-secret), err: Secret does not exist
+```
+
+**Solution**: Changed to `PreSync` hook with sync-wave `-1`:
+```yaml
+annotations:
+  argocd.argoproj.io/hook: PreSync
+  argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+  argocd.argoproj.io/sync-wave: "-1"
+```
+
+This ensures the client-patcher runs BEFORE ArgoCD evaluates resource health, breaking the cycle.
+
+**Commit**: `b2ab5e3c fix(keycloak): change client-patcher to PreSync hook for ArgoCD`
+
+#### Issue 2: Vault Policy Missing `backstage-*` Path
+
+**Problem**: The client-patcher Job logged "Secret written successfully" but the secret was never actually written to Vault.
+
+**Root Cause**: The `keycloak-client-patcher` Vault policy only allowed write access to:
+- `secret/data/platform-app-*`
+- `secret/data/argocd-*`
+- `secret/data/k8s-dashboard-*`
+
+The `backstage-*` path was not included.
+
+**Symptom**:
+- Job logs showed success: `[Vault] Secret written successfully`
+- But ExternalSecret still failed: `Secret does not exist`
+- Manual curl to Vault returned: `{"errors":["permission denied"]}`
+
+**Why Logs Were Misleading**: The `vault_write_secret()` function checked for `.errors` in the response, but curl wasn't failing with `--fail` flag properly, so the "success" message was printed even when Vault returned a permission denied error.
+
+**Solution**: Added `backstage-*` path to vault-bootstrap cronjob.yaml:
+```hcl
+path "secret/data/backstage-*" {
+  capabilities = ["create", "update", "read"]
+}
+```
+
+**Commit**: `93881b49 feat(vault): add backstage-* path to keycloak-client-patcher policy`
+
+#### Issue 3: Pod Scheduling Failures on Dev Nodes
+
+**Problem**: Manual test pods and the client-patcher job failed to schedule.
+
+**Symptom**:
+```
+0/15 nodes are available: 5 node(s) had untolerated taint {ameide.io/environment: dev}
+```
+
+**Root Cause**: Dev environment uses dedicated nodes with taints. Jobs must include tolerations and nodeSelector.
+
+**Solution**: Added tolerations and nodeSelector to job specs:
+```yaml
+tolerations:
+  - key: "ameide.io/environment"
+    value: "dev"
+    effect: "NoSchedule"
+nodeSelector:
+  ameide.io/pool: dev
+```
+
+#### Issue 4: ServiceAccount Not Found
+
+**Problem**: Initial attempts used `serviceAccountName: external-secrets` which didn't exist.
+
+**Symptom**:
+```
+pods "platform-keycloak-realm-client-patcher-" is forbidden: error looking up service account ameide-dev/external-secrets: serviceaccount "external-secrets" not found
+```
+
+**Solution**: Changed to `serviceAccountName: default` which has the `keycloak-client-patcher` Vault role bound to it.
+
+#### Issue 5: Helm Deep Merge Limitation
+
+**Problem**: Dev values completely overrode shared values for `clientPatcher` section instead of deep merging.
+
+**Symptom**: Secrets defined in shared values weren't being extracted because dev values replaced the entire `clientPatcher` structure.
+
+**Root Cause**: Helm performs shallow merge of values files, not deep merge. When dev values defined `clientPatcher.clientReconciliation`, it replaced the shared `clientPatcher` entirely.
+
+**Solution**: Dev values must include all required fields, or use Helm's `default` function. We chose to have dev values be comprehensive for clarity.
+
+#### Issue 6: ArgoCD CLI Issues with Port-Forward
+
+**Problem**: ArgoCD CLI commands failed with various errors when using `--port-forward`.
+
+**Symptoms**:
+```
+configmap "argocd-cm" not found
+```
+```
+services is forbidden: User "system:serviceaccount:argocd:argocd-server" cannot list resource
+```
+
+**Workaround**: Used `kubectl patch app` instead of ArgoCD CLI for sync operations:
+```bash
+kubectl patch app dev-platform-keycloak-realm -n argocd --type merge \
+  -p '{"operation":{"initiatedBy":{"username":"cli"},"sync":{"prune":true,"revision":"HEAD"}}}'
+```
+
+#### Issue 7: CronJob Template Not Updated After Sync
+
+**Problem**: After syncing vault-bootstrap, the CronJob was updated but running jobs still used old template.
+
+**Symptom**: Vault policy update wasn't applied because scheduled job ran with cached template.
+
+**Solution**: Created manual job from updated CronJob to apply policy immediately:
+```bash
+kubectl create job --from=cronjob/foundation-vault-bootstrap-vault-bootstrap vault-bootstrap-manual-$(date +%s) -n ameide-dev
+```
+
+### 10.2 Final Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      IMPLEMENTED DECLARATIVE FLOW                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Git (client definitions in values.yaml)
+        │
+        ▼
+Helm template → ConfigMap (client-specs)
+        │
+        ▼
+ArgoCD Sync (PreSync phase, sync-wave: -1)
+        │
+        ▼
+client-patcher Job
+        │
+        ├──▶ Phase 1: RECONCILE CLIENTS
+        │         │
+        │         └──▶ ensure_client() → kcadm.sh create clients
+        │                   │
+        │                   ▼
+        │              Client created in Keycloak ✅
+        │
+        ├──▶ Phase 2: PATCH PRIMARY CLIENT
+        │         │
+        │         └──▶ patch_client() → kcadm.sh update
+        │
+        └──▶ Phase 3: EXTRACT SECRETS
+                  │
+                  └──▶ extract_and_sync_client_secret()
+                          │
+                          ├──▶ kcadm.sh get client-secret
+                          │
+                          └──▶ curl POST Vault → Secret in Vault ✅
+                                   │
+                                   ▼
+                              ExternalSecrets sync
+                                   │
+                                   ▼
+                              K8s Secret created ✅
+                                   │
+                                   ▼
+                              ArgoCD: App Healthy ✅
+```
+
+### 10.3 Files Modified
+
+| File | Change |
+|------|--------|
+| `sources/charts/foundation/operators-config/keycloak_realm/templates/client-patcher-job.yaml` | Added PreSync hook, ensure_client(), reconcile_clients() |
+| `sources/charts/foundation/operators-config/keycloak_realm/templates/client-reconciliation-configmap.yaml` | NEW: ConfigMap with client specs |
+| `sources/charts/foundation/operators-config/keycloak_realm/values.yaml` | Added clientReconciliation schema |
+| `sources/values/_shared/platform/platform-keycloak-realm.yaml` | Added clientReconciliation with backstage/argocd clients |
+| `sources/values/dev/platform/platform-keycloak-realm.yaml` | Added dev-specific clientReconciliation |
+| `sources/charts/foundation/vault-bootstrap/templates/cronjob.yaml` | Added backstage-* to keycloak-client-patcher policy |
+
+---
+
+## 11. Related Documents
 
 | Document | Relationship |
 |----------|--------------|
