@@ -14,6 +14,22 @@ Align chart folder structure with rollout sequence stages and component domains.
 1. **Third-party charts should always be vendored** in `sources/charts/third_party/`
 2. **Filesystem folders should mimic rollout sequence stages** (matching component domains)
 3. **All configurations should follow appropriate folders** (charts, values, components aligned)
+4. **ApplicationSet generator paths must be updated** when adding new component domains
+
+## ApplicationSet Generator Paths
+
+The `argocd/applicationsets/ameide.yaml` file contains git file generators that scan for component.yaml files. When adding a new domain folder under `environments/_shared/components/`, the generator must be updated.
+
+**Current paths** (in `spec.generators[].matrix.generators[].git.files`):
+```yaml
+- path: environments/_shared/components/apps/**/component.yaml
+- path: environments/_shared/components/data/**/component.yaml
+- path: environments/_shared/components/foundation/**/component.yaml
+- path: environments/_shared/components/observability/**/component.yaml
+- path: environments/_shared/components/platform/**/component.yaml
+```
+
+**Note**: The `cluster/` domain is handled by a separate ApplicationSet (`argocd/applicationsets/cluster.yaml`).
 
 ## Current State
 
