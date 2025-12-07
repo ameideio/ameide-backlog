@@ -168,15 +168,18 @@ Security for **DomainControllers** is mostly about data isolation and integrity.
 * **Knowledge graph projections**
 
   * Copy‑on‑read from domains to Graph/Repository for analysis; still tagged by `tenant_id`.
-* **Artifacts (UAF, BPMN, ArchiMate, Markdown)**
+* **Artifacts (BPMN, diagrams, Markdown, agent specs)**
 
-  * Event‑sourced, versioned, immutable; enriched with metadata and promotion state. 
+  * Stored by the **Transformation (and other) DomainControllers**, often edited via UAF UIs.
+  * Event‑sourced (internally by Transformation), versioned, immutable; enriched with metadata and promotion state. 
 
 Every DomainController must:
 
 * Enforce **tenant + org + role checks** in its service methods (via shared interceptors).
-* Use dedicated **DB roles/credentials** provided by CNPG + ExternalSecrets; no shared “superuser” in app code. 
-* Project to Graph/UAF only via **explicit configuration** — no “random joins across tenants”.
+* Use dedicated **DB roles/credentials** provided by CNPG + ExternalSecrets; no shared "superuser" in app code.
+* Project to Graph only via **explicit configuration** — no "random joins across tenants".
+
+> **Note**: The Knowledge Graph holds read-only projections of selected domain/process/transformation data; RLS and tenant isolation still apply, but Graph is never the authoritative system of record (see [470-ameide-vision.md §0](470-ameide-vision.md)).
 
 ### 5.2 Encryption & secrecy
 
@@ -217,7 +220,11 @@ Agents are where things can go very wrong, so the architecture must be explicit:
 
 ### 7.1 AgentDefinition governance
 
-* **AgentDefinitions** (declarative specs for tools, orchestration graphs, policies) live in **Transformation/UAF** and are versioned like ProcessDefinitions.
+> **Core Definitions** (see [470-ameide-vision.md §0](470-ameide-vision.md)):
+> - **AgentDefinitions** are stored in the **Transformation DomainController** (modelled via UAF UIs).
+> - There is no separate "UAF service" in the runtime—UAF is the UI layer that calls Transformation APIs.
+
+* **AgentDefinitions** (declarative specs for tools, orchestration graphs, policies) live in the **Transformation DomainController** and are versioned like ProcessDefinitions.
 * Each AgentDefinition has:
 
   * `domains: [...]` and `processes: [...]` tags (for routing & UI only)
@@ -229,7 +236,7 @@ Agents are where things can go very wrong, so the architecture must be explicit:
 
 * DomainControllers and ProcessControllers **never call raw LLM APIs**; they invoke AgentControllers which:
 
-  * Execute AgentDefinitions loaded from UAF
+  * Execute AgentDefinitions loaded from the **Transformation DomainController**
   * Log prompts & results
   * Enforce rate limits and timeouts
   * Apply basic content filters (PII, secret‑like patterns).
@@ -248,7 +255,7 @@ We generalize:
     * Static checks (lint, tests, security scanning)
     * Human or policy‑based approval
     * GitOps pipeline for deployment.
-* Transformation/UAF logs "write intents" with full diff and user/tenant context.
+* Transformation DomainController logs "write intents" with full diff and user/tenant context.
 
 ---
 
@@ -284,9 +291,10 @@ Security without observability is vibes. We already have strong foundations:
 * **Onboarding**:
 
   * Structured audit events for invites, SSO, SCIM, subscription changes. 
-* **UAF**:
+* **Transformation DomainController / UAF**:
 
-  * Event‑sourced commands + snapshots, promotion flows, and secret scan validator. 
+  * Event‑sourced commands + snapshots (within Transformation), promotion flows, and secret scan validator.
+  * Secret scanning and promotion gates run inside the **Transformation DomainController's** artifact lifecycle; UAF UI just triggers those flows. 
 * **North‑Star modeling**:
 
   * Immutable designs and deployments with audit logs per revision. 
@@ -296,7 +304,7 @@ We extend:
 * Every Domain/Process/Agent controller emits:
 
   * audit events with `tenant_id`, `user_id`, `resource_type`, `resource_id`.
-* UAF secret scanner runs on artifacts (BPMN, ArchiMate, Markdown, Backstage templates) and **blocks promotion** if secrets are detected, with override via signed waiver. 
+* Transformation DomainController's secret scanner runs on artifacts (BPMN, diagrams, Markdown, Backstage templates) and **blocks promotion** if secrets are detected, with override via signed waiver. 
 
 ---
 
@@ -318,12 +326,12 @@ Here’s how I’d start making this real without boiling the ocean:
 
 3. **AgentDefinition governance v1**
 
-   * Add `scope` + `risk_tier` to AgentDefinitions in Transformation/UAF.
-   * Wrap any code‑gen / infra‑gen in UAF artifacts and GitOps flows, not direct writes.
+   * Add `scope` + `risk_tier` to AgentDefinitions in Transformation DomainController (modelled via UAF UIs).
+   * Wrap any code‑gen / infra‑gen in Transformation artifacts and GitOps flows, not direct writes.
 
-4. **UAF secret‑scan + promotion gate**
+4. **Transformation secret‑scan + promotion gate**
 
-   * Implement the MVP secret scanner + promotion endpoint described in UAF spec and wire it into Transformation workflows. 
+   * Implement the MVP secret scanner + promotion endpoint inside the Transformation DomainController and wire it into Transformation workflows. 
 
 5. **API security posture check**
 
@@ -409,8 +417,9 @@ This Security & Trust Architecture should be read with the following documents:
 * 476 §7.3 requires agent-generated code to propose via UAF/Git artifacts, not direct writes
 
 **Terminology alignment:**
-* AgentDefinitions = design-time specs stored in Transformation/UAF (§7.1)
+* AgentDefinitions = design-time specs stored in **Transformation DomainController** (modelled via UAF UIs) (§7.1)
 * AgentControllers = runtime that executes AgentDefinitions (§7.2)
+* Note: There is no separate "UAF service"—UAF is the UI layer that calls Transformation APIs
 
 **Current status per 310-agents-v2:**
 - ✅ AgentInstance proto exists with basic metadata (node_id, version, parameters, tools)
@@ -463,7 +472,7 @@ This Security & Trust Architecture should be read with the following documents:
 | **API routes lack 403 enforcement** | §6 requires AuthZ interceptors | Insufficient permission not rejected | [322-rbac](322-rbac.md) |
 | **AgentDefinition scope/risk_tier** | §7.1 requires capability classification | No enforcement of dangerous capability restrictions | [310-agents-v2](310-agents-v2.md) |
 | **Write intents logging** | §7.3 requires agent diff logging | No audit trail for agent-generated changes | — |
-| **UAF secret scanner** | §9 describes secret scan + promotion gate | Not yet implemented | UAF spec |
+| **Transformation secret scanner** | §9 describes secret scan + promotion gate in Transformation DomainController | Not yet implemented | Transformation spec |
 | **TS SDK not published** | §6 requires AmeideClient | External TS consumers cannot use secure patterns | [388-ameide-sdks](388-ameide-sdks-north-star.md) |
 | **Backstage not deployed** | §8.1 requires SSO + RBAC for Backstage | Cannot use secure-by-template pattern | [473](473-ameide-technology.md) §11.2 |
 | **Audit logging** | §9 requires denied attempt logging | Cannot detect authorization attacks | [322-rbac](322-rbac.md), [329-authz](329-authz.md) |
@@ -526,7 +535,7 @@ Based on gap analysis, the following actions are recommended in priority order:
 ### Priority 2: HIGH (Enables agent governance)
 
 3. **AgentDefinition governance** (2 weeks)
-   * Add `scope` and `risk_tier` to AgentDefinition in Transformation/UAF per §7.1
+   * Add `scope` and `risk_tier` to AgentDefinition in Transformation DomainController per §7.1
    * Implement tool grant enforcement at publish time
    * Wire "write intents" logging per §7.3
 
@@ -537,8 +546,8 @@ Based on gap analysis, the following actions are recommended in priority order:
 
 ### Priority 3: MEDIUM (Completes security story)
 
-5. **UAF secret scanner** (2 weeks)
-   * Implement secret scan validator per §9
+5. **Transformation secret scanner** (2 weeks)
+   * Implement secret scan validator inside Transformation DomainController per §9
    * Wire into promotion workflow
 
 6. **Audit logging service** (2 weeks)

@@ -166,10 +166,10 @@ We carry forward the earlier principles and make them concrete here:
 
 **Information model**
 
-* **AgentDefinitions** (stored per tenant in UAF):
+* **AgentDefinitions** (stored per tenant in Transformation DomainController, modelled via UAF UIs):
 
   * Prompt & behavior description
-  * Allowed tools & scopes (e.g. "Transformation agent can only touch UAF artifacts and Backstage templates")
+  * Allowed tools & scopes (e.g. "Transformation agent can only touch transformation artifacts and Backstage templates")
   * Risk tier and policy bindings
 * **Interaction history**
 
@@ -268,6 +268,10 @@ We will:
 
 ### 3.4 Knowledge Graph (Read-side only)
 
+> **Core Definitions** (see [470-ameide-vision.md §0](470-ameide-vision.md)):
+> - **Graph** is a read-only knowledge layer that projects selected data from any controller into a graph database.
+> - All writes go through controllers; Graph is never a source of truth.
+
 The Graph service provides a **cross-domain read model**:
 
 * Entities: Customer, Product, Opportunity, ProcessInstance, Initiative, System, API, etc.
@@ -276,30 +280,36 @@ The Graph service provides a **cross-domain read model**:
 This is *not* an authoritative store:
 
 * Write path: domains/process controllers project to graph as part of their post-commit flow.
-* Read path: agents and analytics use it to understand topology and behavior (e.g. “show me all L2O paths where margin < 10%”).
+* Read path: agents and analytics use it to understand topology and behavior (e.g. "show me all L2O paths where margin < 10%").
 
-UAF builds on this philosophy for design artifacts: BPMN / ArchiMate / Markdown are **artifacts**, versioned with commands and snapshots; we treat them as a specialization of the same “artifact + revision” pattern.
+**Design artifacts** (BPMN, architecture diagrams, Markdown) are persisted by the **Transformation DomainController**, using an artifact + revision pattern. Graph can project these artifacts or references to them for cross-domain queries, but the canonical records remain in the Transformation DomainController.
 
 ### 3.5 Transformation / UAF Data
 
-Transformation is a **domain like any other**, but its data is special:
+> **Core Definitions** (see [470-ameide-vision.md §0](470-ameide-vision.md)):
+> - **Transformation DomainController** owns all design-time artifacts (ProcessDefinitions, AgentDefinitions, BPMN, diagrams, Markdown).
+> - **UAF** is the set of modelling UIs (BPMN editor, diagram editor, Markdown editor) that call Transformation DomainController APIs—UAF has no independent storage.
+
+Transformation is a **DomainController like any other**, owning:
 
 * **Initiatives & Backlog Items**
 
   * Standard domain entities (SQL) representing epics, features, tasks.
-* **Design-time artifacts (UAF)**
+* **Design-time artifacts** (stored in Transformation DomainController, modelled via UAF UIs)
 
   * **ProcessDefinitions** – BPMN-compliant process models (produced by custom React Flow modeller).
   * **AgentDefinitions** – Declarative agent specs (tools, policies, risk tiers).
-  * ArchiMate, Markdown, etc., stored as event-sourced artifacts with commands and snapshots.
+  * ArchiMate, Markdown, etc., optionally event-sourced internally with commands and snapshots.
 * **Governance**
 
   * Promotion status of artifacts (draft, in review, promoted).
   * Links from artifacts to runtime controllers (e.g. "ProcessDefinition L2O_v3 is executed by ProcessController l2o-process-svc").
 
+> **Important**: There is no separate "UAF service" in the runtime. The event-sourced artifact store is part of the Transformation DomainController. UAF is the *client* (modelling experience) that sends commands to Transformation.
+
 Transformation AgentControllers operate primarily on this domain:
 
-* Read backlog + UAF artifacts (ProcessDefinitions, AgentDefinitions).
+* Read backlog + design artifacts (ProcessDefinitions, AgentDefinitions) from Transformation DomainController.
 * Generate or modify Backstage templates and DomainController/ProcessController/AgentController configurations.
 * Propose changes that are then applied via standard deployment workflows.
 
@@ -381,7 +391,7 @@ We provide **four base templates** (each parameterized per tenant):
    * Inputs: agent purpose, allowed domains/processes, risk tier.
    * Generates:
 
-     * AgentDefinition (prompt, tools, scopes, policies) stored in UAF.
+     * AgentDefinition (prompt, tools, scopes, policies) stored in Transformation DomainController.
      * Proto definition for the agent configuration & invocation.
      * AgentController service skeleton.
      * Backstage `Component`/`Agent` entity with RBAC metadata for who can use this template.
@@ -504,15 +514,13 @@ This section is just to show that we’re not inventing yet another stack, but r
 
 4. **UAF (067)**
 
-   * UAF becomes the storage & governance mechanism for
-
-     * BPMN process designs
-     * ArchiMate views, Markdown docs
-   * Instead of a generic “IPA designer”, UAF is owned by the **Transformation domain** and used to generate Backstage templates & controller config.
+   * The UAF *pattern* (artifacts, revisions, promotions) is implemented inside the **Transformation DomainController**.
+   * UAF as a UI surfaces those artifacts; the controller remains the source of truth.
+   * Instead of a generic "IPA designer", the Transformation DomainController (with UAF UIs) is used to generate Backstage templates & controller config.
 
 5. **BPMN-compliant definitions (063)**
 
-   * BPMN semantics (stages, gateways, lanes) remain valid; we use a **custom React Flow modeller** (not Camunda/bpmn-js) to produce ProcessDefinitions stored in UAF and executed by Temporal-backed ProcessControllers.
+   * BPMN semantics (stages, gateways, lanes) remain valid; we use a **custom React Flow modeller** (not Camunda/bpmn-js) to produce ProcessDefinitions stored in the Transformation DomainController (via UAF UIs) and executed by Temporal-backed ProcessControllers.
 
 6. **TypeScript SDK (050)**
 
@@ -541,9 +549,11 @@ The Element graph (300) and Application Architecture (472) coexist:
 
 * **Graph = read-side projection**: Cross-domain knowledge for agents, analytics, and transformation. Not authoritative for operational data.
 * **Domain stores = write-side authority**: Each DomainController owns its data; graph receives projections.
-* **UAF artifacts are Elements**: BPMN, ArchiMate, Markdown stored as versioned nodes in the graph.
+* **Design artifacts are projected**: BPMN, ArchiMate, Markdown stored in **Transformation DomainController** and **projected** as versioned nodes in the graph.
 
-This means: Transformation domain entities project to `graph.elements`, but ProcessController runtime state stays in Temporal.
+> **Important**: Transformation remains the source of truth for transformation artifacts; the graph stores references and read-optimised views, not the authoritative records.
+
+This means: Transformation domain entities project to `graph.elements`, but the canonical records stay in the Transformation DomainController. ProcessController runtime state stays in Temporal.
 
 ### 8.2 Workflow alignment (305)
 
@@ -551,25 +561,25 @@ This means: Transformation domain entities project to `graph.elements`, but Proc
 
 * "Platform Workflows" = implementation detail of ProcessControllers (§2.2)
 * Temporal is the runtime; customers see "process stages" and "process boards"
-* ProcessDefinitions (BPMN-compliant, from custom React Flow modeller) stored via UAF; compiled to Temporal workflows
+* ProcessDefinitions (BPMN-compliant, from custom React Flow modeller) stored in Transformation DomainController (via UAF UIs); compiled to Temporal workflows
 
 ### 8.3 Agent alignment (310)
 
 310 describes AgentController implementation:
 
 * Current: agents control plane (Go) + agents_runtime (Python) = AgentController implementation
-* AgentDefinitions stored in UAF; AgentControllers execute them
+* AgentDefinitions stored in Transformation DomainController (modelled via UAF UIs); AgentControllers execute them
 * Key constraint: AgentControllers invoked via domain/process APIs; never become source of truth
 
 ### 8.4 Event sourcing status (370)
 
-472 §3.3 describes UAF as "event-sourced artifacts". Current reality per 370:
+472 §3.5 describes Transformation DomainController with "optionally event-sourced" artifacts. Current reality per 370:
 
 * **Aspirational, not implemented**: Services use direct Postgres, not append-only streams
 * **Outbox pattern exists** but not consumed
 * **Target path**: Event contracts per domain, outbox + relay, projections from streams
 
-This should be treated as target architecture; current implementation uses traditional persistence.
+This should be treated as target architecture; current implementation uses traditional persistence. The event-sourced pattern is an internal implementation detail of the Transformation DomainController, not a separate "UAF service".
 
 ---
 
@@ -627,7 +637,7 @@ Next documents will:
    * Map DomainControllers/ProcessControllers/AgentControllers to K8s workloads, CRDs and operators.
    * Detail how Temporal clusters, databases and messaging layers are provisioned and wired.
 
-2. **Domain Architecture (L2O, O2C, Transformation/UAF, etc.)**
+2. **Domain Architecture (L2O, O2C, Transformation, etc.)**
 
    * Provide detailed models for each domain using this framework.
 

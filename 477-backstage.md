@@ -1,9 +1,10 @@
 # 477 – Backstage Platform Factory
 
-**Status:** Draft
+**Status:** In Progress
 **Priority:** High
 **Complexity:** Large
 **Created:** 2025-12-07
+**Updated:** 2025-12-07
 
 > **Cross-References (Vision Suite)**:
 >
@@ -74,6 +75,7 @@ Per architecture doc 473 §4: "Backstage's Software Catalog and Software Templat
 - name: backstage
   ensure: present
   login: true
+  createdb: true  # Required for backstage_plugin_* databases
   passwordSecret:
     name: backstage-db-credentials
 
@@ -112,7 +114,6 @@ sources/charts/platform/backstage/
     ├── deployment.yaml
     ├── service.yaml
     ├── httproute.yaml
-    ├── externalsecrets.yaml
     ├── configmap.yaml
     └── serviceaccount.yaml
 ```
@@ -122,9 +123,10 @@ sources/charts/platform/backstage/
 | Template | Purpose | Pattern Reference |
 |----------|---------|-------------------|
 | deployment.yaml | Backstage container | `www-ameide-platform/templates/deployment.yaml` |
-| externalsecrets.yaml | DB + OIDC secrets | `www-ameide-platform/templates/externalsecrets.yaml` |
 | httproute.yaml | Gateway API routing | `www-ameide-platform/templates/httproute.yaml` |
 | configmap.yaml | app-config.yaml | Custom for Backstage |
+
+**Note:** Database credentials are managed by CNPG (per [412-cnpg-owned-postgres-greds.md](412-cnpg-owned-postgres-greds.md)), not ExternalSecrets. The deployment uses `envFrom` to inject credentials from the CNPG-generated secret.
 
 **Backstage Configuration (app-config.yaml):**
 
@@ -318,7 +320,7 @@ Per [464-chart-folder-alignment.md](464-chart-folder-alignment.md) §1, third-pa
 
 | Option | Description | When to Use |
 |--------|-------------|-------------|
-| **Custom wrapper** | Write our own chart with Deployment, Service, HTTPRoute, ExternalSecrets | Simple services; need full control over templates |
+| **Custom wrapper** | Write our own chart with Deployment, Service, HTTPRoute | Simple services; need full control over templates |
 | **Vendored upstream** | Copy official chart to `third_party/` and configure via values | Complex services with many features (subcharts, CRDs) |
 | **Wrapper + dependency** | Our chart declares upstream as dependency in Chart.yaml | Need upstream complexity + custom templates |
 
@@ -326,7 +328,8 @@ Per [464-chart-folder-alignment.md](464-chart-folder-alignment.md) §1, third-pa
 
 **Rationale**:
 - Backstage official chart has heavy dependencies (Redis, bundled PostgreSQL, nginx)
-- We already have CNPG, Gateway API, ExternalSecrets
+- We already have CNPG and Gateway API infrastructure
+- Database credentials use CNPG-managed secrets (per 412), not ExternalSecrets
 - Custom wrapper integrates cleanly with existing patterns
 - Simpler upgrade path (just update image tag)
 
@@ -681,58 +684,180 @@ production  × platform/developer/backstage = production-platform-backstage
 
 ### 7.1 Development Environment
 
-1. Add `backstage` database to CNPG cluster values
-2. Deploy postgres-clusters update
-3. Create Backstage Helm chart
-4. Add Keycloak OIDC client
-5. Store client secret in Vault
-6. Create component definition
-7. Create dev values file
-8. Deploy to dev via ArgoCD
-9. Verify authentication flow
-10. Verify database connectivity
+1. ✅ Add `backstage` database to CNPG cluster values
+2. ✅ Deploy postgres-clusters update
+3. ✅ Create Backstage Helm chart
+4. ⏳ Add Keycloak OIDC client (future - MVP uses guest access)
+5. ⏳ Store client secret in Vault (future - DB uses CNPG credentials)
+6. ✅ Create component definition
+7. ✅ Create dev values file
+8. ✅ Deploy to dev via ArgoCD
+9. ⏳ Verify authentication flow (future - OIDC not yet configured)
+10. ✅ Verify database connectivity
 
 ### 7.2 Staging & Production
 
-1. Create staging/production values files
-2. Update hostnames and Keycloak issuers
-3. Deploy via ArgoCD
-4. Smoke test each environment
+1. ✅ Create staging/production values files
+2. ✅ Update hostnames
+3. ✅ Deploy via ArgoCD
+4. ⏳ Smoke test each environment
+
+---
+
+## 7.3 Implementation Progress
+
+**Implementation Date:** 2025-12-07
+
+### MVP Scope
+
+The initial deployment is an MVP focused on:
+- ✅ Database connectivity (CNPG-managed)
+- ✅ HTTPRoute exposure via Gateway API
+- ✅ ArgoCD deployment across all environments
+- ⏳ Authentication (guest access for now, OIDC planned)
+- ⏳ Telemetry integration (planned)
+- ⏳ Helm unit tests (planned)
+
+### Phase 1: Database Setup ✅
+
+Added backstage role and database to CNPG cluster:
+
+```yaml
+# sources/values/_shared/data/platform-postgres-clusters.yaml
+managed:
+  roles:
+    - name: backstage
+      ensure: present
+      login: true
+      createdb: true  # Required for backstage_plugin_* databases
+      passwordSecret:
+        name: backstage-db-credentials
+
+credentials:
+  appUsers:
+    - name: backstage
+      database: backstage
+      username: backstage
+      secretName: backstage-db-credentials
+      template: backstage
+
+databases:
+  - name: backstage
+    owner: backstage
+    schemas:
+      - name: public
+        owner: backstage
+```
+
+**Key Discovery:** Backstage requires `CREATEDB` privilege to create plugin databases (e.g., `backstage_plugin_app`, `backstage_plugin_auth`, `backstage_plugin_catalog`).
+
+### Phase 2: Helm Chart ✅
+
+Created custom Backstage chart at `sources/charts/platform/backstage/`:
+
+| File | Purpose |
+|------|---------|
+| `Chart.yaml` | Chart metadata (appVersion: 1.35.0) |
+| `values.yaml` | Default values |
+| `templates/_helpers.tpl` | Template helpers |
+| `templates/deployment.yaml` | Backstage container with CNPG envFrom |
+| `templates/service.yaml` | ClusterIP service on port 7007 |
+| `templates/httproute.yaml` | Gateway API routing |
+| `templates/configmap.yaml` | app-config.yaml with techdocs section |
+| `templates/serviceaccount.yaml` | ServiceAccount |
+
+**Key Decision:** Uses CNPG-managed credentials directly (via `envFrom` secretRef) instead of ExternalSecrets. This aligns with [412-cnpg-owned-postgres-greds.md](412-cnpg-owned-postgres-greds.md) pattern.
+
+Added `backstage` template to CNPG app-secrets:
+
+```yaml
+# sources/charts/foundation/operators-config/postgres_clusters/templates/app-secrets.yaml
+{{- else if eq $template "backstage" }}
+  POSTGRES_HOST: {{ $host | quote }}
+  POSTGRES_PORT: {{ printf "%d" (int $port) | quote }}
+  POSTGRES_USER: {{ $username | quote }}
+  POSTGRES_PASSWORD: {{ $password | quote }}
+  POSTGRES_URL: {{ printf "postgresql://%s:%s@%s:%d/%s" ... | quote }}
+{{- end }}
+```
+
+### Phase 3: Component Definition ✅
+
+Created ArgoCD component at `environments/_shared/components/platform/developer/backstage/component.yaml`:
+
+```yaml
+name: platform-backstage
+project: ameide
+domain: platform
+dependencyPhase: "platform"
+componentType: "workload"
+rolloutPhase: "356"
+autoSync: true
+```
+
+### Phase 4: Values Files ✅
+
+Created all environment values files:
+
+| File | Hostname |
+|------|----------|
+| `sources/values/_shared/platform/platform-backstage.yaml` | (shared config) |
+| `sources/values/dev/platform/platform-backstage.yaml` | `backstage.dev.ameide.io` |
+| `sources/values/staging/platform/platform-backstage.yaml` | `backstage.staging.ameide.io` |
+| `sources/values/production/platform/platform-backstage.yaml` | `backstage.ameide.io` |
+
+### Deployment Status
+
+| Environment | ArgoCD App | Status |
+|-------------|------------|--------|
+| dev | dev-platform-backstage | ✅ Synced, Healthy |
+| staging | staging-platform-backstage | ✅ Synced, Healthy |
+| production | production-platform-backstage | ⏳ Synced, Progressing (namespace pending) |
+
+### Issues Resolved During Implementation
+
+1. **Permission denied to create database** - Added `createdb: true` to backstage role in CNPG config
+2. **YAML parse error in app-secrets.yaml** - Removed inline Helm comments that caused parsing issues
+3. **Missing techdocs config** - Added required `techdocs` section to ConfigMap app-config.yaml
 
 ---
 
 ## 8. Files Summary
 
-### New Files (~25)
+### New Files Created
 
 ```
-# Component registration
+# Component registration ✅
 environments/_shared/components/platform/developer/backstage/component.yaml
 
-# Helm chart
+# Helm chart ✅
 sources/charts/platform/backstage/Chart.yaml
 sources/charts/platform/backstage/values.yaml
 sources/charts/platform/backstage/templates/_helpers.tpl
 sources/charts/platform/backstage/templates/deployment.yaml
 sources/charts/platform/backstage/templates/service.yaml
 sources/charts/platform/backstage/templates/httproute.yaml
-sources/charts/platform/backstage/templates/externalsecrets.yaml
 sources/charts/platform/backstage/templates/configmap.yaml
 sources/charts/platform/backstage/templates/serviceaccount.yaml
-sources/charts/platform/backstage/templates/servicemonitor.yaml      # §5.3 Telemetry
 
-# Helm unit tests (§5.4)
-sources/charts/platform/backstage/tests/deployment_test.yaml
-sources/charts/platform/backstage/tests/configmap_test.yaml
-sources/charts/platform/backstage/tests/externalsecrets_test.yaml
-sources/charts/platform/backstage/tests/httproute_test.yaml
-sources/charts/platform/backstage/tests/servicemonitor_test.yaml
-
-# Values files
+# Values files ✅
 sources/values/_shared/platform/platform-backstage.yaml
 sources/values/dev/platform/platform-backstage.yaml
 sources/values/staging/platform/platform-backstage.yaml
 sources/values/production/platform/platform-backstage.yaml
+```
+
+### Planned Files (Future)
+
+```
+# Telemetry (§5.3)
+sources/charts/platform/backstage/templates/servicemonitor.yaml
+
+# Helm unit tests (§5.4)
+sources/charts/platform/backstage/tests/deployment_test.yaml
+sources/charts/platform/backstage/tests/configmap_test.yaml
+sources/charts/platform/backstage/tests/httproute_test.yaml
+sources/charts/platform/backstage/tests/servicemonitor_test.yaml
 
 # Backstage catalog (future)
 sources/backstage/catalog/all.yaml
@@ -740,13 +865,16 @@ sources/backstage/catalog/domains/
 sources/backstage/catalog/systems/
 ```
 
-### Modified Files (2)
+### Modified Files
 
 ```
-# Database provisioning
+# Database provisioning ✅
 sources/values/_shared/data/platform-postgres-clusters.yaml
 
-# Keycloak client-patcher configuration (per-env)
+# CNPG app-secrets template ✅
+sources/charts/foundation/operators-config/postgres_clusters/templates/app-secrets.yaml
+
+# Keycloak client-patcher configuration (future - OIDC integration)
 sources/values/dev/platform/platform-keycloak-realm.yaml      # Add backstage client
 sources/values/staging/platform/platform-keycloak-realm.yaml
 sources/values/production/platform/platform-keycloak-realm.yaml
@@ -756,28 +884,30 @@ sources/values/production/platform/platform-keycloak-realm.yaml
 
 ## 9. Success Criteria
 
-### Deployment
+### Deployment (MVP)
 - [ ] Backstage accessible at `backstage.dev.ameide.io`
 - [ ] Health endpoint returns 200 at `/healthz`
-- [ ] ArgoCD shows `Synced` and `Healthy`
+- [x] ArgoCD shows `Synced` and `Healthy` (dev, staging)
 
-### Authentication (§5.2)
+### Authentication (§5.2) - Future
 - [ ] Keycloak SSO login working (redirect → login → callback)
 - [ ] `backstage` client exists in Keycloak `ameide` realm
 - [ ] client-patcher Job extracted secret to Vault
 - [ ] ExternalSecret synced secret to K8s
 
 ### Database
-- [ ] `backstage` database exists in CNPG cluster
-- [ ] Backstage connects without errors in logs
-- [ ] Migrations complete successfully on startup
+- [x] `backstage` database exists in CNPG cluster
+- [x] `backstage` role has CREATEDB privilege for plugin databases
+- [x] CNPG-managed credentials available via Secret
+- [x] Backstage connects without errors in logs
+- [x] Migrations complete successfully on startup
 
-### Telemetry (§5.3)
+### Telemetry (§5.3) - Future
 - [ ] Traces visible in Tempo/Grafana
 - [ ] Metrics scraped by Prometheus (ServiceMonitor)
 - [ ] Logs in JSON format with trace_id correlation
 
-### CI (§5.4)
+### CI (§5.4) - Future
 - [ ] `helm lint` passes for Backstage chart
 - [ ] `helm unittest` passes all tests
 - [ ] Template renders for all environments (dev/staging/prod)
@@ -798,7 +928,7 @@ Per [472-ameide-information-application.md](472-ameide-information-application.m
 | `ProcessDefinition` | Design-time (UAF) | BPMN-compliant artifact from React Flow modeller |
 | `AgentDefinition` | Design-time (UAF) | Declarative agent spec (tools, scope, risk tier, policies) |
 
-**Note**: ProcessDefinitions and AgentDefinitions are **design-time artifacts** stored in Transformation/UAF. Backstage templates can scaffold the runtime controllers that **execute** these definitions, but the definitions themselves come from the custom React Flow modeller and UAF.
+**Note**: ProcessDefinitions and AgentDefinitions are **design-time artifacts** stored in Transformation DomainController. Backstage templates can scaffold the runtime controllers that **execute** these definitions, but the definitions themselves come from the custom React Flow modeller (and other UAF UIs).
 
 ### 10.2 Catalog Population
 

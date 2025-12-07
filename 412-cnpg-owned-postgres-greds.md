@@ -8,6 +8,7 @@ Here's a north star doc you can paste into Notion/Confluence/ADR with minimal ed
 > | [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md) | Phase 020 (CNPG operator), Phase 250 (postgres-clusters) |
 > | [464-chart-folder-alignment.md](464-chart-folder-alignment.md) | Chart at `sources/charts/foundation/operators-config/postgres_clusters` |
 > | [426-keycloak-config-map.md](426-keycloak-config-map.md) | OIDC patterns (Keycloak also uses CNPG credentials) |
+> | [477-backstage.md](477-backstage.md) | Backstage DB credentials (uses `backstage` template) |
 >
 > **Secrets Architecture**:
 > - [462-secrets-origin-classification.md](./462-secrets-origin-classification.md) – Secret origin taxonomy (this doc is the exemplar for "Cluster-Managed: Operator-Owned" secrets)
@@ -395,6 +396,7 @@ The inference service was the **last remaining service** using Vault-driven Exte
 | temporal-visibility | temporal-visibility-db-env | temporal-visibility-env |
 | plausible | plausible-db-credentials | plausible |
 | keycloak | keycloak-db-credentials | keycloak |
-| **inference** | **inference-db-credentials** | **inference** |
+| inference | inference-db-credentials | inference |
+| **backstage** | **backstage-db-credentials** | **backstage** |
 
-✅ **North star achieved**: All 12 application services now use CNPG-owned database credentials.
+✅ **North star achieved**: All 13 application services now use CNPG-owned database credentials.

@@ -73,15 +73,15 @@ This model is already implemented today and is the anchor for all business flows
 
 Ameide separates **design-time artifacts** (what to build) from **runtime controllers** (what executes):
 
-#### Design-Time (in Transformation/UAF)
+#### Design-Time (in Transformation DomainController)
 
 * **ProcessDefinition** – BPMN-compliant artifact produced by a custom React Flow modeller.
   * Defines process stages, tasks, gateways, and bindings to domains/agents.
-  * Stored and versioned in Transformation/UAF with revisions & promotions.
+  * Stored and versioned in Transformation DomainController with revisions & promotions (modelled via UAF UIs).
 
 * **AgentDefinition** – Declarative spec for an agent.
   * Tools (domain/process APIs), orchestration graph, scope, risk tier, policies.
-  * Stored alongside ProcessDefinitions as UAF artifacts.
+  * Stored alongside ProcessDefinitions in Transformation DomainController (modelled via UAF UIs).
 
 #### Runtime Controllers
 
@@ -98,13 +98,13 @@ Ameide separates **design-time artifacts** (what to build) from **runtime contro
 
 2. **ProcessController (Process)**
 
-   * Executes a **ProcessDefinition** loaded from Transformation/UAF.
+   * Executes a **ProcessDefinition** loaded from Transformation DomainController.
    * Manages process instances, state, retries, compensation (backed by Temporal).
    * Process tasks call into DomainControllers and may invoke AgentControllers where non‑deterministic work is acceptable.
 
 3. **AgentController (Agent)**
 
-   * Executes an **AgentDefinition** loaded from Transformation/UAF.
+   * Executes an **AgentDefinition** loaded from Transformation DomainController.
    * Encapsulates an LLM‑backed "worker" with tools and policies: transformation assistant, coder/refactor agent, L2O coaching bot.
    * Always invoked via domain/process APIs; does **not** become a separate source of truth.
 
@@ -571,11 +571,11 @@ These are deliberately left for follow‑up design sessions and may become ADRs:
 This Business Architecture should be read together with:
 
 * **Application & Information Architecture** – maps these concepts onto services, APIs, data models (heavy use of proto‑based APIs & SDK).
-* **Technology Architecture** – describes K8s, Temporal-backed ProcessControllers, UAF event store, observability, and how Backstage templates actually run.
+* **Technology Architecture** – describes K8s, Temporal-backed ProcessControllers, Transformation DomainController (optionally event-sourced), observability, and how Backstage templates actually run.
 * **Domain Specs** – especially:
 
   * L2O/O2C (Sales).
-  * Transformation/UAF.
+  * Transformation.
   * Onboarding/Identity.
 * **Refactoring & Migration Plan** – how we evolve from current IPA‑centric pieces to this structure.
 

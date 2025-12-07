@@ -52,7 +52,7 @@ The goal is to give implementers a **vendor-aligned blueprint** that can be exec
 4. **Temporal for process orchestration; BPMN-compliant ProcessDefinitions for process intent**
 
    * The *runtime* for processes is Temporal (code‑first workflows). ([Temporal][3])
-   * **ProcessDefinitions** are BPMN-compliant artifacts produced by a **custom React Flow modeller** (NOT Camunda/bpmn-js) and stored in Transformation/UAF. Mapping ProcessDefinitions to Temporal is handled by the transformation/UAF pipeline.
+   * **ProcessDefinitions** are BPMN-compliant artifacts produced by a **custom React Flow modeller** (NOT Camunda/bpmn-js) and stored in the **Transformation DomainController** (modelled via UAF UIs). Mapping ProcessDefinitions to Temporal is handled by the Transformation pipeline.
    * ProcessControllers execute ProcessDefinitions at runtime, backed by Temporal workflows.
 
 5. **Deterministic domains, non‑deterministic agents**
@@ -62,7 +62,8 @@ The goal is to give implementers a **vendor-aligned blueprint** that can be exec
 
 6. **Event‑sourced artifacts, not event‑sourced everything**
 
-   * Unified Artifact Framework (UAF) event‑sources *design artifacts* (BPMN, ArchiMate, Markdown) so every transformation is traceable, but day‑to‑day transactional data (orders, invoices) uses more traditional persistence models. 
+   * The **Transformation DomainController** event‑sources *design artifacts* (BPMN, architecture diagrams, Markdown) so every transformation is traceable, but day‑to‑day transactional data (orders, invoices) uses traditional persistence.
+   * **Note**: UAF is the modelling UI that sends commands to Transformation; it doesn't own storage. 
 
 7. **GitOps & immutable deployments**
 
@@ -113,7 +114,7 @@ The goal is to give implementers a **vendor-aligned blueprint** that can be exec
 * ProcessDefinitions created via **custom React Flow modeller** are:
 
   * BPMN-compliant in semantics (stages, gateways, lanes) but NOT Camunda-stack.
-  * Stored as UAF artifacts in Transformation (with event history).
+  * Stored in the **Transformation DomainController** (with event history), modelled via UAF UIs.
 * The default path compiles ProcessDefinitions to Temporal workflows executed by ProcessControllers.
 
 **Background jobs & messaging**
@@ -139,20 +140,20 @@ The goal is to give implementers a **vendor-aligned blueprint** that can be exec
 
 * Each ProcessController executes a **ProcessDefinition** (design-time artifact) at runtime:
 
-  * **ProcessDefinition** (in UAF): BPMN-compliant artifact from custom React Flow modeller.
+  * **ProcessDefinition** (stored in Transformation DomainController): BPMN-compliant artifact from custom React Flow modeller, modelled via UAF UIs.
   * **ProcessController** (runtime): Temporal workflow implementation (Go/TS/Python). ([Temporal][3])
   * Declarations of which DomainControllers and AgentControllers it interacts with.
 * The technology pattern:
 
-  * ProcessDefinitions are edited in-browser (custom React Flow modeller), stored in Transformation/UAF.
-  * Transformation domain compiles ProcessDefinitions into Temporal workflow code or config.
+  * ProcessDefinitions are edited in-browser (custom React Flow modeller), stored in the Transformation DomainController (via UAF APIs).
+  * Transformation DomainController compiles ProcessDefinitions into Temporal workflow code or config.
   * Temporal workers execute the compiled workflows; ProcessControllers expose gRPC endpoints to start or query process instances.
 
 **3.3.3 AgentControllers (agents)**
 
 * Each AgentController executes an **AgentDefinition** (design-time artifact) at runtime:
 
-  * **AgentDefinition** (in UAF): Declarative spec for tools, orchestration graph, scope, risk tier, policies.
+  * **AgentDefinition** (stored in Transformation DomainController): Declarative spec for tools, orchestration graph, scope, risk tier, policies (modelled via UAF UIs).
   * **AgentController** (runtime): Inference runtime (Python/TS) that encapsulates:
 
     * LLM provider (OpenAI, others),
@@ -162,10 +163,16 @@ The goal is to give implementers a **vendor-aligned blueprint** that can be exec
 
 **3.3.4 Transformation & UAF**
 
+> **Core Definitions** (see [470-ameide-vision.md §0](470-ameide-vision.md)):
+> - **Transformation DomainController** = data + APIs + event-sourced artifact store (ProcessDefinitions, AgentDefinitions, etc.)
+> - **UAF** = set of frontends (BPMN editor, diagram editor, etc.) that call those APIs
+> - There is no separate "UAF service" in the runtime.
+
 * The Transformation domain is implemented as:
 
-  * A DomainController for transformation data (initiatives, stages, metrics, ProcessDefinitions, AgentDefinitions, and other UAF artifacts).
-  * A **builder/compile service** that transforms design-time artifacts (ProcessDefinitions, AgentDefinitions) into runtime deployments (Temporal workflows, AgentController configs, Backstage template updates).
+  * A **DomainController** for transformation data (initiatives, stages, metrics, ProcessDefinitions, AgentDefinitions, and other design artifacts).
+  * A **builder/compile service** (within Transformation DomainController) that transforms design-time artifacts into runtime deployments (Temporal workflows, AgentController configs, Backstage template updates).
+  * **UAF UIs** that provide the modelling experience (BPMN editor, architecture diagrams, Markdown) by calling Transformation APIs.
 
 ---
 
@@ -188,7 +195,7 @@ The goal is to give implementers a **vendor-aligned blueprint** that can be exec
 
 * **Custom React Flow modeller** for ProcessDefinitions (BPMN-compliant semantics, NOT Camunda/bpmn-js).
 * ArchiMate modelers (browser-based) for architecture artifacts.
-* Both run inside Next.js or as separate webapps, communicating with the Transformation/UAF APIs.
+* Both run inside Next.js or as separate webapps, communicating with the Transformation DomainController APIs.
 
 ---
 
@@ -235,7 +242,7 @@ We define a small set of **opinionated templates**: ([Backstage][7])
 
    * Generates:
 
-     * AgentDefinition file (tools, policies, orchestration graph) stored in UAF.
+     * AgentDefinition file (tools, policies, orchestration graph) stored in Transformation DomainController (via UAF APIs).
      * Tool stubs for DomainController/ProcessController APIs using Ameide SDK TS/Go/Python.
      * Helm chart for AgentController inference runtime deployment (autoscaled).
 
@@ -355,7 +362,7 @@ This Technology Architecture should be read with the following documents:
 ### 10.2 Agents alignment (310)
 
 * 310 describes AgentController implementation with n8n-style flows; 473 §3.3.3 describes LangGraph-based AgentControllers.
-* AgentDefinitions (design-time specs in UAF) are executed by AgentControllers at runtime.
+* AgentDefinitions (design-time specs stored in Transformation DomainController, modelled via UAF UIs) are executed by AgentControllers at runtime.
 * **Clarification**: Both n8n-aligned (visual low-code) and LangGraph (code-first) patterns are valid AgentController implementations.
 
 ### 10.3 SDK alignment (388)
@@ -389,7 +396,7 @@ Recommend using "component category" or "deployment domain" for 465-style usage.
 | Gap | Description | Impact | Related Docs |
 |-----|-------------|--------|--------------|
 | Backstage not deployed | §4 assumes Backstage as controller factory | Cannot use template-driven service creation | 470 §9.2.2 |
-| UAF storage undefined | §2.6 assumes event-sourced ProcessDefinitions/AgentDefinitions | No infra backlog defines UAF persistence | 471 §3.2 |
+| Transformation artifact storage | §2.6 assumes event-sourced ProcessDefinitions/AgentDefinitions in Transformation DomainController | Implementation detail; infra TBD | 471 §3.2 |
 | Temporal namespace isolation | §3.2 mentions per-tenant namespaces | Current deployment is single namespace | 305 |
 | AmeideTenant CRD | §3.1 suggests tenant CRD | 333 uses API-driven realm provisioning | 333 |
 | ProcessDefinition→Temporal compiler | §3.2 assumes ProcessDefinition to Temporal translation | No compiler exists yet | 305, 471 |

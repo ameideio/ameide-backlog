@@ -38,9 +38,9 @@
 |------|------------|
 | **Domain** | Business bounded context (e.g. Orders, Customers, Transformation) |
 | **DomainController** | Runtime microservice implementing a domain (APIs, rules, persistence, events) |
-| **ProcessDefinition** | BPMN-compliant artifact defining a business process (design-time, stored in Transformation/UAF) |
+| **ProcessDefinition** | BPMN-compliant artifact defining a business process (design-time, stored in Transformation DomainController, modelled via UAF UIs) |
 | **ProcessController** | Runtime that executes ProcessDefinitions, calling DomainControllers and AgentControllers |
-| **AgentDefinition** | Declarative spec for an agent graph + tools + policies (design-time, stored in Transformation/UAF) |
+| **AgentDefinition** | Declarative spec for an agent graph + tools + policies (design-time, stored in Transformation DomainController, modelled via UAF UIs) |
 | **AgentController** | Runtime that executes AgentDefinitions via LLM/tool loops, always via SDKs |
 | **UIWorkspace** | Next.js frontend that talks to controllers via the TS SDK |
 | **UAF** | Unified Artifact Framework - modelling UIs (BPMN editor, diagrams, Markdown) that talk to DomainControllers via APIs; UAF does not persist anything itself. All UAF-originated artifacts are persisted by the **Transformation DomainController** |
@@ -129,15 +129,15 @@ We can build a **cloud-native business platform** where:
 
 At the highest level we standardise on four building blocks, with a clear **design-time vs runtime** split:
 
-### 4.0 Design-Time Artifacts (in Transformation/UAF)
+### 4.0 Design-Time Artifacts (in Transformation DomainController)
 
 * **ProcessDefinition** – BPMN-compliant artifact produced by a custom React Flow modeller.
   * Defines process stages, tasks, gateways, and bindings to domains/agents.
-  * Stored and versioned in Transformation/UAF with revisions & promotions.
+  * Stored and versioned in Transformation DomainController with revisions & promotions (modelled via UAF UIs).
 
 * **AgentDefinition** – Declarative spec for an agent.
   * Tools (domain/process APIs), orchestration graph, scope, risk tier, policies.
-  * Stored alongside ProcessDefinitions as UAF artifacts.
+  * Stored alongside ProcessDefinitions in Transformation DomainController (modelled via UAF UIs).
 
 ### 4.1 Runtime Controllers
 
@@ -149,7 +149,7 @@ At the highest level we standardise on four building blocks, with a clear **desi
 
 2. **ProcessController** – executes ProcessDefinitions:
 
-   * Loads a specific ProcessDefinition version from Transformation/UAF.
+   * Loads a specific ProcessDefinition version from Transformation DomainController.
    * Manages process instances, state, retries, compensation.
    * Backed by Temporal; binds BPMN tasks to DomainController/AgentController calls.
 
@@ -183,7 +183,7 @@ These are **logical roles**. Underneath, they're implemented by concrete service
 
 ### 4.3 Backstage as "factory"
 
-Backstage is the **factory** that turns Transformation/UAF decisions into running components:
+Backstage is the **factory** that turns Transformation DomainController decisions into running components:
 
 * **Catalog**:
 
@@ -220,11 +220,11 @@ Backstage is the **factory** that turns Transformation/UAF decisions into runnin
    * AgentControllers are allowed to be non-deterministic, but:
 
      * They can only act through public domain/process APIs.
-     * Their proposals become durable only once written into the Transformation domain or UAF.
+     * Their proposals become durable only once written into the Transformation DomainController.
 
 4. **Process‑first modelling**
 
-   * Processes like L2O, O2C, Onboarding, Scrum, TOGAF are defined as ProcessDefinitions (BPMN-compliant) in Transformation/UAF.
+   * Processes like L2O, O2C, Onboarding, Scrum, TOGAF are defined as ProcessDefinitions (BPMN-compliant) in Transformation DomainController (modelled via UAF UIs).
    * ProcessControllers execute these definitions via Temporal.
    * Domain design starts by asking "which process stages does this domain support?"
 
@@ -286,7 +286,7 @@ Backstage is the **factory** that turns Transformation/UAF decisions into runnin
 
 13. **Clean separation of concerns**
 
-    * **Design**: ProcessDefinitions/AgentDefinitions in custom React Flow modeller, stored in UAF.
+    * **Design**: ProcessDefinitions/AgentDefinitions in custom React Flow modeller, stored in Transformation DomainController.
     * **APIs**: pure proto-based domain APIs (044).
     * **Runtime**: DomainControllers, ProcessControllers (Temporal-backed), AgentControllers on K8s.
     * **SDK / tools**: TS SDK, core-platform-coder, Backstage templates driving these layers.
@@ -387,7 +387,7 @@ This Vision / Rationale / Principles doc is intentionally high-level. The follow
 1. **Business Architecture** – how tenants, orgs, roles, and transformation journeys use the platform.
 2. **Application & Information Architecture** – mapping DomainController/ProcessController/AgentController/UIWorkspace to concrete services & data flows; ProcessDefinitions and AgentDefinitions as design-time artifacts.
 3. **Technology Architecture** – detailed runtime stack (K8s, Temporal-backed ProcessControllers, Backstage, SDKs, infra operators).
-4. **Domain Specifications** – L2O/O2C, Transformation/UAF, Onboarding/Identity, etc.
+4. **Domain Specifications** – L2O/O2C, Transformation, Onboarding/Identity, etc.
 5. **Refactoring & Migration Plan** – how we move from the existing microservices + IPA builder to this model.
 
 Those docs should all **inherit and reference these principles**; any deviations should be called out explicitly and treated as architecture decisions.
