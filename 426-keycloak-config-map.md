@@ -2,7 +2,7 @@
 
 **Status**: Draft  
 **Last Updated**: 2025-12-01  
-**Related**: 323-keycloak-realm-roles.md · 323-keycloak-realm-roles-v2.md · 333-realms.md · 364-argo-configuration-v5.md · 375-rolling-sync-wave-redesign.md · 418-secrets-strategy-map.md · infra/README.md
+**Related**: 323-keycloak-realm-roles.md · 323-keycloak-realm-roles-v2.md · 333-realms.md · 364-argo-configuration-v5.md · 375-rolling-sync-wave-redesign.md · 418-secrets-strategy-map.md · 462-secrets-origin-classification.md · infra/README.md
 
 ---
 

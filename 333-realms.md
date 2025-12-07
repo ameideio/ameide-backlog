@@ -571,12 +571,17 @@ async function validateToken(token: string) {
 ### Q6: Client Secrets Management
 **Question:** Where to store per-realm client secrets?
 
-**Options:**
-1. **Database**: Store in platform.organizations table (encrypted)
-2. **Key Vault**: Store in Azure Key Vault per environment
-3. **Keycloak**: Let Keycloak manage, fetch via admin API
+**Approach:** Let Keycloak generate and manage client secrets, extract via Admin API.
 
-**Recommendation:** Option 2 - Azure Key Vault with naming convention: `realm-{org-slug}-client-secret`
+Per [462-secrets-origin-classification.md](./462-secrets-origin-classification.md), OIDC client secrets are **Cluster-Managed (Service-Generated)** secrets. Keycloak is the authority—it generates client secrets. Azure Key Vault is for external/third-party secrets only.
+
+**Flow:**
+1. Keycloak generates client secret on client/realm creation
+2. `client-patcher` Job extracts secret via Admin API (`GET /{realm}/clients/{id}/client-secret`)
+3. Job writes to Vault KV v2 (internal cluster store)
+4. ExternalSecrets sync from Vault to consuming K8s Secrets
+
+See [Keycloak Admin REST API](https://www.keycloak.org/docs-api/latest/rest-api/#_clients) for the vendor-supported endpoints.
 
 ## Consequences
 

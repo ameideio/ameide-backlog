@@ -763,9 +763,9 @@ Sync order: `platform-postgres-clusters` (CNPG-managed DB creds) → `foundation
 | 462-27 | Audit all OIDC client secrets for scope/priority | TODO | - | - |
 | 462-28 | Fix www-ameide-platform-keycloak-secret (primary auth fix) | TODO | - | - |
 | 462-29 | Verify www-ameide app OIDC auth | TODO | - | - |
-| 462-30 | Update 333-realms.md Q6 (Azure KV → Keycloak-generated) | TODO | - | - |
-| 462-31 | Verify 323-keycloak-realm-roles.md sync order alignment | TODO | - | - |
-| 462-32 | Add 462 cross-ref to 426-keycloak-config-map.md | TODO | - | - |
+| 462-30 | Update 333-realms.md Q6 (Azure KV → Keycloak-generated) | ✅ DONE | Claude | 2025-12-07 |
+| 462-31 | Verify 323-keycloak-realm-roles.md sync order alignment | ✅ DONE | Claude | 2025-12-07 |
+| 462-32 | Add 462 cross-ref to 426-keycloak-config-map.md | ✅ DONE | Claude | 2025-12-07 |
 
 ---
 
