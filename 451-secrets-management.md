@@ -356,6 +356,51 @@ for es in $(kubectl get externalsecret -n ameide-<env> -o name); do
 done
 ```
 
+### Client-Patcher Job Issues (Keycloak Client Secrets)
+
+The `client-patcher` Job extracts Keycloak-generated OIDC client secrets and writes them to Vault. See [426-keycloak-config-map.md §3.2](426-keycloak-config-map.md) for architecture.
+
+**1. Check Job status**:
+```bash
+kubectl get jobs -n ameide-<env> -l app.kubernetes.io/name=keycloak-realm
+kubectl logs -n ameide-<env> -l job-name=platform-keycloak-realm-client-patcher
+```
+
+**2. Common failure modes**:
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| `exec format error` | Wrong binary architecture | Use static binaries (jq, curl) for Alpine images |
+| `command not found: jq` | Job image missing jq | Verify initContainer copies `/scripts/jq` |
+| `401 Unauthorized` from Keycloak | Admin credentials wrong | Check `keycloak-master-bootstrap` Secret |
+| `403 Forbidden` from Keycloak | Admin lacks realm-management | Verify admin has realm-admin role |
+| `404 Not Found` for client | Client doesn't exist in realm | Check realm JSON has the client configured |
+| `permission denied` writing Vault | Policy not configured | Verify `keycloak-client-patcher` policy paths |
+
+**3. Manually trigger extraction**:
+```bash
+# Delete old Job (Helm recreates on sync)
+kubectl delete job platform-keycloak-realm-client-patcher -n ameide-<env>
+
+# Force ArgoCD sync
+argocd app sync <env>-platform-keycloak-realm
+```
+
+**4. Verify secrets in Vault**:
+```bash
+ROOT_TOKEN=$(kubectl get secret -n ameide-<env> vault-auto-credentials -o jsonpath='{.data.root-token}' | base64 -d)
+kubectl exec -n ameide-<env> vault-core-<env>-0 -- sh -c "VAULT_TOKEN=$ROOT_TOKEN vault kv get secret/platform-app-client-secret"
+```
+
+**5. Vault-bootstrap idempotency**:
+
+The `vault-bootstrap` CronJob uses CAS (check-and-set) to avoid overwriting Keycloak-generated secrets:
+```bash
+# Check if value is a placeholder (fixture) or real (Keycloak-generated)
+kubectl exec -n ameide-<env> vault-core-<env>-0 -- sh -c "VAULT_TOKEN=$ROOT_TOKEN vault kv get -format=json secret/platform-app-client-secret" | jq -r '.data.data.value'
+# If it shows "keycloak_generated_placeholder", client-patcher hasn't run successfully
+```
+
 ---
 
 ## Files Reference

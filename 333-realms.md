@@ -581,6 +581,10 @@ Per [462-secrets-origin-classification.md](./462-secrets-origin-classification.m
 3. Job writes to Vault KV v2 (internal cluster store)
 4. ExternalSecrets sync from Vault to consuming K8s Secrets
 
+**Implementation Reference:** See [426-keycloak-config-map.md §3.2](./426-keycloak-config-map.md) for client-patcher architecture, Vault policy paths, and per-environment configuration.
+
+**Realm-Per-Tenant Scaling:** The same pattern applies at scale—each per-tenant realm's `platform-app-{tenant}` client secret is extracted via client-patcher and stored at `secret/platform-app-{tenant}-client-secret`.
+
 See [Keycloak Admin REST API](https://www.keycloak.org/docs-api/latest/rest-api/#_clients) for the vendor-supported endpoints.
 
 ## Consequences

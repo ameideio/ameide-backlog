@@ -1,7 +1,7 @@
 # 426 – Keycloak configuration & GitOps map
 
-**Status**: Draft  
-**Last Updated**: 2025-12-01  
+**Status**: Draft
+**Last Updated**: 2025-12-07  
 **Related**: 323-keycloak-realm-roles.md · 323-keycloak-realm-roles-v2.md · 333-realms.md · 364-argo-configuration-v5.md · 375-rolling-sync-wave-redesign.md · 418-secrets-strategy-map.md · 462-secrets-origin-classification.md · infra/README.md
 
 ---
@@ -125,6 +125,92 @@ The `ameide` realm MUST include built-in OIDC client scopes alongside custom sco
 **Source of realm JSON**: `keycloak-realm-import` should ideally be generated from a Keycloak realm export (`RealmRepresentation`). Treat Keycloak as the configuration authority—export after tests pass, commit to Git.
 
 > **Cross-reference**: See [460-keycloak-oidc-scopes.md](460-keycloak-oidc-scopes.md) for the incident details and vendor-aligned realm pattern.
+
+### 3.2 Client Secret Extraction (client-patcher Job)
+
+**Added**: 2025-12-07
+
+OIDC client secrets in Keycloak follow the **Service-Generated** authority model: Keycloak generates them, and the `client-patcher` Job extracts them to Vault.
+
+#### Architecture
+
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│    Keycloak     │     │  client-patcher │     │      Vault      │     │ ExternalSecrets │
+│  (generates)    │────▶│   (extracts)    │────▶│   (stores)      │────▶│  (syncs to K8s) │
+└─────────────────┘     └─────────────────┘     └─────────────────┘     └─────────────────┘
+```
+
+#### Helm Hook
+
+The `client-patcher` Job is a Helm **post-install/post-upgrade** hook in the `keycloak_realm` chart:
+
+```yaml
+# keycloak_realm/templates/client-patcher-job.yaml
+annotations:
+  "helm.sh/hook": post-install,post-upgrade
+  "helm.sh/hook-weight": "10"
+  "helm.sh/hook-delete-policy": before-hook-creation
+```
+
+#### Vault Policy
+
+The `keycloak-client-patcher` Vault role grants write access to these paths:
+
+| Path Pattern | Clients Stored |
+|--------------|----------------|
+| `secret/data/platform-app-*` | `platform-app`, `platform-app-master` |
+| `secret/data/argocd-*` | `argocd` (Dex OIDC) |
+| `secret/data/k8s-dashboard-*` | `k8s-dashboard` |
+
+Policy definition: `sources/charts/foundation/vault-bootstrap/templates/cronjob.yaml`
+
+#### Per-Environment Configuration
+
+Each environment configures `secretExtraction` in its values file:
+
+```yaml
+# sources/values/{env}/platform/platform-keycloak-realm.yaml
+clientPatcher:
+  serviceAccountName: default
+  secretExtraction:
+    enabled: true
+    clients:
+      - clientId: platform-app
+        vaultKey: platform-app-client-secret
+      - clientId: argocd
+        vaultKey: argocd-dex-client-secret
+      - clientId: k8s-dashboard
+        vaultKey: k8s-dashboard-oidc-client-secret
+    masterRealmClients:
+      - clientId: platform-app-master
+        vaultKey: platform-app-master-client-secret
+  vault:
+    addr: "http://vault-core-{env}.ameide-{env}.svc.cluster.local:8200"
+    kvPath: secret
+    authRole: keycloak-client-patcher
+```
+
+#### Flow
+
+1. **Keycloak generates** client secrets during realm import (or regeneration)
+2. **client-patcher extracts** secrets via Keycloak Admin API using admin credentials
+3. **client-patcher writes** to Vault KV v2 at configured paths
+4. **ExternalSecrets sync** Vault secrets to Kubernetes Secrets
+5. **Applications consume** the synced Secrets (e.g., `AUTH_KEYCLOAK_SECRET`)
+
+#### Vault-Bootstrap Idempotency
+
+The `vault-bootstrap` CronJob uses `--check-and-set=0` (CAS) to avoid overwriting Keycloak-generated secrets with fixture values:
+
+```bash
+# Only writes if key doesn't exist (CAS=0)
+vault kv put -cas=0 secret/platform-app-client-secret value="placeholder"
+```
+
+This ensures fixtures are bootstrap-only; once client-patcher writes the real secret, vault-bootstrap won't overwrite it.
+
+> **Cross-reference**: See [462-secrets-origin-classification.md](462-secrets-origin-classification.md) for the secrets authority taxonomy and compliance matrix.
 
 ---
 

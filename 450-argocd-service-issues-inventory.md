@@ -299,6 +299,42 @@ All 21 ExternalSecrets in each environment now syncing successfully.
 
 See [451-secrets-management.md](451-secrets-management.md) for detailed troubleshooting runbook.
 
+### ArgoCD OIDC Client Secret (2025-12-07)
+
+**Status**: ✅ RESOLVED via client-patcher
+
+**Issue**: ArgoCD/Dex OIDC authentication relies on the `argocd-dex-client-secret` in Vault. Previously this was a static fixture value.
+
+**Resolution** (per [462-secrets-origin-classification.md](462-secrets-origin-classification.md)):
+1. ArgoCD's `argocd` client is configured in the Keycloak `ameide` realm
+2. `client-patcher` Job extracts the Keycloak-generated secret via Admin API
+3. Secret written to Vault at `secret/argocd-dex-client-secret`
+4. ExternalSecret syncs to `argocd-secret` for Dex consumption
+
+**Configuration**:
+```yaml
+# Per-env platform-keycloak-realm.yaml
+clientPatcher:
+  secretExtraction:
+    clients:
+      - clientId: argocd
+        vaultKey: argocd-dex-client-secret
+```
+
+**Verification**:
+```bash
+# Check client-patcher Job completed
+kubectl get jobs -n ameide-<env> -l app.kubernetes.io/name=keycloak-realm
+
+# Verify secret in Vault
+vault kv get secret/argocd-dex-client-secret
+
+# Test ArgoCD OIDC login
+argocd login <server> --sso
+```
+
+See [426-keycloak-config-map.md §3.2](426-keycloak-config-map.md) for client-patcher architecture.
+
 ---
 
 ## Validation Commands

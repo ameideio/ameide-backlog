@@ -275,6 +275,7 @@ helm upgrade keycloak-realm ./infra/kubernetes/charts/platform/keycloak-realm \
 - Managed by Argo CD via `environments/<env>/components/platform/auth/keycloak-realm`
 - Sync order: `platform-postgres-clusters` (CNPG-managed DB creds) → `foundation-keycloak-admin-secrets` (bootstrap/admin/client secrets) → `platform-keycloak` → `platform-keycloak-realm`
 - Changes propagate automatically via GitOps; Keycloak Operator applies the realm import declaratively once all prerequisite secrets exist.
+- **Post-sync**: `client-patcher` Job extracts Keycloak-generated client secrets to Vault. See [426-keycloak-config-map.md §3.2](426-keycloak-config-map.md).
 
 ### Rollback
 

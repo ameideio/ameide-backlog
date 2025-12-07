@@ -12,7 +12,7 @@ Purpose: single view of our current secrets posture, with pointers to the source
 | **External/Third-Party** | Azure Key Vault | GHCR tokens, API keys (Anthropic, OpenAI), Azure DNS credentials |
 | **Cluster-Managed (Operator)** | Kubernetes Operator | CNPG database credentials, Redis auth |
 | **Cluster-Managed (Helm)** | Helm `randAlphaNum` | MinIO root, Grafana admin, bootstrap secrets |
-| **Cluster-Managed (Service)** | Service (Keycloak, etc.) | OIDC client secrets, runtime tokens |
+| **Cluster-Managed (Service)** | Service → client-patcher → Vault | Keycloak OIDC client secrets (`platform-app`, `argocd`, `k8s-dashboard`) |
 
 **Key rule:** Cluster-managed secrets must NOT be fetched from Azure KV—they are generated in-cluster. Vault may mirror them for audit but never drives them.
 
@@ -20,6 +20,7 @@ Purpose: single view of our current secrets posture, with pointers to the source
 - Baseline stack and bootstrap: `README.md` — DevContainer/bootstrap seeds Argo repo creds, registry pull secrets, and relies on Vault + External Secrets to reconcile everything else post-apply.
 - Database credentials authority: `backlog/412-cnpg-owned-postgres-greds.md` — CNPG owns Postgres roles/passwords and emits the Kubernetes Secrets; Vault may mirror via PushSecret but never writes back; rotation is driven by Secret changes.
 - Secret origin classification: `backlog/462-secrets-origin-classification.md` — Distinguishes external (Azure KV authority) vs cluster-managed (operator/Helm/service authority) secrets; documents the Keycloak client secret flow.
+- Keycloak client-patcher: `backlog/426-keycloak-config-map.md` §3.2 — Documents the client-patcher Job architecture, Vault policy paths, and per-environment secretExtraction configuration.
 - Secrets layer orchestration: `backlog/339-helmfile-refactor.md` — Layer 15 (“secrets & certificates”) runs `vault`, `vault-secrets` bundles, `cert-manager`, and `external-secrets` with per-environment `platform/15-secrets.values.yaml` toggles and a `secrets-smoke` job.
 - Vault bootstrap readiness: `backlog/413-vault-bootstrap-readiness.md` — rollout bands keep Vault core at 150 and bootstrap at 155; `/sys/health` is relaxed to avoid Argo deadlock; bootstrap CronJob runs every minute.
 - Service test guardrails: `backlog/347-service-tests-refactorings.md` — per-service ExternalSecrets are authoritative; test harnesses must run `scripts/vault/ensure-local-secrets.py` and consume the per-service templates (no inline Secrets/Azure KV).
