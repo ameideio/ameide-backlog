@@ -1,10 +1,19 @@
 > Note: Chart and values paths are now under gitops/ameide-gitops/sources (charts/values); any infra/kubernetes/charts references below are historical.
 
+> **Alignment Note**: This document describes platform workflow infrastructure
+> that implements **ProcessControllers** as defined in [471‑ameide‑business‑architecture](471-ameide-business-architecture.md).
+>
+> - "Platform Workflows" = implementation detail of ProcessControllers
+> - Customers experience these as "process stages" and "process boards"
+> - Temporal orchestration is internal infrastructure, not a customer concept
+>
+> For business‑level process architecture, see 471 §2.2 (ProcessController).
+
 # 305 - Platform Workflow Orchestration
 
-**Status:** Draft  
-**Priority:** High  
-**Complexity:** High  
+**Status:** Draft
+**Priority:** High
+**Complexity:** High
 **Related:** `packages/ameide_core_proto/src/ameide_core_proto/ipa/v1/workflows.proto`, `packages/ameide_sdk_ts/src/client/index.ts`, `infra/kubernetes/charts/platform/workflows_runtime/*`
 
 ---

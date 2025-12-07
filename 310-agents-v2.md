@@ -1,14 +1,21 @@
 > Note: Chart and values paths are now under gitops/ameide-gitops/sources (charts/values); any infra/kubernetes/charts references below are historical.
 
+> **Planned Change**: The current AgentRuntime architecture (agents control
+> plane + agents_runtime Python execution) will be replaced by a **Backstage‑based
+> Agent Controller** that aligns with the platform factory model in [471 §4](471-ameide-business-architecture.md#4-backstage-as-the-platform-factory-business-view).
+>
+> Key constraint from 471: "Agents are always invoked via domain/process APIs;
+> they do **not** become a separate source of truth."
+
 # 310: Agents Platform V2 (n8n-Aligned)
 
-**Status**: Draft  
-**Priority**: High  
+**Status**: Draft
+**Priority**: High
 **Complexity**: Large
 
 ---
 
-## 1. Why We’re Rewriting the Agents Platform
+## 1. Why We're Rewriting the Agents Platform
 
 The first-generation threads experience built agents directly inside the inference service with ad-hoc configs. That approach stalled for three reasons:
 
