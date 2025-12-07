@@ -740,3 +740,130 @@ spec:
 - [ ] Rate limiting allows bursts with backoff
 - [ ] Access logs sampled (not 100%) in production
 - [ ] Health check endpoints respond correctly
+
+---
+
+## Best-Practice Reference (2025-12-07)
+
+This section documents alignment with vendor best practices and identifies gaps.
+
+### Assumptions
+
+- **CNI**: AKS with Azure CNI + Cilium (NetworkPolicy enforced at L3/L4)
+- **Gateway**: Envoy Gateway v1.6 with Gateway API v1
+- **Multi-tenancy**: Namespace-per-tenant for isolated tenants, shared namespace for SaaS
+
+### ✅ Aligned with Best Practices
+
+| Area | Practice | Reference |
+|------|----------|-----------|
+| **Label strategy** | `environment`, `tenant-kind`, `tenant-id`, `tier` labels | [AKS Network Policy Best Practices](https://learn.microsoft.com/en-us/azure/aks/network-policy-best-practices) |
+| **Namespace-per-tenant** | Cross-tenant NetworkPolicy with label selectors | [Kubernetes Multi-tenancy](https://kubernetes.io/docs/concepts/security/multi-tenancy/) |
+| **Gateway API personas** | Infra-owned Gateway, app-owned HTTPRoute | [Gateway API Roles](https://gateway-api.sigs.k8s.io/concepts/roles-and-personas/) |
+| **Envoy Gateway CRDs** | BackendTrafficPolicy, ClientTrafficPolicy, SecurityPolicy | [Envoy Gateway Extensions](https://gateway.envoyproxy.io/docs/api/extension_types/) |
+| **Local rate limiting** | Per-route token buckets without external deps | [Envoy Gateway Local RL](https://gateway.envoyproxy.io/docs/tasks/traffic/local-rate-limit/) |
+
+### 🔧 Gaps to Address
+
+#### 1. Egress Controls (Priority: HIGH)
+
+**Current state**: Policies are ingress-only (`policyTypes: [Ingress]`).
+
+**Vendor guidance**: Zero-Trust baseline requires default-deny for both ingress AND egress, then explicit allowlists.
+
+**Required egress allowlists**:
+- DNS: `kube-dns` / CoreDNS (UDP 53)
+- External OIDC: Keycloak issuer endpoints
+- Cloud storage: Azure Blob, backup endpoints
+- Observability: Grafana Cloud, external collectors
+
+**References**:
+- [Red Hat: Guide to Kubernetes Egress Network Policies](https://www.redhat.com/en/blog/guide-to-kubernetes-egress-network-policies)
+- [AKS: Zero-Trust baseline](https://learn.microsoft.com/en-us/azure/aks/network-policy-best-practices)
+
+#### 2. Default-Deny Baseline (Priority: HIGH)
+
+**Current state**: Proposed but marked "consider carefully" and not implemented.
+
+**Vendor guidance**: Every namespace should have a default-deny policy; any NetworkPolicy selecting a pod automatically denies unmatched traffic.
+
+**Implementation**:
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: {{ .Values.namespace }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+```
+
+**Prerequisite**: Egress allowlists for DNS and required external endpoints must be deployed first.
+
+#### 3. Global Rate Limiting Prerequisites (Priority: MEDIUM)
+
+**Current state**: Disabled after incident (2025-12-07).
+
+**Hard prerequisites before re-enabling**:
+1. Deploy Redis rate-limit backend
+2. Configure `EnvoyGateway.spec.rateLimit.backend`:
+   ```yaml
+   apiVersion: gateway.envoyproxy.io/v1alpha1
+   kind: EnvoyGateway
+   spec:
+     rateLimit:
+       backend:
+         type: Redis
+         redis:
+           url: redis://redis-ratelimit:6379
+   ```
+3. Test on single low-risk HTTPRoute before Gateway-wide
+
+**Safety rule**: `BackendTrafficPolicy` with `rateLimit.type: Global` MUST NOT target Gateway without configured backend.
+
+**Reference**: [Envoy Gateway Global Rate Limit](https://gateway.envoyproxy.io/docs/tasks/traffic/global-rate-limit/)
+
+#### 4. Access-Log Sampling (Priority: LOW)
+
+**Current approach**: EnvoyPatchPolicy with JSONPatch.
+
+**Vendor guidance**: Prefer Envoy Gateway's native access-log CRDs (`ProxyAccessLog`) over raw JSONPatch. Focus logs on errors + high latency; sample successful traffic.
+
+**Recommended pattern**:
+- Log 100% of 4xx/5xx responses
+- Sample 10% of 2xx responses in production
+
+**Reference**: [Envoy Gateway Proxy Access Logs](https://gateway.envoyproxy.io/docs/tasks/observability/proxy-accesslog/)
+
+#### 5. RBAC & Quotas (Priority: MEDIUM)
+
+**Gap**: Multi-tenancy relies on NetworkPolicy but RBAC and ResourceQuota are not documented.
+
+**Vendor guidance**: Tenants should be isolated by:
+- Namespaces + NetworkPolicy (traffic)
+- RBAC roles (control plane access)
+- ResourceQuota (resource consumption)
+
+**Action**: Cross-reference RBAC and quota docs in 441; ensure `ameide.io/*` labels are write-protected from tenant namespaces.
+
+**Reference**: [Kubernetes Multi-tenancy](https://kubernetes.io/docs/concepts/security/multi-tenancy/)
+
+### Safety Guardrails
+
+**Pre-flight checks for new policies**:
+
+1. **NetworkPolicy**: Test in dev → staging → prod; verify ArgoCD sync and Prometheus scrape still work
+2. **BackendTrafficPolicy**: Never attach experimental policies at Gateway scope in production; start with single HTTPRoute
+3. **Global Rate Limiting**: Block in CI if `EnvoyGateway` has no `rateLimit.backend` configured
+4. **Egress changes**: Verify DNS resolution works after applying egress deny
+
+### Future Work
+
+- [ ] Implement egress default-deny with DNS allowlist
+- [ ] Deploy Redis rate-limit backend for global RL
+- [ ] Add CI admission checks for dangerous policy combinations
+- [ ] Migrate access-log sampling from JSONPatch to native CRD
+- [ ] Document RBAC + ResourceQuota patterns for multi-tenancy
