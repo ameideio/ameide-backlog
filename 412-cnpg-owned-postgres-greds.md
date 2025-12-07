@@ -1,9 +1,18 @@
 Here's a north star doc you can paste into Notion/Confluence/ADR with minimal edits.
 
-**Cross-references:**
-- [462-secrets-origin-classification.md](./462-secrets-origin-classification.md) – Secret origin taxonomy (this doc is the exemplar for "Cluster-Managed: Operator-Owned" secrets)
-- [418-secrets-strategy-map.md](./418-secrets-strategy-map.md) – Overall secrets strategy
-- [451-secrets-management.md](./451-secrets-management.md) – External secrets flow (Azure KV → Vault → K8s)
+> **Cross-References (Deployment Architecture Suite)**:
+>
+> | Document | Purpose |
+> |----------|---------|
+> | [465-applicationset-architecture.md](465-applicationset-architecture.md) | How postgres-clusters app deploys per-environment |
+> | [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md) | Phase 020 (CNPG operator), Phase 250 (postgres-clusters) |
+> | [464-chart-folder-alignment.md](464-chart-folder-alignment.md) | Chart at `sources/charts/foundation/operators-config/postgres_clusters` |
+> | [426-keycloak-config-map.md](426-keycloak-config-map.md) | OIDC patterns (Keycloak also uses CNPG credentials) |
+>
+> **Secrets Architecture**:
+> - [462-secrets-origin-classification.md](./462-secrets-origin-classification.md) – Secret origin taxonomy (this doc is the exemplar for "Cluster-Managed: Operator-Owned" secrets)
+> - [418-secrets-strategy-map.md](./418-secrets-strategy-map.md) – Overall secrets strategy
+> - [451-secrets-management.md](./451-secrets-management.md) – External secrets flow (Azure KV → Vault → K8s)
 
 ---
 

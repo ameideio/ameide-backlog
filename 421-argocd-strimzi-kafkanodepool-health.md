@@ -1,7 +1,16 @@
 # 421 – Argo CD + Strimzi KafkaNodePool health alignment
 
-**Status:** Documented / fixed / refined  
-**Scope:** `data-kafka-cluster` Application (Strimzi Kafka) under Argo CD RollingSync  
+> **Cross-References (Deployment Architecture Suite)**:
+>
+> | Document | Purpose |
+> |----------|---------|
+> | [465-applicationset-architecture.md](465-applicationset-architecture.md) | How data-kafka-cluster app deploys |
+> | [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md) | Wave 210 (CRDs) → 220 (operator) → 250 (Kafka) |
+> | [464-chart-folder-alignment.md](464-chart-folder-alignment.md) | Charts at `sources/charts/third_party/strimzi/` |
+> | [447-third-party-chart-tolerations.md](447-third-party-chart-tolerations.md) | Kafka/Strimzi tolerations (§9) |
+
+**Status:** Documented / fixed / refined
+**Scope:** `data-kafka-cluster` Application (Strimzi Kafka) under Argo CD RollingSync
 **Date:** 2025-12-01
 
 ## Configuration snapshot

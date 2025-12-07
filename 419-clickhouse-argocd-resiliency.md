@@ -1,7 +1,16 @@
 # 419 – ClickHouse + Argo CD resiliency and rollout contract
 
-**Status:** Documented / stabilized  
-**Scope:** data-clickhouse CRDs/operator/CHI under Argo CD  
+> **Cross-References (Deployment Architecture Suite)**:
+>
+> | Document | Purpose |
+> |----------|---------|
+> | [465-applicationset-architecture.md](465-applicationset-architecture.md) | How data-clickhouse app deploys |
+> | [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md) | Wave 210 (CRDs) → 220 (operator) → 250 (CHI) |
+> | [464-chart-folder-alignment.md](464-chart-folder-alignment.md) | CRDs at `sources/charts/foundation/common/raw-manifests/files/` |
+> | [447-third-party-chart-tolerations.md](447-third-party-chart-tolerations.md) | ClickHouse tolerations |
+
+**Status:** Documented / stabilized
+**Scope:** data-clickhouse CRDs/operator/CHI under Argo CD
 **Date:** 2025-11-29
 
 ## Configuration snapshot

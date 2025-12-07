@@ -1,4 +1,4 @@
-Here’s a first cut of the **Application & Information Architecture** doc, aligned with the vision + business docs we already sketched and wired to vendor concepts (Backstage, BPMN/Camunda, Temporal, K8s, Buf, etc.).
+Here's a first cut of the **Application & Information Architecture** doc, aligned with the vision + business docs we already sketched and wired to vendor concepts (Backstage, BPMN-compliant definitions via custom React Flow modeller, Temporal, K8s, Buf, etc.).
 
 ---
 
@@ -22,15 +22,15 @@ Here’s a first cut of the **Application & Information Architecture** doc, alig
 * Describes how **information is modeled**:
 
   * Per-domain SQL stores
-  * Process definitions (BPMN)
-  * Transformation artifacts (UAF)
-  * Cross-domain knowledge graph
+  * Process definitions (BPMN) stored in **Transformation DomainController**
+  * Transformation artifacts (managed via UAF UIs, stored by Transformation DomainController)
+  * Cross-domain knowledge graph (read-only projection)
 * Shows how **Backstage** is used as the “declarative front-door” to design domains/processes/agents.
 * Aligns with:
 
   * Proto-based APIs & SDK strategy
   * Unified Artifact Framework for transformation artifacts
-  * Camunda / Temporal style process execution and SaaS-like ops model.
+  * Temporal-backed ProcessController execution and SaaS-like ops model.
 
 ### 1.2 Constraints & design principles (from previous docs)
 
@@ -93,26 +93,31 @@ We carry forward the earlier principles and make them concrete here:
 
 **Responsibility:** Orchestrate **cross-domain** flows such as L2O, O2C, Procure-to-Pay, or Transformation workflows (Scrum/Togaf ADM).
 
-*Canonical representation:* **BPMN 2.0** diagrams (L2O, O2C, etc.), edited via BPMN modeler and stored as artifacts. At runtime they are executed by a process engine (Camunda 8) and/or compiled into Temporal workflows for code-level orchestration.
+*Design-time:* **ProcessDefinitions** are BPMN-compliant artifacts produced by a **custom React Flow modeller** and stored in the **Transformation DomainController** (modelled via UAF UIs). At runtime they are executed by **ProcessControllers** backed by Temporal workflows.
 
 **Key concepts**
 
-* **Process definition**
+* **ProcessDefinition** (design-time, stored in Transformation DomainController)
 
-  * BPMN XML + metadata (tenant, version, process type like L2O/O2C/T2C).
-* **Process controller**
+  * BPMN-compliant artifact + metadata (tenant, version, process type like L2O/O2C/T2C).
+  * Defines process stages, tasks, gateways, and bindings to domains/agents.
+  * Stored and versioned in the **Transformation DomainController** with revisions & promotions (modelled via UAF UIs).
+* **ProcessController** (runtime)
 
-  * Logical unit that “owns” the BPMN definition + binding:
+  * Logical unit that "executes" a ProcessDefinition:
 
-    * Maps BPMN tasks to domain API calls and/or agent tools.
+    * Loads ProcessDefinition from the Transformation DomainController.
+    * Maps BPMN tasks to DomainController API calls and/or AgentController tools.
     * Handles business-level errors and compensations.
+  * Backed by Temporal workflows.
 * **Execution**
 
-  * Long-running process instances in Camunda / Temporal representing specific business cases.
+  * Long-running process instances in Temporal representing specific business cases.
 
-**Why BPMN**
+**Why BPMN-compliant**
 
-* Aligns with vendor BPMN tooling and modeling patterns used by Camunda Modeler and runtime.
+* Standard semantics for business users (stages, gateways, lanes).
+* Custom React Flow modeller provides visual editing; definitions are BPMN-compliant but NOT Camunda-stack.
 
 **Information model**
 
@@ -121,7 +126,7 @@ We carry forward the earlier principles and make them concrete here:
   * Process variables (e.g. `leadId`, `quoteId`, `orderId`)
   * Execution state (activity id, token position)
   * Audit trail (who approved, when)
-* Stored in **process engine stores** (Camunda/Temporal) plus Ameide projections (for consolidated reporting).
+* Stored in **Temporal** plus Ameide projections (for consolidated reporting).
 
 ### 2.3 Agents (Agent layer)
 
@@ -131,25 +136,41 @@ We carry forward the earlier principles and make them concrete here:
 * Propose changes (requirements, configurations, data corrections)
 * Generate new domain/process/agent definitions via Backstage templates
 
+*Design-time:* **AgentDefinitions** are declarative specs stored in the **Transformation DomainController** (modelled via UAF UIs). At runtime they are executed by **AgentControllers**.
+
+**Key concepts**
+
+* **AgentDefinition** (design-time, stored in Transformation DomainController)
+
+  * Declarative spec for an agent: tools, orchestration graph, scope, risk tier, policies.
+  * Stored alongside ProcessDefinitions in the Transformation DomainController.
+  * Subject to governance (review, promotion) before runtime use.
+* **AgentController** (runtime)
+
+  * Loads an AgentDefinition from the Transformation DomainController and runs the LLM/tool loop.
+  * Enforces scope/risk policies at execution time.
+  * Always invoked via domain/process APIs; never becomes source of truth.
+
 **Characteristics**
 
-* **Explicit tool contracts** – for each agent we define:
+* **Explicit tool contracts** – each AgentDefinition specifies:
 
-  * Which domain/process APIs it can call.
+  * Which domain/process APIs the AgentController can call.
   * What UAF / transformation artifacts it can read or modify.
 * **Runtime**
 
-  * Inference runtimes (LangGraph / OpenAI / others) orchestrate tools; Ameide’s Agents and Agents Runtime services already provide an agent graph abstraction.
+  * LangGraph / OpenAI / other inference runtimes orchestrate tools via the AgentController.
 * **Determinism boundary**
 
-  * Agents never become the authoritative “source of truth” for domain data; they make proposals or trigger domain commands.
+  * AgentControllers never become the authoritative "source of truth" for domain data; they make proposals or trigger domain commands.
 
 **Information model**
 
-* **Agent configs** (stored per tenant):
+* **AgentDefinitions** (stored per tenant in UAF):
 
   * Prompt & behavior description
-  * Allowed tools & scopes (e.g. “Transformation agent can only touch UAF artifacts and Backstage templates”)
+  * Allowed tools & scopes (e.g. "Transformation agent can only touch UAF artifacts and Backstage templates")
+  * Risk tier and policy bindings
 * **Interaction history**
 
   * Persisted in Chat/Threads services for audit and context.
@@ -230,16 +251,16 @@ Older IPA architecture already codifies the pattern of “pure domain + persiste
 
 For each process type (L2O, O2C, T2C, etc.) we define:
 
-* **Process definition** = BPMN diagram + metadata
+* **ProcessDefinition** = BPMN-compliant artifact (from custom React Flow modeller) + metadata
 * **Process variables schema** = typed variables bound to domain identifiers
 * **SLA and policy metadata** (e.g. L2O should close within 30 days)
 
-This mirrors Camunda’s model of process definitions (BPMN) + deployments + instances, and Temporal’s distinction between workflow definitions and workflow executions.
+This mirrors Temporal's distinction between workflow definitions and workflow executions: ProcessDefinitions are design-time artifacts; ProcessControllers execute them at runtime.
 
 We will:
 
-* Store definitions in **UAF / Transformation domain** as versioned artifacts.
-* Store **execution projections** in Ameide’s own DB for:
+* Store **ProcessDefinitions** in **UAF / Transformation domain** as versioned artifacts.
+* Store **execution projections** in Ameide's own DB for:
 
   * process analytics
   * SLA monitoring
@@ -266,18 +287,20 @@ Transformation is a **domain like any other**, but its data is special:
 * **Initiatives & Backlog Items**
 
   * Standard domain entities (SQL) representing epics, features, tasks.
-* **Artifacts (UAF)**
+* **Design-time artifacts (UAF)**
 
-  * BPMN, ArchiMate, Markdown, etc., stored as event-sourced artifacts with commands and snapshots.
+  * **ProcessDefinitions** – BPMN-compliant process models (produced by custom React Flow modeller).
+  * **AgentDefinitions** – Declarative agent specs (tools, policies, risk tiers).
+  * ArchiMate, Markdown, etc., stored as event-sourced artifacts with commands and snapshots.
 * **Governance**
 
   * Promotion status of artifacts (draft, in review, promoted).
-  * Links from artifacts to process/domain instances (e.g. “this BPMN model is the design for L2O v3”).
+  * Links from artifacts to runtime controllers (e.g. "ProcessDefinition L2O_v3 is executed by ProcessController l2o-process-svc").
 
-Transformation agents operate primarily on this domain:
+Transformation AgentControllers operate primarily on this domain:
 
-* Read backlog + UAF artifacts.
-* Generate or modify Backstage templates and Process/Domain/Agent configurations.
+* Read backlog + UAF artifacts (ProcessDefinitions, AgentDefinitions).
+* Generate or modify Backstage templates and DomainController/ProcessController/AgentController configurations.
 * Propose changes that are then applied via standard deployment workflows.
 
 ---
@@ -343,23 +366,24 @@ We provide **four base templates** (each parameterized per tenant):
      * Backstage `Component` + `Domain` entities.
    * Vendor-aligned with Backstage’s Software Templates “skeleton + publish” model.
 
-2. **Process Template**
+2. **ProcessController Template**
 
    * Inputs: process type (L2O, O2C, custom), participating domains, SLA target.
    * Generates:
 
-     * Initial BPMN model with lane structure (Sales, Billing, Logistics, etc.).
-     * Camunda+Temporal binding skeletons (service tasks bound to domain APIs).
-     * Process controller service skeleton with Temporal workflows where needed.
+     * Initial ProcessDefinition (BPMN-compliant, from React Flow modeller) with lane structure (Sales, Billing, Logistics, etc.).
+     * Temporal workflow skeletons (service tasks bound to DomainController APIs).
+     * ProcessController service skeleton.
      * Backstage `Component` entity + links to domain APIs.
 
-3. **Agent Template**
+3. **AgentController Template**
 
    * Inputs: agent purpose, allowed domains/processes, risk tier.
    * Generates:
 
-     * Agent config (prompt, tools, scopes).
+     * AgentDefinition (prompt, tools, scopes, policies) stored in UAF.
      * Proto definition for the agent configuration & invocation.
+     * AgentController service skeleton.
      * Backstage `Component`/`Agent` entity with RBAC metadata for who can use this template.
 
 4. **UI Template**
@@ -406,29 +430,29 @@ To make this less abstract, here’s how **Lead-to-Opportunity (L2O)** looks in 
 
 2. **L2O instance started**
 
-   * `L2OProcess` is started with `leadId` (Camunda / Temporal).
-   * Process instance state is stored in the engine; Ameide stores a projection (e.g. “L2O phase = Qualification”).
+   * `L2OProcessController` is started with `leadId` (Temporal).
+   * Process instance state is stored in Temporal; Ameide stores a projection (e.g. "L2O phase = Qualification").
 
 3. **Quote created**
 
-   * `L2OProcess` reaches “Prepare Quote” task.
-   * For manual: Sales user opens `SalesWorkspace`, sees tasks from `L2OProcessView` and creates a Quote via `SalesDomain` APIs.
-   * For automated: an agent or automated task calls `SalesDomain::CreateQuote` using its proto API.
+   * `L2OProcessController` reaches "Prepare Quote" task.
+   * For manual: Sales user opens `SalesWorkspace`, sees tasks from `L2OProcessView` and creates a Quote via `SalesDomainController` APIs.
+   * For automated: an AgentController or automated task calls `SalesDomainController::CreateQuote` using its proto API.
 
 4. **Approval**
 
-   * `L2OProcess` orchestrates approval steps, maybe invoking:
+   * `L2OProcessController` orchestrates approval steps, maybe invoking:
 
-     * `TransformationAgent` to suggest better pricing.
-     * `SalesCoachAgent` to highlight risk.
-   * Agents read from Graph & domain APIs but write back via domain commands only.
+     * `TransformationAgentController` to suggest better pricing.
+     * `SalesCoachAgentController` to highlight risk.
+   * AgentControllers read from Graph & domain APIs but write back via domain commands only.
 
 5. **Handover to O2C**
 
-   * Once L2O is “Won”, `L2OProcess`:
+   * Once L2O is "Won", `L2OProcessController`:
 
-     * Calls `BillingDomain::CreateProformaInvoice`.
-     * Emits `OpportunityWon` → `O2CProcess` starter.
+     * Calls `BillingDomainController::CreateProformaInvoice`.
+     * Emits `OpportunityWon` → `O2CProcessController` starter.
 
 Information picture:
 
@@ -437,7 +461,7 @@ Information picture:
   * `sales_leads`, `sales_opportunities`, `sales_quotes`, `billing_preinvoices`.
 * **Process tables / engine**
 
-  * Camunda/Temporal internal tables for instance execution.
+  * Temporal internal tables for instance execution.
   * Ameide `process_instances` projection for analytics and UI.
 * **Graph**
 
@@ -458,13 +482,13 @@ This section is just to show that we’re not inventing yet another stack, but r
 
 1. **IPA Architecture (043)**
 
-   * IPA = “composition of workflows + agents + tools from DB, compiled to runtimes”.
+   * IPA = "composition of workflows + agents + tools from DB, compiled to runtimes".
    * New view:
 
-     * *Domain controllers* ≈ “domain and storage” part of IPA.
-     * *Process controllers* ≈ “workflows” part.
-     * *Agents* ≈ “agents/tools” part.
-   * The layered approach (Domain → Storage → Builder → Runtime) remains valid, but the *unit* moves from “IPA” to explicit Domain/Process/Agent definitions.
+     * *DomainControllers* ≈ "domain and storage" part of IPA.
+     * *ProcessControllers* (executing ProcessDefinitions) ≈ "workflows" part.
+     * *AgentControllers* (executing AgentDefinitions) ≈ "agents/tools" part.
+   * The layered approach (Domain → Storage → Builder → Runtime) remains valid, but the *unit* moves from "IPA" to explicit ProcessDefinitions and AgentDefinitions (design-time) executed by controllers (runtime).
 
 2. **Proto-based APIs (044)**
 
@@ -486,9 +510,9 @@ This section is just to show that we’re not inventing yet another stack, but r
      * ArchiMate views, Markdown docs
    * Instead of a generic “IPA designer”, UAF is owned by the **Transformation domain** and used to generate Backstage templates & controller config.
 
-5. **BPMN/Camunda integration (063)**
+5. **BPMN-compliant definitions (063)**
 
-   * Everything about `bpmn-js` + Camunda moddle + deploy via REST remains valid; we just make BPMN a first-class **ProcessController definition**, not an ad-hoc IPA asset.
+   * BPMN semantics (stages, gateways, lanes) remain valid; we use a **custom React Flow modeller** (not Camunda/bpmn-js) to produce ProcessDefinitions stored in UAF and executed by Temporal-backed ProcessControllers.
 
 6. **TypeScript SDK (050)**
 
@@ -508,7 +532,7 @@ This Application & Information Architecture should be read with:
 | [475‑ameide‑domains](475-ameide-domains.md) | Domain portfolio & patterns | Strong ✅ |
 | [300‑ameide‑metamodel](300-ameide-metamodel.md) | Element graph foundation | See §8.1 |
 | [305‑workflow](305-workflow.md) | ProcessController implementation | See §8.2 |
-| [310‑agents‑v2](310-agents-v2.md) | AgentRuntime implementation | See §8.3 |
+| [310‑agents‑v2](310-agents-v2.md) | AgentController implementation | See §8.3 |
 | [370‑event‑sourcing](370-event-sourcing.md) | Event sourcing exploration | See §8.4 |
 
 ### 8.1 Metamodel alignment (300)
@@ -519,7 +543,7 @@ The Element graph (300) and Application Architecture (472) coexist:
 * **Domain stores = write-side authority**: Each DomainController owns its data; graph receives projections.
 * **UAF artifacts are Elements**: BPMN, ArchiMate, Markdown stored as versioned nodes in the graph.
 
-This means: Transformation domain entities project to `graph.elements`, but ProcessController runtime state stays in Temporal/Camunda.
+This means: Transformation domain entities project to `graph.elements`, but ProcessController runtime state stays in Temporal.
 
 ### 8.2 Workflow alignment (305)
 
@@ -527,15 +551,15 @@ This means: Transformation domain entities project to `graph.elements`, but Proc
 
 * "Platform Workflows" = implementation detail of ProcessControllers (§2.2)
 * Temporal is the runtime; customers see "process stages" and "process boards"
-* BPMN models stored via UAF; compiled to Temporal workflows
+* ProcessDefinitions (BPMN-compliant, from custom React Flow modeller) stored via UAF; compiled to Temporal workflows
 
 ### 8.3 Agent alignment (310)
 
-310 describes current AgentRuntime implementation with planned transition:
+310 describes AgentController implementation:
 
-* Current: agents control plane (Go) + agents_runtime (Python)
-* Planned: Backstage-based Agent Controller per 471 §4
-* Key constraint: Agents invoked via domain/process APIs; never become source of truth
+* Current: agents control plane (Go) + agents_runtime (Python) = AgentController implementation
+* AgentDefinitions stored in UAF; AgentControllers execute them
+* Key constraint: AgentControllers invoked via domain/process APIs; never become source of truth
 
 ### 8.4 Event sourcing status (370)
 
@@ -555,20 +579,22 @@ This should be treated as target architecture; current implementation uses tradi
 
 | Legacy Term | 472 Term | Status |
 |-------------|----------|--------|
-| IPA (Intelligent Process Automation) | Domain + ProcessController + Agent bundle | Deprecated; §6 documents mapping |
-| Platform Workflows (305) | ProcessController | 305 aligned |
-| AgentRuntime (310) | Backstage-based Agent Controller | Replacement planned |
+| IPA (Intelligent Process Automation) | DomainController + ProcessController + AgentController bundle | Deprecated; §6 documents mapping |
+| Platform Workflows (305) | ProcessController (executes ProcessDefinitions from UAF) | 305 aligned |
+| AgentRuntime (310) | AgentController (executes AgentDefinitions from UAF) | Aligned |
 | "Graph service" | Knowledge Graph (read projection) | Clarified in §3.4 |
+| DomainService | DomainController | Aligned |
+| BPMN definition | ProcessDefinition (from custom React Flow modeller) | Aligned |
 
 ### 9.2 Implementation gaps
 
 | Gap | Description | Related Docs |
 |-----|-------------|--------------|
 | Authorization & org isolation | DB lacks `organization_id` columns; RLS not enabled | [329-authz](329-authz.md) ⚠️ Phase 2 not started |
-| Transformation domain refactor | Current `services/transformation/` is monolithic; needs decomposition to DomainService + UAF + Backstage bridge | 470 §9.2.2 |
+| Transformation domain refactor | Current `services/transformation/` is monolithic; needs decomposition to DomainController + UAF + Backstage bridge | 470 §9.2.2 |
 | SDK distribution | TypeScript SDK not published to npmjs; only `dev`/hash tags on GHCR | [388-ameide-sdks-north-star](388-ameide-sdks-north-star.md) ⚠️ |
 | Event publishing | Domain events (outbox + bus) not yet live | [370-event-sourcing](370-event-sourcing.md) |
-| Backstage integration | Templates & catalog modeling defined but not implemented | §4 of this doc |
+| Backstage integration | Templates & catalog modeling defined; implementation planned | §4 of this doc, [477-backstage.md](477-backstage.md) |
 
 ### 9.3 Open architectural tensions
 
@@ -576,17 +602,17 @@ This should be treated as target architecture; current implementation uses tradi
    - 472 §3.4 says graph is read-only projection
    - 300 says everything *could* become an Element
    - 305 explicitly excludes platform workflows from graph
-   - **Resolution**: Transformation artifacts → graph; runtime state → Temporal/Camunda
+   - **Resolution**: Transformation artifacts (ProcessDefinitions, AgentDefinitions) → graph; runtime state → Temporal
 
-2. **Dual process runtime**:
-   - 472 §2.2 mentions both Camunda and Temporal
-   - 305/473 position Temporal as primary runtime
-   - **Clarification**: Temporal is default; Camunda is optional deployment target for customer scenarios
+2. **Design-time vs runtime clarity**:
+   - ProcessDefinitions and AgentDefinitions are design-time artifacts in UAF
+   - ProcessControllers and AgentControllers are runtimes that execute them
+   - **Clarification**: Temporal backs ProcessControllers; LangGraph/OpenAI backs AgentControllers
 
 3. **Agent complexity gap**:
-   - 472 §2.3 describes simple tool contracts
+   - 472 §2.3 describes AgentDefinition/AgentController split
    - 310 describes sophisticated n8n-aligned node registry with catalog streaming
-   - **Resolution**: 472 is conceptual model; 310 is current implementation detail (to be replaced per 471 §4)
+   - **Resolution**: 472 is conceptual model; 310 is current AgentController implementation detail
 
 ---
 
@@ -598,8 +624,8 @@ Next documents will:
 
 1. **Technology Architecture**
 
-   * Map Domain/Process/Agent controllers to K8s workloads, CRDs and operators.
-   * Detail how Camunda 8 / Temporal clusters, databases and messaging layers are provisioned and wired.
+   * Map DomainControllers/ProcessControllers/AgentControllers to K8s workloads, CRDs and operators.
+   * Detail how Temporal clusters, databases and messaging layers are provisioned and wired.
 
 2. **Domain Architecture (L2O, O2C, Transformation/UAF, etc.)**
 

@@ -1,6 +1,24 @@
-Totally agree — we can’t keep evolving Ameide without locking down the security story in parallel.
+Totally agree — we can't keep evolving Ameide without locking down the security story in parallel.
 
-Here’s a first **Security & Trust Architecture** pass that plugs into the 6-doc set you already have (Vision, Business, App/Info, Tech, Domains, Refactoring) and reuses as much of the existing backlog work as possible.
+> **Cross-References (Vision Suite)**:
+>
+> | Document | Purpose |
+> |----------|---------|
+> | [470-ameide-vision.md](470-ameide-vision.md) | Vision and principles |
+> | [471-ameide-business-architecture.md](471-ameide-business-architecture.md) | Business concepts |
+> | [472-ameide-information-application.md](472-ameide-information-application.md) | Application architecture |
+> | [473-ameide-technology.md](473-ameide-technology.md) | Technology stack |
+> | [475-ameide-domains.md](475-ameide-domains.md) | Domain portfolio |
+>
+> **Secrets & Security Implementation**:
+> - [462-secrets-origin-classification.md](462-secrets-origin-classification.md) – Secret origin taxonomy
+> - [451-secrets-management.md](451-secrets-management.md) – Secrets flow (Azure KV → Vault → K8s)
+> - [426-keycloak-config-map.md](426-keycloak-config-map.md) – OIDC client patterns
+> - [340-api-routes.md](340-api-routes.md) – API authentication
+> - [341-middleware-auth.md](341-middleware-auth.md) – Middleware AuthN/AuthZ
+> - [342-token.md](342-token.md) – Token handling
+
+Here's a first **Security & Trust Architecture** pass that plugs into the 6-doc set you already have (Vision, Business, App/Info, Tech, Domains, Refactoring) and reuses as much of the existing backlog work as possible.
 
 ---
 
@@ -197,31 +215,32 @@ The proto/API backlogs already define the right building blocks; we just declare
 
 Agents are where things can go very wrong, so the architecture must be explicit:
 
-### 7.1 Agent domain constraints
+### 7.1 AgentDefinition governance
 
-* **Agent definitions** (graphs, tools, permissions) live in the Agent domain and are versioned.
-* Each agent has:
+* **AgentDefinitions** (declarative specs for tools, orchestration graphs, policies) live in **Transformation/UAF** and are versioned like ProcessDefinitions.
+* Each AgentDefinition has:
 
   * `domains: [...]` and `processes: [...]` tags (for routing & UI only)
   * `scope`: read‑only vs read/write vs code‑gen
   * `risk_tier`: e.g. `low`, `medium`, `high`
-* “Dangerous” capabilities (file system access, k8s access, direct SQL) are only exposed to **high‑tier, non‑default agents**, and always wrapped by deterministic tools.
+* "Dangerous" capabilities (file system access, k8s access, direct SQL) are only exposed to **high‑tier, non‑default AgentDefinitions**, and always wrapped by deterministic tools.
 
 ### 7.2 Deterministic boundaries
 
-* DomainControllers and ProcessControllers **never call raw LLM APIs**; they call Agents through the Agent domain, which:
+* DomainControllers and ProcessControllers **never call raw LLM APIs**; they invoke AgentControllers which:
 
-  * Logs prompts & results
-  * Enforces rate limits and timeouts
-  * Applies basic content filters (PII, secret‑like patterns).
+  * Execute AgentDefinitions loaded from UAF
+  * Log prompts & results
+  * Enforce rate limits and timeouts
+  * Apply basic content filters (PII, secret‑like patterns).
 
 ### 7.3 Agent‑generated code & configs
 
-The `core-platform-coder` review already flags security concerns: CLI fragility, prompt size, and raw shell argument handling. 
+The `core-platform-coder` review already flags security concerns: CLI fragility, prompt size, and raw shell argument handling.
 
 We generalize:
 
-* Any agent that writes code, Helm values, or Backstage configs must:
+* Any AgentController that writes code, Helm values, or Backstage configs must:
 
   * Propose changes as **artifacts in UAF or Git**, not apply them directly.
   * Pass through:
@@ -229,7 +248,7 @@ We generalize:
     * Static checks (lint, tests, security scanning)
     * Human or policy‑based approval
     * GitOps pipeline for deployment.
-* The Agent domain logs “write intents” with full diff and user/tenant context.
+* Transformation/UAF logs "write intents" with full diff and user/tenant context.
 
 ---
 
@@ -297,9 +316,9 @@ Here’s how I’d start making this real without boiling the ocean:
      * Enforce `tenant_id` in all queries (DB and Graph).
      * Wire in OTel tracing and error mapping by default. 
 
-3. **Agent domain hardening v1**
+3. **AgentDefinition governance v1**
 
-   * Add `scope` + `risk_tier` to agent definitions.
+   * Add `scope` + `risk_tier` to AgentDefinitions in Transformation/UAF.
    * Wrap any code‑gen / infra‑gen in UAF artifacts and GitOps flows, not direct writes.
 
 4. **UAF secret‑scan + promotion gate**
@@ -385,20 +404,24 @@ This Security & Trust Architecture should be read with the following documents:
 
 ### 11.3 Agents alignment (310)
 
-* 476 §7.1 requires agents to have `scope` (read-only vs read/write vs code-gen) and `risk_tier` (low, medium, high)
-* 476 §7.2 requires deterministic boundaries (controllers never call raw LLM APIs)
+* 476 §7.1 requires AgentDefinitions to have `scope` (read-only vs read/write vs code-gen) and `risk_tier` (low, medium, high)
+* 476 §7.2 requires deterministic boundaries (DomainControllers/ProcessControllers invoke AgentControllers, never raw LLM APIs)
 * 476 §7.3 requires agent-generated code to propose via UAF/Git artifacts, not direct writes
+
+**Terminology alignment:**
+* AgentDefinitions = design-time specs stored in Transformation/UAF (§7.1)
+* AgentControllers = runtime that executes AgentDefinitions (§7.2)
 
 **Current status per 310-agents-v2:**
 - ✅ AgentInstance proto exists with basic metadata (node_id, version, parameters, tools)
-- ❌ **Gap**: No `scope` field on AgentInstance message
-- ❌ **Gap**: No `risk_tier` field on AgentInstance message
+- ❌ **Gap**: No `scope` field on AgentDefinition/AgentInstance message
+- ❌ **Gap**: No `risk_tier` field on AgentDefinition/AgentInstance message
 - ⚠️ **Gap**: `agents.tool_grants` schema exists but service does NOT expose grant/revoke APIs
 - ❌ **Gap**: No enforcement of grants at publish time
 - ❌ **Gap**: "Write intents" logging (§7.3) not implemented
 
 **Impact on 476 compliance:**
-- §7.1 (agent domain constraints): ❌ NOT MET - cannot differentiate safe agents from dangerous ones
+- §7.1 (AgentDefinition governance): ❌ NOT MET - cannot differentiate safe agents from dangerous ones
 - §7.3 (agent-generated code governance): ❌ NOT MET - awaiting UAF promotion flow
 
 ### 11.4 SDK alignment (388)
@@ -438,7 +461,7 @@ This Security & Trust Architecture should be read with the following documents:
 | **RLS not enabled** | §2.1, §4.1, §5.1 require DB-level RLS | Tenant isolation principle NOT MET | [329-authz](329-authz.md) ⚠️ CRITICAL |
 | **Org-level scoping missing** | §5.1 requires tenant + org + role checks | Cross-org data leakage possible within tenant | [329-authz](329-authz.md) Phase 2 |
 | **API routes lack 403 enforcement** | §6 requires AuthZ interceptors | Insufficient permission not rejected | [322-rbac](322-rbac.md) |
-| **Agent scope/risk_tier** | §7.1 requires capability classification | No enforcement of dangerous capability restrictions | [310-agents-v2](310-agents-v2.md) |
+| **AgentDefinition scope/risk_tier** | §7.1 requires capability classification | No enforcement of dangerous capability restrictions | [310-agents-v2](310-agents-v2.md) |
 | **Write intents logging** | §7.3 requires agent diff logging | No audit trail for agent-generated changes | — |
 | **UAF secret scanner** | §9 describes secret scan + promotion gate | Not yet implemented | UAF spec |
 | **TS SDK not published** | §6 requires AmeideClient | External TS consumers cannot use secure patterns | [388-ameide-sdks](388-ameide-sdks-north-star.md) |
@@ -452,8 +475,8 @@ This Security & Trust Architecture should be read with the following documents:
    * Current implementation uses application-level tenant filtering only (per 322-rbac)
    * **Resolution required**: Implement RLS per 329-authz Phase 2/3
 
-2. **Agent deterministic boundary enforcement**
-   * §7.2 requires agents to "never call raw LLM APIs" from controllers
+2. **AgentController deterministic boundary enforcement**
+   * §7.2 requires DomainControllers/ProcessControllers to invoke AgentControllers (never raw LLM APIs)
    * Current implementation may have direct LLM calls in some services
    * **Audit needed**: Verify deterministic boundary compliance
 
@@ -462,8 +485,8 @@ This Security & Trust Architecture should be read with the following documents:
    * Backstage not yet deployed per 473 §11.2
    * **Alternative needed**: Document how to achieve secure defaults without Backstage
 
-4. **Agent scope/risk_tier vs tool grants**
-   * 476 §7.1 describes `scope` and `risk_tier` as agent-level properties
+4. **AgentDefinition scope/risk_tier vs tool grants**
+   * 476 §7.1 describes `scope` and `risk_tier` as AgentDefinition-level properties
    * 310 has `tool_grants` schema but no enforcement
    * **Clarification needed**: How do scope/risk_tier interact with tool grants?
 
@@ -479,7 +502,7 @@ This Security & Trust Architecture should be read with the following documents:
 | §2.6 Secure-by-template | ❌ NOT MET | Backstage templates not created |
 | §4.2 RBAC canonical roles | ✅ MET | Per 322-rbac, roles wired end-to-end |
 | §6 SDK security contract | ⚠️ PARTIAL | Go/Python SDKs published; TS SDK missing |
-| §7.1 Agent constraints | ❌ NOT MET | scope/risk_tier fields missing |
+| §7.1 AgentDefinition governance | ❌ NOT MET | scope/risk_tier fields missing in AgentDefinitions |
 | §9 Audit events | ❌ NOT MET | Audit logging not implemented |
 
 ---
@@ -502,8 +525,8 @@ Based on gap analysis, the following actions are recommended in priority order:
 
 ### Priority 2: HIGH (Enables agent governance)
 
-3. **Agent domain hardening** (2 weeks)
-   * Add `scope` and `risk_tier` to AgentInstance proto per §7.1
+3. **AgentDefinition governance** (2 weeks)
+   * Add `scope` and `risk_tier` to AgentDefinition in Transformation/UAF per §7.1
    * Implement tool grant enforcement at publish time
    * Wire "write intents" logging per §7.3
 

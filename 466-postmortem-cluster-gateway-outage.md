@@ -1,5 +1,13 @@
 # 466 – Post-Mortem: Cluster Gateway Outage
 
+> **Cross-References (Deployment Architecture Suite)**:
+>
+> | Document | Purpose |
+> |----------|---------|
+> | [465-applicationset-architecture.md](465-applicationset-architecture.md) | cluster ApplicationSet manages gateway |
+> | [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md) | Phase 030 (cluster configs) |
+> | [464-chart-folder-alignment.md](464-chart-folder-alignment.md) | Chart at `sources/charts/cluster/gateway/` |
+
 **Date**: 2025-12-07
 **Duration**: ~25 minutes (10:10 - 10:35 UTC)
 **Severity**: P1 - ArgoCD UI inaccessible

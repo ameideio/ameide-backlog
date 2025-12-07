@@ -3,8 +3,17 @@
 **Created**: 2025-12-07
 **Updated**: 2025-12-07
 
-> **Related documents:**
-> - [464-chart-folder-alignment.md](464-chart-folder-alignment.md) – Chart folder structure
+> **Cross-References (Deployment Architecture Suite)**:
+> This document is the **primary reference** for understanding how Ameide deploys components.
+>
+> | Document | Purpose |
+> |----------|---------|
+> | [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md) | Rollout phases & sub-phase patterns (`*10`, `*20`, `*50`, etc.) |
+> | [464-chart-folder-alignment.md](464-chart-folder-alignment.md) | Chart folder structure & domain alignment |
+> | [426-keycloak-config-map.md](426-keycloak-config-map.md) | Secrets handling, OIDC client extraction patterns |
+> | [473-ameide-technology.md](473-ameide-technology.md) | Technology architecture (how Backstage, Temporal fit in) |
+>
+> **Related (Implementation Details)**:
 > - [446-namespace-isolation.md](446-namespace-isolation.md) – Namespace isolation patterns
 > - [466-postmortem-cluster-gateway-outage.md](466-postmortem-cluster-gateway-outage.md) – Incident from incorrect understanding
 
@@ -490,6 +499,60 @@ The `domain:` field in component.yaml should match the folder path:
 
 ---
 
+## Deployment Architecture Document Suite
+
+This document is the entry point for understanding Ameide's GitOps deployment model. The suite consists of:
+
+| Document | Scope | When to Read |
+|----------|-------|--------------|
+| **465-applicationset-architecture** (this doc) | How ApplicationSets generate apps | First – understand the basics |
+| [447-waves-v3-cluster-scoped-operators](447-waves-v3-cluster-scoped-operators.md) | Rollout phases & sub-phases | When choosing rolloutPhase for a component |
+| [464-chart-folder-alignment](464-chart-folder-alignment.md) | Chart folder conventions | When creating/moving charts |
+| [426-keycloak-config-map](426-keycloak-config-map.md) | Secrets & OIDC patterns | When adding auth or secrets to a service |
+| [473-ameide-technology](473-ameide-technology.md) | Technology architecture | When understanding Backstage, Temporal, SDKs |
+
+### Quick Decision Tree
+
+```
+Adding a new component?
+├── Is it a CRD or Operator?
+│   └── YES → cluster/ domain, phase 010-020
+│       See: 447 §Cluster Phases
+├── Is it per-environment workload?
+│   └── YES → apps/data/platform/observability domain
+│       See: 447 §Environment Phases for phase selection
+│       See: 464 for folder structure
+├── Does it need database?
+│   └── YES → Add to postgres_clusters databases list
+│       See: CNPG patterns in 426
+├── Does it need OIDC auth?
+│   └── YES → Add Keycloak client + client-patcher
+│       See: 426 §3.2 Client Secret Extraction
+└── Does it need external secrets?
+    └── YES → Add ExternalSecret referencing ameide-vault
+        See: 426 §4 Secrets & ownership model
+```
+
+---
+
+## Related Operational Runbooks
+
+When troubleshooting specific components, these runbooks provide detailed procedures:
+
+| Topic | Documents | Use When |
+|-------|-----------|----------|
+| **Temporal** | [305-workflow.md](305-workflow.md), [420](420-temporal-cnpg-dev-registry-runbook.md), [423](423-temporal-argocd-recovery.md) | Temporal not starting, schema issues |
+| **Database (CNPG)** | [412-cnpg-owned-postgres-greds.md](412-cnpg-owned-postgres-greds.md) | DB credentials issues, connection failures |
+| **Secrets/Vault** | [413](413-vault-bootstrap-readiness.md), [451](451-secrets-management.md), [452](452-vault-rbac-isolation.md) | Secrets not syncing, Vault sealed |
+| **Kafka (Strimzi)** | [421-argocd-strimzi-kafkanodepool-health.md](421-argocd-strimzi-kafkanodepool-health.md) | Kafka health stuck, operator issues |
+| **ClickHouse** | [419-clickhouse-argocd-resiliency.md](419-clickhouse-argocd-resiliency.md) | CHI not reconciling, CRD issues |
+| **Keycloak** | [426-keycloak-config-map.md](426-keycloak-config-map.md) §5 | Realm import, client-patcher failures |
+| **Tolerations** | [447-third-party-chart-tolerations.md](447-third-party-chart-tolerations.md) | Pods stuck Pending on tainted nodes |
+| **Observability** | [452-observability-namespace-isolation.md](452-observability-namespace-isolation.md) | RBAC conflicts, Prometheus/Grafana |
+| **Gateway** | [466-postmortem-cluster-gateway-outage.md](466-postmortem-cluster-gateway-outage.md) | ArgoCD ingress down, envoy issues |
+
+---
+
 ## Decision Log
 
 | Date | Decision | Rationale |
@@ -497,3 +560,5 @@ The `domain:` field in component.yaml should match the folder path:
 | 2025-12-07 | Created documentation | Clarify how cluster vs environment ApplicationSets work |
 | 2025-12-07 | Expanded with complete file paths | Prevent confusion about where files should go |
 | 2025-12-07 | Added common mistakes section | Document lessons from 466 incident |
+| 2025-12-07 | Added cross-references to deployment suite | Improve discoverability of related docs |
+| 2025-12-07 | Added operational runbooks section | Link to troubleshooting procedures for common issues |

@@ -6,7 +6,18 @@ Here’s **Document 4/6 – Technology Architecture**.
 
 **Status:** Draft
 **Audience:** Platform / Domain & Process Teams / DevEx / SRE
-**Scope:** How Ameide is built and operated: runtimes, infra, integration points, and the technical guardrails that make “domain / process / agent” controllers real.
+**Scope:** How Ameide is built and operated: runtimes, infra, integration points, and the technical guardrails that make "domain / process / agent" controllers real.
+
+> **Cross-References (Deployment Architecture Suite)**:
+> For GitOps deployment patterns, see:
+>
+> | Document | Purpose |
+> |----------|---------|
+> | [465-applicationset-architecture.md](465-applicationset-architecture.md) | How the two ApplicationSets work |
+> | [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md) | Rollout phases & sub-phase patterns |
+> | [464-chart-folder-alignment.md](464-chart-folder-alignment.md) | Chart folder structure & domain alignment |
+> | [426-keycloak-config-map.md](426-keycloak-config-map.md) | Secrets handling, OIDC client extraction |
+> | [477-backstage.md](477-backstage.md) | Backstage implementation (§2.3 factory pattern) |
 
 ---
 
@@ -38,11 +49,11 @@ The goal is to give implementers a **vendor-aligned blueprint** that can be exec
    * Backstage’s **Software Catalog** and **Software Templates / Scaffolder** are used to create and manage all Ameide services (domain/process/agent) and their Helm charts. ([Backstage][2])
    * Ameide-specific templates encapsulate all wiring (proto skeleton, SDK, deployment, monitoring), so an agent or the transformation domain can “ask” for a new controller and simply fill in code.
 
-4. **Temporal for process orchestration; BPMN for process intent**
+4. **Temporal for process orchestration; BPMN-compliant ProcessDefinitions for process intent**
 
    * The *runtime* for processes is Temporal (code‑first workflows). ([Temporal][3])
-   * BPMN (Camunda tooling) is used as a **design artifact and contract** for ProcessControllers, not as the only runtime. Mapping BPMN to Temporal is handled by the transformation/UAF pipeline.
-   * Where needed, Camunda 8 remains a first‑class target for BPMN deployment (e.g. customers heavily invested in Camunda). ([Camunda 8 Docs][4])
+   * **ProcessDefinitions** are BPMN-compliant artifacts produced by a **custom React Flow modeller** (NOT Camunda/bpmn-js) and stored in Transformation/UAF. Mapping ProcessDefinitions to Temporal is handled by the transformation/UAF pipeline.
+   * ProcessControllers execute ProcessDefinitions at runtime, backed by Temporal workflows.
 
 5. **Deterministic domains, non‑deterministic agents**
 
@@ -97,13 +108,13 @@ The goal is to give implementers a **vendor-aligned blueprint** that can be exec
   * Best practices: workflows orchestrate, activities do work, external I/O is always in activities. ([Medium][6])
 * Ameide runs dedicated **workers** per domain/process namespace (e.g. `sales-process`, `transformation-process`) and uses Temporal’s namespace access control to segregate tenants.
 
-**BPMN / Camunda**
+**ProcessDefinitions (BPMN-compliant)**
 
-* BPMN models created via bpmn‑js + Camunda moddle are:
+* ProcessDefinitions created via **custom React Flow modeller** are:
 
-  * Stored as UAF artifacts (with an event history).
-  * Optionally deployed to Camunda 8 clusters when required by customer architecture. ([Camunda 8 Docs][4])
-* The default path translates BPMN to Temporal workflows (per the North‑Star design / UAF).
+  * BPMN-compliant in semantics (stages, gateways, lanes) but NOT Camunda-stack.
+  * Stored as UAF artifacts in Transformation (with event history).
+* The default path compiles ProcessDefinitions to Temporal workflows executed by ProcessControllers.
 
 **Background jobs & messaging**
 
@@ -126,32 +137,35 @@ The goal is to give implementers a **vendor-aligned blueprint** that can be exec
 
 **3.3.2 ProcessControllers (processes)**
 
-* Each ProcessController is essentially a **bundle**:
+* Each ProcessController executes a **ProcessDefinition** (design-time artifact) at runtime:
 
-  * A BPMN model (UAF artifact).
-  * A Temporal workflow implementation (Go/TS/Python). ([Temporal][3])
-  * Declarations of which DomainControllers and Agents it interacts with.
+  * **ProcessDefinition** (in UAF): BPMN-compliant artifact from custom React Flow modeller.
+  * **ProcessController** (runtime): Temporal workflow implementation (Go/TS/Python). ([Temporal][3])
+  * Declarations of which DomainControllers and AgentControllers it interacts with.
 * The technology pattern:
 
-  * BPMN is edited in-browser (bpmn‑js), stored via UAF.
-  * Transformation domain compiles the BPMN + Ameide primitives into Temporal workflow code or config.
+  * ProcessDefinitions are edited in-browser (custom React Flow modeller), stored in Transformation/UAF.
+  * Transformation domain compiles ProcessDefinitions into Temporal workflow code or config.
   * Temporal workers execute the compiled workflows; ProcessControllers expose gRPC endpoints to start or query process instances.
 
-**3.3.3 Agents (AgentControllers)**
+**3.3.3 AgentControllers (agents)**
 
-* Agents run in an **inference runtime** (Python/TS) that encapsulates:
+* Each AgentController executes an **AgentDefinition** (design-time artifact) at runtime:
 
-  * LLM provider (OpenAI, others),
-  * Tools that map to DomainController/ProcessController APIs via the Ameide SDKs,
-  * LangGraph- or similar graph definition for multi-step reasoning.
-* Agents are declared as Backstage components and managed like any other service (templates + Helm), but they **do not own durable state**; they propose changes that must go through processes/domains.
+  * **AgentDefinition** (in UAF): Declarative spec for tools, orchestration graph, scope, risk tier, policies.
+  * **AgentController** (runtime): Inference runtime (Python/TS) that encapsulates:
+
+    * LLM provider (OpenAI, others),
+    * Tools that map to DomainController/ProcessController APIs via the Ameide SDKs,
+    * LangGraph- or similar graph definition for multi-step reasoning.
+* AgentControllers are declared as Backstage components and managed like any other service (templates + Helm), but they **do not own durable state**; they propose changes that must go through ProcessControllers/DomainControllers.
 
 **3.3.4 Transformation & UAF**
 
 * The Transformation domain is implemented as:
 
-  * A DomainController for transformation data (initiatives, stages, metrics, IPAs/UAF artifacts).
-  * A **builder/compile service** (inspired by the IPA builder) that transforms artifacts into runtime deployments (Temporal workflows, BPMN deployments, Backstage template updates).
+  * A DomainController for transformation data (initiatives, stages, metrics, ProcessDefinitions, AgentDefinitions, and other UAF artifacts).
+  * A **builder/compile service** that transforms design-time artifacts (ProcessDefinitions, AgentDefinitions) into runtime deployments (Temporal workflows, AgentController configs, Backstage template updates).
 
 ---
 
@@ -172,7 +186,9 @@ The goal is to give implementers a **vendor-aligned blueprint** that can be exec
 
 **Design/Modeling tools**
 
-* BPMN & possibly ArchiMate modelers are browser-based (bpmn‑js + properties panel, Archimate‑JS) running inside Next.js or as separate webapps, communicating with the UAF and Design APIs described in the North‑Star doc.
+* **Custom React Flow modeller** for ProcessDefinitions (BPMN-compliant semantics, NOT Camunda/bpmn-js).
+* ArchiMate modelers (browser-based) for architecture artifacts.
+* Both run inside Next.js or as separate webapps, communicating with the Transformation/UAF APIs.
 
 ---
 
@@ -207,21 +223,21 @@ We define a small set of **opinionated templates**: ([Backstage][7])
      * Backstage `catalog-info.yaml` with `type: domain-controller`.
    * Uses the Buf-based proto pipeline + Ameide SDK import patterns.
 
-2. **Process Controller template**
+2. **ProcessController template**
 
    * Generates:
 
-     * BPMN template file + modeling project.
+     * Initial ProcessDefinition (BPMN-compliant, from React Flow modeller) + modeling project.
      * Temporal workflow worker skeleton in chosen language.
-     * UAF artifact registration & Design API integration.
+     * UAF artifact registration & Transformation API integration.
 
-3. **Agent template**
+3. **AgentController template**
 
    * Generates:
 
-     * Agent graph definition file (YAML/JSON).
-     * Tool stubs for Domain/Process controllers using Ameide SDK TS/Go/Python.
-     * Helm chart for inference runtime deployment (autoscaled).
+     * AgentDefinition file (tools, policies, orchestration graph) stored in UAF.
+     * Tool stubs for DomainController/ProcessController APIs using Ameide SDK TS/Go/Python.
+     * Helm chart for AgentController inference runtime deployment (autoscaled).
 
 These templates are *also* what agents pick from when “auto‑rolling” a new controller: the agent writes the template input, not the raw K8s manifests.
 
@@ -271,12 +287,12 @@ These templates are *also* what agents pick from when “auto‑rolling” a new
 
 ## 7. Observability, Quality & Tooling
 
-* **Tracing & metrics:** OpenTelemetry across services; Temporal and Camunda emit their own spans/metrics; combined in Grafana.
+* **Tracing & metrics:** OpenTelemetry across services; Temporal emits its own spans/metrics; combined in Grafana.
 * **Logging:** Structured logs with correlation IDs (`trace_id`, `tenant_id`, `controller_type`, `controller_name`).
 * **Testing & quality:**
 
   * Domain controllers: unit tests + integration tests (DB), contract tests via generated clients.
-  * Process controllers: Temporal workflow unit tests + BPMN lint checks.
+  * ProcessControllers: Temporal workflow unit tests + ProcessDefinition lint checks.
   * Agents: tool contract tests; sandbox execution before allowing them to write Backstage templates or code (reuse patterns from the core-platform coder review). 
 
 ---
@@ -302,9 +318,10 @@ These templates are *also* what agents pick from when “auto‑rolling” a new
    * Short term: `AmeideTenant` + infra operators only.
    * Medium term: consider CRDs for *catalog-ish* constructs (e.g. `TransformationPipeline`) if they provide clear operational benefits.
 
-3. **Camunda vs Temporal balance**
+3. **ProcessDefinition modeller technology**
 
-   * For now, Temporal is the default runtime; Camunda 8 is a first‑class integration for customers already there, leveraging BPMN best practices from Camunda docs. ([Camunda 8 Docs][8])
+   * Custom React Flow modeller is the design-time tool for BPMN-compliant ProcessDefinitions.
+   * Temporal is the only runtime for ProcessControllers; no Camunda integration planned.
 
 4. **Backstage multi‑tenancy**
 
@@ -326,19 +343,20 @@ This Technology Architecture should be read with the following documents:
 | [464‑chart‑folder‑alignment](464-chart-folder-alignment.md) | Chart structure & rollout phases | Strong ✅ |
 | [333‑realms](333-realms.md) | Realm‑per‑tenant implementation | Strong ✅ |
 | [305‑workflow](305-workflow.md) | Temporal/ProcessController runtime | See §10.1 |
-| [310‑agents‑v2](310-agents-v2.md) | AgentRuntime layer | See §10.2 |
+| [310‑agents‑v2](310-agents-v2.md) | AgentController layer | See §10.2 |
 | [388‑ameide‑sdks‑north‑star](388-ameide-sdks-north-star.md) | SDK publish strategy | See §10.3 |
 
 ### 10.1 Workflow alignment (305)
 
 * 305 describes Temporal-based workflow orchestration; aligns with §3.2 (Runtime Orchestration Layer).
-* **Gap**: 305 uses code-first Temporal; 473 §2.4 also supports BPMN→Temporal translation via UAF. Ensure 305 can accept both code-first and BPMN-compiled workflows.
+* ProcessDefinitions (BPMN-compliant, from custom React Flow modeller) are compiled to Temporal workflows.
+* ProcessControllers execute ProcessDefinitions at runtime, backed by Temporal.
 
 ### 10.2 Agents alignment (310)
 
-* 310 describes AgentRuntime with n8n-style flows; 473 §3.3.3 describes LangGraph-based agents.
-* **Tension**: Two agent patterns may coexist (n8n for visual low-code, LangGraph for code-first). Backstage templates should support both.
-* **Resolution needed**: Clarify which runtime is primary and how they interoperate.
+* 310 describes AgentController implementation with n8n-style flows; 473 §3.3.3 describes LangGraph-based AgentControllers.
+* AgentDefinitions (design-time specs in UAF) are executed by AgentControllers at runtime.
+* **Clarification**: Both n8n-aligned (visual low-code) and LangGraph (code-first) patterns are valid AgentController implementations.
 
 ### 10.3 SDK alignment (388)
 
@@ -353,9 +371,11 @@ This Technology Architecture should be read with the following documents:
 
 | 473 Term | Related Terms | Notes |
 |----------|---------------|-------|
-| DomainController | Domain Service, DomainService (470/471) | Consistent across docs ✅ |
-| ProcessController | Workflow (305), BPMN Process | 305 uses "Workflow"; recommend aligning |
-| AgentRuntime | Agent (310), AgentController | 310 uses "AgentRuntime"; consistent ✅ |
+| DomainController | DomainService (deprecated) | Consistent across 470-476 ✅ |
+| ProcessController | Workflow (305) | Runtime that executes ProcessDefinitions |
+| ProcessDefinition | BPMN model (deprecated) | Design-time artifact in UAF (from custom React Flow modeller) |
+| AgentController | AgentRuntime (deprecated) | Runtime that executes AgentDefinitions |
+| AgentDefinition | Agent config (deprecated) | Design-time artifact in UAF |
 | Component domain (465) | N/A | 465 "domain" = folder category (apps, data), not business domain |
 
 **Clarification needed**: "Domain" is overloaded:
@@ -369,10 +389,10 @@ Recommend using "component category" or "deployment domain" for 465-style usage.
 | Gap | Description | Impact | Related Docs |
 |-----|-------------|--------|--------------|
 | Backstage not deployed | §4 assumes Backstage as controller factory | Cannot use template-driven service creation | 470 §9.2.2 |
-| UAF storage undefined | §2.6 assumes event-sourced artifacts | No infra backlog defines UAF persistence | 471 §3.2 |
+| UAF storage undefined | §2.6 assumes event-sourced ProcessDefinitions/AgentDefinitions | No infra backlog defines UAF persistence | 471 §3.2 |
 | Temporal namespace isolation | §3.2 mentions per-tenant namespaces | Current deployment is single namespace | 305 |
 | AmeideTenant CRD | §3.1 suggests tenant CRD | 333 uses API-driven realm provisioning | 333 |
-| BPMN→Temporal compiler | §3.2 assumes BPMN to Temporal translation | No compiler exists yet | 305, 471 |
+| ProcessDefinition→Temporal compiler | §3.2 assumes ProcessDefinition to Temporal translation | No compiler exists yet | 305, 471 |
 
 ### 11.3 Open architectural tensions
 
@@ -386,25 +406,18 @@ Recommend using "component category" or "deployment domain" for 465-style usage.
    * 333 implements realm provisioning via Keycloak Admin API
    * **Decision needed**: Is CRD-based approach still desired, or has API-driven superseded it?
 
-3. **Agent runtime choice**
-   * 473 §3.3.3 describes LangGraph-based agents
+3. **AgentController runtime choice**
+   * 473 §3.3.3 describes LangGraph-based AgentControllers
    * 310 describes n8n-aligned visual workflows
-   * **Clarification needed**: Are both first-class, or is one primary?
-
-4. **Camunda 8 integration scope**
-   * 473 §2.4, §3.2 mention Camunda as optional runtime
-   * No infrastructure or charts exist for Camunda deployment
-   * **Decision needed**: Is Camunda out of scope for current infrastructure?
+   * **Resolution**: Both are valid AgentController implementations; AgentDefinitions abstract the runtime choice
 
 ---
 
-If you'd like, next we can do **Document 5/6 – Domains Architecture**, and apply this tech stack concretely to L2O and Transformation (including where UAF, BPMN and Temporal sit in those domains).
+If you'd like, next we can do **Document 5/6 – Domains Architecture**, and apply this tech stack concretely to L2O and Transformation (including where UAF, ProcessDefinitions, and Temporal sit in those domains).
 
 [1]: https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/?utm_source=chatgpt.com "Custom Resources"
 [2]: https://backstage.io/docs/features/software-catalog/?utm_source=chatgpt.com "Backstage Software Catalog and Developer Platform"
 [3]: https://docs.temporal.io/workflows?utm_source=chatgpt.com "Temporal Workflow | Temporal Platform Documentation"
-[4]: https://docs.camunda.io/docs/components/modeler/bpmn/?utm_source=chatgpt.com "BPMN in Modeler | Camunda 8 Docs"
 [5]: https://kubernetes.io/docs/concepts/extend-kubernetes/operator/?utm_source=chatgpt.com "Operator pattern"
 [6]: https://medium.com/%40ajayshekar01/best-practices-for-building-temporal-workflows-a-practical-guide-with-examples-914fedd2819c?utm_source=chatgpt.com "Best Practices for Building Temporal Workflows"
 [7]: https://backstage.io/docs/features/software-templates/?utm_source=chatgpt.com "Backstage Software Templates"
-[8]: https://docs.camunda.io/docs/components/best-practices/best-practices-overview/?utm_source=chatgpt.com "Best Practices - Camunda 8 Docs"

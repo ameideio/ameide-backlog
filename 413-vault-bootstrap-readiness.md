@@ -1,5 +1,19 @@
 # Vault bootstrap readiness and rollout bands
 
+> **Cross-References (Deployment Architecture Suite)**:
+>
+> | Document | Purpose |
+> |----------|---------|
+> | [465-applicationset-architecture.md](465-applicationset-architecture.md) | Per-environment Vault deployment via ameide ApplicationSet |
+> | [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md) | Phase 150 (vault-core) → Phase 155 (vault-bootstrap) |
+> | [464-chart-folder-alignment.md](464-chart-folder-alignment.md) | Chart at `sources/charts/foundation/vault-bootstrap/` |
+> | [426-keycloak-config-map.md](426-keycloak-config-map.md) | Client-patcher writes to Vault |
+>
+> **Related**:
+> - [451-secrets-management.md](451-secrets-management.md) – End-to-end secrets flow
+> - [452-vault-rbac-isolation.md](452-vault-rbac-isolation.md) – Per-environment Vault RBAC
+> - [387-argocd-waves.md](387-argocd-waves.md) – Original wave/band semantics
+
 Context: We need Vault to stay in the post-runtime band (155) while avoiding a deadlock where Argo CD waits for Vault to be Ready before it will apply the bootstrap Job that initializes/unseals it.
 
 Decision:

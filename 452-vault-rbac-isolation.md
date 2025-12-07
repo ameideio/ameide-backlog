@@ -1,5 +1,16 @@
 # 452: Vault RBAC Isolation
 
+> **Note:** This document (452) covers Vault RBAC. For observability namespace isolation, see [452-observability-namespace-isolation.md](452-observability-namespace-isolation.md).
+
+> **Cross-References (Deployment Architecture Suite)**:
+>
+> | Document | Purpose |
+> |----------|---------|
+> | [465-applicationset-architecture.md](465-applicationset-architecture.md) | Per-environment Vault deployment |
+> | [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md) | Phase 150/155 (vault-core/bootstrap) |
+> | [464-chart-folder-alignment.md](464-chart-folder-alignment.md) | Chart at `sources/charts/third_party/hashicorp/vault/` |
+> | [426-keycloak-config-map.md](426-keycloak-config-map.md) | Client-patcher writes secrets to Vault |
+
 ## Status: Implemented
 
 ## Problem

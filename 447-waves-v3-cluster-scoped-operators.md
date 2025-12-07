@@ -1,8 +1,19 @@
 # ArgoCD Rollout Phases v3: Dual ApplicationSet Architecture
 
+> **Note:** This document (447) covers rollout phases and cluster-scoped operators.
+> For third-party chart tolerations, see [447-third-party-chart-tolerations.md](447-third-party-chart-tolerations.md).
+
 **Status**: Implemented
 **Supersedes**: 387-argocd-waves-v2.md (partially - phase numbering retained, architecture updated)
-**Related**: [446-namespace-isolation.md](446-namespace-isolation.md), [448-per-environment-service-verification.md](448-per-environment-service-verification.md), [449-per-environment-infrastructure.md](449-per-environment-infrastructure.md), [452-observability-namespace-isolation.md](452-observability-namespace-isolation.md), [455-traffic-manager-ignoredifferences.md](455-traffic-manager-ignoredifferences.md), [456-ghcr-mirror.md](456-ghcr-mirror.md)
+
+> **Cross-References (Deployment Architecture Suite)**:
+> - [465-applicationset-architecture.md](465-applicationset-architecture.md) – **READ THIS FIRST**: How the two ApplicationSets work
+> - [464-chart-folder-alignment.md](464-chart-folder-alignment.md) – Chart folder structure and domain alignment
+> - [426-keycloak-config-map.md](426-keycloak-config-map.md) – Secrets and OIDC client patterns
+> - [473-ameide-technology.md](473-ameide-technology.md) – Technology architecture (Backstage, Temporal, etc.)
+>
+> **Related (Implementation Details)**:
+> - [446-namespace-isolation.md](446-namespace-isolation.md), [448-per-environment-service-verification.md](448-per-environment-service-verification.md), [449-per-environment-infrastructure.md](449-per-environment-infrastructure.md), [452-observability-namespace-isolation.md](452-observability-namespace-isolation.md), [455-traffic-manager-ignoredifferences.md](455-traffic-manager-ignoredifferences.md), [456-ghcr-mirror.md](456-ghcr-mirror.md)
 
 ## Problem Statement
 
@@ -155,20 +166,81 @@ Retained from v2 design for workloads:
 | Band | Purpose | Phases |
 |------|---------|--------|
 | Foundation | Core infrastructure | 100-199 |
-| Data | Database/messaging workloads | 200-299 |
+| Data Core | Database/messaging workloads | 200-299 |
 | Platform | Platform services | 300-399 |
 | Data Extended | Temporal, etc. | 400-499 |
 | Observability | Monitoring/logging | 500-599 |
 | Apps | Application workloads | 600-699 |
 
-Within each band:
-- `*10`: CRDs (environment-specific, if any)
-- `*20`: Controllers (environment-specific, if any)
-- `*30`: Secrets
-- `*40`: Configs/bootstraps
-- `*50`: Runtimes/workloads
-- `*55`: Post-runtime bootstraps
-- `*99`: Smokes
+#### Sub-phase Convention
+
+Within each band, use these sub-phases for consistent ordering:
+
+| Sub-phase | Purpose | Example |
+|-----------|---------|---------|
+| `*10` | CRDs (environment-specific, if any) | 310: platform-envoy-crds |
+| `*20` | Controllers (environment-specific, if any) | 320: envoy-gateway |
+| `*30` | Secrets | 330: platform Secret/ExternalSecret payloads |
+| `*40` | Configs/bootstraps | 340: Gateway, cert-manager-config |
+| `*50` | Runtimes/workloads | 350: Keycloak |
+| `*55` | Post-runtime bootstraps | 355: keycloak-realm, client-patcher |
+| `*56+` | Services dependent on bootstraps | 356: Backstage (needs client-patcher secret) |
+| `*99` | Smokes | 399: control-plane-smoke, auth-smoke |
+
+#### Band Details
+
+**Foundation (100-199)**
+- 110: CRDs (foundation CRDs such as cert-manager)
+- 120: Operators/controllers (cert-manager, external-secrets)
+- 130: Secret providers and shared secrets (vault-webhook-certs)
+- 140: Configs/bootstraps (managed-storage, coredns-config)
+- 150: Runtimes (Vault server)
+- 155: Post-runtime bootstraps (vault-bootstrap, vault-secret-store)
+- 199: Smokes (foundation-operators-smoke, foundation-bootstrap-smoke)
+
+**Data Core (200-299)**
+- 210: CRDs (redis, clickhouse, CNPG, strimzi)
+- 220: Operators (cloudnative-pg, clickhouse-operator, redis-operator, strimzi)
+- 230: Secrets (clickhouse-secrets, data DB creds)
+- 240: Configs (cnpg-monitoring, db-migrations prep)
+- 250: Runtimes (postgres-clusters, clickhouse, kafka-cluster, redis-failover, minio)
+- 260: Post-runtime (db-migrations execution)
+- 299: Smokes (data-plane-smoke)
+
+**Platform (300-399)**
+- 310: CRDs (envoy-crds, gateway-api, keycloak-crds)
+- 320: Operators (envoy-gateway, keycloak-operator)
+- 330: Secrets (platform Secret/ExternalSecret payloads, PKI chain)
+- 340: Configs (cert-manager-config, Gateway/HTTPRoute CRs)
+- 350: Runtimes (Keycloak, envoy data-plane)
+- 355: Post-runtime bootstraps (keycloak-realm, client-patcher)
+- 356: Post-bootstrap services (Backstage – needs OIDC secret from 355)
+- 399: Smokes (control-plane-smoke, auth-smoke, secrets-smoke)
+
+**Data Extended (400-499)**
+- 410: CRDs (temporal operator CRDs)
+- 420: Operators (temporal operator)
+- 430: Secrets (temporal/db secrets from CNPG)
+- 440: Configs (pre-runtime configs)
+- 450: Runtimes (temporal, pgadmin)
+- 455: Post-runtime bootstraps (temporal-namespace-bootstrap)
+- 499: Smokes (data-plane-ext-smoke)
+
+**Observability (500-599)**
+- 510: CRDs (prometheus-operator CRDs)
+- 520: Operators (prometheus operator)
+- 530: Secrets (vault-secrets-observability)
+- 540: Configs (grafana-datasources)
+- 550: Runtimes (grafana, loki, tempo, otel-collector, alloy-logs, langfuse, prometheus)
+- 599: Smokes (observability-smoke)
+
+**Apps (600-699)**
+- 610: CRDs (unlikely/none)
+- 620: Operators (if any app-side operator)
+- 630: Secrets (app Secret/ExternalSecret payloads)
+- 640: Configs (app configmaps)
+- 650: Runtimes (platform, graph, transformation, workflows, threads, agents, www-*)
+- 699: Smokes (apps-platform-smoke)
 
 ## Component Definition Examples
 

@@ -1,11 +1,27 @@
 Got it — let's re-cut the **Domains Architecture** layer with those corrections baked in.
 
-> **Alignment Note**: This document describes domain architecture patterns
-> that align with **ProcessControllers** as defined in [471‑ameide‑business‑architecture](471-ameide-business-architecture.md).
+> **Cross-References (Vision Suite)**:
 >
-> - ProcessControllers here are business-level abstractions (BPMN + runtime)
-> - Platform Workflows (305) implement ProcessControllers as Temporal infrastructure
-> - Customers experience these as "process stages" and "process boards"
+> | Document | Purpose |
+> |----------|---------|
+> | [470-ameide-vision.md](470-ameide-vision.md) | Vision and principles |
+> | [471-ameide-business-architecture.md](471-ameide-business-architecture.md) | Business concepts |
+> | [472-ameide-information-application.md](472-ameide-information-application.md) | Application architecture |
+> | [473-ameide-technology.md](473-ameide-technology.md) | Technology stack |
+> | [476-ameide-security-trust.md](476-ameide-security-trust.md) | Security architecture |
+>
+> **Deployment Implementation**:
+> - [461-ipc-idc-iac.md](461-ipc-idc-iac.md) – Infrastructure as Code patterns
+> - [465-applicationset-architecture.md](465-applicationset-architecture.md) – GitOps deployment model
+> - [464-chart-folder-alignment.md](464-chart-folder-alignment.md) – Chart folder structure by domain
+
+> **Alignment Note**: This document describes domain architecture patterns
+> that align with the design-time/runtime split defined in [471‑ameide‑business‑architecture](471-ameide-business-architecture.md):
+>
+> - **ProcessDefinitions** (design-time): BPMN-compliant artifacts from custom React Flow modeller, stored in Transformation/UAF
+> - **ProcessControllers** (runtime): Execute ProcessDefinitions, backed by Temporal
+> - **AgentDefinitions** (design-time): Declarative agent specs stored in Transformation/UAF
+> - **AgentControllers** (runtime): Execute AgentDefinitions
 >
 > For cross-references and gaps analysis, see §10 and §11.
 
@@ -49,14 +65,16 @@ It sits between:
    * End‑to‑end processes (L2O, O2C, P2P, H2R…) are modeled as **ProcessControllers** orchestrating multiple domains.
    * Domains are reusable building blocks across many processes (e.g. `Product` is used by L2O, O2C, P2P, M2O, etc.).
 
-3. **Transformation is “just another domain”**
+3. **Transformation is "just another domain" – and owns agent/process definitions**
 
    * Transformation (requirements, backlogs, UAF artifacts, architecture) is treated as its own domain cluster, not a magical meta‑layer.
+   * **ProcessDefinitions** and **AgentDefinitions** are design-time artifacts owned by Transformation/UAF.
 
-4. **Agents are first‑class and cross‑cutting**
+4. **AgentControllers are cross‑cutting runtimes**
 
-   * Agents form their **own domain** (Agent domain) and are *not* owned by individual business domains.
-   * Agents can be *specialised* for certain domains/processes via tags/labels, but technically they are global resources that any process or domain can call.
+   * AgentControllers execute AgentDefinitions loaded from Transformation/UAF.
+   * AgentDefinitions can be *specialised* for certain domains/processes via tags/labels (e.g. `domains: ["product", "pricing"]`).
+   * AgentControllers are global runtimes that any process or domain can call, but they don't own the agent logic – UAF does.
 
 5. **Backstage is an internal factory, not a tenant UI**
 
@@ -80,8 +98,12 @@ This is the “universe” we expect to cover long‑term. Not all are implement
 
 ### 3.2 Transformation & UAF Domain
 
-* Transformations, initiatives, backlogs, architecture models, process designs, and the Unified Artifact Framework (BPMN, ArchiMate, Markdown).
-* This is where LLM‑assisted “change the system” conversations and designs live, but technically it’s *just another domain*.
+* Transformations, initiatives, backlogs, architecture models, and the Unified Artifact Framework.
+* **Owns design-time artifacts**:
+  * **ProcessDefinitions** – BPMN-compliant process models (from custom React Flow modeller).
+  * **AgentDefinitions** – Declarative agent specs (tools, policies, orchestration graphs).
+  * ArchiMate models, Markdown docs, and other design artifacts.
+* This is where LLM‑assisted "change the system" conversations and designs live, but technically it's *just another domain*.
 
 ### 3.3 Commercial & Customer Domain Cluster
 
@@ -138,21 +160,22 @@ For HCM-style processes:
 
 * Unified graph of entities and relationships and artifact references, used for analysis, impact assessment and agent context.
 
-### 3.9 Agent Domain
-
-* Agent definitions, tools, runtimes, policies.
-* First‑party in the sense that “agents are a core domain”, not sidecar.
-* Agents are cross‑domain: they may be *tagged* as `domains: ["product", "pricing"]` or `processes: ["L2O"]`, but remain globally addressable.
+> **Note on Agents**: AgentDefinitions are design-time artifacts owned by the **Transformation & UAF Domain** (§3.2). AgentControllers are runtime components that execute AgentDefinitions. There is no separate "Agent Domain" – agents are artifacts in UAF like ProcessDefinitions, and AgentControllers are cross-cutting runtimes.
 
 ---
 
 ## 4. Controller Types per Domain
 
-We stick to the three controller types:
+We use three controller types (runtime) plus two design-time artifact types:
 
+**Design-time (in Transformation/UAF)**:
+* **ProcessDefinition** – BPMN-compliant artifact (from custom React Flow modeller) defining a process.
+* **AgentDefinition** – Declarative spec for an agent (tools, policies, orchestration graph).
+
+**Runtime (controllers)**:
 * **DomainController** – owns data+rules for a particular domain (e.g. Product, Orders).
-* **ProcessController** – orchestrates multiple domains and agents to implement an E2E process (e.g. L2O, O2C, P2P).
-* **Agent** – non‑deterministic automation that reads/writes via domain/process APIs.
+* **ProcessController** – executes ProcessDefinitions; orchestrates multiple DomainControllers and AgentControllers to implement an E2E process (e.g. L2O, O2C, P2P). Backed by Temporal.
+* **AgentController** – executes AgentDefinitions; non‑deterministic LLM/tool automation that reads/writes via domain/process APIs.
 
 All controllers expose proto‑based APIs and are consumed via the Ameide SDKs; this is uniform across all domains.
 
@@ -171,7 +194,11 @@ All controllers expose proto‑based APIs and are consumed via the Ameide SDKs; 
 
   * `TransformationController` (initiatives, metrics, stages).
   * `BacklogController` (epics, stories, tasks).
-  * `ArtifactController` (UAF artifacts & revisions).
+  * `ArtifactController` (UAF artifacts & revisions, including ProcessDefinitions and AgentDefinitions).
+* **Design-time artifacts owned by this domain**
+
+  * ProcessDefinitions – BPMN-compliant process models.
+  * AgentDefinitions – Declarative agent specs.
 * **ProcessControllers**
 
   * `AgileDeliveryProcess`, `TOGAFADMProcess`, `ChangeRequestProcess`.
@@ -216,9 +243,9 @@ Rather than being “special”, L2O and O2C are **canonical examples** of how t
 * Orchestrates:
 
   * Lead capture → qualification → offer/quote → negotiation → contract → **hand‑over to O2C** via `OrdersController`.
-* Agents:
+* AgentControllers:
 
-  * L2O‑specialised advisors, but implemented in the **Agent domain** and tagged accordingly (e.g. `tags: ["process:L2O", "domain:pricing"]`).
+  * L2O‑specialised advisors, executing AgentDefinitions stored in Transformation/UAF (e.g. `tags: ["process:L2O", "domain:pricing"]`).
 
 #### O2C (Order‑to‑Cash) ProcessController
 
@@ -238,27 +265,20 @@ The same pattern holds for:
 * H2R (Hire‑to‑Retire) combining Workforce, Payroll, Org structure domains.
 * RtR (Record‑to‑Report) across Finance and Reporting.
 
-No special handling needed: each gets one or more ProcessControllers orchestrating the relevant DomainControllers and Agents.
+No special handling needed: each gets one or more ProcessControllers orchestrating the relevant DomainControllers and AgentControllers.
 
-### 4.6 Agent Domain
+### 4.6 AgentControllers (Cross-cutting)
 
-* **DomainControllers**
+AgentControllers are **not** a separate domain. They are cross-cutting runtimes that:
 
-  * `AgentsController`
+* **Execute AgentDefinitions** stored in Transformation/UAF (§3.2, §4.2).
+* **Use tags/labels** for specialization:
 
-    * Stores agent graphs, tool definitions, constraints, allowed capabilities.
-* **Agents themselves**
+  * `domains`: e.g. `["product", "pricing", "orders"]`
+  * `processes`: e.g. `["L2O", "O2C"]`
+* This is **metadata**, not strict ownership; any process can invoke any AgentController as long as policy allows.
 
-  * LLM or tool‑based entities in the inference runtime, using the Ameide SDK to talk to domains and processes.
-* **Association model**
-
-  * Agents may declare:
-
-    * `domains`: e.g. `["product", "pricing", "orders"]`
-    * `processes`: e.g. `["L2O", "O2C"]`
-  * This is **metadata**, not a strict ownership; you can always call an agent from any process as long as your call is allowed by policy.
-
-Backstage templates (for domain/process/agent controllers) are **internal implementation details**; they live in the Application/Tech layer and are used by engineers and agents to spin up new controllers, not by business users directly.
+Backstage templates (for DomainController/ProcessController/AgentController) are **internal implementation details**; they live in the Application/Tech layer and are used by engineers and transformation agents to spin up new controllers, not by business users directly.
 
 ---
 
@@ -266,23 +286,26 @@ Backstage templates (for domain/process/agent controllers) are **internal implem
 
 To show that this is universal, take a generic **E2E Process X** (e.g. some future `Idea‑to‑Launch` or `Case‑to‑Resolution` process):
 
-1. **Transformation domain**
+1. **Transformation domain (design-time)**
 
-   * Stakeholders describe the process using UAF artifacts (BPMN, docs, constraints) under the Transformation domain.
+   * Stakeholders describe the process using UAF artifacts (ProcessDefinitions, docs, constraints) under the Transformation domain.
+   * ProcessDefinitions are created using the custom React Flow modeller.
+   * AgentDefinitions are created for any agent assistance needed.
 
-2. **Design → ProcessController**
+2. **Design → Runtime deployment**
 
-   * Transformation processes (Agile/TOGAF) lead to a formal BPMN + requirements.
-   * A ProcessController `ProcessXController` is defined (BPMN + Temporal/Camunda code).
+   * Transformation processes (Agile/TOGAF) lead to formal ProcessDefinitions + requirements.
+   * A ProcessController `ProcessXController` is deployed (executes ProcessDefinitions via Temporal).
 
 3. **Domains reused**
 
-   * `ProcessXController` calls whatever domains it needs: Product, Pricing, Orders, Workforce, Finance, etc.
+   * `ProcessXController` calls whatever DomainControllers it needs: Product, Pricing, Orders, Workforce, Finance, etc.
    * No new domains unless really necessary; we prefer reusing.
 
-4. **Agents assist, but don’t own data**
+4. **AgentControllers assist, but don't own data**
 
-   * Agents help draft BPMN, propose domain changes, generate code for new DomainControllers, etc., but actual state lives in the relevant domains (via APIs).
+   * AgentControllers help draft ProcessDefinitions, propose domain changes, generate code for new DomainControllers, etc., but actual state lives in the relevant domains (via APIs).
+   * AgentControllers execute AgentDefinitions from UAF.
 
 5. **Graph & UAF for insight**
 
@@ -354,9 +377,9 @@ To keep things from becoming “yet another big monolith model”:
 
   * Unified Artifact Framework is clearly **in the Transformation domain** and used to design processes and architectures across *all* domains, not just L2O/O2C. 
 
-* **North‑Star & BPMN/Camunda/Temporal**
+* **North‑Star & ProcessDefinitions/Temporal**
 
-  * The modeling and deployment blueprint stays the same: BPMN in the browser → Design/Deploy APIs → Temporal and/or Camunda runtime. Controllers simply plug into that pipeline.
+  * The modeling and deployment blueprint: ProcessDefinitions (BPMN-compliant, from custom React Flow modeller) → Transformation/UAF storage → Temporal-backed ProcessControllers. Controllers simply plug into that pipeline.
 
 ---
 
@@ -398,9 +421,10 @@ This Domains Architecture should be read with the following documents:
 
 ### 10.2 Agents alignment (310)
 
-* 310 describes AgentRuntime with n8n-style flows.
-* 475 §3.9 defines Agent Domain as first-class, cross-cutting domain.
-* **Alignment note**: 310's approach (agents as visual workflows) fits the "agents are cross-domain" principle. Ensure 310 agents are registered via `AgentsController` per §4.6.
+* 310 describes AgentController implementation with n8n-style flows.
+* 475 §4.6 defines AgentControllers as cross-cutting runtimes (not a separate domain).
+* AgentDefinitions (design-time specs) are owned by Transformation/UAF (§3.2, §4.2).
+* **Alignment note**: 310's approach (agents as visual workflows) fits the "AgentControllers execute AgentDefinitions" pattern.
 
 ### 10.3 IDC/IPC/IAC alignment (461)
 
@@ -408,7 +432,7 @@ The domain portfolio (§3) maps to declarative CRDs defined in 461:
 
 * **DomainController** → `IntelligentDomainController` (IDC) CRD
 * **ProcessController** → `IntelligentProcessController` (IPC) CRD
-* **AgentRuntime** → `IntelligentAgentController` (IAC) CRD
+* **AgentController** → `IntelligentAgentController` (IAC) CRD
 
 461 describes K8s operators that would enable agent-driven domain provisioning. Current services (`graph`, `platform`, `threads`, `workflows`, `agents`) are standard deployments. Migration to operator-managed CRDs is future work per 461 implementation plan.
 
@@ -433,13 +457,13 @@ The Element graph (300) and Domains Architecture (475) coexist:
 | 475 Term | Related Terms | Notes |
 |----------|---------------|-------|
 | Domain Cluster | N/A | 475-specific grouping concept |
-| DomainController | Domain Service (470/471/473) | Consistent ✅ |
-| ProcessController | Workflow (305) | 305 uses "Workflow"; recommend aligning |
-| Agent Domain | AgentRuntime (310, 473) | 475 treats agents as a domain; 310/473 treat as runtime |
+| DomainController | DomainService (deprecated) | Consistent across 470-476 ✅ |
+| ProcessController | Workflow (305) | Runtime that executes ProcessDefinitions |
+| ProcessDefinition | BPMN model (deprecated) | Design-time artifact in Transformation/UAF |
+| AgentController | AgentRuntime (deprecated) | Runtime that executes AgentDefinitions |
+| AgentDefinition | Agent config (deprecated) | Design-time artifact in Transformation/UAF |
 
-**Clarification needed**: 475 frames agents as a "domain" with `AgentsController`. This is conceptually different from 310/473 where agents are runtime components. Both views can coexist:
-* **Agent Domain** (475): metadata about agents (definitions, tools, policies)
-* **AgentRuntime** (310/473): execution layer for agent inference
+**Clarification**: AgentDefinitions are design-time artifacts owned by Transformation/UAF (§3.2), not a separate "Agent Domain". AgentControllers are runtime components that execute AgentDefinitions.
 
 ### 11.2 Implementation gaps
 
@@ -447,7 +471,7 @@ The Element graph (300) and Domains Architecture (475) coexist:
 |-----|-------------|--------|--------------|
 | Domain catalogue not implemented | §3 lists 9 domain clusters | Only Platform/Identity partially implemented | 319, 333 |
 | Product/Pricing domains | §3.3 describes as separate domains | Currently bundled or missing | — |
-| Agent Domain | §3.9 describes `AgentsController` | No proto or service exists | 310 |
+| AgentDefinitions in UAF | §3.2, §4.2 describe AgentDefinitions in Transformation/UAF | UAF artifact storage not implemented | 310 |
 | Knowledge Graph domain | §3.8 describes unified graph | Partial implementation (graph service) | 300-ameide-metamodel |
 | E2E process library | §4.4 describes L2O, O2C | ProcessControllers not BPMN-backed yet | 305, 471 |
 
@@ -458,11 +482,10 @@ The Element graph (300) and Domains Architecture (475) coexist:
    * **Impact**: Affects service count, API surface, data ownership
    * **Decision needed**: Define domain boundary criteria
 
-2. **Agent domain vs runtime**
-   * §3.9 treats Agent as a domain with `AgentsController`
-   * 310 treats agents as visual workflow nodes
-   * 473 treats agents as inference runtime
-   * **Resolution needed**: Clarify relationship between Agent domain (metadata) and agent execution (runtime)
+2. **AgentDefinition ownership**
+   * §3.2, §4.2 now clarify: AgentDefinitions are design-time artifacts in Transformation/UAF
+   * AgentControllers are cross-cutting runtimes (§4.6)
+   * **Resolved**: No separate "Agent Domain" – definitions in UAF, execution in AgentControllers
 
 3. **E2E process ownership**
    * §4.4 positions L2O/O2C as "examples, not special cases"
@@ -474,23 +497,26 @@ The Element graph (300) and Domains Architecture (475) coexist:
    * Current graph service may allow direct writes
    * **Audit needed**: Ensure graph is projection-only per principle
 
-5. **BPMN execution model**
-   * §5 describes ProcessControllers as BPMN-driven via Temporal/Camunda
-   * 305 uses Temporal but BPMN→Temporal compiler (461 Phase 3) doesn't exist
+5. **ProcessDefinition execution model**
+   * §5 describes ProcessControllers executing ProcessDefinitions (from custom React Flow modeller) via Temporal
+   * 305 uses Temporal but ProcessDefinition→Temporal compiler doesn't exist yet
    * **Resolution needed**: Either build compiler or clarify that current ProcessControllers are code-first
 
-6. **Backstage integration**
+6. **Backstage integration** ✅ RESOLVED
    * §2 Principle 5 and §6 reference Backstage as platform factory
-   * No Backstage implementation backlog exists
-   * **Decision needed**: Create Backstage integration backlog or document alternative
+   * Implementation backlog created: [477-backstage.md](477-backstage.md)
+   * §6.1 documents GitOps alignment, §10 covers future templates
 
 ### 11.4 Terminology migration
 
 | Legacy Term | New Term (475) | Migration Status |
 |-------------|----------------|------------------|
-| IPA (Intelligent Process Automation) | Domain + ProcessController + Agent bundle | Deprecated in customer comms; `ipa/v1/` proto namespace remains |
-| Platform Workflows (305) | ProcessController | 305 aligned |
-| AgentRuntime (310) | AgentsController (domain view) | 310 aligned; Backstage-based controller planned |
+| IPA (Intelligent Process Automation) | DomainController + ProcessController + AgentController bundle | Deprecated in customer comms; `ipa/v1/` proto namespace remains |
+| Platform Workflows (305) | ProcessController (executes ProcessDefinitions from UAF) | 305 aligned |
+| AgentRuntime (310) | AgentController (executes AgentDefinitions from UAF) | 310 aligned |
+| DomainService | DomainController | Aligned across 470-476 |
+| BPMN model | ProcessDefinition (from custom React Flow modeller) | Aligned across 470-476 |
+| Agent config | AgentDefinition (in Transformation/UAF) | Aligned across 470-476 |
 
 ---
 

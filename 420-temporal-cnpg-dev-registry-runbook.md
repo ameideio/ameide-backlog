@@ -1,5 +1,20 @@
 # 420 – Temporal CNPG creds + dev registry rollout (runbook and incident notes)
 
+> **Cross-References (Deployment Architecture Suite)**:
+>
+> | Document | Purpose |
+> |----------|---------|
+> | [465-applicationset-architecture.md](465-applicationset-architecture.md) | How data-temporal apps are generated |
+> | [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md) | Rollout phases: 265 (migrations), 450/455 (runtime/bootstrap) |
+> | [464-chart-folder-alignment.md](464-chart-folder-alignment.md) | Chart at `sources/charts/third_party/temporal/` |
+> | [426-keycloak-config-map.md](426-keycloak-config-map.md) | CNPG credential ownership pattern |
+>
+> **Related**:
+> - [423-temporal-argocd-recovery.md](423-temporal-argocd-recovery.md) – ArgoCD recovery procedures
+> - [425-vendor-schema-ownership.md](425-vendor-schema-ownership.md) – Vendor schema patterns
+> - [429-devcontainer-bootstrap.md](429-devcontainer-bootstrap.md) – DevContainer bootstrap
+> - [456-ghcr-mirror.md](456-ghcr-mirror.md) – GHCR mirroring for Temporal images
+
 > ⚠️ **Legacy workflow:** References to the k3d dev registry (`k3d-ameide.localhost:5001`) describe the previous local-cluster model. With the remote-first pivot (backlog/435), dev builds push directly to ACR and run on AKS; keep these notes only for historical incident context.
 
 ## What we configured

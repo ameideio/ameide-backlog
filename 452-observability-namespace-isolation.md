@@ -1,5 +1,16 @@
 # 452 – Observability Stack Namespace Isolation
 
+> **Note:** This document (452) covers observability namespace isolation. For Vault RBAC isolation, see [452-vault-rbac-isolation.md](452-vault-rbac-isolation.md).
+
+> **Cross-References (Deployment Architecture Suite)**:
+>
+> | Document | Purpose |
+> |----------|---------|
+> | [465-applicationset-architecture.md](465-applicationset-architecture.md) | Per-environment observability deployment |
+> | [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md) | Prometheus operator at cluster scope (020) |
+> | [464-chart-folder-alignment.md](464-chart-folder-alignment.md) | Charts at `sources/charts/observability/` |
+> | [426-keycloak-config-map.md](426-keycloak-config-map.md) | OIDC patterns for Grafana |
+
 **Status**: Implemented
 **Created**: 2025-12-05
 **Related**: [445-argocd-namespace-isolation.md](445-argocd-namespace-isolation.md), [446-namespace-isolation.md](446-namespace-isolation.md), [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md), [447-third-party-chart-tolerations.md](447-third-party-chart-tolerations.md), [454-coredns-cluster-scoped.md](454-coredns-cluster-scoped.md)

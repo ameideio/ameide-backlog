@@ -2,7 +2,17 @@
 
 **Status**: Implemented
 **Created**: 2025-12-05
-**Related**: [444-terraform.md](444-terraform.md), [449-per-environment-infrastructure.md](449-per-environment-infrastructure.md), [450-argocd-service-issues-inventory.md](450-argocd-service-issues-inventory.md), [452-vault-rbac-isolation.md](452-vault-rbac-isolation.md), [462-secrets-origin-classification.md](462-secrets-origin-classification.md)
+
+> **Cross-References (Deployment Architecture Suite)**:
+>
+> | Document | Purpose |
+> |----------|---------|
+> | [465-applicationset-architecture.md](465-applicationset-architecture.md) | Per-environment SecretStore via ameide ApplicationSet |
+> | [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md) | Phase 130-155 (secrets infra) |
+> | [464-chart-folder-alignment.md](464-chart-folder-alignment.md) | Chart locations for vault-*, external-secrets |
+> | [426-keycloak-config-map.md](426-keycloak-config-map.md) | OIDC client secrets pattern (§3.2) |
+>
+> **Related**: [444-terraform.md](444-terraform.md), [449-per-environment-infrastructure.md](449-per-environment-infrastructure.md), [450-argocd-service-issues-inventory.md](450-argocd-service-issues-inventory.md), [452-vault-rbac-isolation.md](452-vault-rbac-isolation.md), [462-secrets-origin-classification.md](462-secrets-origin-classification.md)
 
 ---
 

@@ -2,7 +2,16 @@
 
 **Created**: 2025-12-07
 
-> **Related documents:**
+> **Cross-References (Deployment Architecture Suite)**:
+>
+> | Document | Purpose |
+> |----------|---------|
+> | [465-applicationset-architecture.md](465-applicationset-architecture.md) | **READ THIS FIRST**: How the two ApplicationSets work |
+> | [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md) | Rollout phases & sub-phase patterns (`*10`, `*20`, `*50`, etc.) |
+> | [426-keycloak-config-map.md](426-keycloak-config-map.md) | Secrets handling, OIDC client extraction patterns |
+> | [473-ameide-technology.md](473-ameide-technology.md) | Technology architecture (how Backstage, Temporal fit in) |
+>
+> **Related (Implementation Details)**:
 > - [459-httproute-ownership.md](459-httproute-ownership.md) – HTTPRoute ownership patterns
 
 ## Overview

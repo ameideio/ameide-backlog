@@ -1,5 +1,20 @@
 Here we go — Business Architecture time 🔧🏗️
 
+> **Cross-References (Vision Suite)**:
+>
+> | Document | Purpose |
+> |----------|---------|
+> | [470-ameide-vision.md](470-ameide-vision.md) | Vision, rationale, principles |
+> | [472-ameide-information-application.md](472-ameide-information-application.md) | Application architecture |
+> | [473-ameide-technology.md](473-ameide-technology.md) | Technology stack |
+> | [475-ameide-domains.md](475-ameide-domains.md) | Domain portfolio |
+> | [476-ameide-security-trust.md](476-ameide-security-trust.md) | Security architecture |
+>
+> **Deployment Implementation**:
+> - [465-applicationset-architecture.md](465-applicationset-architecture.md) – Per-environment deployments
+> - [443-tenancy-models.md](443-tenancy-models.md) – Multi-tenancy SKUs
+> - [477-backstage.md](477-backstage.md) – Backstage implementation (§4 platform factory)
+
 ---
 
 # 4xy – Ameide Business Architecture
@@ -7,7 +22,7 @@ Here we go — Business Architecture time 🔧🏗️
 **Status:** Draft v1
 **Audience:** Product, domain architects, transformation leads, principal engineers
 
-This doc describes **how Ameide is used as a business platform**: how tenants, orgs, processes, agents and workspaces fit together, and how “run the business” and “change the business” are modelled.
+This doc describes **how Ameide is used as a business platform**: how tenants, orgs, processes, agents and workspaces fit together, and how "run the business" and "change the business" are modelled.
 
 It assumes the high‑level vision/principles are accepted and stops short of implementation details (those go into App/Info and Tech Architecture).
 
@@ -54,28 +69,43 @@ At the outermost layer we keep the two‑level tenancy model already defined in 
 
 This model is already implemented today and is the anchor for all business flows (onboarding, invitations, SSO, billing). 
 
-### 2.2 Domains, processes, agents, workspaces
+### 2.2 Design-time artifacts vs runtime controllers
 
-Across all tenants, Ameide standardises four *logical* building blocks:
+Ameide separates **design-time artifacts** (what to build) from **runtime controllers** (what executes):
 
-1. **DomainService (Domain)**
+#### Design-Time (in Transformation/UAF)
+
+* **ProcessDefinition** – BPMN-compliant artifact produced by a custom React Flow modeller.
+  * Defines process stages, tasks, gateways, and bindings to domains/agents.
+  * Stored and versioned in Transformation/UAF with revisions & promotions.
+
+* **AgentDefinition** – Declarative spec for an agent.
+  * Tools (domain/process APIs), orchestration graph, scope, risk tier, policies.
+  * Stored alongside ProcessDefinitions as UAF artifacts.
+
+#### Runtime Controllers
+
+1. **DomainController (Domain)**
 
    * Owns a bounded business context: data, rules, events.
+   * DomainControllers also store any domain-level definitions (config, process/agent specs owned by that domain) according to their proto schema.
    * Examples:
 
      * Sales: Leads, Opportunities, Orders.
-     * Transformation: Initiatives, Epics, Backlog Items, Artifacts.
-     * Identity/Onboarding: Tenants, Organizations, Users, Invitations. 
-   * Exposed via proto‑based APIs as part of the core contract. 
+     * Transformation: Initiatives, Epics, Backlog Items, ProcessDefinitions, AgentDefinitions, all UAF artifacts.
+     * Identity/Onboarding: Tenants, Organizations, Users, Invitations.
+   * Exposed via proto‑based APIs as part of the core contract.
 
 2. **ProcessController (Process)**
 
-   * Represents a **business process** as a BPMN model + runtime configuration: L2O, O2C, Tenant Onboarding, Scrum, TOGAF cycles, etc. 
-   * Process tasks call into one or more domains and may invoke agents where non‑deterministic work is acceptable.
+   * Executes a **ProcessDefinition** loaded from Transformation/UAF.
+   * Manages process instances, state, retries, compensation (backed by Temporal).
+   * Process tasks call into DomainControllers and may invoke AgentControllers where non‑deterministic work is acceptable.
 
-3. **AgentRuntime (Agent)**
+3. **AgentController (Agent)**
 
-   * Encapsulates an LLM‑backed “worker” with tools and policies: transformation assistant, coder/refactor agent, L2O coaching bot. 
+   * Executes an **AgentDefinition** loaded from Transformation/UAF.
+   * Encapsulates an LLM‑backed "worker" with tools and policies: transformation assistant, coder/refactor agent, L2O coaching bot.
    * Always invoked via domain/process APIs; does **not** become a separate source of truth.
 
 4. **UIWorkspace (Workspace)**
@@ -84,9 +114,9 @@ Across all tenants, Ameide standardises four *logical* building blocks:
 
      * Process view (pipeline/board for L2O, stages for Onboarding).
      * Entity view (grid/form for Orders, Opportunities, Tenants).
-   * Talks only to the platform via the TS SDK, never raw gRPC. 
+   * Talks only to the platform via the TS SDK, never raw gRPC.
 
-Business architecture cares mostly about *how* tenants combine these four building blocks; implementation details (services, transports) live in other docs. 
+Business architecture cares mostly about *how* tenants combine these building blocks; implementation details (services, transports) live in other docs. 
 
 ---
 
@@ -94,44 +124,52 @@ Business architecture cares mostly about *how* tenants combine these four buildi
 
 ### 3.1 Purpose of the Transformation domain
 
-Instead of treating “implementation” as something done off‑platform, **Transformation** is itself a domain:
+Instead of treating "implementation" as something done off‑platform, **Transformation** is itself a DomainController:
 
 * Entities:
 
   * **Initiatives, Epics, Work Packages** – high‑level change containers.
-  * **Backlog Items** – concrete change requests (e.g. “Add approvals to L2O stage 3”).
-  * **Design Artifacts** – BPMN, ArchiMate, Markdown tied together via UAF. 
+  * **Backlog Items** – concrete change requests (e.g. "Add approvals to L2O stage 3").
+  * **ProcessDefinitions** – BPMN-compliant process models (L2O variants, custom workflows).
+  * **AgentDefinitions** – Agent specs with tools, policies, risk tiers.
+  * **Design Artifacts** – ArchiMate, Markdown tied together via UAF.
 * Processes:
 
-  * **Agile** (Scrum / Kanban) or **TOGAF ADM**‑inspired transformation cycles, modelled as ProcessControllers.
+  * **Agile** (Scrum / Kanban) or **TOGAF ADM**‑inspired transformation cycles, modelled as ProcessDefinitions executed by ProcessControllers.
 * Agents:
 
-  * **Transformation Agents** that:
+  * **Transformation AgentControllers** that:
 
     * Analyse current state (using UAF + graph + runtime metrics).
-    * Propose new/changed Domains, ProcessControllers, Agents, Workspaces.
+    * Propose new/changed DomainControllers, ProcessDefinitions, AgentDefinitions, Workspaces.
     * Drive Backstage template runs to materialise those changes.
-  * A more technical flavour is the `core-platform-coder` agent, which can refactor tests/code as part of implementation tasks. 
+  * A more technical flavour is the `core-platform-coder` AgentController, which can refactor tests/code as part of implementation tasks.
 
 This domain owns the **life cycle of platform change** for each tenant: from requirement to design to deployment.
 
-### 3.2 UAF as the knowledge backbone of Transformation
+### 3.2 UAF as the modelling experience for Transformation
 
-The **Unified Artifact Framework** (UAF) gives Transformation a structured way to store design artifacts:
+> **Core Definitions** (see [470-ameide-vision.md §0](470-ameide-vision.md)):
+> - The **Transformation DomainController** is the knowledge store (initiatives, backlog items, artifacts, promotion state).
+> - **UAF** is the modelling experience architects and agents use to edit those artifacts via the Transformation APIs.
+> - **Graph** contains *projections* of these artifacts for cross-domain queries; the canonical records stay in Transformation.
 
-* BPMN models of processes (L2O variants, Onboarding, internal workflows).
-* ArchiMate models of application/business/technology architecture. 
+The **Unified Artifact Framework** (UAF) provides a structured modelling experience for design-time artifacts:
+
+* **ProcessDefinitions** – BPMN-compliant process models (the single source of truth for process logic).
+* **AgentDefinitions** – Agent specs with tools, orchestration graphs, policies.
+* ArchiMate models of application/business/technology architecture.
 * Markdown specs / decision records.
 
-All artifacts are:
+All artifacts are **stored by the Transformation DomainController** (optionally event-sourced internally):
 
-* **Event‑sourced** – commands → revisions → snapshots → promotions. 
+* **Event‑sourced pattern** – commands → revisions → snapshots → promotions (within Transformation DomainController).
 * **Multi‑tenant** – partitioned by tenant/org.
 * **Governed** – promotion paths and validations (e.g. secret scan, BPMN lint) are central to Transformation.
 
-From a business‑architecture perspective, UAF is:
+From a business‑architecture perspective:
 
-> "The knowledge system that agents and architects use to understand *what exists* and *what should exist* in a tenant's Ameide landscape."
+> "The **Transformation DomainController** is the single source of truth for all design-time artifacts. **UAF** is the set of modelling UIs (BPMN editor, diagram editor, Markdown editor) that call the Transformation DomainController APIs—UAF does not own storage. ProcessControllers and AgentControllers execute definitions from the Transformation DomainController; they do not own the process/agent logic themselves."
 
 ### 3.3 Methodology selection & parallel initiatives
 
@@ -156,18 +194,18 @@ Methodology profiles are tenant‑configurable, allowing organizations to:
 
 ## 4. Backstage as the platform factory (business view)
 
-Backstage isn’t just an engineer portal; in this architecture it’s the **factory for business capabilities**.
+Backstage isn't just an engineer portal; in this architecture it's the **factory for business capabilities**.
 
 From a business angle:
 
 * Each **Backstage template** corresponds to a *type of capability*:
 
-  * `DomainService template` – create a new DDD domain with proto APIs.
-  * `ProcessController template` – create a BPMN‑backed process & runtime.
-  * `AgentRuntime template` – define an agent and its tools/policies.
+  * `DomainController template` – create a new DDD domain with proto APIs.
+  * `ProcessController template` – create a runtime that executes ProcessDefinitions from UAF.
+  * `AgentController template` – create a runtime that executes AgentDefinitions from UAF.
   * `UIWorkspace template` – spin up new UX for domain/process combinations.
 
-* The **Transformation domain** and its agents populate Backstage with:
+* The **Transformation DomainController** and its AgentControllers populate Backstage with:
 
   * Tenant‑specific config (L2O v2 for Tenant A).
   * Shared, standard product templates (canonical L2O/O2C, Onboarding flow, Scrum board).
@@ -178,8 +216,8 @@ From a business angle:
 
 Business‑wise, this gives you:
 
-* A “**service catalog**” of reusable domain/process/agent/workspace building blocks.
-* A standard place where **transformation agents** “press the buttons” to generate new features rather than talking to ad‑hoc APIs.
+* A "**service catalog**" of reusable domain/process/agent/workspace building blocks.
+* A standard place where **transformation AgentControllers** "press the buttons" to generate new features rather than talking to ad‑hoc APIs.
 
 ---
 
@@ -223,19 +261,19 @@ These are processes that **change** L2O, Onboarding, etc:
 
   * Intake of requirements from business stakeholders.
   * Analysis of AS‑IS vs TO‑BE using UAF and runtime data.
-  * Design of new DomainServices/ProcessControllers/AgentRuntimes/Workspaces.
+  * Design of new ProcessDefinitions, AgentDefinitions, DomainControllers, Workspaces.
   * Backstage template runs and rollout.
   * Continuous improvement loops (OKRs, KPIs).
 
 * **IPA → new model**
 
-  * The old IPA domain (bundling workflows + agents + tools) becomes just **one pattern** of combining Domain + Process + Agent. 
+  * The old IPA domain (bundling workflows + agents + tools) becomes just **one pattern** of combining Domain + Process + Agent.
   * No IPA runtime surface for tenants; everything is described in terms of domains/processes/agents.
 
-Agents support both:
+AgentControllers support both:
 
-* **Run‑time agents** – e.g. an L2O assistant inside the sales workspace.
-* **Transformation agents** – e.g. a backlog/architecture assistant helping define the next variant.
+* **Run‑time AgentControllers** – e.g. an L2O assistant inside the sales workspace.
+* **Transformation AgentControllers** – e.g. a backlog/architecture assistant helping define the next ProcessDefinition variant.
 
 ---
 
@@ -416,7 +454,7 @@ For any major area like Sales or Transformation:
 * **Workspace view**
 
   * Secondary: entity tables, forms, reports.
-  * Backed by DomainServices and proto APIs.
+  * Backed by DomainControllers and proto APIs.
 
 Business consequences:
 
@@ -432,7 +470,7 @@ From a business‑architecture point of view:
 * The **IPA Architecture** was an earlier way of describing “composed automations” (workflows + agents + tools) as first‑class models and builder flows. 
 * In the new framing:
 
-  * An IPA = a **bundle of Domains + ProcessControllers + AgentRuntimes** referenced together for a specific outcome.
+  * An IPA = a **bundle of DomainControllers + ProcessControllers + AgentControllers** referenced together for a specific outcome.
   * The “IPA builder” idea becomes part of:
 
     * Transformation domain (design).
@@ -465,11 +503,13 @@ This Business Architecture should be read with the following documents:
 
 The Element graph (300) and Business Architecture (471) coexist:
 
-* **Graph = design‑time knowledge**: Elements store BPMN models, initiatives, backlog items, and UAF artifacts as versioned nodes in the graph.
-* **ProcessController = runtime execution**: Compiled from BPMN elements into executable Temporal workflows.
+* **Graph = design‑time knowledge projection**: Elements *represent* BPMN models, initiatives, backlog items, etc., **projected from the Transformation and other DomainControllers**.
+* **ProcessController = runtime execution**: Compiled from ProcessDefinitions stored in the Transformation DomainController into executable Temporal workflows.
 * **Graph is a read projection**: Operational data lives in domains; the graph receives projections for analysis, transformation, and agent context.
 
-This means: Transformation domain entities (initiatives, backlogs, artifacts) are first‑class Elements in the graph, enabling cross‑methodology reporting and agent‑assisted design.
+> **Important**: Transformation remains the source of truth for transformation artifacts; the graph stores references and read-optimised views, not the authoritative records.
+
+This means: Transformation domain entities (initiatives, backlogs, artifacts) are projected into the graph as Elements, enabling cross‑methodology reporting and agent‑assisted design—but the canonical records remain in the Transformation DomainController.
 
 ---
 
@@ -479,9 +519,10 @@ This means: Transformation domain entities (initiatives, backlogs, artifacts) ar
 
 | Legacy Term | New Term (471) | Status |
 |-------------|----------------|--------|
-| IPA (Intelligent Process Automation) | Domain + ProcessController + AgentRuntime bundle | Deprecated in customer comms |
-| Platform Workflows (305) | ProcessController | 305 aligned to 471 |
-| AgentRuntime (310) | Backstage‑based Agent Controller | Replacement planned |
+| IPA (Intelligent Process Automation) | DomainController + ProcessController + AgentController bundle | Deprecated in customer comms |
+| Platform Workflows (305) | ProcessController (executes ProcessDefinitions from UAF) | 305 aligned to 471 |
+| AgentRuntime (310) | AgentController (executes AgentDefinitions from UAF) | Aligned to 471 |
+| DomainService | DomainController | Aligned to 471 |
 
 ### 11.2 Implementation gaps
 
@@ -530,7 +571,7 @@ These are deliberately left for follow‑up design sessions and may become ADRs:
 This Business Architecture should be read together with:
 
 * **Application & Information Architecture** – maps these concepts onto services, APIs, data models (heavy use of proto‑based APIs & SDK).
-* **Technology Architecture** – describes K8s, Temporal/Camunda, UAF event store, observability, and how Backstage templates actually run.
+* **Technology Architecture** – describes K8s, Temporal-backed ProcessControllers, UAF event store, observability, and how Backstage templates actually run.
 * **Domain Specs** – especially:
 
   * L2O/O2C (Sales).

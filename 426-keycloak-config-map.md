@@ -1,8 +1,18 @@
 # 426 – Keycloak configuration & GitOps map
 
 **Status**: Draft
-**Last Updated**: 2025-12-07  
-**Related**: 323-keycloak-realm-roles.md · 323-keycloak-realm-roles-v2.md · 333-realms.md · 364-argo-configuration-v5.md · 375-rolling-sync-wave-redesign.md · 418-secrets-strategy-map.md · 462-secrets-origin-classification.md · infra/README.md
+**Last Updated**: 2025-12-07
+
+> **Cross-References (Deployment Architecture Suite)**:
+>
+> | Document | Purpose |
+> |----------|---------|
+> | [465-applicationset-architecture.md](465-applicationset-architecture.md) | How the two ApplicationSets work |
+> | [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md) | Rollout phases & operator deployment |
+> | [464-chart-folder-alignment.md](464-chart-folder-alignment.md) | Chart folder structure & domain alignment |
+>
+> **Related (Keycloak & Secrets)**:
+> [323-keycloak-realm-roles.md](323-keycloak-realm-roles.md) · [323-keycloak-realm-roles-v2.md](323-keycloak-realm-roles-v2.md) · [333-realms.md](333-realms.md) · [364-argo-configuration-v5.md](364-argo-configuration-v5.md) · [375-rolling-sync-wave-redesign.md](375-rolling-sync-wave-redesign.md) · [418-secrets-strategy-map.md](418-secrets-strategy-map.md) · [462-secrets-origin-classification.md](462-secrets-origin-classification.md) · infra/README.md
 
 ---
 

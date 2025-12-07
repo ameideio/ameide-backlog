@@ -1,5 +1,16 @@
 # 447 – Third-Party Chart Tolerations
 
+> **Note:** This document (447) covers chart tolerations. For rollout phases and cluster-scoped operators, see [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md).
+
+> **Cross-References (Deployment Architecture Suite)**:
+>
+> | Document | Purpose |
+> |----------|---------|
+> | [465-applicationset-architecture.md](465-applicationset-architecture.md) | Per-environment deployment model |
+> | [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md) | Node tolerations for operators |
+> | [464-chart-folder-alignment.md](464-chart-folder-alignment.md) | Third-party chart locations |
+> | [426-keycloak-config-map.md](426-keycloak-config-map.md) | Keycloak tolerations (§5.1) |
+>
 > **Related documents:**
 > - [442-environment-isolation.md](442-environment-isolation.md) – Environment isolation strategy (parent issue)
 > - [446-namespace-isolation.md](446-namespace-isolation.md) – Namespace isolation
