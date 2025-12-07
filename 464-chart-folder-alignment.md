@@ -40,8 +40,8 @@ The `argocd/applicationsets/ameide.yaml` file contains git file generators that 
 | configs | cluster | cluster | configs | 030 |
 | foundation | foundation | foundation | foundation | 115-199 |
 | data | data | data | data | 230-299, 450-499 |
-| platform | **platform-layers** ❌ | platform | platform | 310-399 |
-| observability | - | observability | observability | 530-599 |
+| platform | platform ✅ | platform | platform | 310-399 |
+| observability | observability ✅ | observability | observability | 530-599 |
 | apps | apps | apps | apps | 650-699 |
 
 ## Gaps
@@ -152,11 +152,11 @@ Corresponding values exist in `sources/values/_shared/apps/*.yaml` but are not r
 - [x] Fix plausible component.yaml chart path reference
 - [x] Consolidate duplicate plausible values files
 
-### Phase 2: Rename platform-layers → platform
-- [ ] **464-1**: Rename `sources/charts/platform-layers/` → `sources/charts/platform/`
-- [ ] **464-2**: Update all component.yaml files referencing platform-layers charts
-- [ ] **464-3**: Update helm-test.yaml workflow to use new path
-- [ ] **464-4**: Update any documentation references
+### Phase 2: Rename platform-layers → platform (DONE)
+- [x] **464-1**: Rename `sources/charts/platform-layers/` → `sources/charts/platform/`
+- [x] **464-2**: Update all component.yaml files referencing platform-layers charts
+- [x] **464-3**: Update helm-test.yaml workflow to use new path
+- [x] **464-4**: Update any documentation references
 
 ### Phase 3: Create observability charts folder (DONE)
 - [x] **464-5**: Create `sources/charts/observability/`
@@ -203,3 +203,4 @@ Corresponding values exist in `sources/values/_shared/apps/*.yaml` but are not r
 | 2025-12-07 | Added Phases 5-8 | Activities to address orphaned charts, component folder alignment, and valueFiles |
 | 2025-12-07 | Completed Phases 3, 4, 6 | Observability refactoring - charts folder, plausible relocation, component moves |
 | 2025-12-07 | Completed Phase 5 | Removed 7 orphaned charts (cluster/gateway, platform-layers/{common,coredns-config,gitlab,namespace,registry-alias,registry-mirror}) |
+| 2025-12-07 | Completed Phase 2 | Renamed platform-layers → platform, updated 5 components, helm-test.yaml, and docs |
