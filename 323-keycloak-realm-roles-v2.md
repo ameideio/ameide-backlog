@@ -2,9 +2,9 @@
 
 # Backlog 323: Keycloak Realm Roles (v2)
 
-**Status**: Single-realm implementation live; realm-per-tenant migration in progress  
-**Last Updated**: 2025-10-30  
-**Related**: 320-header.md · 322-rbac.md · 330-dynamic-tenant-resolution.md · 333-realms.md
+**Status**: Single-realm implementation live; realm-per-tenant migration in progress
+**Last Updated**: 2025-12-07
+**Related**: 320-header.md · 322-rbac.md · 330-dynamic-tenant-resolution.md · 333-realms.md · 426-keycloak-config-map.md
 
 ---
 
@@ -55,6 +55,7 @@
 - **`tenant` scope** maps Keycloak user attribute `tenantId` → token claim `tenantId`; required while multiple tenants share the realm.
 - **JWT (after fixes)** now includes `realm_access.roles`, `resource_access.{client}`, and `tenantId` — unlocks RBAC checks in `lib/keycloak.ts` and `features/navigation/server/access.ts`.
 - **Secrets ownership**: `platform-postgres-clusters` (CNPG) emits the `keycloak-db-credentials` Secret. Non-database secrets (`keycloak-bootstrap-admin`, `keycloak-master-bootstrap`, `platform-app-master-client`) are provisioned by the Layer‑15 component `foundation-keycloak-admin-secrets`. The `platform-keycloak` chart consumes those `existingSecret`s directly; no chart-scoped ExternalSecrets remain.
+- **Client secret extraction**: After realm sync, the `client-patcher` Job extracts Keycloak-generated client secrets (e.g., `platform-app`, `argocd`) to Vault. See [426-keycloak-config-map.md §3.2](426-keycloak-config-map.md).
 
 ---
 
