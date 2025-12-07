@@ -170,14 +170,14 @@ Corresponding values exist in `sources/values/_shared/apps/*.yaml` but are not r
 - [ ] **464-11**: Update 459 backlog RT-9 entry
 - [x] **464-12**: Update component domain from `apps` to `observability`
 
-### Phase 5: Clean up orphaned charts (GAP-4)
-- [ ] **464-13**: Remove `sources/charts/cluster/gateway/` (unused)
-- [ ] **464-14**: Remove `sources/charts/platform-layers/common/` (superseded by raw-manifests)
-- [ ] **464-15**: Remove `sources/charts/platform-layers/coredns-config/` (unused)
-- [ ] **464-16**: Remove `sources/charts/platform-layers/gitlab/` (unused)
-- [ ] **464-17**: Remove `sources/charts/platform-layers/namespace/` (unused)
-- [ ] **464-18**: Remove `sources/charts/platform-layers/registry-alias/` (unused)
-- [ ] **464-19**: Remove `sources/charts/platform-layers/registry-mirror/` (unused)
+### Phase 5: Clean up orphaned charts (GAP-4) (DONE)
+- [x] **464-13**: Remove `sources/charts/cluster/gateway/` (unused)
+- [x] **464-14**: Remove `sources/charts/platform-layers/common/` (superseded by raw-manifests)
+- [x] **464-15**: Remove `sources/charts/platform-layers/coredns-config/` (unused)
+- [x] **464-16**: Remove `sources/charts/platform-layers/gitlab/` (unused)
+- [x] **464-17**: Remove `sources/charts/platform-layers/namespace/` (unused)
+- [x] **464-18**: Remove `sources/charts/platform-layers/registry-alias/` (unused)
+- [x] **464-19**: Remove `sources/charts/platform-layers/registry-mirror/` (unused)
 
 ### Phase 6: Relocate observability components (GAP-5) (DONE)
 - [x] **464-20**: Create `environments/_shared/components/observability/` folder structure
@@ -202,3 +202,4 @@ Corresponding values exist in `sources/values/_shared/apps/*.yaml` but are not r
 | 2025-12-07 | Added GAP-4 through GAP-7 | Comprehensive codebase audit revealed additional misalignments beyond charts |
 | 2025-12-07 | Added Phases 5-8 | Activities to address orphaned charts, component folder alignment, and valueFiles |
 | 2025-12-07 | Completed Phases 3, 4, 6 | Observability refactoring - charts folder, plausible relocation, component moves |
+| 2025-12-07 | Completed Phase 5 | Removed 7 orphaned charts (cluster/gateway, platform-layers/{common,coredns-config,gitlab,namespace,registry-alias,registry-mirror}) |
