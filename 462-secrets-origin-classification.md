@@ -735,8 +735,8 @@ Sync order: `platform-postgres-clusters` (CNPG-managed DB creds) → `foundation
 | 462-22 | Remove redundant fixture | ✅ DONE | Claude | 2025-12-07 |
 | 462-23 | Update service README templates | TODO | - | - |
 | 462-24 | Archive compliance audit results | IN PROGRESS | Claude | 2025-12-07 |
-| 462-25 | Fix ArgoCD client secret authority (extend client-patcher) | TODO | - | - |
-| 462-26 | Fix K8s Dashboard client secret authority | TODO | - | - |
+| 462-25 | Fix ArgoCD client secret authority (extend client-patcher) | ✅ DONE | Claude | 2025-12-07 |
+| 462-26 | Fix K8s Dashboard client secret authority | ✅ DONE | Claude | 2025-12-07 |
 | 462-27 | Audit all OIDC client secrets for scope/priority | TODO | - | - |
 | 462-28 | Fix www-ameide-platform-keycloak-secret (primary auth fix) | ✅ DONE | Claude | 2025-12-07 |
 | 462-29 | Verify www-ameide app OIDC auth | TODO | - | - |
@@ -746,6 +746,9 @@ Sync order: `platform-postgres-clusters` (CNPG-managed DB creds) → `foundation
 | 462-33 | Align secretExtraction across all environments | ✅ DONE | Claude | 2025-12-07 |
 | 462-34 | Make vault-bootstrap idempotent (skip real values) | ✅ DONE | Claude | 2025-12-07 |
 | 462-35 | Use static jq/curl binaries in client-patcher | ✅ DONE | Claude | 2025-12-07 |
+| 462-36 | Add argocd + k8s-dashboard to client-patcher extraction | ✅ DONE | Claude | 2025-12-07 |
+| 462-37 | Expand Vault policy for OIDC client secrets | ✅ DONE | Claude | 2025-12-07 |
+| 462-38 | Verify ArgoCD OIDC after client-patcher runs | BLOCKED | - | - |
 
 ---
 
