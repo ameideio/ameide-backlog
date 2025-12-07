@@ -35,9 +35,9 @@ The `argocd/applicationsets/ameide.yaml` file contains git file generators that 
 
 | Layer | Charts Dir | Values Dir | Component Domain | Rollout Phase |
 |-------|-----------|------------|------------------|---------------|
-| crds | - | cluster | crds | 010 |
-| operators | - | cluster | operators | 020 |
-| configs | cluster | cluster | configs | 030 |
+| crds | - | _shared/cluster | cluster | 010 |
+| operators | - | _shared/cluster | cluster | 020 |
+| configs | cluster | _shared/cluster ✅ | cluster | 030 |
 | foundation | foundation | foundation | foundation | 115-199 |
 | data | data | data | data | 230-299, 450-499 |
 | platform | platform ✅ | platform | platform | 310-399 |
@@ -85,13 +85,12 @@ Observability should follow the same pattern as other layers:
 - Move observability-related custom charts there (if any)
 - Third-party charts remain in `third_party/` but wrappers/configs go in `observability/`
 
-### GAP-4: Orphaned/unused charts
+### GAP-4: Orphaned/unused charts (RESOLVED)
 
-**7 charts exist but have no component referencing them:**
+**6 charts were truly orphaned and removed:**
 
 | Chart | Location | Notes |
 |-------|----------|-------|
-| gateway | `sources/charts/cluster/gateway/` | Stale cluster-scoped gateway |
 | common | `sources/charts/platform-layers/common/` | Superseded by `foundation/common/raw-manifests` |
 | coredns-config | `sources/charts/platform-layers/coredns-config/` | Unused |
 | gitlab | `sources/charts/platform-layers/gitlab/` | Unused |
@@ -99,7 +98,22 @@ Observability should follow the same pattern as other layers:
 | registry-alias | `sources/charts/platform-layers/registry-alias/` | Unused |
 | registry-mirror | `sources/charts/platform-layers/registry-mirror/` | Unused |
 
-**Recommendation**: Remove these charts or document why they're retained.
+**Note**: `sources/charts/cluster/gateway/` was NOT orphaned - it was missing a component.yaml. Now properly managed by ApplicationSet (see GAP-4b).
+
+### GAP-4b: Cluster config values inconsistency (RESOLVED)
+
+**Problem**: Cluster-scoped config values were in `sources/values/cluster/` instead of `_shared/cluster/`:
+- `coredns-config.yaml` used explicit `valueFiles` workaround
+- `cluster-gateway.yaml` had redundant "cluster-" prefix
+- Components declared `domain: configs` instead of `domain: cluster`
+
+**Solution**: Aligned to convention:
+- Moved values to `sources/values/_shared/cluster/{name}.yaml`
+- Created `gateway` component.yaml for ApplicationSet management
+- Changed component domains from `configs` to `cluster`
+- Removed explicit `valueFiles` overrides (rely on convention)
+
+**Result**: All cluster components now follow same pattern as operators.
 
 ### GAP-5: Observability components in wrong folder
 
@@ -171,13 +185,20 @@ Corresponding values exist in `sources/values/_shared/apps/*.yaml` but are not r
 - [x] **464-12**: Update component domain from `apps` to `observability`
 
 ### Phase 5: Clean up orphaned charts (GAP-4) (DONE)
-- [x] **464-13**: Remove `sources/charts/cluster/gateway/` (unused)
+- [x] **464-13**: ~~Remove `sources/charts/cluster/gateway/`~~ NOT orphaned - restored and component created
 - [x] **464-14**: Remove `sources/charts/platform-layers/common/` (superseded by raw-manifests)
 - [x] **464-15**: Remove `sources/charts/platform-layers/coredns-config/` (unused)
 - [x] **464-16**: Remove `sources/charts/platform-layers/gitlab/` (unused)
 - [x] **464-17**: Remove `sources/charts/platform-layers/namespace/` (unused)
 - [x] **464-18**: Remove `sources/charts/platform-layers/registry-alias/` (unused)
 - [x] **464-19**: Remove `sources/charts/platform-layers/registry-mirror/` (unused)
+
+### Phase 5b: Clean cluster config structure (GAP-4b) (DONE)
+- [x] **464-29**: Move `sources/values/cluster/coredns-config.yaml` → `_shared/cluster/`
+- [x] **464-30**: Move `sources/values/cluster/cluster-gateway.yaml` → `_shared/cluster/gateway.yaml`
+- [x] **464-31**: Update coredns-config component (domain: cluster, remove valueFiles)
+- [x] **464-32**: Create `environments/_shared/components/cluster/configs/gateway/component.yaml`
+- [x] **464-33**: Delete manually-created cluster-gateway Application
 
 ### Phase 6: Relocate observability components (GAP-5) (DONE)
 - [x] **464-20**: Create `environments/_shared/components/observability/` folder structure
@@ -202,5 +223,7 @@ Corresponding values exist in `sources/values/_shared/apps/*.yaml` but are not r
 | 2025-12-07 | Added GAP-4 through GAP-7 | Comprehensive codebase audit revealed additional misalignments beyond charts |
 | 2025-12-07 | Added Phases 5-8 | Activities to address orphaned charts, component folder alignment, and valueFiles |
 | 2025-12-07 | Completed Phases 3, 4, 6 | Observability refactoring - charts folder, plausible relocation, component moves |
-| 2025-12-07 | Completed Phase 5 | Removed 7 orphaned charts (cluster/gateway, platform-layers/{common,coredns-config,gitlab,namespace,registry-alias,registry-mirror}) |
+| 2025-12-07 | Completed Phase 5 | Removed 6 orphaned charts (platform-layers/{common,coredns-config,gitlab,namespace,registry-alias,registry-mirror}) |
 | 2025-12-07 | Completed Phase 2 | Renamed platform-layers → platform, updated 5 components, helm-test.yaml, and docs |
+| 2025-12-07 | Corrected 464-13 | cluster/gateway was NOT orphaned - was missing component.yaml. Restored chart. |
+| 2025-12-07 | Completed Phase 5b | Clean cluster config structure - moved values to _shared/cluster/, created gateway component, removed workarounds |
