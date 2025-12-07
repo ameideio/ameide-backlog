@@ -668,8 +668,50 @@ accessLog:
 > **Implementation note**: `rate-limit-policy.yaml` template exists with auth & global policies.
 > Rate limit values added to `_shared/platform/platform-gateway.yaml` and per-environment overrides.
 > - Dev: 10 req/min auth, global disabled
-> - Staging: 15 req/min auth, 2000 req/sec global
-> - Production: 20 req/min auth, 5000 req/sec global
+> - Staging: 15 req/min auth, global disabled (was 2000 req/sec)
+> - Production: 20 req/min auth, global disabled (was 5000 req/sec)
+
+#### ⚠️ Incident: Global Rate Limiting Caused HTTP 500 (2025-12-07)
+
+**Symptom**: https://www.ameide.io/ returned HTTP 500 for all requests.
+
+**Root Cause**: The `rate-limit-global` BackendTrafficPolicy was targeting the Gateway with `type: Global` rate limiting, but Envoy Gateway wasn't configured with a rate limit backend (Redis). This caused the policy to be marked `Invalid`:
+
+```
+message: 'RateLimit: enable Ratelimit in the EnvoyGateway config to configure global rateLimit.'
+reason: Invalid
+status: "False"
+type: Accepted
+```
+
+When an Invalid BackendTrafficPolicy is attached to the Gateway, Envoy Gateway generates `direct_response: {"status": 500}` for all routes instead of proper cluster routing. All 31 production routes were affected.
+
+**Fix** (commit `58a29c1`):
+- Disabled global rate limiting in staging and production:
+  - `sources/values/staging/platform/platform-gateway.yaml`: `rateLimit.global.enabled: false`
+  - `sources/values/production/platform/platform-gateway.yaml`: `rateLimit.global.enabled: false`
+
+**To re-enable global rate limiting**, you must first configure Envoy Gateway with a rate limit service:
+
+```yaml
+# EnvoyGateway config (not currently deployed)
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyGateway
+metadata:
+  name: eg
+  namespace: envoy-gateway-system
+spec:
+  rateLimit:
+    backend:
+      type: Redis
+      redis:
+        url: redis://redis-ratelimit:6379
+```
+
+**Lessons Learned**:
+1. Global rate limiting requires additional infrastructure (Redis) that wasn't documented as a prerequisite
+2. Invalid policies attached to Gateway cause catastrophic failures (HTTP 500 for all routes)
+3. Local rate limiting (`rate-limit-auth`) works without Redis and remains enabled
 
 ### Phase 4: Component Policies (Future)
 17. [ ] Review existing minio/keycloak/kafka policies
