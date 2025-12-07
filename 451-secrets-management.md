@@ -2,13 +2,17 @@
 
 **Status**: Implemented
 **Created**: 2025-12-05
-**Related**: [444-terraform.md](444-terraform.md), [449-per-environment-infrastructure.md](449-per-environment-infrastructure.md), [450-argocd-service-issues-inventory.md](450-argocd-service-issues-inventory.md), [452-vault-rbac-isolation.md](452-vault-rbac-isolation.md)
+**Related**: [444-terraform.md](444-terraform.md), [449-per-environment-infrastructure.md](449-per-environment-infrastructure.md), [450-argocd-service-issues-inventory.md](450-argocd-service-issues-inventory.md), [452-vault-rbac-isolation.md](452-vault-rbac-isolation.md), [462-secrets-origin-classification.md](462-secrets-origin-classification.md)
 
 ---
 
 ## Overview
 
-This document describes the end-to-end secrets flow from developer `.env` files to Kubernetes Secrets in environment namespaces. The architecture uses Azure Key Vault as the external source of truth, HashiCorp Vault as the internal secret store, and ExternalSecrets Operator to sync secrets to Kubernetes.
+This document describes the end-to-end secrets flow from developer `.env` files to Kubernetes Secrets in environment namespaces. The architecture uses Azure Key Vault as the external source of truth for **external/third-party secrets**, HashiCorp Vault as the internal secret store, and ExternalSecrets Operator to sync secrets to Kubernetes.
+
+> **Important:** This flow applies only to **external/third-party secrets** (API keys, registry tokens, etc.).
+> **Cluster-managed secrets** (database credentials, Keycloak client secrets) have different authorities.
+> See [462-secrets-origin-classification.md](462-secrets-origin-classification.md) for the full taxonomy.
 
 ---
 
@@ -230,14 +234,30 @@ spec:
 
 ---
 
-## Secret Key Mapping
+## Secret Key Mapping (External/Third-Party Only)
+
+> **Note:** This table shows **external/third-party secrets** that flow through Azure KV.
+> **Cluster-managed secrets** (database passwords, Keycloak client secrets) do NOT use this flow.
+> See [462-secrets-origin-classification.md](462-secrets-origin-classification.md) for the cluster-managed patterns.
 
 | .env Variable | Azure Key Vault | HashiCorp Vault | K8s Secret |
 |---------------|-----------------|-----------------|------------|
 | `GHCR_TOKEN` | `ghcr-token` | `secret/ghcr-token` | `ghcr-pull` |
 | `GHCR_USER` | `ghcr-user` | `secret/ghcr-user` | `ghcr-pull` |
 | `LANGFUSE_SECRET_KEY` | `langfuse-secret-key` | `secret/langfuse-secret-key` | `langfuse-secrets` |
-| `MINIO_ROOT_USER` | `minio-root-user` | `secret/minio-root-user` | `minio-root-credentials` |
+| `ANTHROPIC_API_KEY` | `anthropic-api-key` | `secret/anthropic-api-key` | `inference-api-credentials` |
+| `OPENAI_API_KEY` | `openai-api-key` | `secret/openai-api-key` | `inference-api-credentials` |
+
+### Secrets NOT in Azure KV (Cluster-Managed)
+
+These secrets are generated in-cluster and should NOT be added to `.env` or Azure KV:
+
+| Secret | Authority | See |
+|--------|-----------|-----|
+| `postgres-ameide-auth`, `*-db-credentials` | CNPG Operator | [412](./412-cnpg-owned-postgres-greds.md) |
+| `platform-app-master-client` | Keycloak (via client-patcher) | [462](./462-secrets-origin-classification.md) |
+| `minio-root-credentials` | Helm `randAlphaNum` | [462](./462-secrets-origin-classification.md) |
+| `grafana-admin-credentials` | Helm `randAlphaNum` | [462](./462-secrets-origin-classification.md) |
 
 ---
 

@@ -3,6 +3,11 @@
 **Created:** Mar 2026 (refresh)  
 **Owner:** Platform DX / Infrastructure  
 **Supersedes:** `backlog/362-unified-secret-guardrails.md` (kept for history)
+**Cross-references:**
+- [462-secrets-origin-classification.md](./462-secrets-origin-classification.md) – Secret origin taxonomy and classification
+- [412-cnpg-owned-postgres-greds.md](./412-cnpg-owned-postgres-greds.md) – CNPG credential ownership
+- [451-secrets-management.md](./451-secrets-management.md) – Azure KV → Vault → K8s flow for external secrets
+- [418-secrets-strategy-map.md](./418-secrets-strategy-map.md) – Strategy overview
 
 ---
 

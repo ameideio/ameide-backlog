@@ -1,4 +1,9 @@
-Here’s a north star doc you can paste into Notion/Confluence/ADR with minimal edits.
+Here's a north star doc you can paste into Notion/Confluence/ADR with minimal edits.
+
+**Cross-references:**
+- [462-secrets-origin-classification.md](./462-secrets-origin-classification.md) – Secret origin taxonomy (this doc is the exemplar for "Cluster-Managed: Operator-Owned" secrets)
+- [418-secrets-strategy-map.md](./418-secrets-strategy-map.md) – Overall secrets strategy
+- [451-secrets-management.md](./451-secrets-management.md) – External secrets flow (Azure KV → Vault → K8s)
 
 ---
 
@@ -210,6 +215,8 @@ Not:
 * Blue/green rotation schemes across multiple DB clusters.
 
 These can be addressed separately, reusing the same general principle: the **service operator** that controls the resource (DB, cache, etc.) should own its credentials; Vault may mirror, not drive.
+
+> **Note:** This principle is now codified in [462-secrets-origin-classification.md](./462-secrets-origin-classification.md) as the "Cluster-Managed: Operator-Owned" pattern. The same principle applies to Keycloak client secrets (service-generated) and Helm-generated bootstrap secrets.
 
 ---
 
