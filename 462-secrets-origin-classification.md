@@ -151,7 +151,7 @@ www-ameide-platform reads AUTH_KEYCLOAK_SECRET from K8s Secret
 - **Distribution:** ExternalSecrets sync from Vault to consuming applications
 - **Anti-pattern:** Using Vault fixtures as "placeholder" client secrets causes `invalid_client_credentials` errors
 
-**Current Gap:** The `client-patcher` Job exists but writes to a K8s Secret directly. For the multi-environment case, it should also update Vault so ExternalSecrets can sync consistently.
+**Implemented (2025-12-07):** The `client-patcher` Job extracts client secrets from Keycloak Admin API and writes them to Vault. ExternalSecrets then sync to consuming applications. The flow is fully declarative and reproducible across all environments (dev, staging, production).
 
 ---
 
@@ -245,6 +245,9 @@ spec:
 
 | Date | Decision | Rationale |
 |------|----------|-----------|
+| 2025-12-07 | Use static binaries for jq/curl in client-patcher init container | Alpine-compiled binaries fail on Keycloak UBI (glibc/musl mismatch). Static binaries from GitHub releases work across distros. |
+| 2025-12-07 | Make vault-bootstrap idempotent (skip real values) | Prevents CronJob from overwriting Keycloak-generated secrets with fixture placeholders on subsequent runs. |
+| 2025-12-07 | Align secretExtraction config across all environments | Same client IDs and Vault keys in dev/staging/production ensures reproducibility. Environment-specific Vault addresses only. |
 | 2025-12-07 | Keycloak client secrets are cluster-managed, not external | Keycloak generates client secrets; there's no external source. Fixtures are only for dev bootstrapping. |
 | 2025-12-05 | CNPG owns all Postgres credentials | Single controller avoids split-brain. See [412](./412-cnpg-owned-postgres-greds.md). |
 | 2025-11 | Azure KV for external secrets | Third-party API keys must be provisioned before cluster exists. |
@@ -258,7 +261,7 @@ spec:
 | Category | Compliant | Non-Compliant | Notes |
 |----------|-----------|---------------|-------|
 | Database Credentials | ✅ 12/12 | 0 | All services use CNPG-owned secrets per [412](./412-cnpg-owned-postgres-greds.md) |
-| Keycloak Client Secrets | ⚠️ 0/4 | 4 | All use Vault fixtures instead of Keycloak-generated |
+| Keycloak Client Secrets | ✅ 5/5 | 0 | `platform-app`, `platform-app-master` extracted via client-patcher → Vault |
 | OIDC Client Secrets | ⚠️ 0/6 | 6 | ArgoCD, K8s Dashboard, Alertmanager, Prometheus, Temporal, PgAdmin |
 | External API Keys | ✅ 5/5 | 0 | Proper Azure KV → Vault flow |
 | Bootstrap Admin Secrets | ⚠️ Partial | Partial | Fixtures appropriate for dev; production needs real values |
@@ -267,11 +270,11 @@ spec:
 
 | Secret | Location | Current Authority | Expected Authority | Status | Severity |
 |--------|----------|-------------------|-------------------|--------|----------|
-| `platform-app-master-client-secret` | [foundation-vault-bootstrap.yaml:127](../sources/values/_shared/foundation/foundation-vault-bootstrap.yaml#L127) | Vault fixture | Keycloak-generated | ❌ NON-COMPLIANT | CRITICAL |
-| `www-ameide-platform-keycloak-secret` | [foundation-vault-bootstrap.yaml:169](../sources/values/_shared/foundation/foundation-vault-bootstrap.yaml#L169) | Vault fixture | Keycloak-generated | ❌ NON-COMPLIANT | CRITICAL |
-| `AMEIDE_PLATFORM_APP_SECRET` | [platform-keycloak-realm.yaml:521-524](../sources/values/_shared/platform/platform-keycloak-realm.yaml#L521) | `www-ameide-platform-auth` | `platform-app-master-client` | ❌ NON-COMPLIANT | CRITICAL |
-| `AUTH_KEYCLOAK_SECRET` | [www-ameide-platform.yaml:177](../sources/values/_shared/apps/www-ameide-platform.yaml#L177) | Vault fixture | Keycloak-generated | ❌ NON-COMPLIANT | CRITICAL |
-| `AUTH_KEYCLOAK_ADMIN_CLIENT_SECRET` | [www-ameide-platform.yaml:178](../sources/values/_shared/apps/www-ameide-platform.yaml#L178) | Vault fixture | Keycloak-generated | ❌ NON-COMPLIANT | CRITICAL |
+| `platform-app-client-secret` | client-patcher → Vault | Keycloak-generated | Keycloak-generated | ✅ COMPLIANT | - |
+| `platform-app-master-client-secret` | client-patcher → Vault | Keycloak-generated | Keycloak-generated | ✅ COMPLIANT | - |
+| `AUTH_KEYCLOAK_SECRET` | ExternalSecret ← Vault | Keycloak-generated | Keycloak-generated | ✅ COMPLIANT | - |
+| `AUTH_KEYCLOAK_ADMIN_CLIENT_SECRET` | ExternalSecret ← Vault | Keycloak-generated | Keycloak-generated | ✅ COMPLIANT | - |
+| `AMEIDE_PLATFORM_APP_SECRET` | [platform-keycloak-realm.yaml](../sources/values/_shared/platform/platform-keycloak-realm.yaml) | `platform-app-master-client` | `platform-app-master-client` | ✅ COMPLIANT | - |
 | `www-ameide-keycloak-secret` | [foundation-vault-bootstrap.yaml:167](../sources/values/_shared/foundation/foundation-vault-bootstrap.yaml#L167) | Vault fixture | Keycloak-generated | ❌ NON-COMPLIANT | MEDIUM |
 | `argocd-dex-client-secret` | [foundation-vault-bootstrap.yaml:70](../sources/values/_shared/foundation/foundation-vault-bootstrap.yaml#L70) | Vault fixture | Keycloak-generated | ❌ NON-COMPLIANT | MEDIUM |
 | `k8s-dashboard-oidc-client-secret` | [foundation-vault-bootstrap.yaml:89](../sources/values/_shared/foundation/foundation-vault-bootstrap.yaml#L89) | Vault fixture | Keycloak-generated | ❌ NON-COMPLIANT | LOW |
@@ -288,85 +291,59 @@ spec:
 | `postgres-ameide-auth` | Helm → CNPG reconciles | K8s Secret (Helm) | K8s Secret (Helm), CNPG reconciles DB | ✅ COMPLIANT | - |
 | `*-db-credentials` | Helm → CNPG reconciles | K8s Secret (Helm) | K8s Secret (Helm), CNPG reconciles DB | ✅ COMPLIANT | - |
 
-### Critical Findings
+### Critical Findings (RESOLVED 2025-12-07)
 
-#### 1. Keycloak Client Secret Authority Violation
+> **Status:** All critical findings below have been **RESOLVED** via client-patcher Job implementation.
+> See Activity Tracking: 462-1 through 462-5, 462-11 through 462-15, 462-33 through 462-35.
 
-**Problem:** `platform-app-master-client` uses a hardcoded fixture value instead of being Keycloak-generated.
+#### 1. ~~Keycloak Client Secret Authority Violation~~ ✅ FIXED
 
-**Current Flow (WRONG):**
+**Was:** `platform-app-master-client` used a hardcoded fixture value.
+
+**Fixed Flow:**
 ```
-foundation-vault-bootstrap.yaml: platform-app-master-client-secret: "platform_client_secret"
+Keycloak generates client secret
     ↓
-ExternalSecret keycloak-master-platform-app-sync
+client-patcher Job extracts via Admin API
     ↓
-Secret platform-app-master-client
+Writes to Vault: secret/platform-app-master-client-secret
     ↓
-Keycloak realm import uses placeholder
-```
-
-**Root Cause:** [foundation-vault-bootstrap.yaml:127](../sources/values/_shared/foundation/foundation-vault-bootstrap.yaml#L127) defines:
-```yaml
-platform-app-master-client-secret: "platform_client_secret"
-```
-
-This violates the "Cluster-Managed (Service-Generated)" category.
-
-#### 2. www-ameide-platform-keycloak-secret Fixture (PRIMARY AUTH FAILURE)
-
-**Problem:** The secret `www-ameide-platform-keycloak-secret` is the **actual value** used by `www-ameide-platform-auth` ExternalSecret for `AUTH_KEYCLOAK_SECRET`.
-
-**Current Flow (WRONG):**
-```
-foundation-vault-bootstrap.yaml:169: www-ameide-platform-keycloak-secret: "www_ameide_platform_keycloak_secret"
+vault-bootstrap CronJob skips (has real value)
     ↓
-ExternalSecret www-ameide-platform-auth-sync (remoteKey: www-ameide-platform-keycloak-secret)
+ExternalSecret syncs to K8s secret
     ↓
-Secret www-ameide-platform-auth (key: AUTH_KEYCLOAK_SECRET)
-    ↓
-Auth.js uses fixture value → invalid_client_credentials error
+www-ameide-platform uses correct Keycloak-generated secret
 ```
 
-**Root Cause:** [foundation-vault-bootstrap.yaml:169](../sources/values/_shared/foundation/foundation-vault-bootstrap.yaml#L169) and [www-ameide-platform.yaml:177](../sources/values/_shared/apps/www-ameide-platform.yaml#L177):
-```yaml
-# In foundation-vault-bootstrap.yaml:169
-www-ameide-platform-keycloak-secret: "www_ameide_platform_keycloak_secret"
+**Implementation:**
+- [client-patcher-job.yaml](../sources/charts/foundation/operators-config/keycloak_realm/templates/client-patcher-job.yaml) - Secret extraction logic
+- [vault-bootstrap cronjob.yaml](../sources/charts/foundation/vault-bootstrap/templates/cronjob.yaml) - Idempotent writes
+- Per-env config in [dev](../sources/values/dev/platform/platform-keycloak-realm.yaml), [staging](../sources/values/staging/platform/platform-keycloak-realm.yaml), [production](../sources/values/production/platform/platform-keycloak-realm.yaml)
 
-# In www-ameide-platform.yaml:177
-AUTH_KEYCLOAK_SECRET: www-ameide-platform-keycloak-secret
+#### 2. ~~www-ameide-platform-keycloak-secret Fixture~~ ✅ FIXED
+
+**Was:** Auth.js received fixture value causing `invalid_client_credentials`.
+
+**Fixed:** `AUTH_KEYCLOAK_SECRET` now sources from `platform-app-client-secret` (Keycloak-generated, extracted by client-patcher).
+
+**Verification (dev):**
+```bash
+# ExternalSecret syncs Keycloak-generated secret
+kubectl get secret -n ameide-dev www-ameide-platform-auth -o jsonpath='{.data.AUTH_KEYCLOAK_SECRET}' | base64 -d
+# Returns 22-char secret (not "www_ameide_platform_keycloak_secret")
 ```
 
-**Impact:** This is the **direct cause** of auth failures. Auth.js sends `"www_ameide_platform_keycloak_secret"` as the client secret to Keycloak, which doesn't match the actual Keycloak-generated secret.
+#### 3. ~~AMEIDE_PLATFORM_APP_SECRET Source Mismatch~~ ✅ FIXED
 
-#### 3. AMEIDE_PLATFORM_APP_SECRET Source Mismatch
+**Was:** Realm import sourced from wrong K8s Secret.
 
-**Problem:** The realm import for `platform-app` client sources its secret from the wrong K8s Secret.
+**Fixed:** Now correctly sources from `platform-app-master-client` secret.
 
-**Current:** [platform-keycloak-realm.yaml:521-524](../sources/values/_shared/platform/platform-keycloak-realm.yaml#L521)
-```yaml
-AMEIDE_PLATFORM_APP_SECRET:
-  secret:
-    name: www-ameide-platform-auth
-    key: AUTH_KEYCLOAK_SECRET
-```
+#### 4. ~~www-ameide-platform Auth Secret References~~ ✅ FIXED
 
-**Expected:**
-```yaml
-AMEIDE_PLATFORM_APP_SECRET:
-  secret:
-    name: platform-app-master-client
-    key: client-secret
-```
+**Was:** Chart sourced secrets from Vault fixtures.
 
-#### 4. www-ameide-platform Auth Secret References
-
-**Problem:** The `www-ameide-platform` chart sources both `AUTH_KEYCLOAK_SECRET` and `AUTH_KEYCLOAK_ADMIN_CLIENT_SECRET` from Vault fixtures.
-
-**Location:** [www-ameide-platform.yaml:177-178](../sources/values/_shared/apps/www-ameide-platform.yaml#L177)
-```yaml
-AUTH_KEYCLOAK_SECRET: www-ameide-platform-keycloak-secret
-AUTH_KEYCLOAK_ADMIN_CLIENT_SECRET: platform-app-master-client-secret
-```
+**Fixed:** Both `AUTH_KEYCLOAK_SECRET` and `AUTH_KEYCLOAK_ADMIN_CLIENT_SECRET` now source from Keycloak-generated secrets via client-patcher → Vault → ExternalSecret flow.
 
 #### 5. OIDC Client Secrets Pattern (ArgoCD, K8s Dashboard, etc.)
 
@@ -734,38 +711,41 @@ Sync order: `platform-postgres-clusters` (CNPG-managed DB creds) → `foundation
 
 | ID | Description | Status | Assignee | Date |
 |----|-------------|--------|----------|------|
-| 462-1 | Update client-patcher Job to write to Vault | TODO | - | - |
-| 462-2 | Create ExternalSecret platform-app-master-client-sync | TODO | - | - |
-| 462-3 | Update www-ameide-platform-auth ExternalSecret | TODO | - | - |
-| 462-4 | Remove fixture for Keycloak client secrets | TODO | - | - |
-| 462-5 | Verify auth flow in dev | TODO | - | - |
+| 462-1 | Update client-patcher Job to write to Vault | ✅ DONE | Claude | 2025-12-07 |
+| 462-2 | Create ExternalSecret platform-app-master-client-sync | ✅ DONE | Claude | 2025-12-07 |
+| 462-3 | Update www-ameide-platform-auth ExternalSecret | ✅ DONE | Claude | 2025-12-07 |
+| 462-4 | Remove fixture for Keycloak client secrets | ⚠️ MODIFIED | Claude | 2025-12-07 |
+| 462-5 | Verify auth flow in dev | ✅ DONE | Claude | 2025-12-07 |
 | 462-6 | Update 418-secrets-strategy-map.md | ✅ DONE | Claude | 2025-12-07 |
 | 462-7 | Update 451-secrets-management.md | ✅ DONE | Claude | 2025-12-07 |
 | 462-8 | Add Secret Origin section to README template | TODO | - | - |
 | 462-9 | Add CI check for secret classification | TODO | - | - |
 | 462-10 | Add secrets-smoke check for placeholder values | TODO | - | - |
-| 462-11 | Fix AMEIDE_PLATFORM_APP_SECRET source | TODO | - | - |
-| 462-12 | Implement client secret extraction in client-patcher | TODO | - | - |
-| 462-13 | Remove Keycloak fixture from vault-bootstrap | TODO | - | - |
-| 462-14 | Update www-ameide-platform-auth ExternalSecret | TODO | - | - |
-| 462-15 | Verify auth flow end-to-end | TODO | - | - |
-| 462-16 | Add fixture warning comments | TODO | - | - |
+| 462-11 | Fix AMEIDE_PLATFORM_APP_SECRET source | ✅ DONE | Claude | 2025-12-07 |
+| 462-12 | Implement client secret extraction in client-patcher | ✅ DONE | Claude | 2025-12-07 |
+| 462-13 | Remove Keycloak fixture from vault-bootstrap | ⚠️ MODIFIED | Claude | 2025-12-07 |
+| 462-14 | Update www-ameide-platform-auth ExternalSecret | ✅ DONE | Claude | 2025-12-07 |
+| 462-15 | Verify auth flow end-to-end | ✅ DONE | Claude | 2025-12-07 |
+| 462-16 | Add fixture warning comments | ✅ DONE | Claude | 2025-12-07 |
 | 462-17 | Create production secret overrides template | TODO | - | - |
 | 462-18 | Implement Helm-generated Keycloak admin passwords | TODO | - | - |
 | 462-19 | Add secrets-smoke validation | TODO | - | - |
 | 462-20 | Document secret rotation procedures | TODO | - | - |
 | 462-21 | Add CI check for fixture values | TODO | - | - |
-| 462-22 | Remove redundant fixture | TODO | - | - |
+| 462-22 | Remove redundant fixture | ✅ DONE | Claude | 2025-12-07 |
 | 462-23 | Update service README templates | TODO | - | - |
-| 462-24 | Archive compliance audit results | TODO | - | - |
+| 462-24 | Archive compliance audit results | IN PROGRESS | Claude | 2025-12-07 |
 | 462-25 | Fix ArgoCD client secret authority (extend client-patcher) | TODO | - | - |
 | 462-26 | Fix K8s Dashboard client secret authority | TODO | - | - |
 | 462-27 | Audit all OIDC client secrets for scope/priority | TODO | - | - |
-| 462-28 | Fix www-ameide-platform-keycloak-secret (primary auth fix) | TODO | - | - |
+| 462-28 | Fix www-ameide-platform-keycloak-secret (primary auth fix) | ✅ DONE | Claude | 2025-12-07 |
 | 462-29 | Verify www-ameide app OIDC auth | TODO | - | - |
 | 462-30 | Update 333-realms.md Q6 (Azure KV → Keycloak-generated) | ✅ DONE | Claude | 2025-12-07 |
 | 462-31 | Verify 323-keycloak-realm-roles.md sync order alignment | ✅ DONE | Claude | 2025-12-07 |
 | 462-32 | Add 462 cross-ref to 426-keycloak-config-map.md | ✅ DONE | Claude | 2025-12-07 |
+| 462-33 | Align secretExtraction across all environments | ✅ DONE | Claude | 2025-12-07 |
+| 462-34 | Make vault-bootstrap idempotent (skip real values) | ✅ DONE | Claude | 2025-12-07 |
+| 462-35 | Use static jq/curl binaries in client-patcher | ✅ DONE | Claude | 2025-12-07 |
 
 ---
 
