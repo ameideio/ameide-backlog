@@ -304,11 +304,29 @@ externalSecrets:
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | Chart type | Custom wrapper | Matches existing Ameide patterns; easier integration |
-| Authentication | Native OIDC | Simpler than oauth2-proxy; consistent with platform |
+| Authentication | Native OIDC via Janus IDP | Vendor-aligned with Red Hat Developer Hub; OIDC pre-configured |
 | Database | Shared CNPG cluster | Follows existing pattern; no separate PostgreSQL |
 | Rollout phase | 356 (platform, sub-phase `*55`) | Post-runtime bootstrap after Keycloak (350) + client-patcher (355) |
 | Port | 7007 | Backstage default port |
-| Docker image | Official `ghcr.io/backstage/backstage` | Start with official; custom image later |
+| Docker image | `quay.io/janus-idp/backstage-showcase` | Production-ready OIDC support; aligns with RHDH vendor docs |
+
+### 5.0.1 Vendor Alignment Decision (2025-12-07)
+
+**Problem**: Stock `ghcr.io/backstage/backstage` image doesn't include OIDC provider module in backend.
+
+**Vendor guidance** (Red Hat Developer Hub docs):
+1. Backstage requires `@backstage/plugin-auth-backend-module-oidc-provider` registered in backend
+2. Frontend needs SignInPage configured for OIDC
+3. `auth.session.secret` is required for cookie signing
+
+**Solution**: Use **Janus IDP** (`quay.io/janus-idp/backstage-showcase`) which:
+- Ships with OIDC provider pre-configured
+- Has SignInPage wired for OIDC
+- Follows Red Hat Developer Hub patterns
+
+**References**:
+- [Red Hat Developer Hub Authentication](https://docs.redhat.com/en/documentation/red_hat_developer_hub/1.5/html/authentication_in_red_hat_developer_hub/)
+- [Backstage OIDC Provider](https://backstage.io/docs/auth/oidc/)
 
 ---
 
@@ -409,6 +427,58 @@ Backstage roles should map to Keycloak realm roles:
 | `backstage-admin` | `platform-admin` | Full access to catalog, templates |
 | `backstage-editor` | `developer` | Create from templates, edit catalog |
 | `backstage-viewer` | `viewer` | Read-only catalog access |
+
+### 5.2.1 OIDC Client Reconciliation Gap (2025-12-07)
+
+**Status**: ⚠️ Blocking Issue Identified
+
+**Problem**: The `backstage` OIDC client is defined in Git but does not exist in Keycloak.
+
+**Root Cause Analysis**:
+
+1. `KeycloakRealmImport` is **create-only** (vendor behavior per [426-keycloak-config-map.md](426-keycloak-config-map.md) §5)
+2. The `ameide` realm was created **before** the backstage client was added to the config
+3. `KeycloakRealmImport` won't update an existing realm - it's ephemeral (PostSync hook, deleted after success)
+4. `client-patcher` only **extracts** secrets from existing clients, doesn't create missing ones
+
+**Current Flow (Broken)**:
+
+```
+Git (backstage client) ──X──▶ Keycloak (client missing)
+                                      │
+                               client-patcher
+                               "Client not found - skipping"
+                                      │
+                                      X (no secret in Vault)
+                                      │
+                               ExternalSecret FAILS
+                                      │
+                               Backstage FAILS (missing secret)
+```
+
+**Layer Analysis**:
+
+| Layer | Status | Notes |
+|-------|--------|-------|
+| Client definition in Git | ✅ Done | `platform-keycloak-realm.yaml` has backstage client |
+| Sync Git → Keycloak | ❌ Missing | KeycloakRealmImport is create-only |
+| Secret extraction (Keycloak → Vault) | ⚠️ Partial | Works but skips missing clients |
+| Secret sync (Vault → K8s) | ✅ Ready | ExternalSecret configured |
+| Backstage consuming secret | ✅ Ready | Deployment env vars configured |
+
+**This is a General Pattern Issue**:
+
+This affects **all** OIDC clients added after initial realm creation:
+- `backstage` (current blocker)
+- `k8s-dashboard` (may have same issue)
+- Any future OIDC-enabled service
+
+**Solution**: See [485-keycloak-oidc-client-reconciliation.md](485-keycloak-oidc-client-reconciliation.md) for the declarative fix.
+
+**Vendor References**:
+- [Red Hat Developer Hub Authentication](https://docs.redhat.com/en/documentation/red_hat_developer_hub/1.5/html/authentication_in_red_hat_developer_hub/)
+- [Backstage OIDC Provider](https://backstage.io/docs/auth/oidc/)
+- [ArgoCD Keycloak Integration](https://argo-cd.readthedocs.io/en/release-2.13/operator-manual/user-management/keycloak/)
 
 ---
 
@@ -687,12 +757,12 @@ production  × platform/developer/backstage = production-platform-backstage
 1. ✅ Add `backstage` database to CNPG cluster values
 2. ✅ Deploy postgres-clusters update
 3. ✅ Create Backstage Helm chart
-4. ⏳ Add Keycloak OIDC client (future - MVP uses guest access)
-5. ⏳ Store client secret in Vault (future - DB uses CNPG credentials)
+4. ✅ Add Keycloak OIDC client to realm config
+5. ✅ Configure client-patcher to extract secret to Vault
 6. ✅ Create component definition
 7. ✅ Create dev values file
 8. ✅ Deploy to dev via ArgoCD
-9. ⏳ Verify authentication flow (future - OIDC not yet configured)
+9. ⏳ Verify authentication flow (after keycloak-realm sync)
 10. ✅ Verify database connectivity
 
 ### 7.2 Staging & Production
@@ -714,7 +784,7 @@ The initial deployment is an MVP focused on:
 - ✅ Database connectivity (CNPG-managed)
 - ✅ HTTPRoute exposure via Gateway API
 - ✅ ArgoCD deployment across all environments
-- ⏳ Authentication (guest access for now, OIDC planned)
+- ✅ Authentication (OIDC via Keycloak - implemented 2025-12-07)
 - ⏳ Telemetry integration (planned)
 - ⏳ Helm unit tests (planned)
 
@@ -874,10 +944,16 @@ sources/values/_shared/data/platform-postgres-clusters.yaml
 # CNPG app-secrets template ✅
 sources/charts/foundation/operators-config/postgres_clusters/templates/app-secrets.yaml
 
-# Keycloak client-patcher configuration (future - OIDC integration)
-sources/values/dev/platform/platform-keycloak-realm.yaml      # Add backstage client
+# Keycloak realm config ✅ (OIDC client added 2025-12-07)
+sources/values/_shared/platform/platform-keycloak-realm.yaml    # backstage client definition
+
+# client-patcher configuration ✅ (2025-12-07)
+sources/values/dev/platform/platform-keycloak-realm.yaml        # secretExtraction for backstage
 sources/values/staging/platform/platform-keycloak-realm.yaml
 sources/values/production/platform/platform-keycloak-realm.yaml
+
+# ExternalSecret template ✅ (2025-12-07)
+sources/charts/foundation/operators-config/keycloak_realm/templates/externalsecret-oidc-clients.yaml
 ```
 
 ---
@@ -889,11 +965,13 @@ sources/values/production/platform/platform-keycloak-realm.yaml
 - [ ] Health endpoint returns 200 at `/healthz`
 - [x] ArgoCD shows `Synced` and `Healthy` (dev, staging)
 
-### Authentication (§5.2) - Future
-- [ ] Keycloak SSO login working (redirect → login → callback)
-- [ ] `backstage` client exists in Keycloak `ameide` realm
-- [ ] client-patcher Job extracted secret to Vault
-- [ ] ExternalSecret synced secret to K8s
+### Authentication (§5.2) - Implemented 2025-12-07
+- [x] `backstage` client added to Keycloak `ameide` realm config
+- [x] client-patcher configured to extract secret to Vault (all environments)
+- [x] ExternalSecret template updated to include backstage-client-secret
+- [x] Backstage configmap includes auth section with OIDC provider
+- [x] Deployment mounts OIDC secret as AUTH_OIDC_CLIENT_SECRET
+- [ ] Keycloak SSO login working (pending keycloak-realm sync)
 
 ### Database
 - [x] `backstage` database exists in CNPG cluster

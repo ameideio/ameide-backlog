@@ -209,6 +209,18 @@ clientPatcher:
 4. **ExternalSecrets sync** Vault secrets to Kubernetes Secrets
 5. **Applications consume** the synced Secrets (e.g., `AUTH_KEYCLOAK_SECRET`)
 
+#### Known Limitation: Create-Only Realm Import (2025-12-07)
+
+⚠️ **Gap Identified**: `KeycloakRealmImport` is create-only - it doesn't update existing realms.
+
+**Implication**: OIDC clients added to Git after initial realm creation are **not created** in Keycloak. The `client-patcher` then skips secret extraction because the client doesn't exist.
+
+**Affected services**:
+- `backstage` (blocking)
+- Any future OIDC client added post-realm-creation
+
+**Solution**: See [485-keycloak-oidc-client-reconciliation.md](485-keycloak-oidc-client-reconciliation.md) for the declarative fix that extends `client-patcher` to ensure clients exist before extracting secrets.
+
 #### Vault-Bootstrap Idempotency
 
 The `vault-bootstrap` CronJob uses `--check-and-set=0` (CAS) to avoid overwriting Keycloak-generated secrets with fixture values:
