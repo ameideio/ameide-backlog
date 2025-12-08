@@ -281,6 +281,35 @@ Key points:
 
 Until Vault automation manages these credentials, this namespace-scoped Secret keeps the GitOps flow unblocked and is referenced directly by the chart. Track the manual Secret ownership in [486-keycloak-admin-recovery.md](486-keycloak-admin-recovery.md).
 
+**Secret rotation (existing service account)**  
+Running the bootstrap Job again after the client exists just produces `duplicate key` errors. Rotate secrets in-place instead:
+
+```bash
+# 1. Grab the client UUID and ask Keycloak to generate a fresh secret (done from your workstation)
+ADMIN_USER=$(kubectl -n ameide-{env} get secret keycloak-bootstrap-admin -o jsonpath='{.data.username}' | base64 -d)
+ADMIN_PASS=$(kubectl -n ameide-{env} get secret keycloak-bootstrap-admin -o jsonpath='{.data.password}' | base64 -d)
+CLIENT_JSON=$(kubectl -n ameide-{env} exec keycloak-0 -- env ADMIN_USER="$ADMIN_USER" ADMIN_PASS="$ADMIN_PASS" bash -c '
+  KCADM=/opt/keycloak/bin/kcadm.sh
+  $KCADM config credentials --server http://localhost:8080 --realm master --user "$ADMIN_USER" --password "$ADMIN_PASS" >/dev/null
+  $KCADM get clients -r master -q clientId=keycloak-admin-sa
+')
+CLIENT_ID=$(echo "$CLIENT_JSON" | jq -r '.[0].id')
+NEW_SECRET=$(kubectl -n ameide-{env} exec keycloak-0 -- env ADMIN_USER="$ADMIN_USER" ADMIN_PASS="$ADMIN_PASS" CLIENT_ID="$CLIENT_ID" bash -c '
+  KCADM=/opt/keycloak/bin/kcadm.sh
+  $KCADM config credentials --server http://localhost:8080 --realm master --user "$ADMIN_USER" --password "$ADMIN_PASS" >/dev/null
+  $KCADM create clients/$CLIENT_ID/client-secret -r master -o --fields value
+' | jq -r '.value')
+
+# 2. Push the new secret to Vault and refresh ESO
+vault kv put secret/keycloak-admin-sa-client-secret value="${NEW_SECRET}"
+kubectl -n ameide-{env} annotate externalsecret keycloak-admin-sa-sync force-refresh=$(date +%s) --overwrite
+
+# 3. Re-sync the Keycloak realm App so client-patcher picks up the new secret
+argocd app sync {env}-platform-keycloak-realm --timeout 600 --grpc-web --plaintext
+```
+
+This keeps Keycloak as the authority (per vendor docs), ensures Vault + ExternalSecret stay in sync, and avoids rerunning `bootstrap-admin service` once the temp client already exists.
+
 #### Known Limitation: Create-Only Realm Import (2025-12-07)
 
 ⚠️ **Gap Identified**: `KeycloakRealmImport` is create-only - it doesn't update existing realms.

@@ -99,6 +99,8 @@ kubectl -n ameide-${ENV} annotate externalsecret keycloak-admin-sa-sync \
 
 ### Step 2: Run `kc.sh bootstrap-admin service` from an Ephemeral Job
 
+Use this **only for first-time creation** of the service account (or if you intentionally delete the client). Once the client exists, follow the rotation note above instead.
+
 `kc.sh bootstrap-admin service` starts a Quarkus instance on port `9000`. Running it inside the already-running `keycloak-0` Pod fails with `Address already in use`. Instead, launch a one-shot Job that reuses the same Keycloak image and DB credentials:
 
 ```bash
@@ -178,6 +180,28 @@ kubectl -n ameide-staging annotate externalsecret keycloak-realm-oidc-clients \
 ```
 
 Repeat for production. The ExternalSecret status should flip to `Ready=True` once Vault returns the new secrets, unblocking Backstage and other OIDC consumers.
+
+> **Existing service account rotation:** Once the client already exists, do **not** re-run `kc.sh bootstrap-admin service` (Keycloak will reject it with a duplicate client error). Instead, mint a new secret with `kcadm` and push it to Vault:
+>
+> ```bash
+> ADMIN_USER=$(kubectl -n ameide-{env} get secret keycloak-bootstrap-admin -o jsonpath='{.data.username}' | base64 -d)
+> ADMIN_PASS=$(kubectl -n ameide-{env} get secret keycloak-bootstrap-admin -o jsonpath='{.data.password}' | base64 -d)
+> CLIENT_JSON=$(kubectl -n ameide-{env} exec keycloak-0 -- env ADMIN_USER="$ADMIN_USER" ADMIN_PASS="$ADMIN_PASS" bash -c '
+>   KCADM=/opt/keycloak/bin/kcadm.sh
+>   $KCADM config credentials --server http://localhost:8080 --realm master --user "$ADMIN_USER" --password "$ADMIN_PASS" >/dev/null
+>   $KCADM get clients -r master -q clientId=keycloak-admin-sa
+> ')
+> CLIENT_ID=$(echo "$CLIENT_JSON" | jq -r '.[0].id')
+> NEW_SECRET=$(kubectl -n ameide-{env} exec keycloak-0 -- env ADMIN_USER="$ADMIN_USER" ADMIN_PASS="$ADMIN_PASS" CLIENT_ID="$CLIENT_ID" bash -c '
+>   KCADM=/opt/keycloak/bin/kcadm.sh
+>   $KCADM config credentials --server http://localhost:8080 --realm master --user "$ADMIN_USER" --password "$ADMIN_PASS" >/dev/null
+>   $KCADM create clients/$CLIENT_ID/client-secret -r master -o --fields value
+> ' | jq -r '.value')
+> vault kv put secret/keycloak-admin-sa-client-secret value="${NEW_SECRET}"
+> kubectl -n ameide-{env} annotate externalsecret keycloak-admin-sa-sync force-refresh=$(date +%s) --overwrite
+> ```
+>
+> After Vault + ExternalSecret refresh, re-run the Keycloak realm App so `client-patcher` consumes the rotated secret.
 
 Once the temporary `keycloak-admin-sa` flow is stable, create a dedicated long-lived admin client so the stop-gap secret can be rotated out of the namespace.
 
