@@ -65,7 +65,29 @@ Establish the shared `extensions-runtime` service that runs Tier 1 WASM extens
 
 ---
 
-## 4. Acceptance Criteria
+## 4. Implementation Status (Dec 2025)
+
+| Area | Status | Notes |
+|------|--------|-------|
+| **Proto & SDKs** | ✅ Complete | `packages/ameide_core_proto/src/ameide_core_proto/extensions/v1/runtime.proto` landed; Go SDK stubs regenerated and vendored via workspace copies per 365/408. TS/Python SDK sync pending the next Buf push. |
+| **Service scaffold** | ✅ Complete | `services/extensions-runtime/` contains config package, sandbox executor (placeholder), MinIO-backed ModuleStore, gRPC server wiring, README, and dual Dockerfiles (workspace-first). |
+| **Testing** | ✅ Mock mode, ⚠ cluster | Mock + cluster-aware integration suite (`__tests__/integration`) follows the unified runner (430). Cluster env vars still need documentation/pipeline wiring before running against `ameide-dev`. |
+| **Docker build** | ✅ | `docker build` succeeds for both dev/release images; GitHub workflow `extensions-runtime.yml` exercises `go test`, integration tests (mock mode), and both Dockerfiles on PRs. |
+| **Observability/telemetry** | ✅ baseline | OTEL wiring mirrors inference-gateway pattern (contextual logging, tenant interceptor, OTLP exporter). Need to add metrics + diagnostics once host-call bridge is implemented. |
+| **Host-call bridge & Wasmtime** | 🚧 In progress | Current executor is a sandbox stub that echoes payloads; Wasmtime embedding, fuel/time limits, and host-call policy enforcement are slated for the next iteration. |
+| **MinIO module management** | ✅ | LRU cache + singleflight loader backed by MinIO client; config struct aligned with 362 (endpoint, secure flag, bucket/prefix). Need to layer in config reload events from Transformation. |
+| **Helm/GitOps deployment** | ⏳ Not started | Chart + ApplicationSet entries still to be created (blocked on Wasmtime/host-call completion). |
+| **Controller integration** | ⏳ Not started | Controllers currently have no helper to invoke the runtime; SDK convenience methods + wiring into Platform/Domain/Process controllers to follow once runtime API stabilizes. |
+
+Next mileposts:
+1. Swap the placeholder executor for Wasmtime + host-call enforcement (per §3.4/3.5).
+2. Emit controller-side SDK helpers and RPC client wrappers.
+3. Author Helm chart + GitOps Application (platform band, rollout-phase 350).
+4. Extend CI to publish images through `cd-service-images` once Helm manifests exist.
+
+---
+
+## 5. Acceptance Criteria
 
 - Controllers can call `InvokeExtension` via generated SDKs and receive sandboxed results.
 - The runtime enforces limits declared in `ExtensionDefinition.limits` and risk-tier host-call policies.
@@ -79,7 +101,7 @@ Establish the shared `extensions-runtime` service that runs Tier 1 WASM extens
 
 ---
 
-## 5. Open Questions / Follow-ups
+## 6. Open Questions / Follow-ups
 
 1. Preferred storage backend for WASM blobs (S3-compatible bucket vs database) and caching invalidation mechanism.
 2. How Transformation publishes promotion events (Webhook? Kafka?) for the runtime to consume.
