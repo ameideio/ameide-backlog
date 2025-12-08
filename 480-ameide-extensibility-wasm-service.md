@@ -42,7 +42,7 @@ Establish the shared `extensions-runtime` service that runs Tier 1 WASM extens
    - Add `Dockerfile.dev` / `Dockerfile.release` mirroring controller skeleton patterns (Go multi-stage) and copying workspace SDK packages per the Ring 1 / Ring 2 rules (408).
 
 3. **Module Management**
-   - Implement `ModuleStore` that pulls WASM blobs via `wasm_blob_ref`, verifies integrity, and caches by `(extension_id, version)` with eviction policies. Objects live in the GitOps-managed MinIO deployment (`data-minio`); respect the shared ExternalSecrets defined in backlog/362 and the storage pattern documented in 479 §3.5.
+   - Implement `ModuleStore` that pulls WASM blobs via `wasm_blob_ref`, verifies integrity, and caches by `(extension_id, version)` with eviction policies. Objects live in the GitOps-managed MinIO deployment (`data-minio`); respect the shared ExternalSecrets defined in backlog/362 and the storage pattern documented in 479 §3.5. Reference `380-minio-config-overview.md` for bucket tenancy so the runtime reuses the existing MinIO service rather than provisioning bespoke storage.
    - Support refreshing config from promotion events (watch storage, SSE, or queue).
 
 4. **Sandbox Execution**
@@ -69,21 +69,24 @@ Establish the shared `extensions-runtime` service that runs Tier 1 WASM extens
 
 | Area | Status | Notes |
 |------|--------|-------|
-| **Proto & SDKs** | ✅ Complete | `packages/ameide_core_proto/src/ameide_core_proto/extensions/v1/runtime.proto` landed; Go SDK stubs regenerated and vendored via workspace copies per 365/408. TS/Python SDK sync pending the next Buf push. |
+| **Proto & SDKs** | ✅ Complete | `packages/ameide_core_proto/src/ameide_core_proto/extensions/v1/runtime.proto` landed; Go/TS/Python SDKs now expose `WasmExtensionRuntimeService` and `scripts/dev/check_sdk_alignment.py` passes locally. |
 | **Service scaffold** | ✅ Complete | `services/extensions-runtime/` contains config package, sandbox executor (placeholder), MinIO-backed ModuleStore, gRPC server wiring, README, and dual Dockerfiles (workspace-first). |
 | **Testing** | ✅ Mock mode, ⚠ cluster | Mock + cluster-aware integration suite (`__tests__/integration`) follows the unified runner (430). Cluster env vars still need documentation/pipeline wiring before running against `ameide-dev`. |
-| **Docker build** | ✅ | `docker build` succeeds for both dev/release images; GitHub workflow `extensions-runtime.yml` exercises `go test`, integration tests (mock mode), and both Dockerfiles on PRs. |
+| **Workspace-first build/test guardrails** | ✅ Verified | `Dockerfile.dev` and `.release` copy workspace SDK packages (408/405), and CI guardrails (`policy/check_docker_sources.sh`, `check_dockerfile_parity.sh`) passed on the 2025‑12‑08 `CD / Packages` run before SDK validation executed. Local `go test ./...` and mock-mode integration tests both pass. |
+| **SDK alignment (365 v2)** | ✅ | SDK regeneration landed (see above). CI now fails only on remaining steps if host-call integration or GitOps wiring is missing. |
+| **Docker build** | ✅ | `docker build` succeeds for both dev/release images; GitHub workflow `extensions-runtime.yml` exercises `go test`, integration tests (mock mode), and both Dockerfiles on PRs. CGO is now enabled in both Dockerfiles for Wasmtime. |
 | **Observability/telemetry** | ✅ baseline | OTEL wiring mirrors inference-gateway pattern (contextual logging, tenant interceptor, OTLP exporter). Need to add metrics + diagnostics once host-call bridge is implemented. |
-| **Host-call bridge & Wasmtime** | 🚧 In progress | Current executor is a sandbox stub that echoes payloads; Wasmtime embedding, fuel/time limits, and host-call policy enforcement are slated for the next iteration. |
+| **Host-call bridge & Wasmtime** | ⚠ Partially complete | Wasmtime executor now runs modules with `alloc/dealloc/run` + `host_log/host_call` ABI, fuel limits, and compiled-module caching (`EXTENSIONS_SANDBOX_*` envs expose cache/fuel tuning). `host_call` still routes through a `NoopHostBridge`, so policy-aware host-call enforcement, response plumbing, and SDK helpers remain. |
 | **MinIO module management** | ✅ | LRU cache + singleflight loader backed by MinIO client; config struct aligned with 362 (endpoint, secure flag, bucket/prefix). Need to layer in config reload events from Transformation. |
-| **Helm/GitOps deployment** | ⏳ Not started | Chart + ApplicationSet entries still to be created (blocked on Wasmtime/host-call completion). |
+| **Helm/GitOps deployment** | ⏳ Not started | Chart + ApplicationSet entries still to be created (blocked on completing host-call bridge + controller wiring). Ensure rollout phase ≈350 per backlog/447 and wire ApplicationSets per backlog/465/364-v5. |
+| **Release packaging (cd-service-images)** | ⏳ Not started | `.github/workflows/cd-service-images.yml` matrix does not include `extensions-runtime`, so no dev/release image is published yet even though the standalone CI workflow builds locally. Add matrix entries plus image metadata before enabling GitOps delivery. |
 | **Controller integration** | ⏳ Not started | Controllers currently have no helper to invoke the runtime; SDK convenience methods + wiring into Platform/Domain/Process controllers to follow once runtime API stabilizes. |
 
 Next mileposts:
-1. Swap the placeholder executor for Wasmtime + host-call enforcement (per §3.4/3.5).
-2. Emit controller-side SDK helpers and RPC client wrappers.
-3. Author Helm chart + GitOps Application (platform band, rollout-phase 350).
-4. Extend CI to publish images through `cd-service-images` once Helm manifests exist.
+1. Implement the real HostBridge (risk-tier allowlists, routing to internal SDK clients, returning payloads to modules) now that Wasmtime is embedded.
+2. Emit controller-side SDK helpers and RPC client wrappers, then wire at least one controller path through mock-mode integration tests.
+3. Add `extensions-runtime` to `cd-service-images` and author Helm chart + ApplicationSet entries (platform rollout phase ~350) so GitOps clusters can pull the image.
+4. Extend module-store config hydration (Transformation promotion → runtime) and document negative sandbox tests + SLO dashboards.
 
 ---
 

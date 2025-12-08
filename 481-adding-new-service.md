@@ -26,6 +26,7 @@ Use this checklist whenever you create a net-new service under `services/` or `s
 | **SDK & workspace alignment** | Are protos consumed exclusively via Ameide SDKs, and do Dockerfiles follow the Ring 1/Ring 2 workspace-first rules? | `365-buf-sdks-v2.md`, `408-workspace-first-ring-2.md`, `405-docker-files.md` |
 | **Networking & tenancy labels** | Are namespace/pod labels and NetworkPolicies configured correctly (tier, tenant, environment)? | `441-networking.md`, `434-unified-environment-naming.md`, `442-environment-isolation.md`, `459-httproute-ownership.md` |
 | **Testing (mock/cluster)** | Do integration packs follow the unified test contract (single implementation, mock/cluster modes)? | `430-unified-test-infrastructure.md`, `services/_templates/README.md`, `tools/integration-runner/README.md` |
+| **Build/test verification & CI logs** | Have we run unit + integration suites locally, verified `docker build` (dev + release) succeeds, and confirmed GitHub workflows (`extensions-runtime.yml`, `cd-service-images.yml`) include the new service? Did the latest `gh run view <id>` logs pass SDK alignment and publishing checks? | `430-unified-test-infrastructure.md`, `395-sdk-build-docker-tilt-north-star.md`, `405-docker-files.md`, `408-workspace-first-ring-2.md`, `.github/workflows/*.yml` |
 | **Observability & SLOs** | What metrics/logging/tracing does the service emit? Are dashboards updated? | `platform observability backlogs`, `services/README.md`, service-specific SLO docs |
 | **Security & governance** | Does the service follow risk-tier rules, host-call policies, and secrets governance? | `476-security-and-trust.md`, `362-unified-secret-guardrails-v2.md`, `479-ameide-extensibility-wasm.md` (for Tier 1 runtime specifics) |
 | **Documentation & ownership** | README, runbooks, rotation steps, owners? Has Backstage catalog info been created? | `service_catalog/.../README.md`, `backlog/478-service-catalog.md` (Backstage integration), `services/README.md` |
@@ -81,8 +82,8 @@ Use this checklist whenever you create a net-new service under `services/` or `s
     - Run `scripts/validate-hardened-charts.sh` (manual while guardrail CI is deferred).
 
 11. **CI/CD wiring**
-    - Add or update GitHub workflows (and `cd-service-images` entries where applicable) so the service runs unit/integration tests and builds both dev/release Docker images on PRs/main.
-    - Ensure the release workflow publishes or references the service Dockerfiles per backlog 405/395 so pipelines can promote images into GitOps.
+    - Add or update GitHub workflows (and `cd-service-images` entries where applicable) so the service runs unit/integration tests and builds both dev/release Docker images on PRs/main. Confirm the workspace-first Dockerfiles pass `policy/check_docker_sources.sh` (408/405) and the unit/integration suites are referenced in the workflow.
+    - After wiring, re-run the workflows (e.g., `gh run list`, `gh run view <run-id>`) to ensure `CD / Packages` succeeds (no missing SDK surfaces per 365/393) and `CD / Service Images` publishes the dev/release images. Capture run IDs in the backlog for traceability.
 
 ---
 
