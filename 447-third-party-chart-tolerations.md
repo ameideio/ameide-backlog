@@ -10,6 +10,7 @@
 > | [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md) | Node tolerations for operators |
 > | [464-chart-folder-alignment.md](464-chart-folder-alignment.md) | Third-party chart locations |
 > | [426-keycloak-config-map.md](426-keycloak-config-map.md) | Keycloak tolerations (§5.1) |
+> | [490-vendor-charts-alignment.md](490-vendor-charts-alignment.md) | Vendoring workflow that keeps third-party charts reproducible before tolerations are applied |
 >
 > **Related documents:**
 > - [442-environment-isolation.md](442-environment-isolation.md) – Environment isolation strategy (parent issue)

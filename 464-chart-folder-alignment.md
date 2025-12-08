@@ -10,6 +10,7 @@
 > | [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md) | Rollout phases & sub-phase patterns (`*10`, `*20`, `*50`, etc.) |
 > | [426-keycloak-config-map.md](426-keycloak-config-map.md) | Secrets handling, OIDC client extraction patterns |
 > | [473-ameide-technology.md](473-ameide-technology.md) | Technology architecture (how Backstage, Temporal fit in) |
+> | [490-vendor-charts-alignment.md](490-vendor-charts-alignment.md) | Vendoring script/CI/documentation alignment for third-party charts |
 >
 > **Related (Implementation Details)**:
 > - [459-httproute-ownership.md](459-httproute-ownership.md) – HTTPRoute ownership patterns

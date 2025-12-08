@@ -4,6 +4,8 @@
 **Date**: 2025-12-05
 **Related**: [345-ci-cd-unified-playbook.md](345-ci-cd-unified-playbook.md), [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md), [450-argocd-service-issues-inventory.md](450-argocd-service-issues-inventory.md)
 
+> **Cross-reference**: [490-vendor-charts-alignment.md](490-vendor-charts-alignment.md) tracks the lockfile + vendoring workflow that complements this GHCR mirroring effort.
+
 ## Problem Statement
 
 Docker Hub rate limiting caused widespread `ImagePullBackOff` errors across all environments:

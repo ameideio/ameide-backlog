@@ -4,6 +4,7 @@
 > - [086-k8s-deploy-preflight-checks.md](old/086-k8s-deploy-preflight-checks.md) – Deployment preflight checks (archived)
 > - [111-helm-tilt-north-star.md](old/111-helm-tilt-north-star.md) – Helm/Tilt strategy (archived)
 > - [447-third-party-chart-tolerations.md](447-third-party-chart-tolerations.md) – Third-party chart configuration issues
+> - [490-vendor-charts-alignment.md](490-vendor-charts-alignment.md) – Lockfile + vendoring enforcement that feeds Helm validation inputs
 
 ## Summary
 
