@@ -18,6 +18,10 @@
    - The Application was stuck deleting (seed Job finalizer), leaving Deployment missing.
    - Fix: Cleared finalizers, let the ApplicationSet recreate; now Synced/Healthy with the initContainer in place.
 
+3) **OIDC onboarding still broken**
+   - Even after oauth2-proxy fronting Plausible, Keycloak logins often bounce users to `/register` and the proxy emits `email ... isn't verified` errors for unverified accounts.
+   - Status: unresolved (tracked alongside the rotation backlog in 487). Until Keycloak verification policy is sorted out, Plausible SSO cannot be considered production-ready.
+
 ## How to verify (dev)
 
 - `argocd app get argocd/apps-plausible` should show Synced/Healthy and the Deployment spec containing `initContainers: plausible-db-init` with the entrypoint command.
