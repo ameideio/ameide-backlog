@@ -85,61 +85,103 @@ kubectl exec -n ameide-{env} postgres-ameide-0 -- \
 
 ## 3. Recommended Recovery Procedure
 
-### Step 1: Create Temporary Admin Service Account
+### Step 1: Write Service Account Credentials to Vault
 
-For each environment:
-
-```bash
-# Dev
-kubectl exec -n ameide-dev keycloak-0 -- \
-  /opt/keycloak/bin/kc.sh bootstrap-admin service \
-  --client-id keycloak-admin-sa \
-  --client-secret 'TempAdminSecret2025!'
-
-# Staging
-kubectl exec -n ameide-staging keycloak-0 -- \
-  /opt/keycloak/bin/kc.sh bootstrap-admin service \
-  --client-id keycloak-admin-sa \
-  --client-secret 'TempAdminSecret2025!'
-
-# Production
-kubectl exec -n ameide-prod keycloak-0 -- \
-  /opt/keycloak/bin/kc.sh bootstrap-admin service \
-  --client-id keycloak-admin-sa \
-  --client-secret 'TempAdminSecret2025!'
-```
-
-### Step 2: Store Service Account Credentials in Vault
-
-Write the service account credentials to Vault so client-patcher can use them:
+All environments consume the `keycloak-admin-sa` Secret via `ExternalSecret/keycloak-admin-sa-sync`, which reads Vault keys `keycloak-admin-sa-client-id` and `keycloak-admin-sa-client-secret`. Rotate the values by writing to Vault (per environment) and forcing the ExternalSecret to refresh:
 
 ```bash
-vault kv put secret/keycloak-admin-sa \
-  client-id=keycloak-admin-sa \
-  client-secret='TempAdminSecret2025!'
+export ENV=staging   # dev | staging | prod
+vault kv put secret/keycloak-admin-sa-client-id value=keycloak-admin-sa
+vault kv put secret/keycloak-admin-sa-client-secret value='TempAdminSecret2025!'
+kubectl -n ameide-${ENV} annotate externalsecret keycloak-admin-sa-sync \
+  force-refresh=$(date +%s) --overwrite
 ```
 
-### Step 3: Update client-patcher to Use Service Account Auth
+### Step 2: Run `kc.sh bootstrap-admin service` from an Ephemeral Job
 
-Modify authentication in client-patcher-job.yaml:
+`kc.sh bootstrap-admin service` starts a Quarkus instance on port `9000`. Running it inside the already-running `keycloak-0` Pod fails with `Address already in use`. Instead, launch a one-shot Job that reuses the same Keycloak image and DB credentials:
 
 ```bash
-# Current (password grant - broken)
-$KC config credentials \
-  --server "${KEYCLOAK_URL}" \
-  --realm master \
-  --user "${KEYCLOAK_ADMIN_USER}" \
-  --password "${KEYCLOAK_ADMIN_PASSWORD}"
-
-# New (client credentials grant - recommended)
-$KC config credentials \
-  --server "${KEYCLOAK_URL}" \
-  --realm master \
-  --client "${KEYCLOAK_ADMIN_CLIENT_ID}" \
-  --secret "${KEYCLOAK_ADMIN_CLIENT_SECRET}"
+cat <<'EOF' | kubectl apply -f -
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: keycloak-admin-sa-bootstrap
+  namespace: ameide-staging
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      serviceAccountName: default
+      containers:
+        - name: bootstrap
+          image: quay.io/keycloak/keycloak:26.4.0
+          command:
+            - /bin/bash
+            - -c
+            - |
+              /opt/keycloak/bin/kc.sh bootstrap-admin service \
+                --client-id keycloak-admin-sa \
+                --client-secret "${CLIENT_SECRET}"
+          env:
+            - name: CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-admin-sa
+                  key: client-secret
+            - name: KC_DB
+              value: postgres
+            - name: KC_DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-db-credentials
+                  key: username
+            - name: KC_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-db-credentials
+                  key: password
+            - name: KC_DB_URL_HOST
+              value: postgres-ameide-rw
+EOF
 ```
 
-### Step 4: Create Permanent Admin Service Account
+Adjust the namespace and DB host per environment. When the Job completes, delete it (`kubectl delete job keycloak-admin-sa-bootstrap`)—the `keycloak-admin-sa` Secret already contains the minted credentials.
+
+### Step 3: Switch `client-patcher` to `loginSecretRef`
+
+Use the Helm values override to tell the job to authenticate via the service account:
+
+```yaml
+# sources/values/{env}/platform/platform-keycloak-realm.yaml
+clientPatcher:
+  loginSecretRef:
+    name: keycloak-admin-sa
+    clientIdKey: client-id
+    clientSecretKey: client-secret
+```
+
+The chart template converts this into `valueFrom.secretKeyRef` entries so `kcadm.sh` runs with `--client` / `--secret`. This lines up with vendor guidance to prefer service accounts for automation.
+
+### Step 4: Re-run Keycloak Realm Apps & Refresh ExternalSecrets
+
+Re-run the PreSync `platform-keycloak-realm-client-patcher` job via Argo CD and force a refresh on the downstream `ExternalSecret` so new secrets flow without manual deletion:
+
+```bash
+# Trigger job + wait per environment (requires argocd CLI login)
+argocd app sync staging-platform-keycloak-realm --timeout 600 --grpc-web --plaintext
+argocd app wait staging-platform-keycloak-realm --timeout 600 --grpc-web --plaintext
+
+# Force ExternalSecret to re-read Vault/K8s
+kubectl -n ameide-staging annotate externalsecret keycloak-realm-oidc-clients \
+  force-refresh=$(date +%s) --overwrite
+```
+
+Repeat for production. The ExternalSecret status should flip to `Ready=True` once Vault returns the new secrets, unblocking Backstage and other OIDC consumers.
+
+Once the temporary `keycloak-admin-sa` flow is stable, create a dedicated long-lived admin client so the stop-gap secret can be rotated out of the namespace.
+
+### Step 5: Create Permanent Admin Service Account
 
 Use the temporary SA to create a permanent one via Admin API:
 
@@ -163,7 +205,7 @@ $KC add-roles -r master \
   --rolename admin
 ```
 
-### Step 5: Extract Permanent SA Secret to Vault
+### Step 6: Extract Permanent SA Secret to Vault
 
 ```bash
 # Get client secret
@@ -175,17 +217,21 @@ vault kv put secret/keycloak-platform-admin-sa \
   client-secret="$SECRET"
 ```
 
-### Step 6: Update client-patcher Values
+### Step 7: Update client-patcher Values
+
+Once the permanent admin service account secret lives in Vault (surfaced via ExternalSecret), point `client-patcher` at that Secret:
 
 ```yaml
 clientPatcher:
-  auth:
-    method: client_credentials  # Instead of password
-    clientIdKey: keycloak-platform-admin-sa
-    secretPath: secret/keycloak-platform-admin-sa
+  loginSecretRef:
+    name: platform-admin-sa
+    clientIdKey: client-id
+    clientSecretKey: client-secret
 ```
 
-### Step 7: Delete Temporary Admin SA
+At that point the temporary `keycloak-admin-sa` Secret can be deleted in favor of the Vault-managed one.
+
+### Step 8: Delete Temporary Admin SA
 
 ```bash
 $KC delete clients -r master -i $TEMP_CLIENT_UUID
@@ -227,6 +273,14 @@ Add alerting for Keycloak admin authentication failures:
     summary: "Keycloak admin authentication failing"
     runbook: "backlog/486-keycloak-admin-recovery.md"
 ```
+
+### 4.4 Cluster Recreation Considerations
+
+- **Fresh CNPG clusters** – When the Keycloak database starts empty, `keycloak-bootstrap-admin` is honored once and this runbook is not needed.
+- **Re-created AKS clusters with existing CNPG state** – The master realm already exists, so bootstrap admin credentials remain ignored and `client-patcher` will fail until the service-account recovery steps run again.
+- **Disaster-recovery restores** – Restoring a database backup into a different cluster behaves like the “existing data” case above; add this runbook to DR scripts so the service account is recreated immediately after restore.
+
+Treat “mint admin service account + re-run client-patcher” as a standard post-rebuild task any time the Keycloak database persists across cluster operations.
 
 ---
 

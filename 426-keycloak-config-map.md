@@ -153,15 +153,18 @@ OIDC client secrets in Keycloak follow the **Service-Generated** authority model
 
 #### Helm Hook
 
-The `client-patcher` Job is a Helm **post-install/post-upgrade** hook in the `keycloak_realm` chart:
+The `client-patcher` Job runs as an **Argo CD PreSync hook** (sync wave `-1`). This ensures the job creates clients and writes Vault secrets **before** ExternalSecrets attempt to read them.
 
 ```yaml
 # keycloak_realm/templates/client-patcher-job.yaml
-annotations:
-  "helm.sh/hook": post-install,post-upgrade
-  "helm.sh/hook-weight": "10"
-  "helm.sh/hook-delete-policy": before-hook-creation
+metadata:
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "-1"
 ```
+
+> **Troubleshooting (2025-12-08)**: When this job was still a PostSync hook, Argo would wait for `ExternalSecret/keycloak-realm-oidc-clients` to be Healthy before allowing the job to run, resulting in a deadlock (`Secret does not exist`). Moving to PreSync unblocks the flow.
 
 #### Vault Policy
 
@@ -177,7 +180,7 @@ Policy definition: `sources/charts/foundation/vault-bootstrap/templates/cronjob.
 
 #### Per-Environment Configuration
 
-Each environment configures `secretExtraction` in its values file:
+Each environment configures `secretExtraction` and the Vault target in its values file:
 
 ```yaml
 # sources/values/{env}/platform/platform-keycloak-realm.yaml
@@ -199,15 +202,84 @@ clientPatcher:
     addr: "http://vault-core-{env}.ameide-{env}.svc.cluster.local:8200"
     kvPath: secret
     authRole: keycloak-client-patcher
+  loginSecretRef:
+    name: keycloak-admin-sa
+    clientIdKey: client-id
+    clientSecretKey: client-secret
 ```
 
 #### Flow
 
 1. **Keycloak generates** client secrets during realm import (or regeneration)
-2. **client-patcher extracts** secrets via Keycloak Admin API using admin credentials
+2. **client-patcher authenticates via service account** (`loginSecretRef`) and extracts secrets via the Keycloak Admin API
 3. **client-patcher writes** to Vault KV v2 at configured paths
 4. **ExternalSecrets sync** Vault secrets to Kubernetes Secrets
 5. **Applications consume** the synced Secrets (e.g., `AUTH_KEYCLOAK_SECRET`)
+
+#### Service Account Login Secret (2025-12-08)
+
+`foundation-keycloak-admin-secrets` now renders `ExternalSecret/keycloak-admin-sa-sync`, which projects Vault keys `keycloak-admin-sa-client-id` and `keycloak-admin-sa-client-secret` into the namespace-scoped `Secret/keycloak-admin-sa`. Rotate the credentials by updating Vault and forcing an ExternalSecret refresh:
+
+```bash
+# Example (dev)
+vault kv put secret/keycloak-admin-sa-client-id value=keycloak-admin-sa
+vault kv put secret/keycloak-admin-sa-client-secret value='TempAdminSecret2025!'
+kubectl -n ameide-dev annotate externalsecret keycloak-admin-sa-sync \
+  force-refresh=$(date +%s) --overwrite
+```
+
+`kc.sh bootstrap-admin service` spins up an embedded Keycloak to mint the client. Running it **inside** the `keycloak-0` Pod fails because the existing server already binds to port `9000`. Run the bootstrap command from a short-lived Job so it doesn't clash with the StatefulSet process (the Job reuses the ExternalSecret-managed Secret for its env vars):
+
+```bash
+kubectl apply -f - <<'EOF'
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: keycloak-admin-sa-bootstrap
+  namespace: ameide-staging
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      serviceAccountName: default
+      containers:
+        - name: bootstrap
+          image: quay.io/keycloak/keycloak:26.4.0
+          command:
+            - /bin/bash
+            - -c
+            - |
+              /opt/keycloak/bin/kc.sh bootstrap-admin service \
+                --client-id keycloak-admin-sa \
+                --client-secret "${CLIENT_SECRET}"
+          env:
+            - name: CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-admin-sa
+                  key: client-secret
+            - name: KC_DB
+              value: postgres
+            - name: KC_DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-db-credentials
+                  key: username
+            - name: KC_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-db-credentials
+                  key: password
+EOF
+```
+
+Key points:
+
+1. Pass the same DB connection env vars the StatefulSet uses (mount `keycloak-db-credentials`, hostname, etc.).
+2. Set a unique client ID/secret per environment by writing to Vault; `ExternalSecret/keycloak-admin-sa-sync` rehydrates the Kubernetes Secret automatically.
+3. Because both the Job and the `client-patcher` read from the same ExternalSecret-managed Secret, client credentials never leave Vault/Kubernetes.
+
+Until Vault automation manages these credentials, this namespace-scoped Secret keeps the GitOps flow unblocked and is referenced directly by the chart. Track the manual Secret ownership in [486-keycloak-admin-recovery.md](486-keycloak-admin-recovery.md).
 
 #### Known Limitation: Create-Only Realm Import (2025-12-07)
 
@@ -218,6 +290,28 @@ clientPatcher:
 **Affected services**:
 - `backstage` (blocking)
 - Any future OIDC client added post-realm-creation
+
+#### Troubleshooting – Re-running client-patcher & ExternalSecret Refresh (2025-12-08)
+
+1. Re-run the PreSync job via Argo CD so Keycloak clients + Vault secrets are recreated:
+
+   ```bash
+   # Requires argocd CLI login / port-forwarding
+   argocd app sync staging-platform-keycloak-realm --timeout 600 --grpc-web --plaintext
+   argocd app wait staging-platform-keycloak-realm --timeout 600 --grpc-web --plaintext
+   ```
+
+   Repeat for production as needed.
+
+Once `client-patcher` writes new client secrets to Vault, the corresponding `ExternalSecret` may keep reporting `SecretSyncedError: Secret does not exist` until it refreshes. Force a refresh without deleting the resource:
+
+```bash
+kubectl -n ameide-staging annotate externalsecret keycloak-realm-oidc-clients \
+  force-refresh=$(date +%s) --overwrite
+# repeat for ameide-prod when needed
+```
+
+Watch `kubectl describe externalsecret ...` for `Ready: True`, then confirm the generated `Secret keycloak-realm-oidc-clients` contains the expected keys (`argocd-client-secret`, `backstage-client-secret`, etc.). This manual refresh is safe because the ExternalSecrets operator treats the `force-refresh` annotation as a one-shot signal to re-read Vault.
 
 **Solution**: See [485-keycloak-oidc-client-reconciliation.md](485-keycloak-oidc-client-reconciliation.md) for the declarative fix that extends `client-patcher` to ensure clients exist before extracting secrets.
 
