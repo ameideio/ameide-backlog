@@ -132,7 +132,7 @@ A **multi‑tenant platform service** per environment:
 * Owned: **entirely by Ameide**; code lives in platform repo (not tenant repos). 
 * Responsibilities:
 
-  1. Resolve `(tenant_id, extension_id, version)` to a WASM module (via `wasm_blob_ref`).
+  1. Resolve `(tenant_id, extension_id, version)` to a WASM module (via `wasm_blob_ref`) stored in the shared **MinIO object storage service** (`data-minio` ApplicationSet component).
   2. Execute `run(input_json)` in a WASM sandbox with:
 
      * CPU/mem/time limits,
@@ -201,6 +201,16 @@ If we ever need to run Wasm workloads as **pods** (not just within our service),
 * **wasmCloud platform chart** – deploys wasmCloud’s lattice/operator; powerful but opinionated, with its own capability contracts and NATS dependencies.
 
 Those frameworks are useful if we adopt node-level Wasm generally, but they are **optional** for Tier 1. We stay leanest and most controllable by simply shipping our runtime service via Helm + ArgoCD.
+
+### 3.5 Storage substrate (MinIO)
+
+`wasm_blob_ref` objects live in Ameide’s existing **MinIO installation** (`data-minio`, see backlog/380). The storage model is:
+
+* Buckets/prefixes partitioned by tenant (`s3://extensions/<tenant>/<extension>/<version>.wasm`), owned by Transformation but deployed via the shared MinIO chart.
+* Access controlled via MinIO service users and policies managed by the same provisioning jobs that serve other workloads. The runtime receives credentials through ExternalSecrets so controllers never handle MinIO keys directly.
+* Promotion between environments copies (or re-encrypts) blobs into the destination environment’s MinIO namespace; the `wasm_blob_ref` encodes bucket, key, and checksum so the runtime can verify integrity before caching modules locally.
+
+Using MinIO keeps Tier 1 aligned with the rest of the platform’s artifact storage strategy and avoids inventing a bespoke blob service.
 
 ---
 
@@ -497,10 +507,10 @@ Compile Worker:
    * ABI checks (exported `run` function),
    * Static policy checks,
    * Unit tests with synthetic + example inputs.
-4. If successful:
+  4. If successful:
 
-   * Stores the WASM blob in tenant‑scoped object storage.
-   * Links `wasm_blob_ref` + new version to the ExtensionDefinition.
+     * Stores the WASM blob in a tenant-scoped MinIO bucket/prefix (`s3://extensions/<tenant>/<extension>/<version>.wasm`).
+     * Links `wasm_blob_ref` + new version to the ExtensionDefinition.
 
 On failure, the draft remains in a failed state with detailed compile/test errors.
 
