@@ -49,6 +49,7 @@ Use this checklist whenever you create a net-new service under `services/` or `s
 3. **Define interfaces**
    - Proto definitions (if gRPC) under `packages/ameide_core_proto/...`.
    - Regenerate SDKs (`pnpm proto:generate`, Go tooling, Python packaging) and reference them. Run `scripts/dev/check_sdk_alignment.py` to confirm Go/TS/Py remain in sync. Services must consume APIs through the Ameide SDK packages as mandated by 365; no runtime imports of `packages/ameide_core_proto`. When services need controller helpers (e.g., invoking `extensions-runtime`), add them to the SDKs instead of duplicating RPC glue.
+   - Mirror the `extensions-runtime` workflow pattern: every service-specific CI job must install the Buf CLI and run the `scripts/ci/generate_*_stubs.sh` helpers before compiling or testing so workspace SDK stubs are refreshed from the BSR. Docker builds never invoke `buf generate`; they rely solely on the committed SDK artifacts.
 
 4. **Secrets & config**
    - Identify required secrets, add ExternalSecrets referencing Vault keys (see backlog 362 for guardrails—no inline secrets or local fallbacks).
