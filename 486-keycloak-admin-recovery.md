@@ -150,6 +150,17 @@ EOF
 
 Adjust the namespace and DB host per environment. When the Job completes, delete it (`kubectl delete job keycloak-admin-sa-bootstrap`)—the `keycloak-admin-sa` Secret already contains the minted credentials.
 
+#### Helper script
+
+To simplify the user bootstrap flow, the repo now ships `scripts/bootstrap-keycloak-temp-admin.sh`. It launches the ephemeral Job described above with the correct Keycloak image, DB credentials, tolerations, and cleanup logic. Usage:
+
+```bash
+# Create a break-glass admin user in dev
+./scripts/bootstrap-keycloak-temp-admin.sh dev codex-temp-$(date +%s) 'TempPassw0rd!123'
+```
+
+The script waits for Job completion, streams the `kc.sh bootstrap-admin user` logs, then deletes the Job. Delete the temporary user in Keycloak once you finish the emergency fix.
+
 ### Step 3: Switch `client-patcher` to `loginSecretRef`
 
 Use the Helm values override to tell the job to authenticate via the service account:
