@@ -61,6 +61,7 @@ Establish the shared `extensions-runtime` service that runs Tier 1 WASM extens
 7. **Deployment Assets**
    - **Service activities (this repo):** Add Helm chart scaffolding, ensure `Tiltfile` exposes a target for local development (workspace-first build), and wire GitHub workflows/cd-service-images entries so Docker images publish automatically. These assets belong in this repository because they impact developer workflows and guardrails (408).
    - **GitOps activities (platform repo):** Register ApplicationSet entries so each `ameide-{env}` namespace deploys the runtime. Follow backlog/465 for file placement and backlog/447 for rollout phases (Platform band, e.g., rollout-phase `350`), ensuring RollingSync steps pick it up correctly. Keep GitOps-specific changes in the GitOps repo to preserve separation of duties.
+   - **Image promotion helper (ameide-core):** `scripts/dev/vendor_service_images.sh` re-tags any existing `ghcr.io/ameideio/<service>:<tag>` digest to aliases such as `:main`. Use it from this repo to unblock deployments when a pod references a tag that hasn’t been published yet (e.g., `extensions-runtime:main`).
 
 ---
 
