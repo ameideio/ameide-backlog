@@ -16,7 +16,7 @@
 ## Implementation status
 
 - Envoy Gateway chart is the single source of truth for shared routes; dev uses `_shared` + `local` values, staging/production use `_shared` + env-specific values.
-- Plausible HTTPRoute restored (previously dropped by an empty `additionalHttpRoutes` override).
+- Plausible HTTPRoute restored (previously dropped by an empty `additionalHttpRoutes` override) **and now fronts the Keycloak-backed oauth2-proxy (`plausible-oauth2-proxy`) so only `/js/*` + `/api/event` bypass auth**.
 - All public app Ingress stanzas removed/disabled: Langfuse (staging/production) and prod Grafana now rely on Gateway; staging web frontends moved to HTTPRoutes.
 - Keycloak is exposed via Gateway, but production renders two HTTPRoutes (auth.dev.ameide.io/auth.ameide.io → keycloak:4000 and auth.ameide.io → keycloak:8080); needs dedupe/port alignment.
 - Duplicate HTTPRoutes exist for some hosts (prometheus/alertmanager/loki/tempo UI vs. base routes); consider consolidating to a single route per host.
@@ -55,7 +55,7 @@ Remaining routes still in gateway chart are candidates for future migration (see
 - HTTPRoute pgadmin: pgadmin.dev.ameide.io → pgadmin:80
 - HTTPRoute temporal-web: temporal.dev.ameide.io → data-temporal-web:4001
 - HTTPRoute langfuse-web: evals.dev.ameide.io → platform-langfuse-web:3000
-- HTTPRoute plausible: plausible.dev.ameide.io → plausible-plausible:8000
+- HTTPRoute plausible: plausible.dev.ameide.io → plausible-oauth2-proxy:80
 - HTTPRoute keycloak: auth.dev.ameide.io → keycloak:8080
 - App chart HTTPRoutes: www.dev.ameide.io → apps-www-ameide:3000; platform.dev.ameide.io → apps-www-ameide-platform:3001
 - Tilt-only HTTPRoutes (via `https-local` listener): www.local.ameide.io → apps-www-ameide-tilt:3000 and platform.local.ameide.io → apps-www-ameide-platform-tilt:3001 (only active during `tilt up`).
@@ -71,7 +71,7 @@ Remaining routes still in gateway chart are candidates for future migration (see
 - HTTPRoute metrics-https: metrics.staging.ameide.io → otel-collector:8888
 - HTTPRoute telemetry-https: telemetry.staging.ameide.io → otel-collector:4317
 - HTTPRoute keycloak: auth.staging.ameide.io → keycloak:8080
-- HTTPRoute plausible: plausible.staging.ameide.io → plausible-plausible:8000
+- HTTPRoute plausible: plausible.staging.ameide.io → plausible-oauth2-proxy:80
 - HTTPRoute argocd: argocd.staging.ameide.io → argocd-server:80
 - HTTPRoute pgadmin: pgadmin.staging.ameide.io → pgadmin:80
 - HTTPRoute temporal-web: temporal.staging.ameide.io → temporal-oauth2-proxy:80
@@ -91,7 +91,7 @@ Remaining routes still in gateway chart are candidates for future migration (see
 - HTTPRoute metrics-https: metrics.ameide.io → otel-collector:8888
 - HTTPRoute telemetry-https: telemetry.ameide.io → otel-collector:4317
 - HTTPRoute keycloak (two rendered): auth.dev.ameide.io/auth.ameide.io → keycloak:4000 and auth.ameide.io → keycloak:8080
-- HTTPRoute plausible: plausible.ameide.io → plausible-plausible:8000
+- HTTPRoute plausible: plausible.ameide.io → plausible-oauth2-proxy:80
 - HTTPRoute argocd: argocd.ameide.io → argocd-server:80
 - HTTPRoute pgadmin: pgadmin.ameide.io → pgadmin:80
 - HTTPRoute temporal-web: temporal.ameide.io → temporal-oauth2-proxy:80

@@ -6,6 +6,7 @@
 - **Vendor init flow enabled.** Deployment now ships an initContainer that runs `/entrypoint.sh db createdb && /entrypoint.sh db migrate` before `run`. This creates/updates both Postgres and ClickHouse schema exactly as the Plausible image expects.
 - **Secrets aligned with CNPG ownership.** The Deployment no longer consumes the cluster admin secret `postgres-ameide-auth`; it uses the per-app CNPG secret (`plausible-db-credentials`), satisfying backlog/412 (CNPG owns Postgres creds).
 - **Flyway opt-out.** Plausible is removed from the Flyway image and db-migrations Job; schema creation/migrations are solely handled by the Plausible entrypoint. Remaining db-migrations values (local/staging/production) no longer list `plausible-db-credentials`, so Flyway stops mounting Plausible creds entirely.
+- **Keycloak-backed SSO via oauth2-proxy.** The Plausible HTTPRoute now targets a dedicated `plausible-oauth2-proxy` Deployment (Bitnami chart) that performs OIDC code flow against Keycloak. The proxy skips auth on `/js/` and `/api/event` so visitor tracking remains anonymous, but every other route (dashboard, onboarding, `/api` UI) requires an Ameide SSO session. Secrets come from Vault via `ExternalSecret/plausible-oauth2-proxy`, which is fed by the Keycloak-generated client secret (`plausible-oidc-client-secret`) and a random cookie secret (`plausible-oauth-cookie-secret`). Keycloak itself owns the `plausible` client through `client-patcher`, keeping configuration declarative.
 
 ## Issues encountered
 
@@ -22,9 +23,13 @@
 - `argocd app get argocd/apps-plausible` should show Synced/Healthy and the Deployment spec containing `initContainers: plausible-db-init` with the entrypoint command.
 - Pods should start with the init phase completing and main container running `run`; ClickHouse/Postgres should have the Plausible tables post-start.
 - No Plausible-related Flyway locations or secrets remain in `data-db-migrations` values or Job template.
+- `argocd app get argocd/apps-plausible-oauth2-proxy` should show Synced/Healthy and the oauth2-proxy Deployment wired to the Keycloak issuer (`https://auth.<env>.ameide.io/realms/ameide`) with `--skip-auth-route` entries for `/js/` and `/api/event`.
+- Visiting `https://plausible.<env>.ameide.io` should redirect through Keycloak, while `https://plausible.<env>.ameide.io/js/script.js` and `https://plausible.<env>.ameide.io/api/event` remain publicly accessible (no login prompt, correct CORS headers).
 
 ## Guardrails / follow-ups
 
 - Keep Plausible schema exclusively managed by Plausible entrypoint migrations; do not reintroduce it into Flyway.
 - Mirror the initContainer enablement and CNPG secret wiring in any non-dev overlays.
 - Monitor first rollout after image bumps to ensure `/entrypoint.sh db migrate` succeeds against ClickHouse/Postgres.***
+- Keep oauth2-proxy enabled for every environment (dev/staging/prod): Plausible must never be exposed publicly without SSO, and `/js/` + `/api/event` are the only paths allowed to bypass auth.
+- When onboarding new environments, add the Plausible OIDC client to the Keycloak realm values (`plausible` clientId, redirect URIs, `client-patcher` spec) and seed the Vault placeholders (`plausible-oidc-client-id`, `plausible-oidc-client-secret`, `plausible-oauth-cookie-secret`) instead of creating ad-hoc secrets.
