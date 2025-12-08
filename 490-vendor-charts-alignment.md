@@ -37,7 +37,7 @@ This backlog defines the desired end-state for vendoring: a single lock file, de
 
 | Item | Current behavior | Gap |
 |------|------------------|-----|
-| `scripts/vendor-charts.sh` | Still references `infra/kubernetes/charts/third_party/...` for both `charts.lock.yaml` and the output directories (see current snippet in that script’s header). | Script never runs successfully in the new layout and silently re-creates the legacy tree if someone runs it. |
+| `scripts/vendor-charts.sh` | ✅ (2025-12-09) now targets `sources/charts/third_party/...`, offers a `--lock` override flag, and surfaces `helm pull`/`curl` failures. | Validator + CI guardrails still pending to ensure the layout stays in sync with the lock file. |
 | `charts.lock.yaml` | Lives at `sources/charts/third_party/charts.lock.yaml` and already drives `helm pull` manually. | No automation to keep vendored artifacts synchronized. |
 | CI | `validate-hardened-charts.sh` only checks security knobs in Ameide-authored charts. | No coverage for third-party dependencies. |
 | Documentation | `sources/charts/README.md` still shows `platform-layers/` and makes no mention of the vending script or lock process. | Contributors lack guidance and reach for upstream repos every time. |
@@ -48,14 +48,13 @@ This backlog defines the desired end-state for vendoring: a single lock file, de
 
 ### Phase A – Tooling parity
 
-1. Update `scripts/vendor-charts.sh`
-   - Set `LOCK_FILE="${REPO_ROOT}/sources/charts/third_party/charts.lock.yaml"`.
-   - Drop hard-coded `infra/kubernetes/...` destinations; use `sources/charts/third_party/${alias}/${name}/${version}` and `.../oci/...`.
-   - Bubble up `helm pull`/`curl` failures (remove `|| true` unless we retry explicitly).
-   - Add a `--lock` flag to override lock path for future multi-repo usages.
-2. Create `scripts/check-vendored-charts.sh`
-   - Diff the lock file against directories: missing destination or unreferenced directories should fail.
-   - Optionally `helm show chart` each tarball to ensure metadata matches pinned version when unpacked.
+1. ✅ Update `scripts/vendor-charts.sh`
+   - Added default `LOCK_FILE="${REPO_ROOT}/sources/charts/third_party/charts.lock.yaml"` with a `--lock` override.
+   - Writes all repo/OCI/manifest artifacts below `sources/charts/third_party/...` and no longer touches `infra/kubernetes/...`.
+   - `helm pull`/`curl` failures bubble up; Helm repo cache refresh uses `--force-update`.
+2. ✅ Create `scripts/check-vendored-charts.sh`
+   - Compares the lock to `sources/charts/third_party/**` (including OCI paths) and fails on missing directories/files or stray versions.
+   - Current run highlights legacy artifacts (`hashicorp`, `telepresence`, older chart versions, unused OCI paths) that must be removed or re-locked before CI can enforce it.
 
 ### Phase B – Documentation + CI
 
