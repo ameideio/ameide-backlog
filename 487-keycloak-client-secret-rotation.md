@@ -77,14 +77,15 @@ metadata:
 
 - Data source: client-patcher already retrieves each secret; we can compute `sha256` in the Job and `kubectl patch` the ConfigMap (or write via `kubectl apply -f -`). Because the ConfigMap content is deterministic per secret value, Argo diffing keeps us declarative.
 
-### 3.2 ExternalSecret annotations
+### 3.2 ExternalSecret refresh
 
-- Extend `www-ameide-platform` chart (and others) so the ExternalSecret template consumes the ConfigMap values via `.Values.rotationSecrets.platformApp`. That value flows into `metadata.annotations.force-refresh` and into the Deployment annotation `secret.ameide.io/platform-app`.
-- The ApplicationSet can sink the ConfigMap using `$values` ref: e.g., include `$values/sources/values/dev/platform/platform-secret-rotations.yaml` that reads the generated ConfigMap via `gomplate` or `kustomize configMapGenerator`. Alternatively, we commit the ConfigMap manifest into Git – but that requires client-patcher to contribute to Git, which is undesirable. Better: the rotation metadata ConfigMap is a CR produced by the chart (manifest lives in repo). The Job updates the ConfigMap data using `kubectl patch`, but the manifest remains static; Argo sees `.data` changes and reconciles them. (This is the same pattern we use for Keycloak realm JSON imports.)
+- ExternalSecrets stay pointed at the canonical Vault path (eventually `/active` in the blue/green layout) and rely on ESO’s `refreshInterval`/`refreshPolicy=Periodic` to pull updated values. No digest annotations are required—ESO simply syncs Vault → K8s Secret whenever the KV version changes.
+- The rotation ConfigMap remains **telemetry only**. Argo ignores `.data` drift (diff customization) so the Job can patch digests without fighting Git. Smoke tests compare ConfigMap digests vs. the synced Secrets to catch any propagation stalls.
+- If we ever need faster convergence, we can still toggle ESO’s `refreshPolicy: OnChange` and let Git bump a simple timestamp annotation, but the steady state should not require digests flowing back into Helm values.
 
 ### 3.3 Deployment rollout
 
-- The Deployment already rolls when the ConfigMap changes (checksum). Add another checksum for the secret annotation: `checksum/secret-platform-app: {{ include "rotationHash" . }}` so pods restart when the hash changes, even though the Secret data is opaque to Helm.
+- Pods that read the rotated Secret are annotated with `reloader.stakater.com/auto: "true"`. Stakater Reloader (deployed in §3.4) watches for Secret updates and issues rollouts automatically. This keeps Argo/Helm out of the restart path and lines up with the Git-only responsibility: we no longer add checksum annotations derived from runtime data.
 
 ### 3.4 Ordering & waves
 
@@ -106,10 +107,10 @@ metadata:
    - Add `_shared/platform/platform-secret-rotations.yaml` capturing which apps depend on which secret digests.
 
 3. **ExternalSecret templates**
-   - Update `sources/charts/apps/www-ameide-platform/templates/externalsecrets.yaml` so annotations include `rotation.ameide.io/platform-app: {{ .Values.secretRotation.platformApp }}`. Value comes from ConfigMap via `Values` (use `helm.sh/chartSecrets` or `gomplate` rendered file referencing ConfigMap?). Because the ConfigMap is dynamic, we might need to convert to `ExternalSecret` referencing a `ClusterSecretStore` that exposes the digest; otherwise, this requires a patch job. Alternative: we deploy a `SecretRotation` CRD/Controller (bigger scope). For now, we can keep it simple: commit an environment values file with the digests read via `gomplate` pipeline executed during render (like we do for `argocd` charts). Need to confirm with architecture team.
+   - Ensure every ExternalSecret (www-ameide-platform, argocd, k8s-dashboard, plausible, pgadmin, backstage, …) references the new Vault KV layout (`…/<client>/<color>` with an `active` pointer once blue/green lands) and has a sane `refreshInterval`/`refreshPolicy`. No digest annotations—ESO simply polls Vault.
 
-4. **Deployment annotations**
-   - Add `checksum/secret-platform-app` referencing the rotation hash so pods restart on change.
+4. **Deployment restarts**
+   - Annotate secret-consuming Deployments with `reloader.stakater.com/auto: "true"` (already in place for www-ameide-platform) and verify platform-reloader watches their namespace. No Helm checksum magic required.
 
 5. **Automation for other apps**
    - Apply the same pattern to: `argocd`, `k8s-dashboard`, `plausible`, `backstage`, etc. Document in their backlogs (422, 477) that they now rely on rotation metadata.
@@ -128,7 +129,7 @@ metadata:
 - ✅ Dev overrides enable secret extraction + client reconciliation for every OIDC consumer (platform, argocd, k8s-dashboard, backstage, plausible, pgadmin) so Argo already emits the digests we need for downstream wiring.
 - ✅ `platform-secrets-smoke` enforces that `www-ameide-platform-auth` is non-placeholder _and_ its digest matches the ConfigMap so regressions fail fast.
 - ✅ A dedicated `platform-reloader` controller is deployed (wave 360) and `www-ameide-platform` carries the annotation, giving us automatic restarts when Secrets change.
-- ✅ `www-ameide-platform` now consumes the rotation digest (ExternalSecret + Deployment annotations across dev/staging/prod); remaining apps still need the same wiring.
+- ✅ `www-ameide-platform` now relies on the pure Keycloak → Vault → ESO → Reloader path: ESO polls Vault, platform-reloader issues rollouts, and the digest ConfigMap stays observability-only.
 - ⏳ Other apps (argocd, k8s-dashboard, plausible, pgadmin, backstage) still rely on the legacy “Vault only” path; they need the same annotation/checksum wiring once the shared values surface the digests.
 - ⏳ Runbooks/scripts (`refresh-platform-auth-secret.sh`, 426/486) still describe the manual annotate/restart flow and must be updated once the declarative path is live.
 
