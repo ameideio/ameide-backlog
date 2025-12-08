@@ -59,34 +59,39 @@ Establish the shared `extensions-runtime` service that runs Tier 1 WASM extens
    - Follow backlog/434/441 labeling conventions (`ameide.io/environment`, `ameide.io/tier`, `ameide.io/tenant-kind`, etc.) so dashboards, policies, and ApplicationSets can slice data consistently across environments/tenants.
 
 7. **Deployment Assets**
-   - Add Helm chart (`charts/extensions-runtime`) with Deployment, Service, config (bucket refs, host-call policies), and ExternalSecret references that align with backlog/362 guardrails (no inline secrets, use `existingSecret`/ClusterSecretStore). Build artifacts respect the Ring 2 contract (workspace SDKs, no registry fetches) when published to GitOps (408).
-   - Register ApplicationSet entries so each `ameide-{env}` namespace deploys the runtime. Follow backlog/465 for file placement and backlog/447 for rollout phases (Platform band, e.g., rollout-phase `350`), ensuring RollingSync steps pick it up correctly.
-   - Wire CI/CD (GitHub workflow + cd-service-images entry) so every PR builds/tests the service and both Dockerfiles, and main branch builds artifacts for promotion.
+   - **Service activities (this repo):** Add Helm chart scaffolding, ensure `Tiltfile` exposes a target for local development (workspace-first build), and wire GitHub workflows/cd-service-images entries so Docker images publish automatically. These assets belong in this repository because they impact developer workflows and guardrails (408).
+   - **GitOps activities (platform repo):** Register ApplicationSet entries so each `ameide-{env}` namespace deploys the runtime. Follow backlog/465 for file placement and backlog/447 for rollout phases (Platform band, e.g., rollout-phase `350`), ensuring RollingSync steps pick it up correctly. Keep GitOps-specific changes in the GitOps repo to preserve separation of duties.
 
 ---
 
-## 4. Implementation Status (Dec 2025)
+## 4. Implementation Status — Service Repo (Dec 2025)
 
 | Area | Status | Notes |
 |------|--------|-------|
-| **Proto & SDKs** | ✅ Complete | `packages/ameide_core_proto/src/ameide_core_proto/extensions/v1/runtime.proto` landed; Go/TS/Python SDKs now expose `WasmExtensionRuntimeService` and `scripts/dev/check_sdk_alignment.py` passes locally. |
-| **Service scaffold** | ✅ Complete | `services/extensions-runtime/` contains config package, sandbox executor (placeholder), MinIO-backed ModuleStore, gRPC server wiring, README, and dual Dockerfiles (workspace-first). |
+| **Proto & SDKs** | ✅ Complete | `packages/ameide_core_proto/src/ameide_core_proto/extensions/v1/runtime.proto` landed; Go/TS/Python SDKs expose `WasmExtensionRuntimeService`, and `scripts/dev/check_sdk_alignment.py` passes locally. Go SDK now includes `InvokeExtensionJSON` + ExecutionContext helpers. |
+| **Service scaffold** | ✅ Complete | `services/extensions-runtime/` contains config package, Wasmtime executor, MinIO-backed ModuleStore, gRPC server wiring, README, and dual Dockerfiles (workspace-first). |
 | **Testing** | ✅ Mock mode, ⚠ cluster | Mock + cluster-aware integration suite (`__tests__/integration`) follows the unified runner (430). Cluster env vars still need documentation/pipeline wiring before running against `ameide-dev`. |
-| **Workspace-first build/test guardrails** | ✅ Verified | `Dockerfile.dev` and `.release` copy workspace SDK packages (408/405), and CI guardrails (`policy/check_docker_sources.sh`, `check_dockerfile_parity.sh`) passed on the 2025‑12‑08 `CD / Packages` run before SDK validation executed. Local `go test ./...` and mock-mode integration tests both pass. |
-| **SDK alignment (365 v2)** | ✅ | SDK regeneration landed (see above). CI now fails only on remaining steps if host-call integration or GitOps wiring is missing. |
-| **Docker build** | ✅ | `docker build` succeeds for both dev/release images; GitHub workflow `extensions-runtime.yml` exercises `go test`, integration tests (mock mode), and both Dockerfiles on PRs. CGO is now enabled in both Dockerfiles for Wasmtime. |
-| **Observability/telemetry** | ✅ baseline | OTEL wiring mirrors inference-gateway pattern (contextual logging, tenant interceptor, OTLP exporter). Need to add metrics + diagnostics once host-call bridge is implemented. |
-| **Host-call bridge & Wasmtime** | ⚠ Initial adapters | Wasmtime executor now runs modules with `alloc/dealloc/run` + `host_log/host_call` ABI, fuel limits, compiled-module caching, and response propagation. `EXTENSIONS_SANDBOX_HOST_CALLS` feeds a registry-backed host bridge that instantiates adapters using Ameide SDK clients (first adapter: `transformation.get_transformation`). Follow-up: attach token minting, add more adapters, and document risk-tier policies. |
-| **MinIO module management** | ✅ | LRU cache + singleflight loader backed by MinIO client; config struct aligned with 362 (endpoint, secure flag, bucket/prefix). Need to layer in config reload events from Transformation. |
-| **Helm/GitOps deployment** | ⏳ Not started | Chart + ApplicationSet entries still to be created (blocked on completing host-call bridge + controller wiring). Ensure rollout phase ≈350 per backlog/447 and wire ApplicationSets per backlog/465/364-v5. |
-| **Release packaging (cd-service-images)** | ⏳ Not started | `.github/workflows/cd-service-images.yml` matrix does not include `extensions-runtime`, so no dev/release image is published yet even though the standalone CI workflow builds locally. Add matrix entries plus image metadata before enabling GitOps delivery. |
-| **Controller integration** | ⚠ Helper implemented | Go SDK exposes `InvokeExtensionJSON` + ExecutionContext builders; a mock-mode integration test spins up Wasmtime + host-call adapter and proves a controller can execute a real WASM module via the helper. Next step: wire an actual Domain/Process/Agent controller path and add negative tests. |
+| **Workspace-first build/test guardrails** | ✅ Verified | `Dockerfile.dev` / `.release` copy workspace SDK packages (408/405). Local `go test ./...` and mock-mode integration tests pass. |
+| **SDK alignment (365 v2)** | ✅ | SDK regeneration landed (Go/TS/Py). CI now fails only if host-call integration/GitOps wiring is missing. |
+| **Docker build** | ✅ | `docker build` succeeds for both dev/release images; GitHub workflow `extensions-runtime.yml` runs unit + integration tests and both Dockerfiles on PRs. CGO is enabled for Wasmtime. |
+| **Observability/telemetry** | ✅ baseline | OTEL wiring mirrors inference-gateway pattern (contextual logging, tenant interceptor, OTLP exporter). Metrics/diagnostics still pending. |
+| **Host-call bridge & Wasmtime** | ⚠ Initial adapters | Wasmtime executor runs modules with `alloc/dealloc/run` exports and `host_log/host_call` ABI. Registry-driven host bridge instantiates adapters via the Ameide SDK (first adapter: `transformation.get_transformation`). Need token minting + additional adapters. |
+| **MinIO module management** | ✅ | LRU cache + singleflight loader backed by MinIO client; config struct aligned with 362. Need config reload events from Transformation. |
+| **Tilt target & Helm scaffolding** | ⏳ Not started | Need Tilt resource + chart skeleton in this repo so dev workflows can build/test locally; blocks `cd-service-images` wiring. |
+| **Release packaging (cd-service-images)** | ⚠ In progress | `.github/workflows/cd-service-images.yml` now includes `extensions-runtime`, but we still need to verify GitHub environments/secrets for promotion and document the workflow alongside other services. |
+| **Controller integration** | ⚠ Helper implemented | A mock-mode integration test spins up Wasmtime + host-call adapter, proving controllers can invoke extensions through the helper. Need to wire a real Domain/Process/Agent controller path and add negative sandbox tests. |
+
+### 4.1 Implementation Status — GitOps Repo
+
+| Area | Status | Notes |
+|------|--------|-------|
+| **ApplicationSets & rollout phase** | ⏳ Not started | Must add Helm chart + ApplicationSet entries per environment, apply rollout phase ≈350, and ensure RollingSync picks it up alongside other platform services. |
+| **Secrets & hydration** | ⏳ Not started | Need ExternalSecret references for MinIO credentials + host-call adapters, plus a config sync path for Transformation promotions. |
+| **Observability/SLO wiring** | ⏳ Not started | Dashboards, runtime labels, and alert policies must be registered in GitOps alongside deployment manifests. |
 
 Next mileposts:
-1. Finish the HostBridge story (token minting, more adapters, per-tier allowlists) and document risk-tier policies in config.
-2. Wire at least one controller path through the SDK helper + runtime (beyond the mock integration test) and add negative sandbox tests.
-3. Add `extensions-runtime` to `cd-service-images` and author Helm chart + ApplicationSet entries (platform rollout phase ~350) so GitOps clusters can pull the image.
-4. Extend module-store config hydration (Transformation promotion → runtime) and document SLO dashboards + disabling switches.
+1. **Service repo:** Finish HostBridge policy work (token minting, additional adapters), wire a real controller path via the new SDK helper, add Tilt target + Helm scaffolding, and extend negative sandbox tests.
+2. **GitOps repo:** Create Helm/ApplicationSet assets with rollout metadata, wire ExternalSecrets + config hydration jobs, and document runtime SLO dashboards/disable switches.
 
 ---
 
