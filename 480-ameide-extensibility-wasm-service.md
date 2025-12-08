@@ -35,7 +35,7 @@ Establish the shared `extensions-runtime` service that runs Tier 1 WASM extens
 
 1. **Proto & SDK Foundations**
    - Author `runtime.proto` per §3.2 of 479 (ExecutionContext, InvokeExtension, responses) and keep it inside the shared Buf module (365).
-   - Regenerate `ameide_sdk_go` / `ameide_sdk_ts` clients with helper functions to build contexts derived from the controller’s authenticated `RequestContext`. Services consume the new RPC only via SDKs (no direct proto imports) to stay aligned with the Buf SDKs v2 policy (365).
+   - Regenerate `ameide_sdk_go` / `ameide_sdk_ts` / `ameide_sdk_py` clients with helper functions to build contexts derived from the controller’s authenticated `RequestContext`. Services consume the new RPC only via SDKs (no direct proto imports) to stay aligned with the Buf SDKs v2 policy (365). Go SDK now exposes `InvokeExtensionJSON` + `ExecutionContext` options so controllers avoid hand-written RPC glue.
 
 2. **Service Scaffold**
    - Create `services/extensions-runtime/` with README, basic main.go, health endpoints, configuration stubs.
@@ -51,7 +51,7 @@ Establish the shared `extensions-runtime` service that runs Tier 1 WASM extens
 
 5. **Host Bridge & Policy**
    - Enforce risk-tier allowlists for host calls.
-   - Emit short-lived internal tokens bound to the incoming ExecutionContext (mirroring controller auth claims), route to allowed Ameide services via existing SDKs, and block disallowed calls.
+   - Emit short-lived internal tokens bound to the incoming ExecutionContext (mirroring controller auth claims), route to allowed Ameide services via existing SDKs, and block disallowed calls. Registry-driven host-call adapters (e.g., `transformation.get_transformation`) replace the interim HTTP shim and reuse Ameide SDK clients.
 
 6. **Observability & Controls**
    - Instrument metrics per invocation: latency, resource usage, error type, tenant/extension labels.
@@ -76,17 +76,17 @@ Establish the shared `extensions-runtime` service that runs Tier 1 WASM extens
 | **SDK alignment (365 v2)** | ✅ | SDK regeneration landed (see above). CI now fails only on remaining steps if host-call integration or GitOps wiring is missing. |
 | **Docker build** | ✅ | `docker build` succeeds for both dev/release images; GitHub workflow `extensions-runtime.yml` exercises `go test`, integration tests (mock mode), and both Dockerfiles on PRs. CGO is now enabled in both Dockerfiles for Wasmtime. |
 | **Observability/telemetry** | ✅ baseline | OTEL wiring mirrors inference-gateway pattern (contextual logging, tenant interceptor, OTLP exporter). Need to add metrics + diagnostics once host-call bridge is implemented. |
-| **Host-call bridge & Wasmtime** | ⚠ Partially complete | Wasmtime executor now runs modules with `alloc/dealloc/run` + `host_log/host_call` ABI, fuel limits, compiled-module caching, and response propagation. `EXTENSIONS_SANDBOX_HOST_CALLS` drives an HTTP host-bridge with per-risk-tier allowlists; real SDK-backed host-call adapters (Domain/Process/Agent controllers + token minting) still need to replace the HTTP shim. |
+| **Host-call bridge & Wasmtime** | ⚠ Initial adapters | Wasmtime executor now runs modules with `alloc/dealloc/run` + `host_log/host_call` ABI, fuel limits, compiled-module caching, and response propagation. `EXTENSIONS_SANDBOX_HOST_CALLS` feeds a registry-backed host bridge that instantiates adapters using Ameide SDK clients (first adapter: `transformation.get_transformation`). Follow-up: attach token minting, add more adapters, and document risk-tier policies. |
 | **MinIO module management** | ✅ | LRU cache + singleflight loader backed by MinIO client; config struct aligned with 362 (endpoint, secure flag, bucket/prefix). Need to layer in config reload events from Transformation. |
 | **Helm/GitOps deployment** | ⏳ Not started | Chart + ApplicationSet entries still to be created (blocked on completing host-call bridge + controller wiring). Ensure rollout phase ≈350 per backlog/447 and wire ApplicationSets per backlog/465/364-v5. |
 | **Release packaging (cd-service-images)** | ⏳ Not started | `.github/workflows/cd-service-images.yml` matrix does not include `extensions-runtime`, so no dev/release image is published yet even though the standalone CI workflow builds locally. Add matrix entries plus image metadata before enabling GitOps delivery. |
-| **Controller integration** | ⏳ Not started | Controllers currently have no helper to invoke the runtime; SDK convenience methods + wiring into Platform/Domain/Process controllers to follow once runtime API stabilizes. |
+| **Controller integration** | ⚠ Helper implemented | Go SDK exposes `InvokeExtensionJSON` + ExecutionContext builders; a mock-mode integration test spins up Wasmtime + host-call adapter and proves a controller can execute a real WASM module via the helper. Next step: wire an actual Domain/Process/Agent controller path and add negative tests. |
 
 Next mileposts:
-1. Implement the real HostBridge (risk-tier allowlists, routing to internal SDK clients, returning payloads to modules) now that Wasmtime is embedded.
-2. Emit controller-side SDK helpers and RPC client wrappers, then wire at least one controller path through mock-mode integration tests.
+1. Finish the HostBridge story (token minting, more adapters, per-tier allowlists) and document risk-tier policies in config.
+2. Wire at least one controller path through the SDK helper + runtime (beyond the mock integration test) and add negative sandbox tests.
 3. Add `extensions-runtime` to `cd-service-images` and author Helm chart + ApplicationSet entries (platform rollout phase ~350) so GitOps clusters can pull the image.
-4. Extend module-store config hydration (Transformation promotion → runtime) and document negative sandbox tests + SLO dashboards.
+4. Extend module-store config hydration (Transformation promotion → runtime) and document SLO dashboards + disabling switches.
 
 ---
 

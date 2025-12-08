@@ -23,9 +23,9 @@ Use this checklist whenever you create a net-new service under `services/` or `s
 | **Secrets & configuration** | What secrets/config does the service need? Are ExternalSecrets defined (zero inline secrets per guardrail)? Does Vault bootstrap cover it? | `362-unified-secret-guardrails-v2.md`, `348-envs-secrets-harmonization.md` (historical), `services/<service>/README.md` examples |
 | **Storage / dependencies** | Does the service rely on shared infrastructure (MinIO, Postgres, Temporal, etc.)? Where are the dependencies documented? | `380-minio-config-overview.md`, `442-environment-isolation.md`, service-specific backlogs (e.g., `359-resilient-deploy-sequencing.md` for sequencing) |
 | **GitOps & deployment** | Which ApplicationSet/Helm chart entries are required? What sync wave & labels apply? | `364-argo-configuration-v3.md`, `375-rolling-sync-wave-redesign.md`, `367-bootstrap-v2.md`, `387/447-argocd-waves*.md`, `465-applicationset-architecture.md`, environment naming per `434-unified-environment-naming.md` |
-| **SDK & workspace alignment** | Are protos consumed exclusively via Ameide SDKs, and do Dockerfiles follow the Ring 1/Ring 2 workspace-first rules? | `365-buf-sdks-v2.md`, `408-workspace-first-ring-2.md`, `405-docker-files.md` |
+| **SDK & workspace alignment** | Are protos consumed exclusively via Ameide SDKs, have Go/TS/Py packages been regenerated (`scripts/dev/check_sdk_alignment.py`), and do Dockerfiles follow the Ring 1/Ring 2 workspace-first rules? | `365-buf-sdks-v2.md`, `408-workspace-first-ring-2.md`, `405-docker-files.md` |
 | **Networking & tenancy labels** | Are namespace/pod labels and NetworkPolicies configured correctly (tier, tenant, environment)? | `441-networking.md`, `434-unified-environment-naming.md`, `442-environment-isolation.md`, `459-httproute-ownership.md` |
-| **Testing (mock/cluster)** | Do integration packs follow the unified test contract (single implementation, mock/cluster modes)? | `430-unified-test-infrastructure.md`, `services/_templates/README.md`, `tools/integration-runner/README.md` |
+| **Testing (mock/cluster)** | Do integration packs follow the unified test contract (single implementation, mock/cluster modes) and exercise critical flows (e.g., controller → `extensions-runtime` → host-call)? | `430-unified-test-infrastructure.md`, `480-ameide-extensibility-wasm-service.md`, `services/_templates/README.md`, `tools/integration-runner/README.md` |
 | **Build/test verification & CI logs** | Have we run unit + integration suites locally, verified `docker build` (dev + release) succeeds, and confirmed GitHub workflows (`extensions-runtime.yml`, `cd-service-images.yml`) include the new service? Did the latest `gh run view <id>` logs pass SDK alignment and publishing checks? | `430-unified-test-infrastructure.md`, `395-sdk-build-docker-tilt-north-star.md`, `405-docker-files.md`, `408-workspace-first-ring-2.md`, `.github/workflows/*.yml` |
 | **Observability & SLOs** | What metrics/logging/tracing does the service emit? Are dashboards updated? | `platform observability backlogs`, `services/README.md`, service-specific SLO docs |
 | **Security & governance** | Does the service follow risk-tier rules, host-call policies, and secrets governance? | `476-security-and-trust.md`, `362-unified-secret-guardrails-v2.md`, `479-ameide-extensibility-wasm.md` (for Tier 1 runtime specifics) |
@@ -48,7 +48,7 @@ Use this checklist whenever you create a net-new service under `services/` or `s
 
 3. **Define interfaces**
    - Proto definitions (if gRPC) under `packages/ameide_core_proto/...`.
-   - Regenerate SDKs (`pnpm proto:generate`, Go tooling) and reference them. Services must consume APIs through the Ameide SDK packages as mandated by 365; no runtime imports of `packages/ameide_core_proto`.
+   - Regenerate SDKs (`pnpm proto:generate`, Go tooling, Python packaging) and reference them. Run `scripts/dev/check_sdk_alignment.py` to confirm Go/TS/Py remain in sync. Services must consume APIs through the Ameide SDK packages as mandated by 365; no runtime imports of `packages/ameide_core_proto`. When services need controller helpers (e.g., invoking `extensions-runtime`), add them to the SDKs instead of duplicating RPC glue.
 
 4. **Secrets & config**
    - Identify required secrets, add ExternalSecrets referencing Vault keys (see backlog 362 for guardrails—no inline secrets or local fallbacks).
@@ -60,7 +60,7 @@ Use this checklist whenever you create a net-new service under `services/` or `s
 
 6. **Testing**
    - Set up `__mocks__/` and `__tests__/integration/` per backlog 430 (single implementation, mock + cluster modes).
-   - Ensure `run_integration_tests.sh` uses the standard tooling and fails fast on missing envs.
+   - Ensure `run_integration_tests.sh` uses the standard tooling and fails fast on missing envs. Include end-to-end scenarios when the service depends on shared components (e.g., controller → `extensions-runtime` → host-call) so regression tests cover cross-service seams.
 
 7. **GitOps deployment**
    - Create Helm chart (or reuse existing) under `charts/`.
@@ -83,7 +83,7 @@ Use this checklist whenever you create a net-new service under `services/` or `s
 
 11. **CI/CD wiring**
     - Add or update GitHub workflows (and `cd-service-images` entries where applicable) so the service runs unit/integration tests and builds both dev/release Docker images on PRs/main. Confirm the workspace-first Dockerfiles pass `policy/check_docker_sources.sh` (408/405) and the unit/integration suites are referenced in the workflow.
-    - After wiring, re-run the workflows (e.g., `gh run list`, `gh run view <run-id>`) to ensure `CD / Packages` succeeds (no missing SDK surfaces per 365/393) and `CD / Service Images` publishes the dev/release images. Capture run IDs in the backlog for traceability.
+    - After wiring, re-run the workflows (e.g., `gh run list`, `gh run view <run-id>`) to ensure `CD / Packages` succeeds (no missing SDK surfaces per 365/393) and `CD / Service Images` publishes the dev/release images. Capture run IDs in the backlog for traceability, especially when shared components (e.g., `extensions-runtime`) introduce new SDK helpers or Docker targets that need to ship together.
 
 ---
 
