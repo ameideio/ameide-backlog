@@ -3,7 +3,7 @@
 **Status**: Draft  
 **Created**: 2025-12-08  
 **Owner**: Platform/Auth  
-**Related**: [426-keycloak-config-map.md](426-keycloak-config-map.md) · [462-secrets-origin-classification.md](462-secrets-origin-classification.md) · [485-keycloak-oidc-client-reconciliation.md](485-keycloak-oidc-client-reconciliation.md) · [486-keycloak-admin-recovery.md](486-keycloak-admin-recovery.md) · [451-secrets-management.md](451-secrets-management.md)
+**Related**: [426-keycloak-config-map.md](426-keycloak-config-map.md) · [462-secrets-origin-classification.md](462-secrets-origin-classification.md) · [485-keycloak-oidc-client-reconciliation.md](485-keycloak-oidc-client-reconciliation.md) · [486-keycloak-admin-recovery.md](486-keycloak-admin-recovery.md) · [451-secrets-management.md](451-secrets-management.md) · [422-plausible-argocd-alignment.md](422-plausible-argocd-alignment.md)
 
 ---
 
@@ -162,6 +162,7 @@ metadata:
 - [485-keycloak-oidc-client-reconciliation.md](485-keycloak-oidc-client-reconciliation.md) – client-patcher idempotency, PreSync hook reasoning, and ensure-client logic.
 - [486-keycloak-admin-recovery.md](486-keycloak-admin-recovery.md) – Highlights the manual steps (annotate ExternalSecret, restart apps) that this backlog aims to eliminate.
 - [451-secrets-management.md](451-secrets-management.md) – Current operator commands for inspecting Vault and ExternalSecrets; reference for updating documentation once automation is in place.
+- [422-plausible-argocd-alignment.md](422-plausible-argocd-alignment.md) – Environment-specific Plausible wiring (oauth2-proxy + Vault-backed Keycloak client) that now consumes the rotation/digest flow tracked here.
 
 ---
 
