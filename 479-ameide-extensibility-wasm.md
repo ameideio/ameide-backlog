@@ -3,7 +3,7 @@ Here’s a complete rewritten spec you can drop in as something like
 
 ---
 
-# 4xz – Ameide Extensibility (Tier 1 WASM + Tier 2 Controllers)
+# 479 – Ameide Extensibility (Tier 1 WASM + Tier 2 Controllers)
 
 **Status:** Draft v1
 **Owner:** Architecture / Platform
@@ -82,6 +82,7 @@ This document **does not replace 478**. Instead:
   * new domains or major process variants,
   * integrations,
   * multi‑endpoint services with their own APIs & storage.
+* Runtime representation: `IntelligentDomainController`, `IntelligentProcessController`, and `IntelligentAgentController` custom resources (461) reconciled by Ameide operators across platform and tenant namespaces.
 
 Backstage is now clearly **Tier 2‑only** for new controllers; it does not sit in the hot path for small Tier 1 WASM extensions.
 
@@ -686,6 +687,17 @@ We will back these rules with linting, modelling guardrails, and latency histogr
 
 That’s the full rewritten specification with your updated assumptions:
 
-* **Tier 2**: tenant‑scope namespaces and Backstage controller model from 478 remain untouched.
+* **Tier 2**: tenant-scope namespaces and Backstage controller model from 478 remain untouched.
 * **Tier 1**: a shared platform WASM runtime in `ameide-{env}` for small extensions, wired into processes, domains, and agents, with the latency guardrails captured in §10.
 * **Host calls** from WASM always go through existing APIs using the same user/tenant context and authorization model as the rest of the platform.
+
+---
+
+## 11. Cross-References
+
+| Document | Relationship |
+|----------|-------------|
+| [472-ameide-information-application.md](472-ameide-information-application.md) | Defines `ExtensionDefinition` as a first-class artifact (§2.5) |
+| [473-ameide-technology.md](473-ameide-technology.md) | Introduces `extensions-runtime` as a platform service (§3.3.5) |
+| [476-ameide-security-trust.md](476-ameide-security-trust.md) | Captures the sandbox carve-out and host-call policies (§6–§7) |
+| [480-ameide-extensibility-wasm-service.md](480-ameide-extensibility-wasm-service.md) | Implements the shared runtime described in this doc |

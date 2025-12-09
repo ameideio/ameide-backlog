@@ -10,6 +10,7 @@ Here we go — Business Architecture time 🔧🏗️
 > | [475-ameide-domains.md](475-ameide-domains.md) | Domain portfolio |
 > | [476-ameide-security-trust.md](476-ameide-security-trust.md) | Security architecture |
 > | [478-ameide-extensions.md](478-ameide-extensions.md) | Tenant extension lifecycle |
+> | [479-ameide-extensibility-wasm.md](479-ameide-extensibility-wasm.md) | Tier 1 WASM + Tier 2 extensibility model |
 >
 > **Deployment Implementation**:
 > - [465-applicationset-architecture.md](465-applicationset-architecture.md) – Per-environment deployments
@@ -86,6 +87,8 @@ Ameide separates **design-time artifacts** (what to build) from **runtime contro
 
 #### Runtime Controllers
 
+Runtime controllers are represented as Ameide custom resources (`IntelligentDomainController`, `IntelligentProcessController`, `IntelligentAgentController`) that encode the desired state for each controller. Operators reconcile those CRs into Deployments, Services, Temporal workers, and supporting infrastructure; GitOps applies only the CR YAML.
+
 1. **DomainController (Domain)**
 
    * Owns a bounded business context: data, rules, events.
@@ -101,13 +104,15 @@ Ameide separates **design-time artifacts** (what to build) from **runtime contro
 
    * Executes a **ProcessDefinition** loaded from Transformation DomainController.
    * Manages process instances, state, retries, compensation (backed by Temporal).
-   * Process tasks call into DomainControllers and may invoke AgentControllers where non‑deterministic work is acceptable.
+   * Process tasks call into DomainControllers and may invoke AgentControllers where non-deterministic work is acceptable.
+   * Runtime spec lives in an `IntelligentProcessController` CR (IPC).
 
 3. **AgentController (Agent)**
 
    * Executes an **AgentDefinition** loaded from Transformation DomainController.
-   * Encapsulates an LLM‑backed "worker" with tools and policies: transformation assistant, coder/refactor agent, L2O coaching bot.
+   * Encapsulates an LLM-backed "worker" with tools and policies: transformation assistant, coder/refactor agent, L2O coaching bot.
    * Always invoked via domain/process APIs; does **not** become a separate source of truth.
+   * Runtime spec lives in an `IntelligentAgentController` CR (IAC).
 
 4. **UIWorkspace (Workspace)**
 
@@ -220,9 +225,23 @@ Business‑wise, this gives you:
 * A "**service catalog**" of reusable domain/process/agent/workspace building blocks.
 * A standard place where **transformation AgentControllers** "press the buttons" to generate new features rather than talking to ad‑hoc APIs.
 
-### 4.1 Tenant Extensions
+### 4.1 Tenant extensions
 
-When tenants require custom controllers beyond what the standard product provides:
+Ameide supports two coordinated extension tiers:
+
+* **Tier 1 – Small extensions via WASM**
+  * Tenant- and agent-authored `ExtensionDefinition` artifacts live in the Transformation domain.
+  * At runtime they execute inside the shared `extensions-runtime` service in `ameide-{env}` as sandboxed WASM.
+  * Used for small, deterministic custom logic (extra validations, pricing tweaks, routing rules) in processes, domains, or agents.
+  * See [479-ameide-extensibility-wasm.md](479-ameide-extensibility-wasm.md).
+
+* **Tier 2 – Large extensions via controllers**
+  * Full Domain/Process/AgentControllers scaffolded via Backstage templates.
+  * Deployed into tenant namespaces (`tenant-{id}-{env}-cust` and `tenant-{id}-{env}-base`) according to SKU.
+  * Used for new domains, major process variants, or heavy integrations.
+  * See [478-ameide-extensions.md](478-ameide-extensions.md).
+
+The remainder of this subsection describes the Tier 2 controller path. When tenants require custom controllers beyond what the standard product provides:
 
 * Backstage templates calculate the correct **target namespace** based on tenant SKU
 * Custom code is always isolated in `tenant-{id}-{env}-cust` namespaces
@@ -315,7 +334,7 @@ AgentControllers support both:
 
 ### 6.2 Phase 2 – Tailor L2O/O2C and workspaces
 
-4. **Requirements articulation (business‑side)**
+4. **Requirements articulation (business-side)**
 
    * Sales ops / business owners articulate requirements:
 
@@ -329,6 +348,8 @@ AgentControllers support both:
      * Updated BPMN models (L2O_v2 with new stage).
      * Possibly new domain fields (e.g. “deal risk rating”).
      * Agent configuration for advising on the new process.
+
+   For small, per-tenant business rules we prefer Tier 1 WASM extensions (no new controllers); Tier 2 controllers are reserved for larger or integration-heavy changes (see 479).
 
 6. **Governance & approvals**
 

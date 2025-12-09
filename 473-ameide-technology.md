@@ -34,10 +34,10 @@ The goal is to give implementers a **vendor-aligned blueprint** that can be exec
 
 ## 2. Technology Principles
 
-1. **Kubernetes‑native, but domain‑agnostic**
+1. **Kubernetes-native declarative controllers**
 
-   * We use Kubernetes for *infrastructure lifecycles* (Postgres, ingress, secrets, workers) and standard workloads, but **domain controllers themselves remain ordinary microservices**, not CRDs.
-   * CRDs/operators are kept for infra or coarse tenant constructs (e.g. `AmeideTenant`, database clusters), following the Kubernetes guidance that custom resources are for extending the control plane, not for every business concept. ([Kubernetes][1])
+   * We use Kubernetes for *both infrastructure and controller lifecycles*. Domain/Process/Agent controllers are declared as `IntelligentDomainController`, `IntelligentProcessController`, and `IntelligentAgentController` custom resources (see 461). GitOps applies those CRs; Ameide operators reconcile them into Deployments, Services, HPAs, Temporal workers, and supporting config.
+   * We still reserve CRDs for coarse application constructs (controllers, tenants, infra). Business aggregates (Orders, Customers, etc.) remain inside domain services; we do **not** create one CRD per aggregate. ([Kubernetes][1])
 
 2. **Proto‑first, SDK‑first APIs**
 
@@ -67,7 +67,11 @@ The goal is to give implementers a **vendor-aligned blueprint** that can be exec
 
 7. **GitOps & immutable deployments**
 
-   * Argo CD + Helm are the deployment plane; operators/CRDs are used for infra (CNPG, Keycloak, etc.), not for application logic.
+   * Argo CD + Helm remain the deployment plane. Git stores controller CRs (IDC/IPC/IAC), infra CRs, and operator manifests; operators own the low-level Deployments/Services, so Argo never `kubectl apply`s mutable child resources directly.
+
+8. **Tiered extensibility (WASM for small, controllers for big)**
+
+   * Small, deterministic tenant customizations run as WASM extensions in a shared `extensions-runtime` service; larger changes create dedicated Domain/Process/Agent controllers in tenant namespaces per 478.
 
 ---
 
@@ -92,8 +96,9 @@ The goal is to give implementers a **vendor-aligned blueprint** that can be exec
 * Use Kubernetes “Operator pattern” for:
 
   * Databases (CNPG), Kafka (if used), Redis, ClickHouse.
-  * Potentially an **`AmeideTenant` CRD** to provision baseline infra per tenant (DB schema, Keycloak realm, namespaces).
-* Avoid per-domain CRDs; we follow K8s guidance that operators manage applications and infra lifecycles, not business tables. ([Kubernetes][5])
+  * Application control plane: `IntelligentDomainController`, `IntelligentProcessController`, `IntelligentAgentController` operators reconcile controller specs into workloads across namespaces/SKUs.
+  * Tenant lifecycle: an **`AmeideTenant` CRD** to provision baseline infra per tenant (DB schema, Keycloak realm, namespaces).
+* Operators stay focused on coarse-grained platform resources (infra, controllers, tenants). Business data and aggregates remain inside the services described by those controllers. ([Kubernetes][5])
 
 ---
 
@@ -125,6 +130,8 @@ The goal is to give implementers a **vendor-aligned blueprint** that can be exec
 ---
 
 ### 3.3 Service Layer: Domains, Processes, Agents, Transformation
+
+In addition to the Domain/Process/Agent controllers described below, the platform runs a shared `extensions-runtime` service in `ameide-{env}` for Tier 1 WASM extensions (see §3.3.6 and 479/480). This runtime executes tenant-authored modules as data inside a platform-owned service, preserving the namespace invariants from 478.
 
 **3.3.1 DomainControllers (domains)**
 
@@ -173,6 +180,24 @@ The goal is to give implementers a **vendor-aligned blueprint** that can be exec
   * A **DomainController** for transformation data (initiatives, stages, metrics, ProcessDefinitions, AgentDefinitions, and other design artifacts).
   * A **builder/compile service** (within Transformation DomainController) that transforms design-time artifacts into runtime deployments (Temporal workflows, AgentController configs, Backstage template updates).
   * **UAF UIs** that provide the modelling experience (BPMN editor, architecture diagrams, Markdown) by calling Transformation APIs.
+
+**3.3.5 Controller Operators (IDC/IPC/IAC)**
+
+* Three Ameide operators watch the controller CRDs defined in [461-ipc-idc-iac.md](461-ipc-idc-iac.md):
+
+  * **IDC operator** – reconciles each `IntelligentDomainController` into Deployments, Services, HPAs, ServiceMonitors, CNPG schemas/users, migrations Jobs, and NetworkPolicies. Enforces namespace/SKU placement, image policies, resource classes, and standard sidecars/env vars.
+  * **IPC operator** – reconciles `IntelligentProcessController` specs into Temporal worker Deployments, ConfigMaps linking BPMN to code, ServiceMonitors, and optional CronJobs for compensations. Validates references to ProcessDefinitions and Temporal namespaces.
+  * **IAC operator** – reconciles `IntelligentAgentController` specs into agent runtime Deployments, Secrets (LLM keys, tool credentials), allowlisted tool grants, and observability wiring.
+
+* Operators publish status/conditions back to their CRs (e.g., `Ready`, `Degraded`, `RolloutPaused`, `MigrationFailed`) so GitOps/UIs can reason in controller-level objects.
+* GitOps applies only the CR manifests plus the operator Deployments. All child resources are managed via reconciliation loops, so cross-cutting changes (sidecars, probes, annotations) happen centrally in operators.
+
+**3.3.6 WasmExtensionRuntime (Tier 1)**
+
+* Platform-owned service in `ameide-{env}` that executes ExtensionDefinitions (WASM modules) per tenant.
+* Uses Wasmtime/WasmEdge with CPU/memory/time limits per invocation plus host-call policies.
+* Loads modules from MinIO per the storage model in 479/480 and exposes an `InvokeExtension` RPC for controllers via the Ameide SDKs.
+* All side effects go through Domain/Process/Agent APIs with the caller’s tenant/org/user context; the runtime does not expose direct DB, filesystem, or arbitrary network access.
 
 ---
 
@@ -304,11 +329,14 @@ For tenants with custom controllers, additional namespaces are provisioned based
 
 > **See [478-ameide-extensions.md](478-ameide-extensions.md)** for the complete namespace strategy, repository model, and E2E controller creation flow.
 
+Tier 1 WASM extensions run inside the shared `extensions-runtime` service in `ameide-{env}`. Modules are treated as tenant-scoped data executed under strict sandbox and host-call policies, so the “no tenant services in `ameide-*` namespaces” invariant still holds.
+
 ---
 
 ## 7. Observability, Quality & Tooling
 
 * **Tracing & metrics:** OpenTelemetry across services; Temporal emits its own spans/metrics; combined in Grafana.
+  * `extensions-runtime` emits per-extension latency/error/resource metrics and integrates with circuit breakers so Tier 1 hooks remain observable.
 * **Logging:** Structured logs with correlation IDs (`trace_id`, `tenant_id`, `controller_type`, `controller_name`).
 * **Testing & quality:**
 
@@ -367,6 +395,8 @@ This Technology Architecture should be read with the following documents:
 | [310‑agents‑v2](310-agents-v2.md) | AgentController layer | See §10.2 |
 | [388‑ameide‑sdks‑north‑star](388-ameide-sdks-north-star.md) | SDK publish strategy | See §10.3 |
 | [478‑ameide‑extensions](478-ameide-extensions.md) | Namespace topology & extension deployment | See §10.4 |
+| [479‑ameide‑extensibility‑wasm](479-ameide-extensibility-wasm.md) | Tier 1 + Tier 2 extension model | See §3.3.6 |
+| [480‑ameide‑extensibility‑wasm-service](480-ameide-extensibility-wasm-service.md) | Runtime implementation | See §3.3.6 |
 
 ### 10.1 Workflow alignment (305)
 

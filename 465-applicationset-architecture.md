@@ -19,7 +19,7 @@
 
 ## Overview
 
-Ameide uses **two ApplicationSets** to manage all deployments. Understanding the distinction is critical—confusing them has caused production incidents.
+Ameide uses **two ApplicationSets** to manage all deployments. Understanding the distinction is critical—confusing them has caused production incidents. ApplicationSets never apply raw Deployments for domain/process/agent services; instead they apply the declarative controller manifests (`IntelligentDomainController`, `IntelligentProcessController`, `IntelligentAgentController`) defined in [461-ipc-idc-iac.md](461-ipc-idc-iac.md), plus the operators/infra that reconcile them.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -393,6 +393,8 @@ chart:
 ```
 
 **Note**: No `namespace:` field—it comes from the environment list.
+
+> **Controllers-as-CRs**: For Domain/Process/Agent controllers the referenced chart/folder often just contains the IDC/IPC/IAC manifests (and supporting RBAC) rather than a Deployment. Operators (not the chart) create the workloads after Argo applies the controller CRs.
 
 ### Adding a Cluster-Scoped Component
 

@@ -10,6 +10,8 @@ Totally agree — we can't keep evolving Ameide without locking down the securit
 > | [473-ameide-technology.md](473-ameide-technology.md) | Technology stack |
 > | [475-ameide-domains.md](475-ameide-domains.md) | Domain portfolio |
 > | [478-ameide-extensions.md](478-ameide-extensions.md) | Extension security model |
+> | [479-ameide-extensibility-wasm.md](479-ameide-extensibility-wasm.md) | Tier 1 WASM + Tier 2 extension model |
+> | [480-ameide-extensibility-wasm-service.md](480-ameide-extensibility-wasm-service.md) | Shared WASM runtime implementation |
 >
 > **Secrets & Security Implementation**:
 > - [462-secrets-origin-classification.md](462-secrets-origin-classification.md) – Secret origin taxonomy
@@ -108,7 +110,13 @@ Let’s make a very opinionated short list:
   * Account takeovers, invitation abuse, SSO misconfig, SCIM mis‑provisioning. 
 * **API misuse**
 
-  * Over‑privileged service accounts, missing rate limits, poisoning inputs into BPMN/UAF/Backstage.
+  * Over-privileged service accounts, missing rate limits, poisoning inputs into BPMN/UAF/Backstage.
+* **Tier 1 WASM extensions**
+
+  * Sandboxed tenant logic running inside the shared `extensions-runtime` service; risks include sandbox escape, over-permissive host calls, and resource exhaustion.
+* **Controller spec tampering**
+
+  * Malicious or accidental edits to `IntelligentDomainController`, `IntelligentProcessController`, or `IntelligentAgentController` CRs (wrong namespace, over-privileged images, disabled probes) or compromised operators that reconcile them.
 
 ### 3.2 Trust zones
 
@@ -116,7 +124,7 @@ Roughly:
 
 1. **Public edge** (Next.js UIs, public docs, marketing)
 2. **Tenant application plane** (Platform UI, Domain & Process APIs)
-3. **Agent & Transformation plane** (Agents, UAF, Backstage, IPA legacy)
+3. **Agent & Transformation plane** (Agents, UAF, Backstage, IPA legacy, shared `extensions-runtime`)
 4. **Control & infra plane** (Argo, Vault, Keycloak, CNPG, K8s)
 
 Each zone gets progressively fewer humans and more automation; crossing zones always goes through authenticated RPCs or well‑defined APIs.
@@ -172,7 +180,8 @@ Security for **DomainControllers** is mostly about data isolation and integrity.
 * **Artifacts (BPMN, diagrams, Markdown, agent specs)**
 
   * Stored by the **Transformation (and other) DomainControllers**, often edited via UAF UIs.
-  * Event‑sourced (internally by Transformation), versioned, immutable; enriched with metadata and promotion state. 
+  * Event-sourced (internally by Transformation), versioned, immutable; enriched with metadata and promotion state. 
+  * `ExtensionDefinition` sources and compiled WASM blobs live in tenant-tagged MinIO prefixes with the same governance and promotion metadata as other UAF artifacts; modules are treated strictly as data owned by Transformation.
 
 Every DomainController must:
 
@@ -215,9 +224,10 @@ The proto/API backlogs already define the right building blocks; we just declare
 
 ### 6.1 Custom Code Isolation Invariant
 
-A critical security principle for tenant extensions:
+Tenant extensions follow a strict carve-out:
 
-> **No custom code in shared namespaces**: Any controller whose origin is `tenant` (or "untrusted") **cannot** target `ameide-*` namespaces.
+> * No tenant-owned **services** may run in shared `ameide-*` namespaces; all tenant controllers live in `tenant-{id}-{env}-cust` (and `tenant-{id}-{env}-base` for Namespace/Private SKUs).
+> * The only tenant-specific logic that executes in `ameide-*` is Tier 1 WASM modules, treated as data and run inside the platform-owned `extensions-runtime` service under strict sandbox and host-call policies (see 479, 480).
 
 This is enforced at multiple layers:
 
@@ -226,6 +236,7 @@ This is enforced at multiple layers:
 | **Transformation** | Validates tenant SKU and computes target namespace before scaffolding |
 | **Backstage Templates** | Namespace calculation logic enforces isolation rules |
 | **GitOps Policy** | ArgoCD ApplicationSets validate namespace targeting |
+| **Wasm runtime** | Enforces limits + allowlists per extension and treats modules as untrusted data |
 | **NetworkPolicy** | Denies ingress from `tenant-*-cust` to `ameide-*` internal services |
 
 Namespace topology by SKU:
@@ -236,7 +247,7 @@ Namespace topology by SKU:
 | Namespace | `tenant-{id}-{env}-base` | `tenant-{id}-{env}-cust` |
 | Private | `tenant-{id}-{env}-base` | `tenant-{id}-{env}-cust` |
 
-> **See [478-ameide-extensions.md](478-ameide-extensions.md)** for the complete namespace strategy and E2E controller creation flow.
+> **See [478-ameide-extensions.md](478-ameide-extensions.md)** for the complete namespace strategy and [479](479-ameide-extensibility-wasm.md)/[480](480-ameide-extensibility-wasm-service.md) for the Tier 1 runtime model.
 
 ---
 
@@ -295,6 +306,10 @@ Per [478-ameide-extensions.md](478-ameide-extensions.md) §6, agents creating ne
 
 This pattern ensures all agent-generated code passes through the same governance as human-written code.
 
+### 7.4 WASM extensions & host calls
+
+Host calls from Tier 1 WASM modules inherit the caller’s `ExecutionContext` (tenant/org/user/risk tier) and must route through existing Ameide APIs via allowlisted SDK adapters. Risk tier plus `extensions-runtime` policy determines which host calls are exposed (`low` often has none, `medium` read-only, `high` curated write helpers). This is the enforcement point for the carve-out described in §6.1 and the reason Tier 1 logic can safely run in `ameide-*`.
+
 ---
 
 ## 8. Backstage, Controllers & GitOps
@@ -343,6 +358,7 @@ We extend:
 
   * audit events with `tenant_id`, `user_id`, `resource_type`, `resource_id`.
 * Transformation DomainController's secret scanner runs on artifacts (BPMN, diagrams, Markdown, Backstage templates) and **blocks promotion** if secrets are detected, with override via signed waiver. 
+* GitOps + operators record **IDC/IPC/IAC spec changes** (who/what changed the CR, diffs, resulting operator actions) in audit streams so we can trace controller configuration drift or tampering.
 
 ---
 
@@ -403,7 +419,9 @@ This Security & Trust Architecture should be read with the following documents:
 | [462‑secrets‑origin‑classification](462-secrets-origin-classification.md) | Secrets classification | Strong ✅ |
 | [310‑agents‑v2](310-agents-v2.md) | Agent domain implementation | See §11.3 |
 | [388‑ameide‑sdks‑north‑star](388-ameide-sdks-north-star.md) | SDK publish strategy | See §11.4 |
-| [478‑ameide‑extensions](478-ameide-extensions.md) | Extension security model | See §11.5 |
+| [478‑ameide‑extensions](478-ameide-extensions.md) | Tier 2 controller security model | See §11.5 |
+| [479‑ameide‑extensibility‑wasm](479-ameide-extensibility-wasm.md) | Tier 1 + Tier 2 extensibility framing | See §11.5 |
+| [480‑ameide‑extensibility‑wasm‑service](480-ameide-extensibility-wasm-service.md) | Shared WASM runtime | See §11.5 |
 
 ### 11.1 RBAC alignment (322)
 
@@ -489,9 +507,9 @@ This Security & Trust Architecture should be read with the following documents:
 - §6 (AmeideClient requirement): ⚠️ PARTIAL - TS consumers cannot use secure SDK patterns until TS SDK is published
 - "Open by design" principle: ❌ Compromised for external TS consumers
 
-### 11.5 Extension alignment (478)
+### 11.5 Extension alignment (478/479/480)
 
-478 defines the security model for tenant extensions:
+478 defines the security model for Tier 2 controller-based extensions, while 479 pairs that with Tier 1 WASM hooks and 480 implements the shared runtime:
 
 * **§6.1 Custom Code Isolation Invariant**: Aligns with 478 §7.1 (No custom code in shared namespaces)
 * **§7.3 ControllerImplementationDraft Pattern**: Operationalizes 478 §6 (E2E flow)
@@ -501,7 +519,8 @@ This Security & Trust Architecture should be read with the following documents:
 
 | Invariant | 476 Enforcement |
 |-----------|-----------------|
-| No custom code in `ameide-*` | §6.1 namespace isolation |
+| No custom services in `ameide-*` | §6.1 namespace isolation |
+| Tier 1 WASM runs as data in platform runtime | §6.1 carve-out + §7.4 host-call policies |
 | Agents don't touch Git directly | §7.3 draft pattern |
 | All calls via tenant-aware auth | §6 API security contract |
 | NetworkPolicies isolate tenant code | §6.1 + §8.2 |

@@ -182,9 +182,13 @@ We use three controller types (runtime) plus two design-time artifact types:
 **Runtime (controllers)**:
 * **DomainController** – owns data+rules for a particular domain (e.g. Product, Orders).
 * **ProcessController** – executes ProcessDefinitions; orchestrates multiple DomainControllers and AgentControllers to implement an E2E process (e.g. L2O, O2C, P2P). Backed by Temporal.
-* **AgentController** – executes AgentDefinitions; non‑deterministic LLM/tool automation that reads/writes via domain/process APIs.
+* **AgentController** – executes AgentDefinitions; non-deterministic LLM/tool automation that reads/writes via domain/process APIs.
 
-All controllers expose proto‑based APIs and are consumed via the Ameide SDKs; this is uniform across all domains.
+**Extension hooks (Tier 1)**
+
+DomainControllers and ProcessControllers may expose explicit extension points (e.g. `BeforePostInvoice`, BPMN Extension Tasks) which are satisfied by `ExtensionDefinition` artifacts executed via the shared `extensions-runtime` service. This gives tenants a light-weight way to customize behaviour without introducing new controllers for every rule change. See [479-ameide-extensibility-wasm.md](479-ameide-extensibility-wasm.md).
+
+All controllers expose proto-based APIs and are consumed via the Ameide SDKs; this is uniform across all domains. At runtime each controller is represented as a declarative custom resource (`IntelligentDomainController`, `IntelligentProcessController`, `IntelligentAgentController`) reconciled by Ameide operators (see [461-ipc-idc-iac.md](461-ipc-idc-iac.md)).
 
 ### 4.1 Example: Platform & Identity
 
@@ -289,7 +293,9 @@ Backstage templates (for DomainController/ProcessController/AgentController) are
 
 ### 4.7 Tenant-Specific Controllers
 
-When tenants require custom controllers beyond the standard product:
+Whenever possible, small, local customizations should attach to Tier 1 WASM extension hooks on existing controllers. The model below describes **Tier 2 controller-based extensions** for requirements that justify new services—see [479-ameide-extensibility-wasm.md](479-ameide-extensibility-wasm.md) for how both tiers relate.
+
+When tenants require custom controllers beyond the standard product, Backstage templates (or agents) create IDC/IPC/IAC manifests plus repositories and GitOps manages those CRs per environment:
 
 * **Platform controllers** run in `ameide-{env}` (Shared SKU) or `tenant-{id}-{env}-base` (Namespace/Private SKU)
 * **Tenant custom controllers** always run in `tenant-{id}-{env}-cust` namespaces

@@ -37,6 +37,7 @@ Backstage is designated as the Ameide "platform factory" – the internal develo
 2. **Software Templates** – Scaffolder templates for creating new controllers
 3. **TechDocs** – Technical documentation aggregation
 4. **Integration Hub** – GitHub, Keycloak, ArgoCD integrations
+5. **Controller CR authoring** – Templates emit `IntelligentDomainController`, `IntelligentProcessController`, and `IntelligentAgentController` manifests so GitOps/Argo manage declarative controller specs (per 461) instead of raw deployments.
 
 Per architecture doc 473 §4: "Backstage's Software Catalog and Software Templates / Scaffolder are used to create and manage all Ameide services (domain/process/agent) and their Helm charts."
 
@@ -1001,9 +1002,9 @@ Per [472-ameide-information-application.md](472-ameide-information-application.m
 
 | Template | Artifact Type | Output |
 |----------|---------------|--------|
-| `DomainController` | Runtime | Proto skeleton, Go/TS service, Helm chart, ArgoCD component |
-| `ProcessController` | Runtime | Temporal workflow, ProcessDefinition loader, Helm chart |
-| `AgentController` | Runtime | AgentDefinition executor, tool registry, Helm chart |
+| `DomainController` | Runtime | Proto skeleton, Go/TS service, IDC manifest, ArgoCD component |
+| `ProcessController` | Runtime | Temporal workflow, ProcessDefinition loader, IPC manifest |
+| `AgentController` | Runtime | AgentDefinition executor, tool registry, IAC manifest |
 | `ProcessDefinition` | Design-time (UAF) | BPMN-compliant artifact from React Flow modeller |
 | `AgentDefinition` | Design-time (UAF) | Declarative agent spec (tools, scope, risk tier, policies) |
 

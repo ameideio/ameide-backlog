@@ -88,6 +88,7 @@ We carry forward the earlier principles and make them concrete here:
 * **Authoritative** for its aggregate roots (Customer, Opportunity, Invoice, Initiative, etc.).
 * **Tenant-aware** – every record tagged with `tenant_id`.
 * **Projectable** – each domain can opt-in to project parts of its model into the cross-domain Graph for analysis and agent reasoning (see §3.4).
+* **Runtime representation** – each DomainController exists as an `IntelligentDomainController (IDC)` custom resource (see 461). The IDC operator reconciles the CR into Deployments, Services, HPAs, DB schemas, and ServiceMonitors, enforcing standard Ameide policies.
 
 ### 2.2 Process Controllers (Process layer)
 
@@ -127,6 +128,7 @@ We carry forward the earlier principles and make them concrete here:
   * Execution state (activity id, token position)
   * Audit trail (who approved, when)
 * Stored in **Temporal** plus Ameide projections (for consolidated reporting).
+* **Runtime representation** – ProcessControllers are declared via `IntelligentProcessController (IPC)` CRs that reference ProcessDefinition versions, Temporal namespaces, rollout policies, and dependent Domain/Agent controllers. The IPC operator reconciles those CRs into worker Deployments, Services, and monitoring assets.
 
 ### 2.3 Agents (Agent layer)
 
@@ -174,6 +176,7 @@ We carry forward the earlier principles and make them concrete here:
 * **Interaction history**
 
   * Persisted in Chat/Threads services for audit and context.
+* **Runtime representation** – AgentControllers are instantiated from `IntelligentAgentController (IAC)` CRs that reference AgentDefinitions, risk tier, runtime chassis, and tool grants. The IAC operator manages Deployments, Secrets, and observability for each agent runtime.
 
 ### 2.4 UI Workspaces & Process Views
 
@@ -196,6 +199,28 @@ Information-wise:
   * Domain state → domain controllers
   * Process state → process controllers
   * Knowledge/analytics → Graph and UAF projections
+
+### 2.5 Extensions (Tier 1 WASM)
+
+*Design-time*: `ExtensionDefinition` artifacts are stored in the Transformation DomainController alongside ProcessDefinitions and AgentDefinitions via UAF UIs.
+
+*Runtime*: A shared `extensions-runtime` service in `ameide-{env}` executes WebAssembly modules for three kinds of hooks:
+
+* `process_hook` – BPMN Extension Tasks in ProcessDefinitions.
+* `domain_hook` – explicit extension points in DomainControllers.
+* `agent_tool` – deterministic helpers for AgentControllers.
+
+Extensions are sandboxed, multi-tenant, and never own durable state; all data access goes back through domain/process/agent APIs with the same tenant/org/user context as the caller. See [479-ameide-extensibility-wasm.md](479-ameide-extensibility-wasm.md) and [480-ameide-extensibility-wasm-service.md](480-ameide-extensibility-wasm-service.md).
+
+### 2.6 Controller CRDs & operators
+
+At runtime Ameide treats every controller as a declarative Kubernetes custom resource:
+
+* `IntelligentDomainController` (IDC) – domain runtime desired state
+* `IntelligentProcessController` (IPC) – process runtime desired state
+* `IntelligentAgentController` (IAC) – agent runtime desired state
+
+ArgoCD applies IDC/IPC/IAC manifests checked into Git; dedicated Ameide operators reconcile them into Deployments, Services, HPAs, Temporal workers, CNPG schemas, ServiceMonitors, and other low-level objects. This keeps Git as the single source of truth while giving SREs a first-class object model for controllers. See [461-ipc-idc-iac.md](461-ipc-idc-iac.md) for CRD schemas.
 
 ---
 
@@ -299,6 +324,7 @@ Transformation is a **DomainController like any other**, owning:
 
   * **ProcessDefinitions** – BPMN-compliant process models (produced by custom React Flow modeller).
   * **AgentDefinitions** – Declarative agent specs (tools, policies, risk tiers).
+  * **ExtensionDefinitions** – WASM extension specs for process/domain/agent hooks.
   * ArchiMate, Markdown, etc., optionally event-sourced internally with commands and snapshots.
 * **Governance**
 
@@ -405,6 +431,10 @@ We provide **four base templates** (each parameterized per tenant):
      * Backstage `Component` entry of type `frontend`.
 
 Backstage templates remain **the control plane** for agents too: a transformation agent manipulates template parameters and triggers scaffolding rather than directly creating low-level services.
+
+> Templates are strictly **Tier 2** tooling for full controllers. Tier 1 WASM extensions follow the `ExtensionDefinition` + shared runtime path from 479/480 and do not create new services via Backstage.
+
+Every controller-oriented template emits both a repository skeleton (code, proto, CI) and the corresponding IDC/IPC/IAC manifest so GitOps/Argo can apply the controller CR. Human engineers and agents therefore work with the same declarative surface (the CR specs) regardless of who authored the controller.
 
 ---
 
@@ -543,6 +573,8 @@ This Application & Information Architecture should be read with:
 | [310‑agents‑v2](310-agents-v2.md) | AgentController implementation | See §8.3 |
 | [370‑event‑sourcing](370-event-sourcing.md) | Event sourcing exploration | See §8.4 |
 | [478‑ameide‑extensions](478-ameide-extensions.md) | Extension namespace topology | See §8.5 |
+| [479‑ameide‑extensibility‑wasm](479-ameide-extensibility-wasm.md) | Tier 1 + Tier 2 extensibility model | See §2.5, §8.5 |
+| [480‑ameide‑extensibility‑wasm‑service](480-ameide-extensibility-wasm-service.md) | Shared runtime implementation | See §2.5 |
 
 ### 8.1 Metamodel alignment (300)
 

@@ -15,6 +15,8 @@
 > | [475-ameide-domains.md](475-ameide-domains.md) | Domain portfolio, controller patterns |
 > | [476-ameide-security-trust.md](476-ameide-security-trust.md) | Security principles, agent governance |
 > | [477-backstage.md](477-backstage.md) | Backstage implementation |
+> | [479-ameide-extensibility-wasm.md](479-ameide-extensibility-wasm.md) | Tier 1 + Tier 2 extensibility framing |
+> | [480-ameide-extensibility-wasm-service.md](480-ameide-extensibility-wasm-service.md) | Tier 1 runtime implementation |
 >
 > **Related Implementation**:
 > - [443-tenancy-models.md](443-tenancy-models.md) – SKU definitions (Shared/Namespace/Private)
@@ -26,6 +28,8 @@
 ## 1. Purpose
 
 This document describes **how tenant-specific controllers are created, deployed, and isolated** within the Ameide platform. It operationalizes the architecture principles from 470-477 into concrete workflows.
+
+**Scope note:** This document covers **Tier 2 controller-based extensions** (Domain/Process/Agent controllers owned by tenants). Tier 1 WASM extensions stay inside the shared runtime described in [479](479-ameide-extensibility-wasm.md)/[480](480-ameide-extensibility-wasm-service.md); they only appear here when referencing shared namespace/security invariants. Whenever this doc says "controller" it refers to the corresponding `IntelligentDomainController`, `IntelligentProcessController`, or `IntelligentAgentController` custom resource that GitOps applies and that operators reconcile into workloads.
 
 Key questions answered:
 
@@ -56,6 +60,10 @@ Backstage pulls truth from:
 * Runtime systems (ArgoCD, K8s, observability)
 
 > **Think of it as**: "where platform engineers go to create & reason about controllers", not "where customers click buttons".
+>
+> Tier 1 WASM extensions do **not** use Backstage; they are stored as `ExtensionDefinition` artifacts and executed by the shared runtime (479/480).
+>
+> Tier 2 templates emit controller repositories **and** the IDC/IPC/IAC manifests that GitOps applies to realise runtime controllers.
 
 ### 2.2 Backstage Capabilities Used
 
@@ -119,6 +127,7 @@ For each environment (`dev`, `staging`, `prod`), namespaces are structured based
   * RLS + tenantId/orgId for data isolation
   * **Code must come from platform repos only**
   * **No tenant-specific/custom code ever**
+  * Tier 1 WASM modules run here only as data executed by the platform-owned runtime (see 479/480); they are not services.
 
 ### 4.2 Tenant Planes by SKU
 
@@ -171,7 +180,7 @@ Where:
 | Namespace | `tenant-{id}-{env}-base` | `tenant-{id}-{env}-cust` |
 | Private | `tenant-{id}-{env}-base` | `tenant-{id}-{env}-cust` |
 
-**Invariant**: Custom services always run in a dedicated tenant namespace, never in the shared `ameide-*` namespaces. This holds for **all tiers**.
+**Invariant**: Custom services always run in a dedicated tenant namespace, never in the shared `ameide-*` namespaces. Tier 1 WASM extensions are the single, governed exception and execute as data within the shared runtime per [479](479-ameide-extensibility-wasm.md)/[480](480-ameide-extensibility-wasm-service.md).
 
 ---
 

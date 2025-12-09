@@ -29,6 +29,16 @@ Establish the shared `extensions-runtime` service that runs Tier 1 WASM extens
   - Transformation UI/UX for authoring ExtensionDefinitions (handled by EXT-WASM-03).
   - Backstage templates for tenant-tier services (covered by 478).
 
+### 2.1 Links into the architecture suite
+
+This service is the concrete realization of the Tier 1 WASM model from [479-ameide-extensibility-wasm.md](479-ameide-extensibility-wasm.md). It plugs into:
+
+* Transformation / UAF as the executor for `ExtensionDefinition` artifacts (472 §3.5).
+* The Service Layer as a platform controller in `ameide-{env}` (473 §3).
+* The Security & Trust invariants for sandboxed tenant logic (476 §6–§7).
+* The tenant extension story alongside Tier 2 controllers (478).
+* The operator-managed controller plane: IDC/IPC/IAC workloads call `InvokeExtension` via SDK helpers, regardless of whether the controller is platform or tenant-owned.
+
 ---
 
 ## 3. High-Level Plan
@@ -107,6 +117,7 @@ Next mileposts:
 - Runtime manifests include the required namespace/pod labels so networking guardrails from backlog 441 apply automatically.
 - Benchmark shows `InvokeExtension` adds <10 ms p95 latency for a pure function with small payloads (baseline on `ameide-dev`), and negative sandbox tests prove denied operations (network/FS/CPU abuse) are blocked.
 - Operators can disable or degrade individual extensions via config/feature flags when risk thresholds are exceeded (ties into 476 incident response expectations).
+- Sandbox enforcement, host-call allowlists, and circuit-breaker controls collectively satisfy the Tier 1 carve-out described in [476-ameide-security-trust.md](476-ameide-security-trust.md) §6–§7.
 
 ---
 

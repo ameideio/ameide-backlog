@@ -14,6 +14,7 @@
 > | [475-ameide-domains.md](475-ameide-domains.md) | Domain portfolio and structure |
 > | [476-ameide-security-trust.md](476-ameide-security-trust.md) | Security principles and threat model |
 > | [478-ameide-extensions.md](478-ameide-extensions.md) | Tenant extension model & namespace strategy |
+> | [461-ipc-idc-iac.md](461-ipc-idc-iac.md) | Declarative controller model (IDC/IPC/IAC CRDs) |
 >
 > **Deployment Implementation**:
 > - [465-applicationset-architecture.md](465-applicationset-architecture.md) – GitOps deployment model
@@ -38,14 +39,17 @@
 | Term | Definition |
 |------|------------|
 | **Domain** | Business bounded context (e.g. Orders, Customers, Transformation) |
-| **DomainController** | Runtime microservice implementing a domain (APIs, rules, persistence, events) |
+| **DomainController** | Logical service implementing a domain (APIs, rules, persistence, events); at runtime expressed as an `IntelligentDomainController` (IDC) custom resource |
 | **ProcessDefinition** | BPMN-compliant artifact defining a business process (design-time, stored in Transformation DomainController, modelled via UAF UIs) |
-| **ProcessController** | Runtime that executes ProcessDefinitions, calling DomainControllers and AgentControllers |
+| **ProcessController** | Logical runtime that executes ProcessDefinitions, calling DomainControllers and AgentControllers; materialised as an `IntelligentProcessController` (IPC) custom resource |
 | **AgentDefinition** | Declarative spec for an agent graph + tools + policies (design-time, stored in Transformation DomainController, modelled via UAF UIs) |
-| **AgentController** | Runtime that executes AgentDefinitions via LLM/tool loops, always via SDKs |
+| **AgentController** | Logical runtime that executes AgentDefinitions via LLM/tool loops, always via SDKs; represented by an `IntelligentAgentController` (IAC) custom resource |
 | **UIWorkspace** | Next.js frontend that talks to controllers via the TS SDK |
 | **UAF** | Unified Artifact Framework - modelling UIs (BPMN editor, diagrams, Markdown) that talk to DomainControllers via APIs; UAF does not persist anything itself. All UAF-originated artifacts are persisted by the **Transformation DomainController** |
 | **Graph** | Read-only knowledge projection that ingests selected data from any controller into a graph database for relationship traversal without cross-DB joins; never a source of truth |
+| **IntelligentDomainController (IDC)** | Kubernetes custom resource (see 461) describing the desired state for a DomainController; reconciled by the IDC operator into Deployments, Services, HPAs, DB schemas, etc. |
+| **IntelligentProcessController (IPC)** | Custom resource describing a ProcessController (image, Temporal namespace, bindings); reconciled by the IPC operator. |
+| **IntelligentAgentController (IAC)** | Custom resource describing an AgentController (runtime, AgentDefinition reference, risk profile); reconciled by the IAC operator. |
 
 ---
 
@@ -120,9 +124,9 @@ We can build a **cloud-native business platform** where:
 5. **Design ≠ Deploy ≠ Runtime**
    We maintain a strict separation between:
 
-   * **Design-time**: ProcessDefinitions, AgentDefinitions, and other UAF artifacts (BPMN, ArchiMate, Markdown) stored in Transformation.
-   * **Deployment-time**: Backstage templates, GitOps, Helm/Argo.
-   * **Runtime**: DomainControllers, ProcessControllers (Temporal-backed), AgentControllers on K8s.
+   * **Design-time**: ProcessDefinitions, AgentDefinitions, ExtensionDefinitions, and other UAF artifacts stored in Transformation.
+   * **Deployment-time**: Backstage templates, GitOps, and controller manifests (IDC/IPC/IAC CRs) committed to Git.
+   * **Runtime**: Operators reconcile IDC/IPC/IAC custom resources into Deployments, Services, Temporal workers, and other workloads on Kubernetes.
 
 ---
 
@@ -142,17 +146,21 @@ At the highest level we standardise on four building blocks, with a clear **desi
 
 ### 4.1 Runtime Controllers
 
+At runtime every controller is captured as a declarative custom resource (IDC/IPC/IAC). Ameide operators reconcile those CRs into Deployments/Services/Temporal workers/agent runtimes so Git remains the single source of desired state.
+
 1. **DomainController** – a domain microservice:
 
    * Owns **proto APIs**, domain rules, persistence, and events.
    * Examples: Orders, Customers, Transformation, UAF, Onboarding, Identity.
    * Deterministic, versioned, testable.
+   * **Runtime representation**: `IntelligentDomainController` CR (see [461](461-ipc-idc-iac.md)) reconciled into Deployments, Services, DB schemas, HPAs, ServiceMonitors, etc.
 
 2. **ProcessController** – executes ProcessDefinitions:
 
    * Loads a specific ProcessDefinition version from Transformation DomainController.
    * Manages process instances, state, retries, compensation.
    * Backed by Temporal; binds BPMN tasks to DomainController/AgentController calls.
+   * **Runtime representation**: `IntelligentProcessController` CR defining Temporal workers, namespace bindings, rollout strategy.
 
 3. **AgentController** – executes AgentDefinitions:
 
@@ -160,6 +168,7 @@ At the highest level we standardise on four building blocks, with a clear **desi
    * Accesses domain/process data via the SDK and public APIs.
    * Enforces scope/risk policies at execution time.
    * E.g. transformation requirement agent, coder/refactor agent, L2O assistant.
+   * **Runtime representation**: `IntelligentAgentController` CR describing runtime image, tool grants, risk tier, rollout.
 
 4. **UIWorkspace** – UX layer:
 
@@ -191,7 +200,7 @@ Backstage is the **factory** that turns Transformation DomainController decision
   * Indexes DomainController, ProcessController, AgentController, UIWorkspace components and their sources (repos, Helm releases, proto APIs).
 * **Templates**:
 
-  * Scaffold new domain controllers, process controllers, agent controllers, and workspaces using standard Ameide patterns (proto, SDK, Helm/Argo, CNPG, Temporal).
+  * Scaffold new domain controllers, process controllers, agent controllers, and workspaces using standard Ameide patterns (proto, SDK, Helm/Argo, CNPG, Temporal) and emit the corresponding IDC/IPC/IAC manifests that GitOps/Argo will apply.
 * **Bridge**:
 
   * Listens to Transformation domain events and runs templates with specific parameters (e.g. "create L2O ProcessController variant for tenant X").
