@@ -70,6 +70,9 @@ These deviations need to be resolved before the “verification” and “CI enf
 4. ✅ Argo CD drift verification
    - Added `scripts/check-argocd-app-sync.sh`, a helper that lists Applications sourcing this repo, checks their health, and ensures the deployed git revision matches `HEAD` (or a provided `--target-rev`).
    - Running the script after vendoring surfaced degradations in `dev-platform-grafana`; it now serves as the final validation step after each chart bump (especially for multi-source apps).
+5. ✅ Cluster-scope Envoy Gateway CRDs
+   - Moved `platform-envoy-crds` from the per-environment ApplicationSet into the cluster-scoped `cluster` ApplicationSet so the vendored OCI chart applies once per cluster (rollout phase `010`) without thrashing CRDs across namespaces.
+   - Added a shared values stub under `sources/values/_shared/cluster/platform-envoy-crds.yaml` so the Helm source renders deterministically with SSA enabled.
 
 ### Phase B – Documentation + CI
 
@@ -81,6 +84,8 @@ These deviations need to be resolved before the “verification” and “CI enf
    - Run `scripts/vendor-charts.sh --dry-run` (no writes) to ensure lock is parseable.
    - Run the validator script and fail the build on drift.
    - Optional: install `helm`/`yq` caching for faster runs.
+5. ✅ Encode health expectations
+   - Added Lua health customizations for `monitoring.coreos.com/*` (Prometheus, Alertmanager, ThanosRuler, ServiceMonitor, etc.) and `monitoring.grafana.com/*` (GrafanaAgent, LogsInstance, MetricsInstance, PodLogs, Integrations) so Argo CD reports observability Applications as `Healthy` once operators reconcile, letting RollingSync progress past the upgraded chart versions.
 
 ### Phase C – Guardrails
 
