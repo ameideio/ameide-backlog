@@ -18,6 +18,32 @@
 
 This document is the **implementation reference** for the legacy devcontainer bootstrap mechanics. For design rationale and target state, see [367-bootstrap-v2.md](367-bootstrap-v2.md).
 
+## Remote-first bootstrap workflow (2025-12)
+
+Even though this file mainly documents the historical k3d flow, engineers still land here looking for a “what do I run now?” answer. The active remote-first flow is intentionally lightweight and stitches together the documents listed above:
+
+1. **Auto contexts + kube cred refresh** – `tools/dev/bootstrap-contexts.sh` (documented in [491-auto-contexts.md](491-auto-contexts.md)) pulls AKS credentials, sets the unified contexts from [434-unified-environment-naming.md](434-unified-environment-naming.md), and seeds Telepresence defaults. `postCreate.sh` calls this automatically, but you can rerun it as needed.
+2. **Argo CD CLI bootstrap** – Follow [491-argocd-login.md](491-argocd-login.md) to port-forward, mint the short-lived token, and run `argocd login argocd.ameide.io --grpc-web --insecure` inside the devcontainer. The wrapper in `.devcontainer/postCreate.sh` now shells out to the same helper so the token lifecycle is consistent.
+3. **Environment sanity check** – `kubectl get ns` (expect all `ameide-*` namespaces) and `argocd app list | grep ameide-dev` before starting feature work. This replaces the older “install Argo into k3d” section in this doc.
+
+## End-to-end inner-loop cycle
+
+Per the “refactor & rerun” ask, the current expected cycle for shared services (e.g. `extensions-runtime`) is:
+
+1. **Local build + tests**
+   ```bash
+   go test ./...
+   sudo docker build -t extensions-runtime-dev-local -f services/extensions-runtime/Dockerfile.dev .
+   sudo docker build -t extensions-runtime-release-local -f services/extensions-runtime/Dockerfile.release .
+   sudo docker run --rm --entrypoint /app/extensions-runtime extensions-runtime-dev-local --version
+   ```
+   (Any config errors are acceptable as long as glibc/linking and health handlers start cleanly.)
+2. **Commit + push** – Stage intentional changes only (`git status` should be clean apart from your work), then `git commit` and `git push`. The DevContainer already hosts a logged-in `gh` CLI.
+3. **CI / CD verification** – Watch `gh run watch <run-id>` for the `CD / Service Images` workflow. Success there proves every service built and new images were pushed to GHCR.
+4. **Argo CD rollout** – `argocd app sync dev-platform-extensions-runtime && argocd app wait dev-platform-extensions-runtime` followed by `kubectl get pods -n ameide-dev -l app.kubernetes.io/name=extensions-runtime`. Health must reach `Healthy` before moving on; logs should show the gRPC health server coming up.
+
+This cycle was executed after the MinIO endpoint + gRPC health refactor (see commits `62b853d5`, `38452a77`), so the instructions are now proven-good. If anything regresses, update this section so future contributors do not have to rediscover the steps.
+
 ### Current bootstrap split (2025-12)
 
 - **GitOps / cluster bootstrap** now lives in the `ameide-gitops` repository (`bootstrap/bootstrap.sh`). It installs Argo CD, applies the RollingSync ApplicationSet, and prepares AKS/k3d clusters for every environment. CI/CD and platform operators invoke that script.
@@ -517,6 +543,8 @@ Potential follow-ups:
 ### Telepresence mode ([432](432-devcontainer-modes-offline-online.md), [434](434-unified-environment-naming.md))
 
 `online-telepresence` now loads `infra/environments/dev/bootstrap-telepresence.yaml`, persists the mode in `~/.devcontainer-mode.env`, sets `DEV_REMOTE_CONTEXT`/`TILT_REMOTE=1`, installs the Telepresence CLI, and invokes `tools/dev/telepresence.sh connect --context ameide-staging --namespace ameide-staging` when `autoConnect` is enabled. Tilt uses those env vars to push images to GitHub Container Registry (`ghcr.io/ameideio/...`) and restricts kube contexts to the AKS staging namespace. See [docs/dev-workflows/telepresence.md](../docs/dev-workflows/telepresence.md) for the end-to-end workflow.
+
+The helper at `tools/dev/telepresence.sh` now includes a `verify` mode that logs timestamped status, auto-creates missing kube contexts via `az aks get-credentials`, and optionally exercises a full intercept (`TELEPRESENCE_VERIFY_WORKLOAD`, defaults to `www-ameide`). When an intercept fails (e.g., “no active session”), the script automatically dumps `telepresence status` and `telepresence list` before exiting non-zero so failures surface in `tilt up verify-telepresence`. Use `TELEPRESENCE_SKIP_INTERCEPT=1` if you need a connectivity-only health check.
 
 ### Domain rename ([434](434-unified-environment-naming.md))
 
