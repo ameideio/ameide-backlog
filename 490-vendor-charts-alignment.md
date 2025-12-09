@@ -67,6 +67,9 @@ These deviations need to be resolved before the “verification” and “CI enf
 3. ✅ Lock coverage for bespoke charts
    - Added lock entries for the Altinity ClickHouse runtime, HashiCorp Vault, Envoy Gateway CRDs, and Telepresence (marked as `source: local` because the vendor ships the chart inside the CLI release).
    - Rehydrated the tree so every entry follows the `<alias>/<name>/<version>` shape (`telepresence/telepresence/2.25.1`, `altinity/clickhouse/0.3.6`, `oci/.../gateway-crds-helm/v1.6.0`), letting the vendor script manage them going forward.
+4. ✅ Argo CD drift verification
+   - Added `scripts/check-argocd-app-sync.sh`, a helper that lists Applications sourcing this repo, checks their health, and ensures the deployed git revision matches `HEAD` (or a provided `--target-rev`).
+   - Running the script after vendoring surfaced degradations in `dev-platform-grafana`; it now serves as the final validation step after each chart bump (especially for multi-source apps).
 
 ### Phase B – Documentation + CI
 
@@ -136,7 +139,7 @@ Output from `./scripts/check-vendored-charts.sh` on 2025-12-09. Each line captur
 
 ### Observability stack
 
-- **Grafana** – `environments/_shared/components/observability/grafana/component.yaml` still references `sources/charts/third_party/grafana/grafana/9.3.1`, while the tree also contains 10.1.4 bits. Latest upstream chart is **10.3.0** (`helm search repo grafana/grafana`). Action: plan the Grafana 10.x upgrade (dashboards, image renderer, oauth2 proxy values) and drop 9.x entirely once the Application rolls forward; pending work ties into backlog/436 (observability hardening).
+- **Grafana** – ✅ component at `…/observability/grafana/component.yaml` now consumes `grafana/grafana/10.3.0`, and the shared values enforce a `RollingUpdate` strategy with `maxUnavailable: 1` / `maxSurge: 0` so single-replica upgrades detach the RWO PVC before starting the new pod. `scripts/check-argocd-app-sync.sh --app dev-platform-grafana --refresh` reports the Application Healthy/Synced at commit `f19d918c…`. Follow-up: repeat the rollout for staging/production and drop any lingering 9.x artifacts once all clusters converge.
 - **Loki** – the component at `…/observability/loki/component.yaml` already points at `grafana/loki/6.46.0`, but the lock still says 6.35.0 and there is a stray 6.45.2 directory. Latest stable is **6.46.0**; update `charts.lock.yaml` + shared values to 6.46.0 and prune 6.35.0/6.45.2 once the validator passes (`platform-loki` depends on the newer chart because of WAL fixes called out in backlog/452).
 - **Tempo** – component `…/observability/tempo/component.yaml` uses `grafana/tempo/1.24.0`, but the lock is pinned to 1.23.2. Latest stable is **1.24.1**. Action: bump lock + vendored bits to 1.24.1, re-run integration smoke in backlog/436, then drop 1.23.x.
 - **Prometheus stack** – `platform-prometheus` continues to run `kube-prometheus-stack/75.17.0` (`…/observability/prometheus/component.yaml`), yet the tree also contains 79.1.1; upstream is already **80.0.0** (`v0.87.0`). We need a dedicated upgrade PR that bumps the lock, re-renders the CRDs, updates SSA ignores, and retires the 75.x + 79.x directories.
