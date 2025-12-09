@@ -76,14 +76,10 @@ These deviations need to be resolved before the “verification” and “CI enf
 
 ### Phase B – Documentation + CI
 
-3. Update `sources/charts/README.md`
-   - Add “Vendoring workflow” steps.
-   - Cross-link backlog/456 for mirrored container images.
-   - Mention the new validator script + how to run it locally.
-4. Extend `.github/workflows/validate-charts.yaml` (or add a new workflow)
-   - Run `scripts/vendor-charts.sh --dry-run` (no writes) to ensure lock is parseable.
-   - Run the validator script and fail the build on drift.
-   - Optional: install `helm`/`yq` caching for faster runs.
+3. ✅ Update `sources/charts/README.md`
+   - Added a “Vendored third-party charts” walkthrough (edit lock → vendor script → validator → Argo drift check) so contributors have a single checklist.
+4. ✅ Extend CI to cover vendored charts
+   - Added `.github/workflows/vendor-charts.yaml`, which runs `scripts/vendor-charts.sh` and `scripts/check-vendored-charts.sh` on every PR touching the lock or vendored directories and fails if git status changes.
 5. ✅ Encode health expectations
    - Added Lua health customizations for `monitoring.coreos.com/*` (Prometheus, Alertmanager, ThanosRuler, ServiceMonitor, etc.) and `monitoring.grafana.com/*` (GrafanaAgent, LogsInstance, MetricsInstance, PodLogs, Integrations) so Argo CD reports observability Applications as `Healthy` once operators reconcile, letting RollingSync progress past the upgraded chart versions.
 
@@ -112,8 +108,8 @@ These deviations need to be resolved before the “verification” and “CI enf
 |------|---------|
 | `scripts/vendor-charts.sh` | Download and cache repo/OCI/manifest charts defined in the lock file. |
 | `sources/charts/third_party/charts.lock.yaml` | Single source of truth for third-party chart versions. |
-| `sources/charts/README.md` | Chart layout + vendoring instructions (to be expanded). |
-| `.github/workflows/validate-charts.yaml` *(new or updated)* | CI enforcement for vendored charts. |
+| `sources/charts/README.md` | Chart layout + vendoring instructions. |
+| `.github/workflows/vendor-charts.yaml` | CI enforcement for vendored charts (reruns the vendor + validator scripts). |
 | `scripts/check-vendored-charts.sh` *(new)* | Local + CI validator for lock vs. filesystem state. |
 
 ---
@@ -145,6 +141,7 @@ Output from `./scripts/check-vendored-charts.sh` on 2025-12-09. Each line captur
 ### Observability stack
 
 - **Grafana** – ✅ component at `…/observability/grafana/component.yaml` now consumes `grafana/grafana/10.3.0`, and the shared values enforce a `RollingUpdate` strategy with `maxUnavailable: 1` / `maxSurge: 0` so single-replica upgrades detach the RWO PVC before starting the new pod. `scripts/check-argocd-app-sync.sh --app dev-platform-grafana --refresh` reports the Application Healthy/Synced at commit `f19d918c…`. Follow-up: repeat the rollout for staging/production and drop any lingering 9.x artifacts once all clusters converge.
+- **Grafana Alloy (logs)** – ✅ vendored chart bumped to **1.5.0** (AppVersion v1.12.0), `platform-alloy-logs` now references `sources/charts/third_party/grafana/alloy/1.5.0`, and the 1.4.x directory has been pruned. Next step: sync the Application through all environments and watch the new vendored-chart CI job for regressions.
 - **Loki** – the component at `…/observability/loki/component.yaml` already points at `grafana/loki/6.46.0`, but the lock still says 6.35.0 and there is a stray 6.45.2 directory. Latest stable is **6.46.0**; update `charts.lock.yaml` + shared values to 6.46.0 and prune 6.35.0/6.45.2 once the validator passes (`platform-loki` depends on the newer chart because of WAL fixes called out in backlog/452).
 - **Tempo** – component `…/observability/tempo/component.yaml` uses `grafana/tempo/1.24.0`, but the lock is pinned to 1.23.2. Latest stable is **1.24.1**. Action: bump lock + vendored bits to 1.24.1, re-run integration smoke in backlog/436, then drop 1.23.x.
 - **Prometheus stack** – `platform-prometheus` continues to run `kube-prometheus-stack/75.17.0` (`…/observability/prometheus/component.yaml`), yet the tree also contains 79.1.1; upstream is already **80.0.0** (`v0.87.0`). We need a dedicated upgrade PR that bumps the lock, re-renders the CRDs, updates SSA ignores, and retires the 75.x + 79.x directories.
