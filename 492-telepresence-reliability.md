@@ -94,6 +94,7 @@ Teleporting the inner loop to the shared AKS cluster is now the only supported w
 ## Recent improvements
 
 - **RBAC alignment** – Telepresence Traffic Manager ClusterRole/Role templates now grant `create` on `pods/eviction`, matching the vendor guidance for v2.25.1 (mirrored in `sources/charts/third_party/telepresence/telepresence/2.25.1`). ArgoCD syncs `dev-traffic-manager`/`staging-traffic-manager` against the versioned chart path.
+- **AKS role assignment automation** – `infra/terraform/azure` now creates the `Ameide Telepresence Developers` Entra ID group (object ID `f29f3bba-96e3-4faf-a6f5-6d8c595fe2d1`) and grants it the built-in **Azure Kubernetes Service RBAC Writer** role on the `ameide` cluster, replacing the manual “cluster-user” assignment attempts that failed earlier. Running `terraform -chdir=infra/terraform/azure apply` and a follow-up `plan` both return no drift.
 - **Script resilience** – `tools/dev/telepresence.sh verify` now:
   - Logs timestamps for every phase.
   - Ensures `az aks get-credentials` is invoked automatically when `ameide-{env}` contexts are missing.
@@ -105,6 +106,7 @@ Teleporting the inner loop to the shared AKS cluster is now the only supported w
 | Issue | Description | Impact | Next Actions |
 |-------|-------------|--------|--------------|
 | **NO-SESSION-1** | `telepresence intercept` returns `rpc error: code = Unavailable desc = no active session` even after a successful `connect`. | Tilt `svc-*` commands and the `verify` helper fail. | Pull `kubectl -n ameide-dev logs deploy/traffic-manager` to inspect session registration errors. Confirm traffic-manager and CLI share version v2.25.1; escalate to vendor if sessions still fail. |
+| **CAP-NET-ADMIN** | `telepresence connect …` fails immediately with `connector.Connect: NewTunnelVIF: netlink.RuleAdd: operation not permitted` | DevContainer lacks the `CAP_NET_ADMIN` capability Telepresence needs to install routing rules, so even `sudo` fails. | Run the runbook from the host (or any shell with NET_ADMIN), or switch Telepresence to Docker mode once `docker` is available. Keep using `kubectl` + traffic-manager logs for validation when containerized tooling is constrained. |
 | **RBAC fallback** | Namespaces using namespaced RBAC must also include the `pods/eviction` rule (added, but monitor). | Without it, intercept fails with RBAC errors. | Keep ArgoCD apps in sync; add regression test in the helper (detect RBAC failure vs session failure). |
 | **Traffic-agent drift** | Some workloads (e.g., `kafka-entity-operator`) report `unable to engage (traffic-agent not installed): Unknown`. | Noise in Tilt CLI; may hide legitimate issues. | Document safe intercept targets (only `*-tilt` workloads) and ensure baseline workloads ignore Telepresence annotations (backlog 455). |
 
