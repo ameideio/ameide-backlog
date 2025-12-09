@@ -41,13 +41,13 @@ environments/_shared/components/apps/{category}/{app-name}/component.yaml
 - [x] **RT-16**: Keycloak paths restricted per vendor security docs → **2025-12-06**
 - [x] **RT-10**: pgAdmin HTTPRoute → `sources/charts/platform/pgadmin/templates/httproute.yaml` (dev/staging/prod) → **2025-12-09**
 - [x] **RT-2**: Grafana HTTPRoute → `sources/charts/third_party/grafana/grafana/10.3.0/templates/httproute.yaml` (env overrides in `sources/values/*/observability/platform-grafana.yaml`) → **2025-12-09**
+- [x] **RT-3**: Prometheus HTTPRoute → `sources/charts/third_party/prometheus-community/kube-prometheus-stack/80.0.0/templates/httproute-prometheus.yaml` → **2025-12-09**
+- [x] **RT-4**: Alertmanager HTTPRoute → `sources/charts/third_party/prometheus-community/kube-prometheus-stack/80.0.0/templates/httproute-alertmanager.yaml` → **2025-12-09**
 
 ## Routes in Gateway Chart Templates (to migrate)
 
 | ID | Route File | Service | Target Chart | Priority |
 |----|------------|---------|--------------|----------|
-| RT-3 | `httproute-prometheus-https.yaml` | prometheus | New `apps/prometheus` | Medium |
-| RT-4 | `httproute-alertmanager-https.yaml` | alertmanager | New `apps/alertmanager` | Medium |
 | RT-5 | `httproute-loki-https.yaml` | loki | `platform-layers/loki` | Low |
 | RT-6 | `httproute-tempo-https.yaml` | tempo | `platform-layers/tempo` | Low |
 | RT-7 | `httproute-metrics-https.yaml` | otel-collector | New `apps/otel-collector` | Low |
@@ -96,7 +96,6 @@ environments/_shared/components/apps/{category}/{app-name}/component.yaml
 - ~~RT-16: Keycloak path security~~ → Done
 
 ### Medium Priority (may need new charts)
-- RT-3/4: Observability (prometheus, alertmanager)
 - RT-11: Temporal
 - RT-15: Graph internal route
 
@@ -107,8 +106,6 @@ environments/_shared/components/apps/{category}/{app-name}/component.yaml
 ## Backlog
 
 ### Medium Priority (need new charts or additions)
-- [ ] **RT-3**: Create `apps/prometheus` chart with HTTPRoute
-- [ ] **RT-4**: Create `apps/alertmanager` chart with HTTPRoute
 - [ ] **RT-11**: Add HTTPRoute to temporal chart
 - [ ] **RT-15**: Add internal route to graph chart
 

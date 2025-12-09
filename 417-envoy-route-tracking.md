@@ -18,6 +18,7 @@
 - Envoy Gateway chart is the single source of truth for shared routes; dev uses `_shared` + `local` values, staging/production use `_shared` + env-specific values.
 - Plausible HTTPRoute restored (previously dropped by an empty `additionalHttpRoutes` override) **and now fronts the Keycloak-backed oauth2-proxy (`plausible-oauth2-proxy`) so only `/js/*` + `/api/event` bypass auth**.
 - Grafana HTTPRoute now renders inside the Grafana chart (per RT-2) so each environment feeds its hostname + tolerations alongside the chart; the gateway no longer templates `httproute-grafana-https.yaml`.
+- Prometheus + Alertmanager HTTPRoutes (RT-3/RT-4) now render from the kube-prometheus-stack release, so each environment sets hostnames close to the workload, and the gateway no longer carries `httproute-prometheus-https.yaml` / `httproute-alertmanager-https.yaml`.
 - All public app Ingress stanzas removed/disabled: Langfuse (staging/production) and prod Grafana now rely on Gateway; staging web frontends moved to HTTPRoutes.
 - Keycloak is exposed via Gateway, but production renders two HTTPRoutes (auth.dev.ameide.io/auth.ameide.io → keycloak:4000 and auth.ameide.io → keycloak:8080); needs dedupe/port alignment.
 - Duplicate HTTPRoutes exist for some hosts (prometheus/alertmanager/loki/tempo UI vs. base routes); consider consolidating to a single route per host.
@@ -37,6 +38,8 @@ Per [459-httproute-ownership.md](459-httproute-ownership.md), routes are migrati
 | www-ameide-platform | gateway `extraHttpRoutes` | `apps/www-ameide-platform/templates/httproute.yaml` |
 | pgadmin | gateway `extraHttpRoutes` (dev/staging/prod) | `platform/pgadmin/templates/httproute.yaml` |
 | grafana | gateway `httproute-grafana-https.yaml` | `third_party/grafana/templates/httproute.yaml` |
+| prometheus | gateway `httproute-prometheus-https.yaml` | `third_party/prometheus-community/kube-prometheus-stack/templates/httproute-prometheus.yaml` |
+| alertmanager | gateway `httproute-alertmanager-https.yaml` | `third_party/prometheus-community/kube-prometheus-stack/templates/httproute-alertmanager.yaml` |
 
 Remaining routes still in gateway chart are candidates for future migration (see 459 backlog).
 
@@ -50,8 +53,8 @@ Remaining routes still in gateway chart are candidates for future migration (see
 - App chart HTTPRoute grafana-https: grafana.dev.ameide.io → platform-grafana:80
 - HTTPRoute loki-https & ameide-loki-ui: loki.dev.ameide.io → platform-loki-gateway:80
 - HTTPRoute tempo-https & ameide-tempo-ui: tempo.dev.ameide.io → platform-tempo:3200
-- HTTPRoute prometheus-https & ameide-prometheus-ui: prometheus.dev.ameide.io → platform-prometheus(-prometheus / -kube-p-prometheus):9090
-- HTTPRoute alertmanager-https & ameide-alertmanager-ui: alertmanager.dev.ameide.io → platform-prometheus-(alertmanager / kube-p-alertmanager):9093
+- App chart HTTPRoute prometheus-https & ameide-prometheus-ui: prometheus.dev.ameide.io → platform-prometheus(-prometheus / -kube-p-prometheus):9090
+- App chart HTTPRoute alertmanager-https & ameide-alertmanager-ui: alertmanager.dev.ameide.io → platform-prometheus-(alertmanager / kube-p-alertmanager):9093
 - HTTPRoute metrics-https: metrics.dev.ameide.io → platform-otel-collector:8888
 - HTTPRoute telemetry-https: telemetry.dev.ameide.io → platform-otel-collector:4317
 - HTTPRoute argocd: argocd.dev.ameide.io → argocd-server:80
@@ -69,8 +72,8 @@ Remaining routes still in gateway chart are candidates for future migration (see
 - App chart HTTPRoute grafana-https: grafana.staging.ameide.io → grafana:80
 - HTTPRoute loki-https & ameide-loki-ui: loki.staging.ameide.io → loki-gateway:80
 - HTTPRoute tempo-https & ameide-tempo-ui: tempo.staging.ameide.io → tempo:3200
-- HTTPRoute prometheus-https: prometheus.staging.ameide.io → prometheus-oauth2-proxy:80
-- HTTPRoute alertmanager-https: alertmanager.staging.ameide.io → alertmanager-oauth2-proxy:80
+- App chart HTTPRoute prometheus-https: prometheus.staging.ameide.io → platform-prometheus(-prometheus / -kube-p-prometheus):9090
+- App chart HTTPRoute alertmanager-https: alertmanager.staging.ameide.io → platform-prometheus-(alertmanager / kube-p-alertmanager):9093
 - HTTPRoute metrics-https: metrics.staging.ameide.io → otel-collector:8888
 - HTTPRoute telemetry-https: telemetry.staging.ameide.io → otel-collector:4317
 - HTTPRoute keycloak: auth.staging.ameide.io → keycloak:8080
@@ -89,8 +92,8 @@ Remaining routes still in gateway chart are candidates for future migration (see
 - App chart HTTPRoute grafana-https: grafana.ameide.io → grafana:80
 - HTTPRoute loki-https & ameide-loki-ui: loki.ameide.io → loki-gateway:80
 - HTTPRoute tempo-https & ameide-tempo-ui: tempo.ameide.io → tempo:3200
-- HTTPRoute prometheus-https: prometheus.ameide.io → prometheus-oauth2-proxy:80
-- HTTPRoute alertmanager-https & ameide-alertmanager-ui: alertmanager.ameide.io → alertmanager-oauth2-proxy:80
+- App chart HTTPRoute prometheus-https: prometheus.ameide.io → platform-prometheus(-prometheus / -kube-p-prometheus):9090
+- App chart HTTPRoute alertmanager-https & ameide-alertmanager-ui: alertmanager.ameide.io → platform-prometheus-(alertmanager / kube-p-alertmanager):9093
 - HTTPRoute metrics-https: metrics.ameide.io → otel-collector:8888
 - HTTPRoute telemetry-https: telemetry.ameide.io → otel-collector:4317
 - HTTPRoute keycloak (two rendered): auth.dev.ameide.io/auth.ameide.io → keycloak:4000 and auth.ameide.io → keycloak:8080
