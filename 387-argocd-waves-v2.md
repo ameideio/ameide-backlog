@@ -1,6 +1,6 @@
 # Argo CD rollout phases v2: single orchestrated ladder
 
-> **Note (2025-12-04)**: Phases 010-020 (CRDs and operators) are now managed by the **cluster** ApplicationSet.
+> **Note (2025-12-04)**: Phases 010-020 (CRDs and operators) are now managed by the **cluster** ApplicationSet, which applies those components once per cluster before the environment-scoped ApplicationSet runs.
 > See [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md) for the dual ApplicationSet architecture.
 > This document remains relevant for environment phases (100+) managed by the **ameide** ApplicationSet.
 
@@ -96,7 +96,7 @@ Notes on intent:
 
 ## Current dev inventory (rollout-phase → components)
 Generated from `./wave_lint.sh --format json` (rolloutPhase values as of dev):
-- 010: foundation-namespaces; foundation-crds-external-secrets
+- 010: foundation-namespaces; cluster-crds-external-secrets (cluster/crds/external-secrets/component.yaml)
 - 110: foundation-crds-cert-manager
 - 120: foundation-cert-manager; foundation-external-secrets
 - 130: foundation-vault-webhook-certs; foundation-ghcr-pull-secret (registry pull secret ExternalSecret for GHCR)

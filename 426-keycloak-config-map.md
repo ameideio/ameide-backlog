@@ -476,6 +476,103 @@ scheduling:
 
 > **Cross-reference**: See [442-environment-isolation.md](442-environment-isolation.md) for the node pool strategy and [447-third-party-chart-tolerations.md](447-third-party-chart-tolerations.md) §12 for Keycloak-specific details.
 
+### 5.2 ArgoCD Logs & Health Investigation (2025-12-09)
+
+Argo reports `platform-keycloak-realm` in every environment. When it goes `Progressing`/`Degraded`, use the same checklist so that hooks, Jobs, and ExternalSecrets are verified before re-syncing.
+
+| Environment | Namespace | Argo CD Application | Hooks / resources to watch |
+|-------------|-----------|---------------------|----------------------------|
+| dev | `ameide-dev` | `dev-platform-keycloak-realm` | `KeycloakRealmImport` (hook wave `-10`), `Job/platform-keycloak-realm-client-patcher` (hook wave `-1`), `ExternalSecret/keycloak-realm-oidc-clients` |
+| staging | `ameide-staging` | `staging-platform-keycloak-realm` | Same hooks as dev |
+| production | `ameide-prod` | `production-platform-keycloak-realm` | Same hooks as dev |
+
+#### 1. Sweep Argo health for all environments
+
+```bash
+envs=(dev staging production)
+for env in "${envs[@]}"; do
+  app="${env}-platform-keycloak-realm"
+  echo "=== ${app} ==="
+  argocd app get "${app}" \
+    --grpc-web --plaintext -o json \
+    | jq -r '"Sync=\(.status.sync.status) Health=\(.status.health.status) Revision=\(.status.sync.revision)"'
+done
+```
+
+* `Sync=OutOfSync` usually means the PreSync hook deleted objects before a fresh apply—check events.
+* `Health=Progressing` while `Sync=Synced` indicates Argo is still waiting on the Keycloak operator to report `Done=True` / `HasErrors=False` on the hook resources.
+* `argocd app wait ${env}-platform-keycloak-realm --health --timeout 600 --grpc-web --plaintext` blocks until the health gate clears.
+
+#### 2. Inspect events and hook logs
+
+```bash
+envs=(dev staging production)
+for env in "${envs[@]}"; do
+  app="${env}-platform-keycloak-realm"
+  echo "--- ${app} recent events ---"
+  argocd app events "${app}" --grpc-web --plaintext --tail 20
+done
+
+# Focus on the PreSync client-patcher Job without leaving the CLI context
+argocd app logs dev-platform-keycloak-realm \
+  --grpc-web --plaintext \
+  --group batch --kind Job \
+  --namespace ameide-dev \
+  --name platform-keycloak-realm-client-patcher \
+  --container client-patcher \
+  --since-seconds 3600 --tail 200
+```
+
+If the CLI is not logged in, port-forward/login first (same pattern as §3.2 above). When granularity is needed, pull logs directly via Kubernetes:
+
+```bash
+kubectl logs -n ameide-staging \
+  job/platform-keycloak-realm-client-patcher \
+  -c client-patcher --tail=200 --previous=false
+```
+
+#### 3. Validate hook resources inside Kubernetes
+
+```bash
+envs=(dev staging production)
+for env in "${envs[@]}"; do
+  ns="ameide-${env}"
+  echo "== ${ns} =="
+  kubectl -n "${ns}" get jobs \
+    -l app.kubernetes.io/name=keycloak-realm-client-patcher \
+    -o custom-columns=NAME:.metadata.name,SUCCEEDED:.status.succeeded,ACTIVE:.status.active,START:.status.startTime
+
+  # KeycloakRealmImport CRs are ephemeral: they exist only while the import runs.
+  kubectl -n "${ns}" get keycloakrealmimports.k8s.keycloak.org \
+    -l app.kubernetes.io/instance=platform-keycloak-realm -o yaml || true
+
+  kubectl -n "${ns}" get externalsecret keycloak-realm-oidc-clients \
+    -o jsonpath='{.status.conditions[?(@.type=="Ready")].reason}{" => "}{.status.conditions[?(@.type=="Ready")].status}{"\n"}'
+
+  kubectl -n "${ns}" get cm keycloak-client-secret-versions -o jsonpath='{.metadata.name}{" updated at "}{.metadata.annotations.argocd\\.argoproj\\.io/sync-wave}{"\n"}' || true
+done
+```
+
+Expected outcomes:
+
+- `Job/platform-keycloak-realm-client-patcher` shows `SUCCEEDED=1` (or `ACTIVE=0` if it finished and Argo already deleted the hook).
+- `KeycloakRealmImport` manifests may already be gone because the hook uses `hook-delete-policy: BeforeHookCreation`; if they linger, ensure `.status.conditions` report `Done=True` and `HasErrors=False`.
+- `ExternalSecret/keycloak-realm-oidc-clients` should read `Ready=True` within a minute after the Job rewrites Vault.
+- `ConfigMap/keycloak-client-secret-versions` timestamps advance whenever the client-patcher patches the digest list; stale timestamps hint that Vault was not updated.
+
+#### 4. When health stays degraded
+
+1. Force-delete stuck hooks so Argo can re-run them:
+   ```bash
+   kubectl delete job platform-keycloak-realm-client-patcher -n ameide-${env}
+   ```
+2. Re-sync and watch until health clears:
+   ```bash
+   argocd app sync ${env}-platform-keycloak-realm --grpc-web --plaintext --timeout 600
+   argocd app wait ${env}-platform-keycloak-realm --health --timeout 600 --grpc-web --plaintext
+   ```
+3. If `KeycloakRealmImport` reports errors, capture the operator pod logs (`kubectl logs deployment/keycloak-operator -n keycloak-system`) and record the failing realm JSON before retrying.
+
 ---
 
 ## 6. Cross-references & next steps

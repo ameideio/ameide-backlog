@@ -39,6 +39,7 @@ environments/_shared/components/apps/{category}/{app-name}/component.yaml
 - [x] **RT-13**: www-ameide extraHttpRoute removed (verified duplicate, enabled chart route) → **2025-12-06**
 - [x] **RT-14**: www-ameide-platform extraHttpRoute removed (verified duplicate, enabled chart route) → **2025-12-06**
 - [x] **RT-16**: Keycloak paths restricted per vendor security docs → **2025-12-06**
+- [x] **RT-10**: pgAdmin HTTPRoute → `sources/charts/platform/pgadmin/templates/httproute.yaml` (dev/staging/prod) → **2025-12-09**
 
 ## Routes in Gateway Chart Templates (to migrate)
 
@@ -102,7 +103,6 @@ environments/_shared/components/apps/{category}/{app-name}/component.yaml
 ### Low Priority (dev-only or complex)
 - RT-5/6: Loki, Tempo
 - RT-7/8: OTEL collector
-- RT-10: pgAdmin
 
 ## Backlog
 
@@ -117,4 +117,3 @@ environments/_shared/components/apps/{category}/{app-name}/component.yaml
 - [ ] **RT-5**: Move loki route to its chart
 - [ ] **RT-6**: Move tempo route to its chart
 - [ ] **RT-7/8**: Create otel-collector chart or add routes
-- [ ] **RT-10**: Create pgadmin chart (dev-only)

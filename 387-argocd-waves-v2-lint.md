@@ -3,6 +3,8 @@
 - components root: `/workspaces/ameide-core/gitops/ameide-gitops/environments/dev/components`
 - application set: `/workspaces/ameide-core/gitops/ameide-gitops/environments/dev/argocd/apps/ameide.yaml`
 
+> **Note:** CRD components that start with `cluster-` (for example `cluster-crds-external-secrets`) now live under `environments/_shared/components/cluster/**` and are reconciled by `argocd/applicationsets/cluster.yaml`, so those installs run once per cluster before environment-specific apps sync.
+
 ## RollingSync steps
 - step 1: maxUpdate=3 phases=[010]
 - step 2: maxUpdate=2 phases=[020]
@@ -52,7 +54,7 @@
 ## Components by phase
 - **phase10**
   - `foundation-namespaces` (foundation/namespaces/component.yaml) – foundation / ameide / argocd
-  - `foundation-crds-external-secrets` (foundation/crds/external-secrets/component.yaml) – foundation / ameide / argocd
+  - `cluster-crds-external-secrets` (cluster/crds/external-secrets/component.yaml) – cluster / ameide / argocd
 - **phase110**
   - `foundation-crds-cert-manager` (foundation/crds/cert-manager/component.yaml) – foundation / ameide / argocd
 - **phase120**

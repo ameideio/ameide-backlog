@@ -34,6 +34,7 @@ Per [459-httproute-ownership.md](459-httproute-ownership.md), routes are migrati
 | langfuse-web | gateway `extraHttpRoutes` | `apps/langfuse-route/templates/httproute.yaml` |
 | www-ameide | gateway `extraHttpRoutes` | `apps/www-ameide/templates/httproute.yaml` |
 | www-ameide-platform | gateway `extraHttpRoutes` | `apps/www-ameide-platform/templates/httproute.yaml` |
+| pgadmin | gateway `extraHttpRoutes` (dev/staging/prod) | `platform/pgadmin/templates/httproute.yaml` |
 
 Remaining routes still in gateway chart are candidates for future migration (see 459 backlog).
 
@@ -52,7 +53,7 @@ Remaining routes still in gateway chart are candidates for future migration (see
 - HTTPRoute metrics-https: metrics.dev.ameide.io → platform-otel-collector:8888
 - HTTPRoute telemetry-https: telemetry.dev.ameide.io → platform-otel-collector:4317
 - HTTPRoute argocd: argocd.dev.ameide.io → argocd-server:80
-- HTTPRoute pgadmin: pgadmin.dev.ameide.io → pgadmin:80
+- App chart HTTPRoute pgadmin: pgadmin.dev.ameide.io → pgadmin:80
 - HTTPRoute temporal-web: temporal.dev.ameide.io → data-temporal-web:4001
 - HTTPRoute langfuse-web: evals.dev.ameide.io → platform-langfuse-web:3000
 - HTTPRoute plausible: plausible.dev.ameide.io → plausible-oauth2-proxy:80
@@ -73,7 +74,7 @@ Remaining routes still in gateway chart are candidates for future migration (see
 - HTTPRoute keycloak: auth.staging.ameide.io → keycloak:8080
 - HTTPRoute plausible: plausible.staging.ameide.io → plausible-oauth2-proxy:80
 - HTTPRoute argocd: argocd.staging.ameide.io → argocd-server:80
-- HTTPRoute pgadmin: pgadmin.staging.ameide.io → pgadmin:80
+- App chart HTTPRoute pgadmin: pgadmin.staging.ameide.io → pgadmin:80
 - HTTPRoute temporal-web: temporal.staging.ameide.io → temporal-oauth2-proxy:80
 - HTTPRoute langfuse-web: evals.staging.ameide.io → platform-langfuse-web:3000
 - HTTPRoute graph-connect (external): api.staging.ameide.io → graph:8081
@@ -93,7 +94,7 @@ Remaining routes still in gateway chart are candidates for future migration (see
 - HTTPRoute keycloak (two rendered): auth.dev.ameide.io/auth.ameide.io → keycloak:4000 and auth.ameide.io → keycloak:8080
 - HTTPRoute plausible: plausible.ameide.io → plausible-oauth2-proxy:80
 - HTTPRoute argocd: argocd.ameide.io → argocd-server:80
-- HTTPRoute pgadmin: pgadmin.ameide.io → pgadmin:80
+- App chart HTTPRoute pgadmin: pgadmin.ameide.io → pgadmin:80
 - HTTPRoute temporal-web: temporal.ameide.io → temporal-oauth2-proxy:80
 - HTTPRoute langfuse-web: evals.ameide.io → platform-langfuse-web:3000
 - HTTPRoute HSTS policy: *.ameide.io/ameide.io (no backend; policy only)
