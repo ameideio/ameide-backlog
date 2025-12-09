@@ -154,6 +154,17 @@ Use this table as the acceptance checklist before closing out this backlog.
 
 ---
 
+### 9.1 Verification snapshot (Dec 9 2025)
+
+- `argocd app get argocd/dev-data-pgadmin-servers` / `.../staging-data-pgadmin-servers` → **Synced/Healthy** after the security-context fix (commit `4266c0c3`).
+- `kubectl -n ameide-{dev,staging} get configmap pgadmin-servers -o jsonpath='{.data.servers\.json}'` shows the expected thirteen database entries (platform, agents, …, workflows) pointing at `postgres-ameide-rw.<env>.svc` with per-role usernames.
+- Controller logs confirm steady reconciliation: `Updated pgAdmin servers.json (...)` followed by periodic `No pgAdmin servers.json changes` messages.
+- pgAdmin Deployment logs only show normal `/browser` traffic and liveness probes—no errors about missing `servers.json`. Browser tree emptiness now points to client cache issues, not backend wiring.
+
+These checks serve as the regression baseline whenever someone reports missing databases in the UI.
+
+---
+
 ## 10. Database registration (pgAdmin + CNPG)
 
 We also need to capture the database-facing half of pgAdmin so operators stop assuming it is a purely manual UI workflow. Upstream pgAdmin already exposes declarative hooks for “registered servers”; our gap is the glue that turns CNPG resources into the JSON that pgAdmin consumes.
