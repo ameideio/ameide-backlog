@@ -150,3 +150,47 @@ Use this table as the acceptance checklist before closing out this backlog.
 | guardrail coverage in secrets smoke test | ✅ | `sources/values/_shared/platform/platform-secrets-smoke.yaml` verifies the `pgadmin-azure-oauth` secret’s digest against `keycloak-client-secret-versions`, keeping rotation telemetry read-only but enforced. |
 | documentation parity with implementation | ✅ | This backlog reflects the deployed behavior (stating the reloader annotation and the telemetry-only ConfigMap usage) and is linked from backlog/487 for rotation completeness. |
 | pending environment rollouts | ✅ | Dev/staging/prod now have live Keycloak clients, non-placeholder secrets, and healthy pods (see checklist above). |
+| Database registry automation | ✅ | `sources/charts/platform/pgadmin-servers` deploys a controller that reads CNPG Cluster/Database CRDs and publishes `ConfigMap/pgadmin-servers`, which the pgAdmin chart mounts via `.Values.servers`. |
+
+---
+
+## 10. Database registration (pgAdmin + CNPG)
+
+We also need to capture the database-facing half of pgAdmin so operators stop assuming it is a purely manual UI workflow. Upstream pgAdmin already exposes declarative hooks for “registered servers”; our gap is the glue that turns CNPG resources into the JSON that pgAdmin consumes.
+
+### 10.1 Vendor-supported declarative pgAdmin inputs
+
+- **`servers.json` is the source of truth.** Mapping `/pgadmin4/servers.json` (or setting `PGADMIN_SERVER_JSON_FILE`) lets the container preload server definitions at startup, using the same schema as the Import/Export Servers commands (`setup.py load-servers` / `dump-servers`).
+- **`PGADMIN_REPLACE_SERVERS_ON_STARTUP=True` makes it idempotent.** Newer pgAdmin releases (9.x) re-apply `servers.json` _every_ time the pod starts when that env var is set, which the docs explicitly call out as appropriate for declarative management—not just a one-time bootstrap.[1]
+- **Passwords live elsewhere.** The JSON omits passwords for security; the supported approaches are a mounted pgpass file (`PGPASS_FILE`) or `PasswordExecCommand` inside the JSON to fetch credentials on the fly.[1][2]
+- **Takeaways for this repo.** Our chart already manages OIDC + Vault secrets; we should add a ConfigMap/Secret mount for `servers.json` plus the env vars above so pgAdmin treats that file as authoritative instead of letting admins click through the UI.
+
+### 10.2 What CloudNativePG does (and does not) provide
+
+- **CNPG owns databases, not pgAdmin.** CNPG’s declarative Database/Cluster CRDs manage users, roles, and connection Secrets, but there is no upstream controller that registers clusters in pgAdmin or any GUI.[4]
+- **There _is_ a helper CLI.** The `kubectl cnpg pgadmin4` recipe can emit a pgAdmin deployment that connects to a single CNPG cluster, but it’s a one-time manifest generator—there is no continuous reconciliation for a shared pgAdmin instance.[5]
+- **Connection endpoints are deterministic.** Every CNPG cluster exposes `*-rw` / `*-ro` Services that we can derive from the Cluster metadata, so generating pgAdmin server entries is purely a rendering task.[6]
+
+### 10.3 Proposed automation model
+
+1. **Treat `servers.json` as an artifact.** Create a ConfigMap (or Secret if we embed `PasswordExecCommand`) that contains the pgAdmin server list. Mount it at `/pgadmin4/servers.json` and set:
+
+   ```yaml
+   env:
+     - name: PGADMIN_SERVER_JSON_FILE
+       value: /pgadmin4/servers.json
+     - name: PGADMIN_REPLACE_SERVERS_ON_STARTUP
+       value: "True"
+   ```
+
+2. **Keep credentials out of the JSON.** Either mount a pgpass file sourced from CNPG-generated Secrets or add `PasswordExecCommand` entries that exec a tiny script capable of reading those Secrets.
+3. **Generate the file from CNPG CRs.** Options range from a CronJob that templates `servers.json` via `kubectl get cluster,database` to a lightweight controller that watches CNPG resources and rewrites the ConfigMap whenever clusters/databases or their connection Secrets change. The key requirement is that CNPG remains the source of truth; pgAdmin simply reflects it.
+4. **Gate rollouts via Argo.** When the ConfigMap changes, Argo restarts pgAdmin (or Reloader does, courtesy of the existing annotation) so the new servers appear automatically.
+
+This closes the last “manual” gap: pgAdmin becomes declarative on both the identity (Keycloak) _and_ database fronts once we land the generator that emits `servers.json` from CNPG resources.
+
+[1]: https://www.pgadmin.org/docs/pgadmin4/latest/container_deployment.html
+[2]: https://www.pgadmin.org/docs/pgadmin4/latest/import_export_servers.html
+[4]: https://cloudnative-pg.io/documentation/1.25/declarative_database_management/
+[5]: https://www.gabrielebartolini.it/articles/2024/03/cloudnativepg-recipe-4-connecting-to-your-postgresql-cluster-with-pgadmin4/
+[6]: https://cloudnative-pg.io/documentation/current/quickstart/
