@@ -10,7 +10,7 @@ This backlog covers the full Telepresence experience for the remote-first dev wo
 
 - **Connectivity** – bootstrapping kube contexts, invoking `telepresence connect`, and ensuring the traffic-manager can be reached from every DevContainer.
 - **Intercepts** – keeping RBAC, workloads, and Tilt resources in sync so `telepresence intercept` works for `svc-*` targets without manual tweaks.
-- **Verification & Troubleshooting** – automated health checks, logging, and runbooks so issues surface quickly in both developer workflows and CI.
+- **Verification & Troubleshooting** – automated health checks, logging, and runbooks so issues surface quickly in both developer workflows and CI. (See [492-telepresence-verification.md](492-telepresence-verification.md) for the step-by-step playbook.)
 
 Teleporting the inner loop to the shared AKS cluster is now the only supported workflow (see backlog 435). This backlog tracks the verification tooling, observability, and troubleshooting required to keep Telepresence healthy for every developer session. It consolidates the improvements we made to `tools/dev/telepresence.sh` and enumerates the remaining gaps (intercept failures, RBAC regressions, session handling).
 
@@ -110,9 +110,10 @@ Teleporting the inner loop to the shared AKS cluster is now the only supported w
 
 ## Telepresence verification checklist
 
-1. `./tools/dev/telepresence.sh verify` (optional env overrides):  
-   - Should auto-create contexts if missing, connect, list workloads, and attempt intercept.
-2. `telepresence intercept www-ameide --port 3000:3000 --env-file .telepresence-envs/www-ameide.env -- bash -lc 'pnpm --filter www-ameide dev'` – manual reproduction of Tilt’s service wrapper.
+The quick-hit list below mirrors the detailed playbook in [492-telepresence-verification.md](492-telepresence-verification.md):
+
+1. `./tools/dev/telepresence.sh verify` (optional env overrides). It should auto-create contexts if missing, connect, list workloads, and attempt intercept using the namespace-aware flags.
+2. `telepresence intercept www-ameide --port 3000:3000 --env-file .telepresence-envs/www-ameide.env -- bash -lc 'pnpm --filter www-ameide dev'` – manual reproduction of Tilt’s service wrapper when deeper debugging is required.
 3. `kubectl -n ameide-dev logs deploy/traffic-manager` – capture errors when the helper reports “no active session”.
 4. `argocd app get dev-traffic-manager` – ensure the app synced the RBAC fixes from `ameide-gitops`.
 
@@ -128,4 +129,5 @@ Teleporting the inner loop to the shared AKS cluster is now the only supported w
 - [434-unified-environment-naming.md](434-unified-environment-naming.md) – Single AKS cluster, namespace naming rules, migration status.
 - [435-remote-first-development.md](435-remote-first-development.md) – Remote-first architecture and Telepresence rationale.
 - [491-auto-contexts.md](491-auto-contexts.md) – Auto context script details; referenced by `postCreate.sh`.
+- [492-telepresence-verification.md](492-telepresence-verification.md) – Full verification flow and failure remediation steps.
 - `tools/dev/telepresence.sh` – Helper script (see git history for `telepresence verification` commits).
