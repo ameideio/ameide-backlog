@@ -57,6 +57,18 @@ This backlog documents the now-working configuration and the guardrails needed t
 - TLS hosts: `pgadmin.<env>.ameide.io`
 - Service runs in namespace `ameide-<env>` with `clusterIP` Service `pgadmin`.
 
+### 2.4 CNPG server registry automation
+
+- `sources/charts/platform/pgadmin-servers` (controller) watches `Cluster` and `Database` CRDs from CloudNativePG and continuously renders `ConfigMap/pgadmin-servers` with the 13 shared databases (`agents` … `workflows`).  
+- Shared values (`sources/values/_shared/data/data-pgadmin.yaml`) set `.servers.enabled=true`, point the Deployment at that ConfigMap, and mount it at `/pgadmin4/servers.json`.
+- **pgAdmin image constraint** – the 8.7 container we mirror does **not** implement `PGADMIN_REPLACE_SERVERS_ON_STARTUP`; `/entrypoint.sh` only loads `servers.json` when `/var/lib/pgadmin/pgadmin4.db` does not yet exist.
+- To keep things declarative we now ship an init container (`templates/deployment.yaml`) that:
+  1. Shares the same PVC + ConfigMap volume as the main pod.
+  2. Runs `/venv/bin/python3 /pgadmin4/setup.py load-servers /pgadmin4/servers.json --user "${PGADMIN_DEFAULT_EMAIL}" --replace`.
+  3. Skips automatically when the SQLite DB has not been created yet (the primary container will then import servers on first boot).
+- Using `--replace` ensures we always end up with **exactly** the definitions from the ConfigMap instead of endlessly appending duplicates when the controller emits updates.
+- Toggle via values: setting `.servers.replaceOnStartup=false` disables the init container for ad‑hoc testing.
+
 ---
 
 ## 3. Verification steps
@@ -77,6 +89,11 @@ This backlog documents the now-working configuration and the guardrails needed t
 5. **Browser test**
    - Visit `https://pgadmin.<env>.ameide.io/`. Should redirect to `https://auth.<env>.ameide.io/realms/ameide/protocol/openid-connect/auth?...client_id=pgadmin`.
    - After sign-in, pgAdmin loads with the Ameide SSO session.
+6. **Server registry import**
+   - `kubectl -n ameide-<env> get configmap pgadmin-servers -o jsonpath='{.data.servers\.json}' | jq '.Servers | length'` → `13`.
+   - `kubectl -n ameide-<env> exec deploy/pgadmin -- /venv/bin/python3 /pgadmin4/setup.py load-servers /pgadmin4/servers.json --user "$PGADMIN_DEFAULT_EMAIL" --replace --help` (dry run) confirms CLI availability.
+   - Sanity-check the SQLite contents if the UI still shows “zero servers”:  
+     `kubectl -n ameide-<env> exec -i deploy/pgadmin -- python - <<'PY' ... SELECT id,email FROM user; SELECT name FROM server; PY`.
 
 ---
 
@@ -150,7 +167,7 @@ Use this table as the acceptance checklist before closing out this backlog.
 | guardrail coverage in secrets smoke test | ✅ | `sources/values/_shared/platform/platform-secrets-smoke.yaml` verifies the `pgadmin-azure-oauth` secret’s digest against `keycloak-client-secret-versions`, keeping rotation telemetry read-only but enforced. |
 | documentation parity with implementation | ✅ | This backlog reflects the deployed behavior (stating the reloader annotation and the telemetry-only ConfigMap usage) and is linked from backlog/487 for rotation completeness. |
 | pending environment rollouts | ✅ | Dev/staging/prod now have live Keycloak clients, non-placeholder secrets, and healthy pods (see checklist above). |
-| Database registry automation | ✅ | `sources/charts/platform/pgadmin-servers` deploys a controller that reads CNPG Cluster/Database CRDs and publishes `ConfigMap/pgadmin-servers`, which the pgAdmin chart mounts via `.Values.servers`. |
+| Database registry automation | ✅ | `sources/charts/platform/pgadmin-servers` deploys a controller that reads CNPG Cluster/Database CRDs and publishes `ConfigMap/pgadmin-servers`. `sources/charts/platform/pgadmin/templates/deployment.yaml` now adds an init container that runs `setup.py load-servers ... --replace` on every restart so the mirrored 8.7 image (which lacks `PGADMIN_REPLACE_SERVERS_ON_STARTUP`) still reconciles the ConfigMap into pgAdmin’s SQLite DB. |
 
 ---
 
