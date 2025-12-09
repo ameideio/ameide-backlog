@@ -70,6 +70,7 @@ This backlog documents the now-working configuration and the guardrails needed t
 - Toggle via values: setting `.servers.replaceOnStartup=false` disables the init container for ad‑hoc testing.
 - `servers.additionalUsers[]` lets us specify extra pgAdmin identities (e.g., Keycloak SSO emails). The init container checks whether those users already exist in `pgadmin4.db` and, if so, runs `load-servers ... --replace` for each so their UI shows the same CNPG inventory once they have signed in at least once.
 - Caveat: `setup.py load-servers ... --replace` wipes any credentials stored inside pgAdmin itself. Always back connection passwords with `pgpass`/secrets rather than the UI fields.
+- Long-running reconciliations now re-read the projected ServiceAccount token before every Kubernetes API call so the controller keeps functioning after the 1‑hour token rotation window (prevents `HTTP Error 401: Unauthorized` without needing restarts).
 
 ---
 
