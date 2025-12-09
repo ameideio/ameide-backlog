@@ -43,6 +43,8 @@ environments/_shared/components/apps/{category}/{app-name}/component.yaml
 - [x] **RT-2**: Grafana HTTPRoute → `sources/charts/third_party/grafana/grafana/10.3.0/templates/httproute.yaml` (env overrides in `sources/values/*/observability/platform-grafana.yaml`) → **2025-12-09**
 - [x] **RT-3**: Prometheus HTTPRoute → `sources/charts/third_party/prometheus-community/kube-prometheus-stack/80.0.0/templates/httproute-prometheus.yaml` → **2025-12-09**
 - [x] **RT-4**: Alertmanager HTTPRoute → `sources/charts/third_party/prometheus-community/kube-prometheus-stack/80.0.0/templates/httproute-alertmanager.yaml` → **2025-12-09**
+- [x] **RT-11**: Temporal Web HTTPRoute → `sources/charts/third_party/temporal/temporal/0.70.0/templates/httproute-web.yaml` → **2025-12-09**
+- [x] **RT-15**: Graph internal HTTPRoute → `sources/charts/apps/graph/templates/httproute-internal.yaml` → **2025-12-09**
 
 ## Routes in Gateway Chart Templates (to migrate)
 
@@ -59,11 +61,11 @@ environments/_shared/components/apps/{category}/{app-name}/component.yaml
 | ID | Route | Service | Target Chart | Priority |
 |----|-------|---------|--------------|----------|
 | RT-10 | `pgadmin` | pgadmin | New `apps/pgadmin` | Low (dev only) |
-| RT-11 | `temporal-web` | data-temporal-web | `platform-layers/temporal` | Medium |
+| RT-11 | `temporal-web` | data-temporal-web | `third_party/temporal/temporal/templates/httproute-web.yaml` | ~~Medium~~ Done |
 | RT-12 | `langfuse-web` | platform-langfuse-web | ✅ `apps/langfuse-route` | ~~High~~ Done |
 | RT-13 | `www-ameide` | www-ameide | ✅ Enabled in `apps/www-ameide` | ~~High~~ Done |
 | RT-14 | `www-ameide-platform` | www-ameide-platform | ✅ Enabled in `apps/www-ameide-platform` | ~~High~~ Done |
-| RT-15 | `graph-connect-internal` | graph | Existing `apps/graph` | Medium |
+| RT-15 | `graph-connect-internal` | graph | `apps/graph/templates/httproute-internal.yaml` | ~~Medium~~ Done |
 
 ## Keep in Gateway (legitimate gateway concerns)
 
@@ -95,19 +97,11 @@ environments/_shared/components/apps/{category}/{app-name}/component.yaml
 - ~~RT-13/14: Verify www-ameide duplicates~~ → Done
 - ~~RT-16: Keycloak path security~~ → Done
 
-### Medium Priority (may need new charts)
-- RT-11: Temporal
-- RT-15: Graph internal route
-
 ### Low Priority (dev-only or complex)
 - RT-5/6: Loki, Tempo
 - RT-7/8: OTEL collector
 
 ## Backlog
-
-### Medium Priority (need new charts or additions)
-- [ ] **RT-11**: Add HTTPRoute to temporal chart
-- [ ] **RT-15**: Add internal route to graph chart
 
 ### Low Priority (dev-only or complex)
 - [ ] **RT-5**: Move loki route to its chart

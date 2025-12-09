@@ -19,6 +19,7 @@
 - Plausible HTTPRoute restored (previously dropped by an empty `additionalHttpRoutes` override) **and now fronts the Keycloak-backed oauth2-proxy (`plausible-oauth2-proxy`) so only `/js/*` + `/api/event` bypass auth**.
 - Grafana HTTPRoute now renders inside the Grafana chart (per RT-2) so each environment feeds its hostname + tolerations alongside the chart; the gateway no longer templates `httproute-grafana-https.yaml`.
 - Prometheus + Alertmanager HTTPRoutes (RT-3/RT-4) now render from the kube-prometheus-stack release, so each environment sets hostnames close to the workload, and the gateway no longer carries `httproute-prometheus-https.yaml` / `httproute-alertmanager-https.yaml`.
+- Temporal Web (RT-11) and the internal graph Connect route (RT-15) are now emitted by their owning charts (`data-temporal` and `apps/graph`), eliminating the remaining `extraHttpRoutes` entries for those services.
 - All public app Ingress stanzas removed/disabled: Langfuse (staging/production) and prod Grafana now rely on Gateway; staging web frontends moved to HTTPRoutes.
 - Keycloak is exposed via Gateway, but production renders two HTTPRoutes (auth.dev.ameide.io/auth.ameide.io → keycloak:4000 and auth.ameide.io → keycloak:8080); needs dedupe/port alignment.
 - Duplicate HTTPRoutes exist for some hosts (prometheus/alertmanager/loki/tempo UI vs. base routes); consider consolidating to a single route per host.
@@ -40,6 +41,8 @@ Per [459-httproute-ownership.md](459-httproute-ownership.md), routes are migrati
 | grafana | gateway `httproute-grafana-https.yaml` | `third_party/grafana/templates/httproute.yaml` |
 | prometheus | gateway `httproute-prometheus-https.yaml` | `third_party/prometheus-community/kube-prometheus-stack/templates/httproute-prometheus.yaml` |
 | alertmanager | gateway `httproute-alertmanager-https.yaml` | `third_party/prometheus-community/kube-prometheus-stack/templates/httproute-alertmanager.yaml` |
+| temporal-web | gateway `extraHttpRoutes` | `third_party/temporal/temporal/templates/httproute-web.yaml` |
+| graph-connect-internal | gateway `extraHttpRoutes` | `apps/graph/templates/httproute-internal.yaml` |
 
 Remaining routes still in gateway chart are candidates for future migration (see 459 backlog).
 
@@ -59,7 +62,8 @@ Remaining routes still in gateway chart are candidates for future migration (see
 - HTTPRoute telemetry-https: telemetry.dev.ameide.io → platform-otel-collector:4317
 - HTTPRoute argocd: argocd.dev.ameide.io → argocd-server:80
 - App chart HTTPRoute pgadmin: pgadmin.dev.ameide.io → pgadmin:80
-- HTTPRoute temporal-web: temporal.dev.ameide.io → data-temporal-web:4001
+- App chart HTTPRoute temporal-web: temporal.dev.ameide.io → data-temporal-web:4001
+- App chart HTTPRoute graph-connect-internal: envoy-grpc (no hostname) → graph:8081 (Connect + gRPC-Web prefixes)
 - HTTPRoute langfuse-web: evals.dev.ameide.io → platform-langfuse-web:3000
 - HTTPRoute plausible: plausible.dev.ameide.io → plausible-oauth2-proxy:80
 - HTTPRoute keycloak: auth.dev.ameide.io → keycloak:8080
@@ -80,7 +84,8 @@ Remaining routes still in gateway chart are candidates for future migration (see
 - HTTPRoute plausible: plausible.staging.ameide.io → plausible-oauth2-proxy:80
 - HTTPRoute argocd: argocd.staging.ameide.io → argocd-server:80
 - App chart HTTPRoute pgadmin: pgadmin.staging.ameide.io → pgadmin:80
-- HTTPRoute temporal-web: temporal.staging.ameide.io → temporal-oauth2-proxy:80
+- App chart HTTPRoute temporal-web: temporal.staging.ameide.io → temporal-oauth2-proxy:80
+- App chart HTTPRoute graph-connect-internal: envoy-grpc (no hostname) → graph:8081
 - HTTPRoute langfuse-web: evals.staging.ameide.io → platform-langfuse-web:3000
 - HTTPRoute graph-connect (external): api.staging.ameide.io → graph:8081
 - HTTPRoute graph-connect-internal: listener-only (no host) → graph:8081
@@ -100,7 +105,8 @@ Remaining routes still in gateway chart are candidates for future migration (see
 - HTTPRoute plausible: plausible.ameide.io → plausible-oauth2-proxy:80
 - HTTPRoute argocd: argocd.ameide.io → argocd-server:80
 - App chart HTTPRoute pgadmin: pgadmin.ameide.io → pgadmin:80
-- HTTPRoute temporal-web: temporal.ameide.io → temporal-oauth2-proxy:80
+- App chart HTTPRoute temporal-web: temporal.ameide.io → temporal-oauth2-proxy:80
+- App chart HTTPRoute graph-connect-internal: envoy-grpc (no hostname) → graph:8081
 - HTTPRoute langfuse-web: evals.ameide.io → platform-langfuse-web:3000
 - HTTPRoute HSTS policy: *.ameide.io/ameide.io (no backend; policy only)
 - App chart HTTPRoutes: www.ameide.io → www-ameide:3000; platform.ameide.io → www-ameide-platform:3001
