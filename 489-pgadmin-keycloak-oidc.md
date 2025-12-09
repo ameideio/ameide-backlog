@@ -61,13 +61,15 @@ This backlog documents the now-working configuration and the guardrails needed t
 
 - `sources/charts/platform/pgadmin-servers` (controller) watches `Cluster` and `Database` CRDs from CloudNativePG and continuously renders `ConfigMap/pgadmin-servers` with the 13 shared databases (`agents` … `workflows`).  
 - Shared values (`sources/values/_shared/data/data-pgadmin.yaml`) set `.servers.enabled=true`, point the Deployment at that ConfigMap, and mount it at `/pgadmin4/servers.json`.
-- **pgAdmin image constraint** – the 8.7 container we mirror does **not** implement `PGADMIN_REPLACE_SERVERS_ON_STARTUP`; `/entrypoint.sh` only loads `servers.json` when `/var/lib/pgadmin/pgadmin4.db` does not yet exist.
+- **pgAdmin image constraint** – we have upgraded the mirror to 9.10 so the upstream `PGADMIN_REPLACE_SERVERS_ON_STARTUP=True` knob is available, but we still keep the init container to guarantee multi-user imports and preserve compatibility with any environments that roll back to 8.x.
 - To keep things declarative we now ship an init container (`templates/deployment.yaml`) that:
   1. Shares the same PVC + ConfigMap volume as the main pod.
   2. Runs `/venv/bin/python3 /pgadmin4/setup.py load-servers /pgadmin4/servers.json --user "${PGADMIN_DEFAULT_EMAIL}" --replace`.
   3. Skips automatically when the SQLite DB has not been created yet (the primary container will then import servers on first boot).
 - Using `--replace` ensures we always end up with **exactly** the definitions from the ConfigMap instead of endlessly appending duplicates when the controller emits updates.
 - Toggle via values: setting `.servers.replaceOnStartup=false` disables the init container for ad‑hoc testing.
+- `servers.additionalUsers[]` lets us specify extra pgAdmin identities (e.g., Keycloak SSO emails). The init container checks whether those users already exist in `pgadmin4.db` and, if so, runs `load-servers ... --replace` for each so their UI shows the same CNPG inventory once they have signed in at least once.
+- Caveat: `setup.py load-servers ... --replace` wipes any credentials stored inside pgAdmin itself. Always back connection passwords with `pgpass`/secrets rather than the UI fields.
 
 ---
 
@@ -94,6 +96,7 @@ This backlog documents the now-working configuration and the guardrails needed t
    - `kubectl -n ameide-<env> exec deploy/pgadmin -- /venv/bin/python3 /pgadmin4/setup.py load-servers /pgadmin4/servers.json --user "$PGADMIN_DEFAULT_EMAIL" --replace --help` (dry run) confirms CLI availability.
    - Sanity-check the SQLite contents if the UI still shows “zero servers”:  
      `kubectl -n ameide-<env> exec -i deploy/pgadmin -- python - <<'PY' ... SELECT id,email FROM user; SELECT name FROM server; PY`.
+   - Remember: servers belong to the pgAdmin user you import for. Today we target `pgadmin-admin-email` from Vault; other OIDC identities stay empty until we automate imports for them.
 
 ---
 
@@ -167,7 +170,7 @@ Use this table as the acceptance checklist before closing out this backlog.
 | guardrail coverage in secrets smoke test | ✅ | `sources/values/_shared/platform/platform-secrets-smoke.yaml` verifies the `pgadmin-azure-oauth` secret’s digest against `keycloak-client-secret-versions`, keeping rotation telemetry read-only but enforced. |
 | documentation parity with implementation | ✅ | This backlog reflects the deployed behavior (stating the reloader annotation and the telemetry-only ConfigMap usage) and is linked from backlog/487 for rotation completeness. |
 | pending environment rollouts | ✅ | Dev/staging/prod now have live Keycloak clients, non-placeholder secrets, and healthy pods (see checklist above). |
-| Database registry automation | ✅ | `sources/charts/platform/pgadmin-servers` deploys a controller that reads CNPG Cluster/Database CRDs and publishes `ConfigMap/pgadmin-servers`. `sources/charts/platform/pgadmin/templates/deployment.yaml` now adds an init container that runs `setup.py load-servers ... --replace` on every restart so the mirrored 8.7 image (which lacks `PGADMIN_REPLACE_SERVERS_ON_STARTUP`) still reconciles the ConfigMap into pgAdmin’s SQLite DB. |
+| Database registry automation | ✅ | `sources/charts/platform/pgadmin-servers` deploys a controller that reads CNPG Cluster/Database CRDs and publishes `ConfigMap/pgadmin-servers`. `sources/charts/platform/pgadmin/templates/deployment.yaml` now adds an init container that runs `setup.py load-servers ... --replace` on every restart so the mirrored 9.10 image always matches the ConfigMap. Until multi-user imports land, operators must log in using the bootstrap account (`pgadmin-admin-email`) to see the shared entries or run the CLI manually for their Keycloak email (or list their address under `.servers.additionalUsers`). |
 
 ---
 
