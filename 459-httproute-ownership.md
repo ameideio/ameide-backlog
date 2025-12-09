@@ -1,7 +1,7 @@
 # 459 – HTTPRoute Ownership Alignment
 
 **Created**: 2025-12-05
-**Updated**: 2025-12-07
+**Updated**: 2025-12-09
 
 > **Related documents:**
 > - [441-networking.md](441-networking.md) – Networking architecture
@@ -40,12 +40,12 @@ environments/_shared/components/apps/{category}/{app-name}/component.yaml
 - [x] **RT-14**: www-ameide-platform extraHttpRoute removed (verified duplicate, enabled chart route) → **2025-12-06**
 - [x] **RT-16**: Keycloak paths restricted per vendor security docs → **2025-12-06**
 - [x] **RT-10**: pgAdmin HTTPRoute → `sources/charts/platform/pgadmin/templates/httproute.yaml` (dev/staging/prod) → **2025-12-09**
+- [x] **RT-2**: Grafana HTTPRoute → `sources/charts/third_party/grafana/grafana/10.3.0/templates/httproute.yaml` (env overrides in `sources/values/*/observability/platform-grafana.yaml`) → **2025-12-09**
 
 ## Routes in Gateway Chart Templates (to migrate)
 
 | ID | Route File | Service | Target Chart | Priority |
 |----|------------|---------|--------------|----------|
-| RT-2 | `httproute-grafana-https.yaml` | grafana | New `apps/grafana` | Medium |
 | RT-3 | `httproute-prometheus-https.yaml` | prometheus | New `apps/prometheus` | Medium |
 | RT-4 | `httproute-alertmanager-https.yaml` | alertmanager | New `apps/alertmanager` | Medium |
 | RT-5 | `httproute-loki-https.yaml` | loki | `platform-layers/loki` | Low |
@@ -96,7 +96,7 @@ environments/_shared/components/apps/{category}/{app-name}/component.yaml
 - ~~RT-16: Keycloak path security~~ → Done
 
 ### Medium Priority (may need new charts)
-- RT-2/3/4: Observability (grafana, prometheus, alertmanager)
+- RT-3/4: Observability (prometheus, alertmanager)
 - RT-11: Temporal
 - RT-15: Graph internal route
 
@@ -107,7 +107,6 @@ environments/_shared/components/apps/{category}/{app-name}/component.yaml
 ## Backlog
 
 ### Medium Priority (need new charts or additions)
-- [ ] **RT-2**: Create `apps/grafana` chart with HTTPRoute
 - [ ] **RT-3**: Create `apps/prometheus` chart with HTTPRoute
 - [ ] **RT-4**: Create `apps/alertmanager` chart with HTTPRoute
 - [ ] **RT-11**: Add HTTPRoute to temporal chart

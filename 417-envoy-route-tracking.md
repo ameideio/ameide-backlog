@@ -17,6 +17,7 @@
 
 - Envoy Gateway chart is the single source of truth for shared routes; dev uses `_shared` + `local` values, staging/production use `_shared` + env-specific values.
 - Plausible HTTPRoute restored (previously dropped by an empty `additionalHttpRoutes` override) **and now fronts the Keycloak-backed oauth2-proxy (`plausible-oauth2-proxy`) so only `/js/*` + `/api/event` bypass auth**.
+- Grafana HTTPRoute now renders inside the Grafana chart (per RT-2) so each environment feeds its hostname + tolerations alongside the chart; the gateway no longer templates `httproute-grafana-https.yaml`.
 - All public app Ingress stanzas removed/disabled: Langfuse (staging/production) and prod Grafana now rely on Gateway; staging web frontends moved to HTTPRoutes.
 - Keycloak is exposed via Gateway, but production renders two HTTPRoutes (auth.dev.ameide.io/auth.ameide.io → keycloak:4000 and auth.ameide.io → keycloak:8080); needs dedupe/port alignment.
 - Duplicate HTTPRoutes exist for some hosts (prometheus/alertmanager/loki/tempo UI vs. base routes); consider consolidating to a single route per host.
@@ -35,6 +36,7 @@ Per [459-httproute-ownership.md](459-httproute-ownership.md), routes are migrati
 | www-ameide | gateway `extraHttpRoutes` | `apps/www-ameide/templates/httproute.yaml` |
 | www-ameide-platform | gateway `extraHttpRoutes` | `apps/www-ameide-platform/templates/httproute.yaml` |
 | pgadmin | gateway `extraHttpRoutes` (dev/staging/prod) | `platform/pgadmin/templates/httproute.yaml` |
+| grafana | gateway `httproute-grafana-https.yaml` | `third_party/grafana/templates/httproute.yaml` |
 
 Remaining routes still in gateway chart are candidates for future migration (see 459 backlog).
 
@@ -45,7 +47,7 @@ Remaining routes still in gateway chart are candidates for future migration (see
 - GRPCRoute platform → apps-platform:8082 (internal)
 - GRPCRoute threads → apps-threads:8107 (internal)
 - GRPCRoute workflows → apps-workflows:8086 (internal)
-- HTTPRoute grafana-https: grafana.dev.ameide.io → platform-grafana:80
+- App chart HTTPRoute grafana-https: grafana.dev.ameide.io → platform-grafana:80
 - HTTPRoute loki-https & ameide-loki-ui: loki.dev.ameide.io → platform-loki-gateway:80
 - HTTPRoute tempo-https & ameide-tempo-ui: tempo.dev.ameide.io → platform-tempo:3200
 - HTTPRoute prometheus-https & ameide-prometheus-ui: prometheus.dev.ameide.io → platform-prometheus(-prometheus / -kube-p-prometheus):9090
@@ -64,7 +66,7 @@ Remaining routes still in gateway chart are candidates for future migration (see
 ### Staging
 - GRPCRoute graph/platform/workflows/inference: api.staging.ameide.io → graph:8081 / platform:8082 / workflows:8086 / inference:9000
 - GRPCRoute threads: internal (no hostname) → threads:8107
-- HTTPRoute grafana-https: grafana.staging.ameide.io → grafana:80
+- App chart HTTPRoute grafana-https: grafana.staging.ameide.io → grafana:80
 - HTTPRoute loki-https & ameide-loki-ui: loki.staging.ameide.io → loki-gateway:80
 - HTTPRoute tempo-https & ameide-tempo-ui: tempo.staging.ameide.io → tempo:3200
 - HTTPRoute prometheus-https: prometheus.staging.ameide.io → prometheus-oauth2-proxy:80
@@ -84,7 +86,7 @@ Remaining routes still in gateway chart are candidates for future migration (see
 ### Production
 - GRPCRoute graph/platform/workflows/inference: api.ameide.io → graph:8081 / platform:8082 / workflows:8086 / inference:9000
 - GRPCRoute threads: internal (no hostname) → threads:8107
-- HTTPRoute grafana-https: grafana.ameide.io → grafana:80
+- App chart HTTPRoute grafana-https: grafana.ameide.io → grafana:80
 - HTTPRoute loki-https & ameide-loki-ui: loki.ameide.io → loki-gateway:80
 - HTTPRoute tempo-https & ameide-tempo-ui: tempo.ameide.io → tempo:3200
 - HTTPRoute prometheus-https: prometheus.ameide.io → prometheus-oauth2-proxy:80
