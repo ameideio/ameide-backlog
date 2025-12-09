@@ -16,6 +16,18 @@
 > - [432-devcontainer-modes-offline-online.md](432-devcontainer-modes-offline-online.md) – DevContainer modes (retired)
 > - [434-unified-environment-naming.md](434-unified-environment-naming.md) – Environment naming standardization
 
+## Dual bootstrap responsibilities
+
+We now operate **two complementary bootstrap flows**:
+
+1. **GitOps / cluster bootstrap (this document, now housed in `ameide-gitops`).**  
+   `ameide-gitops/bootstrap/bootstrap.sh` installs Argo CD, seeds repo/registry secrets, applies the RollingSync ApplicationSet, and validates cluster health for every environment (k3d, dev AKS, staging, prod). This is the script CI/CD and platform operators run after Bicep provisions an AKS cluster, and it remains the canonical path for converging GitOps resources.
+
+2. **Developer bootstrap (lives in `ameide-core`).**  
+   The application repo focuses on inner-loop ergonomics: `.devcontainer/postCreate.sh` invokes `tools/dev/bootstrap-contexts.sh`, which refreshes AKS credentials, sets predictable `kubectl` contexts, writes Telepresence defaults, and logs the `argocd` CLI into the shared control plane via a managed port-forward. This bootstrap never installs Argo or Helm charts; it simply prepares a DevContainer session to talk to the already-bootstrapped remote cluster.
+
+Whenever the docs below mention `tools/bootstrap/bootstrap-v2.sh`, substitute the new location (`ameide-gitops/bootstrap/bootstrap.sh`). For developer onboarding instructions, see `backlog/491-auto-contexts.md` and `backlog/435-remote-first-development.md`.
+
 ## 1. Problem statement
 
 The legacy `.devcontainer/bootstrap.sh` script was tightly coupled to k3d: it created the local registry and cluster, installed Argo CD, and applied the GitOps ApplicationSets in `gitops/ameide-gitops/environments/dev/argocd`. That flow worked well for the inner loop, but it could not be reused when the substrate came from Azure Bicep templates (`infra/bicep/managed-application/main.bicep`) or any other managed Kubernetes footprint. Cluster creation, identity wiring, and DNS / Key Vault / ACR provisioning already live in Bicep, yet operators still need a deterministic "post-cluster bootstrap" that installs Argo CD and the RollingSync ApplicationSets irrespective of where the cluster came from.

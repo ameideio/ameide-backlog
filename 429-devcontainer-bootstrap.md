@@ -16,7 +16,14 @@
 > - [432-devcontainer-modes-offline-online.md](432-devcontainer-modes-offline-online.md) – Devcontainer modes (retired - single remote mode)
 > - [434-unified-environment-naming.md](434-unified-environment-naming.md) – Environment naming standardization
 
-This document is the **implementation reference** for the devcontainer bootstrap mechanics. For design rationale and target state, see [367-bootstrap-v2.md](367-bootstrap-v2.md).
+This document is the **implementation reference** for the legacy devcontainer bootstrap mechanics. For design rationale and target state, see [367-bootstrap-v2.md](367-bootstrap-v2.md).
+
+### Current bootstrap split (2025-12)
+
+- **GitOps / cluster bootstrap** now lives in the `ameide-gitops` repository (`bootstrap/bootstrap.sh`). It installs Argo CD, applies the RollingSync ApplicationSet, and prepares AKS/k3d clusters for every environment. CI/CD and platform operators invoke that script.
+- **Developer bootstrap** lives in the `ameide-core` application repo and is intentionally lightweight: `.devcontainer/postCreate.sh` calls `tools/dev/bootstrap-contexts.sh` to refresh AKS credentials, set the `kubectl`/Telepresence defaults, and log the `argocd` CLI into the shared control plane via a port-forward. This is the only bootstrap that runs automatically when opening the DevContainer.
+
+The remainder of this document describes the historical k3d-based flow for context; defer to [backlog/435-remote-first-development.md](435-remote-first-development.md) plus [491-auto-contexts.md](491-auto-contexts.md) for the active developer bootstrap instructions.
 
 ## 1. High-level goals
 
