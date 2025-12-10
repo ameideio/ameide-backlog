@@ -36,7 +36,7 @@ Re-run manually with `bash tools/dev/bootstrap-contexts.sh` if you blow away `~/
 
 ### 2. Telepresence defaults
 
-`tools/dev/telepresence.sh` remains the entry point, but the context defaults now come from `~/.config/ameide/context.env`, which `tools/dev/bootstrap-contexts.sh` writes and `.bashrc` sources automatically. The helper reads `TELEPRESENCE_CONTEXT`/`TELEPRESENCE_NAMESPACE`, so overriding them before calling `./tools/dev/telepresence.sh connect` switches environments with no further setup.
+`tools/dev/telepresence.sh` remains the entry point, but the context defaults now come from `~/.config/ameide/context.env`, which `tools/dev/bootstrap-contexts.sh` writes and `.bashrc` sources automatically. The helper reads `TELEPRESENCE_CONTEXT`/`TELEPRESENCE_NAMESPACE`, so overriding them before calling `./tools/dev/telepresence.sh connect` switches environments with no further setup. The helper now refuses to run on Linux when Telepresence prerequisites (`iptables` for DNS/routing) are missing, and the DevContainer image + `postCreate.sh` ensure both `iptables` and `sshfs` are installed before bootstrap runs so remote env mounts/DNS work immediately.
 
 ### 3. Argo CD CLI contexts
 
@@ -84,6 +84,7 @@ Once this backlog is implemented, onboarding becomes `telepresence connect`, `ar
   3. Fetches `argocd-initial-admin-secret`, spins up a `kubectl port-forward` on `127.0.0.1:8443`, and logs the CLI into both the local endpoint and (best-effort) the public gateway.
   4. Prints `kubectl config current-context` + `argocd context` so failures are obvious.
 - Wired `.devcontainer/postCreate.sh` to invoke `tools/dev/bootstrap-contexts.sh`, so every DevContainer start converges kubectl + Telepresence + ArgoCD contexts the same way.
+- `.devcontainer/Dockerfile` now bakes `iptables`/`sshfs` into the base image, and `postCreate.sh` re-validates them to prevent Telepresence from failing with “no active session” or disabled volume mounts on fresh containers.
 - Verified by running `bash tools/dev/bootstrap-contexts.sh`:
 
 ```

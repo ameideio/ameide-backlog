@@ -22,7 +22,7 @@ This document is the **implementation reference** for the legacy devcontainer bo
 
 Even though this file mainly documents the historical k3d flow, engineers still land here looking for a “what do I run now?” answer. The active remote-first flow is intentionally lightweight and stitches together the documents listed above:
 
-1. **Auto contexts + kube cred refresh** – `tools/dev/bootstrap-contexts.sh` (documented in [491-auto-contexts.md](491-auto-contexts.md)) pulls AKS credentials, sets the unified contexts from [434-unified-environment-naming.md](434-unified-environment-naming.md), and seeds Telepresence defaults. `postCreate.sh` calls this automatically, but you can rerun it as needed.
+1. **Auto contexts + kube cred refresh** – `tools/dev/bootstrap-contexts.sh` (documented in [491-auto-contexts.md](491-auto-contexts.md)) pulls AKS credentials, sets the unified contexts from [434-unified-environment-naming.md](434-unified-environment-naming.md), and seeds Telepresence defaults. `postCreate.sh` calls this automatically, but you can rerun it as needed. Before the helper runs we now guarantee Telepresence’s system dependencies (`iptables` for DNS/routing and `sshfs` for remote env mounts) are installed in the DevContainer, so every remote-only session starts with a healthy CLI stack.
 2. **Argo CD CLI bootstrap** – Follow [491-argocd-login.md](491-argocd-login.md) to port-forward, mint the short-lived token, and run `argocd login argocd.ameide.io --grpc-web --insecure` inside the devcontainer. The wrapper in `.devcontainer/postCreate.sh` now shells out to the same helper so the token lifecycle is consistent.
 3. **Environment sanity check** – `kubectl get ns` (expect all `ameide-*` namespaces) and `argocd app list | grep ameide-dev` before starting feature work. This replaces the older “install Argo into k3d” section in this doc.
 
@@ -47,7 +47,7 @@ This cycle was executed after the MinIO endpoint + gRPC health refactor (see com
 ### Current bootstrap split (2025-12)
 
 - **GitOps / cluster bootstrap** now lives in the `ameide-gitops` repository (`bootstrap/bootstrap.sh`). It installs Argo CD, applies the RollingSync ApplicationSet, and prepares AKS/k3d clusters for every environment. CI/CD and platform operators invoke that script.
-- **Developer bootstrap** lives in the `ameide-core` application repo and is intentionally lightweight: `.devcontainer/postCreate.sh` calls `tools/dev/bootstrap-contexts.sh` to refresh AKS credentials, set the `kubectl`/Telepresence defaults, and log the `argocd` CLI into the shared control plane via a port-forward. This is the only bootstrap that runs automatically when opening the DevContainer.
+- **Developer bootstrap** lives in the `ameide-core` application repo and is intentionally lightweight: `.devcontainer/postCreate.sh` installs/validates `iptables` and `sshfs` (in addition to the baked image packages) and then calls `tools/dev/bootstrap-contexts.sh` to refresh AKS credentials, set the `kubectl`/Telepresence defaults, and log the `argocd` CLI into the shared control plane via a port-forward. This is the only bootstrap that runs automatically when opening the DevContainer.
 
 The remainder of this document describes the historical k3d-based flow for context; defer to [backlog/435-remote-first-development.md](435-remote-first-development.md) plus [491-auto-contexts.md](491-auto-contexts.md) for the active developer bootstrap instructions.
 
