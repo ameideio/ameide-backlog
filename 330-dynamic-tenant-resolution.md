@@ -334,33 +334,40 @@ export async function GET(request: Request) {
 
 ### Phase 3: Infrastructure Changes
 
-#### 3.1. Remove Environment Variables from Helm
+#### 3.1. Provide organization defaults through `services.*`
 
-**File**: `infra/kubernetes/charts/platform/www-ameide-platform/templates/configmap.yaml`
+Environment fallbacks were removed from the application code, but Helm must still emit the _organization slug_ that middleware/auth expose to the browser, Telepresence env files, and the ConfigMap. Instead of relying on the deprecated `tenant.defaultOrg` block, wire the slug through `services.www_ameide_platform.organization.defaultOrg` so the chart can fail fast when it is missing.
 
-```yaml
-# REMOVE these lines (13-22):
-# Tenant configuration (required)
-{{- if .Values.tenant }}
-{{- if .Values.tenant.defaultId }}
-DEFAULT_TENANT_ID: {{ .Values.tenant.defaultId | quote }}
-{{- end }}
-{{- if .Values.tenant.defaultOrg }}
-AUTH_DEFAULT_ORG: {{ .Values.tenant.defaultOrg | quote }}
-NEXT_PUBLIC_DEFAULT_ORG: {{ .Values.tenant.defaultOrg | quote }}
-{{- end }}
-{{- end }}
-```
+**Files**:
 
-**File**: `infra/kubernetes/environments/local/platform/www-ameide-platform.yaml`
+- `sources/values/_shared/values.yaml`
+- `sources/values/{dev,staging,production}/apps/www-ameide-platform*.yaml`
+- `sources/charts/apps/www-ameide-platform/templates/configmap.yaml`
+
+Required structure:
 
 ```yaml
-# REMOVE lines 92-95:
-# Tenant configuration (required - no defaults)
-tenant:
-  defaultId: "atlas-org"
-  defaultOrg: "atlas-org"
+services:
+  www_ameide_platform:
+    envoy:
+      url: http://envoy-grpc:9000
+    organization:
+      defaultOrg: atlas
 ```
+
+The ConfigMap template must emit **all three** organization env vars from this block:
+
+```yaml
+AUTH_DEFAULT_ORG: {{ $defaultOrg | quote }}
+NEXT_PUBLIC_DEFAULT_ORG: {{ $defaultOrg | quote }}
+WWW_AMEIDE_PLATFORM_ORG_ID: {{ $defaultOrg | quote }}
+```
+
+- `AUTH_DEFAULT_ORG` – read by Auth.js middleware / server components
+- `NEXT_PUBLIC_DEFAULT_ORG` – exposed to the browser (fallback routing, telemetry)
+- `WWW_AMEIDE_PLATFORM_ORG_ID` – Telepresence env files + scripts expect this value to match the slug in Keycloak
+
+Any environment missing the `services.www_ameide_platform.organization.defaultOrg` block should fail `helm template`/`argocd` sync. Keep `tenant.defaultId` only for the temporary `DEFAULT_TENANT_ID` env var until the SDK work in this backlog removes it entirely.
 
 #### 3.2. Update Type Definitions
 

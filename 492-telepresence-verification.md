@@ -46,6 +46,10 @@ All stdout/stderr gets prefixed with `[telepresence-helper] <timestamp>` so mult
 | `TELEPRESENCE_VERIFY_ENV_ROOT` | `${TELEPRESENCE_ENV_ROOT:-.telepresence-envs}` | Directory storing temporary env files for verify runs. |
 | `TELEPRESENCE_SKIP_INTERCEPT` | unset | When set (any value), verification stops after status/list. |
 
+### Organization slug invariants
+
+`telepresence intercept` writes the intercepted pod’s ConfigMap-derived env vars into `.telepresence-envs/<workload>.env`. Because `services.www_ameide_platform.organization.defaultOrg` is the single GitOps source of truth, the verify helper should assert that this env file contains `AUTH_DEFAULT_ORG`, `NEXT_PUBLIC_DEFAULT_ORG`, and `WWW_AMEIDE_PLATFORM_ORG_ID` (all equal to the Keycloak slug such as `atlas`). Missing or mismatched values mean Helm values were not updated and should block verification until Argo syncs the fix.
+
 ## Failure signatures and remediation
 
 | Signature | Helper output | Most likely cause | Actions |
@@ -57,6 +61,7 @@ All stdout/stderr gets prefixed with `[telepresence-helper] <timestamp>` so mult
 | `connector.CreateIntercept: ... no active session` + daemon logs `exec: "iptables": executable file not found in $PATH` | DevContainer doesn’t have `iptables`, so the root daemon can’t program DNS/routing | Install `iptables` (e.g., `sudo apt-get update && sudo apt-get install -y iptables`) inside the DevContainer; re-run verify once packages are present. |
 | `telepresence intercept: error: unknown flag: --namespace` | Happens immediately after the CLI upgrade | Telepresence >=2.25 removed `--namespace` (and `--context`) flags from `intercept` | Update to the latest `tools/dev/telepresence.sh`, which now re-establishes the session via `telepresence connect --context ... --namespace ...` before starting the intercept. |
 | `no active session` | `rpc error: code = Unavailable desc = no active session` | Known upstream bug tracked in reliability backlog | Collect logs, reference NO-SESSION-1 in [492-telepresence-reliability.md](492-telepresence-reliability.md#known-issues-dec-2025). |
+| `ORG env vars missing` | Helper prints `AUTH_DEFAULT_ORG/NEXT_PUBLIC_DEFAULT_ORG/WWW_AMEIDE_PLATFORM_ORG_ID not found` | `services.www_ameide_platform.organization.defaultOrg` not set in Helm values | Update the relevant GitOps values (shared + per-env overlays) with the correct slug, let Argo sync, and rerun verify so Telepresence env files pick up the new ConfigMap. |
 
 ## Automation hooks
 
