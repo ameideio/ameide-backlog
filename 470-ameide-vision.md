@@ -22,6 +22,12 @@
 > - [442-environment-isolation.md](442-environment-isolation.md) – Environment isolation
 > - [446-namespace-isolation.md](446-namespace-isolation.md) – Namespace patterns
 
+> **Comparative Briefs (Ameide vs incumbent ERPs)**:
+> - [470-ameide-visio-vs-d365.md](470-ameide-visio-vs-d365.md) – Code-first Ameide platform compared to Microsoft D365FO’s metadata/AOT paradigm.
+> - [470-ameide-vision-vs-saps4.md](470-ameide-vision-vs-saps4.md) – Ameide positioning versus SAP S/4HANA’s DDIC/CDS/Fiori/Customizing stack.
+>
+> These appendices translate the high-level Ameide principles in this document into head-to-head comparisons with the dominant metadata/configuration ERPs so product, field, and architecture teams can articulate what stays the same (coherence, discoverability) and what changes (code-first, AI operated, CRD-based infra) when pitching Ameide.
+
 ---
 
 ## 0. Core Definitions: DomainControllers, UAF, and Graph
