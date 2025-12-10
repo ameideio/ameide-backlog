@@ -2,18 +2,50 @@
 
 ## 1. Purpose
 
-The **Ameide CLI** is a proto-aligned command-line interface that mirrors the SDK structure. Like `ameide-sdk-go`, `ameide-sdk-ts`, and `ameide-sdk-python`, the CLI provides access to Ameide capabilities – but from the command line.
+The **Ameide CLI** is a proto-aligned command-line interface that serves as **guardrails for AI agents** doing autonomous development. It is designed to be consumed by:
 
-It is designed to be consumed by:
 - **AI Agents** (primary) – automating development work via structured JSON output
 - **Developers** (secondary) – running commands interactively when needed
 
-The CLI serves as **guardrails for AI agents** doing autonomous development. Agents use `plan`, `scaffold`, and `verify` commands to:
-1. Understand what work needs to be done (plan)
-2. Generate compliant code/tests/gitops (scaffold)
-3. Check correctness before committing (verify)
+### 1.1 Design Philosophy: Shape, Not Meaning
 
-Without the CLI, agents would generate non-compliant code. The CLI enforces repo conventions, test infrastructure patterns (430), GitOps structure (434), and proto alignment.
+The CLI knows **shape** (repo layout, proto structure, test conventions) but not **meaning** (business logic, validation rules, domain invariants). This separation is critical:
+
+| CLI Owns (Shape) | Agent Owns (Meaning) |
+|------------------|----------------------|
+| Directory layout per primitive kind | Business logic & invariants |
+| Empty handler/test skeletons | Test assertions & fixtures |
+| Proto/SDK freshness checks | What the proto should contain |
+| Convention enforcement | How to implement requirements |
+| GitOps manifest structure | When/what to deploy |
+
+### 1.2 Three Responsibilities
+
+1. **Describe** – Introspect repo state, detect drift, report what exists vs what's expected
+2. **Verify** – Run checks (tests, lint, breaking changes) and report structured pass/fail
+3. **Scaffold** – Generate mechanical, proto-driven skeletons (optional, conservative)
+
+The CLI does **no fuzzy reasoning**. All non-determinism lives in agents.
+
+### 1.3 TDD as the Core Development Model
+
+The CLI is built around **Test-Driven Development** principles:
+
+```
+RED → GREEN → REFACTOR
+```
+
+| Phase | What Happens | CLI Role |
+|-------|--------------|----------|
+| **RED** | Write failing test first | `plan` outputs test specs; `scaffold` creates failing test stubs |
+| **GREEN** | Implement minimal code to pass | `verify` checks if test passes |
+| **REFACTOR** | Clean up without breaking | `verify` ensures no regression |
+
+**Key invariants:**
+- Tests are **never optional** – every RPC must have tests
+- Tests must **fail before implementation** – scaffolded tests call real handlers and fail
+- Implementation is **test-driven** – agent writes code to make tests pass, not tests to validate code
+- All tests must pass **before commit** – `verify --all` gates the workflow
 
 ---
 
@@ -90,27 +122,40 @@ ameide events subscribe [--types <types>]
 These operate on the local filesystem for AI-assisted development:
 
 ```bash
-# Plan - introspect repo + proto → testable work plan
+# OBSERVE: What exists, what's expected, what's the delta
+ameide primitive describe --json
+ameide primitive describe --kind domain --name orders --json
+
+# OBSERVE: What's out of sync (SDK staleness, missing tests, convention issues)
+ameide primitive drift --json
+ameide primitive drift --kind domain --name orders --json
+
+# PLAN: What work is needed for a primitive
 ameide primitive plan \
   --kind domain \
   --name orders \
-  --proto-path packages/ameide_core_proto/src/ameide/orders/v1/orders.proto
+  --proto-path packages/ameide_core_proto/src/ameide/orders/v1/orders.proto --json
 
-# Scaffold - generate code/tests from proto
+# IMPACT: What consumers would be affected by a proto change
+ameide primitive impact --proto-path packages/ameide_core_proto/src/ameide/orders/v1/orders.proto --json
+
+# VERIFY: Run tests/checks, report structured pass/fail
+ameide primitive verify --kind domain --name orders --json
+ameide primitive verify --all --proto-path packages/ameide_core_proto/src/ameide/orders/v1/orders.proto --json
+
+# SCAFFOLD (optional, conservative): Generate empty skeletons
 ameide primitive scaffold \
   --kind domain \
   --name orders \
   --proto-path packages/ameide_core_proto/src/ameide/orders/v1/orders.proto \
-  --lang go
+  --lang go \
+  --dry-run --json  # Preview without writing
 
-# Verify - run tests/checks, report structured feedback
-ameide primitive verify --kind domain --name orders
-
-# Verify ALL consumers of a modified proto (cascade verification)
-ameide primitive verify --all --proto-path packages/ameide_core_proto/src/ameide/orders/v1/orders.proto
-
-# Impact - list all consumers of a proto before modifying
-ameide primitive impact --proto-path packages/ameide_core_proto/src/ameide/orders/v1/orders.proto
+ameide primitive scaffold \
+  --kind domain \
+  --name orders \
+  --include-gitops \  # Optional: include GitOps manifests
+  --json
 ```
 
 ### 3.3 Config Commands (CLI management)
@@ -127,9 +172,68 @@ ameide config set <k> <v> # Update config value
 
 The `ameide primitive` subcommands are designed specifically to support AI agents doing development work on primitives (Domain, Process, Agent, UISurface).
 
-### 4.0 What Gets Scaffolded
+### 4.0 What CLI Does vs What Agents Do
 
-Each primitive kind has a different scaffold output:
+The CLI has **three categories** of behavior:
+
+| Category | CLI Role | Agent Role |
+|----------|----------|------------|
+| **Safe to Generate** | Directory skeletons, empty handlers, test harness, Dockerfile | — |
+| **Verify Only** | Proto breaking, SDK freshness, test results, conventions | Decide how to fix issues |
+| **Never Generate** | Business logic, test assertions, SQL schemas, prompts | Full ownership |
+
+### 4.0.1 Safe to Generate (Scaffold)
+
+These are **mechanical, proto-driven, idempotent**:
+
+- **Directory layout** per primitive kind
+- **Entrypoints** (`cmd/main.go`, `package.json`)
+- **Empty handler/activity files** with function signatures from proto (return `unimplemented` error)
+- **Test file skeletons** with imports and **failing test stubs** (not empty - they call the handler and assert it fails)
+- **Test harness** (`run_integration_tests.sh`, `__mocks__/`, mode switching)
+- **Dockerfile**, `go.mod`/`package.json`, `README.md` stub
+
+**TDD-aligned scaffolding:**
+- Scaffolded handlers return `codes.Unimplemented` by default
+- Scaffolded tests **call the handler and expect a real response** (not just compile)
+- This means freshly scaffolded code **fails tests by design** → proper RED state
+- Agent's job is to make tests pass (GREEN), not to write tests from scratch
+
+**Rules:**
+- **One-shot**: Scaffold only when folder doesn't exist. Never overwrite existing files.
+- **Generated marker**: `// CODEGEN: safe to delete, regenerate with 'ameide primitive scaffold'`
+- **GitOps is optional**: Use `--include-gitops` flag; default is `false`
+- **Tests must fail**: Scaffolded tests are not empty; they exercise the API and fail until implemented
+
+### 4.0.2 Verify Only (Never Auto-Fix)
+
+The CLI **diagnoses** but never **fixes**:
+
+- Proto breaking changes (via Buf)
+- SDK freshness (generated stubs match proto)
+- Test presence per RPC
+- Convention compliance (folder structure, required files)
+- GitOps manifest validity (if present)
+
+Output is always structured JSON describing *what's wrong*, not *fixing it*.
+
+### 4.0.3 Never Generate (Agent's Job)
+
+The CLI **never** generates:
+
+- Business logic & invariants
+- Test assertions & fixtures
+- SQL schemas & migrations
+- Agent prompts & orchestration
+- Non-trivial UI components
+
+These require **meaning**, which only agents (with Transformation context) can provide.
+
+---
+
+### 4.1 What Gets Scaffolded (When Requested)
+
+When `--scaffold` is used, each primitive kind produces:
 
 #### Domain Primitive
 ```
@@ -327,152 +431,333 @@ Runs tests, linters, and checks. Reports structured pass/fail.
 
 ---
 
-## 5. Agent Sequence
+## 5. Intelligent Agent Sequence
 
-The full agentic development sequence, assuming **no human developers** - only AI agents and this CLI:
+This section describes an **intelligent, reasoning-based** development sequence. The key insight: agents should **observe → reason → dry-run → act**, not blindly scaffold and hope.
 
-### Step 0: Get Context (Transformation Domain)
+> **Cross-reference**: This sequence aligns with [477-primitive-stack.md §5.2](477-primitive-stack.md) which defines the human-gated workflow (research → approval → proto → implement → UAT).
 
-The **Transformation Domain** (see [471-transformation-domain](471-transformation-domain.md)) is the source of truth for what needs to be built. Before any coding begins, the Transformation Agent:
+### 5.1 The Observe-Reason-Act Loop
 
-1. **Reads design artifacts:**
-   - `ProcessDefinition` entities (what processes exist, their states, transitions)
-   - `AgentDefinition` entities (what agents exist, their tools, prompts)
-   - Backlog items, epics, requirements
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  1. OBSERVE                                                     │
+│     └─ What exists? What's expected? What's the delta?          │
+│                                                                 │
+│  2. REASON                                                      │
+│     └─ Research standards. Compare approaches. Form hypothesis. │
+│                                                                 │
+│  3. DRY-RUN                                                     │
+│     └─ Simulate changes. Check for drift. Validate assumptions. │
+│                                                                 │
+│  4. HUMAN GATE (if significant)                                 │
+│     └─ Present findings. Get approval before mutations.         │
+│                                                                 │
+│  5. ACT                                                         │
+│     └─ Make minimal changes. Verify. Iterate.                   │
+│                                                                 │
+│  6. HUMAN UAT                                                   │
+│     └─ Final acceptance before merge.                           │
+└─────────────────────────────────────────────────────────────────┘
+```
 
-2. **Queries runtime context:**
-   - Graph projections (current state of the system)
-   - Runtime metrics (performance, errors, usage patterns)
-   - Deployment state (what's deployed where)
+### 5.2 Phase 1: Observe (Assess Current State)
 
-3. **Produces a decision:**
-   - "We need a new Orders Domain primitive" or
-   - "We need to modify the L2O Process to handle cancellations" or
-   - "We need a new UISurface for the admin dashboard"
+Before any changes, the agent builds a complete picture of the current state.
 
-This decision becomes the input to `ameide primitive plan`. The Transformation domain owns the **"what"** and **"why"**; the CLI enforces the **"how"**.
+**Step 1.1: Load Transformation Context**
 
-**Future integration:** Plan/verify results can be stored back as Transformation artifacts (e.g., `ImplementationPlan`, `VerifyReport`) for traceability and audit.
-
-### Step 1: AI Codes the Proto
-
-Coder Agent:
-- Opens the Buf workspace (`packages/ameide_core_proto`)
-- Creates or edits proto files (e.g., `ameide/orders/v1/orders.proto`)
-- Calls `ameide primitive plan` to understand implications:
+Query the Transformation Domain for what *should* exist:
 
 ```bash
-ameide primitive plan --kind domain --name orders \
-  --proto-path packages/ameide_core_proto/src/ameide/orders/v1/orders.proto --json
+# What does the backlog say we need?
+ameide transformation context --json
 ```
 
-Response tells agent what to do next:
-- Generate SDKs
-- Scaffold primitive
-- What tests will be created
+Returns design artifacts, requirements, ProcessDefinitions, AgentDefinitions.
 
-### Step 2: Generate SDKs
-
-Agent runs Buf to regenerate SDKs:
+**Step 1.2: Describe Current Repo State**
 
 ```bash
-buf generate
+# What primitives exist? What's their state?
+ameide primitive describe --json
 ```
 
-Updates `ameide_sdk_go`, `ameide_sdk_python`, `ameide_sdk_ts` packages.
-
-### Step 3: Scaffold Primitive + TDD
-
-Agent scaffolds the primitive structure:
-
-```bash
-ameide primitive scaffold --kind domain --name orders \
-  --proto-path packages/ameide_core_proto/src/ameide/orders/v1/orders.proto \
-  --lang go --json
-```
-
-This creates:
-- Service skeleton (`services/orders/`)
-- Repository interfaces
-- Basic handlers wired to SDK
-- **Failing test skeletons** (TDD - red by default)
-- GitOps manifests (`gitops/sources/values/dev/apps/orders.yaml`)
-
-The response contains the **test plan** - list of test IDs + descriptions that become the agent's work plan.
-
-### Step 4: Implement via TDD Loop
-
-Agent iterates:
-
-```
-1. Pick next failing test from plan
-2. Implement minimal code to make it pass
-3. Run: ameide primitive verify --kind domain --name orders --json
-4. Check structured result:
-   - If test passes → next test
-   - If test fails → read error details, fix, retry
-5. Repeat until all tests green
-```
-
-The verify output is machine-readable:
+**Output:**
 ```json
 {
-  "summary": "fail",
-  "tests": [
-    {"id": "orders.create_order.success", "status": "PASS"},
-    {"id": "orders.create_order.validation", "status": "FAIL", "details": "...", "file": "...", "line": 42}
+  "primitives": [
+    {
+      "kind": "DOMAIN",
+      "name": "orders",
+      "status": "EXISTS",
+      "path": "primitives/domain/orders",
+      "proto": "ameide/orders/v1/orders.proto",
+      "drift": {
+        "sdk_stale": true,
+        "missing_tests": ["orders.cancel_order.success"],
+        "gitops_missing": false
+      }
+    }
+  ],
+  "expected_but_missing": [
+    {"kind": "PROCESS", "name": "l2o", "reason": "Referenced in ProcessDefinition but no primitive exists"}
   ]
 }
 ```
 
-### Step 5: Guardrail Checks
-
-`ameide primitive verify` enforces more than just tests:
+**Step 1.3: Detect Drift**
 
 ```bash
-ameide primitive verify --kind domain --name orders --json
+# What's out of sync?
+ameide primitive drift --json
 ```
 
-**Checks:**
-- All tests pass
-- Buf breaking rules (no breaking proto changes)
-- Buf lint (proto style)
-- Language linters (golangci-lint, eslint, ruff)
-- Proto/SDK consistency (generated code up to date)
-- GitOps manifests valid
-- Basic project conventions
-- Secret scan (no credentials in code/tests/manifests) - aligns with [476-security-and-trust](476-security-and-trust.md)
-
-The agent must get **all checks green** before proceeding.
-
-### Step 6: Git Commit & PR
-
-Agent:
-- Formats code
-- Creates commit with verify summary
-- Opens PR
-
-GitOps + Argo CD takes it from there.
-
----
-
-### Summary Flow (New Primitive)
-
-```
-0. Transformation decides what to build
-1. Agent edits proto
-2. Agent runs buf generate (SDKs)
-3. Agent runs ameide primitive scaffold (code + tests + gitops)
-4. Agent implements until ameide primitive verify is green
-5. Agent commits & PRs
+**Output:**
+```json
+{
+  "proto_sdk_drift": [
+    {"proto": "orders/v1/orders.proto", "sdk": "ameide-sdk-go", "status": "STALE", "action": "Run buf generate"}
+  ],
+  "test_coverage_drift": [
+    {"primitive": "orders", "rpc": "CancelOrder", "tests": 0, "expected": 1}
+  ],
+  "convention_drift": [
+    {"primitive": "orders", "issue": "Missing README.md", "severity": "WARN"}
+  ]
+}
 ```
 
-The CLI does **no fuzzy reasoning** - it just:
-- Uses Buf descriptors
-- Applies fixed templates
-- Generates tests & checks
+### 5.3 Phase 2: Reason (Research & Plan)
 
-All non-determinism (how to implement, how to fix failures) lives in agents.
+The agent now has data. Time to think.
+
+**Step 2.1: Research Standard Solutions**
+
+Before proposing changes, the agent researches:
+- Industry patterns for similar problems
+- Existing libraries/frameworks
+- How other primitives in this repo solved similar issues
+
+This is **agent reasoning**, not CLI. The CLI just provides data; the agent decides.
+
+**Step 2.2: Form a Hypothesis**
+
+Agent produces a plan:
+
+```
+"To add order cancellation:
+1. Add CancelOrder RPC to orders.proto (additive, non-breaking)
+2. Regenerate SDKs
+3. Implement handler in orders domain
+4. Add integration test
+5. Update L2O process to handle cancellation events"
+```
+
+**Step 2.3: Validate Hypothesis with Dry-Run**
+
+```bash
+# What would happen if I modified this proto?
+ameide primitive impact --proto-path orders/v1/orders.proto --json
+```
+
+**Output:**
+```json
+{
+  "consumers": [
+    {"kind": "DOMAIN", "name": "orders", "imports": ["OrdersService"]},
+    {"kind": "PROCESS", "name": "l2o", "imports": ["OrdersServiceClient"]},
+    {"kind": "UISURFACE", "name": "www_platform", "imports": ["Order", "OrderStatus"]}
+  ],
+  "cascade_tests_required": 25,
+  "estimated_scope": "MEDIUM"
+}
+```
+
+```bash
+# Would this be a breaking change?
+buf breaking --against .git#branch=main packages/ameide_core_proto
+```
+
+### 5.4 Phase 3: Human Review Gate
+
+For significant changes (new primitives, proto modifications, architectural decisions), the agent **stops and presents findings**:
+
+```
+## Proposed Change: Add Order Cancellation
+
+### Research Findings
+- Saga pattern is industry standard for order cancellation
+- Temporal compensation activities align with our Process primitive model
+- Similar implementation exists in `primitives/process/onboarding`
+
+### Impact Analysis
+- 3 primitives affected (orders, l2o, www_platform)
+- 25 tests will need to pass
+- Non-breaking proto change (additive only)
+
+### Recommended Approach
+1. Add CancelOrder RPC with compensation metadata
+2. Implement as Temporal activity with rollback
+3. Emit OrderCancelled event for downstream consumers
+
+**Awaiting approval to proceed.**
+```
+
+Human reviews and approves (or redirects).
+
+### 5.5 Phase 4: Act (Minimal, Verified Changes)
+
+Only after approval does the agent make changes. Each change is **small, tested, verified**.
+
+**Step 4.1: Proto Changes**
+
+```bash
+# Agent edits proto
+# Then validates:
+buf lint packages/ameide_core_proto
+buf breaking --against .git#branch=main packages/ameide_core_proto
+```
+
+**Step 4.2: SDK Regeneration**
+
+```bash
+buf generate
+
+# Verify SDKs compile
+ameide primitive verify --check sdk-freshness --json
+```
+
+**Step 4.3: Implementation (TDD Loop)**
+
+The agent follows **strict TDD discipline**: RED → GREEN → REFACTOR.
+
+```bash
+# Get the test plan
+ameide primitive plan --kind domain --name orders --json
+```
+
+**Output:**
+```json
+{
+  "tests_to_create": [
+    {"id": "orders.cancel_order.success", "description": "Cancelling valid order returns success"},
+    {"id": "orders.cancel_order.already_shipped", "description": "Cancelling shipped order returns error"}
+  ]
+}
+```
+
+**TDD Loop (per test):**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  1. RED: Write failing test first                               │
+│     - Create test with real assertions (not empty)              │
+│     - Run verify → MUST FAIL                                    │
+│     - If test passes without implementation → test is wrong     │
+│                                                                 │
+│  2. GREEN: Write minimal code to pass                           │
+│     - Implement only what's needed for THIS test                │
+│     - No speculative features                                   │
+│     - Run verify → MUST PASS                                    │
+│                                                                 │
+│  3. REFACTOR: Clean up (optional)                               │
+│     - Improve code quality                                      │
+│     - Run verify → MUST STILL PASS                              │
+│                                                                 │
+│  4. NEXT: Move to next test in plan                             │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Concrete sequence:**
+
+```bash
+# Step 1: RED - Write failing test
+# Agent writes test assertion in orders.cancel_order.success test file
+
+# Verify it fails (this is required!)
+ameide primitive verify --kind domain --name orders --test orders.cancel_order.success --json
+# Expected: {"status": "FAIL", "reason": "CancelOrder not implemented"}
+
+# Step 2: GREEN - Implement minimal code
+# Agent implements CancelOrder handler
+
+# Verify it passes
+ameide primitive verify --kind domain --name orders --test orders.cancel_order.success --json
+# Expected: {"status": "PASS"}
+
+# Step 3: REFACTOR (if needed)
+# Agent cleans up code
+# Verify still passes
+
+# Step 4: NEXT - Move to next test
+# Repeat for orders.cancel_order.already_shipped
+```
+
+**Key TDD invariants the CLI enforces:**
+
+| Check | CLI Behavior |
+|-------|--------------|
+| Test exists before implementation | `plan` outputs tests_to_create; `verify` checks test presence |
+| Test must fail first | Agent should run verify and confirm FAIL before implementing |
+| Minimal implementation | Agent decides, but `verify` ensures no regression |
+| All tests pass before commit | `verify --all` gates the commit |
+
+**Step 4.4: Cascade Verification**
+
+After the primitive is green, verify all consumers:
+
+```bash
+ameide primitive verify --all --proto-path orders/v1/orders.proto --json
+```
+
+This runs tests for **all affected primitives**, not just the one being modified.
+
+### 5.6 Phase 5: Human UAT
+
+Before merge, human verifies:
+- Implementation meets requirements
+- No unexpected side effects
+- Code quality acceptable
+
+Agent presents final summary:
+
+```
+## Implementation Complete: Order Cancellation
+
+### Changes Made
+- Added CancelOrder RPC to orders.proto
+- Implemented handler with Saga compensation
+- Added 2 integration tests (both passing)
+- Updated L2O process to emit compensation on cancel
+
+### Verification Results
+- All 27 affected tests pass
+- No breaking changes detected
+- Lint clean
+- Secret scan clean
+
+**Ready for UAT.**
+```
+
+### 5.7 Summary: Intelligent Sequence
+
+| Phase | Agent Action | CLI Support | Human Involvement |
+|-------|--------------|-------------|-------------------|
+| **Observe** | Gather state | `describe`, `drift` | None |
+| **Reason** | Research, plan | `impact`, `plan` | None |
+| **Review Gate** | Present findings | — | **Approval required** |
+| **Act** | Implement, test | `verify`, `scaffold` | None |
+| **UAT** | Present results | `verify --all` | **Acceptance required** |
+
+Key differences from naive "scaffold → implement → commit":
+
+1. **Drift detection first** – Don't assume clean state
+2. **Research before code** – Agent thinks, not just executes
+3. **Dry-run before mutate** – Understand impact before changes
+4. **Human gates** – Approval for significant changes
+5. **Cascade verification** – All consumers must pass, not just the target
+6. **Small, verified steps** – Each change is tested before the next
 
 ---
 
@@ -1044,7 +1329,104 @@ This makes 482 the "what" and 484 the "how" (automated).
 
 ---
 
-## 14. Cross-References
+## 14. Phased Implementation
+
+Rather than building the full CLI at once, we implement in phases that deliver value incrementally.
+
+### Phase 1: Describe & Verify Only (MVP)
+
+**Goal:** Give agents visibility into repo state without any generation.
+
+**Commands:**
+```bash
+ameide primitive describe --json    # What exists, what's expected, what's the delta
+ameide primitive drift --json       # SDK staleness, test coverage gaps, convention issues
+ameide primitive impact --json      # What consumers would be affected by a proto change
+ameide primitive verify --json      # Run tests, lint, breaking checks
+```
+
+**What's NOT included:**
+- `scaffold` command (agents create files manually)
+- GitOps generation
+- Any file mutations
+
+**Value:** Agents can reason about the codebase with structured data. They write code themselves but have guardrails to validate correctness.
+
+### Phase 2: Conservative Scaffolding
+
+**Goal:** Generate safe, mechanical structures that agents would otherwise write identically – with **TDD-ready failing tests**.
+
+**Commands:**
+```bash
+ameide primitive scaffold --kind domain --name orders --lang go --json
+# Generates:
+#   - Directory structure
+#   - Handler files returning `codes.Unimplemented`
+#   - Test files that CALL handlers and FAIL (proper RED state)
+#   - Dockerfile, go.mod, README stub
+```
+
+**Flags:**
+- `--include-gitops=false` (default) – No GitOps generation
+- `--dry-run` – Show what would be created without writing
+
+**TDD alignment:**
+- Handlers return `codes.Unimplemented` by default
+- Tests call the handlers and assert on expected behavior (not empty)
+- **Freshly scaffolded code FAILS all tests** → agent starts in RED state
+- Agent's job: make tests GREEN by implementing handlers
+
+**Rules:**
+- **One-shot only**: If folder exists, refuse to scaffold
+- **No business logic**: Handlers return unimplemented, not real logic
+- **Tests must fail**: Scaffolded tests exercise the API and fail until implemented
+
+### Phase 3: GitOps & Test Harness (Optional)
+
+**Goal:** For teams that want more automation, add GitOps and test infrastructure generation.
+
+**Commands:**
+```bash
+ameide primitive scaffold --include-gitops --json
+# Adds:
+#   - gitops/primitives/{kind}/{name}/values.yaml
+#   - gitops/primitives/{kind}/{name}/component.yaml
+
+ameide primitive scaffold --include-test-harness --json
+# Adds:
+#   - __mocks__/ directory with client stubs
+#   - run_integration_tests.sh (430-compliant)
+#   - Mode-aware helper files
+```
+
+**Both remain optional flags**, not defaults.
+
+### Phase 4: Transformation Integration (Future)
+
+**Goal:** CLI can query Transformation Domain for context.
+
+**Commands:**
+```bash
+ameide transformation context --json  # What should exist per design artifacts
+ameide transformation sync --json     # Compare design artifacts to repo state
+```
+
+**Value:** Agents get "what should be built" from Transformation, not just "what exists" from repo.
+
+### Implementation Timeline
+
+| Phase | Scope | Complexity | Prerequisite |
+|-------|-------|------------|--------------|
+| 1 | describe, drift, impact, verify | Medium | Buf integration |
+| 2 | scaffold (code only) | Low | Phase 1 |
+| 3 | scaffold (gitops, test harness) | Low | Phase 2 |
+| 4 | transformation context | High | Transformation APIs |
+
+**Start with Phase 1.** It delivers the most value (visibility, guardrails) with the least risk (no mutations).
+
+---
+
+## 15. Cross-References
 
 | Backlog | Relationship |
 |---------|--------------|
@@ -1052,8 +1434,9 @@ This makes 482 the "what" and 484 the "how" (automated).
 | [430-unified-test-infrastructure](430-unified-test-infrastructure.md) | Test modes, folder structure, runner contracts |
 | [434-unified-environment-naming](434-unified-environment-naming.md) | GitOps structure, namespace labels, tier mapping |
 | [435-remote-first-development](435-remote-first-development.md) | Telepresence, cluster mode context |
-| [471-transformation-domain](471-transformation-domain.md) | Source of truth for what to build (Step 0 context) |
-| [476-security-and-trust](476-security-and-trust.md) | Secret scan, security guardrails in verify |
+| [471-ameide-business-architecture](471-ameide-business-architecture.md) | Transformation Domain as source of truth |
+| [476-ameide-security-trust](476-ameide-security-trust.md) | Secret scan, security guardrails in verify |
 | [467-backstage](467-backstage.md) | Shared templates with CLI scaffold; UI for human developers |
+| [477-primitive-stack](477-primitive-stack.md) | Repo layout, operator structure, AI coder sequence |
 | [481-service-catalog](481-service-catalog.md) | Backstage catalog integration |
 | [482-adding-new-service](482-adding-new-service.md) | Manual checklist that `scaffold` automates |
