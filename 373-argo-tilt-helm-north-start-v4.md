@@ -62,7 +62,7 @@ Changes to the Argo dev registry (e.g., `k3d-ameide.localhost:5001/ameide`) do n
 
 To keep the developer experience crystal clear, v4 formalizes a two-phase workflow:
 
-1. **Bootstrap = prod.** Opening the devcontainer must converge the entire cluster via Argo before Tilt is even considered. `.devcontainer/postCreate.sh` now calls `tools/bootstrap/bootstrap-v2.sh` with the defaults we rely on (`--reset-k3d --show-admin-password --port-forward`), applying the root `ameide` Application and its RollingSync ApplicationSet with the exact same charts + value files that staging/production use, so the baseline dev cluster mirrors prod bit-for-bit.
+1. **Bootstrap = prod.** Opening the devcontainer must converge the entire cluster via Argo before Tilt is even considered. `.devcontainer/postCreate.sh` used to call `tools/bootstrap/bootstrap-v2.sh` with the defaults we rely on (`--reset-k3d --show-admin-password --port-forward`) when the bootstrap CLI lived in this repo; that flow now exists only as `ameide-gitops/bootstrap/bootstrap.sh`, applying the root `ameide` Application and its RollingSync ApplicationSet with the exact same charts + value files that staging/production use, so the baseline dev cluster mirrors prod bit-for-bit.
 2. **Tilt = optional overlay.** When hot reload is needed, developers run `tilt up` *after* the Argo baseline exists. Tilt only overrides `image.repository`/`image.tag` via live builds; every other Helm value stays identical to prod. Auto-sync/self-heal are disabled on the apps tier (the ApplicationSet patch overwrites `syncPolicy` and drops the `automated` block), so Argo will not revert Tilt edits until you manually “Sync” the Application.
 
 This sequencing keeps configuration parity airtight (no dev-only manifests, no Tilt-specific values) while still unlocking inner-loop speed when desired.
@@ -92,7 +92,7 @@ Key sections in the restored Tiltfile:
 
 ## Argo alignment
 
-* `.devcontainer/postCreate.sh` shells into `tools/bootstrap/bootstrap-v2.sh` without filters; the root `ameide` Application creates the RollingSync ApplicationSet and all `apps-*` Applications. The template patch replaces `syncPolicy` to add `syncOptions`, which removes the `automated` block—apps do not auto-sync or self-heal until you click Sync.
+* `.devcontainer/postCreate.sh` historically shelled into `tools/bootstrap/bootstrap-v2.sh` without filters; today the GitOps bootstrap handles the root `ameide` Application, RollingSync ApplicationSet, and all `apps-*` Applications. The template patch replaces `syncPolicy` to add `syncOptions`, which removes the `automated` block—apps do not auto-sync or self-heal until you click Sync.
 * Tilt auto-pauses Argo for apps via `argocd-sync-guard` (see `Tiltfile`). When Tilt starts it patches every `apps-*` Application (and parent ApplicationSets) to remove `syncPolicy.automated`, preventing Argo from reinstalling while Tilt owns the loop. On shutdown it restores the policy and runs `argocd app sync <apps>` using the devcontainer `argocd` wrapper, which auto-logs in with the `argocd-initial-admin-secret`, so the final reconcile is authenticated and hands control back to Argo.
 * Tilt’s Helm adoption helper details (logging + optional pruning of duplicate workloads) live in `backlog/373-argo-tilt-helm-north-start-v4-helm-adoption.md`.
 * Components live under `gitops/ameide-gitops/environments/dev/components/apps/**/component.yaml`. Tilt resource names (`apps-<component>`) match the RollingSync outputs, making drift easy to correlate.

@@ -292,7 +292,7 @@ The `root` kustomization (`environments/dev/argocd/applications/root/`) lists th
 
 ### 5.1 Dev verification checklist
 1. **Inventory + lint:** `./wave_lint.sh` fails fast if a component is missing its `rolloutPhase` label. `.devcontainer/postCreate.sh` now runs the JSON variant automatically (unless `DEVCONTAINER_SKIP_WAVE_VALIDATION=1`) so missing labels stop bootstrap immediately.
-2. **Re-run bootstrap (preferred):** `./tools/bootstrap/bootstrap-v2.sh --config infra/environments/dev/bootstrap.yaml --reset-k3d --show-admin-password --port-forward`. This reapplies repo credentials, recreates the parent `ameide` Application (if missing), and ensures the RollingSync ApplicationSet picks up the updated spec in a clean state.
+2. **Re-run bootstrap (preferred):** `../ameide-gitops/bootstrap/bootstrap.sh --config bootstrap/configs/dev.yaml --reset-k3d --show-admin-password --port-forward`. This reapplies repo credentials, recreates the parent `ameide` Application (if missing), and ensures the RollingSync ApplicationSet picks up the updated spec in a clean state.
 3. **Trigger RollingSync manually (fallback):**
    ```bash
    argocd app sync foundation-dev --server localhost:8080 --plaintext --insecure --retry-strategy backoff

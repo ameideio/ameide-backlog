@@ -9,7 +9,7 @@
 - Image naming uses hyphens across the fleet (`agents-runtime`, `www-ameide`, `www-ameide-platform`, etc.); avoid underscore repos to match GitOps values and containerd pulls.
 
 ## Bootstrap mechanics
-- Entry point: `tools/bootstrap/bootstrap-v2.sh --config infra/environments/dev/bootstrap.yaml`.
+- Entry point: `ameide-gitops/bootstrap/bootstrap.sh --config bootstrap/configs/dev.yaml` (legacy references may still mention `tools/bootstrap/bootstrap-v2.sh` inside `ameide-core`).
 - Defaults:
   - `K3D_REGISTRY_PORT=5001`
   - `BUILD_IMAGES=1` (unless `--skip-build-images`)

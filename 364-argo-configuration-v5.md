@@ -5,7 +5,7 @@ Below is a vendor‑docs‑aligned way to wire **Dev Containers** (VS Code / Dev
 * **`ameide`** – the main app source (we’ll put the Dev Container and `Tiltfile` here).
 * **`ameide-gitops`** – the GitOps repo Argo CD will watch.
 
-_Current status:_ the repo now follows this vendor workflow. _Migration plan:_ not applicable. _Status checkpoints:_ `.devcontainer/postCreate.sh` (which now shells into `tools/bootstrap/bootstrap-v2.sh`) loads `.env`, installs k3d/Tilt/argocd CLI, applies Argo CD manifests, registers repo credentials, runs `kubectl port-forward`, and logs everything to `/home/vscode/.devcontainer-bootstrap.log`.
+_Current status:_ the repo now follows this vendor workflow. _Migration plan:_ not applicable. _Status checkpoints:_ `.devcontainer/postCreate.sh` (which historically shelled into `tools/bootstrap/bootstrap-v2.sh` before the bootstrap CLI moved to `ameide-gitops/bootstrap/bootstrap.sh`) loads `.env`, installs k3d/Tilt/argocd CLI, applies Argo CD manifests, registers repo credentials, runs `kubectl port-forward`, and logs everything to `/home/vscode/.devcontainer-bootstrap.log`.
 
 ---
 
@@ -62,7 +62,7 @@ Create **`.devcontainer/devcontainer.json`** in `ameide`:
 
 > `mounts`, `features`, and lifecycle commands are first‑class Dev Container spec properties. ([Dev Containers][6])
 
-_Current status:_ the repo now follows this vendor workflow. _Migration plan:_ not applicable. _Status checkpoints:_ `.devcontainer/postCreate.sh` calls `k3d registry create` / `k3d cluster create` indirectly via `tools/bootstrap/bootstrap-v2.sh` on every container creation; inspect `/home/vscode/.devcontainer-bootstrap.log` for the latest run. Tilt builds run against this cluster (`allow_k8s_contexts('k3d-ameide')` in the new `Tiltfile`).
+_Current status:_ the repo now follows this vendor workflow. _Migration plan:_ not applicable. _Status checkpoints:_ `.devcontainer/postCreate.sh` used to call `k3d registry create` / `k3d cluster create` indirectly via `tools/bootstrap/bootstrap-v2.sh`; those steps now live in the GitOps bootstrap (`ameide-gitops/bootstrap/bootstrap.sh`). Inspect `/home/vscode/.devcontainer-bootstrap.log` for the latest legacy run. Tilt builds run against this cluster (`allow_k8s_contexts('k3d-ameide')` in the new `Tiltfile`).
 
 **`.devcontainer/Dockerfile`** (minimal base that uses the spec + apt tools as needed):
 
@@ -74,7 +74,7 @@ FROM mcr.microsoft.com/devcontainers/base:ubuntu
 RUN apt-get update && apt-get install -y curl ca-certificates git && rm -rf /var/lib/apt/lists/*
 ```
 
-_Current status:_ the repo now follows this vendor workflow. _Migration plan:_ not applicable. _Status checkpoints:_ Controller deployments + statefulset are rolled out inside bootstrap; repo secret + the root `ameide` Application / `project-ameide` manifests are applied from `gitops/ameide-gitops`. Argo CD UI + CLI tested with the regenerated `argocd-initial-admin-secret`.
+_Current status:_ the repo now follows this vendor workflow. _Migration plan:_ not applicable. _Status checkpoints:_ Controller deployments + statefulset were rolled out inside the legacy bootstrap; repo secret + the root `ameide` Application / `project-ameide` manifests are applied from `gitops/ameide-gitops`. Argo CD UI + CLI were tested with the regenerated `argocd-initial-admin-secret`.
 
 **`.devcontainer/postCreate.sh`** – install k3d, Tilt, and the Argo CD CLI using vendor installers:
 
@@ -200,7 +200,7 @@ chart:
   version: main
 ```
 
-Applying `project-ameide.yaml`, `apps/apps.yaml`, and the component files ensures Argo CD renders one Application per service (e.g., `apps-graph`, `apps-workflows`). `.devcontainer/postCreate.sh` exports `BOOTSTRAP_ARGO_APPSETS=foundation,data-services,platform,apps` when it calls `tools/bootstrap/bootstrap-v2.sh`, so the ApplicationSet applies automatically; run `kubectl apply -n argocd -f environments/dev/argocd/apps/apps.yaml` manually if you tweak it outside bootstrap.
+Applying `project-ameide.yaml`, `apps/apps.yaml`, and the component files ensures Argo CD renders one Application per service (e.g., `apps-graph`, `apps-workflows`). `.devcontainer/postCreate.sh` historically exported `BOOTSTRAP_ARGO_APPSETS=foundation,data-services,platform,apps` when it called `tools/bootstrap/bootstrap-v2.sh`; the GitOps bootstrap now handles that sequencing automatically. Run `kubectl apply -n argocd -f environments/dev/argocd/apps/apps.yaml` manually if you tweak it outside bootstrap.
 
 > **Repo credentials:** If `ameide-gitops` is private, add repo credentials via `argocd repo add` or the declarative “repositories” Secret as described in the docs. ([Argo CD][8])
 
