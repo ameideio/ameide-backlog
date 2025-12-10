@@ -141,7 +141,7 @@ The rollout phase keeps IPC workers behind domain/agent controllers but before U
 As with IACs, we now treat §4.3 of [500-controller-domain](500-controller-domain.md) as the single source of truth for metadata + phase semantics. IPC docs only explain the _extra_ process-controller requirements. Practically that means:
 
 * The canonical label set from 500 is mandatory; controller-contract tests run `kubectl get intelligentprocesscontrollers` and fail if any IPC lacks the `ameide.io/*` keys or the 640 rollout phase annotation.
-* IPC statuses publish the three base conditions (`DeploymentAvailable`, `MigrationsApplied`, `DataPlaneHealthy`) defined for IDCs **plus** the IPC-specific ones listed above. The shared Lua health script inspects the base trio first, then the IPC-specific ones so we keep a single health gate across controller tiers.
+* IPC statuses publish the base conditions from 500 (`DeploymentAvailable`, `MigrationsApplied`, `DataPlaneHealthy`) and flip on `RoutesPublished` whenever they own Gateway routes, then append the IPC-specific ones listed above. The shared Lua health script inspects the baseline set first (three or four entries, depending on routes) before evaluating the IPC-specific conditions so we keep a single health gate across controller tiers.
 * `status.phase` sticks to the `Ready/Progressing/Degraded` enum; the operator translates `WorkflowCompilerReady` + `TemporalWorkersAvailable` into those canonical phase values so IPCs participate in fleet-wide dashboards without a custom adapter.
 
 ### 3.2 Process-specific condition extensions

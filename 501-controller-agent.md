@@ -138,7 +138,7 @@ The default rollout phase (650) keeps IACs behind platform/domain controllers wh
 We do **not** re-list the label contract here—see §4.3 of [500-controller-domain](500-controller-domain.md)—because that backlog is the canonical source. Instead, IAC docs are responsible for the _additional_ agent-specific requirements:
 
 * The shared `status.phase` enum (`Ready`, `Progressing`, `Degraded`) applies exactly as defined in 500 so controller-contract tests can treat IDCs/IACs/IPCs uniformly.
-* Operators must publish the mandatory IDC conditions (`DeploymentAvailable`, `MigrationsApplied`, `DataPlaneHealthy`) **plus** the agent-only extensions `ToolGrantsValidated` and `SecretsReady`. ArgoCD and the Architect Agent read all five so we get consistent health semantics across controller tiers.
+* Operators must publish the mandatory IDC conditions (`DeploymentAvailable`, `MigrationsApplied`, `DataPlaneHealthy`) **and** flip on `RoutesPublished` whenever HTTP/GRPC routes exist, then layer the agent-only extensions `ToolGrantsValidated` and `SecretsReady` on top. Depending on whether the controller owns Gateway routes, ArgoCD and the Architect Agent will inspect five or six conditions, but the names and semantics stay identical to the contract defined in backlog 500.
 
 ### 3.2 Agent-specific condition extensions
 
