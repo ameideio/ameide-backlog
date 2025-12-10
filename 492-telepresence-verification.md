@@ -56,6 +56,17 @@ All stdout/stderr gets prefixed with `[telepresence-helper] <timestamp>` so mult
 
 `telepresence intercept` writes the intercepted pod’s ConfigMap-derived env vars into `.telepresence-envs/<workload>.env`. Because `services.www_ameide_platform.organization.defaultOrg` is the single GitOps source of truth, the verify helper should assert that this env file contains `AUTH_DEFAULT_ORG`, `NEXT_PUBLIC_DEFAULT_ORG`, and `WWW_AMEIDE_PLATFORM_ORG_ID` (all equal to the Keycloak slug such as `atlas`). Missing or mismatched values mean Helm values were not updated and should block verification until Argo syncs the fix.
 
+## RBAC quick check
+
+Before blaming Telepresence itself, confirm the traffic-manager service account still has the permissions defined in [492-telepresence-reliability.md](492-telepresence-reliability.md#rbac-verification--documentation):
+
+```bash
+kubectl -n ${TELEPRESENCE_NAMESPACE:-ameide-dev} get role traffic-manager -o yaml | rg -C2 pods/eviction
+kubectl auth can-i --as system:serviceaccount:${TELEPRESENCE_NAMESPACE:-ameide-dev}:traffic-manager create pods/eviction -n ${TELEPRESENCE_NAMESPACE:-ameide-dev}
+```
+
+If either command fails, sync `*-traffic-manager`, fix the RBAC templates under `sources/charts/third_party/telepresence/telepresence/2.25.1/`, and rerun verify. RBAC regressions show up in the helper’s failure matrix under the “intercept failed” row, but this fast check gives immediate signal in dev shells and CI logs.
+
 ## Failure signatures and remediation
 
 | Signature | Helper output | Most likely cause | Actions |

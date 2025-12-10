@@ -174,6 +174,7 @@ For each IPC, the **IPC operator** produces/maintains:
 * **Gateway API routes**:
 
   * IPCs that expose HTTP/Connect control planes (e.g., workflow admin APIs or process callbacks) render their `HTTPRoute`/`GRPCRoute` resources inside the IPC release. This follows the same ownership rule captured in 417/459 so no `extraHttpRoutes` live in the shared gateway chart—the controller spec is the single source of truth for hostnames, oauth2-proxy frontends, and health probes.
+  * IPC operators reuse the shared `RoutesPublished` condition so GitOps gates on route health. They set it to `False` until each owned route shows `Accepted=True` + `Programmed=True` on `gateway/ameide`, mirroring the behaviour expected from IDCs/IACs.
 
 IPC authors do **not** write Temporal code directly if they don’t want to; the default path is:
 

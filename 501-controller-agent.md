@@ -179,6 +179,7 @@ Key points:
 
 7. **Own Gateway API exposure**
    * Agents that present gRPC/Connect or HTTP endpoints must ship their `HTTPRoute`/`GRPCRoute` resources in the IAC release (reusing the same contract as 500/417/459). Platform gateways provide listeners/TLS only; every controller owns its hostnames, oauth2-proxy frontends, and health probes so Argo can treat traffic exposure as part of the controller spec instead of an `extraHttpRoutes` side-file.
+   * The operator also emits the shared `RoutesPublished` condition (§4.3 of 500) whenever those routes exist. Keep it `False` until each HTTPRoute/GRPCRoute reports `Accepted=True` and `Programmed=True` against `gateway/ameide` so Argo health blocks rollouts when oauth2-proxy chains or hostnames drift.
 
 ---
 

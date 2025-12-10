@@ -209,6 +209,7 @@ The **IDC operator** reconciling `IntelligentDomainController` CRs must:
 7. **Own Gateway API exposure**
 
    * When an IDC publishes HTTP/GRPC endpoints, the operator must render the corresponding `HTTPRoute`/`GRPCRoute` resources in the IDC release (see 417/459). Hostnames, listeners, and oauth2-proxy chains live with the controller so the platform gateway only provides shared infrastructure—no more `extraHttpRoutes` patches. This keeps ownership clear and allows Argo health to reason about exposure status alongside the rest of the controller spec.
+   * IDC releases must also surface a `RoutesPublished` status condition whenever HTTP/GRPC routes exist. Set it to `True` only when the route’s `.status.parents[].conditions` report both `Accepted=True` and `Programmed=True` for `gateway/ameide`. Controller-contract health checks read this flag so broken Gateway wiring shows up as a degraded controller instead of a hidden Envoy issue.
 
 ### 4.2 Interaction with GitOps & Backstage
 
@@ -247,6 +248,8 @@ The required `status.conditions` set is equally strict because downstream toolin
 | `DeploymentAvailable` | Mirrors Kubernetes deployment health so GitOps and rollout automation can block promotions until pods are ready. |
 | `MigrationsApplied` | Indicates schema + data reconciliation succeeded; IPC/IAC lint checks read this before allowing new bindings to target an IDC. |
 | `DataPlaneHealthy` | Aggregates DB + eventing probes; Architect Agents treat a `False` value as a hard stop when proposing dependent changes. |
+
+Controllers that expose Gateway API routes add a fourth mandatory `RoutesPublished` condition; the operator sets it to `False` until every owned `HTTPRoute`/`GRPCRoute` is accepted and programmed. ArgoCD’s health Lua toggles the controller to `Degraded` when `RoutesPublished=False`, so the rollout ladder halts before downstream services depend on a broken hostname.
 
 Additional conditions (e.g., `PrimitivesPublished`) are allowed, but the three above are mandatory, and they must always pair with the shared `status.phase` values (`Ready`, `Progressing`, `Degraded`). Controllers that conform to this contract automatically get ArgoCD health parity because the shared Lua check simply inspects the standardized condition list.
 

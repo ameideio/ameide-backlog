@@ -60,6 +60,20 @@ Teleporting the inner loop to the shared AKS cluster is now the only supported w
 - **Traffic Agent**: Injected into workloads during intercept (Tilt targets `apps-*-tilt` releases to avoid Argo drift).
 - **Registry**: Tilt pushes images to `ghcr.io/ameideio/...` when `TILT_REMOTE=1`.
 
+### RBAC verification & documentation
+
+- **Source of truth** – RBAC templates live under `sources/charts/third_party/telepresence/telepresence/2.25.1/templates/trafficManagerRbac/`. Both the namespace- and cluster-scoped files grant `pods/eviction.create`, `services.create`, and `servicecidrs.get/list/watch`, so we no longer need ad-hoc patches when Telepresence upgrades requirements.
+- **Argo ownership** – `dev|staging|prod-traffic-manager` Applications render those templates directly, so a `kubectl get gitopsapp dev-traffic-manager -o jsonpath='{.status.sync.status}'` returning `Synced` is the gate that RBAC landed.
+- **Verification commands** – To prove RBAC exists and is wired to the service account, run:
+
+  ```bash
+  kubectl -n ameide-dev get role traffic-manager -o yaml | rg -C2 pods/eviction
+  kubectl auth can-i --as system:serviceaccount:ameide-dev:traffic-manager create pods/eviction -n ameide-dev
+  kubectl auth can-i --as system:serviceaccount:ameide-dev:traffic-manager get servicecidrs --all-namespaces
+  ```
+
+  These commands are referenced from the verification backlog so the “is this documented somewhere?” question always has a single answer. If any command fails, upgrade the chart copy under `sources/charts/third_party/telepresence/...` and let Argo sync the fix instead of patching roles in place.
+
 ## Current workflow
 
 1. **Context bootstrap** – `.devcontainer/postCreate.sh` and `tools/dev/bootstrap-contexts.sh` refresh `ameide-{dev,staging,prod}` contexts and set Telepresence defaults (backlog 491).
