@@ -6,6 +6,8 @@ Goal: retire every `infra/kubernetes/helmfiles/*.yaml` release from the **runtim
 
 This document captures the target Git layout, ApplicationSet strategy, and a migration checklist so we can fence Helmfile into that rendering-only role once the v5 GitOps setup is complete.
 
+> **Bootstrap reference:** Execution steps that previously called `tools/bootstrap/bootstrap-v2.sh` now map to `ameide-gitops/bootstrap/bootstrap.sh`. DevContainers in `ameide-core` use `tools/dev/bootstrap-contexts.sh` solely to configure kubectl/Telepresence/argocd against the shared AKS cluster per [435-remote-first-development.md](435-remote-first-development.md).
+
 ---
 
 ## 1. Target Git structure (config repo)
@@ -144,6 +146,12 @@ For each helmfile (track status as we migrate):
 | `60-qa` | `platform/qa/platform-smoke`. | ✅ platform smoke job as Helm test (wave55). |
 
 _Current status:_ `foundation-dev` ApplicationSet now gates namespaces → CRDs → CoreDNS → all operators (cert-manager, ESO, CNPG, Strimzi, Redis, ClickHouse, Keycloak) → Vault/secrets across waves `00`–`21`, and the operators smoke job runs in the same step. _Next:_ migrate Helmfile **22-control-plane** into GitOps components so the platform tier (Ingress/Gateway, policies, etc.) is fully declarative.
+
+_Dec 2025 checkpoint:_ new Tier 1 workloads (e.g., `extensions-runtime` from Backlog 480) and refreshed frontends (`www-ameide-platform` default org wiring) are entering the platform tier. Action items:
+
+- Add `components/apps/extensions-runtime` with `tier: apps`, `wave: 36`, matching the service’s Helm chart + image tags so ApplicationSets own its lifecycle (Tilt now builds/pushes both dev + release images to GHCR).
+- Ensure `services/www_ameide_platform` component consumes the new values contract (`services.www_ameide_platform.organization.defaultOrg`) and that dev/staging/prod overlays set it, otherwise Helm rendering fails per §1 (“New required value”).
+- Delete or re-label any legacy Helmfile-applied Deployments/Secrets in namespaces now owned by ApplicationSets (especially platform gateways and Temporal) so Argo’s orphan detection surfaces real drift instead of false positives.
 
 _Layer 15 progress:_ `foundation-cert-manager`, `foundation-external-secrets`, Vault server + PVC, ClusterSecretStores, every `vault-secrets-*` bundle, integration secrets, and the secrets smoke job now live under `environments/dev/components/foundation/secrets/**` (waves 15–21). Helmfile `15-secrets-certificates.yaml` has been deleted. All ExternalSecrets report `Ready=True`; Argo shows them Healthy (OutOfSync only because the controller injects provider defaults).
 
