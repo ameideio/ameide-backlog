@@ -135,6 +135,11 @@ Agent controllers follow the same metadata contract introduced in 500/461 so aut
 
 The default rollout phase (650) keeps IACs behind platform/domain controllers while still allowing tenant overrides to run additional smokes later in the ladder. Operators must also emit `ToolGrantsValidated` and `SecretsReady` conditions in `status.conditions`; the Lua health checks used by ArgoCD read these flags before marking the Application Healthy.
 
+We do **not** re-list the label contract here—see §4.3 of [500-controller-domain](500-controller-domain.md)—because that backlog is the canonical source. Instead, IAC docs are responsible for the _additional_ agent-specific requirements:
+
+* The shared `status.phase` enum (`Ready`, `Progressing`, `Degraded`) applies exactly as defined in 500 so controller-contract tests can treat IDCs/IACs/IPCs uniformly.
+* Operators must publish the mandatory IDC conditions (`DeploymentAvailable`, `MigrationsApplied`, `DataPlaneHealthy`) **plus** the agent-only extensions `ToolGrantsValidated` and `SecretsReady`. ArgoCD and the Architect Agent read all five so we get consistent health semantics across controller tiers.
+
 Key points:
 
 * CRDs reference **AgentDefinition artifacts** rather than embedding prompt/code. UAF remains the source of truth for agent logic; CRs focus on runtime posture.

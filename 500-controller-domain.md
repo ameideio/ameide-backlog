@@ -234,6 +234,18 @@ All controller backlogs share a **common metadata contract** so operators, GitOp
 
 Status objects must expose at least `DeploymentAvailable`, `MigrationsApplied`, and `DataPlaneHealthy` conditions; ArgoCD health scripts key off these fields, and the Architect Agent reads them when proposing changes. This section applies to IAC/IPC specs as well, but IDCs anchor the contract by publishing the canonical label set other controllers reference.
 
+To eliminate drift, this IDC backlog is the **canonical definition** of the controller metadata surface. IAC (501) and IPC (502) now link back to this table and inherit keys verbatim; the controller conformance tests called `controller-contract` fail any CRDs that omit the `ameide.io/*` labels or roll-out annotations defined here. Whenever we expand the contract (for example, new SKU labels or rollout annotations), we update _this_ section first and downstream docs simply reference it instead of redefining the list.
+
+The required `status.conditions` set is equally strict because downstream tooling consumes the exact condition names:
+
+| Condition | Description |
+|-----------|-------------|
+| `DeploymentAvailable` | Mirrors Kubernetes deployment health so GitOps and rollout automation can block promotions until pods are ready. |
+| `MigrationsApplied` | Indicates schema + data reconciliation succeeded; IPC/IAC lint checks read this before allowing new bindings to target an IDC. |
+| `DataPlaneHealthy` | Aggregates DB + eventing probes; Architect Agents treat a `False` value as a hard stop when proposing dependent changes. |
+
+Additional conditions (e.g., `PrimitivesPublished`) are allowed, but the three above are mandatory, and they must always pair with the shared `status.phase` values (`Ready`, `Progressing`, `Degraded`). Controllers that conform to this contract automatically get ArgoCD health parity because the shared Lua check simply inspects the standardized condition list.
+
 ---
 
 ## 5. Information model & domain contracts

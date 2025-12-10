@@ -138,6 +138,12 @@ Per the shared controller contract (461/500/501), IPC CRDs must carry:
 
 The rollout phase keeps IPC workers behind domain/agent controllers but before UI runtimes (apps at 650+). IPC operators publish `WorkflowCompilerReady`, `TemporalWorkersAvailable`, and `BindingsValidated` conditions; ArgoCD’s health Lua reads these flags so RollingSync halts if BPMN compilation or Temporal worker deployment fails.
 
+As with IACs, we now treat §4.3 of [500-controller-domain](500-controller-domain.md) as the single source of truth for metadata + phase semantics. IPC docs only explain the _extra_ process-controller requirements. Practically that means:
+
+* The canonical label set from 500 is mandatory; controller-contract tests run `kubectl get intelligentprocesscontrollers` and fail if any IPC lacks the `ameide.io/*` keys or the 640 rollout phase annotation.
+* IPC statuses publish the three base conditions (`DeploymentAvailable`, `MigrationsApplied`, `DataPlaneHealthy`) defined for IDCs **plus** the IPC-specific ones listed above. The shared Lua health script inspects the base trio first, then the IPC-specific ones so we keep a single health gate across controller tiers.
+* `status.phase` sticks to the `Ready/Progressing/Degraded` enum; the operator translates `WorkflowCompilerReady` + `TemporalWorkersAvailable` into those canonical phase values so IPCs participate in fleet-wide dashboards without a custom adapter.
+
 **Key decisions:**
 
 * IPC **does not embed BPMN**; it references ProcessDefinitions in Transformation/UAF via `artifactId + revision`. 
