@@ -324,6 +324,17 @@ Instead:
 
 ---
 
+## 6.5 Execution Snapshot (Dec 2025)
+
+- **Code-first extensibility proved out.** The `extensions-runtime` service (Backlog 480) now executes tenant-provided WASM helpers with Wasmtime sandboxes, host-call adapters built on Ameide SDKs, and MinIO-backed module distribution. This is the Ameide alternative to S/4’s Customizing + key-user extensibility layers: partners ship compiled modules and manifests, not IMG transports or DDIC artifacts.
+- **GitOps + waves replace transport landscapes.** ApplicationSet-based deployments (Backlog 364) roll namespaces, CRDs, operators, and services through RollingSync waves, guarded by health checks. That gives us the equivalent of S/4’s DEV→QAS→PRD pipelines but grounded in declarative GitOps rather than transport requests and manual approvals.
+- **Unified modeling surface.** Proto descriptors + CRDs + code scanning feed a central graph, and integration packs enforce naming/contract linting (Backlog 430). There is no split between DDIC/CDS/UI annotations/config tables; everything the AI and operators need lives in the repo and is validated together.
+- **Tenancy + clean core by construction.** Risk-tiered execution contexts ensure extensions use existing Domain/Process APIs with controller-issued tokens—no “t-code” style ad-hoc DB access. This keeps the clean-core promise S/4 emphasizes, but via mechanically enforced SDKs instead of policy guidelines.
+
+These shipping capabilities show the Ameide vision is already manifesting in code, not just in architectural slides: extensions, deployments, and introspection now operate exactly as the code-first, AI-operated model prescribes.
+
+---
+
 ## 7. Summary
 
 Compared to **SAP S/4HANA’s metadata- and configuration-driven architecture**, Ameide:

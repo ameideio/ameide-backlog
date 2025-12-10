@@ -514,7 +514,18 @@ This section maps vision principles to existing backlogs and flags gaps requirin
 
 ---
 
-### 9.4 Cross-Reference Index
+### 9.4 Implementation Checkpoints (Dec 2025)
+
+- **Tier 1 extensibility runtime shipped (Backlog 480).** `extensions-runtime` now exists as a platform service in `ameide-{env}`, exposes a single `InvokeExtension` gRPC API, and runs tenant WASM modules with Wasmtime sandboxing + MinIO-backed module storage. Host calls already route through Ameide SDK-backed adapters, so Domain/Process/AgentControllers keep their deterministic contracts. This closes a long-standing gap in §3.4 (“Agentic everywhere, but controlled”) by delivering a real shared helper runtime instead of bespoke controller plug-ins.
+- **Unified ApplicationSet orchestration live (Backlog 364).** The GitOps repo now drives namespaces, CRDs, operators, platform planes, and services via RollingSync ApplicationSets. Helmfiles are confined to render-only duties and every component carries `tier`/`wave` labels, so §3.5 (“Design ≠ Deploy ≠ Runtime”) is enforced mechanically: design artifacts land in Transformation, Git commits update controller manifests, and ArgoCD waves gate rollout.
+- **SDK + controller alignment (Backlogs 388, 430).** Go/TS/Python SDKs consume the same `runtime.proto` and integration packs enforce the `SERVICEPREFIX_FIELD` env-var convention via `tools/integration-runner/verify_required_env_vars.sh`. This keeps the “single proto + SDK layer” promise in §3.1 tangible: controllers call platform helpers (e.g., `extensions-runtime`) exactly the same way UIs do, and integration suites fail fast when cluster dependencies are misconfigured.
+- **Namespace + tenancy guardrails upheld (Backlogs 472, 478).** Extension modules execute as *data* in platform namespaces, but all side effects still flow through controller APIs using ExecutionContext-derived tokens. The GitOps layouts and Telepresence overlays continue to enforce “custom services stay in tenant namespaces” while letting shared runtimes operate in `ameide-{env}`.
+
+Together, these checkpoints demonstrate that the architectural principles in §§2–4 are no longer aspirational: we have concrete platform services, GitOps flows, and SDK contracts embodying them. Remaining work (see §9.3) is mostly documentation debt and incremental observability.
+
+---
+
+### 9.5 Cross-Reference Index
 
 **Vision Suite**:
 - [470-ameide-vision.md](470-ameide-vision.md) – This document

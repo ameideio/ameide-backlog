@@ -268,6 +268,17 @@ Our focus is:
 
 ---
 
+## 7.5 Execution Snapshot (Dec 2025)
+
+- **Runtime proof:** `extensions-runtime` (Backlog 480) now operates as the Tier 1 plugin host, exposing a single proto-first `InvokeExtension` API and executing tenant WASM modules behind Ameide-owned host adapters. This is the tangible replacement for D365’s Metadata AOT “class extensions”—it keeps controllers deterministic while letting partners ship helper logic in code.
+- **Deployment discipline:** The GitOps layout from Backlog 364 is live: ApplicationSets roll out namespaces → CRDs → operators → apps via RollingSync waves, and Helmfiles are render-only. That mirrors the “design vs deploy vs runtime” separation this comparison leans on, avoiding the AOT-style mingling of metadata, build, and runtime.
+- **Tooling coherence:** SDKs, proto packages, and integration packs now lint on a shared `SERVICEPREFIX_FIELD` env-var convention (Backlog 430) and reuse the same `runtime.proto` definitions. This ensures the “single source of truth” graph is code+proto, not metadata trees, and the AI/dev loop stays consistent across controllers and UIs.
+- **Tight tenancy rules:** Even though Tier 1 extensions run in `ameide-{env}`, tenancy + auth are enforced by ExecutionContext tokens issued by controllers, satisfying §3’s “Agentic but controlled” principle and contrasting with D365’s shared metadata store that often needed manual guardrails.
+
+These concrete deliverables differentiate Ameide from D365 not just philosophically but operationally: we now have shipping services, GitOps automation, and SDK contracts that embody the code-first, AI-first stance outlined above.
+
+---
+
 ## 8. Summary
 
 Compared to D365’s AOT‑driven, metadata‑first ERP development:
