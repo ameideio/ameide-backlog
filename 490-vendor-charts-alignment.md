@@ -5,13 +5,13 @@
 **Owner**: Platform / GitOps  
 **Related**: [456-ghcr-mirror.md](456-ghcr-mirror.md) · [464-chart-folder-alignment.md](464-chart-folder-alignment.md) · [458-helm-chart-ci-testing.md](458-helm-chart-ci-testing.md) · [447-third-party-chart-tolerations.md](447-third-party-chart-tolerations.md)
 
-> **Repository scope**: Application source lives in `ameide-core`. This backlog applies to the `ameide-gitops` repo, which owns vendored Helm charts, Argo CD configs, and infra automation.
+> **Repository scope**: Application source lives in `ameideio/ameide`. This backlog applies to the `ameideio/ameide-gitops` repo, which owns vendored Helm charts, Argo CD configs, and infra automation.
 
 ---
 
 ## 1. Background
 
-This `ameide-gitops` repository is the platform’s infrastructure source of truth: it keeps all Helm charts under `sources/charts/`, values overlays under `sources/values/`, and the automation scripts (`scripts/vendor-charts.sh`, `scripts/validate-hardened-charts.sh`, etc.) that Argo CD relies on. Application services live in `ameide-core`; they only consume the outputs published here (cluster state, vendored CRDs, mirrored container images). Any “vendoring” work (pinning upstream charts, mirroring container images, recording supply-chain metadata) happens here; `ameide-core` only vendors its own application dependencies (e.g., SDKs) and has no third-party Helm charts.
+The `ameideio/ameide-gitops` repository is the platform's infrastructure source of truth: it keeps all Helm charts under `sources/charts/`, values overlays under `sources/values/`, and the automation scripts (`scripts/vendor-charts.sh`, `scripts/validate-hardened-charts.sh`, etc.) that Argo CD relies on. Application services live in `ameideio/ameide`; they only consume the outputs published here (cluster state, vendored CRDs, mirrored container images). Any "vendoring" work (pinning upstream charts, mirroring container images, recording supply-chain metadata) happens here; the main repo (`ameideio/ameide`) only vendors its own application dependencies (e.g., SDKs) and has no third-party Helm charts.
 
 We finished consolidating all Helm charts under `sources/charts/` (per backlog/464), but the operational tooling that refreshes vendored dependencies still points at the pre-refactor layout (`infra/kubernetes/charts/third_party`). As a result:
 

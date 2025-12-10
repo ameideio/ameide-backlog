@@ -4,8 +4,10 @@ Here's a first cut of the **Application & Information Architecture** doc, aligne
 
 # 3 – Application & Information Architecture (Draft)
 
-**Audience:** Platform & domain engineers, solution architects, “platform-facing” agents
+**Audience:** Platform & domain engineers, solution architects, "platform-facing" agents
 **Scope:** How Ameide is structured as software (domains, processes, agents, UI) and how information flows and is stored across the platform.
+
+> **Core Invariants**: See [470-ameide-vision.md §0 "Ameide Core Invariants"](470-ameide-vision.md) for the canonical list (four primitives, Graph read-only, Transformation as domain, proto chain, tenant isolation, Backstage internal).
 
 ---
 
@@ -15,22 +17,22 @@ Here's a first cut of the **Application & Information Architecture** doc, aligne
 
 * Defines the **core application building blocks**:
 
-  * Domain controllers
-  * Process controllers
-  * Agents
-  * UI workspaces / process views
+  * Domain primitives
+  * Process primitives
+  * Agent primitives
+  * UISurfaces / process views
 * Describes how **information is modeled**:
 
   * Per-domain SQL stores
-  * Process definitions (BPMN) stored in **Transformation DomainController**
-  * Transformation artifacts (managed via UAF UIs, stored by Transformation DomainController)
+  * Process definitions (BPMN) stored in **Transformation Domain**
+  * Transformation artifacts (managed via Transformation design tooling UIs, stored by Transformation Domain)
   * Cross-domain knowledge graph (read-only projection)
 * Shows how **Backstage** is used as the “declarative front-door” to design domains/processes/agents.
 * Aligns with:
 
   * Proto-based APIs & SDK strategy
   * Unified Artifact Framework for transformation artifacts
-  * Temporal-backed ProcessController execution and SaaS-like ops model.
+  * Temporal-backed Process primitive execution and SaaS-like ops model.
 
 ### 1.2 Constraints & design principles (from previous docs)
 
@@ -43,7 +45,7 @@ We carry forward the earlier principles and make them concrete here:
    *All behavior lives in bounded contexts (domains), each with its own model, storage and APIs.*
 
 3. **Transformation as a domain**
-   *Transformation (requirements, UAF artifacts, governance) is modeled like O2C: domain + processes + agents, not a side-console.*
+   *Transformation (requirements, Transformation design tooling artifacts, governance) is modeled like O2C: domain + processes + agents, not a side-console.*
 
 4. **Agentic from any angle**
    *Agents can read from knowledge, call domains, and be invoked from processes in a controlled, typed way.*
@@ -52,13 +54,13 @@ We carry forward the earlier principles and make them concrete here:
    *Every domain/process/agent exposes a proto-based API, with Buf/BSR governance and SDKs.*
 
 6. **Kubernetes-style declarative state**
-   *We declare desired state (e.g. “invoice posted”) and controllers + workflows converge actual state, similar to K8s reconciliation loops and CRDs.*
+   *We declare desired state (e.g. “invoice posted”) and primitives + workflows converge actual state, similar to K8s reconciliation loops and CRDs.*
 
 ---
 
 ## 2. Core Application Building Blocks
 
-### 2.1 Domain Controllers (Domain layer)
+### 2.1 Domain primitives (Domain layer)
 
 **Responsibility:** Encapsulate business concepts, invariants and persistence for a single bounded context.
 
@@ -66,7 +68,7 @@ We carry forward the earlier principles and make them concrete here:
 
 * *Sales* domain (Leads, Opportunities, Quotes)
 * *Billing* domain (Invoices, Payments, Dunning)
-* *Transformation* domain (Initiatives, Backlog Items, UAF Artifacts)
+* *Transformation* domain (Initiatives, Backlog Items, Transformation design tooling artifacts)
 
 **Characteristics**
 
@@ -88,27 +90,27 @@ We carry forward the earlier principles and make them concrete here:
 * **Authoritative** for its aggregate roots (Customer, Opportunity, Invoice, Initiative, etc.).
 * **Tenant-aware** – every record tagged with `tenant_id`.
 * **Projectable** – each domain can opt-in to project parts of its model into the cross-domain Graph for analysis and agent reasoning (see §3.4).
-* **Runtime representation** – each DomainController exists as an `IntelligentDomainController (IDC)` custom resource (see 461). The IDC operator reconciles the CR into Deployments, Services, HPAs, DB schemas, and ServiceMonitors, enforcing standard Ameide policies.
+* **Runtime representation** – each Domain primitive exists as a `Domain` CRD. The Domain operator reconciles the CRD into Deployments, Services, HPAs, DB schemas, and ServiceMonitors, enforcing standard Ameide policies.
 
-### 2.2 Process Controllers (Process layer)
+### 2.2 Process primitives (Process layer)
 
 **Responsibility:** Orchestrate **cross-domain** flows such as L2O, O2C, Procure-to-Pay, or Transformation workflows (Scrum/Togaf ADM).
 
-*Design-time:* **ProcessDefinitions** are BPMN-compliant artifacts produced by a **custom React Flow modeller** and stored in the **Transformation DomainController** (modelled via UAF UIs). At runtime they are executed by **ProcessControllers** backed by Temporal workflows.
+*Design-time:* **ProcessDefinitions** are BPMN-compliant artifacts produced by a **custom React Flow modeller** and stored in the **Transformation Domain** (modelled via Transformation design tooling UIs). At runtime they are executed by **Process primitives** backed by Temporal workflows.
 
 **Key concepts**
 
-* **ProcessDefinition** (design-time, stored in Transformation DomainController)
+* **ProcessDefinition** (design-time, stored in the Transformation Domain)
 
   * BPMN-compliant artifact + metadata (tenant, version, process type like L2O/O2C/T2C).
   * Defines process stages, tasks, gateways, and bindings to domains/agents.
-  * Stored and versioned in the **Transformation DomainController** with revisions & promotions (modelled via UAF UIs).
-* **ProcessController** (runtime)
+  * Stored and versioned in the **Transformation Domain** with revisions & promotions (modelled via Transformation design tooling UIs).
+* **Process primitive** (runtime)
 
   * Logical unit that "executes" a ProcessDefinition:
 
-    * Loads ProcessDefinition from the Transformation DomainController.
-    * Maps BPMN tasks to DomainController API calls and/or AgentController tools.
+    * Loads ProcessDefinition from the Transformation Domain.
+    * Maps BPMN tasks to Domain primitive API calls and/or Agent primitive tools.
     * Handles business-level errors and compensations.
   * Backed by Temporal workflows.
 * **Execution**
@@ -128,7 +130,7 @@ We carry forward the earlier principles and make them concrete here:
   * Execution state (activity id, token position)
   * Audit trail (who approved, when)
 * Stored in **Temporal** plus Ameide projections (for consolidated reporting).
-* **Runtime representation** – ProcessControllers are declared via `IntelligentProcessController (IPC)` CRs that reference ProcessDefinition versions, Temporal namespaces, rollout policies, and dependent Domain/Agent controllers. The IPC operator reconciles those CRs into worker Deployments, Services, and monitoring assets.
+* **Runtime representation** – Process primitives are declared via `Process` CRDs that reference ProcessDefinition versions, Temporal namespaces, rollout policies, and dependent Domain/Agent primitives. The Process operator reconciles those CRDs into worker Deployments, Services, and monitoring assets.
 
 ### 2.3 Agents (Agent layer)
 
@@ -138,18 +140,18 @@ We carry forward the earlier principles and make them concrete here:
 * Propose changes (requirements, configurations, data corrections)
 * Generate new domain/process/agent definitions via Backstage templates
 
-*Design-time:* **AgentDefinitions** are declarative specs stored in the **Transformation DomainController** (modelled via UAF UIs). At runtime they are executed by **AgentControllers**.
+*Design-time:* **AgentDefinitions** are declarative specs stored in the **Transformation Domain** (modelled via Transformation design tooling UIs). At runtime they are executed by **Agent primitives**.
 
 **Key concepts**
 
-* **AgentDefinition** (design-time, stored in Transformation DomainController)
+* **AgentDefinition** (design-time, stored in Transformation Domain)
 
   * Declarative spec for an agent: tools, orchestration graph, scope, risk tier, policies.
-  * Stored alongside ProcessDefinitions in the Transformation DomainController.
+  * Stored alongside ProcessDefinitions in the Transformation Domain.
   * Subject to governance (review, promotion) before runtime use.
-* **AgentController** (runtime)
+* **Agent primitive** (runtime)
 
-  * Loads an AgentDefinition from the Transformation DomainController and runs the LLM/tool loop.
+  * Loads an AgentDefinition from the Transformation Domain and runs the LLM/tool loop.
   * Enforces scope/risk policies at execution time.
   * Always invoked via domain/process APIs; never becomes source of truth.
 
@@ -157,18 +159,18 @@ We carry forward the earlier principles and make them concrete here:
 
 * **Explicit tool contracts** – each AgentDefinition specifies:
 
-  * Which domain/process APIs the AgentController can call.
-  * What UAF / transformation artifacts it can read or modify.
+  * Which domain/process APIs the Agent primitive can call.
+  * What Transformation design tooling / transformation artifacts it can read or modify.
 * **Runtime**
 
-  * LangGraph / OpenAI / other inference runtimes orchestrate tools via the AgentController.
+  * LangGraph / OpenAI / other inference runtimes orchestrate tools via the Agent primitive.
 * **Determinism boundary**
 
-  * AgentControllers never become the authoritative "source of truth" for domain data; they make proposals or trigger domain commands.
+  * Agent primitives never become the authoritative "source of truth" for domain data; they make proposals or trigger domain commands.
 
 **Information model**
 
-* **AgentDefinitions** (stored per tenant in Transformation DomainController, modelled via UAF UIs):
+* **AgentDefinitions** (stored per tenant in Transformation Domain, modelled via Transformation design tooling UIs):
 
   * Prompt & behavior description
   * Allowed tools & scopes (e.g. "Transformation agent can only touch transformation artifacts and Backstage templates")
@@ -176,9 +178,9 @@ We carry forward the earlier principles and make them concrete here:
 * **Interaction history**
 
   * Persisted in Chat/Threads services for audit and context.
-* **Runtime representation** – AgentControllers are instantiated from `IntelligentAgentController (IAC)` CRs that reference AgentDefinitions, risk tier, runtime chassis, and tool grants. The IAC operator manages Deployments, Secrets, and observability for each agent runtime.
+* **Runtime representation** – Agent primitives are instantiated from `Agent` CRDs that reference AgentDefinitions, risk tier, runtime chassis, and tool grants. The Agent operator manages Deployments, Secrets, and observability for each agent runtime.
 
-### 2.4 UI Workspaces & Process Views
+### 2.4 UISurfaces & process views
 
 We keep two complementary UI modes:
 
@@ -196,31 +198,318 @@ Information-wise:
 
 * UI does **not** own data; it binds:
 
-  * Domain state → domain controllers
-  * Process state → process controllers
-  * Knowledge/analytics → Graph and UAF projections
+  * Domain state → Domain primitives (via SDKs)
+  * Process state → Process primitives (via SDKs)
+  * Knowledge/analytics → Graph and Transformation design tooling projections
 
 ### 2.5 Extensions (Tier 1 WASM)
 
-*Design-time*: `ExtensionDefinition` artifacts are stored in the Transformation DomainController alongside ProcessDefinitions and AgentDefinitions via UAF UIs.
+*Design-time*: `ExtensionDefinition` artifacts are stored in the Transformation Domain alongside ProcessDefinitions and AgentDefinitions via Transformation design tooling UIs.
 
 *Runtime*: A shared `extensions-runtime` service in `ameide-{env}` executes WebAssembly modules for three kinds of hooks:
 
 * `process_hook` – BPMN Extension Tasks in ProcessDefinitions.
-* `domain_hook` – explicit extension points in DomainControllers.
-* `agent_tool` – deterministic helpers for AgentControllers.
+* `domain_hook` – explicit extension points in Domain primitives.
+* `agent_tool` – deterministic helpers for Agent primitives.
 
 Extensions are sandboxed, multi-tenant, and never own durable state; all data access goes back through domain/process/agent APIs with the same tenant/org/user context as the caller. See [479-ameide-extensibility-wasm.md](479-ameide-extensibility-wasm.md) and [480-ameide-extensibility-wasm-service.md](480-ameide-extensibility-wasm-service.md).
 
-### 2.6 Controller CRDs & operators
+### 2.6 Primitive CRDs & operators
 
-At runtime Ameide treats every controller as a declarative Kubernetes custom resource:
+At runtime Ameide treats every Domain/Process/Agent/UISurface primitive as a declarative Kubernetes custom resource:
 
-* `IntelligentDomainController` (IDC) – domain runtime desired state
-* `IntelligentProcessController` (IPC) – process runtime desired state
-* `IntelligentAgentController` (IAC) – agent runtime desired state
+* `Domain` CRD – domain runtime desired state (image, config, DB bindings, resources)
+* `Process` CRD – process runtime desired state (image, Temporal namespace/bindings, rollout policy)
+* `Agent` CRD – agent runtime desired state (runtime chassis, model/provider config, tool grants, risk tier)
+* `UISurface` CRD – UI runtime desired state (image, routing, auth scopes, feature flags)
 
-ArgoCD applies IDC/IPC/IAC manifests checked into Git; dedicated Ameide operators reconcile them into Deployments, Services, HPAs, Temporal workers, CNPG schemas, ServiceMonitors, and other low-level objects. This keeps Git as the single source of truth while giving SREs a first-class object model for controllers. See [461-ipc-idc-iac.md](461-ipc-idc-iac.md) for CRD schemas.
+ArgoCD applies these CRDs checked into Git; dedicated Ameide operators reconcile them into Deployments, Services, HPAs, Temporal workers, CNPG schemas, ServiceMonitors, and other low-level objects. This keeps Git as the single source of truth while giving SREs a first-class object model for primitives. See [474-ameide-refactoring.md](474-ameide-refactoring.md) for how the platform converges on this primitive + CRD model.
+
+### 2.7 Contract → Implementation → Runtime chain
+
+Every primitive travels the same three-layer chain. We make the links explicit, versioned, and machine-checkable so that a change in the proto contract propagates deterministically into Go code and ultimately into the GitOps manifests that Argo CD applies.
+
+#### Proto (contract)
+
+* Protos live in dedicated Buf modules per bounded context under `packages/ameide_core_proto/` (mirrored into Go modules such as `github.com/ameide/apis/domains/sales`).
+* CI runs Buf breaking-change checks against the main branch before publishing a new module tag (e.g. `apis/domains/sales v1.5.0`).[^buf]
+* Generated Go (and TS/Python) SDKs are published as versioned modules so downstream services can pin to an exact contract.
+
+#### Implementation (Go service)
+
+* Each Domain/Process/Agent implementation is its own Go module (or sub-module) that **imports the generated proto module** in `go.mod`:
+
+  ```go
+  module github.com/ameide/sales-domain
+
+  require github.com/ameide/apis/domains/sales v1.5.0
+  ```
+
+* CI enforces:
+
+  * `go mod tidy` cleanliness (no transitive drift).
+  * Tests against the imported proto version.
+  * Docker images tagged with `git sha` + semantic version (e.g. `ghcr.io/ameide/sales-domain:1.12.3`).
+  * Optional OCI labels capturing proto module + version:
+
+    ```bash
+    docker build \
+      --label 'ameide.io/proto-module=github.com/ameide/apis/domains/sales' \
+      --label 'ameide.io/proto-version=v1.5.0' \
+      -t ghcr.io/ameide/sales-domain:1.12.3 .
+    ```
+
+#### Runtime (GitOps + Argo CD)
+
+* GitOps manifests in the platform repo (and tenant repos) reference the exact image tag and annotate the relationship:
+
+  ```yaml
+  apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: sales-domain
+    annotations:
+      ameide.io/proto-module: github.com/ameide/apis/domains/sales
+      ameide.io/proto-version: v1.5.0
+      ameide.io/image-digest: sha256:…
+  spec:
+    template:
+      spec:
+        containers:
+        - name: sales-domain
+          image: ghcr.io/ameide/sales-domain:1.12.3
+  ```
+
+* Argo CD best practices already recommend separating application source repos from environment/GitOps repos; we follow that model so manifests reflect the latest *published* image, not whatever is on a developer branch.[^argo]
+* Rolling out a new proto or service version therefore becomes:
+
+  1. Merge proto PR → Buf module tag.
+  2. Update Go module import + release image.
+  3. Update GitOps manifest (fast-forward PR) to new image tag.
+
+#### Service descriptor & catalog cross-link
+
+To make the chain easy to query, each primitive carries a Backstage `catalog-info.yaml` (or `service.yaml`) describing:
+
+```yaml
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: sales-domain
+  annotations:
+    ameide.io/proto-module: github.com/ameide/apis/domains/sales
+    ameide.io/proto-version: v1.5.0
+    ameide.io/gitops-path: gitops/platform/domains/sales-domain
+spec:
+  type: domain
+  lifecycle: production
+  owner: platform/sales
+```
+
+Backstage ingests these descriptors so humans and agents can answer “which proto version is live in prod?” without scraping clusters.[^backstage] Automation (e.g. the `PrimitiveImplementationDraft` flow in [478-ameide-extensions.md](478-ameide-extensions.md)) uses the same metadata to open the right PRs in source and GitOps repos. `478` goes deeper on folder layout and template scaffolding; this section documents why the linkage is required.
+
+[^buf]: Buf modules and breaking change detection – [buf.build/docs/breaking](https://buf.build/docs/breaking/?utm_source=chatgpt.com)
+[^argo]: Argo CD best practices for separating source vs config repos – [argo-cd.readthedocs.io](https://argo-cd.readthedocs.io/en/stable/user-guide/best_practices/?utm_source=chatgpt.com)
+[^backstage]: Backstage Software Catalog descriptors – [backstage.io/docs/features/software-catalog](https://backstage.io/docs/features/software-catalog/?utm_source=chatgpt.com)
+
+---
+
+### 2.8 Proto Semantic Layers (Entities / Interfaces / Events)
+
+Proto serves as Ameide's single schema language, but carries **three distinct semantics**:
+
+| Semantic | Purpose | Proto construct | Package convention |
+|----------|---------|-----------------|-------------------|
+| **Entity** | Data that lives in the DB | `message` | `ameide.{domain}.v1` |
+| **Interface** | Operations callers invoke | `service` | `ameide.{domain}.v1` |
+| **Event** | Facts that happened | `message` | `ameide.{domain}.events.v1` |
+
+These are differentiated via **conventions + lightweight options**, not a separate metadata system. This keeps us aligned with the "code-first, thin metadata" stance (470 §5).
+
+#### 2.8.1 Entities
+
+Entities are the "business objects" a Domain primitive owns. They map conceptually to tables or aggregates, but we don't force 1:1 with DB tables in proto (DB schema stays an implementation detail).
+
+**Conventions:**
+
+* Live in the domain package for that bounded context
+* Can be tagged with `(ameide.entity_kind)` for tooling: `AGGREGATE`, `PROJECTION`, `LOOKUP`
+
+```proto
+package ameide.sales.v1;
+
+message Opportunity {
+  string id = 1;
+  string tenant_id = 2;
+  string organization_id = 3;
+  string customer_id = 4;
+  string name = 5;
+  string stage = 6;
+}
+
+// Projection entity (like a read model / view)
+message OpportunityListItem {
+  option (ameide.entity_kind) = PROJECTION;
+  string id = 1;
+  string customer_name = 2;
+  string stage = 3;
+}
+```
+
+#### 2.8.2 Interfaces
+
+Interfaces are the `service` definitions – what UIs, agents, or other domains actually call. We typically split into:
+
+* **Domain APIs** – internal, rich operations
+* **Integration APIs** – external, stable contracts
+
+```proto
+service SalesDomainService {
+  option (ameide.interface_kind) = DOMAIN;
+
+  // Commands
+  rpc CreateOpportunity(CreateOpportunityRequest) returns (Opportunity);
+  rpc UpdateOpportunityStage(UpdateOpportunityStageRequest) returns (Opportunity);
+
+  // Queries
+  rpc GetOpportunity(GetOpportunityRequest) returns (Opportunity);
+  rpc ListOpportunities(ListOpportunitiesRequest) returns (ListOpportunitiesResponse);
+}
+
+service SalesIntegrationService {
+  option (ameide.interface_kind) = INTEGRATION;
+
+  rpc UpsertOpportunityProjection(OpportunityProjection) returns (UpsertResult);
+  rpc StreamOpportunityChanges(ChangesRequest) returns (stream OpportunityChangeEvent);
+}
+```
+
+#### 2.8.3 Events
+
+Events are messages representing facts that already happened. They live in a separate `events` package and are tagged by kind:
+
+* `BUSINESS` – external integration events (stable contracts)
+* `DOMAIN_INTERNAL` – internal domain events (implementation detail)
+
+```proto
+package ameide.sales.events.v1;
+
+message OpportunityWon {
+  option (ameide.event_kind) = BUSINESS;
+  string id = 1;
+  string tenant_id = 2;
+  string customer_id = 3;
+  double amount = 4;
+  string currency = 5;
+  google.protobuf.Timestamp won_at = 6;
+}
+
+message OpportunityStageChanged {
+  option (ameide.event_kind) = DOMAIN_INTERNAL;
+  string id = 1;
+  string from_stage = 2;
+  string to_stage = 3;
+}
+```
+
+Events are published by Domain/Process primitives via Watermill (§3.3.1) and consumed by other domains or projections.
+
+#### 2.8.4 Typical Domain Layout
+
+```text
+ameide/
+  sales/
+    v1/
+      sales_entities.proto      # Opportunity, Customer, Quote, ...
+      sales_service.proto       # SalesDomainService
+      sales_integration.proto   # SalesIntegrationService (optional)
+    events/
+      v1/
+        sales_events.proto      # OpportunityWon, InvoicePosted, ...
+```
+
+#### 2.8.5 Design Heuristic
+
+When deciding where something belongs:
+
+> * *Do I need to store this as domain state?* → **Entity** (`message` in domain package)
+> * *Is this an operation a caller invokes?* → **Interface** (`service`)
+> * *Is this a fact that already happened?* → **Event** (`message` in `events/v1`)
+
+For mappings to D365 and SAP concepts, see [470a-ameide-vision-vs-d365.md §7.7](470a-ameide-vision-vs-d365.md) and [470b-ameide-vision-vs-saps4.md §6.7](470b-ameide-vision-vs-saps4.md).
+
+#### 2.8.6 CQRS Recipe (Commands / Queries / Events)
+
+This is the standard pattern for implementing a Domain primitive:
+
+| Pattern | Proto Construct | Naming Convention | Publishing |
+|---------|-----------------|-------------------|------------|
+| **Command** | RPC that mutates state | `CreateFoo`, `UpdateFoo`, `DeleteFoo` | Synchronous call; may emit Event |
+| **Query** | RPC that reads state | `GetFoo`, `ListFoos`, `SearchFoos` | Synchronous call; no side effects |
+| **Event** | Message representing a fact | `FooCreated`, `FooUpdated`, `FooDeleted` | Published via Watermill CQRS |
+
+**Typical flow:**
+
+```text
+[UISurface / Agent]
+    → Command RPC (CreateOpportunity)
+    → Domain primitive validates & persists
+    → Domain primitive publishes Event (OpportunityCreated)
+    → Event subscribers (other domains, projections, Graph)
+```
+
+**Example service with Commands and Queries:**
+
+```proto
+service OpportunityService {
+  // Commands (mutate state, may emit events)
+  rpc CreateOpportunity(CreateOpportunityRequest) returns (Opportunity);
+  rpc UpdateOpportunityStage(UpdateOpportunityStageRequest) returns (Opportunity);
+  rpc WinOpportunity(WinOpportunityRequest) returns (Opportunity);
+  rpc LoseOpportunity(LoseOpportunityRequest) returns (Opportunity);
+
+  // Queries (read-only, no side effects)
+  rpc GetOpportunity(GetOpportunityRequest) returns (Opportunity);
+  rpc ListOpportunities(ListOpportunitiesRequest) returns (ListOpportunitiesResponse);
+  rpc SearchOpportunities(SearchOpportunitiesRequest) returns (SearchOpportunitiesResponse);
+}
+```
+
+**Event publishing (Go example with Watermill):**
+
+```go
+func (s *OpportunityService) WinOpportunity(ctx context.Context, req *pb.WinOpportunityRequest) (*pb.Opportunity, error) {
+    // 1. Validate and update aggregate
+    opp, err := s.repo.Get(ctx, req.Id)
+    if err != nil { return nil, err }
+    opp.Stage = "won"
+    opp.WonAt = timestamppb.Now()
+
+    // 2. Persist
+    if err := s.repo.Save(ctx, opp); err != nil { return nil, err }
+
+    // 3. Publish event
+    event := &events.OpportunityWon{
+        Id:         opp.Id,
+        TenantId:   opp.TenantId,
+        CustomerId: opp.CustomerId,
+        Amount:     opp.Amount,
+        WonAt:      opp.WonAt,
+    }
+    if err := s.publisher.Publish(ctx, "sales.events.v1.OpportunityWon", event); err != nil {
+        // Log but don't fail the command - outbox pattern handles retries
+        log.Warn("failed to publish event", "error", err)
+    }
+
+    return opp, nil
+}
+```
+
+This pattern ensures:
+- Commands are the only way to mutate state
+- Queries never have side effects
+- Events provide eventual consistency across domains
+- The outbox pattern (§3.3.1) ensures reliable event delivery
 
 ---
 
@@ -229,6 +518,8 @@ ArgoCD applies IDC/IPC/IAC manifests checked into Git; dedicated Ameide operator
 ### 3.1 Multi-tenant Data Layout (conceptual)
 
 At the information level the platform is **logically multi-tenant**, regardless of how physical databases are configured in the tech layer.
+
+> **Security**: For the full security model and implementation gaps (RLS, `organization_id` columns, API authorization), see [476-ameide-security-trust.md](476-ameide-security-trust.md).
 
 Core concepts:
 
@@ -254,7 +545,7 @@ We keep **three main categories of data**:
 
 3. **Design / knowledge artifacts**
 
-   * UAF content: BPMN, ArchiMate, Markdown docs, etc.
+   * Transformation design tooling content: BPMN, ArchiMate, Markdown docs, etc.
    * Projection graph: cross-domain graph of entities and relations.
    * Backstage catalog entities: domain/process/agent templates and instances.
 
@@ -280,47 +571,63 @@ For each process type (L2O, O2C, T2C, etc.) we define:
 * **Process variables schema** = typed variables bound to domain identifiers
 * **SLA and policy metadata** (e.g. L2O should close within 30 days)
 
-This mirrors Temporal's distinction between workflow definitions and workflow executions: ProcessDefinitions are design-time artifacts; ProcessControllers execute them at runtime.
+This mirrors Temporal's distinction between workflow definitions and workflow executions: ProcessDefinitions are design-time artifacts; Process primitives execute them at runtime.
 
 We will:
 
-* Store **ProcessDefinitions** in **UAF / Transformation domain** as versioned artifacts.
+* Store **ProcessDefinitions** in **Transformation design tooling / Transformation domain** as versioned artifacts.
 * Store **execution projections** in Ameide's own DB for:
 
   * process analytics
   * SLA monitoring
   * process-first UI views.
 
+### 3.3.1 Event-driven CQRS runtime (Watermill)
+
+Many Process primitives (especially those written in Go) are implemented with Watermill’s CQRS component so they can emit and consume commands/events as plain Go structs while relying on Watermill for serialization, routing, and pub/sub plumbing.
+
+* **Commands** – intent to change state (e.g. `RegisterUser`, `CreateInvoice`). Process primitives send commands via `CommandBus`, which Watermill serializes and routes through the configured pub/sub backend (Kafka, RabbitMQ, Postgres, etc.). Command handlers mutate the write model and/or emit domain events.
+* **Events** – facts that happened (e.g. `UserRegistered`). Domain primitives publish events through `EventBus`; read models and integrations subscribe via `EventProcessor` handlers to update projections or trigger side effects.
+* **Queries** – read models (Postgres, Elastic, etc.) stay optimized for queries and are updated by event handlers.
+
+Watermill’s CQRS layer gives us:
+
+- Type-safe command/event handlers (`func(ctx context.Context, cmd *RegisterUser) error`) without hand-written topic or encoding code.
+- Pluggable pub/sub backends, consistent middleware (logging, metrics, retries).
+- A router abstraction that makes it easy to compose Process primitives from command and event handlers.
+
+When describing Process/Domain implementations, reference Watermill CQRS so teams standardize on the same event-driven plumbing; see [`github.com/ThreeDotsLabs/watermill`](https://github.com/ThreeDotsLabs/watermill?utm_source=chatgpt.com) and the [Watermill CQRS docs](https://watermill.io/docs/cqrs/?utm_source=chatgpt.com). For lighter weight use cases (e.g., TypeScript agents) we still follow the same CQRS concepts even if Watermill is not involved.
+
 ### 3.4 Knowledge Graph (Read-side only)
 
 > **Core Definitions** (see [470-ameide-vision.md §0](470-ameide-vision.md)):
-> - **Graph** is a read-only knowledge layer that projects selected data from any controller into a graph database.
-> - All writes go through controllers; Graph is never a source of truth.
+> - **Graph** is a read-only knowledge layer that projects selected data from any primitive into a graph database.
+> - All writes go through primitives; Graph is never a source of truth.
 
-The Graph service provides a **cross-domain read model**:
+The Knowledge Graph provides a **cross-domain read-only model**:
 
 * Entities: Customer, Product, Opportunity, ProcessInstance, Initiative, System, API, etc.
 * Relationships: `CUSTOMER->HAS_OPPORTUNITY`, `OPPORTUNITY->FLOWS_THROUGH_L2O`, `SERVICE->IMPLEMENTS_API`.
 
 This is *not* an authoritative store:
 
-* Write path: domains/process controllers project to graph as part of their post-commit flow.
+* Write path: Domain/Process primitives project to graph as part of their post-commit flow.
 * Read path: agents and analytics use it to understand topology and behavior (e.g. "show me all L2O paths where margin < 10%").
 
-**Design artifacts** (BPMN, architecture diagrams, Markdown) are persisted by the **Transformation DomainController**, using an artifact + revision pattern. Graph can project these artifacts or references to them for cross-domain queries, but the canonical records remain in the Transformation DomainController.
+**Design artifacts** (BPMN, architecture diagrams, Markdown) are persisted by the **Transformation Domain**, using an artifact + revision pattern. Graph can project these artifacts or references to them for cross-domain queries, but the canonical records remain in the Transformation Domain.
 
-### 3.5 Transformation / UAF Data
+### 3.5 Transformation / Transformation design tooling Data
 
 > **Core Definitions** (see [470-ameide-vision.md §0](470-ameide-vision.md)):
-> - **Transformation DomainController** owns all design-time artifacts (ProcessDefinitions, AgentDefinitions, BPMN, diagrams, Markdown).
-> - **UAF** is the set of modelling UIs (BPMN editor, diagram editor, Markdown editor) that call Transformation DomainController APIs—UAF has no independent storage.
+> - **Transformation Domain** owns all design-time artifacts (ProcessDefinitions, AgentDefinitions, BPMN, diagrams, Markdown).
+> - **Transformation design tooling** is the set of modelling UIs (BPMN editor, diagram editor, Markdown editor) that call Transformation Domain APIs—Transformation design tooling has no independent storage.
 
-Transformation is a **DomainController like any other**, owning:
+Transformation is a **Domain primitive like any other**, owning:
 
 * **Initiatives & Backlog Items**
 
   * Standard domain entities (SQL) representing epics, features, tasks.
-* **Design-time artifacts** (stored in Transformation DomainController, modelled via UAF UIs)
+* **Design-time artifacts** (stored in Transformation Domain, modelled via Transformation design tooling UIs)
 
   * **ProcessDefinitions** – BPMN-compliant process models (produced by custom React Flow modeller).
   * **AgentDefinitions** – Declarative agent specs (tools, policies, risk tiers).
@@ -329,24 +636,26 @@ Transformation is a **DomainController like any other**, owning:
 * **Governance**
 
   * Promotion status of artifacts (draft, in review, promoted).
-  * Links from artifacts to runtime controllers (e.g. "ProcessDefinition L2O_v3 is executed by ProcessController l2o-process-svc").
+  * Links from artifacts to runtime primitives (e.g. "ProcessDefinition L2O_v3 is executed by Process primitive l2o-process-svc").
 
-> **Important**: There is no separate "UAF service" in the runtime. The event-sourced artifact store is part of the Transformation DomainController. UAF is the *client* (modelling experience) that sends commands to Transformation.
+> **Important**: There is no separate "Transformation design tooling service" in the runtime. The event-sourced artifact store is part of the Transformation Domain. Transformation design tooling is the *client* (modelling experience) that sends commands to Transformation.
 
-Transformation AgentControllers operate primarily on this domain:
+Transformation Agent primitives operate primarily on this domain:
 
-* Read backlog + design artifacts (ProcessDefinitions, AgentDefinitions) from Transformation DomainController.
-* Generate or modify Backstage templates and DomainController/ProcessController/AgentController configurations.
+* Read backlog + design artifacts (ProcessDefinitions, AgentDefinitions) from Transformation Domain.
+* Generate or modify Backstage templates and Domain primitive/Process primitive/Agent primitive configurations.
 * Propose changes that are then applied via standard deployment workflows.
 
 ---
 
 ## 4. Backstage as the Application Catalog & Template Engine
 
+> **Important:** Backstage is an **internal factory** for Ameide engineers and transformation agents; **tenants never see Backstage**. Tenant-facing UX is delivered through UISurface primitives (Next.js apps), not through Backstage.
+
 We standardize on **Backstage** as the catalog and templating layer for:
 
-* Domain controllers
-* Process controllers
+* Domain primitives
+* Process primitives
 * Agents
 * UI components / microfrontends
 
@@ -361,8 +670,8 @@ This aligns with Backstage’s ecosystem modeling and software templates feature
   * Represents a bounded context such as *Sales*, *Billing*, *Transformation*.
 * `Component` (service)
 
-  * Domain controller service (e.g. `sales-domain-svc`).
-  * Process controller service (e.g. `l2o-process-svc`).
+  * Domain primitive service (e.g. `sales-domain-svc`).
+  * Process primitive service (e.g. `l2o-process-svc`).
 * `API`
 
   * Proto-defined API surface of a domain or process.
@@ -377,13 +686,13 @@ This aligns with Backstage’s ecosystem modeling and software templates feature
 
 | Ameide concept     | Backstage kind                     |
 | ------------------ | ---------------------------------- |
-| Domain controller  | `Component` (+ custom `Domain`)    |
-| Process controller | `Component` + BPMN artifact link   |
+| Domain primitive   | `Component` (+ custom `Domain`)    |
+| Process primitive  | `Component` + BPMN artifact link   |
 | Agent              | `Component` or custom `Agent` kind |
 | UI workspace       | `Component` (frontend)             |
 | Domain API         | `API`                              |
 | Process API        | `API` (process control / queries)  |
-| UAF artifact       | `Resource` or custom `Artifact`    |
+| Transformation design tooling artifact       | `Resource` or custom `Artifact`    |
 
 This keeps all “things that exist” in the platform visible and discoverable via the catalog.
 
@@ -402,39 +711,42 @@ We provide **four base templates** (each parameterized per tenant):
      * Backstage `Component` + `Domain` entities.
    * Vendor-aligned with Backstage’s Software Templates “skeleton + publish” model.
 
-2. **ProcessController Template**
+2. **Process primitive Template**
 
    * Inputs: process type (L2O, O2C, custom), participating domains, SLA target.
    * Generates:
 
      * Initial ProcessDefinition (BPMN-compliant, from React Flow modeller) with lane structure (Sales, Billing, Logistics, etc.).
-     * Temporal workflow skeletons (service tasks bound to DomainController APIs).
-     * ProcessController service skeleton.
+     * Temporal workflow skeletons (service tasks bound to Domain primitive APIs).
+     * Process primitive service skeleton.
      * Backstage `Component` entity + links to domain APIs.
 
-3. **AgentController Template**
+3. **Agent primitive Template**
 
    * Inputs: agent purpose, allowed domains/processes, risk tier.
    * Generates:
 
-     * AgentDefinition (prompt, tools, scopes, policies) stored in Transformation DomainController.
+     * AgentDefinition (prompt, tools, scopes, policies) stored in Transformation Domain.
      * Proto definition for the agent configuration & invocation.
-     * AgentController service skeleton.
+     * Agent primitive service skeleton.
      * Backstage `Component`/`Agent` entity with RBAC metadata for who can use this template.
 
-4. **UI Template**
+4. **UISurface primitive Template**
 
-   * Inputs: target domain/process, view style (workspace vs process view).
+   * Inputs: target domain/process, view style (workspace vs process view), routing (hosts/paths), required auth scopes.
    * Generates:
 
-     * Next.js microfrontend skeleton with Ameide TS SDK integration.
+     * Next.js app skeleton with Ameide TS SDK integration.
+     * UISurface CRD declaring image, routing, auth scopes, and dependencies on Domain/Process/Agent primitives.
      * Backstage `Component` entry of type `frontend`.
+     * GitOps skeleton (`values.yaml`, `kustomization.yaml`) matching the UISurface CRD shape.
+   * See [477-primitive-stack.md §3.4](477-primitive-stack.md) for UISurface operator reconciliation details.
 
 Backstage templates remain **the control plane** for agents too: a transformation agent manipulates template parameters and triggers scaffolding rather than directly creating low-level services.
 
-> Templates are strictly **Tier 2** tooling for full controllers. Tier 1 WASM extensions follow the `ExtensionDefinition` + shared runtime path from 479/480 and do not create new services via Backstage.
+> Templates are strictly **Tier 2** tooling for full primitives. Tier 1 WASM extensions follow the `ExtensionDefinition` + shared runtime path from 479/480 and do not create new services via Backstage.
 
-Every controller-oriented template emits both a repository skeleton (code, proto, CI) and the corresponding IDC/IPC/IAC manifest so GitOps/Argo can apply the controller CR. Human engineers and agents therefore work with the same declarative surface (the CR specs) regardless of who authored the controller.
+Every primitive-oriented template emits both a repository skeleton (code, proto, CI) and the corresponding Domain/Process/Agent/UISurface CR so GitOps/Argo can apply the runtime object. Human engineers and agents therefore work with the same declarative surface (the CR specs) regardless of who authored the primitive.
 
 ---
 
@@ -444,14 +756,14 @@ To make this less abstract, here’s how **Lead-to-Opportunity (L2O)** looks in 
 
 ### 5.1 Involved building blocks
 
-* Domain controllers:
+* Domain primitives:
 
   * `SalesDomain` (Lead, Contact, Opportunity)
   * `ProductDomain` (Products, Price Lists)
   * `BillingDomain` (for credit check / pre-invoice)
-* Process controller:
+* Process primitive:
 
-  * `L2OProcess` – BPMN definition + controller service.
+  * `L2OProcess` – BPMN definition + process service.
 * Agents:
 
   * `SalesCoachAgent` (helps sales with next actions)
@@ -470,29 +782,29 @@ To make this less abstract, here’s how **Lead-to-Opportunity (L2O)** looks in 
 
 2. **L2O instance started**
 
-   * `L2OProcessController` is started with `leadId` (Temporal).
+   * `L2OProcess primitive` is started with `leadId` (Temporal).
    * Process instance state is stored in Temporal; Ameide stores a projection (e.g. "L2O phase = Qualification").
 
 3. **Quote created**
 
-   * `L2OProcessController` reaches "Prepare Quote" task.
-   * For manual: Sales user opens `SalesWorkspace`, sees tasks from `L2OProcessView` and creates a Quote via `SalesDomainController` APIs.
-   * For automated: an AgentController or automated task calls `SalesDomainController::CreateQuote` using its proto API.
+   * `L2OProcess primitive` reaches "Prepare Quote" task.
+   * For manual: Sales user opens `SalesWorkspace`, sees tasks from `L2OProcessView` and creates a Quote via `SalesDomain primitive` APIs.
+   * For automated: an Agent primitive or automated task calls `SalesDomain primitive::CreateQuote` using its proto API.
 
 4. **Approval**
 
-   * `L2OProcessController` orchestrates approval steps, maybe invoking:
+   * `L2OProcess primitive` orchestrates approval steps, maybe invoking:
 
-     * `TransformationAgentController` to suggest better pricing.
-     * `SalesCoachAgentController` to highlight risk.
-   * AgentControllers read from Graph & domain APIs but write back via domain commands only.
+     * `TransformationAgent primitive` to suggest better pricing.
+     * `SalesCoachAgent primitive` to highlight risk.
+   * Agent primitives read from Graph & domain APIs but write back via domain commands only.
 
 5. **Handover to O2C**
 
-   * Once L2O is "Won", `L2OProcessController`:
+   * Once L2O is "Won", `L2OProcess primitive`:
 
-     * Calls `BillingDomainController::CreateProformaInvoice`.
-     * Emits `OpportunityWon` → `O2CProcessController` starter.
+     * Calls `BillingDomain primitive::CreateProformaInvoice`.
+     * Emits `OpportunityWon` → `O2CProcess primitive` starter.
 
 Information picture:
 
@@ -512,7 +824,7 @@ Agents “see” the world via:
 
 * Graph queries (structure + history).
 * Domain APIs (truth).
-* UAF artifacts describing L2O design (as the process improves).
+* Transformation design tooling artifacts describing L2O design (as the process improves).
 
 ---
 
@@ -525,10 +837,10 @@ This section is just to show that we’re not inventing yet another stack, but r
    * IPA = "composition of workflows + agents + tools from DB, compiled to runtimes".
    * New view:
 
-     * *DomainControllers* ≈ "domain and storage" part of IPA.
-     * *ProcessControllers* (executing ProcessDefinitions) ≈ "workflows" part.
-     * *AgentControllers* (executing AgentDefinitions) ≈ "agents/tools" part.
-   * The layered approach (Domain → Storage → Builder → Runtime) remains valid, but the *unit* moves from "IPA" to explicit ProcessDefinitions and AgentDefinitions (design-time) executed by controllers (runtime).
+     * *Domain primitives* ≈ "domain and storage" part of IPA.
+     * *Process primitives* (executing ProcessDefinitions) ≈ "workflows" part.
+     * *Agent primitives* (executing AgentDefinitions) ≈ "agents/tools" part.
+   * The layered approach (Domain → Storage → Builder → Runtime) remains valid, but the *unit* moves from "IPA" to explicit ProcessDefinitions and AgentDefinitions (design-time) executed by primitives (runtime).
 
 2. **Proto-based APIs (044)**
 
@@ -538,19 +850,19 @@ This section is just to show that we’re not inventing yet another stack, but r
 
    * Design vs Deploy vs Runtime separation is kept:
 
-     * Design: Backstage + UAF + transformation domain.
-     * Deploy: controllers & process engines.
+     * Design: Backstage + Transformation design tooling + transformation domain.
+     * Deploy: primitives & process engines.
      * Runtime: domain & process services.
 
-4. **UAF (067)**
+4. **Transformation design tooling (067)**
 
-   * The UAF *pattern* (artifacts, revisions, promotions) is implemented inside the **Transformation DomainController**.
-   * UAF as a UI surfaces those artifacts; the controller remains the source of truth.
-   * Instead of a generic "IPA designer", the Transformation DomainController (with UAF UIs) is used to generate Backstage templates & controller config.
+   * The Transformation design tooling *pattern* (artifacts, revisions, promotions) is implemented inside the **Transformation Domain**.
+   * Transformation design tooling as a UI surfaces those artifacts; the primitive remains the source of truth.
+   * Instead of a generic "IPA designer", the Transformation Domain (with Transformation design tooling UIs) is used to generate Backstage templates & primitive config.
 
 5. **BPMN-compliant definitions (063)**
 
-   * BPMN semantics (stages, gateways, lanes) remain valid; we use a **custom React Flow modeller** (not Camunda/bpmn-js) to produce ProcessDefinitions stored in the Transformation DomainController (via UAF UIs) and executed by Temporal-backed ProcessControllers.
+   * BPMN semantics (stages, gateways, lanes) remain valid; we use a **custom React Flow modeller** (not Camunda/bpmn-js) to produce ProcessDefinitions stored in the Transformation Domain (via Transformation design tooling UIs) and executed by Temporal-backed Process primitives.
 
 6. **TypeScript SDK (050)**
 
@@ -569,8 +881,8 @@ This Application & Information Architecture should be read with:
 | [473‑ameide‑technology](473-ameide-technology.md) | Technology implementation | Strong ✅ |
 | [475‑ameide‑domains](475-ameide-domains.md) | Domain portfolio & patterns | Strong ✅ |
 | [300‑ameide‑metamodel](300-ameide-metamodel.md) | Element graph foundation | See §8.1 |
-| [305‑workflow](305-workflow.md) | ProcessController implementation | See §8.2 |
-| [310‑agents‑v2](310-agents-v2.md) | AgentController implementation | See §8.3 |
+| [305‑workflow](305-workflow.md) | Process primitive implementation | See §8.2 |
+| [310‑agents‑v2](310-agents-v2.md) | Agent primitive implementation | See §8.3 |
 | [370‑event‑sourcing](370-event-sourcing.md) | Event sourcing exploration | See §8.4 |
 | [478‑ameide‑extensions](478-ameide-extensions.md) | Extension namespace topology | See §8.5 |
 | [479‑ameide‑extensibility‑wasm](479-ameide-extensibility-wasm.md) | Tier 1 + Tier 2 extensibility model | See §2.5, §8.5 |
@@ -581,119 +893,66 @@ This Application & Information Architecture should be read with:
 The Element graph (300) and Application Architecture (472) coexist:
 
 * **Graph = read-side projection**: Cross-domain knowledge for agents, analytics, and transformation. Not authoritative for operational data.
-* **Domain stores = write-side authority**: Each DomainController owns its data; graph receives projections.
-* **Design artifacts are projected**: BPMN, ArchiMate, Markdown stored in **Transformation DomainController** and **projected** as versioned nodes in the graph.
+* **Domain stores = write-side authority**: Each Domain primitive owns its data; graph receives projections.
+* **Design artifacts are projected**: BPMN, ArchiMate, Markdown stored in **Transformation Domain** and **projected** as versioned nodes in the graph.
 
 > **Important**: Transformation remains the source of truth for transformation artifacts; the graph stores references and read-optimised views, not the authoritative records.
 
-This means: Transformation domain entities project to `graph.elements`, but the canonical records stay in the Transformation DomainController. ProcessController runtime state stays in Temporal.
+This means: Transformation domain entities project to `graph.elements`, but the canonical records stay in the Transformation Domain. Process primitive runtime state stays in Temporal.
 
 ### 8.2 Workflow alignment (305)
 
-305 describes platform workflow infrastructure implementing **ProcessControllers** from this document:
+305 describes platform workflow infrastructure implementing **Process primitives** from this document:
 
-* "Platform Workflows" = implementation detail of ProcessControllers (§2.2)
+* "Platform Workflows" = implementation detail of Process primitives (§2.2)
 * Temporal is the runtime; customers see "process stages" and "process boards"
-* ProcessDefinitions (BPMN-compliant, from custom React Flow modeller) stored in Transformation DomainController (via UAF UIs); compiled to Temporal workflows
+* ProcessDefinitions (BPMN-compliant, from custom React Flow modeller) stored in Transformation Domain (via Transformation design tooling UIs); compiled to Temporal workflows
 
 ### 8.3 Agent alignment (310)
 
-310 describes AgentController implementation:
+310 describes Agent primitive implementation:
 
-* Current: agents control plane (Go) + agents_runtime (Python) = AgentController implementation
-* AgentDefinitions stored in Transformation DomainController (modelled via UAF UIs); AgentControllers execute them
-* Key constraint: AgentControllers invoked via domain/process APIs; never become source of truth
+* AgentDefinitions stored in Transformation Domain (modelled via Transformation design tooling UIs); Agent primitives execute them
+* Key constraint: Agent primitives invoked via domain/process APIs; never become source of truth
 
-### 8.4 Event sourcing status (370)
+### 8.4 Event sourcing alignment (370)
 
-472 §3.5 describes Transformation DomainController with "optionally event-sourced" artifacts. Current reality per 370:
+472 §3.5 describes Transformation Domain with "optionally event-sourced" artifacts:
 
-* **Aspirational, not implemented**: Services use direct Postgres, not append-only streams
-* **Outbox pattern exists** but not consumed
-* **Target path**: Event contracts per domain, outbox + relay, projections from streams
-
-This should be treated as target architecture; current implementation uses traditional persistence. The event-sourced pattern is an internal implementation detail of the Transformation DomainController, not a separate "UAF service".
+* Event contracts per domain, outbox + relay, projections from streams
+* The event-sourced pattern is an internal implementation detail of the Transformation Domain, not a separate service
 
 ### 8.5 Extension alignment (478)
 
-478 describes how tenant-specific controllers are cataloged and deployed:
+478 describes how tenant-specific primitives are cataloged and deployed:
 
-* **Platform repo** contains `service_catalog/` with base controller structure
-* **Tenant repos** (`tenant-{id}-controllers`, `tenant-{id}-gitops`) hold custom code and manifests
-* Backstage catalog uses **Locations** pointing at tenant repos, so tenant controllers appear in the internal portal
-* Namespace topology by SKU determines where controllers deploy (§4 of 478)
+* **Platform repo** contains `service_catalog/` with base primitive structure.
+* **Tenant repos** (`tenant-{id}-controllers`, `tenant-{id}-gitops`) hold custom code and manifests.
+* Backstage catalog uses **Locations** pointing at tenant repos, so tenant primitives appear in the internal portal.
+* Namespace topology by SKU determines where primitives deploy (§4 of 478).
 
-The catalog entity mappings in §4.1 extend to tenant controllers:
+The catalog entity mappings in §4.1 extend to tenant primitives:
 
 | Ameide Concept | Backstage Kind | Repository |
 |----------------|----------------|------------|
-| Platform DomainController | `Component` | Platform repo |
-| Tenant DomainController | `Component` | `tenant-{id}-controllers` |
-| Platform ProcessController | `Component` | Platform repo |
-| Tenant ProcessController | `Component` | `tenant-{id}-controllers` |
+| Platform Domain primitive | `Component` | Platform repo |
+| Tenant Domain primitive | `Component` | `tenant-{id}-controllers` |
+| Platform Process primitive | `Component` | Platform repo |
+| Tenant Process primitive | `Component` | `tenant-{id}-controllers` |
+| Platform Agent primitive | `Component` | Platform repo |
+| Tenant Agent primitive | `Component` | `tenant-{id}-controllers` |
+
+Only the **Transformation Domain** manipulates primitive definitions (ProcessDefinitions, AgentDefinitions, ExtensionDefinitions, PrimitiveImplementationDrafts). Backstage templates and GitOps keep platform vs tenant concerns isolated while letting us enforce guardrails (namespaces, secrets, rollout waves).
 
 ---
 
-## 9. Notable Gaps & Issues
+## 9. Terminology
 
-### 9.1 Terminology alignment
-
-| Legacy Term | 472 Term | Status |
-|-------------|----------|--------|
-| IPA (Intelligent Process Automation) | DomainController + ProcessController + AgentController bundle | Deprecated; §6 documents mapping |
-| Platform Workflows (305) | ProcessController (executes ProcessDefinitions from UAF) | 305 aligned |
-| AgentRuntime (310) | AgentController (executes AgentDefinitions from UAF) | Aligned |
-| "Graph service" | Knowledge Graph (read projection) | Clarified in §3.4 |
-| DomainService | DomainController | Aligned |
-| BPMN definition | ProcessDefinition (from custom React Flow modeller) | Aligned |
-
-### 9.2 Implementation gaps
-
-| Gap | Description | Related Docs |
-|-----|-------------|--------------|
-| Authorization & org isolation | DB lacks `organization_id` columns; RLS not enabled | [329-authz](329-authz.md) ⚠️ Phase 2 not started |
-| Transformation domain refactor | Current `services/transformation/` is monolithic; needs decomposition to DomainController + UAF + Backstage bridge | 470 §9.2.2 |
-| SDK distribution | TypeScript SDK not published to npmjs; only `dev`/hash tags on GHCR | [388-ameide-sdks-north-star](388-ameide-sdks-north-star.md) ⚠️ |
-| Event publishing | Domain events (outbox + bus) not yet live | [370-event-sourcing](370-event-sourcing.md) |
-| Backstage integration | Templates & catalog modeling defined; implementation planned | §4 of this doc, [477-backstage.md](477-backstage.md) |
-
-### 9.3 Open architectural tensions
-
-1. **Graph vs. runtime separation**:
-   - 472 §3.4 says graph is read-only projection
-   - 300 says everything *could* become an Element
-   - 305 explicitly excludes platform workflows from graph
-   - **Resolution**: Transformation artifacts (ProcessDefinitions, AgentDefinitions) → graph; runtime state → Temporal
-
-2. **Design-time vs runtime clarity**:
-   - ProcessDefinitions and AgentDefinitions are design-time artifacts in UAF
-   - ProcessControllers and AgentControllers are runtimes that execute them
-   - **Clarification**: Temporal backs ProcessControllers; LangGraph/OpenAI backs AgentControllers
-
-3. **Agent complexity gap**:
-   - 472 §2.3 describes AgentDefinition/AgentController split
-   - 310 describes sophisticated n8n-aligned node registry with catalog streaming
-   - **Resolution**: 472 is conceptual model; 310 is current AgentController implementation detail
-
----
-
-## 10. Next Steps
-
-This doc deliberately stops at the **logical** application & information level.
-
-Next documents will:
-
-1. **Technology Architecture**
-
-   * Map DomainControllers/ProcessControllers/AgentControllers to K8s workloads, CRDs and operators.
-   * Detail how Temporal clusters, databases and messaging layers are provisioned and wired.
-
-2. **Domain Architecture (L2O, O2C, Transformation, etc.)**
-
-   * Provide detailed models for each domain using this framework.
-
-3. **Refactoring Plan**
-
-   * Show how current services (Graph, Transformation, Workflows, Agents) migrate to the Domain/Process/Agent controller model over time.
-
-If you're happy with this level of granularity, we can move on to the **Technology Architecture** doc next.
+| Legacy Term | 472 Term |
+|-------------|----------|
+| IPA (Intelligent Process Automation) | Domain primitive + Process primitive + Agent primitive bundle |
+| Platform Workflows (305) | Process primitive (executes ProcessDefinitions) |
+| AgentRuntime (310) | Agent primitive (executes AgentDefinitions) |
+| "Graph service" | Knowledge Graph (read projection) |
+| DomainService | Domain primitive |
+| BPMN definition | ProcessDefinition (from custom React Flow modeller) |

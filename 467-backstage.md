@@ -1,4 +1,4 @@
-# 477 – Backstage Platform Factory
+# 467 – Backstage Platform Factory
 
 **Status:** In Progress
 **Priority:** High
@@ -13,9 +13,9 @@
 > | [470-ameide-vision.md](470-ameide-vision.md) | §5.3, §8 – Backstage template runs as "transformation records" |
 > | [471-ameide-business-architecture.md](471-ameide-business-architecture.md) | §4 – Backstage as platform factory (business view) |
 > | [472-ameide-information-application.md](472-ameide-information-application.md) | §4 – Catalog modeling, entity mappings |
-> | [473-ameide-technology.md](473-ameide-technology.md) | §2.3 – Backstage as "factory" for controllers |
+> | [473-ameide-technology.md](473-ameide-technology.md) | §2.3 – Backstage as "factory" for primitives |
 > | [475-ameide-domains.md](475-ameide-domains.md) | §2 Principle 5, §6 – Internal factory, not tenant UI |
-> | [476-ameide-security-trust.md](476-ameide-security-trust.md) | §5.5 – Backstage security baseline |
+> | [476-ameide-security-trust.md](476-ameide-security-trust.md) | §9.1 – Backstage security baseline |
 > | [478-ameide-extensions.md](478-ameide-extensions.md) | Extension scaffolding workflow |
 >
 > **Deployment Architecture Suite**:
@@ -33,11 +33,11 @@
 
 Backstage is designated as the Ameide "platform factory" – the internal developer portal that provides:
 
-1. **Software Catalog** – Registry of all Domain/Process/Agent controllers and their APIs
-2. **Software Templates** – Scaffolder templates for creating new controllers
+1. **Software Catalog** – Registry of all Domain/Process/Agent/UISurface primitives and their APIs
+2. **Software Templates** – Scaffolder templates for creating new primitives
 3. **TechDocs** – Technical documentation aggregation
 4. **Integration Hub** – GitHub, Keycloak, ArgoCD integrations
-5. **Controller CR authoring** – Templates emit `IntelligentDomainController`, `IntelligentProcessController`, and `IntelligentAgentController` manifests so GitOps/Argo manage declarative controller specs (per 461) instead of raw deployments.
+5. **Primitive CR authoring** – Templates emit Domain/Process/Agent/UISurface CRDs so GitOps/Argo manage declarative primitive specs instead of raw deployments.
 
 Per architecture doc 473 §4: "Backstage's Software Catalog and Software Templates / Scaffolder are used to create and manage all Ameide services (domain/process/agent) and their Helm charts."
 
@@ -56,7 +56,7 @@ Per architecture doc 473 §4: "Backstage's Software Catalog and Software Templat
 ## 3. Non-Goals (Future Work)
 
 - Custom Backstage Docker image with advanced plugins
-- Full Software Template suite (DomainController, ProcessController, AgentController)
+- Full Software Template suite (Domain primitive, Process primitive, Agent primitive, UISurface)
 - Catalog population with all existing services
 - TechDocs publishing pipeline
 - Keycloak organization/group sync
@@ -558,8 +558,8 @@ backend:
 Log fields required per platform standard:
 - `trace_id`, `span_id` (from OTel)
 - `tenant_id` (from request context)
-- `controller_type: platform`
-- `controller_name: backstage`
+- `primitive_type: platform`
+- `primitive_name: backstage`
 
 ---
 
@@ -998,17 +998,17 @@ sources/charts/foundation/operators-config/keycloak_realm/templates/externalsecr
 
 ### 10.1 Software Templates (Design-Time Integration)
 
-Per [472-ameide-information-application.md](472-ameide-information-application.md) §4, Backstage templates scaffold the controller lifecycle:
+Per [472-ameide-information-application.md](472-ameide-information-application.md) §4, Backstage templates scaffold the primitive lifecycle:
 
 | Template | Artifact Type | Output |
 |----------|---------------|--------|
-| `DomainController` | Runtime | Proto skeleton, Go/TS service, IDC manifest, ArgoCD component |
-| `ProcessController` | Runtime | Temporal workflow, ProcessDefinition loader, IPC manifest |
+| `Domain primitive` | Runtime | Proto skeleton, Go/TS service, Domain CRD manifest, ArgoCD component |
+| `Process primitive` | Runtime | Temporal workflow, ProcessDefinition loader, Process CRD manifest |
 | `AgentController` | Runtime | AgentDefinition executor, tool registry, IAC manifest |
 | `ProcessDefinition` | Design-time (UAF) | BPMN-compliant artifact from React Flow modeller |
 | `AgentDefinition` | Design-time (UAF) | Declarative agent spec (tools, scope, risk tier, policies) |
 
-**Note**: ProcessDefinitions and AgentDefinitions are **design-time artifacts** stored in Transformation DomainController. Backstage templates can scaffold the runtime controllers that **execute** these definitions, but the definitions themselves come from the custom React Flow modeller (and other UAF UIs).
+**Note**: ProcessDefinitions and AgentDefinitions are **design-time artifacts** stored in Transformation Domain. Backstage templates can scaffold the runtime primitives that **execute** these definitions, but the definitions themselves come from the custom React Flow modeller (and other UAF UIs).
 
 #### Tenant Extension Templates
 
@@ -1036,9 +1036,9 @@ Populate Software Catalog with existing Ameide services per the entity mapping i
 
 | Ameide Concept | Backstage Kind |
 |----------------|----------------|
-| DomainController | `Component` (+ custom `Domain`) |
-| ProcessController | `Component` (+ custom `Process`) |
-| AgentController | `Component` (+ custom `Agent`) |
+| Domain primitive | `Component` (+ custom `Domain`) |
+| Process primitive | `Component` (+ custom `Process`) |
+| Agent primitive | `Component` (+ custom `Agent`) |
 | Proto service | `API` (grpc type) |
 | ProcessDefinition | `Resource` (custom kind, links to UAF) |
 | AgentDefinition | `Resource` (custom kind, links to UAF) |
@@ -1047,7 +1047,7 @@ Populate Software Catalog with existing Ameide services per the entity mapping i
 
 | Item | Description |
 |------|-------------|
-| 479-backstage-templates | DomainController, ProcessController, AgentController scaffold templates |
+| 479-backstage-templates | Domain/Process/Agent primitive scaffold templates |
 | 480-backstage-catalog | Populate catalog with existing Ameide services and APIs |
 | 481-backstage-techdocs | TechDocs publishing pipeline (from backlog markdown) |
 | 482-backstage-argocd | ArgoCD plugin for deployment visibility |
@@ -1073,7 +1073,7 @@ Populate Software Catalog with existing Ameide services per the entity mapping i
 | [472-ameide-information-application.md](472-ameide-information-application.md) | §4 | Catalog modeling, entity mappings |
 | [473-ameide-technology.md](473-ameide-technology.md) | §2.3, §4 | Technology blueprint, templates |
 | [475-ameide-domains.md](475-ameide-domains.md) | §2, §6 | Internal factory principle |
-| [476-ameide-security-trust.md](476-ameide-security-trust.md) | §8 | Security baseline |
+| [476-ameide-security-trust.md](476-ameide-security-trust.md) | §9 | Security baseline |
 | [478-ameide-extensions.md](478-ameide-extensions.md) | §4-6 | Tenant extension scaffolding, namespace strategy |
 
 ### Deployment Architecture Suite
@@ -1092,3 +1092,8 @@ Populate Software Catalog with existing Ameide services per the entity mapping i
 | [450-argocd-service-issues-inventory.md](450-argocd-service-issues-inventory.md) | OIDC secrets | client-patcher resolution |
 | [412-cnpg-owned-postgres-greds.md](412-cnpg-owned-postgres-greds.md) | DB credentials | CNPG credential pattern |
 | [436-envoy-gateway-observability.md](436-envoy-gateway-observability.md) | Telemetry | ServiceMonitor patterns |
+
+### CLI Tooling
+| Document | Section | Relationship |
+|----------|---------|--------------|
+| [484-ameide-cli.md](484-ameide-cli.md) | §3, §13 | `ameide primitive scaffold` generates Backstage-aligned templates; CLI and Backstage share same skeleton sources |

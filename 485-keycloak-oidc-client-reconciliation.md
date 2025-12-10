@@ -4,7 +4,7 @@
 **Created**: 2025-12-07
 **Completed**: 2025-12-07
 **Priority**: P1 (Blocking Backstage OIDC)
-**Related**: [426-keycloak-config-map.md](426-keycloak-config-map.md), [462-secrets-origin-classification.md](462-secrets-origin-classification.md), [477-backstage.md](477-backstage.md)
+**Related**: [426-keycloak-config-map.md](426-keycloak-config-map.md), [462-secrets-origin-classification.md](462-secrets-origin-classification.md), [467-backstage.md](467-backstage.md)
 
 ---
 
@@ -634,6 +634,6 @@ client-patcher Job
 |----------|--------------|
 | [426-keycloak-config-map.md](426-keycloak-config-map.md) | Keycloak GitOps architecture |
 | [462-secrets-origin-classification.md](462-secrets-origin-classification.md) | OIDC secrets are Service-Generated |
-| [477-backstage.md](477-backstage.md) | Blocked by this issue |
+| [467-backstage.md](467-backstage.md) | Blocked by this issue |
 | [333-realms.md](333-realms.md) | Future realm-per-tenant scaling |
 | [450-argocd-service-issues-inventory.md](450-argocd-service-issues-inventory.md) | ArgoCD OIDC uses same pattern |

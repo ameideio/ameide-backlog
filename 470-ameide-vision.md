@@ -14,7 +14,7 @@
 > | [475-ameide-domains.md](475-ameide-domains.md) | Domain portfolio and structure |
 > | [476-ameide-security-trust.md](476-ameide-security-trust.md) | Security principles and threat model |
 > | [478-ameide-extensions.md](478-ameide-extensions.md) | Tenant extension model & namespace strategy |
-> | [461-ipc-idc-iac.md](461-ipc-idc-iac.md) | Declarative controller model (IDC/IPC/IAC CRDs) |
+> | [474-ameide-refactoring.md](474-ameide-refactoring.md) | Migration plan into Domain/Process/Agent/UISurface primitives + CRDs |
 >
 > **Deployment Implementation**:
 > - [465-applicationset-architecture.md](465-applicationset-architecture.md) – GitOps deployment model
@@ -23,20 +23,28 @@
 > - [446-namespace-isolation.md](446-namespace-isolation.md) – Namespace patterns
 
 > **Comparative Briefs (Ameide vs incumbent ERPs)**:
-> - [470-ameide-visio-vs-d365.md](470-ameide-visio-vs-d365.md) – Code-first Ameide platform compared to Microsoft D365FO’s metadata/AOT paradigm.
-> - [470-ameide-vision-vs-saps4.md](470-ameide-vision-vs-saps4.md) – Ameide positioning versus SAP S/4HANA’s DDIC/CDS/Fiori/Customizing stack.
+> - [470a-ameide-vision-vs-d365.md](470a-ameide-vision-vs-d365.md) – Code-first Ameide platform compared to Microsoft D365FO's metadata/AOT paradigm.
+> - [470b-ameide-vision-vs-saps4.md](470b-ameide-vision-vs-saps4.md) – Ameide positioning versus SAP S/4HANA's DDIC/CDS/Fiori/Customizing stack.
 >
 > These appendices translate the high-level Ameide principles in this document into head-to-head comparisons with the dominant metadata/configuration ERPs so product, field, and architecture teams can articulate what stays the same (coherence, discoverability) and what changes (code-first, AI operated, CRD-based infra) when pitching Ameide.
 
 ---
 
-## 0. Core Definitions: DomainControllers, UAF, and Graph
+## 0. Core Definitions: Domain / Process / Agent / UISurface primitives, CRDs, and Graph
 
-> **DomainControllers** own all authoritative definitions and runtime data for their bounded context, persisted according to their proto contracts.
+> **Domain primitives** own the authoritative data and rules for a bounded business context (Orders, Customers, Transformation, etc.) and expose proto-first APIs plus migrations/tests as normal code.
 >
-> **UAF** (Unified Artifact Framework) is the set of modelling UIs (BPMN, diagrams, Markdown, agent specs) that talk to DomainControllers via APIs; UAF does not persist anything. All artifacts created through UAF are stored by the **Transformation DomainController** (or other relevant DomainControllers).
+> **Process primitives** orchestrate multiple Domains and Agents into outcomes such as L2O or O2C by executing BPMN-compliant definitions.
 >
-> **Graph** is a read-only knowledge layer that projects selected data from any controller into a graph database so we can traverse relationships without heavy cross-domain joins. All writes go through controllers; Graph is never a source of truth.
+> **Agent primitives** wrap non-deterministic workers (LLMs + typed tools) that make proposals but never store durable state themselves.
+>
+> **UISurface primitives** are user-facing entry points (process views or domain workspaces) implemented as code-first Next.js apps that rely on generated SDKs.
+>
+> **Domain / Process / Agent / UISurface CRDs** are the only application-level CRDs. Each one declares *how* the corresponding primitive is run (image, config, bindings, risk tier) so GitOps + operators can reconcile code into deployments.
+>
+> **Transformation design tooling** is the modelling UX (BPMN editor, diagram editor, Markdown/agent specs) that reads/writes artifacts in the Transformation Domain; it has no independent persistence.
+>
+> **Graph** is a read-only knowledge layer that projects selected data from any primitive into a graph database so we can traverse relationships without heavy cross-domain joins. All writes go through primitives; Graph is never a source of truth.
 
 ---
 
@@ -44,18 +52,60 @@
 
 | Term | Definition |
 |------|------------|
-| **Domain** | Business bounded context (e.g. Orders, Customers, Transformation) |
-| **DomainController** | Logical service implementing a domain (APIs, rules, persistence, events); at runtime expressed as an `IntelligentDomainController` (IDC) custom resource |
-| **ProcessDefinition** | BPMN-compliant artifact defining a business process (design-time, stored in Transformation DomainController, modelled via UAF UIs) |
-| **ProcessController** | Logical runtime that executes ProcessDefinitions, calling DomainControllers and AgentControllers; materialised as an `IntelligentProcessController` (IPC) custom resource |
-| **AgentDefinition** | Declarative spec for an agent graph + tools + policies (design-time, stored in Transformation DomainController, modelled via UAF UIs) |
-| **AgentController** | Logical runtime that executes AgentDefinitions via LLM/tool loops, always via SDKs; represented by an `IntelligentAgentController` (IAC) custom resource |
-| **UIWorkspace** | Next.js frontend that talks to controllers via the TS SDK |
-| **UAF** | Unified Artifact Framework - modelling UIs (BPMN editor, diagrams, Markdown) that talk to DomainControllers via APIs; UAF does not persist anything itself. All UAF-originated artifacts are persisted by the **Transformation DomainController** |
-| **Graph** | Read-only knowledge projection that ingests selected data from any controller into a graph database for relationship traversal without cross-DB joins; never a source of truth |
-| **IntelligentDomainController (IDC)** | Kubernetes custom resource (see 461) describing the desired state for a DomainController; reconciled by the IDC operator into Deployments, Services, HPAs, DB schemas, etc. |
-| **IntelligentProcessController (IPC)** | Custom resource describing a ProcessController (image, Temporal namespace, bindings); reconciled by the IPC operator. |
-| **IntelligentAgentController (IAC)** | Custom resource describing an AgentController (runtime, AgentDefinition reference, risk profile); reconciled by the IAC operator. |
+| **Domain primitive** | Code package (Go/TS/etc.) that owns a bounded context’s data, invariants, migrations, and proto-first APIs. |
+| **ProcessDefinition** | BPMN-compliant artifact stored in the Transformation Domain that specifies orchestration intent. |
+| **Process primitive** | Runtime implementation (Temporal-backed workflow workers) that executes a ProcessDefinition and calls Domain + Agent primitives. |
+| **AgentDefinition** | Declarative spec (tools, orchestration graph, scope, risk tier) stored in the Transformation Domain for a given Agent primitive. |
+| **Agent primitive** | Runtime chassis that loads an AgentDefinition and runs LLM/tool loops through Ameide SDKs. |
+| **UISurface primitive** | User-facing workspace or process view built in Next.js that consumes Ameide SDKs; no metadata form engine. |
+| **Domain CRD** | Declarative runtime config for one Domain primitive (image, config, DB bindings, resources, observability). |
+| **Process CRD** | Declarative runtime config for one Process primitive (image, process type, Temporal namespace/bindings, timeouts). |
+| **Agent CRD** | Declarative runtime config for one Agent primitive (image, model/provider config, tool grants, risk tier). |
+| **UISurface CRD** | Declarative runtime config for one UISurface primitive (image, routing, auth scopes, feature flags). |
+| **Transformation design tooling** | Ameide’s modelling UX (BPMN editor, diagram editor, Markdown/agent specs) that stores artifacts in the Transformation Domain; the tooling itself is stateless. |
+| **Graph** | Read-only knowledge projection that ingests selected data from primitives into a graph database for traversal; never a source of truth. |
+
+> **Ameide Core Invariants (Canonical Reference)**
+>
+> All vision suite documents (470-480) must respect these invariants. Link here rather than restating.
+>
+> 1. **Four primitives only.** Domain / Process / Agent / UISurface are the only application-level CRDs. No other app-level CRD types.
+>
+> 2. **Graph is read-only.** Knowledge Graph is a projection layer for cross-domain queries. All writes go through Domain primitives. Graph is never a source of truth.
+>
+> 3. **Transformation is a domain; Transformation design tooling is UI.** The Transformation Domain primitive owns all design-time artifacts (ProcessDefinitions, AgentDefinitions, BPMN, etc.). Transformation design tooling is purely a UI layer (BPMN editor, diagram editor, Markdown editor) that calls Transformation Domain APIs—it has no independent persistence.
+>
+> 4. **Proto → SDK → Runtime chain.** Contracts live in `packages/ameide_core_proto` (Buf-managed). Generated SDKs flow to services. Docker images are tagged/labelled with proto version. GitOps manifests reference exact image + proto metadata. See [472 §2.7](472-ameide-information-application.md) for details.
+>
+> 5. **Tenant isolation via `tenant_id`.** Every business record carries `tenant_id`. Organization-level isolation via `organization_id` + RLS is the target model.
+>
+> 6. **CRD naming is Domain / Process / Agent / UISurface.** Earlier documents (e.g., 461) used `IntelligentDomainController (IDC)`, `IntelligentProcessController (IPC)`, `IntelligentAgentController (IAC)`. These names are **deprecated**.
+>
+> 7. **Backstage is internal only.** Backstage is the factory for Ameide engineers and transformation agents. Tenants never see Backstage; tenant UX is delivered through UISurface primitives.
+
+> **Security Spine**
+>
+> Security is a cross-cutting concern addressed in [476-ameide-security-trust.md](476-ameide-security-trust.md). Key areas:
+>
+> - **Tenant/org isolation (RLS)**: Target model requires `tenant_id` + `organization_id` on all business tables with Row-Level Security. See [476 §3](476-ameide-security-trust.md) and [329-authz](329-authz.md).
+> - **Agent governance**: AgentDefinitions carry `scope`, `risk_tier`, and `tool_grants` to constrain what agents can do. See [476 §8](476-ameide-security-trust.md) and [310](310-agent-runtime.md).
+> - **Extension isolation**: Tier 1 WASM runs in sandboxed `extensions-runtime`; Tier 2 primitives run in isolated `tenant-{id}-{env}-cust` namespaces. See [476 §6](476-ameide-security-trust.md) and [478](478-ameide-extensions.md)/[479](479-ameide-extensibility-wasm.md)/[480](480-ameide-extensibility-wasm-service.md).
+
+> **Terminology Migration (Legacy → Current)**
+>
+> The 47x vision suite establishes canonical vocabulary. Older documents (461, 465, earlier drafts) use terms that are now **deprecated**. This table provides the mapping:
+>
+> | Legacy Term | Current Term | Notes |
+> |-------------|--------------|-------|
+> | IDC (IntelligentDomainController) | **Domain CRD** | 461 naming; deprecated |
+> | IPC (IntelligentProcessController) | **Process CRD** | 461 naming; deprecated |
+> | IAC (IntelligentAgentController) | **Agent CRD** | 461 naming; deprecated |
+> | "component domain" (465) | Chart folder | 465 used "domain" for Helm chart directories; unrelated to Domain primitives |
+> | "Transformation tooling service" | **Transformation design tooling** (UI only) | Earlier docs implied a separate runtime service; there is none—tooling is stateless UI calling Transformation Domain APIs |
+> | "Agent domain" | **Transformation Domain** | Agent configs (AgentDefinitions) live in Transformation Domain, not a separate "Agent domain" |
+> | IPA (Intelligent Process Automation) | Domain + Process + Agent primitive bundle | Marketing term; deprecated in technical docs |
+>
+> **Action**: When encountering legacy terms in code, comments, or older backlogs, use the current vocabulary. Do not re-introduce "Transformation tooling service" as a runtime—it does not exist.
 
 ---
 
@@ -67,7 +117,7 @@ It sits above business, application, and technology architecture docs and provid
 
 * How we think about **domains, processes, agents, and UIs**
 * How **transformation itself** is modelled as a first-class domain
-* How Backstage, UAF, BPMN, and the current proto/SDK stack come together
+* How Backstage, Transformation design tooling, BPMN, and the current proto/SDK stack come together
 
 ---
 
@@ -85,7 +135,7 @@ Typical enterprise stacks:
   * long upgrade cycles
   * opaque “what is actually running” state.
 
-Even in Ameide today, powerful building blocks (onboarding, proto APIs, UAF, agents, workflows) are still experienced as **bespoke services**, not a coherent business platform.   
+Even in Ameide today, powerful building blocks (onboarding, proto APIs, Transformation design tooling, agents, workflows) are still experienced as **bespoke services**, not a coherent business platform.   
 
 ### 2.2 Opportunity
 
@@ -98,8 +148,8 @@ We can build a **cloud-native business platform** where:
 
   * Proto-based APIs and clean architecture.
   * Production-ready TS SDK for web UIs.
-  * UAF as modelling UIs for artifacts (BPMN, architecture diagrams, Markdown specs), with all artifacts persisted by the Transformation DomainController.
-  * BPMN-compliant ProcessDefinitions executed by Temporal-backed ProcessControllers.
+  * Transformation design tooling as modelling UIs for artifacts (BPMN, architecture diagrams, Markdown specs), with all artifacts persisted by the Transformation Domain.
+  * BPMN-compliant ProcessDefinitions executed by Temporal-backed Process primitives.
   * Existing onboarding & tenancy model. 
 
 ---
@@ -111,10 +161,10 @@ We can build a **cloud-native business platform** where:
 ### 3.1 Core outcomes
 
 1. **No more one‑off ERPs/CRMs**
-   Customers assemble **domains** (Orders, Customers, Transformation, Identity, Billing…) and **process controllers** (L2O, O2C, Onboarding, Agile, TOGAF) instead of buying separate suites.
+   Customers assemble **domains** (Orders, Customers, Transformation, Identity, Billing…) and **process primitives** (L2O, O2C, Onboarding, Agile, TOGAF) instead of buying separate suites.
 
 2. **Transformation is inside the product**
-   The same platform that runs L2O/O2C also runs the **transformation processes** that define and evolve them, with artifacts managed by the **Transformation DomainController** and modelled through UAF UIs.
+   The same platform that runs L2O/O2C also runs the **transformation processes** that define and evolve them, with artifacts managed by the **Transformation Domain** and modelled through Transformation design tooling UIs.
 
 3. **Process‑first, workspace‑second**
    Users primarily work in **process views** (e.g. L2O stages), with classic entity workspaces (Orders, Customers) as supporting tools, not the main entry point. 
@@ -130,9 +180,9 @@ We can build a **cloud-native business platform** where:
 5. **Design ≠ Deploy ≠ Runtime**
    We maintain a strict separation between:
 
-   * **Design-time**: ProcessDefinitions, AgentDefinitions, ExtensionDefinitions, and other UAF artifacts stored in Transformation.
-   * **Deployment-time**: Backstage templates, GitOps, and controller manifests (IDC/IPC/IAC CRs) committed to Git.
-   * **Runtime**: Operators reconcile IDC/IPC/IAC custom resources into Deployments, Services, Temporal workers, and other workloads on Kubernetes.
+   * **Design-time**: ProcessDefinitions, AgentDefinitions, ExtensionDefinitions, and other Transformation design tooling artifacts stored in Transformation.
+   * **Deployment-time**: Backstage templates, GitOps, and `Domain` / `Process` / `Agent` / `UISurface` CRs committed to Git.
+   * **Runtime**: Operators reconcile those CRDs into Deployments, Services, Temporal workers, and other workloads on Kubernetes.
 
 ---
 
@@ -140,78 +190,92 @@ We can build a **cloud-native business platform** where:
 
 At the highest level we standardise on four building blocks, with a clear **design-time vs runtime** split:
 
-### 4.0 Design-Time Artifacts (in Transformation DomainController)
+### 4.0 Design-Time Artifacts (owned by the Transformation Domain)
 
-* **ProcessDefinition** – BPMN-compliant artifact produced by a custom React Flow modeller.
-  * Defines process stages, tasks, gateways, and bindings to domains/agents.
-  * Stored and versioned in Transformation DomainController with revisions & promotions (modelled via UAF UIs).
+* **ProcessDefinition** – BPMN-compliant artifact produced via Transformation design tooling.
+  * Defines process stages, tasks, gateways, and bindings to Domain/Agent primitives.
+  * Stored and versioned in the Transformation Domain with revisions & promotions.
 
 * **AgentDefinition** – Declarative spec for an agent.
-  * Tools (domain/process APIs), orchestration graph, scope, risk tier, policies.
-  * Stored alongside ProcessDefinitions in Transformation DomainController (modelled via UAF UIs).
+  * Tools (Domain/Process APIs), orchestration graph, scope, risk tier, policies.
+  * Stored alongside ProcessDefinitions in the Transformation Domain.
 
-### 4.1 Runtime Controllers
+* **ExtensionDefinition & other artifacts** – Markdown specs, architecture diagrams, Backstage template configs, etc., all persisted by the Transformation Domain and addressed like any other domain records.
 
-At runtime every controller is captured as a declarative custom resource (IDC/IPC/IAC). Ameide operators reconcile those CRs into Deployments/Services/Temporal workers/agent runtimes so Git remains the single source of desired state.
+### 4.1 Runtime primitives & CRDs
 
-1. **DomainController** – a domain microservice:
+Every running primitive is described by exactly one CRD so Git remains the source of desired state and operators can reconcile code into Deployments/Services/Temporal workers/agent runtimes.
 
-   * Owns **proto APIs**, domain rules, persistence, and events.
-   * Examples: Orders, Customers, Transformation, UAF, Onboarding, Identity.
+1. **Domain primitive**
+
+   * Owns proto-first APIs, domain rules, persistence, and events.
+   * Examples: Orders, Customers, Transformation, design tooling, Onboarding, Identity.
    * Deterministic, versioned, testable.
-   * **Runtime representation**: `IntelligentDomainController` CR (see [461](461-ipc-idc-iac.md)) reconciled into Deployments, Services, DB schemas, HPAs, ServiceMonitors, etc.
+   * **Runtime representation**: `Domain` CRD declares image, config, DB bindings, resources, observability. Operators reconcile it into Deployments, Services, CNPG schemas, HPAs, ServiceMonitors, etc.
 
-2. **ProcessController** – executes ProcessDefinitions:
+2. **Process primitive**
 
-   * Loads a specific ProcessDefinition version from Transformation DomainController.
-   * Manages process instances, state, retries, compensation.
-   * Backed by Temporal; binds BPMN tasks to DomainController/AgentController calls.
-   * **Runtime representation**: `IntelligentProcessController` CR defining Temporal workers, namespace bindings, rollout strategy.
+   * Loads a specific ProcessDefinition version from the Transformation Domain.
+   * Manages process instances, retries, compensation, and lifecycle metrics.
+   * Backed by Temporal; binds BPMN tasks to Domain and Agent primitives.
+   * **Runtime representation**: `Process` CRD declares image, Temporal namespace/bindings, rollout strategy, queues/topics, and timeout policy.
 
-3. **AgentController** – executes AgentDefinitions:
+3. **Agent primitive**
 
-   * Loads an AgentDefinition and runs the LLM/tool loop.
-   * Accesses domain/process data via the SDK and public APIs.
-   * Enforces scope/risk policies at execution time.
-   * E.g. transformation requirement agent, coder/refactor agent, L2O assistant.
-   * **Runtime representation**: `IntelligentAgentController` CR describing runtime image, tool grants, risk tier, rollout.
+   * Loads an AgentDefinition and runs the LLM/tool loop with typed tools via SDKs.
+   * Enforces scope/risk policies and produces deterministic proposals the Domains/Processes persist.
+   * **Runtime representation**: `Agent` CRD declares image, model/provider config, allowed tools, and risk tier plus observability hooks.
 
-4. **UIWorkspace** – UX layer:
+4. **UISurface primitive**
 
-   * Next.js workspaces that expose process views and domain workspaces using the TS SDK.
+   * Next.js workspaces or process views that expose domain workspaces and process timelines using the TS SDK.
+   * **Runtime representation**: `UISurface` CRD declares image, routing, auth scopes, feature flags, and dependencies on Domain/Process/Agent primitives.
 
-These are **logical roles**. Underneath, they're implemented by concrete services described in the proto/API and North‑Star docs (graph/repository/platform/transformation/workflows/agents/chat/threads/www_*).
+These are **logical roles** implemented by concrete services described in the proto/API and North‑Star docs (graph/repository/platform/transformation/workflows/agents/chat/threads/www_*).
 
-### 4.2 Transformation & UAF as first‑class domain
+### 4.2 Transformation domain & design tooling
 
-* **Transformation DomainController**
+* **Transformation Domain**
 
-  * Stores: initiatives, epics, backlogs, architecture decisions.
-  * Owns **ProcessDefinitions** and **AgentDefinitions** as first-class artifacts (optionally using an event-sourced pattern internally).
-  * Coordinates: Agile or TOGAF ADM-like processes as ProcessControllers.
-  * Single source of truth for all design-time artifacts—there is no separate "UAF service" in the runtime.
+  * Stores: initiatives, epics, backlogs, architecture decisions, ProcessDefinitions, AgentDefinitions, ExtensionDefinitions, Backstage template configs.
+  * Coordinates Agile/TOGAF-style transformation processes via Process primitives.
+  * Single source of truth for all design-time artifacts—there is no separate “design tooling service” in the runtime.
 
-* **Unified Artifact Framework (UAF)**
+* **Transformation design tooling**
 
-  * A *frontend modelling layer* (BPMN editor, diagram editor, Markdown editor) that calls the Transformation DomainController APIs.
-  * UAF UIs send commands to Transformation; they don't own storage.
-  * Provides versioning and promotion UX but delegates persistence to the Transformation DomainController.
+  * A frontend modelling layer (BPMN editor, diagram editor, Markdown + agent editors) that calls Transformation Domain APIs.
+  * Sends commands to Transformation; owns zero storage and simply presents versioning/promotion UX backed by Transformation data.
 
 ### 4.3 Backstage as "factory"
 
-Backstage is the **factory** that turns Transformation DomainController decisions into running components:
+Backstage is the **factory** that turns Transformation Domain decisions into running components:
 
 * **Catalog**:
 
-  * Indexes DomainController, ProcessController, AgentController, UIWorkspace components and their sources (repos, Helm releases, proto APIs).
+  * Indexes Domain, Process, Agent, and UISurface primitives plus their sources (repos, Helm releases, proto APIs).
 * **Templates**:
 
-  * Scaffold new domain controllers, process controllers, agent controllers, and workspaces using standard Ameide patterns (proto, SDK, Helm/Argo, CNPG, Temporal) and emit the corresponding IDC/IPC/IAC manifests that GitOps/Argo will apply.
+  * Scaffold new Domain/Process/Agent/UISurface primitives using standard Ameide patterns (proto, SDK, Helm/Argo, CNPG, Temporal) and emit the corresponding CRDs that GitOps/Argo will apply.
 * **Bridge**:
 
-  * Listens to Transformation domain events and runs templates with specific parameters (e.g. "create L2O ProcessController variant for tenant X").
+  * Listens to Transformation domain events and runs templates with specific parameters (e.g. "create L2O Process primitive variant for tenant X").
 
-> **Extension Model**: For tenant-specific controllers and custom code isolation, see [478-ameide-extensions.md](478-ameide-extensions.md) which defines the namespace strategy by SKU and the E2E flow for controller creation.
+> **Extension Model**: For tenant-specific primitives and custom code isolation, see [478-ameide-extensions.md](478-ameide-extensions.md) which defines the namespace strategy by SKU and the E2E flow for primitive creation.
+
+### 4.4 Proto-first contracts (Buf + SDK chain)
+
+All primitives follow a single, enforced chain for contracts and runtime artifacts:
+
+1. **Schema layer (Buf)** – `packages/ameide_core_proto` hosts the Buf module for every Domain/Process/Agent surface. Buf breaking-change checks run in CI (see [365-buf-sdks-v2.md](365-buf-sdks-v2.md)). Generated outputs land inside the SDK packages (TS/Go/Python) so services never import Buf registry stubs directly.
+2. **Implementation layer (workspace SDKs)** – Services consume AmeideClient + proto types from the workspace SDKs per [402](402-buf-first-generated-clients.md), with language-specific rollout plans in [403](403-python-buf-first-migration-plan.md) and [404](404-go-buf-first-migration.md). Proto diffs therefore break dev/CI immediately.
+3. **Runtime layer (GitOps)** – Docker images are built from those workspace SDKs and referenced by GitOps manifests (Argo CD). Metadata/annotations capture the proto + image versions (see [472 §2.7](472-ameide-information-application.md)).
+4. **Publish track (outer loop)** – SDKs/configs still ship as product artifacts for external consumers per [388-ameide-sdks-north-star.md](388-ameide-sdks-north-star.md), but internal Rings 1/2 never wait on publishes.
+
+This keeps “proto → SDK → deployment” consistent across every primitive and is the basis for tenant-specific extensions and catalog metadata referenced throughout the 47x suite.
+
+### 4.5 Event-driven orchestration (Watermill CQRS)
+
+Where Process/Domain primitives run inside Go services, we rely on Watermill’s CQRS component to implement command and event handlers with minimal boilerplate. Process primitives send commands (`CommandBus`) and publish events (`EventBus`) as plain Go structs; Watermill handles serialization, topic selection, and pub/sub integration (Kafka, RabbitMQ, Postgres, JetStream, etc.). Downstream read models subscribe via `EventProcessor` handlers. See [472 §3.3.1](472-ameide-information-application.md#331-event-driven-cqrs-runtime-watermill) for details and references. Other languages follow the same CQRS semantics even when they don’t use Watermill directly.
 
 ---
 
@@ -229,38 +293,38 @@ Backstage is the **factory** that turns Transformation DomainController decision
 
 2. **Multi-tenancy as a first-class concern**
 
-   * Tenant is always explicit: in tokens, DB schemas/RLS, and APIs. 
+   * Tenant is always explicit: in tokens, DB schemas/RLS, and APIs.
    * Onboarding/Identity design (realm-per-tenant for enterprise, shared realms for SMB) is canonical and reused by all domains. 
 
-3. **Deterministic controllers, non-deterministic agents**
+3. **Deterministic primitives, non-deterministic agents**
 
-   * DomainControllers + ProcessControllers are **deterministic**, versioned, and testable.
-   * AgentControllers are allowed to be non-deterministic, but:
+   * Domain primitives + Process primitives are **deterministic**, versioned, and testable.
+   * Agent primitives are allowed to be non-deterministic, but:
 
      * They can only act through public domain/process APIs.
-     * Their proposals become durable only once written into the Transformation DomainController.
+     * Their proposals become durable only once written into the Transformation Domain.
 
 4. **Process‑first modelling**
 
-   * Processes like L2O, O2C, Onboarding, Scrum, TOGAF are defined as ProcessDefinitions (BPMN-compliant) in Transformation DomainController (modelled via UAF UIs).
-   * ProcessControllers execute these definitions via Temporal.
+   * Processes like L2O, O2C, Onboarding, Scrum, TOGAF are defined as ProcessDefinitions (BPMN-compliant) in Transformation Domain (modelled via Transformation design tooling UIs).
+   * Process primitives execute these definitions via Temporal.
    * Domain design starts by asking "which process stages does this domain support?"
 
 5. **Graph as read-only projection, not runtime truth**
 
-   * **Graph** holds read-only projections for analysis; designs and histories live in DomainControllers (primarily Transformation) and can be projected into Graph as needed.
-   * Graph is never a source of truth; all writes go through controllers.
-   * Each DomainController controls its own persistence; Graph merely indexes selected data for cross-domain queries.
+   * **Graph** holds read-only projections for analysis; designs and histories live in Domain primitives (primarily Transformation) and can be projected into Graph as needed.
+   * Graph is never a source of truth; all writes go through primitives.
+   * Each Domain primitive controls its own persistence; Graph merely indexes selected data for cross-domain queries.
 
 ### 5.2 Transformation & Governance Principles
 
 6. **Transformation is a domain like any other**
 
-   * The Transformation DomainController owns:
+   * The Transformation Domain owns:
 
      * Transformation initiatives & roadmaps.
-     * **ProcessDefinitions** and **AgentDefinitions** as first-class UAF artifacts.
-     * UAF artifacts (BPMN, ArchiMate, Markdown).
+     * **ProcessDefinitions** and **AgentDefinitions** as first-class Transformation design tooling artifacts.
+     * Transformation design tooling artifacts (BPMN, ArchiMate, Markdown).
      * Backstage template configurations.
    * Change to the platform is expressed as **events and configs** in this domain, not ad-hoc pipelines.
 
@@ -268,20 +332,20 @@ Backstage is the **factory** that turns Transformation DomainController decision
 
    * The canonical lifecycle is:
 
-     1. Design change in UAF / Transformation (possibly with AgentController assistance).
+     1. Design change in Transformation design tooling / Transformation (possibly with Agent primitive assistance).
      2. Human review / governance (change boards, risk tiering).
-     3. Backstage template run → new DomainController/ProcessController/AgentController/UIWorkspace.
+     3. Backstage template run → new Domain primitive/Process primitive/Agent primitive/UISurface.
      4. GitOps/Helm/Argo rollout.
 
 8. **Self-development over time**
 
-   * The long-term goal: most new capabilities are produced by AgentControllers **inside the Transformation domain**, guided by ProcessDefinitions/AgentDefinitions in UAF and Backstage templates, with humans mostly approving and course-correcting rather than hand-writing code.
+   * The long-term goal: most new capabilities are produced by Agent primitives **inside the Transformation domain**, guided by ProcessDefinitions/AgentDefinitions in Transformation design tooling and Backstage templates, with humans mostly approving and course-correcting rather than hand-writing code.
 
 9. **IPA as a legacy concept**
 
    * IPA (Intelligent Process Automation) remains an **internal historical concept**, now decomposed into:
 
-     * a bundle of DomainControllers + ProcessControllers + AgentControllers.
+     * a bundle of Domain primitives + Process primitives + Agent primitives.
    * No new user-visible "IPA" product surface; everything is explained in terms of domains/processes/agents.
 
 ### 5.3 Engineering & Platform Principles
@@ -295,7 +359,7 @@ Backstage is the **factory** that turns Transformation DomainController decision
     * Follow the North‑Star blueprint:
 
       * Keep modelling/editor stacks as client-heavy (IndexedDB/command stacks, BPMN editors).
-      * Treat design artifacts as immutable, content-addressed blobs with revision history (via UAF). 
+      * Treat design artifacts as immutable, content-addressed blobs with revision history (via Transformation design tooling). 
 
 12. **Single proto & SDK contract layer**
 
@@ -304,14 +368,14 @@ Backstage is the **factory** that turns Transformation DomainController decision
 
 13. **Clean separation of concerns**
 
-    * **Design**: ProcessDefinitions/AgentDefinitions in custom React Flow modeller, stored in Transformation DomainController.
+    * **Design**: ProcessDefinitions/AgentDefinitions in custom React Flow modeller, stored in Transformation Domain.
     * **APIs**: pure proto-based domain APIs (044).
-    * **Runtime**: DomainControllers, ProcessControllers (Temporal-backed), AgentControllers on K8s.
+    * **Runtime**: Domain primitives, Process primitives (Temporal-backed), Agent primitives on K8s.
     * **SDK / tools**: TS SDK, core-platform-coder, Backstage templates driving these layers.
 
 14. **Observability, always-on**
 
-    * Tracing, metrics, and logs are not optional; they are part of acceptance criteria for any new DomainController/ProcessController/AgentController.
+    * Tracing, metrics, and logs are not optional; they are part of acceptance criteria for any new Domain primitive/Process primitive/Agent primitive.
     * North‑Star and onboarding specs define core telemetry attributes (tenant, organization, onboarding id, workflow id).
 
 15. **Security and tenancy over convenience**
@@ -354,7 +418,7 @@ We measure progress towards this vision with a small set of cross-cutting KPIs (
 
    * Target: majority of new domains/processes/agents/workspaces originate as:
 
-     * Transformation records + UAF artifacts.
+     * Transformation records + Transformation design tooling artifacts.
      * Backstage template runs, not bespoke scripting.
 
 3. **Process-first adoption**
@@ -373,28 +437,28 @@ To ensure we don't lose prior work:
 
 * **IPA Architecture**
 
-  * IPA remains as a conceptual ancestor of "Domain + Process + Agent bundles", but new design and implementation use the DomainController / ProcessController / AgentController pattern.
+  * IPA remains as a conceptual ancestor of "Domain + Process + Agent bundles", but new design and implementation use the Domain primitive / Process primitive / Agent primitive pattern.
 
 * **Proto-based APIs**
 
-  * The proto/REST/gRPC design and the API infrastructure backlog remain the foundation of DomainController patterns; new domains must follow them.
+  * The proto/REST/gRPC design and the API infrastructure backlog remain the foundation of Domain primitive patterns; new domains must follow them.
 
 * **TypeScript SDK**
 
-  * The SDK is the reference client for UIWorkspaces and many AgentControllers; all frontend workspaces must integrate via this path.
+  * The SDK is the reference client for UISurfaces and many Agent primitives; all frontend workspaces must integrate via this path.
 
-* **North-Star & UAF**
+* **North-Star & Transformation design tooling**
 
   * North-Star defines the design/deploy/runtime separation and client-side modelling.
-  * UAF defines ProcessDefinitions, AgentDefinitions, and other artifacts with revisions and promotions; it becomes the core of the Transformation domain's knowledge layer.
+  * Transformation design tooling defines ProcessDefinitions, AgentDefinitions, and other artifacts with revisions and promotions; it becomes the core of the Transformation domain's knowledge layer.
 
 * **core-platform-coder and internal agents**
 
-  * These become specific AgentController implementations we can generalise from (robust tool usage, scoring, state typing).
+  * These become specific Agent primitive implementations we can generalise from (robust tool usage, scoring, state typing).
 
 * **Onboarding & identity**
 
-  * The onboarding backlog is the canonical specification for tenancy, identity, and the first big process (tenant lifecycle) we must express as a ProcessDefinition + ProcessController.
+  * The onboarding backlog is the canonical specification for tenancy, identity, and the first big process (tenant lifecycle) we must express as a ProcessDefinition + Process primitive.
 
 ---
 
@@ -403,164 +467,49 @@ To ensure we don't lose prior work:
 This Vision / Rationale / Principles doc is intentionally high-level. The following documents refine it:
 
 1. **Business Architecture** – how tenants, orgs, roles, and transformation journeys use the platform.
-2. **Application & Information Architecture** – mapping DomainController/ProcessController/AgentController/UIWorkspace to concrete services & data flows; ProcessDefinitions and AgentDefinitions as design-time artifacts.
-3. **Technology Architecture** – detailed runtime stack (K8s, Temporal-backed ProcessControllers, Backstage, SDKs, infra operators).
+2. **Application & Information Architecture** – mapping Domain primitive/Process primitive/Agent primitive/UISurface to concrete services & data flows; ProcessDefinitions and AgentDefinitions as design-time artifacts.
+3. **Technology Architecture** – detailed runtime stack (K8s, Temporal-backed Process primitives, Backstage, SDKs, infra operators).
 4. **Domain Specifications** – L2O/O2C, Transformation, Onboarding/Identity, etc.
 5. **Refactoring & Migration Plan** – how we move from the existing microservices + IPA builder to this model.
 
 Those docs should all **inherit and reference these principles**; any deviations should be called out explicitly and treated as architecture decisions.
 
 ---
+## 9. Cross-References
 
-## 9. Cross-References & Alignment Status
+> **Implementation Status**: For current implementation status, gaps, and alignment tracking, see [483-fit-gap-analysis.md](483-fit-gap-analysis.md).
 
-This section maps vision principles to existing backlogs and flags gaps requiring attention.
+### 9.1 Vision Suite
 
-### 9.1 Strong Alignment (No Gaps)
-
-| Vision Principle | Supporting Backlogs | Status |
-|-----------------|---------------------|--------|
-| Multi-tenancy as first-class (§5.1.2) | [443-tenancy-models.md](443-tenancy-models.md) | ✅ 3 SKUs defined (Shared/Namespace/Private) |
-| Realm-per-tenant for enterprise | [333-realms.md](333-realms.md) | ✅ Target architecture documented |
-| Tenant explicit in tokens & APIs | [331-tenant-resolution.md](331-tenant-resolution.md) | ✅ JWT-based resolution implemented |
-| K8s & GitOps native (§5.3.10) | [364-argo-configuration.md](364-argo-configuration.md), [387-argocd-waves-v2.md](387-argocd-waves-v2.md) | ✅ Implemented |
-| Secrets authority model (§5.3.15) | [451-secrets-management.md](451-secrets-management.md), [462-secrets-origin-classification.md](462-secrets-origin-classification.md) | ✅ Classification complete |
-| CNPG for DB creds | [412-cnpg-owned-postgres-creds.md](412-cnpg-owned-postgres-creds.md) | ✅ Documented |
-| Proto-first contracts (§5.1.1) | [388-ameide-sdks-north-star.md](388-ameide-sdks-north-star.md), [393-ameide-sdk-import-policy.md](393-ameide-sdk-import-policy.md) | ✅ Strategy documented |
-| IPA decomposition (§5.2.9) | [472-ameide-information-application.md](472-ameide-information-application.md) §6 | ✅ Mapping documented |
-
-### 9.2 Gaps & Issues Requiring Attention
-
-#### 9.2.1 Authorization & Organization Isolation ⚠️ CRITICAL
-
-**Vision states** (§5.1.2):
-> "Tenant is always explicit: in tokens, **DB schemas/RLS**, and APIs."
-
-**Current reality per [329-authz.md](329-authz.md)**:
-- ❌ **Phase 2 NOT STARTED**: Database lacks `organization_id` columns on business tables
-- ❌ Row-Level Security (RLS) policies not enabled
-- ⚠️ API routes protected at membership level, but data isolation is **tenant-only, not org-level**
-
-**Impact**: Users in Org A can potentially see Org B's data within the same tenant. The vision's "strong tenant isolation" principle is only partially met.
-
-**Required actions**:
-1. Complete 329-authz Phase 2: add `organization_id` to repositories, transformations, elements tables
-2. Enable RLS policies per Phase 3
-3. Clarify: Is org-within-tenant isolation required for v1, or is tenant-level sufficient initially?
-
----
-
-#### 9.2.2 Transformation Domain Implementation ⚠️ REFACTOR NEEDED
-
-**Vision states** (§4.2):
-> "Transformation DomainController stores: initiatives, epics, backlogs, architecture decisions. Owns ProcessDefinitions and AgentDefinitions as first-class artifacts."
-
-**Current reality**:
-- ✅ `services/transformation/` exists with proto definitions (`ameide_core_proto/transformation/v1/`)
-- ⚠️ Current implementation is monolithic; needs decomposition to align with Backstage-based "factory" model
-- ⚠️ UAF artifact management partially implemented but not yet integrated with Backstage templates
-- ⚠️ ProcessDefinitions and AgentDefinitions not yet first-class artifact types
-
-**Alignment with 472 (Information Architecture)**:
-- 472 §3.5 describes Transformation as owning: Initiatives, Backlog Items, UAF Artifacts, Governance
-- 472 §4.2 describes Backstage templates for DomainController/ProcessController/AgentController/UIWorkspace generation
-
-**Required actions**:
-1. Refactor `transformation-service` to cleanly separate:
-   - **Transformation DomainController**: initiatives, backlogs, governance state
-   - **UAF subsystem**: ProcessDefinitions, AgentDefinitions, artifact storage, revisions, promotions
-   - **Backstage bridge**: template triggering from domain events
-2. Define proto contracts for Backstage template parameters
-3. Implement event-driven bridge: Transformation domain events → Backstage template runs
-
-**Related backlogs**:
-- [310-agents-v2.md](310-agents-v2.md) – AgentController layer (n8n-aligned); fits into §4 conceptual model
-- [472-ameide-information-application.md](472-ameide-information-application.md) §4 – Backstage catalog modeling
-
----
-
-#### 9.2.3 SDK Distribution ⚠️ PUBLICATION GAP
-
-**Vision states** (§5.3.12):
-> "All services use `ameide_core_proto` and generated SDKs... Frontends always go through the TS SDK; agents and workers use Go/Python SDKs."
-
-**Current reality per [388-ameide-sdks-north-star.md](388-ameide-sdks-north-star.md) (status section)**:
-| SDK | Status | Gap |
-|-----|--------|-----|
-| Go SDK | ✅ Published | `v0.1.0` on GitHub + GHCR |
-| Python SDK | ✅ Published | `2.10.1` on PyPI |
-| **TypeScript SDK** | ❌ **NOT PUBLISHED** | 404 on npmjs; GHCR has only `dev`/hash tags |
-| Configuration package | ⚠️ Partial | Only `dev`/hash tags on GHCR |
-
-**Impact**: The "open by design – APIs & SDKs everywhere" principle (§5.2 of [000-ameide-principles.md](000-ameide-principles.md)) is compromised for external TS consumers.
-
-**Required actions**:
-1. Publish `@ameideio/ameide-sdk-ts` to npmjs with SemVer tags
-2. Add GHCR SemVer aliases (`:0.1.0`, `:latest`) for TS SDK images
-3. Wire `cd-packages.yml` workflow per 388 §CI/CD Blueprint
-
-**Related backlogs**:
-- [390-ameide-sdk-versioning.md](390-ameide-sdk-versioning.md) – SemVer policy
-- [391-resilient-cd-packages-workflow.md](391-resilient-cd-packages-workflow.md) – CI wiring
-
----
-
-### 9.3 Minor Gaps (Operational)
-
-| Area | Gap | Reference |
-|------|-----|-----------|
-| Observability coverage | Framework exists but service-level coverage uneven | [334-logging-tracing.md](334-logging-tracing.md) |
-| 474 Implementation Plan | Empty placeholder | [474-ameide-implementation.md](474-ameide-implementation.md) |
-
----
-
-### 9.4 Implementation Checkpoints (Dec 2025)
-
-- **Tier 1 extensibility runtime shipped (Backlog 480).** `extensions-runtime` now exists as a platform service in `ameide-{env}`, exposes a single `InvokeExtension` gRPC API, and runs tenant WASM modules with Wasmtime sandboxing + MinIO-backed module storage. Host calls already route through Ameide SDK-backed adapters, so Domain/Process/AgentControllers keep their deterministic contracts. This closes a long-standing gap in §3.4 (“Agentic everywhere, but controlled”) by delivering a real shared helper runtime instead of bespoke controller plug-ins.
-- **Unified ApplicationSet orchestration live (Backlog 364).** The GitOps repo now drives namespaces, CRDs, operators, platform planes, and services via RollingSync ApplicationSets. Helmfiles are confined to render-only duties and every component carries `tier`/`wave` labels, so §3.5 (“Design ≠ Deploy ≠ Runtime”) is enforced mechanically: design artifacts land in Transformation, Git commits update controller manifests, and ArgoCD waves gate rollout.
-- **SDK + controller alignment (Backlogs 388, 430).** Go/TS/Python SDKs consume the same `runtime.proto` and integration packs enforce the `SERVICEPREFIX_FIELD` env-var convention via `tools/integration-runner/verify_required_env_vars.sh`. This keeps the “single proto + SDK layer” promise in §3.1 tangible: controllers call platform helpers (e.g., `extensions-runtime`) exactly the same way UIs do, and integration suites fail fast when cluster dependencies are misconfigured.
-- **Namespace + tenancy guardrails upheld (Backlogs 472, 478).** Extension modules execute as *data* in platform namespaces, but all side effects still flow through controller APIs using ExecutionContext-derived tokens. The GitOps layouts and Telepresence overlays continue to enforce “custom services stay in tenant namespaces” while letting shared runtimes operate in `ameide-{env}`.
-
-Together, these checkpoints demonstrate that the architectural principles in §§2–4 are no longer aspirational: we have concrete platform services, GitOps flows, and SDK contracts embodying them. Remaining work (see §9.3) is mostly documentation debt and incremental observability.
-
----
-
-### 9.5 Cross-Reference Index
-
-**Vision Suite**:
 - [470-ameide-vision.md](470-ameide-vision.md) – This document
 - [471-ameide-business-architecture.md](471-ameide-business-architecture.md) – Business use cases, personas, journeys
 - [472-ameide-information-application.md](472-ameide-information-application.md) – Application & information architecture
 - [473-ameide-technology.md](473-ameide-technology.md) – Technology stack blueprint
+- [475-ameide-domains.md](475-ameide-domains.md) – Domain architecture
+- [476-ameide-security-trust.md](476-ameide-security-trust.md) – Security architecture
 
-**Core Principles**:
-- [000-ameide-principles.md](000-ameide-principles.md) – Foundation principles (well-aligned)
+### 9.2 Core Principles
 
-**Multi-Tenancy & Identity**:
+- [000-ameide-principles.md](000-ameide-principles.md) – Foundation principles
+
+### 9.3 Multi-Tenancy & Identity
+
 - [333-realms.md](333-realms.md) – Realm-per-tenant target architecture
 - [331-tenant-resolution.md](331-tenant-resolution.md) – JWT-based tenant resolution
 - [443-tenancy-models.md](443-tenancy-models.md) – SKU matrix (Shared/Namespace/Private)
-- [329-authz.md](329-authz.md) – Authorization (⚠️ Phase 2 not started)
+- [329-authz.md](329-authz.md) – Authorization
 
-**Secrets & Infrastructure**:
+### 9.4 Secrets & Infrastructure
+
 - [451-secrets-management.md](451-secrets-management.md) – E2E secrets flow
 - [462-secrets-origin-classification.md](462-secrets-origin-classification.md) – Authority model
-- [418-secrets-strategy-map.md](418-secrets-strategy-map.md) – Current strategy
 
-**SDKs & APIs**:
-- [388-ameide-sdks-north-star.md](388-ameide-sdks-north-star.md) – SDK publish strategy (⚠️ TS gap)
+### 9.5 SDKs & APIs
+
+- [388-ameide-sdks-north-star.md](388-ameide-sdks-north-star.md) – SDK publish strategy
 - [393-ameide-sdk-import-policy.md](393-ameide-sdk-import-policy.md) – Import guardrails
 
-**Agents & Transformation**:
-- [310-agents-v2.md](310-agents-v2.md) – AgentController layer (n8n-aligned)
-- [305-workflow.md](305-workflow.md) – Workflow orchestration (Temporal-backed ProcessControllers)
+### 9.6 Agents & Transformation
 
----
-
-### 9.6 Backlog Sync Recommendations
-
-- **474-ameide-implementation.md** – Still empty; needs an execution roadmap that sequences the already-shipped Tier 1 runtime (480), RollingSync adoption (364), and SDK/CI guardrails (430). Without this, the “implementation” slot in §9.3 remains a gap even though the work now exists.
-- **478-ameide-extensions.md** – Should be refreshed to point at the shipping `extensions-runtime` service as the Tier 1 execution environment, describe the Wasmtime sandbox + host-call policy surfaced in Backlog 480, and clarify how ExtensionDefinitions flow from Transformation → GitOps → runtime.
-- **473-ameide-technology.md** – Update the GitOps sections to reflect the live ApplicationSet/RollingSync pattern (364) and reference the `verify_required_env_vars.sh` CI check so technology readers understand how these guardrails translate into tooling.
-
-Documenting these follow-ups keeps the rest of the 47x suite synchronized with the progress captured in this file.
+- [310-agents-v2.md](310-agents-v2.md) – Agent primitive layer
+- [305-workflow.md](305-workflow.md) – Workflow orchestration (Temporal-backed Process primitives)

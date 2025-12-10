@@ -1,4 +1,4 @@
-# 478 – Ameide Extensions & Tenant Controller Model
+# 478 – Ameide Extensions & Tenant Primitive Model
 
 **Status:** Draft v1
 **Owner:** Architecture / Platform
@@ -12,9 +12,9 @@
 > | [471-ameide-business-architecture.md](471-ameide-business-architecture.md) | Business concepts, tenant journey |
 > | [472-ameide-information-application.md](472-ameide-information-application.md) | Application architecture, Backstage catalog |
 > | [473-ameide-technology.md](473-ameide-technology.md) | Technology stack, deployment |
-> | [475-ameide-domains.md](475-ameide-domains.md) | Domain portfolio, controller patterns |
+> | [475-ameide-domains.md](475-ameide-domains.md) | Domain portfolio, primitive patterns |
 > | [476-ameide-security-trust.md](476-ameide-security-trust.md) | Security principles, agent governance |
-> | [477-backstage.md](477-backstage.md) | Backstage implementation |
+> | [467-backstage.md](467-backstage.md) | Backstage implementation |
 > | [479-ameide-extensibility-wasm.md](479-ameide-extensibility-wasm.md) | Tier 1 + Tier 2 extensibility framing |
 > | [480-ameide-extensibility-wasm-service.md](480-ameide-extensibility-wasm-service.md) | Tier 1 runtime implementation |
 >
@@ -27,16 +27,16 @@
 
 ## 1. Purpose
 
-This document describes **how tenant-specific controllers are created, deployed, and isolated** within the Ameide platform. It operationalizes the architecture principles from 470-477 into concrete workflows.
+This document describes **how tenant-specific primitives are created, deployed, and isolated** within the Ameide platform. It operationalizes the architecture principles from 470-477 into concrete workflows.
 
-**Scope note:** This document covers **Tier 2 controller-based extensions** (Domain/Process/Agent controllers owned by tenants). Tier 1 WASM extensions stay inside the shared runtime described in [479](479-ameide-extensibility-wasm.md)/[480](480-ameide-extensibility-wasm-service.md); they only appear here when referencing shared namespace/security invariants. Whenever this doc says "controller" it refers to the corresponding `IntelligentDomainController`, `IntelligentProcessController`, or `IntelligentAgentController` custom resource that GitOps applies and that operators reconcile into workloads.
+**Scope note:** This document covers **Tier 2 primitive-based extensions** (Domain/Process/Agent primitives owned by tenants). Tier 1 WASM extensions stay inside the shared runtime described in [479](479-ameide-extensibility-wasm.md)/[480](480-ameide-extensibility-wasm-service.md); they only appear here when referencing shared namespace/security invariants.
 
 Key questions answered:
 
 * How does Backstage fit into the extension model?
 * Where does platform code vs tenant code live?
 * How are namespaces structured by SKU?
-* What is the E2E flow from requirement to running controller?
+* What is the E2E flow from requirement to running a new primitive?
 * What security invariants must hold?
 
 ---
@@ -45,36 +45,36 @@ Key questions answered:
 
 ### 2.1 Positioning
 
-Backstage is the **internal factory + map** for controllers:
+Backstage is the **internal factory + map** for primitives:
 
-* DomainControllers
-* ProcessControllers
-* AgentControllers
+* Domain primitives
+* Process primitives
+* Agent primitives
 
 It is **never tenant-facing**. Tenants only see the Ameide platform UI.
 
 Backstage pulls truth from:
 
-* `service_catalog/` in the platform repo (which controllers exist, how they're wired)
-* Tenant extension repos (for custom controllers)
+* `service_catalog/` in the platform repo (which primitives exist, how they're wired)
+* Tenant extension repos (for custom primitives)
 * Runtime systems (ArgoCD, K8s, observability)
 
-> **Think of it as**: "where platform engineers go to create & reason about controllers", not "where customers click buttons".
+> **Think of it as**: "where platform engineers go to create & reason about primitives", not "where customers click buttons".
 >
 > Tier 1 WASM extensions do **not** use Backstage; they are stored as `ExtensionDefinition` artifacts and executed by the shared runtime (479/480).
 >
-> Tier 2 templates emit controller repositories **and** the IDC/IPC/IAC manifests that GitOps applies to realise runtime controllers.
+> Tier 2 templates emit primitive repositories **and** the Domain/Process/Agent/UISurface CRDs that GitOps applies to realise runtime primitives.
 
 ### 2.2 Backstage Capabilities Used
 
 | Backstage Feature | Ameide Usage |
 |-------------------|--------------|
-| Software Catalog | Registry of all Domain/Process/Agent controllers and APIs |
-| Software Templates | Scaffolder templates for creating new controllers |
+| Software Catalog | Registry of all Domain/Process/Agent primitives and APIs |
+| Software Templates | Scaffolder templates for creating new primitives |
 | TechDocs | Technical documentation aggregation |
 | Integrations | GitHub, Keycloak, ArgoCD plugins |
 
-See [477-backstage.md](477-backstage.md) for implementation details.
+See [467-backstage.md](467-backstage.md) for implementation details.
 
 ---
 
@@ -84,12 +84,12 @@ See [477-backstage.md](477-backstage.md) for implementation details.
 
 Contains:
 
-* `service_catalog/` with controller structure and base implementations
+* `service_catalog/` with primitive structure and base implementations
 * Backstage app + plugins
 * **Backstage templates**:
-  * DomainController template
-  * ProcessController template
-  * AgentController template
+  * Domain primitive template
+  * Process primitive template
+  * Agent primitive template
 * Shared libraries / SDKs, infra charts, etc.
 
 **Only Ameide-owned code lives here. No tenant custom code.**
@@ -100,10 +100,10 @@ Per tenant that has customisation:
 
 | Repository | Purpose |
 |------------|---------|
-| `tenant-{id}-controllers` | Tenant-specific or tenant-scoped controller code |
-| `tenant-{id}-gitops` | Helm/Argo manifests for those controllers |
+| `tenant-{id}-controllers` | Tenant-specific or tenant-scoped primitive code |
+| `tenant-{id}-gitops` | Helm/Argo manifests for those primitives |
 
-Backstage catalog has **Locations** pointing at these repos, so tenant controllers show up in the internal portal, but code and manifests stay out of the platform repo.
+Backstage catalog has **Locations** pointing at these repos, so tenant primitives show up in the internal portal, but code and manifests stay out of the platform repo.
 
 ### 3.3 Repository Ownership Matrix
 
@@ -123,7 +123,7 @@ For each environment (`dev`, `staging`, `prod`), namespaces are structured based
 ### 4.1 Shared Platform Plane
 
 * `ameide-{env}`
-  * Multi-tenant platform controllers (shared product)
+  * Multi-tenant platform primitives (shared product)
   * RLS + tenantId/orgId for data isolation
   * **Code must come from platform repos only**
   * **No tenant-specific/custom code ever**
@@ -136,7 +136,7 @@ For each environment (`dev`, `staging`, `prod`), namespaces are structured based
 * Shared product runs in: `ameide-{env}`
 * If the tenant has custom code, they get:
   * `tenant-{id}-{env}-cust`
-    * Tenant/agent-generated controllers
+    * Tenant/agent-generated primitives
     * Calls **into** `ameide-{env}` only via well-defined APIs (HTTP/gRPC) with `tenantId` in auth
     * No direct access to shared DBs or internal services
   * No `tenant-{id}-{env}-base` (reserved for dedicated namespace/cluster SKUs)
@@ -147,7 +147,7 @@ On a shared cluster with dedicated namespace:
 
 * `tenant-{id}-{env}-base`
   * Primary product runtime **dedicated to that tenant** (their "base" namespace)
-  * Platform-managed controllers specialised for that tenant
+  * Platform-managed primitives specialised for that tenant
 * Optionally `tenant-{id}-{env}-cust`
   * Tenant/agent-owned code, kept separate from the "product" base
 
@@ -192,9 +192,9 @@ We maintain 3–4 **golden templates** in the platform repo:
 
 | Template | Purpose |
 |----------|---------|
-| `DomainController` | Create a new domain with proto APIs, DB schema, Helm chart |
-| `ProcessController` | Create a process runtime with Temporal workers |
-| `AgentController` | Create an agent runtime with tool registry |
+| `Domain primitive` | Create a new domain with proto APIs, DB schema, Helm chart |
+| `Process primitive` | Create a process runtime with Temporal workers |
+| `Agent primitive` | Create an agent runtime with tool registry |
 | `UIWorkspace` (optional) | Create a Next.js microfrontend |
 
 ### 5.2 Template Inputs
@@ -205,8 +205,8 @@ Each template asks for:
 |-------|-------------|
 | `tenant_id` | Optional if platform-only |
 | `sku` | Shared / Namespace / Private |
-| `controller_name` | Name of the controller |
-| `controller_type` | Domain / Process / Agent |
+| `primitive_name` | Name of the primitive |
+| `primitive_type` | Domain / Process / Agent |
 | `target_repo` | Platform vs tenant repo |
 
 ### 5.3 Template Outputs
@@ -219,7 +219,7 @@ The template computes the **target namespace** per env based on:
 
 Then scaffolds:
 
-* Controller code skeleton (with SDK, RLS hooks, telemetry, auth middleware)
+* Primitive code skeleton (with SDK, RLS hooks, telemetry, auth middleware)
 * Dockerfile / CI skeleton
 * Helm chart / K8s manifests
 * `catalog-info.yaml` for Backstage
@@ -241,7 +241,7 @@ function calculateNamespace(tenant_id, sku, origin, env):
 
 ---
 
-## 6. E2E Flow: From Idea to Running Controller
+## 6. E2E Flow: From Idea to Running Primitive
 
 ### Step 0 – Requirement Appears
 
@@ -254,27 +254,27 @@ function calculateNamespace(tenant_id, sku, origin, env):
   * Defines / updates `ProcessDefinition` (L2O variant, workflows, SLAs)
   * Defines / updates `AgentDefinition` (tools, prompts, policies)
   * Attaches them to `tenantId`/`orgId`
-* If the requirement can be met by **definitions + existing controllers**, it ends here: **no new code, no Backstage**.
+* If the requirement can be met by **definitions + existing primitives**, it ends here: **no new code, no Backstage**.
 
 ### Step 2 – Decide If New Code Is Needed
 
-If existing controllers and definitions can't implement the behaviour:
+If existing primitives and definitions can't implement the behaviour:
 
-* Transformation (or a human) decides: "we need a new [Domain/Process/Agent]Controller."
+* Transformation (or a human) decides: "we need a new [Domain/Process/Agent] primitive."
 * Transformation validates:
   * Tenant SKU
   * Allowed isolation mode
   * Whether custom code is permitted at all for this tenant
 
-### Step 3 – Create a ControllerImplementationDraft
+### Step 3 – Create a PrimitiveImplementationDraft
 
 Agent calls a high-level API:
 
 ```
-CreateControllerImplementationDraft(
+CreatePrimitiveImplementationDraft(
   tenant_id,
-  controller_type,
-  controller_id,
+  primitive_type,
+  primitive_id,
   template_id,
   code_origin   = "platform" | "tenant",
   target_repo   = "...",
@@ -288,12 +288,12 @@ Transformation:
 * Calculates proper namespaces per env:
   * Shared + platform code → `ameide-{env}`
   * Any custom/tenant code → `tenant-{id}-{env}-cust`
-  * Namespace/private base → `tenant-{id}-{env}-base` (for platform-owned dedicated controllers)
-* Creates a `ControllerImplementationDraft` artifact with all that info
+  * Namespace/private base → `tenant-{id}-{env}-base` (for platform-owned dedicated primitives)
+* Creates a `PrimitiveImplementationDraft` artifact with all that info
 
 ### Step 4 – Deterministic Worker Calls Backstage
 
-A backend worker (ProcessController) reacts to the draft and:
+A backend worker (Process primitive) reacts to the draft and:
 
 * Calls Backstage Scaffolder with the right template and values
 * Backstage:
@@ -311,8 +311,8 @@ Instead, it uses tools like:
 
 | Tool | Purpose |
 |------|---------|
-| `GetControllerDraftFiles(draft_id)` | Snapshot of files from the feature branch |
-| `UpdateControllerDraftFiles(draft_id, patches)` | Apply patches via deterministic worker |
+| `GetPrimitiveDraftFiles(draft_id)` | Snapshot of files from the feature branch |
+| `UpdatePrimitiveDraftFiles(draft_id, patches)` | Apply patches via deterministic worker |
 
 The deterministic worker:
 
@@ -337,7 +337,7 @@ Transformation worker:
 
 1. Runs CI on the branch (tests, lint, SAST/secret scan, etc.)
 2. If green, updates **`tenant-{id}-gitops`** (or platform GitOps repo if platform-owned code) with:
-   * Argo `Application`/`HelmRelease` pointing to the controller
+  * Argo `Application`/`HelmRelease` pointing to the primitive
    * Appropriate namespace:
      * Platform code → `ameide-dev`
      * Tenant custom code → `tenant-{id}-dev-cust`
@@ -353,7 +353,7 @@ ArgoCD's ApplicationSet for that env syncs:
 
 * Agent / human uses Backstage + observability to see:
   * Health, logs, metrics
-  * Catalog relations (which definitions use this controller, which tenants are affected)
+  * Catalog relations (which definitions use this primitive, which tenants are affected)
 * If changes needed, repeat Step 5–6
 
 ### Step 8 – Promote to Staging / Prod
@@ -381,7 +381,7 @@ No matter how fancy the flow gets, these hold:
 
 ### 7.1 No Custom Code in Shared Namespaces
 
-* Any controller whose origin is `tenant` (or "untrusted") **cannot** target `ameide-*`
+* Any primitive whose origin is `tenant` (or "untrusted") **cannot** target `ameide-*`
 * Validated in Transformation before scaffolding, and in GitOps/Argo policy
 
 ### 7.2 Dedicated Namespaces for All Custom Services
@@ -392,7 +392,7 @@ No matter how fancy the flow gets, these hold:
 ### 7.3 Only Deterministic Services Touch Git, Backstage, Argo
 
 * Agents only call high-level APIs in Transformation
-* Everything side-effectful (scaffold, commit, deploy) happens in predictable controllers
+* Everything side-effectful (scaffold, commit, deploy) happens in predictable primitives
 
 ### 7.4 All Calls from Tenant Code via APIs with Tenant-Aware Auth
 
@@ -410,20 +410,20 @@ No matter how fancy the flow gets, these hold:
 
 ---
 
-## 8. ControllerImplementationDraft Artifact
+## 8. PrimitiveImplementationDraft Artifact
 
 ### 8.1 Definition
 
-A `ControllerImplementationDraft` is a first-class artifact in the **Transformation DomainController** that tracks the lifecycle of creating a new controller.
+A `PrimitiveImplementationDraft` is a first-class artifact in the **Transformation Domain** that tracks the lifecycle of creating a new primitive.
 
 ### 8.2 Schema
 
 ```protobuf
-message ControllerImplementationDraft {
+message PrimitiveImplementationDraft {
   string id = 1;
   string tenant_id = 2;
-  string controller_type = 3;  // "domain" | "process" | "agent"
-  string controller_id = 4;
+  string primitive_type = 3;  // "domain" | "process" | "agent"
+  string primitive_id = 4;
   string template_id = 5;
   string code_origin = 6;      // "platform" | "tenant"
   string target_repo = 7;
@@ -456,9 +456,9 @@ enum DraftState {
 
 | API | Purpose |
 |-----|---------|
-| `CreateControllerImplementationDraft` | Create a new draft |
-| `GetControllerDraftFiles` | Get current files from feature branch |
-| `UpdateControllerDraftFiles` | Apply patches via deterministic worker |
+| `CreatePrimitiveImplementationDraft` | Create a new draft |
+| `GetPrimitiveDraftFiles` | Get current files from feature branch |
+| `UpdatePrimitiveDraftFiles` | Apply patches via deterministic worker |
 | `RequestPromotion` | Promote to an environment |
 | `GetDraftStatus` | Get current state and audit trail |
 
@@ -530,12 +530,12 @@ spec:
 | Document | Section | Relationship |
 |----------|---------|--------------|
 | [470-ameide-vision](470-ameide-vision.md) | §4.3 | Backstage as factory – 478 operationalizes |
-| [471-ameide-business-architecture](471-ameide-business-architecture.md) | §4, §6 | Business lifecycle – 478 details controller creation |
+| [471-ameide-business-architecture](471-ameide-business-architecture.md) | §4, §6 | Business lifecycle – 478 details primitive creation |
 | [472-ameide-information-application](472-ameide-information-application.md) | §4 | Backstage catalog – 478 adds tenant repos |
 | [473-ameide-technology](473-ameide-technology.md) | §6 | Multi-tenancy – 478 defines namespace topology |
-| [475-ameide-domains](475-ameide-domains.md) | §4.6 | AgentControllers – 478 adds tenant isolation |
-| [476-ameide-security-trust](476-ameide-security-trust.md) | §7 | Agent governance – 478 adds draft pattern |
-| [477-backstage](477-backstage.md) | §10 | Templates – 478 adds namespace calculation |
+| [475-ameide-domains](475-ameide-domains.md) | §4.6 | Agent primitives – 478 adds tenant isolation |
+| [476-ameide-security-trust](476-ameide-security-trust.md) | §8 | Agent governance – 478 adds draft pattern |
+| [467-backstage](467-backstage.md) | §10 | Templates – 478 adds namespace calculation |
 
 ### 10.2 Implementation Alignment
 
@@ -543,7 +543,7 @@ spec:
 |----------|--------------|
 | [443-tenancy-models](443-tenancy-models.md) | SKU definitions used in §4 |
 | [465-applicationset-architecture](465-applicationset-architecture.md) | GitOps model extended for tenant repos |
-| [310-agents-v2](310-agents-v2.md) | AgentController runtime for draft APIs |
+| [310-agents-v2](310-agents-v2.md) | Agent primitive runtime for draft APIs |
 
 ---
 
@@ -570,8 +570,8 @@ spec:
 | Component | Status | Notes |
 |-----------|--------|-------|
 | Namespace convention | ✅ Defined | §4 |
-| Backstage templates | ⏳ Planned | [477-backstage.md](477-backstage.md) §10.1 |
-| ControllerImplementationDraft | ⏳ Not implemented | §8 schema defined |
+| Backstage templates | ⏳ Planned | [467-backstage.md](467-backstage.md) §10.1 |
+| PrimitiveImplementationDraft | ⏳ Not implemented | §8 schema defined |
 | Draft APIs | ⏳ Not implemented | §8.3 |
 | NetworkPolicies | ⏳ Not implemented | §9 patterns defined |
 | Tenant repo provisioning | ❓ Open question | §11.1 |

@@ -6,7 +6,7 @@ Goal: retire every `infra/kubernetes/helmfiles/*.yaml` release from the **runtim
 
 This document captures the target Git layout, ApplicationSet strategy, and a migration checklist so we can fence Helmfile into that rendering-only role once the v5 GitOps setup is complete.
 
-> **Bootstrap reference:** Execution steps that previously called `tools/bootstrap/bootstrap-v2.sh` now map to `ameide-gitops/bootstrap/bootstrap.sh`. DevContainers in `ameide-core` use `tools/dev/bootstrap-contexts.sh` solely to configure kubectl/Telepresence/argocd against the shared AKS cluster per [435-remote-first-development.md](435-remote-first-development.md).
+> **Bootstrap reference:** Execution steps that previously called `tools/bootstrap/bootstrap-v2.sh` now map to `ameideio/ameide-gitops: bootstrap/bootstrap.sh`. DevContainers in `ameideio/ameide` use `tools/dev/bootstrap-contexts.sh` solely to configure kubectl/Telepresence/argocd against the shared AKS cluster per [435-remote-first-development.md](435-remote-first-development.md).
 
 ---
 

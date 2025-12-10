@@ -1,10 +1,24 @@
+# 461 – IPC/IDC/IAC Architecture (Historical)
 
+> **⚠️ TERMINOLOGY DEPRECATION NOTICE**
+>
+> This document introduced the `IntelligentDomainController (IDC)`, `IntelligentProcessController (IPC)`, and `IntelligentAgentController (IAC)` naming convention.
+>
+> **These names are now deprecated.** The vision suite (470-480) standardizes on:
+> - `Domain CRD` (not IDC)
+> - `Process CRD` (not IPC)
+> - `Agent CRD` (not IAC)
+> - `UISurface CRD` (new, not covered in this doc)
+>
+> The *concepts* in this document remain valid; only the naming has evolved. For current terminology, see [470-ameide-vision.md §0.1 Glossary](470-ameide-vision.md).
+
+---
 
 # 1. Vision – Ameide Intelligent Business Platform
 
 **File:** `docs/100-vision-ameide-platform.md`
 **Audience:** founders, product, senior architects, GTM
-**Scope:** *why* Ameide exists, *what* it is, and high‑level “shape” — no tech.
+**Scope:** *why* Ameide exists, *what* it is, and high‑level "shape" — no tech.
 
 
 ---

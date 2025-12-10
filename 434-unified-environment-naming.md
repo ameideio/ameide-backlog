@@ -576,3 +576,14 @@ Infrastructure values flow from Bicep to Helm via git:
 - **cert-manager Azure DNS**: [cert-manager docs](https://cert-manager.io/docs/configuration/acme/dns01/azuredns/) — per-zone ClusterIssuers
 - **ArgoCD multi-tenant**: [ArgoCD docs](https://argo-cd.readthedocs.io/en/stable/operator-manual/multi-tenancy/) — single instance, Project isolation
 - **Envoy Gateway**: [Gateway API](https://gateway-api.sigs.k8s.io/) — host-based routing via HTTPRoute
+
+---
+
+## Cross-References
+
+| Backlog | Relationship |
+|---------|--------------|
+| [430-unified-test-infrastructure](./430-unified-test-infrastructure.md) | Test modes aligned with environment naming |
+| [435-remote-first-development](./435-remote-first-development.md) | Telepresence + AKS workflow (refines this backlog) |
+| [443-tenancy-models](./443-tenancy-models.md) | Tenancy model definitions (single source of truth) |
+| [484-ameide-cli](./484-ameide-cli.md) | CLI `scaffold` outputs GitOps manifests following 434 structure |

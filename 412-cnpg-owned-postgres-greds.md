@@ -8,7 +8,7 @@ Here's a north star doc you can paste into Notion/Confluence/ADR with minimal ed
 > | [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md) | Phase 020 (CNPG operator), Phase 250 (postgres-clusters) |
 > | [464-chart-folder-alignment.md](464-chart-folder-alignment.md) | Chart at `sources/charts/foundation/operators-config/postgres_clusters` |
 > | [426-keycloak-config-map.md](426-keycloak-config-map.md) | OIDC patterns (Keycloak also uses CNPG credentials) |
-> | [477-backstage.md](477-backstage.md) | Backstage DB credentials (uses `backstage` template) |
+> | [467-backstage.md](467-backstage.md) | Backstage DB credentials (uses `backstage` template) |
 >
 > **Secrets Architecture**:
 > - [462-secrets-origin-classification.md](./462-secrets-origin-classification.md) – Secret origin taxonomy (this doc is the exemplar for "Cluster-Managed: Operator-Owned" secrets)

@@ -2,7 +2,7 @@
 
 **Status:** Draft  
 **Owner:** Architecture / Platform Enablement  
-**Purpose:** Provide a single checklist and pointer map for spinning up a new Ameide service (platform service or controller) with all cross-cutting requirements (security, testing, GitOps, documentation) enforced from day one.
+**Purpose:** Provide a single checklist and pointer map for spinning up a new Ameide service (platform service or primitive) with all cross-cutting requirements (security, testing, GitOps, documentation) enforced from day one.
 
 ---
 
@@ -16,8 +16,7 @@ Use this checklist whenever you create a net-new service under `services/` or `s
 
 | Topic | Questions to answer | Primary references |
 |-------|--------------------|--------------------|
-| **Architecture & positioning** | Is this a controller (Tier 2) or a platform service? How does it map to the extensibility model? | `478-service-catalog.md`, `479-ameide-extensibility-wasm.md`, `480-ameide-extensibility-wasm-service.md` |
-| **Architecture & positioning** | Is this a controller (Tier 2) or a platform service? How does it map to the extensibility model? | `478-service-catalog.md`, `479-ameide-extensibility-wasm.md`, `480-ameide-extensibility-wasm-service.md` |
+| **Architecture & positioning** | Is this a primitive (Tier 2) or a platform service? How does it map to the extensibility model? | `481-service-catalog.md`, `479-ameide-extensibility-wasm.md`, `480-ameide-extensibility-wasm-service.md` |
 | **Scaffolding & repo layout** | Which folders/files must exist (README, Dockerfiles, Tilt targets, catalog info)? | `service_catalog/*/_controller/skeleton/README.md`, `service_catalog/*/_controller/skeleton/Dockerfile.*`, `services/README.md` |
 | **Dockerfiles & build pipelines** | Do we have dev/release Dockerfiles aligned with repo conventions? Are we leveraging multi-stage builds? | `service_catalog/.../Dockerfile.dev`, `Dockerfile.release`, `services/platform/Dockerfile.dev` (patterns) |
 | **Secrets & configuration** | What secrets/config does the service need? Are ExternalSecrets defined (zero inline secrets per guardrail)? Does Vault bootstrap cover it? | `362-unified-secret-guardrails-v2.md`, `348-envs-secrets-harmonization.md` (historical), `services/<service>/README.md` examples |
@@ -25,11 +24,11 @@ Use this checklist whenever you create a net-new service under `services/` or `s
 | **GitOps & deployment** | Which ApplicationSet/Helm chart entries are required? What sync wave & labels apply? | `364-argo-configuration-v3.md`, `375-rolling-sync-wave-redesign.md`, `367-bootstrap-v2.md`, `387/447-argocd-waves*.md`, `465-applicationset-architecture.md`, environment naming per `434-unified-environment-naming.md` |
 | **SDK & workspace alignment** | Are protos consumed exclusively via Ameide SDKs, have Go/TS/Py packages been regenerated (`scripts/dev/check_sdk_alignment.py`), and do Dockerfiles follow the Ring 1/Ring 2 workspace-first rules? | `365-buf-sdks-v2.md`, `408-workspace-first-ring-2.md`, `405-docker-files.md` |
 | **Networking & tenancy labels** | Are namespace/pod labels and NetworkPolicies configured correctly (tier, tenant, environment)? | `441-networking.md`, `434-unified-environment-naming.md`, `442-environment-isolation.md`, `459-httproute-ownership.md` |
-| **Testing (mock/cluster)** | Do integration packs follow the unified test contract (single implementation, mock/cluster modes) and exercise critical flows (e.g., controller → `extensions-runtime` → host-call)? | `430-unified-test-infrastructure.md`, `480-ameide-extensibility-wasm-service.md`, `services/_templates/README.md`, `tools/integration-runner/README.md` |
+| **Testing (mock/cluster)** | Do integration packs follow the unified test contract (single implementation, mock/cluster modes) and exercise critical flows (e.g., primitive → `extensions-runtime` → host-call)? | `430-unified-test-infrastructure.md`, `480-ameide-extensibility-wasm-service.md`, `services/_templates/README.md`, `tools/integration-runner/README.md` |
 | **Build/test verification & CI logs** | Have we run unit + integration suites locally, verified `docker build` (dev + release) succeeds, and confirmed GitHub workflows (`extensions-runtime.yml`, `cd-service-images.yml`) include the new service? Did the latest `gh run view <id>` logs pass SDK alignment and publishing checks? | `430-unified-test-infrastructure.md`, `395-sdk-build-docker-tilt-north-star.md`, `405-docker-files.md`, `408-workspace-first-ring-2.md`, `.github/workflows/*.yml` |
 | **Observability & SLOs** | What metrics/logging/tracing does the service emit? Are dashboards updated? | `platform observability backlogs`, `services/README.md`, service-specific SLO docs |
 | **Security & governance** | Does the service follow risk-tier rules, host-call policies, and secrets governance? | `476-security-and-trust.md`, `362-unified-secret-guardrails-v2.md`, `479-ameide-extensibility-wasm.md` (for Tier 1 runtime specifics) |
-| **Documentation & ownership** | README, runbooks, rotation steps, owners? Has Backstage catalog info been created? | `service_catalog/.../README.md`, `backlog/478-service-catalog.md` (Backstage integration), `services/README.md` |
+| **Documentation & ownership** | README, runbooks, rotation steps, owners? Has Backstage catalog info been created? | `service_catalog/.../README.md`, `backlog/481-service-catalog.md` (Backstage integration), `services/README.md` |
 | **Tooling & developer experience** | Tilt target, devcontainer wiring, scripts? | `429-devcontainer-bootstrap.md`, `367-bootstrap-v2.md`, `tools/*` docs |
 | **CI/CD & release automation** | Are GitHub workflows/cd-service pipelines building, testing, and packaging Docker images? | `395-sdk-build-docker-tilt-north-star.md`, `405-docker-files.md`, repo-specific workflows |
 
@@ -38,7 +37,7 @@ Use this checklist whenever you create a net-new service under `services/` or `s
 ## 3. Detailed Steps
 
 1. **Decide service type**
-   - Controller (Domain/Process/Agent) → use Backstage template (see `service_catalog/…/_controller/template.yaml`).
+   - Primitive (Domain/Process/Agent/UISurface) → use Backstage template (see `service_catalog/…/_controller/template.yaml`).
    - Platform/legacy service → follow `services/README.md` contract.
 
 2. **Scaffold files**
@@ -48,7 +47,7 @@ Use this checklist whenever you create a net-new service under `services/` or `s
 
 3. **Define interfaces**
    - Proto definitions (if gRPC) under `packages/ameide_core_proto/...`.
-   - Regenerate SDKs (`pnpm proto:generate`, Go tooling, Python packaging) and reference them. Run `scripts/dev/check_sdk_alignment.py` to confirm Go/TS/Py remain in sync. Services must consume APIs through the Ameide SDK packages as mandated by 365; no runtime imports of `packages/ameide_core_proto`. When services need controller helpers (e.g., invoking `extensions-runtime`), add them to the SDKs instead of duplicating RPC glue.
+   - Regenerate SDKs (`pnpm proto:generate`, Go tooling, Python packaging) and reference them. Run `scripts/dev/check_sdk_alignment.py` to confirm Go/TS/Py remain in sync. Services must consume APIs through the Ameide SDK packages as mandated by 365; no runtime imports of `packages/ameide_core_proto`. When services need primitive helpers (e.g., invoking `extensions-runtime`), add them to the SDKs instead of duplicating RPC glue.
    - Mirror the `extensions-runtime` workflow pattern: every service-specific CI job must install the Buf CLI and run the `scripts/ci/generate_*_stubs.sh` helpers before compiling or testing so workspace SDK stubs are refreshed from the BSR. Docker builds never invoke `buf generate`; they rely solely on the committed SDK artifacts.
 
 4. **Secrets & config**
@@ -61,7 +60,7 @@ Use this checklist whenever you create a net-new service under `services/` or `s
 
 6. **Testing**
    - Set up `__mocks__/` and `__tests__/integration/` per backlog 430 (single implementation, mock + cluster modes).
-   - Ensure `run_integration_tests.sh` uses the standard tooling and fails fast on missing envs. Include end-to-end scenarios when the service depends on shared components (e.g., controller → `extensions-runtime` → host-call) so regression tests cover cross-service seams.
+   - Ensure `run_integration_tests.sh` uses the standard tooling and fails fast on missing envs. Include end-to-end scenarios when the service depends on shared components (e.g., primitive → `extensions-runtime` → host-call) so regression tests cover cross-service seams.
 
 7. **GitOps deployment**
    - Create Helm chart (or reuse existing) under `charts/`.
@@ -99,13 +98,24 @@ Use this checklist whenever you create a net-new service under `services/` or `s
 | Test infrastructure | `backlog/430-unified-test-infrastructure.md`, `tools/integration-runner/README.md`, `services/_templates/README.md` |
 | Environment naming & networking | `backlog/434-unified-environment-naming.md`, `backlog/441-networking.md`, `backlog/442-environment-isolation.md` |
 | Extensibility/Tier1 runtime | `backlog/479-ameide-extensibility-wasm.md`, `backlog/480-ameide-extensibility-wasm-service.md` |
-| Service catalog patterns | `backlog/478-service-catalog.md`, `service_catalog/domains/_controller/skeleton/*` |
+| Service catalog patterns | `backlog/481-service-catalog.md`, `service_catalog/domains/_controller/skeleton/*` |
 | Bootstrap/devcontainer | `backlog/429-devcontainer-bootstrap.md`, `backlog/367-bootstrap-v2.md`, `435-remote-first-development.md` |
 
 ---
 
 ## 5. Open Questions
 
-1. Should this checklist be automated (lint script or Backstage action) so new services must acknowledge each step?
-2. Where should we store reusable Helm chart boilerplate for platform services (vs controller scaffolds)?
-3. Do we need a “service inception” PR template referencing these checkpoints?
+1. ~~Should this checklist be automated (lint script or Backstage action) so new services must acknowledge each step?~~ **Answered:** See [484-ameide-cli](484-ameide-cli.md) — `ameide primitive scaffold` automates this checklist.
+2. Where should we store reusable Helm chart boilerplate for platform services (vs primitive scaffolds)?
+3. Do we need a "service inception" PR template referencing these checkpoints?
+
+---
+
+## 6. Cross-References
+
+| Backlog | Relationship |
+|---------|--------------|
+| [484-ameide-cli](484-ameide-cli.md) | CLI `scaffold` command automates this checklist |
+| [430-unified-test-infrastructure](430-unified-test-infrastructure.md) | Test structure requirements |
+| [434-unified-environment-naming](434-unified-environment-naming.md) | GitOps structure, labels |
+| [481-service-catalog](481-service-catalog.md) | Backstage catalog integration |

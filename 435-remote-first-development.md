@@ -9,8 +9,8 @@
 
 Pivot from dual-mode (offline-full k3d + online-telepresence) to a single **AKS + Telepresence + Tilt** model:
 
-1. **ameide-gitops** owns all infrastructure-as-code (Argo CD, Helm, environments, bootstrap)
-2. **ameide-core** owns first-party application code + Tilt + Telepresence tooling
+1. **ameide-gitops** (`ameideio/ameide-gitops`) owns all infrastructure-as-code (Argo CD, Helm, environments, bootstrap)
+2. **ameide** (`ameideio/ameide`) owns first-party application code + Tilt + Telepresence tooling
 3. **No local k3d cluster** - AKS dev cluster is the target
 
 ## Goals
@@ -25,8 +25,8 @@ Pivot from dual-mode (offline-full k3d + online-telepresence) to a single **AKS 
 
 Remote-first means two purpose-built bootstraps:
 
-- **GitOps bootstrap (`ameide-gitops/bootstrap/bootstrap.sh`)** – Installs Argo CD, applies the RollingSync ApplicationSet, and wires repo/registry secrets for every environment (k3d, dev AKS, staging, prod). Platform engineering and CI/CD invoke this script whenever a cluster needs to converge to the desired GitOps state.
-- **Developer bootstrap (`ameide-core/tools/dev/bootstrap-contexts.sh`)** – Runs automatically from `.devcontainer/postCreate.sh`, refreshing AKS credentials, normalizing `kubectl` contexts, writing Telepresence defaults, and logging the `argocd` CLI into the shared control plane via a managed port-forward. It assumes the GitOps bootstrap has already converged the cluster.
+- **GitOps bootstrap (`ameideio/ameide-gitops: bootstrap/bootstrap.sh`)** – Installs Argo CD, applies the RollingSync ApplicationSet, and wires repo/registry secrets for every environment (k3d, dev AKS, staging, prod). Platform engineering and CI/CD invoke this script whenever a cluster needs to converge to the desired GitOps state.
+- **Developer bootstrap (`ameide/tools/dev/bootstrap-contexts.sh`)** – Runs automatically from `.devcontainer/postCreate.sh`, refreshing AKS credentials, normalizing `kubectl` contexts, writing Telepresence defaults, and logging the `argocd` CLI into the shared control plane via a managed port-forward. It assumes the GitOps bootstrap has already converged the cluster.
 
 Docs that still reference `tools/bootstrap/bootstrap-v2.sh` refer to the GitOps bootstrap’s historical location; defer to the sections above for current ownership.
 
@@ -44,7 +44,7 @@ Tilt's [Choosing a Local Dev Cluster](https://docs.tilt.dev/choosing_clusters.ht
 - You want consistent environments across all developers
 
 We meet all three criteria:
-- `ameide-gitops` repo + bootstrap scripts = dedicated infra
+- `ameideio/ameide-gitops` repo + bootstrap scripts = dedicated infra
 - GitOps team maintains AKS clusters
 - Eliminates "works on my k3d" issues
 
@@ -188,7 +188,7 @@ The **isolation pattern** from backlogs 373 and 424 is preserved:
 └─────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────┐
-│ ameide-core (application code)                                       │
+│ ameide (application code) — github.com/ameideio/ameide               │
 ├─────────────────────────────────────────────────────────────────────┤
 │ services/                    # First-party service source code       │
 │ packages/                    # Shared packages                       │
@@ -546,7 +546,7 @@ Telepresence can import the intercepted pod's environment into your local proces
 1. ✅ Fresh DevContainer starts in <5 minutes (no k3d bootstrap)
 2. ✅ `telepresence connect` establishes cluster access in <30 seconds
 3. ✅ `telepresence intercept` routes traffic to local process in <10 seconds
-4. ✅ Zero infrastructure code in ameide-core repo
+4. ✅ Zero infrastructure code in ameide repo
 5. ✅ Single source of truth for cluster config in ameide-gitops
 6. ✅ Developer can go from clone → running service in <10 minutes
 

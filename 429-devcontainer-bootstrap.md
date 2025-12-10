@@ -4,7 +4,7 @@
 >
 > This document describes the **legacy local k3d bootstrap**. The project is migrating to a
 > **remote-first development model** where:
-> - Infrastructure code lives in `ameide-gitops` repo (not `ameide-core`)
+> - Infrastructure code lives in `ameideio/ameide-gitops` repo (not `ameideio/ameide`)
 > - DevContainer connects to shared remote AKS cluster via telepresence
 > - No local k3d cluster or ArgoCD bootstrap
 >
@@ -46,8 +46,8 @@ This cycle was executed after the MinIO endpoint + gRPC health refactor (see com
 
 ### Current bootstrap split (2025-12)
 
-- **GitOps / cluster bootstrap** now lives in the `ameide-gitops` repository (`bootstrap/bootstrap.sh`). It installs Argo CD, applies the RollingSync ApplicationSet, and prepares AKS/k3d clusters for every environment. CI/CD and platform operators invoke that script.
-- **Developer bootstrap** lives in the `ameide-core` application repo and is intentionally lightweight: `.devcontainer/postCreate.sh` installs/validates `iptables` and `sshfs` (in addition to the baked image packages) and then calls `tools/dev/bootstrap-contexts.sh` to refresh AKS credentials, set the `kubectl`/Telepresence defaults, and log the `argocd` CLI into the shared control plane via a port-forward. This is the only bootstrap that runs automatically when opening the DevContainer.
+- **GitOps / cluster bootstrap** now lives in the `ameideio/ameide-gitops` repository (`bootstrap/bootstrap.sh`). It installs Argo CD, applies the RollingSync ApplicationSet, and prepares AKS/k3d clusters for every environment. CI/CD and platform operators invoke that script.
+- **Developer bootstrap** lives in the `ameideio/ameide` application repo and is intentionally lightweight: `.devcontainer/postCreate.sh` installs/validates `iptables` and `sshfs` (in addition to the baked image packages) and then calls `tools/dev/bootstrap-contexts.sh` to refresh AKS credentials, set the `kubectl`/Telepresence defaults, and log the `argocd` CLI into the shared control plane via a port-forward. This is the only bootstrap that runs automatically when opening the DevContainer.
 
 The remainder of this document describes the historical k3d-based flow for context; defer to [backlog/435-remote-first-development.md](435-remote-first-development.md) plus [491-auto-contexts.md](491-auto-contexts.md) for the active developer bootstrap instructions.
 
@@ -552,4 +552,4 @@ The domain rename from `tilt.ameide.io` → `local.ameide.io` is complete. Gatew
 
 ### Remote AKS bootstrap ([367](367-bootstrap-v2.md))
 
-Before bootstrap-v2 can target AKS clusters, the remote GitOps structure must be migrated from the legacy path (`ameide.git/infra/kubernetes/gitops/`) to `ameide-gitops`. See [434-unified-environment-naming.md](434-unified-environment-naming.md#migration-needed) for migration tasks.
+Before bootstrap-v2 can target AKS clusters, the remote GitOps structure must be migrated from the legacy path (`ameide.git/infra/kubernetes/gitops/`) to `ameideio/ameide-gitops`. See [434-unified-environment-naming.md](434-unified-environment-naming.md#migration-needed) for migration tasks.

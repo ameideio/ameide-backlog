@@ -3,7 +3,7 @@ Here’s a complete rewritten spec you can drop in as something like
 
 ---
 
-# 479 – Ameide Extensibility (Tier 1 WASM + Tier 2 Controllers)
+# 479 – Ameide Extensibility (Tier 1 WASM + Tier 2 Primitives)
 
 **Status:** Draft v1
 **Owner:** Architecture / Platform
@@ -20,11 +20,11 @@ This document defines Ameide’s **extensibility model**, with two coordinated t
    Agent‑ and human‑authored **WebAssembly (WASM) extensions**, executed by a **shared platform runtime** in `ameide-{env}`, wired into:
 
    * **Processes (BPMN)** – “extension tasks” in ProcessDefinitions. 
-   * **Domains** – explicit extension points (CoC‑style hooks) in DomainControllers. 
-   * **Agents** – deterministic tools for AgentControllers.
+   * **Domains** – explicit extension points (CoC‑style hooks) in Domain primitives. 
+   * **Agents** – deterministic tools for Agent primitives.
 
-2. **Tier 2 – Large extensions via controllers (existing 478 model)**
-   Full **Domain/Process/AgentControllers** running in **tenant namespaces** (`tenant-{id}-{env}-base` / `tenant-{id}-{env}-cust`) created via **Backstage templates + GitOps**. 
+2. **Tier 2 – Large extensions via primitives (existing 478 model)**
+   Full **Domain/Process/Agent primitives** running in **tenant namespaces** (`tenant-{id}-{env}-base` / `tenant-{id}-{env}-cust`) created via **Backstage templates + GitOps**. 
 
 Goals:
 
@@ -43,13 +43,13 @@ This spec sits directly below the Vision + Architecture suite:
 
 * 470 – establishes **Design ≠ Deploy ≠ Runtime** and Transformation as a domain. 
 * 471 – defines **business concepts** (tenants, orgs, processes, agents, workspaces). 
-* 472 – defines **Domain/Process/AgentControllers**, UAF and Transformation DomainController. 
+* 472 – defines **Domain/Process/Agent primitives**, Transformation design tooling and Transformation Domain primitive. 
 * 473 – defines **K8s/GitOps/Backstage/Temporal** tech stack. 
-* 478 – defines **Tier 2 tenant extensions**: repo strategy, namespace topology, Backstage templates, ControllerImplementationDraft. 
+* 478 – defines **Tier 2 tenant extensions**: repo strategy, namespace topology, Backstage templates, PrimitiveImplementationDraft. 
 
 This document **does not replace 478**. Instead:
 
-* Tier 2 (478) remains the model for **new controllers & services**.
+* Tier 2 (478) remains the model for **new primitives & services**.
 * This doc introduces Tier 1 as a **lighter path** for small, often agent‑generated extensions.
 
 ### 2.2 Two-tier extensibility at a glance
@@ -70,9 +70,9 @@ This document **does not replace 478**. Instead:
   * routing/approval decisions,
   * deterministic helper functions for agents.
 
-**Tier 2 – Controllers (“big customs”)**
+**Tier 2 – Primitives (“big customs”)**
 
-* Unit: Domain/Process/AgentController created via **Backstage**, deployed via GitOps.
+* Unit: Domain/Process/Agent primitive created via **Backstage**, deployed via GitOps.
 * Runtime: services in:
 
   * `ameide-{env}` for platform product, and
@@ -82,9 +82,19 @@ This document **does not replace 478**. Instead:
   * new domains or major process variants,
   * integrations,
   * multi‑endpoint services with their own APIs & storage.
-* Runtime representation: `IntelligentDomainController`, `IntelligentProcessController`, and `IntelligentAgentController` custom resources (461) reconciled by Ameide operators across platform and tenant namespaces.
+* Runtime representation: `Domain`, `Process`, and `Agent` CRDs reconciled by Ameide operators across platform and tenant namespaces.
 
-Backstage is now clearly **Tier 2‑only** for new controllers; it does not sit in the hot path for small Tier 1 WASM extensions.
+Backstage is now clearly **Tier 2‑only** for new primitives; it does not sit in the hot path for small Tier 1 WASM extensions.
+
+### 2.3 Alignment with proto-first & CQRS patterns
+
+Tier 1 and Tier 2 extensions ride on the same substrate described elsewhere:
+
+* Contracts live in `packages/ameide_core_proto` (Buf-managed) and flow into workspace SDKs + GitOps manifests per [472 §2.7](472-ameide-information-application.md#27-contract--implementation--runtime-chain). Extension runtime APIs (`InvokeExtension`, host-call adapters) follow the same Buf/SDK conventions documented in [480](480-ameide-extensibility-wasm-service.md).
+* Process/Domain primitives that wrap Tier 1 hooks or Tier 2 tenant code inherit the Watermill CQRS plumbing (commands/events) described in [472 §3.3.1](472-ameide-information-application.md#331-event-driven-cqrs-runtime-watermill) so the event stream stays uniform.
+* SDK publishing for extension tooling follows the outer-loop policies in [388](388-ameide-sdks-north-star.md) but internal dev/CI images always consume workspace SDKs (no registry dependency), consistent with [402](402-buf-first-generated-clients.md)/[403](403-python-buf-first-migration-plan.md)/[404](404-go-buf-first-migration.md).
+
+Readers should treat this spec as “how Tier 1 WASM and Tier 2 primitives fit into that existing chain,” not as a new architectural layer.
 
 ---
 
@@ -92,7 +102,7 @@ Backstage is now clearly **Tier 2‑only** for new controllers; it does not si
 
 ### 3.1 ExtensionDefinition
 
-A **design‑time artifact** managed by the Transformation DomainController (UAF), analogous to ProcessDefinitions and AgentDefinitions. 
+A **design‑time artifact** managed by the Transformation Domain primitive (Transformation design tooling), analogous to ProcessDefinitions and AgentDefinitions. 
 
 ```text
 ExtensionDefinition
@@ -115,9 +125,9 @@ ExtensionDefinition
 
 **Kinds:**
 
-1. `process_hook` – invoked by **ProcessController** as an Extension Task in BPMN.
-2. `domain_hook` – invoked by **DomainController** at explicit extension points (CoC‑style).
-3. `agent_tool` – invoked by **AgentController** as a deterministic helper.
+1. `process_hook` – invoked by **Process primitive** as an Extension Task in BPMN.
+2. `domain_hook` – invoked by **Domain primitive** at explicit extension points (CoC‑style).
+3. `agent_tool` – invoked by **Agent primitive** as a deterministic helper.
 
 **ABI**: For v1, all kinds share:
 
@@ -143,7 +153,7 @@ A **multi‑tenant platform service** per environment:
 
      * All host calls use **existing Ameide APIs** with **user/tenant context** (see §6.3).
 
-**RPC surface** (internal‑only, used by controllers):
+**RPC surface** (internal‑only, used by primitives):
 
 ```protobuf
 service WasmExtensionRuntime {
@@ -178,12 +188,12 @@ message InvokeExtensionResponse {
 
 ### 3.3 Where it sits in the existing architecture
 
-* **Design‑time**: Transformation DomainController + UAF manage ExtensionDefinitions, versions, and promotions with the same revision/promotion pattern as ProcessDefinitions and AgentDefinitions. 
-* **Deploy‑time**: WasmExtensionRuntime is deployed as a **standard platform Helm chart** in `ameide-{env}`, via the same GitOps & ApplicationSet patterns as other platform controllers. 
+* **Design‑time**: Transformation Domain primitive + Transformation design tooling manage ExtensionDefinitions, versions, and promotions with the same revision/promotion pattern as ProcessDefinitions and AgentDefinitions. 
+* **Deploy‑time**: WasmExtensionRuntime is deployed as a **standard platform Helm chart** in `ameide-{env}`, via the same GitOps & ApplicationSet patterns as other platform primitives. 
 * **Runtime**:
 
-  * ProcessControllers, DomainControllers, AgentControllers call `InvokeExtension(...)` with a populated `ExecutionContext`.
-  * All durable state, auth, and tenancy enforcement remain in controllers and domains; WASM is “pure function + host calls”.
+  * Process primitives, Domain primitives, Agent primitives call `InvokeExtension(...)` with a populated `ExecutionContext`.
+  * All durable state, auth, and tenancy enforcement remain in primitives and domains; WASM is “pure function + host calls”.
 
 ### 3.4 Deployment approach & operator options
 
@@ -191,7 +201,7 @@ We do **not** need a special Wasm operator for the Tier 1 runtime. The recomme
 
 1. Build a container that embeds Wasmtime/WasmEdge, loads tenant modules from object storage, and exposes `InvokeExtension` over gRPC/HTTP.
 2. Package that binary as a **Helm chart** (e.g. `charts/wasm-extension-runtime`) with a Deployment, ClusterIP Service, config for storage buckets and host-call allowlists, and standard resource limits.
-3. Add an ArgoCD `Application`/`ApplicationSet` entry so each `ameide-{env}` namespace gets the runtime just like our other controllers. Sync/rollback flows stay identical to the rest of the platform plane.
+3. Add an ArgoCD `Application`/`ApplicationSet` entry so each `ameide-{env}` namespace gets the runtime just like our other primitives. Sync/rollback flows stay identical to the rest of the platform plane.
 
 This keeps all security invariants: code is platform-owned, modules are data, and nothing special runs on the worker nodes.
 
@@ -208,7 +218,7 @@ Those frameworks are useful if we adopt node-level Wasm generally, but they are 
 `wasm_blob_ref` objects live in Ameide’s existing **MinIO installation** (`data-minio`, see backlog/380). The storage model is:
 
 * Buckets/prefixes partitioned by tenant (`s3://extensions/<tenant>/<extension>/<version>.wasm`), owned by Transformation but deployed via the shared MinIO chart.
-* Access controlled via MinIO service users and policies managed by the same provisioning jobs that serve other workloads. The runtime receives credentials through ExternalSecrets so controllers never handle MinIO keys directly.
+* Access controlled via MinIO service users and policies managed by the same provisioning jobs that serve other workloads. The runtime receives credentials through ExternalSecrets so primitives never handle MinIO keys directly.
 * Promotion between environments copies (or re-encrypts) blobs into the destination environment’s MinIO namespace; the `wasm_blob_ref` encodes bucket, key, and checksum so the runtime can verify integrity before caching modules locally.
 
 Using MinIO keeps Tier 1 aligned with the rest of the platform’s artifact storage strategy and avoids inventing a bespoke blob service.
@@ -221,7 +231,7 @@ Using MinIO keeps Tier 1 aligned with the rest of the platform’s artifact st
 
 **Design‑time**
 
-* UAF’s BPMN modeller (React Flow) gains an **“Extension Task”** type. 
+* Transformation design tooling’s BPMN modeller (React Flow) gains an **“Extension Task”** type. 
 * Each Extension Task references:
 
   * `extension_id`
@@ -231,7 +241,7 @@ Using MinIO keeps Tier 1 aligned with the rest of the platform’s artifact st
 
 **Runtime**
 
-When a ProcessController (Temporal‑backed) executes an Extension Task:
+When a Process primitive (Temporal‑backed) executes an Extension Task:
 
 1. It gathers input variables according to the mapping.
 2. Builds `ExecutionContext` from process context (tenant, org, user, actor type, correlation id).
@@ -245,7 +255,7 @@ Usage examples:
 
 ### 4.2 Domain hooks (CoC‑style)
 
-Each DomainController can define explicit extension points, e.g.:
+Each Domain primitive can define explicit extension points, e.g.:
 
 ```text
 BeforeCreateOrder
@@ -265,13 +275,13 @@ message DomainExtensionConfig {
 }
 ```
 
-* Transformation DomainController exposes APIs & UIs to manage these configs per tenant.
+* Transformation Domain primitive exposes APIs & UIs to manage these configs per tenant.
 
 **Runtime**
 
 At a hook:
 
-1. DomainController builds a small JSON view of the current state (e.g. order draft).
+1. Domain primitive builds a small JSON view of the current state (e.g. order draft).
 2. Builds `ExecutionContext` from the current call:
 
    * `tenant_id`, `org_id`, `user_id` from JWT / session. 
@@ -287,7 +297,7 @@ An AgentDefinition may reference an extension as a **deterministic tool**, e.g.:
 * “Calculate risk score for an opportunity.”
 * “Enforce policy for discount suggestion.”
 
-AgentController:
+Agent primitive:
 
 1. Calls `InvokeExtension(...)` with an `ExecutionContext` representing the user or agent. 
 2. Uses the result as deterministic input to the LLM chain (logged, auditable, replayable).
@@ -305,19 +315,19 @@ AgentController:
 * **SAP side‑by‑side (BTP)**:
 
   * Full apps running separately, calling S/4 via APIs/events.
-  * **Analogy:** Ameide Tier 2 controllers in tenant namespaces (478).
+  * **Analogy:** Ameide Tier 2 primitives in tenant namespaces (478).
 
 So:
 
 * Tier 1 WASM ≈ **SAP in‑app extension** equivalents, but sandboxed and controlled via Transformation.
-* Tier 2 controllers ≈ **SAP BTP side‑by‑side apps**.
+* Tier 2 primitives ≈ **SAP BTP side‑by‑side apps**.
 
 ### 5.2 Dynamics 365 X++ Chain of Command (CoC)
 
 * CoC = wrap a method with pre/`next()`/post logic inside the same app.
 * **Analogy:** Ameide `domain_hook` extensions:
 
-  * Instead of overriding methods in‑process, DomainControllers call a WASM hook before/after key operations.
+  * Instead of overriding methods in‑process, Domain primitives call a WASM hook before/after key operations.
 * Difference:
 
   * Dynamics runs extensions inside the same CLR sandbox as MS code.
@@ -345,7 +355,7 @@ From 478:
 
 > Custom code never runs in shared `ameide-*` namespaces; custom services run in `tenant-{id}-{env}-cust` namespaces. 
 
-We **preserve this for Tier 2 controllers**. For Tier 1 we introduce a **narrow carve‑out**:
+We **preserve this for Tier 2 primitives**. For Tier 1 we introduce a **narrow carve‑out**:
 
 > **WASM modules are treated as data executed by a sandboxed, platform‑owned runtime in `ameide-{env}`, not as independently deployed services.**
 
@@ -373,11 +383,11 @@ Invariants:
    * Host calls back into Ameide must:
 
      * Use existing proto/SDK APIs. 
-     * Use the **same context** (tenant, org, user/agent) as the calling controller.
+     * Use the **same context** (tenant, org, user/agent) as the calling primitive.
 
 5. **Deterministic boundary**
 
-   * Controllers remain the sole owners of durable state & authorization; WASM is not allowed to write directly to storage.
+   * Primitives remain the sole owners of durable state & authorization; WASM is not allowed to write directly to storage.
 
 ### 6.3 Host calls, API, and user context
 
@@ -396,7 +406,7 @@ declare function host_call(
 
 **Implementation details (in the runtime, not in WASM):**
 
-1. `ExecutionContext` is passed from the controller to the runtime.
+1. `ExecutionContext` is passed from the primitive to the runtime.
 2. When WASM calls `host_call(...)`, the runtime:
 
    * Checks **allowlists** per `extension_id` and `risk_tier`:
@@ -407,8 +417,8 @@ declare function host_call(
    * Builds a **short‑lived internal token** that encodes:
 
      * `tenant_id`, `org_id`, `user_id`, `actor_type`, scopes.
-   * Calls the target Domain/Process/AgentController via the existing SDKs. 
-3. Domain/Process/AgentControllers perform **normal auth & RLS**:
+   * Calls the target Domain/Process/Agent primitive via the existing SDKs. 
+3. Domain/Process/Agent primitives perform **normal auth & RLS**:
 
    * If context lacks rights, the call fails.
 
@@ -431,7 +441,7 @@ declare function host_call(
   * Host calls allowed to a curated subset of APIs.
   * Requires multi‑party approval and stronger testing before prod.
 
-Risk tier is a property of the ExtensionDefinition; Transformation DomainController enforces **environment‑specific promotion rules**, similar to how ProcessDefinitions/AgentDefinitions are governed. 
+Risk tier is a property of the ExtensionDefinition; Transformation Domain primitive enforces **environment‑specific promotion rules**, similar to how ProcessDefinitions/AgentDefinitions are governed. 
 
 ### 6.5 Observability & incident response
 
@@ -456,11 +466,11 @@ This section focuses on the **Tier 1 path** for an extension primarily written
 ### 7.1 Actors
 
 * **Tenant stakeholder** – expresses requirement in natural language.
-* **Transformation AgentController** – helps design the extension and wiring. 
-* **Transformation DomainController** – stores ExtensionDefinitions, governs promotion. 
+* **Transformation Agent primitive** – helps design the extension and wiring. 
+* **Transformation Domain primitive** – stores ExtensionDefinitions, governs promotion. 
 * **Compile Worker** – deterministic service that compiles source → WASM and runs validations.
 * **WasmExtensionRuntime** – executes modules at runtime.
-* **Process/Domain/AgentControllers** – call extensions through the runtime.
+* **Process/Domain/Agent primitives** – call extensions through the runtime.
 
 ### 7.2 Stages
 
@@ -489,7 +499,7 @@ The Transformation agent + humans:
    * Initial risk tier (likely `medium` or `high`),
    * Description.
 
-All stored in Transformation DomainController as draft revision.
+All stored in Transformation Domain primitive as draft revision.
 
 #### Stage 2 – Agent writes source code
 
@@ -549,13 +559,13 @@ On promotion to an env:
    * Risk tier & host‑call policies.
 3. ArgoCD syncs; runtime config reloads.
 
-No new controllers/services are deployed; the runtime simply becomes aware of the new extension/version.
+No new primitives/services are deployed; the runtime simply becomes aware of the new extension/version.
 
 #### Stage 6 – Invocation in business flow
 
-* **Process**: L2O ProcessController hits the Extension Task, calls runtime, uses result to drive routing/approval.
-* **Domain**: OrdersDomainController `BeforeCreateOrder` calls runtime to run custom validations.
-* **Agent**: L2O AgentController calls runtime to compute a deterministic risk score.
+* **Process**: L2O Process primitive hits the Extension Task, calls runtime, uses result to drive routing/approval.
+* **Domain**: OrdersDomain primitive `BeforeCreateOrder` calls runtime to run custom validations.
+* **Agent**: L2O Agent primitive calls runtime to compute a deterministic risk score.
 
 Everything is observable and tied back to:
 
@@ -576,7 +586,7 @@ To change behaviour:
 
 ---
 
-## 8. Tier 2 Controllers: Confirmed Status
+## 8. Tier 2 Primitives: Confirmed Status
 
 Tier 2 remains exactly as specified in 478:
 
@@ -589,7 +599,7 @@ Tier 2 remains exactly as specified in 478:
 
   * Platform code in `ameide-platform` + `ameide-gitops`.
   * Tenant code in `tenant-{id}-controllers` + `tenant-{id}-gitops`. 
-* **Backstage templates** and `ControllerImplementationDraft` remain the path for new controllers and services. 
+* **Backstage templates** and `PrimitiveImplementationDraft` remain the path for new primitives and services. 
 
 Tier 1 (this doc) is additive and does **not** change any Tier 2 rules.
 
@@ -608,10 +618,10 @@ Short version of the work needed to make Tier 1 real.
 
 ### Epic EXT‑WASM‑02 – Hooking into processes & domains
 
-* Extend BPMN/UAF modeller with “Extension Task” type.
-* Teach ProcessController to invoke runtime at Extension Tasks.
-* Add extension point pattern to at least one reference DomainController (e.g. Orders).
-* Provide SDK helpers for controllers to call WasmExtensionRuntime with ExecutionContext.
+* Extend BPMN/Transformation design tooling modeller with “Extension Task” type.
+* Teach Process primitive to invoke runtime at Extension Tasks.
+* Add extension point pattern to at least one reference Domain primitive (e.g. Orders).
+* Provide SDK helpers for primitives to call WasmExtensionRuntime with ExecutionContext.
 
 ### Epic EXT‑WASM‑03 – Agent lifecycle
 
@@ -647,22 +657,22 @@ Tier 1 will only feel “slow” if we design it poorly. This section captures
 
 ### 10.1 What the extra hop costs
 
-**Controller → WasmExtensionRuntime → WASM module** adds the following work:
+**Primitive → WasmExtensionRuntime → WASM module** adds the following work:
 
 * Proto marshal/unmarshal – microseconds on each side.
 * In‑cluster gRPC hop over warm HTTP/2 connections – typically **1–5 ms p50–p95**, occasionally ~10 ms in a noisy cluster.
 * WASM function execution for a “small rule” – microseconds to sub‑millisecond.
 * JSON encode/decode inside the runtime – microseconds to sub‑millisecond.
 
-So the incremental cost of an extension call is usually **~1–5 ms**, which sits in the same ballpark as any other intra‑cluster controller/domain call. For contrast:
+So the incremental cost of an extension call is usually **~1–5 ms**, which sits in the same ballpark as any other intra‑cluster primitive/domain call. For contrast:
 
-* DomainController → Postgres + RLS + index scan: **5–30 ms**.
-* ProcessController → DomainController + Temporal activity hop: **dozens of ms**.
+* Domain primitive → Postgres + RLS + index scan: **5–30 ms**.
+* Process primitive → Domain primitive + Temporal activity hop: **dozens of ms**.
 
 ### 10.2 Why that cost is usually acceptable
 
-* ProcessControllers are **Temporal workflows** that complete over seconds to hours; inserting a 5 ms policy hook at a stage boundary is negligible compared to human latency.
-* DomainControllers already pay DB and network costs. Budgeting **50–150 ms** for a domain command leaves plenty of headroom for one extension call, especially if the WASM result saves follow‑up hops.
+* Process primitives are **Temporal workflows** that complete over seconds to hours; inserting a 5 ms policy hook at a stage boundary is negligible compared to human latency.
+* Domain primitives already pay DB and network costs. Budgeting **50–150 ms** for a domain command leaves plenty of headroom for one extension call, especially if the WASM result saves follow‑up hops.
 * The platform prioritises **clarity, determinism, and tenant isolation** (“Design ≠ Deploy ≠ Runtime”) over shaving every millisecond, so the shared runtime hop is an intentional, governable tradeoff.
 
 ### 10.3 When it will slow things down
@@ -675,11 +685,11 @@ We still need to treat Tier 1 like an RPC hop, not an in‑process helper. Pro
 
 ### 10.4 Design rules that keep it fast
 
-1. **Coarse‑grained contracts** – controllers gather all required inputs (full order header, lines, risk flags, etc.) and call the runtime **once per business decision**, not per field or row.
-2. **Minimise host calls** – defaults: `low` tier = none, `medium` = 0–1 read‑only call, `high` = tightly curated list for approvals/pricing. Let controllers orchestrate IO; WASM stays mostly pure logic.
+1. **Coarse‑grained contracts** – primitives gather all required inputs (full order header, lines, risk flags, etc.) and call the runtime **once per business decision**, not per field or row.
+2. **Minimise host calls** – defaults: `low` tier = none, `medium` = 0–1 read‑only call, `high` = tightly curated list for approvals/pricing. Let primitives orchestrate IO; WASM stays mostly pure logic.
 3. **Cache and preload modules** – WasmExtensionRuntime keeps modules, host connections, and worker pools warm so only the gRPC hop and function execution remain on the hot path.
-4. **Co‑locate when needed** – latency‑sensitive controllers can run near the runtime (node affinity or Unix Domain Socket mode) without changing the security model.
-5. **Promote hot paths to Tier 2** – if a “custom rule” grows into logic that runs per keystroke, needs multiple DB calls, or demands independent scaling/SLOs, it should graduate into a dedicated controller (Tier 2) instead of stressing Tier 1.
+4. **Co‑locate when needed** – latency‑sensitive primitives can run near the runtime (node affinity or Unix Domain Socket mode) without changing the security model.
+5. **Promote hot paths to Tier 2** – if a “custom rule” grows into logic that runs per keystroke, needs multiple DB calls, or demands independent scaling/SLOs, it should graduate into a dedicated primitive (Tier 2) instead of stressing Tier 1.
 
 We will back these rules with linting, modelling guardrails, and latency histograms per `extension_id` so teams see when an extension is drifting into “chatty helper” territory.
 
@@ -687,7 +697,7 @@ We will back these rules with linting, modelling guardrails, and latency histogr
 
 That’s the full rewritten specification with your updated assumptions:
 
-* **Tier 2**: tenant-scope namespaces and Backstage controller model from 478 remain untouched.
+* **Tier 2**: tenant-scope namespaces and Backstage primitive model from 478 remain untouched.
 * **Tier 1**: a shared platform WASM runtime in `ameide-{env}` for small extensions, wired into processes, domains, and agents, with the latency guardrails captured in §10.
 * **Host calls** from WASM always go through existing APIs using the same user/tenant context and authorization model as the rest of the platform.
 
@@ -699,5 +709,5 @@ That’s the full rewritten specification with your updated assumptions:
 |----------|-------------|
 | [472-ameide-information-application.md](472-ameide-information-application.md) | Defines `ExtensionDefinition` as a first-class artifact (§2.5) |
 | [473-ameide-technology.md](473-ameide-technology.md) | Introduces `extensions-runtime` as a platform service (§3.3.5) |
-| [476-ameide-security-trust.md](476-ameide-security-trust.md) | Captures the sandbox carve-out and host-call policies (§6–§7) |
+| [476-ameide-security-trust.md](476-ameide-security-trust.md) | Captures the sandbox carve-out and host-call policies (§6, §8.4) |
 | [480-ameide-extensibility-wasm-service.md](480-ameide-extensibility-wasm-service.md) | Implements the shared runtime described in this doc |

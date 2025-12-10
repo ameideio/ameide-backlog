@@ -1,6 +1,6 @@
 # backlog/375 – RollingSync wave redesign
 
-> **Bootstrap location:** This backlog still references the legacy `tools/bootstrap/bootstrap-v2.sh` helper for rerunning RollingSync in dev. That CLI now lives in `ameide-gitops/bootstrap/bootstrap.sh`; when operating from the application repo, use the GitOps bootstrap for cluster convergence and `ameide-core/tools/dev/bootstrap-contexts.sh` only for developer context setup.
+> **Bootstrap location:** This backlog still references the legacy `tools/bootstrap/bootstrap-v2.sh` helper for rerunning RollingSync in dev. That CLI now lives in `ameide-gitops/bootstrap/bootstrap.sh`; when operating from the application repo (`ameideio/ameide`), use the GitOps bootstrap for cluster convergence and `tools/dev/bootstrap-contexts.sh` only for developer context setup.
 
 ## 1. Why revisit waves now?
 RollingSync was introduced while Helmfile layers still defined our world. We mirrored those layers (foundation/data/platform/apps) even though dependencies like “Keycloak needs Postgres” made the tier boundaries fuzzy—Postgres lives in the platform tier purely because Keycloak depends on it. As the stack grew, that layer-centric layout left us with (historical snapshot _before_ this redesign):

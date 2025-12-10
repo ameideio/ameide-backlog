@@ -425,6 +425,7 @@ Every test run emits:
 |---------|--------------|
 | [362-unified-secret-guardrails](./362-unified-secret-guardrails.md) | Test credentials via ExternalSecrets |
 | [428-onboarding](./428-onboarding.md) | E2E requirements for onboarding |
+| [484-ameide-cli](./484-ameide-cli.md) | CLI `verify` command implements test modes, scaffolds 430-compliant test structure |
 
 ### Superseded
 

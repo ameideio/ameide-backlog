@@ -10,7 +10,7 @@
 
 Establish the shared `extensions-runtime` service that runs Tier 1 WASM extensions inside `ameide-{env}`. The service must:
 
-1. Expose the `WasmExtensionRuntime.InvokeExtension` RPC for Process/Domain/Agent controllers.
+1. Expose the `WasmExtensionRuntime.InvokeExtension` RPC for Process/Domain/Agent primitives.
 2. Resolve extension artifacts, execute them in a sandbox, and enforce risk-tier controls.
 3. Ship as a standard platform workload (Helm + ArgoCD) with dev/release Dockerfiles similar to other services.
 
@@ -23,7 +23,7 @@ Establish the shared `extensions-runtime` service that runs Tier 1 WASM extens
   - Runtime proto (`packages/ameide_core_proto/ameide/extensions/v1/runtime.proto`) plus SDK bindings.
   - Module storage/caching, Wasmtime-based sandbox executor, and host-call bridge leveraging shared MinIO buckets per 479/362 guardrails.
   - Config hydration from Transformation promotion events, observability, and guardrails (limits, SLO telemetry).
-  - Helm chart + GitOps wiring for each platform environment (per the dual ApplicationSet model). Although tenant-authored WASM runs in `ameide-{env}`, modules are treated purely as data executed by a sandboxed, Ameide-owned runtime; all host calls remain scoped by the caller’s tenant/org/user and reuse existing controller APIs, keeping the 478 namespace invariant intact.
+  - Helm chart + GitOps wiring for each platform environment (per the dual ApplicationSet model). Although tenant-authored WASM runs in `ameide-{env}`, modules are treated purely as data executed by a sandboxed, Ameide-owned runtime; all host calls remain scoped by the caller’s tenant/org/user and reuse existing primitive APIs, keeping the 478 namespace invariant intact.
 
 - **Out of scope**
   - Transformation UI/UX for authoring ExtensionDefinitions (handled by EXT-WASM-03).
@@ -33,11 +33,11 @@ Establish the shared `extensions-runtime` service that runs Tier 1 WASM extens
 
 This service is the concrete realization of the Tier 1 WASM model from [479-ameide-extensibility-wasm.md](479-ameide-extensibility-wasm.md). It plugs into:
 
-* Transformation / UAF as the executor for `ExtensionDefinition` artifacts (472 §3.5).
-* The Service Layer as a platform controller in `ameide-{env}` (473 §3).
-* The Security & Trust invariants for sandboxed tenant logic (476 §6–§7).
-* The tenant extension story alongside Tier 2 controllers (478).
-* The operator-managed controller plane: IDC/IPC/IAC workloads call `InvokeExtension` via SDK helpers, regardless of whether the controller is platform or tenant-owned.
+* Transformation / Transformation design tooling as the executor for `ExtensionDefinition` artifacts (472 §3.5).
+* The Service Layer as a platform primitive in `ameide-{env}` (473 §3).
+* The Security & Trust invariants for sandboxed tenant logic (476 §6, §8.4).
+* The tenant extension story alongside Tier 2 primitives (478).
+* The operator-managed primitive plane: Domain/Process/Agent CRDs call `InvokeExtension` via SDK helpers, regardless of whether the primitive is platform or tenant-owned.
 
 ---
 
@@ -45,11 +45,11 @@ This service is the concrete realization of the Tier 1 WASM model from [479-am
 
 1. **Proto & SDK Foundations**
    - Author `runtime.proto` per §3.2 of 479 (ExecutionContext, InvokeExtension, responses) and keep it inside the shared Buf module (365).
-   - Regenerate `ameide_sdk_go` / `ameide_sdk_ts` / `ameide_sdk_py` clients with helper functions to build contexts derived from the controller’s authenticated `RequestContext`. Services consume the new RPC only via SDKs (no direct proto imports) to stay aligned with the Buf SDKs v2 policy (365). Go SDK now exposes `InvokeExtensionJSON` + `ExecutionContext` options so controllers avoid hand-written RPC glue.
+   - Regenerate `ameide_sdk_go` / `ameide_sdk_ts` / `ameide_sdk_py` clients with helper functions to build contexts derived from the primitive’s authenticated `RequestContext`. Services consume the new RPC only via SDKs (no direct proto imports) to stay aligned with the Buf SDKs v2 policy (365). Go SDK now exposes `InvokeExtensionJSON` + `ExecutionContext` options so primitives avoid hand-written RPC glue.
 
 2. **Service Scaffold**
    - Create `services/extensions-runtime/` with README, basic main.go, health endpoints, configuration stubs.
-   - Add `Dockerfile.dev` / `Dockerfile.release` mirroring controller skeleton patterns (Go multi-stage) and copying workspace SDK packages per the Ring 1 / Ring 2 rules (408).
+   - Add `Dockerfile.dev` / `Dockerfile.release` mirroring primitive skeleton patterns (Go multi-stage) and copying workspace SDK packages per the Ring 1 / Ring 2 rules (408).
 
 3. **Module Management**
    - Implement `ModuleStore` that pulls WASM blobs via `wasm_blob_ref`, verifies integrity, and caches by `(extension_id, version)` with eviction policies. Objects live in the GitOps-managed MinIO deployment (`data-minio`); respect the shared ExternalSecrets defined in backlog/362 and the storage pattern documented in 479 §3.5. Reference `380-minio-config-overview.md` for bucket tenancy so the runtime reuses the existing MinIO service rather than provisioning bespoke storage.
@@ -61,7 +61,7 @@ This service is the concrete realization of the Tier 1 WASM model from [479-am
 
 5. **Host Bridge & Policy**
    - Enforce risk-tier allowlists for host calls.
-   - Emit short-lived internal tokens bound to the incoming ExecutionContext (mirroring controller auth claims), route to allowed Ameide services via existing SDKs, and block disallowed calls. Registry-driven host-call adapters (e.g., `transformation.get_transformation`) replace the interim HTTP shim and reuse Ameide SDK clients.
+   - Emit short-lived internal tokens bound to the incoming ExecutionContext (mirroring primitive auth claims), route to allowed Ameide services via existing SDKs, and block disallowed calls. Registry-driven host-call adapters (e.g., `transformation.get_transformation`) replace the interim HTTP shim and reuse Ameide SDK clients.
 
 6. **Observability & Controls**
    - Instrument metrics per invocation: latency, resource usage, error type, tenant/extension labels.
@@ -71,7 +71,7 @@ This service is the concrete realization of the Tier 1 WASM model from [479-am
 7. **Deployment Assets**
    - **Service activities (this repo):** Add Helm chart scaffolding, ensure `Tiltfile` exposes a target for local development (workspace-first build), and wire GitHub workflows/cd-service-images entries so Docker images publish automatically. These assets belong in this repository because they impact developer workflows and guardrails (408).
    - **GitOps activities (platform repo):** Register ApplicationSet entries so each `ameide-{env}` namespace deploys the runtime. Follow backlog/465 for file placement and backlog/447 for rollout phases (Platform band, e.g., rollout-phase `350`), ensuring RollingSync steps pick it up correctly. Keep GitOps-specific changes in the GitOps repo to preserve separation of duties.
-   - **Image promotion helper (ameide-core):** `scripts/dev/vendor_service_images.sh` re-tags any existing `ghcr.io/ameideio/<service>:<tag>` digest to aliases such as `:main`. Use it from this repo to unblock deployments when a pod references a tag that hasn’t been published yet (e.g., `extensions-runtime:main`).
+   - **Image promotion helper (`ameideio/ameide`):** `scripts/dev/vendor_service_images.sh` re-tags any existing `ghcr.io/ameideio/<service>:<tag>` digest to aliases such as `:main`. Use it from this repo to unblock deployments when a pod references a tag that hasn't been published yet (e.g., `extensions-runtime:main`).
 
 ---
 
@@ -90,7 +90,7 @@ This service is the concrete realization of the Tier 1 WASM model from [479-am
 | **MinIO module management** | ✅ | LRU cache + singleflight loader backed by MinIO client; config struct aligned with 362. Need config reload events from Transformation. |
 | **Tilt target & Helm scaffolding** | ⏳ Not started | Need Tilt resource + chart skeleton in this repo so dev workflows can build/test locally; blocks `cd-service-images` wiring. |
 | **Release packaging (cd-service-images)** | ⚠ In progress | `.github/workflows/cd-service-images.yml` now includes `extensions-runtime`, but we still need to verify GitHub environments/secrets for promotion and document the workflow alongside other services. |
-| **Controller integration** | ⚠ Helper implemented | A mock-mode integration test spins up Wasmtime + host-call adapter, proving controllers can invoke extensions through the helper. Need to wire a real Domain/Process/Agent controller path and add negative sandbox tests. |
+| **Primitive integration** | ⚠ Helper implemented | A mock-mode integration test spins up Wasmtime + host-call adapter, proving primitives can invoke extensions through the helper. Need to wire a real Domain/Process/Agent primitive path and add negative sandbox tests. |
 
 ### 4.1 Implementation Status — GitOps Repo
 
@@ -101,7 +101,7 @@ This service is the concrete realization of the Tier 1 WASM model from [479-am
 | **Observability/SLO wiring** | ⏳ Not started | Dashboards, runtime labels, and alert policies must be registered in GitOps alongside deployment manifests. |
 
 Next mileposts:
-1. **Service repo:** Finish HostBridge policy work (token minting, additional adapters), wire a real controller path via the new SDK helper, add Tilt target + Helm scaffolding, and extend negative sandbox tests.
+1. **Service repo:** Finish HostBridge policy work (token minting, additional adapters), wire a real primitive path via the new SDK helper, add Tilt target + Helm scaffolding, and extend negative sandbox tests.
 2. **GitOps repo:** Create Helm/ApplicationSet assets with rollout metadata, wire ExternalSecrets + config hydration jobs, and document runtime SLO dashboards/disable switches.
 
 ---
@@ -117,7 +117,7 @@ Next mileposts:
 - Runtime manifests include the required namespace/pod labels so networking guardrails from backlog 441 apply automatically.
 - Benchmark shows `InvokeExtension` adds <10 ms p95 latency for a pure function with small payloads (baseline on `ameide-dev`), and negative sandbox tests prove denied operations (network/FS/CPU abuse) are blocked.
 - Operators can disable or degrade individual extensions via config/feature flags when risk thresholds are exceeded (ties into 476 incident response expectations).
-- Sandbox enforcement, host-call allowlists, and circuit-breaker controls collectively satisfy the Tier 1 carve-out described in [476-ameide-security-trust.md](476-ameide-security-trust.md) §6–§7.
+- Sandbox enforcement, host-call allowlists, and circuit-breaker controls collectively satisfy the Tier 1 carve-out described in [476-ameide-security-trust.md](476-ameide-security-trust.md) §6, §8.4.
 
 ---
 

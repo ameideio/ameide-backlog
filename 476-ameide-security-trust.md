@@ -13,6 +13,8 @@ Totally agree — we can't keep evolving Ameide without locking down the securit
 > | [479-ameide-extensibility-wasm.md](479-ameide-extensibility-wasm.md) | Tier 1 WASM + Tier 2 extension model |
 > | [480-ameide-extensibility-wasm-service.md](480-ameide-extensibility-wasm-service.md) | Shared WASM runtime implementation |
 >
+> **Core Invariants**: See [470-ameide-vision.md §0 "Ameide Core Invariants"](470-ameide-vision.md) for the canonical list (four primitives, Graph read-only, Transformation as domain, proto chain, tenant isolation, Backstage internal).
+>
 > **Secrets & Security Implementation**:
 > - [462-secrets-origin-classification.md](462-secrets-origin-classification.md) – Secret origin taxonomy
 > - [451-secrets-management.md](451-secrets-management.md) – Secrets flow (Azure KV → Vault → K8s)
@@ -37,9 +39,9 @@ Scope:
 * How security attaches to:
 
   * Tenancy / identity / onboarding
-  * Domains & ProcessControllers
+  * Domains & Process primitives
   * Agents
-  * Backstage + controller templates
+  * Backstage + primitive templates
   * APIs & SDKs
   * Infra (secrets, network, cluster)
 * What we should do *next* (concrete backlog slices)
@@ -59,8 +61,8 @@ Let’s make a very opinionated short list:
 
 2. **Deterministic vs non‑deterministic boundary**
 
-   * **DomainControllers & ProcessControllers**: deterministic, auditable, replayable, no LLM calls inside.
-   * **Agents**: non‑deterministic; they *propose* actions and edit artifacts, but must go through deterministic controllers to persist state.
+   * **Domain primitives & Process primitives**: deterministic, auditable, replayable, no LLM calls inside.
+   * **Agents**: non‑deterministic; they *propose* actions and edit artifacts, but must go through deterministic primitives to persist state.
 
 3. **Proto‑first, zero trust between services**
 
@@ -70,10 +72,11 @@ Let’s make a very opinionated short list:
      * AuthZ (role/tenant checks)
      * Input validation
    * No “trusted internal” bypasses; even internal calls use the same RPC contracts.
+   * Proto definitions live in `packages/ameide_core_proto` (Buf-managed) and propagate through workspace SDKs into GitOps manifests per [472 §2.7](472-ameide-information-application.md#27-contract--implementation--runtime-chain); Go services additionally inherit Watermill’s middleware (logging/metrics/retries) when handling commands/events (see [472 §3.3.1](472-ameide-information-application.md#331-event-driven-cqrs-runtime-watermill)).
 
 4. **Immutable artifacts, append‑only history**
 
-   * UAF, BPMN, ArchiMate, Markdown, Backstage templates: always versioned, never overwritten.
+   * Transformation design tooling, BPMN, ArchiMate, Markdown, Backstage templates: always versioned, never overwritten.
    * Security decisions (approvals, waivers, promotions) are events in that history.
 
 5. **Defence in depth, but with clear responsibility**
@@ -110,13 +113,13 @@ Let’s make a very opinionated short list:
   * Account takeovers, invitation abuse, SSO misconfig, SCIM mis‑provisioning. 
 * **API misuse**
 
-  * Over-privileged service accounts, missing rate limits, poisoning inputs into BPMN/UAF/Backstage.
+  * Over-privileged service accounts, missing rate limits, poisoning inputs into BPMN/Transformation design tooling/Backstage.
 * **Tier 1 WASM extensions**
 
   * Sandboxed tenant logic running inside the shared `extensions-runtime` service; risks include sandbox escape, over-permissive host calls, and resource exhaustion.
 * **Controller spec tampering**
 
-  * Malicious or accidental edits to `IntelligentDomainController`, `IntelligentProcessController`, or `IntelligentAgentController` CRs (wrong namespace, over-privileged images, disabled probes) or compromised operators that reconcile them.
+  * Malicious or accidental edits to `IntelligentDomain primitive`, `IntelligentProcess primitive`, or `IntelligentAgent primitive` CRs (wrong namespace, over-privileged images, disabled probes) or compromised operators that reconcile them.
 
 ### 3.2 Trust zones
 
@@ -124,7 +127,7 @@ Roughly:
 
 1. **Public edge** (Next.js UIs, public docs, marketing)
 2. **Tenant application plane** (Platform UI, Domain & Process APIs)
-3. **Agent & Transformation plane** (Agents, UAF, Backstage, IPA legacy, shared `extensions-runtime`)
+3. **Agent & Transformation plane** (Agents, Transformation design tooling, Backstage, IPA legacy, shared `extensions-runtime`)
 4. **Control & infra plane** (Argo, Vault, Keycloak, CNPG, K8s)
 
 Each zone gets progressively fewer humans and more automation; crossing zones always goes through authenticated RPCs or well‑defined APIs.
@@ -166,7 +169,7 @@ Security consequences:
 
 ## 5. Data Security & Multi‑Tenancy in Domains
 
-Security for **DomainControllers** is mostly about data isolation and integrity.
+Security for **Domain primitives** is mostly about data isolation and integrity.
 
 ### 5.1 Data classification
 
@@ -179,11 +182,11 @@ Security for **DomainControllers** is mostly about data isolation and integrity.
   * Copy‑on‑read from domains to Graph/Repository for analysis; still tagged by `tenant_id`.
 * **Artifacts (BPMN, diagrams, Markdown, agent specs)**
 
-  * Stored by the **Transformation (and other) DomainControllers**, often edited via UAF UIs.
+  * Stored by the **Transformation (and other) Domain primitives**, often edited via Transformation design tooling UIs.
   * Event-sourced (internally by Transformation), versioned, immutable; enriched with metadata and promotion state. 
-  * `ExtensionDefinition` sources and compiled WASM blobs live in tenant-tagged MinIO prefixes with the same governance and promotion metadata as other UAF artifacts; modules are treated strictly as data owned by Transformation.
+  * `ExtensionDefinition` sources and compiled WASM blobs live in tenant-tagged MinIO prefixes with the same governance and promotion metadata as other Transformation design tooling artifacts; modules are treated strictly as data owned by Transformation.
 
-Every DomainController must:
+Every Domain primitive must:
 
 * Enforce **tenant + org + role checks** in its service methods (via shared interceptors).
 * Use dedicated **DB roles/credentials** provided by CNPG + ExternalSecrets; no shared "superuser" in app code.
@@ -226,7 +229,7 @@ The proto/API backlogs already define the right building blocks; we just declare
 
 Tenant extensions follow a strict carve-out:
 
-> * No tenant-owned **services** may run in shared `ameide-*` namespaces; all tenant controllers live in `tenant-{id}-{env}-cust` (and `tenant-{id}-{env}-base` for Namespace/Private SKUs).
+> * No tenant-owned **services** may run in shared `ameide-*` namespaces; all tenant primitives live in `tenant-{id}-{env}-cust` (and `tenant-{id}-{env}-base` for Namespace/Private SKUs).
 > * The only tenant-specific logic that executes in `ameide-*` is Tier 1 WASM modules, treated as data and run inside the platform-owned `extensions-runtime` service under strict sandbox and host-call policies (see 479, 480).
 
 This is enforced at multiple layers:
@@ -251,17 +254,169 @@ Namespace topology by SKU:
 
 ---
 
-## 7. Agents & AI Safety
+## 7. Security Metamodel: ERP-Class Authorization Model
+
+This section provides ERP architects with a familiar vocabulary that maps Ameide's security model to D365FO and SAP S/4HANA concepts. For detailed ERP-specific comparisons, see [470a-ameide-vision-vs-d365.md §6.5](470a-ameide-vision-vs-d365.md) and [470b-ameide-vision-vs-saps4.md §6.5](470b-ameide-vision-vs-saps4.md).
+
+### 7.1 Core Concepts
+
+Ameide defines four authorization artifact types that map directly to traditional ERP security constructs:
+
+| Ameide Concept | Purpose | D365FO Equivalent | S/4HANA Equivalent |
+|----------------|---------|-------------------|-------------------|
+| **AuthorizationDescriptor** | Binds operation + dimensions + scope + risk tier | Privilege | Authorization Object |
+| **Duty** | Aggregates descriptors into functional groupings | Duty | PFCG Role (partial) |
+| **AuthorizationDimension** | Defines RLS constraint pattern (column + claim + policy) | XDS Security Policy | Org Level |
+| **SoDRule** | Defines conflicting descriptor combinations | Segregation of Duties Rule | GRC SoD Matrix |
+
+These concepts are **design-time artifacts** stored in the **Transformation Domain** alongside ProcessDefinitions and AgentDefinitions. They map onto existing Ameide runtime constructs:
+
+| Design-Time Artifact | Runtime Implementation |
+|---------------------|----------------------|
+| AuthorizationDescriptor | `AuthRequirement` in `common/v1/annotations.proto` (method-level) |
+| AuthorizationDimension | RLS policies + JWT claims (`tenant_id`, `organization_id`, `ext.*`) |
+| Duty | `OrganizationRole.permissions` map in `platform/v1/roles.proto` |
+| SoDRule | Violation checks at role assignment time (conceptual) |
+
+### 7.2 AuthorizationDescriptors
+
+An **AuthorizationDescriptor** bundles:
+
+* **Target**: Proto service + method, or process stage + action
+* **Required dimensions**: Which authorization dimensions apply (e.g., `company_code`, `plant`)
+* **Scope**: READ / WRITE / DELETE / ADMIN
+* **Risk tier**: LOW / MEDIUM / HIGH / CRITICAL
+
+```yaml
+# Conceptual example (design-time artifact in Transformation Domain)
+code: INVOICE_APPROVE
+name: Approve Invoice for Payment
+target:
+  proto_service: ameide_core_proto.finance.v1.InvoiceService
+  proto_method: ApproveInvoice
+required_dimensions: [company_code]
+scope: WRITE
+risk_tier: HIGH
+erp_hints:
+  d365_privilege: InvoiceApprove
+  d365_duty: InvoicePaymentProcessing
+  s4_auth_object: F_BKPF_BED
+  s4_activity: "02"
+```
+
+The `erp_hints` field provides explicit cross-references to D365/S4 concepts for migration documentation and architect familiarity.
+
+### 7.3 AuthorizationDimensions
+
+An **AuthorizationDimension** defines how a particular scope (company, plant, etc.) is enforced at the database level:
+
+| Dimension | Type | Column | RLS Expression | JWT Claim |
+|-----------|------|--------|----------------|-----------|
+| `tenant` | TENANT | `tenant_id` | `tenant_id = current_setting('app.tenant_id')` | `tenant_id` (always) |
+| `organization` | ORGANIZATION | `organization_id` | `organization_id = current_setting('app.organization_id')` | `organization_id` |
+| `company_code` | COMPANY | `company_code` | `company_code = ANY(string_to_array(current_setting('app.company_codes'), ','))` | `ext.company_codes` |
+| `plant` | PLANT | `plant_id` | `plant_id = ANY(string_to_array(current_setting('app.plants'), ','))` | `ext.plants` |
+| `sales_org` | SALES_ORG | `sales_org` | `sales_org = ANY(...)` | `ext.sales_orgs` |
+
+**Key differences from D365/S4:**
+
+* **Explicit columns**: Dimensions are explicit columns on domain tables, not DDIC virtual fields or CDS annotations
+* **RLS-enforced**: Postgres RLS policies enforce dimensions at the database layer, not application logic
+* **JWT-carried**: Dimension values are carried in JWT claims, validated at API entry and applied to DB sessions
+
+### 7.4 Duties
+
+A **Duty** aggregates multiple AuthorizationDescriptors into a functional grouping:
+
+```yaml
+# Conceptual example
+code: DUTY_INVOICE_PROCESSING
+name: Invoice Processing
+description: Full access to invoice lifecycle
+authorization_descriptors:
+  - INVOICE_CREATE
+  - INVOICE_UPDATE
+  - INVOICE_APPROVE
+  - INVOICE_POST
+functional_area: FINANCE
+risk_tier: HIGH  # Inherited from highest-risk descriptor
+```
+
+Duties provide the same abstraction layer as D365 Duties, allowing:
+
+* **Role composition**: Roles reference duties, not individual descriptors
+* **Functional grouping**: Related operations are managed together
+* **Risk aggregation**: Duty risk tier is derived from its most sensitive descriptor
+
+### 7.5 Separation of Duties (SoD) Rules
+
+An **SoDRule** defines conflicting privilege combinations that should never be held by the same user:
+
+```yaml
+# Conceptual example
+code: SOD_PAY_001
+name: Payment Creation vs Approval
+description: Users who create payments should not approve them
+conflicting_descriptors_a:
+  - PAYMENT_CREATE
+conflicting_descriptors_b:
+  - PAYMENT_APPROVE
+severity: CRITICAL
+enforcement: BLOCK  # or WARN, MITIGATE
+compensating_controls: "Requires manager override with documented justification"
+control_reference: SOX-404-3.1
+```
+
+**Enforcement options:**
+
+| Enforcement | Behavior |
+|-------------|----------|
+| WARN | Log violation, allow assignment |
+| BLOCK | Prevent role assignment containing conflict |
+| MITIGATE | Require compensating control acknowledgment |
+
+SoD rules are evaluated **at role assignment time**, not just in periodic batch reports (as in S/4 GRC). This provides real-time enforcement rather than after-the-fact detection.
+
+### 7.6 Enforcement Points
+
+Authorization is enforced at multiple layers in the Ameide stack:
+
+| Layer | Mechanism | Current State |
+|-------|-----------|---------------|
+| **Proto Method** | `AuthRequirement` option in `common/v1/annotations.proto` | Exists ✅ |
+| **SDK Interceptor** | `AmeideClient` validates roles/permissions before RPC | Exists ✅ |
+| **API Middleware** | `withAuth()` validates session + membership + role | Exists ✅ |
+| **Database** | RLS policies enforce dimensions per session | Design complete, implementation gap (§13.2) |
+| **Role Assignment** | SoD violation check at duty/role grant | Conceptual (future) |
+| **UI** | Effective authorizations determine action visibility | Via SDK + role checks |
+
+### 7.7 Ameide Advantages vs D365/S4
+
+Ameide's security model provides several advantages over traditional ERP security:
+
+| Aspect | D365/S4 Approach | Ameide Approach |
+|--------|------------------|-----------------|
+| **Tenant isolation** | Configuration + middleware | **Hard invariant** (RLS + JWT claims, non-negotiable) |
+| **Extension isolation** | Trust extensions in core namespace | **Namespace isolation** (custom code never in `ameide-*`) |
+| **Agent governance** | N/A (no AI agents) | **Explicit scope/risk_tier** on AgentDefinitions |
+| **Code-gen security** | N/A | **ControllerImplementationDraft pattern** (agents propose, GitOps applies) |
+| **SoD enforcement** | Batch reports (GRC) | **Real-time** at role assignment |
+| **Security as code** | Metadata trees (AOT/DDIC) | **Proto + RLS** (version-controlled, testable) |
+| **Dimension enforcement** | Application logic (XDS filters) | **Database-level RLS** (cannot be bypassed) |
+
+---
+
+## 8. Agents & AI Safety
 
 Agents are where things can go very wrong, so the architecture must be explicit:
 
-### 7.1 AgentDefinition governance
+### 8.1 AgentDefinition governance
 
 > **Core Definitions** (see [470-ameide-vision.md §0](470-ameide-vision.md)):
-> - **AgentDefinitions** are stored in the **Transformation DomainController** (modelled via UAF UIs).
-> - There is no separate "UAF service" in the runtime—UAF is the UI layer that calls Transformation APIs.
+> - **AgentDefinitions** are stored in the **Transformation Domain primitive** (modelled via Transformation design tooling UIs).
+> - There is no separate "Transformation design tooling service" in the runtime—Transformation design tooling is the UI layer that calls Transformation APIs.
 
-* **AgentDefinitions** (declarative specs for tools, orchestration graphs, policies) live in the **Transformation DomainController** and are versioned like ProcessDefinitions.
+* **AgentDefinitions** (declarative specs for tools, orchestration graphs, policies) live in the **Transformation Domain primitive** and are versioned like ProcessDefinitions.
 * Each AgentDefinition has:
 
   * `domains: [...]` and `processes: [...]` tags (for routing & UI only)
@@ -269,34 +424,34 @@ Agents are where things can go very wrong, so the architecture must be explicit:
   * `risk_tier`: e.g. `low`, `medium`, `high`
 * "Dangerous" capabilities (file system access, k8s access, direct SQL) are only exposed to **high‑tier, non‑default AgentDefinitions**, and always wrapped by deterministic tools.
 
-### 7.2 Deterministic boundaries
+### 8.2 Deterministic boundaries
 
-* DomainControllers and ProcessControllers **never call raw LLM APIs**; they invoke AgentControllers which:
+* Domain primitives and Process primitives **never call raw LLM APIs**; they invoke Agent primitives which:
 
-  * Execute AgentDefinitions loaded from the **Transformation DomainController**
+  * Execute AgentDefinitions loaded from the **Transformation Domain primitive**
   * Log prompts & results
   * Enforce rate limits and timeouts
   * Apply basic content filters (PII, secret‑like patterns).
 
-### 7.3 Agent‑generated code & configs
+### 8.3 Agent‑generated code & configs
 
 The `core-platform-coder` review already flags security concerns: CLI fragility, prompt size, and raw shell argument handling.
 
 We generalize:
 
-* Any AgentController that writes code, Helm values, or Backstage configs must:
+* Any Agent primitive that writes code, Helm values, or Backstage configs must:
 
-  * Propose changes as **artifacts in UAF or Git**, not apply them directly.
+  * Propose changes as **artifacts in Transformation design tooling or Git**, not apply them directly.
   * Pass through:
 
     * Static checks (lint, tests, security scanning)
     * Human or policy‑based approval
     * GitOps pipeline for deployment.
-* Transformation DomainController logs "write intents" with full diff and user/tenant context.
+* Transformation Domain primitive logs "write intents" with full diff and user/tenant context.
 
 #### ControllerImplementationDraft Pattern
 
-Per [478-ameide-extensions.md](478-ameide-extensions.md) §6, agents creating new controllers use a controlled workflow:
+Per [478-ameide-extensions.md](478-ameide-extensions.md) §6, agents creating new primitives use a controlled workflow:
 
 1. **Agent never gets Git or K8s credentials** directly
 2. Agent uses `GetControllerDraftFiles(draft_id)` to read current state
@@ -306,17 +461,17 @@ Per [478-ameide-extensions.md](478-ameide-extensions.md) §6, agents creating ne
 
 This pattern ensures all agent-generated code passes through the same governance as human-written code.
 
-### 7.4 WASM extensions & host calls
+### 8.4 WASM extensions & host calls
 
 Host calls from Tier 1 WASM modules inherit the caller’s `ExecutionContext` (tenant/org/user/risk tier) and must route through existing Ameide APIs via allowlisted SDK adapters. Risk tier plus `extensions-runtime` policy determines which host calls are exposed (`low` often has none, `medium` read-only, `high` curated write helpers). This is the enforcement point for the carve-out described in §6.1 and the reason Tier 1 logic can safely run in `ameide-*`.
 
 ---
 
-## 8. Backstage, Controllers & GitOps
+## 9. Backstage, Controllers & GitOps
 
 Backstage is now our internal factory — which means it’s also a high‑risk surface.
 
-### 8.1 Backstage security
+### 9.1 Backstage security
 
 * Only **Ameide engineers + transformation agents** have access, via SSO and RBAC. No tenant users.
 * Templates are treated as code:
@@ -325,9 +480,9 @@ Backstage is now our internal factory — which means it’s also a high‑risk 
   * Reviewed, tested
   * Versioned and rolled out via Argo.
 
-### 8.2 Secure‑by‑template controller generation
+### 9.2 Secure‑by‑template primitive generation
 
-Each template (DomainController, ProcessController, Agent) bakes in:
+Each template (Domain primitive, Process primitive, Agent) bakes in:
 
 * Proper `AmeideClient` usage with AuthN/AuthZ interceptors.
 * Per‑service DB role & ExternalSecret wiring; no root credentials. 
@@ -337,32 +492,32 @@ Each template (DomainController, ProcessController, Agent) bakes in:
 
 ---
 
-## 9. Observability, Audit & UAF
+## 10. Observability, Audit & Transformation design tooling
 
 Security without observability is vibes. We already have strong foundations:
 
 * **Onboarding**:
 
   * Structured audit events for invites, SSO, SCIM, subscription changes. 
-* **Transformation DomainController / UAF**:
+* **Transformation Domain primitive / Transformation design tooling**:
 
   * Event‑sourced commands + snapshots (within Transformation), promotion flows, and secret scan validator.
-  * Secret scanning and promotion gates run inside the **Transformation DomainController's** artifact lifecycle; UAF UI just triggers those flows. 
+  * Secret scanning and promotion gates run inside the **Transformation Domain primitive's** artifact lifecycle; Transformation design tooling UI just triggers those flows. 
 * **North‑Star modeling**:
 
   * Immutable designs and deployments with audit logs per revision. 
 
 We extend:
 
-* Every Domain/Process/Agent controller emits:
+* Every Domain/Process/Agent primitive emits:
 
   * audit events with `tenant_id`, `user_id`, `resource_type`, `resource_id`.
-* Transformation DomainController's secret scanner runs on artifacts (BPMN, diagrams, Markdown, Backstage templates) and **blocks promotion** if secrets are detected, with override via signed waiver. 
-* GitOps + operators record **IDC/IPC/IAC spec changes** (who/what changed the CR, diffs, resulting operator actions) in audit streams so we can trace controller configuration drift or tampering.
+* Transformation Domain primitive's secret scanner runs on artifacts (BPMN, diagrams, Markdown, Backstage templates) and **blocks promotion** if secrets are detected, with override via signed waiver. 
+* GitOps + operators record **Domain/Process/Agent CRD spec changes** (who/what changed the CR, diffs, resulting operator actions) in audit streams so we can trace primitive configuration drift or tampering.
 
 ---
 
-## 10. Immediate Next Steps (Security Backlog Slice)
+## 11. Immediate Next Steps (Security Backlog Slice)
 
 Here’s how I’d start making this real without boiling the ocean:
 
@@ -370,7 +525,7 @@ Here’s how I’d start making this real without boiling the ocean:
 
    * Add a short “Security & Trust” section into the Vision + Tech docs, basically the principles from sections 2–3.
 
-2. **Lock down DomainController base template**
+2. **Lock down Domain primitive base template**
 
    * In Backstage:
 
@@ -380,16 +535,16 @@ Here’s how I’d start making this real without boiling the ocean:
 
 3. **AgentDefinition governance v1**
 
-   * Add `scope` + `risk_tier` to AgentDefinitions in Transformation DomainController (modelled via UAF UIs).
+   * Add `scope` + `risk_tier` to AgentDefinitions in Transformation Domain primitive (modelled via Transformation design tooling UIs).
    * Wrap any code‑gen / infra‑gen in Transformation artifacts and GitOps flows, not direct writes.
 
 4. **Transformation secret‑scan + promotion gate**
 
-   * Implement the MVP secret scanner + promotion endpoint inside the Transformation DomainController and wire it into Transformation workflows. 
+   * Implement the MVP secret scanner + promotion endpoint inside the Transformation Domain primitive and wire it into Transformation workflows. 
 
 5. **API security posture check**
 
-   * Verify at least one “golden path” DomainController + ProcessController (e.g. L2O) uses:
+   * Verify at least one “golden path” Domain primitive + Process primitive (e.g. L2O) uses:
 
      * proto‑based APIs
      * SDK interceptors
@@ -401,7 +556,7 @@ If you want, next I can propose a very small **"Security RFC 000‑Ameide"** ske
 
 ---
 
-## 11. Cross‑References
+## 12. Cross‑References
 
 This Security & Trust Architecture should be read with the following documents:
 
@@ -412,107 +567,64 @@ This Security & Trust Architecture should be read with the following documents:
 | [472‑ameide‑information‑application](472-ameide-information-application.md) | Application & information architecture | Strong ✅ |
 | [473‑ameide‑technology](473-ameide-technology.md) | Technology implementation | Strong ✅ |
 | [475‑ameide‑domains](475-ameide-domains.md) | Domain portfolio & patterns | Strong ✅ |
-| [322‑rbac](322-rbac.md) | RBAC implementation & testing | See §11.1 |
-| [329‑authz](329-authz.md) | Authorization implementation | See §11.2 |
+| [322‑rbac](322-rbac.md) | RBAC implementation & testing | See §12.1 |
+| [329‑authz](329-authz.md) | Authorization implementation | See §12.2 |
 | [333‑realms](333-realms.md) | Realm‑per‑tenant model | Strong ✅ |
 | [451‑secrets‑management](451-secrets-management.md) | Secrets authority model | Strong ✅ |
 | [462‑secrets‑origin‑classification](462-secrets-origin-classification.md) | Secrets classification | Strong ✅ |
-| [310‑agents‑v2](310-agents-v2.md) | Agent domain implementation | See §11.3 |
-| [388‑ameide‑sdks‑north‑star](388-ameide-sdks-north-star.md) | SDK publish strategy | See §11.4 |
-| [478‑ameide‑extensions](478-ameide-extensions.md) | Tier 2 controller security model | See §11.5 |
-| [479‑ameide‑extensibility‑wasm](479-ameide-extensibility-wasm.md) | Tier 1 + Tier 2 extensibility framing | See §11.5 |
-| [480‑ameide‑extensibility‑wasm‑service](480-ameide-extensibility-wasm-service.md) | Shared WASM runtime | See §11.5 |
+| [310‑agents‑v2](310-agents-v2.md) | Agent domain implementation | See §12.3 |
+| [388‑ameide‑sdks‑north‑star](388-ameide-sdks-north-star.md) | SDK publish strategy | See §12.4 |
+| [478‑ameide‑extensions](478-ameide-extensions.md) | Tier 2 primitive security model | See §12.5 |
+| [479‑ameide‑extensibility‑wasm](479-ameide-extensibility-wasm.md) | Tier 1 + Tier 2 extensibility framing | See §12.5 |
+| [480‑ameide‑extensibility‑wasm‑service](480-ameide-extensibility-wasm-service.md) | Shared WASM runtime | See §12.5 |
+| [470a‑ameide‑vision‑vs‑d365](470a-ameide-vision-vs-d365.md) | D365 security mapping | See §7 |
+| [470b‑ameide‑vision‑vs‑saps4](470b-ameide-vision-vs-saps4.md) | S/4HANA security mapping | See §7 |
 
-### 11.1 RBAC alignment (322)
+### 12.1 RBAC alignment (322)
 
 * 476 §4.2 requires RBAC with canonical roles (`admin`, `contributor`, `viewer`, `guest`, `service`)
-* 322 confirms: ✅ Canonical role catalog wired end-to-end (Keycloak, proto/SDK, database seeds)
-* 322 confirms: ✅ Ownership enforcement consistent for transformations, repositories, teams
-* 322 confirms: ✅ Realm-per-tenant architecture update in progress (moving from prefixed to realm-native roles)
+* 322 defines canonical role catalog (Keycloak, proto/SDK, database seeds)
+* 322 defines ownership enforcement patterns for transformations, repositories, teams
 
-**Gaps identified in 322 that impact 476 requirements:**
-- ❌ API routes do NOT enforce 403 for insufficient permissions (476 §6 requires interceptors)
-- ❌ Server actions have no authorization checks
-- ❌ DAL with tenant scoping not implemented (476 §5.1 requires tenant + org + role checks)
-- ❌ RLS policies not enabled (476 §2.1 requires RLS as "non-negotiable")
-- ❌ Audit logging for denied attempts not implemented (476 §9 requires audit events)
+**Target activities per 322:**
+1. Owner/role checks for org membership mutations → supports §5.1
+2. 401/403 telemetry in dashboards → supports §10
+3. API integration suites in CI gating → supports §6
 
-**322 next activities align with 476:**
-1. Land owner/role checks for org membership mutations → supports §5.1
-2. Wire 401/403 telemetry into dashboards → supports §9
-3. Fold API integration suites into CI gating → supports §6
-
-### 11.2 Authorization alignment (329)
+### 12.2 Authorization alignment (329)
 
 * 476 §2.1 requires: "DB‑level RLS + JWT tenant claims are non‑negotiable guardrails"
 * 476 §4.1 requires: "All platform tables enforce RLS by tenant"
 * 476 §5.1 requires: "Enforce tenant + org + role checks in service methods"
 
-**Current status per 329-authz:**
-- ✅ **Phase 1 (API Authorization Layer)**: `withAuth` middleware exists, applied to most routes
-- ❌ **Phase 2 (Database Organization Scoping)**: NOT STARTED
-  * `organization_id` columns missing on business tables (repositories, transformations, elements)
-  * Data scoped only by `tenant_id`, not `organization_id`
-- ❌ **Phase 3 (Defense in Depth)**: NOT STARTED
-  * RLS policies not created
-  * Audit logging service not implemented
+**329 defines three phases:**
+- Phase 1: API Authorization Layer (`withAuth` middleware)
+- Phase 2: Database Organization Scoping (`organization_id` columns, FK constraints)
+- Phase 3: Defense in Depth (RLS policies, audit logging)
 
-**Impact on 476 compliance:**
-- §2.1 principle (tenant isolation first): ❌ NOT MET at DB level
-- §5.1 requirement (tenant + org + role checks): ⚠️ API-level only, not DB-enforced
+### 12.3 Agents alignment (310)
 
-**Required actions per 329:**
-1. Create Flyway migrations for `organization_id` columns + FK constraints
-2. Update proto definitions to include `organization_id`
-3. Enable RLS policies with session variables
-4. Implement audit logging service
-
-### 11.3 Agents alignment (310)
-
-* 476 §7.1 requires AgentDefinitions to have `scope` (read-only vs read/write vs code-gen) and `risk_tier` (low, medium, high)
-* 476 §7.2 requires deterministic boundaries (DomainControllers/ProcessControllers invoke AgentControllers, never raw LLM APIs)
-* 476 §7.3 requires agent-generated code to propose via UAF/Git artifacts, not direct writes
+* 476 §8.1 requires AgentDefinitions to have `scope` (read-only vs read/write vs code-gen) and `risk_tier` (low, medium, high)
+* 476 §8.2 requires deterministic boundaries (Domain primitives/Process primitives invoke Agent primitives, never raw LLM APIs)
+* 476 §8.3 requires agent-generated code to propose via Transformation design tooling/Git artifacts, not direct writes
 
 **Terminology alignment:**
-* AgentDefinitions = design-time specs stored in **Transformation DomainController** (modelled via UAF UIs) (§7.1)
-* AgentControllers = runtime that executes AgentDefinitions (§7.2)
-* Note: There is no separate "UAF service"—UAF is the UI layer that calls Transformation APIs
+* AgentDefinitions = design-time specs stored in **Transformation Domain primitive** (modelled via Transformation design tooling UIs) (§8.1)
+* Agent primitives = runtime that executes AgentDefinitions (§8.2)
+* Note: There is no separate "Transformation design tooling service"—Transformation design tooling is the UI layer that calls Transformation APIs
 
-**Current status per 310-agents-v2:**
-- ✅ AgentInstance proto exists with basic metadata (node_id, version, parameters, tools)
-- ❌ **Gap**: No `scope` field on AgentDefinition/AgentInstance message
-- ❌ **Gap**: No `risk_tier` field on AgentDefinition/AgentInstance message
-- ⚠️ **Gap**: `agents.tool_grants` schema exists but service does NOT expose grant/revoke APIs
-- ❌ **Gap**: No enforcement of grants at publish time
-- ❌ **Gap**: "Write intents" logging (§7.3) not implemented
-
-**Impact on 476 compliance:**
-- §7.1 (AgentDefinition governance): ❌ NOT MET - cannot differentiate safe agents from dangerous ones
-- §7.3 (agent-generated code governance): ❌ NOT MET - awaiting UAF promotion flow
-
-### 11.4 SDK alignment (388)
+### 12.4 SDK alignment (388)
 
 * 476 §6 requires SDKs to "automatically attach tokens, tenant headers, retries, and tracing metadata"
 * 476 §6 requires `AmeideClient` as unified client contract
+* 388 defines SDK publish strategy for Go, Python, and TypeScript SDKs
 
-**Current status per 388-ameide-sdks-north-star:**
-| SDK | Status | Gap |
-|-----|--------|-----|
-| Go SDK | ✅ Published | `v0.1.0` on GitHub + GHCR |
-| Python SDK | ⚠️ Published | PyPI has `2.10.1`, but GHCR lacks SemVer aliases |
-| **TypeScript SDK** | ❌ **NOT PUBLISHED** | 404 on npmjs; GHCR has only `dev`/hash tags |
-| Configuration | ⚠️ Dev-only | GHCR has only `dev`/hash tags |
+### 12.5 Extension alignment (478/479/480)
 
-**Impact on 476 compliance:**
-- §6 (AmeideClient requirement): ⚠️ PARTIAL - TS consumers cannot use secure SDK patterns until TS SDK is published
-- "Open by design" principle: ❌ Compromised for external TS consumers
+478 defines the security model for Tier 2 primitive-based extensions, while 479 pairs that with Tier 1 WASM hooks and 480 implements the shared runtime:
 
-### 11.5 Extension alignment (478/479/480)
-
-478 defines the security model for Tier 2 controller-based extensions, while 479 pairs that with Tier 1 WASM hooks and 480 implements the shared runtime:
-
-* **§6.1 Custom Code Isolation Invariant**: Aligns with 478 §7.1 (No custom code in shared namespaces)
-* **§7.3 ControllerImplementationDraft Pattern**: Operationalizes 478 §6 (E2E flow)
+* **§6.1 Custom Code Isolation Invariant**: Aligns with 478 §8.1 (No custom code in shared namespaces)
+* **§8.3 ControllerImplementationDraft Pattern**: Operationalizes 478 §6 (E2E flow)
 * **Namespace topology**: 478 §4 provides the SKU-based namespace strategy enforced by §6.1
 
 **Key security invariants from 478**:
@@ -521,15 +633,15 @@ This Security & Trust Architecture should be read with the following documents:
 |-----------|-----------------|
 | No custom services in `ameide-*` | §6.1 namespace isolation |
 | Tier 1 WASM runs as data in platform runtime | §6.1 carve-out + §7.4 host-call policies |
-| Agents don't touch Git directly | §7.3 draft pattern |
+| Agents don't touch Git directly | §8.3 draft pattern |
 | All calls via tenant-aware auth | §6 API security contract |
-| NetworkPolicies isolate tenant code | §6.1 + §8.2 |
+| NetworkPolicies isolate tenant code | §6.1 + §9.2 |
 
 ---
 
-## 12. Notable Gaps & Issues
+## 13. Notable Gaps & Issues
 
-### 12.1 Terminology alignment
+### 13.1 Terminology alignment
 
 | 476 Term | Related Terms | Notes |
 |----------|---------------|-------|
@@ -538,97 +650,23 @@ This Security & Trust Architecture should be read with the following documents:
 | Agent & Transformation plane | Transformation domain (475) | Consistent ✅ |
 | Control & infra plane | Foundation layer (465) | Consistent ✅ |
 
-### 12.2 Implementation gaps
-
-| Gap | Description | Impact | Related Docs |
-|-----|-------------|--------|--------------|
-| **RLS not enabled** | §2.1, §4.1, §5.1 require DB-level RLS | Tenant isolation principle NOT MET | [329-authz](329-authz.md) ⚠️ CRITICAL |
-| **Org-level scoping missing** | §5.1 requires tenant + org + role checks | Cross-org data leakage possible within tenant | [329-authz](329-authz.md) Phase 2 |
-| **API routes lack 403 enforcement** | §6 requires AuthZ interceptors | Insufficient permission not rejected | [322-rbac](322-rbac.md) |
-| **AgentDefinition scope/risk_tier** | §7.1 requires capability classification | No enforcement of dangerous capability restrictions | [310-agents-v2](310-agents-v2.md) |
-| **Write intents logging** | §7.3 requires agent diff logging | No audit trail for agent-generated changes | — |
-| **Transformation secret scanner** | §9 describes secret scan + promotion gate in Transformation DomainController | Not yet implemented | Transformation spec |
-| **TS SDK not published** | §6 requires AmeideClient | External TS consumers cannot use secure patterns | [388-ameide-sdks](388-ameide-sdks-north-star.md) |
-| **Backstage not deployed** | §8.1 requires SSO + RBAC for Backstage | Cannot use secure-by-template pattern | [473](473-ameide-technology.md) §11.2 |
-| **Audit logging** | §9 requires denied attempt logging | Cannot detect authorization attacks | [322-rbac](322-rbac.md), [329-authz](329-authz.md) |
-
-### 12.3 Open architectural tensions
+### 13.2 Open architectural questions
 
 1. **RLS vs application-level filtering**
    * §2.1, §5.1 require DB-level RLS as "non-negotiable"
-   * Current implementation uses application-level tenant filtering only (per 322-rbac)
-   * **Resolution required**: Implement RLS per 329-authz Phase 2/3
+   * Current architecture uses application-level tenant filtering
+   * **Target**: Implement RLS per 329-authz Phase 2/3
 
-2. **AgentController deterministic boundary enforcement**
-   * §7.2 requires DomainControllers/ProcessControllers to invoke AgentControllers (never raw LLM APIs)
-   * Current implementation may have direct LLM calls in some services
-   * **Audit needed**: Verify deterministic boundary compliance
+2. **Agent primitive deterministic boundary enforcement**
+   * §8.2 requires Domain primitives/Process primitives to invoke Agent primitives (never raw LLM APIs)
+   * **Question**: How to audit/enforce deterministic boundary compliance?
 
 3. **Secure-by-template dependency on Backstage**
-   * §8.2 assumes Backstage templates for controller generation
-   * Backstage not yet deployed per 473 §11.2
-   * **Alternative needed**: Document how to achieve secure defaults without Backstage
+   * §9.2 assumes Backstage templates for primitive generation
+   * **Question**: What alternatives exist for achieving secure defaults?
 
 4. **AgentDefinition scope/risk_tier vs tool grants**
-   * 476 §7.1 describes `scope` and `risk_tier` as AgentDefinition-level properties
-   * 310 has `tool_grants` schema but no enforcement
+   * 476 §8.1 describes `scope` and `risk_tier` as AgentDefinition-level properties
    * **Clarification needed**: How do scope/risk_tier interact with tool grants?
 
-### 12.4 Security compliance status
-
-| Principle | Status | Notes |
-|-----------|--------|-------|
-| §2.1 Tenant isolation (RLS) | ❌ NOT MET | RLS not enabled; 329-authz Phase 2 pending |
-| §2.2 Deterministic boundary | ⚠️ PARTIAL | Architecture defined; enforcement not audited |
-| §2.3 Zero trust between services | ✅ MET | Proto-based APIs with auth interceptors |
-| §2.4 Immutable artifacts | ⚠️ PARTIAL | UAF design exists; promotion gate not implemented |
-| §2.5 Defence in depth | ⚠️ PARTIAL | Layers defined; not all owners assigned |
-| §2.6 Secure-by-template | ❌ NOT MET | Backstage templates not created |
-| §4.2 RBAC canonical roles | ✅ MET | Per 322-rbac, roles wired end-to-end |
-| §6 SDK security contract | ⚠️ PARTIAL | Go/Python SDKs published; TS SDK missing |
-| §7.1 AgentDefinition governance | ❌ NOT MET | scope/risk_tier fields missing in AgentDefinitions |
-| §9 Audit events | ❌ NOT MET | Audit logging not implemented |
-
----
-
-## 13. Recommended Priority Actions
-
-Based on gap analysis, the following actions are recommended in priority order:
-
-### Priority 1: CRITICAL (Blocks security compliance)
-
-1. **Complete 329-authz Phase 2** (4 weeks)
-   * Add `organization_id` to business tables
-   * Enable RLS policies
-   * Prerequisite for §2.1, §5.1 compliance
-
-2. **Add API route 403 enforcement** (1 week)
-   * Per 322-rbac gaps: API routes do not enforce 403 for insufficient permissions
-   * Add `requirePermission()` middleware to all API routes
-   * Add authorization checks to all server actions
-
-### Priority 2: HIGH (Enables agent governance)
-
-3. **AgentDefinition governance** (2 weeks)
-   * Add `scope` and `risk_tier` to AgentDefinition in Transformation DomainController per §7.1
-   * Implement tool grant enforcement at publish time
-   * Wire "write intents" logging per §7.3
-
-4. **Publish TypeScript SDK** (1 week)
-   * Per 388 gaps: TS SDK not on npmjs
-   * Publish `@ameideio/ameide-sdk-ts` with SemVer tags
-   * Enables §6 compliance for external consumers
-
-### Priority 3: MEDIUM (Completes security story)
-
-5. **Transformation secret scanner** (2 weeks)
-   * Implement secret scan validator inside Transformation DomainController per §9
-   * Wire into promotion workflow
-
-6. **Audit logging service** (2 weeks)
-   * Per 322-rbac and 329-authz gaps
-   * Wire 401/403 telemetry into dashboards
-
-7. **Backstage security baseline** (2 weeks)
-   * Deploy Backstage with SSO + RBAC per §8.1
-   * Create secure-by-default templates per §8.2
+> **Implementation Status**: See [483-fit-gap-analysis.md](483-fit-gap-analysis.md) §7 for current security compliance status against this target architecture.
