@@ -206,6 +206,10 @@ The **IDC operator** reconciling `IntelligentDomainController` CRs must:
    * Reflect rollout state into `status.conditions`.
    * Expose basic SLO metrics for p95 latency, error rate, and migrations.
 
+7. **Own Gateway API exposure**
+
+   * When an IDC publishes HTTP/GRPC endpoints, the operator must render the corresponding `HTTPRoute`/`GRPCRoute` resources in the IDC release (see 417/459). Hostnames, listeners, and oauth2-proxy chains live with the controller so the platform gateway only provides shared infrastructure—no more `extraHttpRoutes` patches. This keeps ownership clear and allows Argo health to reason about exposure status alongside the rest of the controller spec.
+
 ### 4.2 Interaction with GitOps & Backstage
 
 * **GitOps**:

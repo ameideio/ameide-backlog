@@ -171,6 +171,9 @@ For each IPC, the **IPC operator** produces/maintains:
 
   * Compiled mapping from BPMN ids → code handlers / declarative routing.
 * **Service + ServiceMonitor**, HPAs, NetworkPolicies.
+* **Gateway API routes**:
+
+  * IPCs that expose HTTP/Connect control planes (e.g., workflow admin APIs or process callbacks) render their `HTTPRoute`/`GRPCRoute` resources inside the IPC release. This follows the same ownership rule captured in 417/459 so no `extraHttpRoutes` live in the shared gateway chart—the controller spec is the single source of truth for hostnames, oauth2-proxy frontends, and health probes.
 
 IPC authors do **not** write Temporal code directly if they don’t want to; the default path is:
 

@@ -177,6 +177,9 @@ Key points:
    * Update `status.conditions` for deployment health, tool-grant sync, and secret hydration.
    * Expose per-agent metrics (token usage, success/error counts, latency) and forward them to observability stacks with `ameide.io/controller-tier=agent` labels.
 
+7. **Own Gateway API exposure**
+   * Agents that present gRPC/Connect or HTTP endpoints must ship their `HTTPRoute`/`GRPCRoute` resources in the IAC release (reusing the same contract as 500/417/459). Platform gateways provide listeners/TLS only; every controller owns its hostnames, oauth2-proxy frontends, and health probes so Argo can treat traffic exposure as part of the controller spec instead of an `extraHttpRoutes` side-file.
+
 ---
 
 ## 5. Security, tenancy & compliance
