@@ -20,6 +20,12 @@ Remote-first development depends on Telepresence for every inner-loop. When it b
 3. **Namespace-accurate intercepts** – The helper now re-connects with the requested namespace before every intercept (Telepresence v2.25 dropped the `--namespace` flag), so verification still covers staging/prod overrides instead of whichever context Telepresence cached previously.
 4. **Failure matrices** – When verification fails, the backlog links to the remediation steps (context bootstrap, RBAC drift, traffic-manager bugs).
 
+## Prerequisites
+
+- **RBAC** – the developer must belong to the `Ameide Telepresence Developers` Entra group (or one of the principals passed through `developer_role_assignments`). Terraform/Bicep now create the group on demand and assign the built-in `Azure Kubernetes Service RBAC Writer` role to it, so membership is enough to call `kubectl`/Telepresence without bespoke role assignments.
+- **Capabilities** – Telepresence requires `CAP_NET_ADMIN` to program routing rules. Codespaces-based GitOps containers do not expose this capability, so run the helper from your host (or a devcontainer with NET_ADMIN enabled) when you need a full intercept. Inside GitOps you can still collect diagnostics (`kubectl`, traffic-manager logs) and mark the run as “connectivity-only”.
+- **Contexts** – the helper will auto-run `az aks get-credentials` the first time a context is missing, but `az login --use-device-code` must succeed beforehand; make sure `kubelogin` is already configured per [429-devcontainer-bootstrap.md](429-devcontainer-bootstrap.md#current-bootstrap-split-2025-12).
+
 ## Verification flow (helper script)
 
 | Step | Command | Notes |
@@ -61,6 +67,7 @@ All stdout/stderr gets prefixed with `[telepresence-helper] <timestamp>` so mult
 | `connector.CreateIntercept: ... no active session` + daemon logs `exec: "iptables": executable file not found in $PATH` | DevContainer doesn’t have `iptables`, so the root daemon can’t program DNS/routing | Install `iptables` (e.g., `sudo apt-get update && sudo apt-get install -y iptables`) inside the DevContainer; re-run verify once packages are present. |
 | `telepresence intercept: error: unknown flag: --namespace` | Happens immediately after the CLI upgrade | Telepresence >=2.25 removed `--namespace` (and `--context`) flags from `intercept` | Update to the latest `tools/dev/telepresence.sh`, which now re-establishes the session via `telepresence connect --context ... --namespace ...` before starting the intercept. |
 | `no active session` | `rpc error: code = Unavailable desc = no active session` | Known upstream bug tracked in reliability backlog | Collect logs, reference NO-SESSION-1 in [492-telepresence-reliability.md](492-telepresence-reliability.md#known-issues-dec-2025). |
+| `connector.Connect: NewTunnelVIF: netlink.RuleAdd: operation not permitted` | Immediate failure during the connect step | Environment lacks `CAP_NET_ADMIN` (GitOps devcontainer) | Run the helper from a shell that exposes NET_ADMIN (host, privileged devcontainer). You can still capture `kubectl` + traffic-manager diagnostics inside GitOps, but mark the run as “connectivity only” and skip intercept assertions. |
 | `ORG env vars missing` | Helper prints `AUTH_DEFAULT_ORG/NEXT_PUBLIC_DEFAULT_ORG/WWW_AMEIDE_PLATFORM_ORG_ID not found` | `services.www_ameide_platform.organization.defaultOrg` not set in Helm values | Update the relevant GitOps values (shared + per-env overlays) with the correct slug, let Argo sync, and rerun verify so Telepresence env files pick up the new ConfigMap. |
 
 ## Automation hooks
