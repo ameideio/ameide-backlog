@@ -353,3 +353,11 @@ Compared to **SAP S/4HANA’s metadata- and configuration-driven architecture**,
 
 In short:
 **Ameide is what you get if you take the core *intent* of S/4HANA (structured ERP, clean core, extensible) but redesign it under the assumption that “the main developer is an AI that loves code, not a human that loves configuration screens.”**
+
+---
+
+## 8. Follow-Up Backlog Updates
+
+- **478-ameide-extensions.md** – Document the Tier 1/Tier 2 split explicitly (Transformation-owned ExtensionDefinitions promoted into the `extensions-runtime` host) so the extensions backlog reflects the concrete runtime now in place.
+- **473-ameide-technology.md** – Capture the ApplicationSet/RollingSync orchestration (364) and Telepresence overlays so the technology doc mirrors the GitOps/transport story used for this comparison.
+- **474-ameide-implementation.md** – Needs a narrative showing how we stand up Ameide in greenfield customers: proto scaffolding, AI-driven development loops, and GitOps promotion. Without it, field teams still fall back to S/4-style “blueprints + customizing”, which defeats the purpose of this document.

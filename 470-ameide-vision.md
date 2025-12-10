@@ -554,3 +554,13 @@ Together, these checkpoints demonstrate that the architectural principles in §�
 **Agents & Transformation**:
 - [310-agents-v2.md](310-agents-v2.md) – AgentController layer (n8n-aligned)
 - [305-workflow.md](305-workflow.md) – Workflow orchestration (Temporal-backed ProcessControllers)
+
+---
+
+### 9.6 Backlog Sync Recommendations
+
+- **474-ameide-implementation.md** – Still empty; needs an execution roadmap that sequences the already-shipped Tier 1 runtime (480), RollingSync adoption (364), and SDK/CI guardrails (430). Without this, the “implementation” slot in §9.3 remains a gap even though the work now exists.
+- **478-ameide-extensions.md** – Should be refreshed to point at the shipping `extensions-runtime` service as the Tier 1 execution environment, describe the Wasmtime sandbox + host-call policy surfaced in Backlog 480, and clarify how ExtensionDefinitions flow from Transformation → GitOps → runtime.
+- **473-ameide-technology.md** – Update the GitOps sections to reflect the live ApplicationSet/RollingSync pattern (364) and reference the `verify_required_env_vars.sh` CI check so technology readers understand how these guardrails translate into tooling.
+
+Documenting these follow-ups keeps the rest of the 47x suite synchronized with the progress captured in this file.

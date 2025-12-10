@@ -130,7 +130,7 @@ For each helmfile (track status as we migrate):
 
 | Helmfile | Action | Status (2025-11-12) |
 | --- | --- | --- |
-| `00-argocd` | Already replaced by bootstrap manifest. Keep Helmfile for `helm template`, but mark it “render-only” and never apply. | ✅ handled by `tools/bootstrap/bootstrap-v2.sh` (run automatically from `.devcontainer/postCreate.sh`) |
+| `00-argocd` | Already replaced by bootstrap manifest. Keep Helmfile for `helm template`, but mark it “render-only” and never apply. | ✅ handled historically by `tools/bootstrap/bootstrap-v2.sh` (now `ameide-gitops/bootstrap/bootstrap.sh`), which runs automatically from the GitOps bootstrap |
 | `10-bootstrap` | Convert namespace chart + smoke jobs into components (`foundation/namespaces`, `foundation/bootstrap-smoke`). Keep Helmfile as rendering input. | ✅ migrated → `foundation-dev` ApplicationSet (`wave00` / `wave05`) |
 | `12-crds` | Components per CRD package (`foundation/crds/*`). Helmfile retained for rendering. | ✅ migrated → `foundation/crds/gateway-api` + `foundation/crds/prometheus-operator` (wave10) |
 | `15-secrets-certificates` | `foundation/certificates`, `foundation/secrets`. Helmfile retained for rendering only. | ✅ cert-manager + External Secrets operators + Vault/secret-store bundles + smoke job migrated (waves 15–21) |

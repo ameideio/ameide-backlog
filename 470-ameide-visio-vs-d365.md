@@ -294,3 +294,11 @@ Compared to D365’s AOT‑driven, metadata‑first ERP development:
   * and analyzers over that combined graph.
 
 This gives us an architecture that respects what made AOT powerful, while aligning with a future where **AI, not Visual Studio, is the primary development environment.**
+
+---
+
+## 9. Follow-Up Backlog Updates
+
+- **478-ameide-extensions.md** – Needs an explicit pointer to the shipping `extensions-runtime` Tier 1 host (Backlog 480) so the extension doc references a concrete runtime rather than abstract hooks.
+- **473-ameide-technology.md / 364-argo-configuration-v5-decomposition.md** – Update the technology/GitOps docs to highlight that ApplicationSet RollingSync sequencing is now live, replacing the legacy Helmfile orchestration this comparison critiques.
+- **474-ameide-implementation.md** – Should outline how we bootstrap the “code-first vs metadata-first” posture in customer projects (Backstage templates, proto-first SDKs, env-var lint) so field teams have a prescriptive rollout tied to the differences documented here.
