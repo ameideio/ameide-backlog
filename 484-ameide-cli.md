@@ -214,8 +214,37 @@ The CLI **diagnoses** but never **fixes**:
 - Test presence per RPC
 - Convention compliance (folder structure, required files)
 - GitOps manifest validity (if present)
+- **Security checks** (see §4.0.2.1)
 
 Output is always structured JSON describing *what's wrong*, not *fixing it*.
+
+#### 4.0.2.1 Security Hooks in Verify
+
+`verify` is the integration point for security tooling (aligning with [476-ameide-security-trust.md](476-ameide-security-trust.md)):
+
+| Check | Tool | When |
+|-------|------|------|
+| **Secret scan** | gitleaks, trufflehog | Every verify run |
+| **Dependency vulnerabilities** | `npm audit`, `govulncheck`, Snyk | Every verify run |
+| **SAST** | Semgrep, CodeQL | `--check security` flag |
+| **License compliance** | license-checker | `--check security` flag |
+| **Policy checks** | OPA/Gatekeeper | For GitOps manifests |
+
+Example output:
+
+```json
+{
+  "security": {
+    "secret_scan": {"status": "PASS", "tool": "gitleaks"},
+    "dependency_vulns": {"status": "WARN", "critical": 0, "high": 2, "tool": "govulncheck"},
+    "sast": {"status": "PASS", "tool": "semgrep"}
+  }
+}
+```
+
+**Default behavior:**
+- Secret scan and dependency vulns run on every `verify` (fast, essential)
+- SAST runs only with `--check security` (slower, optional locally, required in CI)
 
 ### 4.0.3 Never Generate (Agent's Job)
 
@@ -1115,7 +1144,45 @@ This gives proto alignment (shared types, consistent semantics) without blocking
 
 ## 9. Repo Layout (Target)
 
-The CLI assumes a primitives-based repo structure:
+### 9.1 Core Repo vs GitOps Repo Split
+
+The CLI operates across **two logical repositories** (which may be consolidated or separate):
+
+| Repo | Contains | CLI Focus |
+|------|----------|-----------|
+| **Core repo** | Code, proto, SDKs, operators, CRD *schemas* | `describe`, `drift`, `verify`, `scaffold` (code) |
+| **GitOps repo** | CRD *instances*, environment values, ApplicationSets | `scaffold --include-gitops`, `verify --gitops` |
+
+**Key distinction:**
+- **CRD schemas/kinds + operators** live in the **core repo** (`config/crd/bases/`, `operators/`)
+- **CRD instances + environment config** live in the **GitOps repo** (`gitops/primitives/`, `gitops/environments/`)
+
+### 9.2 CLI Flags for Repo Roots
+
+All `primitive` commands accept:
+
+```bash
+--repo-root <path>      # Core repo root (default: cwd or auto-detected)
+--gitops-root <path>    # GitOps repo root (default: {repo-root}/gitops or separate repo)
+```
+
+Examples:
+
+```bash
+# Monorepo (gitops is a subdirectory)
+ameide primitive describe --json
+# Uses: repo-root=cwd, gitops-root=cwd/gitops
+
+# Separate repos
+ameide primitive describe --repo-root ~/ameide-core --gitops-root ~/ameide-gitops --json
+
+# GitOps-only operations
+ameide primitive verify --gitops-root ~/ameide-gitops --check gitops-only --json
+```
+
+### 9.3 Directory Structure
+
+**Core repo** (where AI coder sandbox lives):
 
 ```
 ameide/
@@ -1124,6 +1191,20 @@ ameide/
 │   ├── ameide_sdk_go/               # Generated clients
 │   ├── ameide_sdk_ts/
 │   └── ameide_sdk_python/
+│
+├── config/
+│   └── crd/
+│       └── bases/                   # CRD SCHEMAS (Domain, Process, Agent, UISurface)
+│           ├── domain.ameide.io.yaml
+│           ├── process.ameide.io.yaml
+│           ├── agent.ameide.io.yaml
+│           └── uisurface.ameide.io.yaml
+│
+├── operators/                       # Operator code (reconciles CRD instances)
+│   ├── domain/
+│   ├── process/
+│   ├── agent/
+│   └── uisurface/
 │
 ├── primitives/
 │   ├── domain/
@@ -1137,18 +1218,40 @@ ameide/
 │   │   └── core_platform_coder/
 │   └── uisurface/
 │       └── www_ameide_platform/
-│
-└── gitops/
-    ├── clusters/
-    │   ├── prod/
-    │   └── staging/
-    └── primitives/                  # Domain/Process/Agent/UISurface CRDs
 ```
 
-**Key points:**
-- `primitives/` organized by kind (domain, process, agent, uisurface)
-- `gitops/primitives/` mirrors `primitives/` for CRDs/manifests
-- CLI is aware of both code (`primitives/*`) and GitOps (`gitops/*`)
+**GitOps repo** (CRD instances and environment config):
+
+```
+ameide-gitops/  # or gitops/ subdirectory in monorepo
+├── environments/
+│   ├── dev/
+│   │   └── argocd/                  # ApplicationSets for dev
+│   ├── staging/
+│   └── prod/
+│
+├── primitives/                      # CRD INSTANCES (actual runtime wiring)
+│   ├── domain/
+│   │   └── orders/
+│   │       ├── domain.yaml          # Domain CRD instance
+│   │       └── values.yaml          # Helm values
+│   ├── process/
+│   ├── agent/
+│   └── uisurface/
+│
+└── sources/
+    └── values/
+        ├── dev/
+        ├── staging/
+        └── prod/                    # Environment-specific overrides
+```
+
+### 9.4 Key Points
+
+- **CRD schemas** (what a Domain/Process/Agent/UISurface looks like) → **core repo**
+- **CRD instances** (the actual orders Domain, the actual l2o Process) → **GitOps repo**
+- **Operators** (code that reconciles CRs into Deployments) → **core repo**
+- The CLI scaffolds **code** in core repo; **CRD instances** go in gitops repo (via `--include-gitops`)
 - Current `services/` would migrate to `primitives/domain/` or `primitives/process/`
 
 **Migration from current structure:**
