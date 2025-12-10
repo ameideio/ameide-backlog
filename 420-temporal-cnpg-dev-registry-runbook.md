@@ -16,6 +16,8 @@
 > - [456-ghcr-mirror.md](456-ghcr-mirror.md) – GHCR mirroring for Temporal images
 
 > ⚠️ **Legacy workflow:** References to the k3d dev registry (`k3d-ameide.localhost:5001`) describe the previous local-cluster model. With the remote-first pivot (backlog/435), dev builds push directly to ACR and run on AKS; keep these notes only for historical incident context.
+>
+> **Bootstrap location:** When this runbook mentions `tools/bootstrap/bootstrap-v2.sh`, substitute the GitOps bootstrap now located at `ameide-gitops/bootstrap/bootstrap.sh`. Developer DevContainers only run `tools/dev/bootstrap-contexts.sh` to point kubectl/Telepresence/argocd at the shared AKS cluster.
 
 ## What we configured
 - **Temporal DB ownership:** CNPG (`platform-postgres-clusters`) owns the `temporal` and `temporal_visibility` roles/secrets. The Temporal chart now uses `temporal`/`temporal_visibility` users via `temporal-db-credentials` and `temporal-visibility-db-credentials`. All Vault-authored ExternalSecrets for Temporal were removed; Vault is mirror-only if needed. See also `backlog/425-vendor-schema-ownership.md` for the general vendor schema pattern.
@@ -34,7 +36,7 @@
   - Uses RollingSync `rolloutPhase` ordering so `data-migrations-temporal` (migration) runs before `data-temporal` (runtime) and `data-temporal-namespace-bootstrap` (namespace job).
 - **Temporal migrations sync policy:** The `data-migrations-temporal` Application now keeps `automated` sync but sets `prune: false` and `selfHeal: false`. The Helm hook still runs automatically on first install or whenever we intentionally sync/upgrade, but Argo no longer keeps re-creating the job after it deletes itself. This prevents repeated reruns of `setup-schema` that crash with duplicate key errors.
 
-In dev, the **normal path** is now: open the DevContainer, let `tools/bootstrap/bootstrap-v2.sh` converge the cluster (see `backlog/429-devcontainer-bootstrap.md`), and rely on Argo’s automated sync + retry + RollingSync to bring Temporal apps healthy. The CLI `argocd app sync` steps below remain the manual recovery path when something is stuck (see also `backlog/423-temporal-argocd-recovery.md`).
+In dev, the **normal path** is now: open the DevContainer, let the GitOps bootstrap (`ameide-gitops/bootstrap/bootstrap.sh`) converge the cluster (see `backlog/429-devcontainer-bootstrap.md` for legacy context), and rely on Argo’s automated sync + retry + RollingSync to bring Temporal apps healthy. The CLI `argocd app sync` steps below remain the manual recovery path when something is stuck (see also `backlog/423-temporal-argocd-recovery.md`).
 
 ## Issues we hit and fixes
 - **Temporal CrashLoopBackOff (permission denied on `schema_version`):**
@@ -52,7 +54,7 @@ In dev, the **normal path** is now: open the DevContainer, let `tools/bootstrap/
 
 ## Reproducible rollout (dev)
 1) Pull repo + submodule: `git pull --recurse-submodules && git submodule update --init --recursive`.
-2) Bootstrap dev cluster: `tools/bootstrap/bootstrap-v2.sh --config infra/environments/dev/bootstrap.yaml` (builds + pushes dev images to the local registry).
+2) Bootstrap dev cluster: `ameide-gitops/bootstrap/bootstrap.sh --config bootstrap/configs/dev.yaml` (builds + pushes dev images to the designated registry).
 3) Port-forward and log into ArgoCD:
    ```
    kubectl -n argocd port-forward svc/argocd-server 8080:80 >/tmp/argocd-pf.log 2>&1 &

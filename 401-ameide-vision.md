@@ -60,4 +60,4 @@
 - **Service capabilities:** `services/**/README.md` (Graph, Repository, Platform, Transformation, Workflows, Agents, Agents Runtime, Inference, Inference Gateway, Chat, Threads, www_ameide_platform, www_ameide).
 - **SDK policy & client contract:** `backlog/393-ameide-sdk-import-policy.md`, `backlog/389-ameide-sdk-ameideclient.md`, `sdk/manifest/ameide-client.json`.
 - **Versioning & publishing:** `backlog/388-ameide-sdks-north-star.md`, `backlog/390-ameide-sdk-versioning.md`, `.github/workflows/cd-packages.yml`.
-- **Ops/bootstrapping:** `README.md`, `.devcontainer/postCreate.sh`, `tools/bootstrap/bootstrap-v2.sh`, `infra/kubernetes/scripts/validate-hardened-charts.sh`, `build/scripts/*`.
+- **Ops/bootstrapping:** `ameide-gitops/bootstrap/bootstrap.sh` now owns the GitOps/bootstrap CLI while `ameide-core/.devcontainer/postCreate.sh` + `tools/dev/bootstrap-contexts.sh` provide the developer bootstrap; supporting scripts remain in `README.md`, `infra/kubernetes/scripts/validate-hardened-charts.sh`, and `build/scripts/*`.

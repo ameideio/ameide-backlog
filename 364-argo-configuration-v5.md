@@ -1,5 +1,7 @@
 Below is a vendor‑docs‑aligned way to wire **Dev Containers** (VS Code / Dev Container spec), **k3d** (local k8s), **Argo CD** (GitOps), and **Tilt** (inner‑loop dev) together for your two repos. _Current status:_ the repo now follows this vendor workflow. _Migration plan:_ not applicable.
 
+> **Bootstrap location:** The CLI previously referenced here as `tools/bootstrap/bootstrap-v2.sh` now resides in the `ameide-gitops` repository (`bootstrap/bootstrap.sh`). Developer bootstrap inside `ameide-core` is limited to `.devcontainer/postCreate.sh` plus `tools/dev/bootstrap-contexts.sh`, which connect the DevContainer to the shared AKS cluster per [435-remote-first-development.md](435-remote-first-development.md). Treat the k3d/bootstrap instructions below as historical context unless you are working inside the GitOps repo.
+
 * **`ameide`** – the main app source (we’ll put the Dev Container and `Tiltfile` here).
 * **`ameide-gitops`** – the GitOps repo Argo CD will watch.
 

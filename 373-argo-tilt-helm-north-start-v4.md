@@ -5,6 +5,7 @@
 > - **No local k3d cluster** – All development targets shared AKS dev cluster
 > - **Telepresence intercepts** – Replace Tilt Helm resource swapping with traffic routing
 > - **ArgoCD in AKS** – Single Argo instance manages all environments (dev/staging/prod)
+> - **Bootstrap CLI relocated** – The GitOps/bootstrap script moved from `tools/bootstrap/bootstrap-v2.sh` to `ameide-gitops/bootstrap/bootstrap.sh`; DevContainers now only run `tools/dev/bootstrap-contexts.sh` to connect to the shared cluster.
 >
 > The `-tilt` release isolation pattern from this backlog is preserved in the new architecture.
 > See [435-remote-first-development.md](435-remote-first-development.md) for the current approach.

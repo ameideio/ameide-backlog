@@ -3,7 +3,7 @@
 **Date:** 2025-11-29
 **Status:** ✅ LARGELY IMPLEMENTED with minor gaps
 
-> ⚠️ **Legacy scope:** This report verifies the old k3d-based dev registry workflow. Remote-first development now targets the shared AKS cluster (see [435-remote-first-development.md](435-remote-first-development.md)), so treat the findings below as historical documentation rather than the current dev path.
+> ⚠️ **Legacy scope:** This report verifies the old k3d-based dev registry workflow. Remote-first development now targets the shared AKS cluster (see [435-remote-first-development.md](435-remote-first-development.md)), so treat the findings below as historical documentation rather than the current dev path. The bootstrap CLI referenced here as `tools/bootstrap/bootstrap-v2.sh` now lives in the `ameide-gitops` repository (`bootstrap/bootstrap.sh`); retain the original paths below only for provenance.
 
 ## Executive Summary
 
