@@ -140,6 +140,17 @@ We do **not** re-list the label contract here—see §4.3 of [500-controller-dom
 * The shared `status.phase` enum (`Ready`, `Progressing`, `Degraded`) applies exactly as defined in 500 so controller-contract tests can treat IDCs/IACs/IPCs uniformly.
 * Operators must publish the mandatory IDC conditions (`DeploymentAvailable`, `MigrationsApplied`, `DataPlaneHealthy`) **plus** the agent-only extensions `ToolGrantsValidated` and `SecretsReady`. ArgoCD and the Architect Agent read all five so we get consistent health semantics across controller tiers.
 
+### 3.2 Agent-specific condition extensions
+
+In addition to the baseline table from §4.4 of [500-controller-domain](500-controller-domain.md), the IAC operator **must** surface the following conditions in `status.conditions`:
+
+| Condition | Purpose | Set to `True` when… |
+|-----------|---------|---------------------|
+| `ToolGrantsValidated` | Confirms the operator reconciled every declared grant, checked target existence, and registered the grant with the central tool registry. | Each `spec.toolGrants[]` entry resolved to a live IDC/IPC/Wasm target, the SDK allowlist was updated, and no policy violations remain. |
+| `SecretsReady` | Shows that ExternalSecrets/Vault data landed and the runtime has the redacted/rotated credentials it needs. | All references under `spec.secrets` are projected into the pod (env/volume) and the operator has verified checksums against the Vault metadata. |
+
+Only when **all** baseline and agent-specific conditions are `True` may the operator set `status.phase=Ready`. Keeping the requirements explicit here prevents drift between controllers and keeps Argo’s Lua health script declarative (the Lua merely looks for condition names instead of controller-specific logic).
+
 Key points:
 
 * CRDs reference **AgentDefinition artifacts** rather than embedding prompt/code. UAF remains the source of truth for agent logic; CRs focus on runtime posture.

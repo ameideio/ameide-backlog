@@ -144,6 +144,18 @@ As with IACs, we now treat §4.3 of [500-controller-domain](500-controller-domai
 * IPC statuses publish the three base conditions (`DeploymentAvailable`, `MigrationsApplied`, `DataPlaneHealthy`) defined for IDCs **plus** the IPC-specific ones listed above. The shared Lua health script inspects the base trio first, then the IPC-specific ones so we keep a single health gate across controller tiers.
 * `status.phase` sticks to the `Ready/Progressing/Degraded` enum; the operator translates `WorkflowCompilerReady` + `TemporalWorkersAvailable` into those canonical phase values so IPCs participate in fleet-wide dashboards without a custom adapter.
 
+### 3.2 Process-specific condition extensions
+
+The IPC operator extends the baseline condition table from §4.4 of [500-controller-domain](500-controller-domain.md) with the following entries:
+
+| Condition | Purpose | Set to `True` when… |
+|-----------|---------|---------------------|
+| `WorkflowCompilerReady` | Guarantees the BPMN/ProcessDefinition was compiled successfully and the generated assets match the current spec revision. | All compilation Jobs completed, checksums registered in the ConfigMap, and the operator verified the artifact revision in `status.observedGeneration`. |
+| `TemporalWorkersAvailable` | Shows that worker Deployments are running and registered with the Temporal namespace/queue for this IPC. | Worker pods report healthy heartbeats, the Temporal namespace exists, and the operator received the expected `DescribeWorker` responses. |
+| `BindingsValidated` | Ensures every `spec.bindings.serviceTasks[]` target resolved to a live IDC/IAC/Wasm entry with the promised version. | Buffer registry lookups succeeded, the SDK allowlist was updated, and no binding drift (e.g., missing primitive) remains. |
+
+IPC rollouts stay at `phase=Progressing` until all baseline and IPC-specific conditions are `True`. This keeps RollingSync honest—Temporal workers with stale bindings or a failed compiler Job are surface-level degradations rather than silent mismatches.
+
 **Key decisions:**
 
 * IPC **does not embed BPMN**; it references ProcessDefinitions in Transformation/UAF via `artifactId + revision`. 

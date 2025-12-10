@@ -251,6 +251,19 @@ The required `status.conditions` set is equally strict because downstream toolin
 
 Controllers that expose Gateway API routes add a fourth mandatory `RoutesPublished` condition; the operator sets it to `False` until every owned `HTTPRoute`/`GRPCRoute` is accepted and programmed. ArgoCD’s health Lua toggles the controller to `Degraded` when `RoutesPublished=False`, so the rollout ladder halts before downstream services depend on a broken hostname.
 
+### 4.4 Condition quick reference
+
+All controller tiers (domain, agent, process) lean on the same “contract” conditions so GitOps, Lua health checks, and the Architect Agent can reason about them uniformly. For IDCs the operator is responsible for publishing the following entries in `status.conditions`:
+
+| Condition | Purpose | Set to `True` when… | Consumers |
+|-----------|---------|---------------------|-----------|
+| `DeploymentAvailable` | Proves the workload is schedulable and serving traffic. | The Deployment has `status.availableReplicas >= minReplicas`. | Argo health, RollingSync, platform dashboards. |
+| `MigrationsApplied` | Signals that schema migrations/job hooks have finished. | All `Job`/`CNPG` tasks referenced by the release completed successfully. | Controller-contract test suite, Architect Agent. |
+| `DataPlaneHealthy` | Tracks DB/service dependencies (CNPG, Kafka topics, redis, etc.). | Probes to the managed dependencies succeed; no alerts firing. | IPC/IAC validation logic when binding to IDC primitives. |
+| `RoutesPublished` | (Only when HTTP/GRPC routes exist) indicates Gateway resources are live. | Every owned `HTTPRoute`/`GRPCRoute` reports `Accepted=True` and `Programmed=True` for `gateway/ameide`. | Gateway Lua health, downstream controllers that depend on the public hostname. |
+
+IACs and IPCs add their own tier-specific conditions on top of this baseline (see 501/502), but they inherit this table verbatim. Treat this section as the authoritative reference whenever we extend the controller contract—new conditions must appear here first so the other controller backlogs can link back instead of restating the same semantics.
+
 Additional conditions (e.g., `PrimitivesPublished`) are allowed, but the three above are mandatory, and they must always pair with the shared `status.phase` values (`Ready`, `Progressing`, `Degraded`). Controllers that conform to this contract automatically get ArgoCD health parity because the shared Lua check simply inspects the standardized condition list.
 
 ---

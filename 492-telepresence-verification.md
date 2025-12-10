@@ -81,6 +81,18 @@ If either command fails, sync `*-traffic-manager`, fix the RBAC templates under 
 | `connector.Connect: NewTunnelVIF: netlink.RuleAdd: operation not permitted` | Immediate failure during the connect step | Environment lacks `CAP_NET_ADMIN` (GitOps devcontainer) | Run the helper from a shell that exposes NET_ADMIN (host, privileged devcontainer). You can still capture `kubectl` + traffic-manager diagnostics inside GitOps, but mark the run as “connectivity only” and skip intercept assertions. |
 | `ORG env vars missing` | Helper prints `AUTH_DEFAULT_ORG/NEXT_PUBLIC_DEFAULT_ORG/WWW_AMEIDE_PLATFORM_ORG_ID not found` | `services.www_ameide_platform.organization.defaultOrg` not set in Helm values | Update the relevant GitOps values (shared + per-env overlays) with the correct slug, let Argo sync, and rerun verify so Telepresence env files pick up the new ConfigMap. |
 
+## Escalation bundle
+
+When the helper still fails after the remediation steps above, capture the following bundle before filing an issue or paging Platform:
+
+1. `telepresence status --json > /tmp/telepresence-status.json` – daemon version, context, namespace, and traffic-manager endpoint in one artifact.
+2. `telepresence list --output json > /tmp/telepresence-list.json` – proof that workloads/intercepts were (or were not) visible to the daemon.
+3. `kubectl -n ${TELEPRESENCE_NAMESPACE:-ameide-dev} logs deploy/traffic-manager > /tmp/traffic-manager.log` – RBAC errors and intercept churn show up immediately.
+4. `telepresence gather --names ${TELEPRESENCE_NAMESPACE:-ameide-dev}/traffic-manager` – optional tarball with daemon + traffic-manager diagnostics; attach it to GitHub issues.
+5. `kubectl describe pod -l app=traffic-manager -n ${TELEPRESENCE_NAMESPACE:-ameide-dev} > /tmp/traffic-manager.describe` – includes restart chronology, PSP/scc violations, or `netlink` failures.
+
+Attaching these files to the incident (or linking them in #platform-devx) gives the reliability on-call enough data to diagnose without asking you to rerun the helper.
+
 ## Automation hooks
 
 - **Tilt** – `tilt up verify-telepresence` invokes the helper with the same env vars used for service resources. The Tilt UI surfaces pass/fail alongside other local resources. Service resources themselves now run through `scripts/telepresence/intercept_service.sh` + `scripts/telepresence/run_service.sh`, so env-file logging and required-variable enforcement are consistent across verify and dev flows.
