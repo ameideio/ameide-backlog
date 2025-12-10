@@ -221,6 +221,19 @@ The **IDC operator** reconciling `IntelligentDomainController` CRs must:
     * IDC `kind: IntelligentDomainController` spec,
     * GitOps manifest that ArgoCD consumes. 
 
+### 4.3 Metadata & status contract
+
+All controller backlogs share a **common metadata contract** so operators, GitOps, and Backstage can reason about them consistently (see 461/447). For IDCs we standardize on:
+
+| Field | Purpose |
+|-------|---------|
+| `metadata.labels.ameide.io/controller-tier=domain` | Lets policy agents, dashboards, and the Architect Agent filter for domain controllers only. |
+| `metadata.labels.ameide.io/domain=<bounded-context>` | Matches the canonical entry in 475 so Backstage/catalog tooling can group controllers with their domain. |
+| `metadata.labels.ameide.io/sku=<shared|namespace|private>` | Signals placement/SKU choice to the operator and ensures tenant variants stay inside `tenant-*` namespaces. |
+| `metadata.annotations.argocd.argoproj.io/rollout-phase=350` | Aligns with 447 so domain controllers deploy after foundational operators but before app tiers; tenant-specific overrides can choose a later phase (e.g., 650) without changing the spec body. |
+
+Status objects must expose at least `DeploymentAvailable`, `MigrationsApplied`, and `DataPlaneHealthy` conditions; ArgoCD health scripts key off these fields, and the Architect Agent reads them when proposing changes. This section applies to IAC/IPC specs as well, but IDCs anchor the contract by publishing the canonical label set other controllers reference.
+
 ---
 
 ## 5. Information model & domain contracts

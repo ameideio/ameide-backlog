@@ -124,6 +124,17 @@ status:
     successRate: 0.97
 ```
 
+### 3.1 Metadata, labels, and rollout
+
+Agent controllers follow the same metadata contract introduced in 500/461 so automation can treat every controller uniformly:
+
+* `metadata.labels.ameide.io/controller-tier=agent`
+* `metadata.labels.ameide.io/domain=<owning bounded context>`
+* `metadata.labels.ameide.io/sku=<shared|namespace|private>`
+* `metadata.annotations.argocd.argoproj.io/rollout-phase=650`
+
+The default rollout phase (650) keeps IACs behind platform/domain controllers while still allowing tenant overrides to run additional smokes later in the ladder. Operators must also emit `ToolGrantsValidated` and `SecretsReady` conditions in `status.conditions`; the Lua health checks used by ArgoCD read these flags before marking the Application Healthy.
+
 Key points:
 
 * CRDs reference **AgentDefinition artifacts** rather than embedding prompt/code. UAF remains the source of truth for agent logic; CRs focus on runtime posture.

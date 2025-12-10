@@ -127,6 +127,17 @@ spec:
     riskTier: "medium"   # influences agent & WASM policies
 ```
 
+### 3.1 Metadata, labels, and health
+
+Per the shared controller contract (461/500/501), IPC CRDs must carry:
+
+* `metadata.labels.ameide.io/controller-tier=process`
+* `metadata.labels.ameide.io/domain=<value stream>`
+* `metadata.labels.ameide.io/sku=<shared|namespace|private>`
+* `metadata.annotations.argocd.argoproj.io/rollout-phase=640`
+
+The rollout phase keeps IPC workers behind domain/agent controllers but before UI runtimes (apps at 650+). IPC operators publish `WorkflowCompilerReady`, `TemporalWorkersAvailable`, and `BindingsValidated` conditions; ArgoCD’s health Lua reads these flags so RollingSync halts if BPMN compilation or Temporal worker deployment fails.
+
 **Key decisions:**
 
 * IPC **does not embed BPMN**; it references ProcessDefinitions in Transformation/UAF via `artifactId + revision`. 
