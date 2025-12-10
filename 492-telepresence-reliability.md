@@ -95,11 +95,15 @@ Teleporting the inner loop to the shared AKS cluster is now the only supported w
 
 - **RBAC alignment** – Telepresence Traffic Manager ClusterRole/Role templates now grant `create` on `pods/eviction`, matching the vendor guidance for v2.25.1 (mirrored in `sources/charts/third_party/telepresence/telepresence/2.25.1`). ArgoCD syncs `dev-traffic-manager`/`staging-traffic-manager` against the versioned chart path.
 - **AKS role assignment automation** – `infra/terraform/azure` now creates the `Ameide Telepresence Developers` Entra ID group (object ID `f29f3bba-96e3-4faf-a6f5-6d8c595fe2d1`) and grants it the built-in **Azure Kubernetes Service RBAC Writer** role on the `ameide` cluster, replacing the manual “cluster-user” assignment attempts that failed earlier. Running `terraform -chdir=infra/terraform/azure apply` and a follow-up `plan` both return no drift.
-- **Script resilience** – `tools/dev/telepresence.sh verify` now:
-  - Logs timestamps for every phase.
-  - Ensures `az aks get-credentials` is invoked automatically when `ameide-{env}` contexts are missing.
+- **Script resilience** – `tools/dev/telepresence.sh` now:
+  - Logs timestamps for every phase and wraps critical commands with retry/backoff.
+  - Ensures `az aks get-credentials` is invoked automatically when `ameide-{env}` contexts are missing and cleans up active sessions via traps.
   - Runs `telepresence status` + `telepresence list` even when intercept fails, capturing diagnostics for Tilt/CI logs.
   - Supports environment overrides (`TELEPRESENCE_VERIFY_WORKLOAD`, `TELEPRESENCE_VERIFY_PORT`, `TELEPRESENCE_VERIFY_SCRIPT`, `TELEPRESENCE_SKIP_INTERCEPT`).
+- **Service runner scripts** – `scripts/telepresence/intercept_service.sh` and `scripts/telepresence/run_service.sh` wrap every Tilt `svc-*` resource. They source `.telepresence-envs/<service>.env`, log the number of exported variables, enforce required envs (`--required VAR`), and print the values being used before the dev server starts. Intercepts fail fast (with actionable logs) when GitOps hasn’t provided the expected environment variables (e.g., `NEXT_PUBLIC_DEFAULT_ORG`).
+- **Namespace alignment** – Telepresence CLI v2.25 removed the `--namespace` flag from `telepresence intercept`. The helper now re-establishes the requested context/namespace before every intercept so verification/Tilt flows keep working even after the upstream change.
+- **Linux prerequisites** – DevContainers running Linux now get a fast-fail when `iptables` is missing. The helper checks for the binary before running Telepresence so we stop chasing `no active session` errors that were ultimately caused by the root daemon being unable to install DNS rules.
+- **DevContainer packages** – `.devcontainer/Dockerfile` bakes `iptables` and `sshfs` into the base image and `.devcontainer/postCreate.sh` re-installs them when older images are reused. This keeps Telepresence DNS/routing healthy and removes the noisy “remote volume mounts are disabled” warning.
 
 ## Known issues (Dec 2025)
 
@@ -109,6 +113,8 @@ Teleporting the inner loop to the shared AKS cluster is now the only supported w
 | **CAP-NET-ADMIN** | `telepresence connect …` fails immediately with `connector.Connect: NewTunnelVIF: netlink.RuleAdd: operation not permitted` | DevContainer lacks the `CAP_NET_ADMIN` capability Telepresence needs to install routing rules, so even `sudo` fails. | Run the runbook from the host (or any shell with NET_ADMIN), or switch Telepresence to Docker mode once `docker` is available. Keep using `kubectl` + traffic-manager logs for validation when containerized tooling is constrained. |
 | **RBAC fallback** | Namespaces using namespaced RBAC must also include the `pods/eviction` rule (added, but monitor). | Without it, intercept fails with RBAC errors. | Keep ArgoCD apps in sync; add regression test in the helper (detect RBAC failure vs session failure). |
 | **Traffic-agent drift** | Some workloads (e.g., `kafka-entity-operator`) report `unable to engage (traffic-agent not installed): Unknown`. | Noise in Tilt CLI; may hide legitimate issues. | Document safe intercept targets (only `*-tilt` workloads) and ensure baseline workloads ignore Telepresence annotations (backlog 455). |
+| **LINUX-IPTABLES** | `connector.CreateIntercept: ... no active session` paired with daemon logs `exec: "iptables": executable file not found in $PATH`. | Root daemon cannot configure DNS/routing inside DevContainer, so sessions immediately die. | Install the `iptables` package inside the DevContainer (`sudo apt-get install -y iptables`) and re-run `./tools/dev/telepresence.sh verify`. The helper now checks for the binary up front. |
+| **CLIENT-CONFIG** | Traffic-manager logs print `client.yaml: ... unknown object member name "connectionTTL"` on every connect. | Cosmetic warning; intercepts still work, but we need confirmation from Telepresence maintainers. | `kubectl -n ameide-dev logs deploy/traffic-manager --since=30m | grep connectionTTL` captures the error. We confirmed our chart only sets `CLIENT_CONNECTION_TTL` via env vars (`kubectl -n ameide-dev get deploy traffic-manager -o jsonpath='{range ... }'`) and there is no `connectionTTL` string in this repo. Share the log + env list with the Telepresence team for follow-up. |
 
 ## Telepresence verification checklist
 
