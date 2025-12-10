@@ -403,6 +403,7 @@ To align with the new structure, the remote cluster needs:
 ### Epic ENV-3 – Telepresence Implementation
 
 > **Note:** This epic is aligned with [432-devcontainer-modes-offline-online.md](432-devcontainer-modes-offline-online.md#epic-dc-4--online-telepresence-mode) for devcontainer integration.
+> The ongoing operational backlog (connectivity, intercept verification, troubleshooting) lives in [492-telepresence.md](492-telepresence.md).
 >
 > **Blocker:** Requires [Remote GitOps Migration](#migration-needed) to be completed first.
 

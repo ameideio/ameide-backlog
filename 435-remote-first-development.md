@@ -59,6 +59,8 @@ Some CLI flags and behaviors evolve between minor versions. If you see unexpecte
 2. The pinned version in Dockerfile
 3. The [Telepresence changelog](https://github.com/telepresenceio/telepresence/releases)
 
+Ongoing reliability and troubleshooting work (connectivity, intercept health checks, RBAC) is tracked in [492-telepresence.md](492-telepresence.md).
+
 ---
 
 ## Architecture

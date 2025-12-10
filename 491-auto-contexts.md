@@ -36,7 +36,7 @@ Re-run manually with `bash tools/dev/bootstrap-contexts.sh` if you blow away `~/
 
 ### 2. Telepresence defaults
 
-`tools/dev/telepresence.sh` remains the entry point, but the context defaults now come from `~/.config/ameide/context.env`, which `tools/dev/bootstrap-contexts.sh` writes and `.bashrc` sources automatically. The helper reads `TELEPRESENCE_CONTEXT`/`TELEPRESENCE_NAMESPACE`, so overriding them before calling `./tools/dev/telepresence.sh connect` switches environments with no further setup. The helper now refuses to run on Linux when Telepresence prerequisites (`iptables` for DNS/routing) are missing, and the DevContainer image + `postCreate.sh` ensure both `iptables` and `sshfs` are installed before bootstrap runs so remote env mounts/DNS work immediately.
+`tools/dev/telepresence.sh` remains the entry point, but the context defaults now come from `~/.config/ameide/context.env`, which `tools/dev/bootstrap-contexts.sh` writes and `.bashrc` sources automatically. The helper reads `TELEPRESENCE_CONTEXT`/`TELEPRESENCE_NAMESPACE`, so overriding them before calling `./tools/dev/telepresence.sh connect` switches environments with no further setup. The helper now refuses to run on Linux when Telepresence prerequisites (`iptables` for DNS/routing) are missing, and the DevContainer image + `postCreate.sh` ensure both `iptables` and `sshfs` are installed before bootstrap runs so remote env mounts/DNS work immediately. The lifecycle of this script (connect, intercept, verification, logging) is tracked in [492-telepresence.md](492-telepresence.md).
 
 ### 3. Argo CD CLI contexts
 
