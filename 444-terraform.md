@@ -333,16 +333,11 @@ output "environment_dns_zone" {
 
 The `deploy.sh` script automatically seeds secrets from `.env` and `.env.local` to Azure Key Vault during the **Azure** Terraform deployment. The `local` target does not push anything into Key Vault; instead, `infra/terraform/local/main.tf` reads `GITHUB_TOKEN` via a `data.external` helper that falls back to `.env`. See [451-secrets-management.md](451-secrets-management.md) for the complete cloud secret flow.
 
-### Local-only bootstrap (planned)
+### Local-only bootstrap
 
-Problem: even when running `deploy.sh local`, ArgoCD still deploys `foundation-vault-bootstrap` in Azure mode and expects an Azure Key Vault populated with sanitized secrets. This breaks offline/local-only workflows.
+`foundation-vault-bootstrap` now has `secretSource.type` (`azure` or `local`). Cloud environments keep the Azure Key Vault path, while the `local` overlay switches to a Kubernetes Secret mount (`vault-bootstrap-local-secrets`) and sets `LOCAL_SECRET_FILE` for the CronJob.
 
-Refactor plan:
-1. Extend `foundation-vault-bootstrap` values with a `secretSource` switch: `azure` retains the managed identity + Key Vault CSI setup; `local` mounts a standard Kubernetes secret (`vault-bootstrap-local-secrets`) and skips Azure identity bits entirely.
-2. Teach `deploy.sh local` to call a helper (e.g. `infra/scripts/seed-local-secrets.sh`) after Terraform completes. The helper reuses the `.env` parsing/sanitization logic and materializes a secret in k3d (`kubectl create secret ... --dry-run=client | kubectl apply -f -`).
-3. Document the local secret keys so platform teams know which `.env` values feed which Vault paths.
-
-Result: pure local deployments no longer require any Azure resources, while Azure targets continue to rely on Key Vault.
+`deploy.sh local` seeds that secret via `infra/scripts/seed-local-secrets.sh`, which reuses the `.env` sanitization logic and applies the secret in the `ameide-local` namespace before ArgoCD bootstraps the chart. Local clusters no longer require any Azure resources.
 
 ### How It Works
 
@@ -417,8 +412,8 @@ azure:
 - [x] **TF-20**: Federated identity credentials per environment → vault-bootstrap can authenticate from ameide-dev/staging/prod namespaces → **2025-12-05**
 - [x] **TF-22**: Add explicit DNS subdomain records → explicit A records (www, platform, api, etc.) override wildcards and must be Terraform-managed → **2025-12-05**
 - [ ] **TF-21**: Clean up legacy `env-*` prefixed secrets from Azure Key Vault (19 secrets) → now using non-prefixed secrets with `secretPrefix: ""`
-- [ ] **TF-23**: Add `secretSource=local` mode to `foundation-vault-bootstrap` so k3d clusters can bootstrap without Azure Key Vault
-- [ ] **TF-24**: Create `infra/scripts/seed-local-secrets.sh` and wire it into `deploy.sh local` to populate `vault-bootstrap-local-secrets`
+- [x] **TF-23**: Add `secretSource=local` mode to `foundation-vault-bootstrap` so k3d clusters can bootstrap without Azure Key Vault → **2025-12-10**
+- [x] **TF-24**: Create `infra/scripts/seed-local-secrets.sh` and wire it into `deploy.sh local` to populate `vault-bootstrap-local-secrets` → **2025-12-10**
 - [ ] **TF-8**: AWS EKS module (future)
 - [x] **TF-9**: Local k3d setup → Implemented via `infra/terraform/local/` and `deploy.sh local` target → **2025-12-10**
 - [x] **TF-23**: Auto-read `.env` from Terraform → `data.external.env` reads `GITHUB_TOKEN` directly from `.env` file, no manual `export` required → **2025-12-11**
