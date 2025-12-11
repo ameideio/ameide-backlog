@@ -420,30 +420,43 @@ message ConsumerResult {
 ```json
 {
   "summary": "fail",
-  "tests": [
-    {"id": "orders.create_order.success", "status": "PASS"},
-    {"id": "orders.create_order.validation", "status": "FAIL", "details": "Expected INVALID_ARGUMENT, got OK", "file": "tests/create_order_test.go", "line": 42}
-  ],
-  "lint": [
-    {"tool": "buf-lint", "status": "PASS"},
-    {"tool": "golangci-lint", "status": "WARN", "issues": 3}
-  ],
-  "security": {
-    "secret_scan": {"status": "PASS", "tool": "gitleaks"},
-    "dependency_vulns": {"status": "WARN", "critical": 0, "high": 2, "tool": "govulncheck"}
-  },
-  "eda_reliability": {
-    "outbox_wiring": {"status": "PASS"},
-    "idempotency_guard": {
-      "status": "WARN",
+  "health": {"kind": "PRIMITIVE_KIND_DOMAIN", "name": "orders", "ready": false},
+  "checks": [
+    {"check": "Naming", "status": "CHECK_STATUS_PASS", "message": "Proto RPCs use business verbs"},
+    {"check": "BufLint", "status": "CHECK_STATUS_PASS", "message": "BufLint passed"},
+    {
+      "check": "BufBreaking",
+      "status": "CHECK_STATUS_FAIL",
+      "message": "BufBreaking failed",
       "issues": [
-        {"handler": "HandleOrderShipped", "file": "handlers/shipping.go", "line": 42, "reference": "see 472 §3.3.2"}
+        {"resource": "BufBreaking", "field": "proto", "expected": "clean", "actual": "rpc RemoveOrder missing in new proto"}
       ]
     }
-  },
-  "next_steps": ["Fix validation in CreateOrder handler.", "Add inbox check to HandleOrderShipped."]
+  ],
+  "next_steps": [
+    "Regenerate the SDKs and re-run buf breaking to verify contract stability.",
+    "Fix RemoveOrder RPC compatibility before touching cluster resources."
+  ],
+  "cascade": [
+    {
+      "kind": "PRIMITIVE_KIND_PROCESS",
+      "name": "l2o",
+      "path": "primitives/process/l2o",
+      "language": "npm",
+      "status": "FAIL",
+      "details": "NPM cascade tests failed for primitives/process/l2o"
+    }
+  ],
+  "buf": {
+    "lint_status": "CHECK_STATUS_PASS",
+    "lint_details": "BufLint passed",
+    "breaking_status": "CHECK_STATUS_FAIL",
+    "breaking_details": "rpc RemoveOrder missing in new proto"
+  }
 }
 ```
+
+`checks` contains every guardrail invoked (naming, security scans, repo tests, etc.). `buf` surfaces Buf lint/breaking summaries so agents can react without scraping `checks`. `cascade` lists each downstream consumer with its primitive kind, repo path, detected language (Go, npm, pytest), and PASS/FAIL/SKIP state so agents immediately know which test runner must go green again.
 
 ### 5.2 ImpactResult
 

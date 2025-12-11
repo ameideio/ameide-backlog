@@ -180,10 +180,10 @@ ameide config set <k> <v> # Update config value
 ## 9. Implementation Status (2024-05)
 
 - **Repo-first workflows delivered** – `primitive describe` now emits `repo_path`, `proto_path`, `drift`, and `expected_but_missing` so agents understand local shape and GitOps gaps without Kubernetes access.
-- **Guardrail-rich verify** – `verify --mode repo` executes the documented security/EDA checks (gitleaks, govulncheck, Semgrep, event coverage) alongside naming/tests before touching the cluster, and `--cascade --proto-path` runs downstream `go test` suites for all detected consumers.
+- **Guardrail-rich verify** – `verify --mode repo` executes the documented security/EDA checks (gitleaks, govulncheck, Semgrep, event coverage) alongside naming/tests before touching the cluster, surfaces Buf lint/breaking status directly in the JSON, and `--cascade --proto-path` fans out into Go, npm, and pytest suites for every detected consumer.
 - **Cross-SDK drift + impact** – Proto drift and impact analysis now cover Go, TypeScript, and Python artifacts/consumers, ensuring downstream awareness beyond Go services.
-- **Scaffolding coverage expanded** – All primitive kinds can be scaffolded; outputs now include Dockerfiles, Backstage `catalog-info.yaml`, GitOps manifests respecting `--gitops-root`, and (via `--include-test-harness`) integration runners aligned with backlog 430.
-- **Next focus** – Surface Buf lint/breaking summaries plus cascade verification for non-Go consumers (per 484b) and round out scaffold mocks/tests beyond Go.
+- **Scaffolding coverage expanded** – All primitive kinds can be scaffolded across Go/TypeScript/Python; outputs include Dockerfiles, Backstage `catalog-info.yaml`, GitOps manifests respecting `--gitops-root`, language-aware integration harnesses, and intentionally failing tests per RPC so agents follow RED→GREEN→REFACTOR regardless of language.
+- **Next focus** – Wire Buf/cascade summaries into cluster-mode verification, tighten npm/pytest dependency bootstrapping inside the integration harness, and extend cascade signals into future non-code consumers (docs, SDK publish workflows).
 
 ## 10. Cross-References
 
