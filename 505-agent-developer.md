@@ -20,7 +20,7 @@
 |------------|-------|-----------------------|
 | **Agent primitive plumbing** | ✅ | Agent CRD/operator Helm/GitOps bundles were refreshed (see `operators/helm/crds/ameide.io_agents.yaml`, `gitops/ameide-gitops/sources/charts/platform/ameide-operators/crds/ameide.io_agents.yaml`) so `definitionRef`/tooling fields in this backlog are available cluster-wide. Demo assets live under `gitops/.../primitives/agent/core-platform-coder.yaml` + `scripts/demo-agent-slice.sh`. |
 | **CLI guardrails + prompts** | ✅ | `packages/ameide_core_cli/internal/commands/primitive.go` ships `--repo-root/--gitops-root/--mode` plumbing plus naming/security/EDA/test heuristics for `verify --mode all`, and `primitive_prompt.go` + `prompts/agent/default.md` now instruct agents to run the full guardrail loop via the devcontainer tool. |
-| **LangGraph coder DAG** | ⚠️ Partial | `services/agent_runtime_langgraph/src/agent_runtime_langgraph/coder/agent.py` registers the `core-platform-coder` runtime and now loads `runtime_type=langgraph` / `dag_ref` metadata surfaced by the Agent operator (`operators/agent-operator/internal/controller/agent_controller.go`), but the DAG still executes the guardrail loop as a single tool invocation. Multi-node LangGraph orchestration remains open. |
+| **LangGraph coder DAG** | ⚠️ Partial | `services/agent_runtime_langgraph/src/agent_runtime_langgraph/coder/agent.py` backs the runtime; the new devtools (`coder/print_dag.py`, `coder/dev_graph.py`) and `langgraph.dev.json` allow local DAG inspection (`uv run … python -m agent_runtime_langgraph.coder.print_dag`) and `langgraph dev` launches. The graph, however, is still a single develop_in_container call—explicit nodes for describe/drift/plan/impact/scaffold/verify remain TODO. |
 | **Devcontainer gRPC service** | ✅ | `services/devcontainer_service` exposes `POST /v1/develop` (packaged inside `ghcr.io/ameide/devcontainer-service`), and `gitops/.../platform/platform-devcontainer-service.yaml` wires the Deployment/Service + ExternalSecret (`platform-devcontainer-agent-token`) via the new `platform-devcontainer-service` component. |
 | **develop_in_container tool** | ✅ | `services/agent_runtime_langgraph/src/agent_runtime_langgraph/tools/develop_in_container.py` registers the tool, enforces repo/command arguments, streams logs back to LangGraph, and the default agent prompt now calls it whenever a CLI command needs to run inside the devcontainer. |
 | **Workflow/Temporal metadata** | ⚠️ Partial | **Future automation (Stage‑2)** – backlog/300-400/367-2-agent-orchestration-coding-agent.md tracked the idea of auto-planning/auto-running Coding Agent work via the existing Workflow + Temporal stack. That orchestration layer still lacks methodology metadata (`timebox_ids`, repo adapter policies) and isn’t part of the LangGraph/devcontainer slice; keep the row as a reminder that the governance/attestation automation remains open downstream. |
@@ -175,10 +175,12 @@ No special semantics beyond “runtime_type=langgraph”.
 **Implementation status:** `services/agent_runtime_langgraph/src/agent_runtime_langgraph/coder/agent.py`
 and `services/agent_runtime_langgraph/src/agent_runtime_langgraph/app.py` register the
 `core-platform-coder` runtime as a dedicated LangGraph service so the Agent runtime can
-invoke the `develop_in_container` tool directly. The current version executes the entire
-guardrail loop as a single tool call; future iterations will split the workflow into explicit
-LangGraph nodes (describe → drift → plan → scaffold → verify) and source the DAG metadata
-from Transformation AgentDefinitions.
+invoke the `develop_in_container` tool directly. Dev helpers (`coder/print_dag.py`,
+`coder/dev_graph.py`, `services/agent_runtime_langgraph/langgraph.dev.json`) now let us
+render the DAG locally and run it via `langgraph dev`, but the graph still executes the
+guardrail workflow as a single develop_in_container call; future iterations must split
+describe → drift → plan → scaffold → verify into explicit LangGraph nodes and load DAG
+metadata directly from Transformation AgentDefinitions.
 
 #### 4.3 devcontainer service + Claude SDK gRPC
 

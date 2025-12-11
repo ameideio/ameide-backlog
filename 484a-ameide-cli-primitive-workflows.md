@@ -64,6 +64,8 @@ These are **mechanical, proto-driven, idempotent**:
 - This means freshly scaffolded code **fails tests by design** → proper RED state
 - Agent's job is to make tests pass (GREEN), not to write tests from scratch
 
+**Primitive destination:** CLI scaffolds always land inside `primitives/{primitive_kind}/{name}` so the same guardrails apply to both human and agent workflows. `service_catalog/...` stays hand-authored (Backstage-focused) while we pivot the automation toward agentic coding only.
+
 **Rules:**
 - **One-shot**: Scaffold only when folder doesn't exist. Never overwrite existing files.
 - **Generated marker**: `// CODEGEN: safe to delete, regenerate with 'ameide primitive scaffold'`
