@@ -42,6 +42,12 @@ Targets:
 
 Targets no longer accept a `-e` flag because a single cluster hosts all namespaces. Use the dedicated `bootstrap-*` targets to run only the ArgoCD step.
 
+`deploy.sh` and `deploy-bicep.sh` both source `infra/scripts/lib/env.sh`, which loads `.env` and `.env.local` via `set -a` before invoking Terraform or Helm. The CLI contract is now:
+
+1. Populate `.env`/`.env.local` with the required API tokens (e.g. `GITHUB_TOKEN`); no manual `export` is necessary.
+2. Run `./infra/scripts/deploy.sh <target>` – the helper guarantees child processes inherit those variables, and Terraform’s `data.external.env` shim will fall back to `.env` if the variable is absent from the shell.
+3. After apply, Terraform writes the latest outputs to `artifacts/terraform-outputs/<target>.json`, and the local target also starts an ArgoCD port-forward plus prints the credentials banner.
+
 ## Architecture
 
 ### Directory Structure
@@ -64,7 +70,7 @@ ameide-gitops/
 │   │   │   ├── azure-dns/         # DNS zones + records
 │   │   │   ├── azure-identity/    # Managed identities + federation
 │   │   │   ├── k3d-cluster/       # Local k3d cluster (TF-9)
-│   │   │   └── argocd-bootstrap/  # ArgoCD install + GitOps (TF-23/24/25)
+│   │   │   └── argocd-bootstrap/  # ArgoCD install + GitOps (TF-23/24/27-29)
 │   │   ├── azure/                 # Azure workspace
 │   │   │   ├── main.tf
 │   │   │   ├── variables.tf
@@ -124,7 +130,9 @@ deploy.sh local
     ├── terraform -chdir=infra/terraform/local apply
     │   └── Creates: k3d cluster via moio/k3d provider
     └── bootstrap/bootstrap.sh
-        └── Installs: ArgoCD + ApplicationSet (same as cloud)
+        ├── Seeds `vault-bootstrap-local-secrets` via `infra/scripts/seed-local-secrets.sh`
+        ├── Installs: ArgoCD + ApplicationSet (same as cloud)
+        └── Starts ArgoCD port-forward + prints admin credentials
 ```
 
 ## Terraform Modules
@@ -339,6 +347,8 @@ The `deploy.sh` script automatically seeds secrets from `.env` and `.env.local` 
 
 `deploy.sh local` seeds that secret via `infra/scripts/seed-local-secrets.sh`, which reuses the `.env` sanitization logic and applies the secret in the `ameide-local` namespace before ArgoCD bootstraps the chart. Local clusters no longer require any Azure resources.
 
+The Helm template also guards against missing chart overrides. When `secretSource=local`, the CronJob automatically mounts the JSON file and defaults `EXTERNAL_SECRETS_NAMESPACES` to the release namespace. When `secretSource=azure`, it falls back to Azure Key Vault and uses the federated workload identity outputs from Terraform. In either case the CronJob now injects the Kubernetes audience (`https://kubernetes.default.svc`) when it creates Vault roles, matching the requirements introduced in Vault 1.21.
+
 ### How It Works
 
 1. **Parse .env files** → `deploy.sh` reads `.env` and `.env.local`
@@ -416,9 +426,9 @@ azure:
 - [x] **TF-24**: Create `infra/scripts/seed-local-secrets.sh` and wire it into `deploy.sh local` to populate `vault-bootstrap-local-secrets` → **2025-12-10**
 - [ ] **TF-8**: AWS EKS module (future)
 - [x] **TF-9**: Local k3d setup → Implemented via `infra/terraform/local/` and `deploy.sh local` target → **2025-12-10**
-- [x] **TF-23**: Auto-read `.env` from Terraform → `data.external.env` reads `GITHUB_TOKEN` directly from `.env` file, no manual `export` required → **2025-12-11**
-- [x] **TF-24**: ArgoCD port-forward on terraform apply → Terraform auto-starts port-forward to `localhost:8443` after ArgoCD install → **2025-12-11**
-- [x] **TF-25**: Expose ArgoCD credentials in terraform output → `terraform output -json argocd_credentials` shows actual password (sensitive) → **2025-12-11**
+- [x] **TF-27**: Auto-read `.env` from Terraform → `data.external.env` reads `GITHUB_TOKEN` directly from `.env`/`.env.local`, no manual `export` required → **2025-12-11**
+- [x] **TF-28**: ArgoCD port-forward on terraform apply → Terraform auto-starts port-forward to `localhost:8443` after ArgoCD install → **2025-12-11**
+- [x] **TF-29**: Expose ArgoCD credentials in terraform output → `terraform output -json argocd_credentials` shows actual password (sensitive) → **2025-12-11**
 - [x] **TF-26**: Unified env loading helper → `infra/scripts/lib/env.sh` provides `load_env_files` with `set -a` for both `deploy.sh` and `deploy-bicep.sh` → **2025-12-11**
 
 ## TF-9: Local k3d Target (Reference)
@@ -510,10 +520,24 @@ module "argocd" {
 - `argocd_admin_password` → Actual password (sensitive)
 - `environment_namespace` → The namespace created
 
-**Features (TF-23 to TF-25):**
+**Features (TF-27 to TF-29):**
 - Reads `GITHUB_TOKEN` from environment or `.env` file via `data.external`
 - Auto-starts port-forward on `localhost:8443` (detached process)
 - Exposes actual ArgoCD admin password via `terraform output -json argocd_credentials`
+
+#### Terraform outputs & artifacts
+
+Both the Azure and local workspaces emit the same core outputs:
+
+| Output | Description |
+|--------|-------------|
+| `argocd_namespace` | Namespace hosting the control plane (`argocd`) |
+| `argocd_url` | URL served by the live ArgoCD instance (port-forward for local) |
+| `argocd_credentials` | Struct containing username and password (sensitive) |
+| `cluster_name` / `cluster_context` | Identifiers consumed by bootstrap scripts |
+| `environment_namespace` | Namespace that backs the environment (`ameide-<env>`) |
+
+Running `terraform output -json argocd_credentials` returns the banner credentials printed by `deploy.sh`. The CLI also serializes the full output set to `artifacts/terraform-outputs/<target>.json` so other tooling (bootstrap, smoke tests) can consume it without re-running Terraform.
 
 ### deploy.sh local case
 
