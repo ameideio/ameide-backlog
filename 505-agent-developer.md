@@ -285,9 +285,9 @@ Mapping to gRPC is hidden behind the Agent runtime’s tool adapter layer.
   (plus `platform-devcontainer-service.yaml`) deploy the Deployment/Service/workspace volume, and the
   `platform-devcontainer-agent-token-sync` ExternalSecret materializes the PAT used by both the service and the
   sample AgentDefinitions.
-* **Service catalog template – GAP.** `service_catalog/agents/` still only exposes the `_primitive/template.yaml`
-  placeholder; no `langgraph-scribe` (or equivalent) Backstage entry exists yet, so teams cannot scaffold the
-  coder runtime from the Service Catalog.
+* **Repo-first scaffold.** `primitives/agent/langgraph-scribe/**` now carries the LangGraph coder runtime skeleton
+  (Dockerfiles, prompts, tests, Backstage metadata) so teams scaffold directly from the monorepo while Backstage
+  templates remain deprioritised.
 
 ---
 
@@ -316,8 +316,9 @@ Mapping to gRPC is hidden behind the Agent runtime’s tool adapter layer.
   * Loads AgentDefinition from Transformation.
   * Builds the LangGraph DAG from `dag_ref`.
   * Executes the DAG with given task context.
-    2.3. Backstage / service catalog:
-* Add a template/skeleton for LangGraph Agent runtimes (or reuse generic Agent runtime template with `runtime_type=langgraph`).
+    2.3. Repo scaffold (Backstage deferred):
+* Keep LangGraph coder scaffolds under `primitives/agent/{name}` (e.g. `primitives/agent/langgraph-scribe`). Backstage
+  templates remain optional and are no longer a near-term target.
   2.4. ArgoCD:
 * Helm chart + ApplicationSet entry to deploy Agent runtime in `ameide-{env}`.
 
