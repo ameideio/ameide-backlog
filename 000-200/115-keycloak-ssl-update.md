@@ -74,7 +74,7 @@ graph LR
 
 **Gateway Configuration:**
 ```yaml
-# gitops/ameide-gitops/sources/values/local/apps/platform/gateway.yaml
+# gitops/ameide-gitops/sources/values/env/local/apps/platform/gateway.yaml
 listeners:
   - name: https
     port: 443  # Internal port (k3d maps 8443→443)

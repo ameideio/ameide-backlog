@@ -71,7 +71,7 @@ Implications:
     version: 1.5.4
     valueFiles:
       - gitops/ameide-gitops/sources/values/_shared/apps/platform/gateway.yaml
-      - gitops/ameide-gitops/sources/values/dev/apps/platform/gateway.yaml
+      - gitops/ameide-gitops/sources/values/env/dev/apps/platform/gateway.yaml
     ignoreMissingValueFiles: true
   ```
 

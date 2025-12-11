@@ -84,7 +84,7 @@ ArgoCD's Redis uses the GHCR mirror (`ghcr.io/ameideio/mirror/redis`) which requ
 3. This creates a circular dependency during initial bootstrap
 
 **Resolution:** Bootstrap installs ArgoCD with public images via environment-specific overrides:
-- `sources/values/{env}/foundation/foundation-argocd.yaml` sets `global.imagePullSecrets: []` and uses `redis:7.2.5-alpine` from Docker Hub
+- `sources/values/env/{env}/foundation/foundation-argocd.yaml` sets `global.imagePullSecrets: []` and uses `redis:7.2.5-alpine` from Docker Hub
 - Once ArgoCD deploys ExternalSecrets → SecretStore → ExternalSecret, the `ghcr-pull` secret materializes
 - ArgoCD self-manages and reconciles to the GHCR mirror images defined in `sources/values/common/argocd.yaml`
 
@@ -187,9 +187,9 @@ The CLI can accept `--config` to load overrides per environment while still allo
 
 Local development now uses the `local.ameide.io` domain so hostnames match the unified environment matrix (see [434-unified-environment-naming.md](434-unified-environment-naming.md#epic-env-1)). DNS helpers, cert-manager SANs, the Gateway listeners, and the Tilt-only Helm values were updated accordingly:
 - Host dnsmasq scripts are no longer required; Telepresence routes the `dev.ameide.io`/`local.ameide.io` traffic directly to the AKS cluster.
-- `gitops/ameide-gitops/sources/values/local/apps/platform/gateway.yaml` exposes the `https-local` listener plus `auth.local.ameide.io`.
-- `gitops/ameide-gitops/sources/values/dev/platform/platform-cert-manager-config.yaml` includes the local wildcard SAN.
-- `gitops/ameide-gitops/sources/values/dev/apps/apps-www-ameide-tilt.yaml` & `apps-www-ameide-platform-tilt.yaml` reference `platform.local.ameide.io`.
+- `gitops/ameide-gitops/sources/values/env/local/apps/platform/gateway.yaml` exposes the `https-local` listener plus `auth.local.ameide.io`.
+- `gitops/ameide-gitops/sources/values/env/dev/platform/platform-cert-manager-config.yaml` includes the local wildcard SAN.
+- `gitops/ameide-gitops/sources/values/env/dev/apps/apps-www-ameide-tilt.yaml` & `apps-www-ameide-platform-tilt.yaml` reference `platform.local.ameide.io`.
 - `gitops/ameide-gitops/sources/values/_shared/platform/platform-keycloak-realm.yaml` whitelists the local callback URLs.
 
 ## 4. Implementation plan

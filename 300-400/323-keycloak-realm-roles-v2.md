@@ -120,7 +120,7 @@
   helm upgrade keycloak-realm ./gitops/ameide-gitops/sources/charts/foundation/operators-config/keycloak_realm \
     -n ameide \
     -f ./gitops/ameide-gitops/sources/values/_shared/platform/platform-keycloak-realm.yaml \
-    -f ./gitops/ameide-gitops/sources/values/dev/platform/platform-keycloak-realm.yaml
+    -f ./gitops/ameide-gitops/sources/values/env/dev/platform/platform-keycloak-realm.yaml
   ```
 - Backups prior to migration:
   ```bash

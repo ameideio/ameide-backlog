@@ -40,9 +40,9 @@
   - PVC size overrides
   - Resource requests/limits (staging/prod only)
 - Environment files:
-  - Dev: `sources/values/dev/data/data-minio.yaml`
-  - Staging: `sources/values/staging/data/data-minio.yaml`
-  - Production: `sources/values/production/data/data-minio.yaml`
+  - Dev: `sources/values/env/dev/data/data-minio.yaml`
+  - Staging: `sources/values/env/staging/data/data-minio.yaml`
+  - Production: `sources/values/env/production/data/data-minio.yaml`
 
 ## Operational notes
 - **Flux/Argo determinism:** Ignore-diffs not required; ExternalSecrets own secret materialization, and provisioning hooks expect those Secrets before running.

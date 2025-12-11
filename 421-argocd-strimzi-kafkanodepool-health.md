@@ -88,7 +88,7 @@ helm template foundation-strimzi-operator sources/charts/cluster/strimzi-operato
 - Added `{{- with .Values.kafka.template }}` block to KafkaNodePool spec
 - Added `{{- with .Values.entityOperator.template }}` block to Kafka CR
 
-Environment-specific values (e.g., `sources/values/dev/data/data-kafka-cluster.yaml`) now correctly inject:
+Environment-specific values (e.g., `sources/values/env/dev/data/data-kafka-cluster.yaml`) now correctly inject:
 ```yaml
 kafka:
   template:

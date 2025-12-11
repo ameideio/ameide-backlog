@@ -44,8 +44,8 @@ Ameide uses **two ApplicationSets** to manage all deployments. Understanding the
 | Component definition | `environments/_shared/components/{domain}/{name}/component.yaml` | `observability/plausible/component.yaml` |
 | Helm chart | `sources/charts/{domain}/{name}/` | `sources/charts/observability/plausible/` |
 | Shared values (all envs) | `sources/values/_shared/{domain}/{name}.yaml` | `sources/values/_shared/observability/plausible.yaml` |
-| Environment overrides | `sources/values/{env}/{domain}/{name}.yaml` | `sources/values/dev/observability/plausible.yaml` |
-| Environment globals | `sources/values/{env}/globals.yaml` | `sources/values/dev/globals.yaml` |
+| Environment overrides | `sources/values/env/{env}/{domain}/{name}.yaml` | `sources/values/env/dev/observability/plausible.yaml` |
+| Environment globals | `sources/values/env/{env}/globals.yaml` | `sources/values/env/dev/globals.yaml` |
 
 ### Cluster-Scoped Exception
 
@@ -67,6 +67,8 @@ Ameide uses **two ApplicationSets** to manage all deployments. Understanding the
 #### Generator: Matrix (Environments × Components)
 
 > **Updated 2025-12-11**: Now uses Git file generator for environments instead of hardcoded list.
+>
+> **Updated 2025-12-12**: Cluster entries publish `dnsZone` (environment DNS suffix) so component `domain` metadata can remain tied to folder structure. The ApplicationSet template still labels Applications with `.domain`; use `dnsZone` only for DNS/ingress decisions.
 > Cluster configs live in `config/clusters/*.yaml`, selected by Kustomize overlay.
 
 ```yaml
@@ -94,7 +96,7 @@ generators:
   env: dev
   namespace: ameide-dev
   nodeProfile: dev-pool
-  domain: dev.ameide.io
+  dnsZone: dev.ameide.io
 # ... staging, production entries
 ```
 
@@ -117,6 +119,10 @@ production  × grafana   = production-grafana
 #### Values Resolution Order (6 Layers)
 
 > **Updated 2025-12-11**: Now uses 6-layer values with separate cluster and node-profile files.
+>
+> **Updated 2025-12-12**: Template resolves a `valuesEnvironment` variable (defaults to `.env`) before rendering chart-provided value files, so placeholders such as `{{ .valuesEnvironment }}`, `{{ .env }}`, `{{ .namespace }}`, and `{{ .domain }}` inside component `valueFiles` are expanded safely.
+>
+> **Updated 2025-12-12**: Component-level `valueFiles` are filtered to paths starting with `$values/` so redundant entries (for example, legacy `foundation` strings) can be removed incrementally without polluting rendered Applications.
 
 For `dev-plausible` on Azure:
 
@@ -131,6 +137,28 @@ valueFiles:
 ```
 
 All files use `ignoreMissingValueFiles: true`, so optional overrides don't cause errors.
+
+#### 2025-12-11 – Environment Overlay Alignment
+
+Environment overlays have moved into `sources/values/env/<env>/...`, matching the ApplicationSet template’s `valueFiles` stack and the component-level `{{ .valuesEnvironment }}` placeholders. This eliminates the split between `sources/values/<env>/...` (where most files lived) and `sources/values/env/<env>/...` (where the template read from), so Helm now loads the actual per-environment overrides (Vault `fullnameOverride`, gateway DNS data, etc.) instead of silently skipping them.
+
+Key guardrails:
+
+1. **Canonical directory** – Every override lives beneath `sources/values/env/<env>/`. The legacy `sources/values/<env>/...` trees were removed to avoid drift.
+2. **`.valuesEnvironment` contract** – Component definitions keep using `$values/sources/values/env/{{ .valuesEnvironment }}/...`, and generators can still override `.valuesEnvironment` if an environment should reuse another’s overlays.
+3. **Shared hostnames** – All computed hostnames/zones stay in values files so SecretStores, bootstrap jobs, and workloads read the same data; `_shared` YAML no longer tries to derive env-specific names on its own.
+
+ArgoCD Applications (`kubectl -n argocd get application local-foundation-vault-secret-store -o jsonpath='{.spec.sources[0].helm.valueFiles}'`) now list `$values/sources/values/env/<env>/...` entries, proving the value stack resolves real files again.
+
+**Labeling / DNS Visibility**
+
+Each generated Application now surfaces the environment DNS suffix via the `dns-zone` label (`dns-zone=dev.ameide.io`, `dns-zone=staging.ameide.io`, etc.). Example query:
+
+```bash
+kubectl -n argocd get app -l dns-zone=dev.ameide.io
+```
+
+Dashboards/pipelines can rely on this label to scope operations (for example, “show all dev apps” or “tail logs for staging DNS”).
 
 #### Namespace Assignment
 
@@ -389,9 +417,9 @@ Runs **before** environment apps. Critical infrastructure.
 
 4. **(Optional) Create environment overrides**:
    ```
-   sources/values/dev/{domain}/{name}.yaml
-   sources/values/staging/{domain}/{name}.yaml
-   sources/values/production/{domain}/{name}.yaml
+   sources/values/env/dev/{domain}/{name}.yaml
+   sources/values/env/staging/{domain}/{name}.yaml
+   sources/values/env/production/{domain}/{name}.yaml
    ```
 
 **Example component.yaml**:

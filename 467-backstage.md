@@ -213,9 +213,9 @@ orphanedResources: {}
 | File | Purpose |
 |------|---------|
 | `sources/values/_shared/platform/platform-backstage.yaml` | Shared configuration |
-| `sources/values/dev/platform/platform-backstage.yaml` | Dev environment |
-| `sources/values/staging/platform/platform-backstage.yaml` | Staging environment |
-| `sources/values/production/platform/platform-backstage.yaml` | Production environment |
+| `sources/values/env/dev/platform/platform-backstage.yaml` | Dev environment |
+| `sources/values/env/staging/platform/platform-backstage.yaml` | Staging environment |
+| `sources/values/env/production/platform/platform-backstage.yaml` | Production environment |
 
 **Shared Values:**
 
@@ -718,9 +718,9 @@ When ArgoCD deploys `dev-platform-backstage`:
 
 ```yaml
 valueFiles:
-  - $values/sources/values/dev/globals.yaml                    # 1. Environment globals
+  - $values/sources/values/env/dev/globals.yaml                    # 1. Environment globals
   - $values/sources/values/_shared/platform/platform-backstage.yaml  # 2. Shared values
-  - $values/sources/values/dev/platform/platform-backstage.yaml      # 3. Environment override
+  - $values/sources/values/env/dev/platform/platform-backstage.yaml      # 3. Environment override
 ```
 
 ### Secrets Pattern
@@ -874,9 +874,9 @@ Created all environment values files:
 | File | Hostname |
 |------|----------|
 | `sources/values/_shared/platform/platform-backstage.yaml` | (shared config) |
-| `sources/values/dev/platform/platform-backstage.yaml` | `backstage.dev.ameide.io` |
-| `sources/values/staging/platform/platform-backstage.yaml` | `backstage.staging.ameide.io` |
-| `sources/values/production/platform/platform-backstage.yaml` | `backstage.ameide.io` |
+| `sources/values/env/dev/platform/platform-backstage.yaml` | `backstage.dev.ameide.io` |
+| `sources/values/env/staging/platform/platform-backstage.yaml` | `backstage.staging.ameide.io` |
+| `sources/values/env/production/platform/platform-backstage.yaml` | `backstage.ameide.io` |
 
 ### Deployment Status
 
@@ -914,9 +914,9 @@ sources/charts/platform/backstage/templates/serviceaccount.yaml
 
 # Values files ✅
 sources/values/_shared/platform/platform-backstage.yaml
-sources/values/dev/platform/platform-backstage.yaml
-sources/values/staging/platform/platform-backstage.yaml
-sources/values/production/platform/platform-backstage.yaml
+sources/values/env/dev/platform/platform-backstage.yaml
+sources/values/env/staging/platform/platform-backstage.yaml
+sources/values/env/production/platform/platform-backstage.yaml
 ```
 
 ### Planned Files (Future)
@@ -950,9 +950,9 @@ sources/charts/foundation/operators-config/postgres_clusters/templates/app-secre
 sources/values/_shared/platform/platform-keycloak-realm.yaml    # backstage client definition
 
 # client-patcher configuration ✅ (2025-12-07)
-sources/values/dev/platform/platform-keycloak-realm.yaml        # secretExtraction for backstage
-sources/values/staging/platform/platform-keycloak-realm.yaml
-sources/values/production/platform/platform-keycloak-realm.yaml
+sources/values/env/dev/platform/platform-keycloak-realm.yaml        # secretExtraction for backstage
+sources/values/env/staging/platform/platform-keycloak-realm.yaml
+sources/values/env/production/platform/platform-keycloak-realm.yaml
 
 # ExternalSecret template ✅ (2025-12-07)
 sources/charts/foundation/operators-config/keycloak_realm/templates/externalsecret-oidc-clients.yaml

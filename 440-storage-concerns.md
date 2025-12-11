@@ -142,7 +142,7 @@ cluster:
     size: 10Gi  # Dev default, overridden per-env
 ```
 
-**File**: `sources/values/production/data/platform-postgres-clusters.yaml`
+**File**: `sources/values/env/production/data/platform-postgres-clusters.yaml`
 
 ```yaml
 cluster:

@@ -273,9 +273,9 @@ Request → Envoy Proxy
 
 | File | Contents |
 |------|----------|
-| `sources/values/dev/platform/platform-gateway.yaml` | `gatewayClass.name: envoy-dev`, `gateway.className: envoy-dev`, static IP, tolerations |
-| `sources/values/staging/platform/platform-gateway.yaml` | `gatewayClass.name: envoy-staging`, etc. |
-| `sources/values/production/platform/platform-gateway.yaml` | `gatewayClass.name: envoy-prod`, etc. |
+| `sources/values/env/dev/platform/platform-gateway.yaml` | `gatewayClass.name: envoy-dev`, `gateway.className: envoy-dev`, static IP, tolerations |
+| `sources/values/env/staging/platform/platform-gateway.yaml` | `gatewayClass.name: envoy-staging`, etc. |
+| `sources/values/env/production/platform/platform-gateway.yaml` | `gatewayClass.name: envoy-prod`, etc. |
 
 ### Cluster Gateway (ArgoCD)
 

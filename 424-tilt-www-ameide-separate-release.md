@@ -27,7 +27,7 @@
 - SDK deps scoped per service (TS/Go/Py) instead of a blanket guardrail.
 
 ### Values and routing
-- Added tilt values for all apps: `gitops/ameide-gitops/sources/values/dev/apps/apps-*-tilt.yaml` with `nameOverride/fullnameOverride=<service>-tilt`, Tilt registries/tags.
+- Added tilt values for all apps: `gitops/ameide-gitops/sources/values/env/dev/apps/apps-*-tilt.yaml` with `nameOverride/fullnameOverride=<service>-tilt`, Tilt registries/tags.
 - Disabled ExternalSecrets in all tilt values; services reuse Argo-managed secrets via `existingSecret` (e.g., `www-ameide-auth`, `www-ameide-platform-auth`, `inference-db-credentials`).
 - Hosts/HTTPRoutes:
   - `www.local.ameide.io` → HTTPRoute in `apps-www-ameide-tilt` (gateway `ameide`, section `https-local`).

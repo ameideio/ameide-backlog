@@ -233,9 +233,9 @@ kubectl get pods -A -o custom-columns='NS:.metadata.namespace,NAME:.metadata.nam
 
 ### Key Files
 
-- `sources/values/dev/globals.yaml`
-- `sources/values/staging/globals.yaml`
-- `sources/values/production/globals.yaml`
+- `sources/values/env/dev/globals.yaml`
+- `sources/values/env/staging/globals.yaml`
+- `sources/values/env/production/globals.yaml`
 - `sources/values/_shared/apps/*.yaml`
 - `argocd/applicationsets/ameide.yaml`
 - `azure/managed-application/modules/aks.bicep` ← Correct sizing
@@ -470,7 +470,7 @@ ameide.io/environment: {{ .Values.environment }}
 
 Add nodeSelector and tolerations to production workloads:
 
-**File**: `sources/values/production/globals.yaml`
+**File**: `sources/values/env/production/globals.yaml`
 
 ```yaml
 # Production workloads must run on prod pool
@@ -483,7 +483,7 @@ tolerations:
     effect: "NoSchedule"
 ```
 
-**File**: `sources/values/dev/globals.yaml`
+**File**: `sources/values/env/dev/globals.yaml`
 
 ```yaml
 # Dev workloads run on dev pool
@@ -491,7 +491,7 @@ nodeSelector:
   ameide.io/pool: dev
 ```
 
-**File**: `sources/values/staging/globals.yaml`
+**File**: `sources/values/env/staging/globals.yaml`
 
 ```yaml
 # Staging workloads run on staging pool
@@ -517,7 +517,7 @@ Enable turning individual environments on/off for cost savings.
 
 Add environment state to globals.yaml:
 
-**File**: `sources/values/dev/globals.yaml`
+**File**: `sources/values/env/dev/globals.yaml`
 
 ```yaml
 environment:
@@ -590,12 +590,12 @@ spec:
 
 ```bash
 # Step 1: Update GitOps state
-# Edit sources/values/dev/globals.yaml
+# Edit sources/values/env/dev/globals.yaml
 environment:
   state: "off"
 
 # Step 2: Commit and push
-git add sources/values/dev/globals.yaml
+git add sources/values/env/dev/globals.yaml
 git commit -m "chore: turn off dev environment"
 git push
 
@@ -621,12 +621,12 @@ az aks nodepool scale \
   --node-count 1
 
 # Step 2: Update GitOps state
-# Edit sources/values/dev/globals.yaml
+# Edit sources/values/env/dev/globals.yaml
 environment:
   state: "on"
 
 # Step 3: Commit and push
-git add sources/values/dev/globals.yaml
+git add sources/values/env/dev/globals.yaml
 git commit -m "chore: turn on dev environment"
 git push
 
@@ -744,7 +744,7 @@ jobs:
 
 Define clear resource tiers per environment:
 
-**File**: `sources/values/dev/globals.yaml`
+**File**: `sources/values/env/dev/globals.yaml`
 
 ```yaml
 namespace: ameide-dev
@@ -772,7 +772,7 @@ logLevel: debug
 imagePullPolicy: Always
 ```
 
-**File**: `sources/values/staging/globals.yaml`
+**File**: `sources/values/env/staging/globals.yaml`
 
 ```yaml
 namespace: ameide-staging
@@ -802,7 +802,7 @@ logLevel: info
 imagePullPolicy: IfNotPresent
 ```
 
-**File**: `sources/values/production/globals.yaml`
+**File**: `sources/values/env/production/globals.yaml`
 
 ```yaml
 namespace: ameide-prod
@@ -852,7 +852,7 @@ autoscaling:
   targetMemoryUtilizationPercentage: 80
 ```
 
-**File**: `sources/values/production/apps/platform/platform.yaml`
+**File**: `sources/values/env/production/apps/platform/platform.yaml`
 
 ```yaml
 autoscaling:
@@ -896,7 +896,7 @@ spec:
 podDisruptionBudget:
   enabled: false
 
-# sources/values/production/apps/platform/platform.yaml
+# sources/values/env/production/apps/platform/platform.yaml
 podDisruptionBudget:
   enabled: true
   minAvailable: 2

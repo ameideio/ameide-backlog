@@ -333,7 +333,7 @@ www-ameide-platform uses correct Keycloak-generated secret
 **Implementation:**
 - [client-patcher-job.yaml](../sources/charts/foundation/operators-config/keycloak_realm/templates/client-patcher-job.yaml) - Secret extraction logic
 - [vault-bootstrap cronjob.yaml](../sources/charts/foundation/vault-bootstrap/templates/cronjob.yaml) - Idempotent writes
-- Per-env config in [dev](../sources/values/dev/platform/platform-keycloak-realm.yaml), [staging](../sources/values/staging/platform/platform-keycloak-realm.yaml), [production](../sources/values/production/platform/platform-keycloak-realm.yaml)
+- Per-env config in [dev](../sources/values/env/dev/platform/platform-keycloak-realm.yaml), [staging](../sources/values/env/staging/platform/platform-keycloak-realm.yaml), [production](../sources/values/env/production/platform/platform-keycloak-realm.yaml)
 
 #### 2. ~~www-ameide-platform-keycloak-secret Fixture~~ ✅ FIXED
 
@@ -485,7 +485,7 @@ curl -s https://platform.dev.ameide.io/api/auth/providers | jq .
 **Status:** [ ] TODO
 
 #### 462-17: Create production secret overrides template
-**File:** `sources/values/production/foundation/foundation-vault-bootstrap.yaml` (new or update)
+**File:** `sources/values/env/production/foundation/foundation-vault-bootstrap.yaml` (new or update)
 **Change:** Create template showing which secrets need real values:
 ```yaml
 # Production overrides - these MUST be real values, not fixtures
@@ -544,7 +544,7 @@ fi
 **Change:** Lint production values files for known fixture patterns:
 ```bash
 # Fail if production values contain known fixture values
-grep -r "platform_client_secret\|C1tr0n3lla" sources/values/production/ && exit 1
+grep -r "platform_client_secret\|C1tr0n3lla" sources/values/env/production/ && exit 1
 ```
 **Severity:** MEDIUM
 **Status:** [ ] TODO

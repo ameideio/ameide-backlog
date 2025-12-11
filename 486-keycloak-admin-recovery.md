@@ -166,7 +166,7 @@ The script waits for Job completion, streams the `kc.sh bootstrap-admin user` lo
 Use the Helm values override to tell the job to authenticate via the service account:
 
 ```yaml
-# sources/values/{env}/platform/platform-keycloak-realm.yaml
+# sources/values/env/{env}/platform/platform-keycloak-realm.yaml
 clientPatcher:
   loginSecretRef:
     name: keycloak-admin-sa

@@ -121,7 +121,7 @@ helmfile -e local sync -l name=cert-manager-config
 ### Gateway Configuration
 
 ```yaml
-# gitops/ameide-gitops/sources/values/local/apps/platform/gateway.yaml
+# gitops/ameide-gitops/sources/values/env/local/apps/platform/gateway.yaml
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
@@ -602,7 +602,7 @@ rm -f ameide-test.crt ameide-test.key
 
 ### Core Configuration
 - ✅ `backlog/109-local-development-domain-access.md` - This document (updated)
-- ✅ `gitops/ameide-gitops/sources/values/local/apps/platform/gateway.yaml` - Gateway listeners configured
+- ✅ `gitops/ameide-gitops/sources/values/env/local/apps/platform/gateway.yaml` - Gateway listeners configured
 - ✅ `infra/kubernetes/charts/platform/cert-manager/` - cert-manager configuration
 - ✅ HTTPRoutes configured via Helmfile deployments
 

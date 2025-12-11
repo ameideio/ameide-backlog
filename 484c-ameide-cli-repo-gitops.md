@@ -263,7 +263,7 @@ labels:
 Per 434's single parametrized ApplicationSet design, scaffold does NOT create per-environment values. Environment-specific overrides go in:
 
 ```
-gitops/sources/values/{env}/primitives/{kind}/{name}.yaml  # Optional override
+gitops/sources/values/env/{env}/primitives/{kind}/{name}.yaml  # Optional override
 ```
 
 ---

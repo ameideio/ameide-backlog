@@ -61,7 +61,7 @@ Keycloak is delivered as an operator-centric stack, split into **foundation** an
   - **Source**: `gitops/ameide-gitops/sources/charts/foundation/operators-config/keycloak_instance`  
     - Shared values: `.../sources/charts/shared-values/infrastructure/keycloak.yaml`  
     - Platform shared overlay: `.../sources/values/_shared/platform/platform-keycloak.yaml`  
-    - Env overlays: `.../sources/values/dev/platform/platform-keycloak.yaml`, `.../sources/values/production/platform/infrastructure/keycloak.yaml`, etc.  
+    - Env overlays: `.../sources/values/env/dev/platform/platform-keycloak.yaml`, `.../sources/values/env/production/platform/infrastructure/keycloak.yaml`, etc.  
   - **Notes**:
     - Uses `database.secretName: keycloak-db-credentials` (CNPG-owned; see backlog/412-cnpg-owned-postgres-greds.md).  
     - Uses `bootstrapAdmin.secretName: keycloak-bootstrap-admin` (produced by `foundation-keycloak-admin-secrets`).  
@@ -183,7 +183,7 @@ Policy definition: `sources/charts/foundation/vault-bootstrap/templates/cronjob.
 Each environment configures `secretExtraction` and the Vault target in its values file:
 
 ```yaml
-# sources/values/{env}/platform/platform-keycloak-realm.yaml
+# sources/values/env/{env}/platform/platform-keycloak-realm.yaml
 clientPatcher:
   serviceAccountName: default
   secretExtraction:
@@ -386,7 +386,7 @@ Backlog 418-secrets-strategy-map.md defines the high-level secrets posture (CNPG
     - `keycloak_realm` chart uses `platform-app-master-client` via placeholders in `KeycloakRealmImport` for service account credentials.
 
 - **Refactor (2025‑12‑01)**  
-  - Prior to this work, the dev overlay at `sources/values/dev/platform/platform-keycloak.yaml` re‑enabled the `externalSecrets` block for the instance, causing:
+  - Prior to this work, the dev overlay at `sources/values/env/dev/platform/platform-keycloak.yaml` re‑enabled the `externalSecrets` block for the instance, causing:
     - Argo SharedResourceWarning conditions.  
     - Ambiguous ownership of the three Keycloak admin ExternalSecrets.  
   - We removed that overlay so that:
@@ -447,7 +447,7 @@ Keycloak realm imports run as Jobs created by the Keycloak operator. Per [operat
 **Values file pattern** (per-environment):
 
 ```yaml
-# sources/values/{env}/platform/platform-keycloak.yaml
+# sources/values/env/{env}/platform/platform-keycloak.yaml
 
 # Import jobs inherit from spec.scheduling
 scheduling:

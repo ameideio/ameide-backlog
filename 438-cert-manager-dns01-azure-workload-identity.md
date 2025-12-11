@@ -176,7 +176,7 @@ podLabels:
 
 ### Per-environment values (dev example)
 
-File: `sources/values/dev/foundation/foundation-cert-manager.yaml`
+File: `sources/values/env/dev/foundation/foundation-cert-manager.yaml`
 
 ```yaml
 # Per-environment naming for complete RBAC isolation
@@ -198,7 +198,7 @@ ServiceAccounts are managed by the `foundation-cert-manager-wi` chart (see [448]
 
 ### Per-environment values (dev)
 
-File: `sources/values/dev/platform/platform-cert-manager-config.yaml`
+File: `sources/values/env/dev/platform/platform-cert-manager-config.yaml`
 
 ```yaml
 certManager:
@@ -428,8 +428,8 @@ If certificate issuance is stuck:
 | NS delegation | `infra/bicep/managed-application/modules/dnsNsDelegation.bicep` |
 | Main Bicep | `infra/bicep/managed-application/main.bicep` |
 | Shared cert-manager values | `sources/values/_shared/foundation/foundation-cert-manager.yaml` |
-| Dev cert-manager values | `sources/values/dev/foundation/foundation-cert-manager.yaml` |
-| Platform cert-manager config | `sources/values/dev/platform/platform-cert-manager-config.yaml` |
+| Dev cert-manager values | `sources/values/env/dev/foundation/foundation-cert-manager.yaml` |
+| Platform cert-manager config | `sources/values/env/dev/platform/platform-cert-manager-config.yaml` |
 
 ## Changelog
 

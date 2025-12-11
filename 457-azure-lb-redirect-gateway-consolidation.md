@@ -113,9 +113,9 @@ This creates a single LoadBalancer service with both ports:
 | File | Change |
 |------|--------|
 | `sources/charts/apps/gateway/templates/http-redirect.yaml` | Added logic to detect HTTP listener on main gateway and point redirect HTTPRoute accordingly |
-| `sources/values/dev/platform/platform-gateway.yaml` | `redirectGateway.enabled: false`, added HTTP listener to `gateway.listeners` |
-| `sources/values/staging/platform/platform-gateway.yaml` | Same changes |
-| `sources/values/production/platform/platform-gateway.yaml` | Same changes |
+| `sources/values/env/dev/platform/platform-gateway.yaml` | `redirectGateway.enabled: false`, added HTTP listener to `gateway.listeners` |
+| `sources/values/env/staging/platform/platform-gateway.yaml` | Same changes |
+| `sources/values/env/production/platform/platform-gateway.yaml` | Same changes |
 
 ### Template Logic
 

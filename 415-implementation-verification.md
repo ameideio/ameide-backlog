@@ -98,8 +98,8 @@ The k3d dev registry end-to-end flow has been successfully implemented with most
 - **Repository URLs:** ✅ All using `k3d-ameide.localhost:5001/ameide/<service>:dev`
   - Verified across 14 dev values files
   - Examples:
-    - [apps-www-ameide-platform.yaml:35](../gitops/ameide-gitops/sources/values/dev/apps/apps-www-ameide-platform.yaml#L35)
-    - [apps-inference.yaml:15](../gitops/ameide-gitops/sources/values/dev/apps/apps-inference.yaml#L15)
+    - [apps-www-ameide-platform.yaml:35](../gitops/ameide-gitops/sources/values/env/dev/apps/apps-www-ameide-platform.yaml#L35)
+    - [apps-inference.yaml:15](../gitops/ameide-gitops/sources/values/env/dev/apps/apps-inference.yaml#L15)
 
 - **Pull Policy:** ✅ `pullPolicy: IfNotPresent`
 - **Pull Secrets:** ✅ Empty/none (as expected for local registry)

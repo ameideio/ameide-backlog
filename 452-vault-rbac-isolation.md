@@ -75,7 +75,7 @@ Apply per-environment naming via `fullnameOverride` to create unique cluster-sco
 
 ### Per-Environment Values Files
 
-**`sources/values/{env}/foundation/foundation-vault-core.yaml`:**
+**`sources/values/env/{env}/foundation/foundation-vault-core.yaml`:**
 ```yaml
 # Per-environment naming for complete RBAC isolation
 fullnameOverride: vault-core-{env}  # vault-core-dev, vault-core-staging, vault-core-prod
@@ -110,7 +110,7 @@ server: "http://vault-core-{{ $envSuffix }}.{{ .Release.Namespace }}.svc.cluster
 
 Each environment needs its own TLS certificate for the agent-injector webhook:
 
-**`sources/values/{env}/foundation/foundation-vault-webhook-certs.yaml`:**
+**`sources/values/env/{env}/foundation/foundation-vault-webhook-certs.yaml`:**
 ```yaml
 servingCertificate:
   name: vault-core-{env}-injector-tls
@@ -165,15 +165,15 @@ For production migrations:
 
 | File | Purpose |
 |------|---------|
-| `sources/values/dev/foundation/foundation-vault-core.yaml` | Per-env fullnameOverride and injector TLS |
-| `sources/values/staging/foundation/foundation-vault-core.yaml` | Per-env fullnameOverride and injector TLS |
-| `sources/values/production/foundation/foundation-vault-core.yaml` | Per-env fullnameOverride and injector TLS |
+| `sources/values/env/dev/foundation/foundation-vault-core.yaml` | Per-env fullnameOverride and injector TLS |
+| `sources/values/env/staging/foundation/foundation-vault-core.yaml` | Per-env fullnameOverride and injector TLS |
+| `sources/values/env/production/foundation/foundation-vault-core.yaml` | Per-env fullnameOverride and injector TLS |
 | `sources/values/_shared/foundation/foundation-vault-core.yaml` | Removed hardcoded TLS refs |
 | `sources/values/_shared/foundation/foundation-vault-secret-store.yaml` | Dynamic service name from namespace |
 | `sources/charts/foundation/vault-bootstrap/templates/cronjob.yaml` | Dynamic VAULT_ADDR from namespace |
-| `sources/values/dev/foundation/foundation-vault-webhook-certs.yaml` | Per-env TLS certificate |
-| `sources/values/staging/foundation/foundation-vault-webhook-certs.yaml` | Per-env TLS certificate |
-| `sources/values/production/foundation/foundation-vault-webhook-certs.yaml` | Per-env TLS certificate |
+| `sources/values/env/dev/foundation/foundation-vault-webhook-certs.yaml` | Per-env TLS certificate |
+| `sources/values/env/staging/foundation/foundation-vault-webhook-certs.yaml` | Per-env TLS certificate |
+| `sources/values/env/production/foundation/foundation-vault-webhook-certs.yaml` | Per-env TLS certificate |
 
 ## Related
 
