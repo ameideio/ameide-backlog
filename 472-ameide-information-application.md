@@ -440,13 +440,41 @@ For mappings to D365 and SAP concepts, see [470a-ameide-vision-vs-d365.md §7.7]
 
 #### 2.8.6 CQRS Recipe (Commands / Queries / Events)
 
-This is the standard pattern for implementing a Domain primitive:
+This is the standard pattern for implementing a Domain primitive.
+
+##### Command/Event Naming Discipline
+
+**Principle**: No API should say "set this field to X". It should say "do this business thing".
+
+| Pattern | Allowed Examples | Forbidden Examples |
+|---------|------------------|-------------------|
+| **Commands** | `PlaceOrder`, `CancelOrder`, `ApproveQuote`, `AssignOwner` | `UpdateOrder`, `SetStatus`, `PatchOrder`, `ModifyQuote` |
+| **Events** | `OrderPlaced`, `OrderCancelled`, `QuoteApproved`, `OwnerAssigned` | `OrderUpdated`, `StatusChanged`, `OrderModified` |
+| **Queries** | `GetOrder`, `ListOrders`, `FindOrdersByCustomer` | (any that mutate state) |
+
+**Rules**:
+1. **Commands are business verbs** (imperatives that mean something to the business), not CRUD operations
+2. **Events are past-tense facts** (what actually happened), not field changes
+3. **Queries are read-only** and never have side effects
+4. **Only Domain primitives write to DB**; Process/Agent/UISurface call Domain APIs
+
+**Proto enforcement** (validated by `ameide primitive verify`):
+- Domain/Process services: Allowed prefixes include `Create/Place/Cancel/Approve/Reject/Assign/Submit/Start/Complete/Archive/...`
+- Forbidden generics: `Update/Set/Delete/Patch/Modify` (too vague, doesn't express business intent)
+- Exception: `Delete` is acceptable for hard-delete semantics when business intent is clear (e.g., `DeleteDraftOrder`)
+
+**Event emission rule**:
+- Every command that changes business state **must** emit at least one domain event
+- The DB row is a **projection** of events, not something callers manipulate directly
+- This enables audit trails, event-driven integrations, and eventual consistency
+
+##### Standard Patterns
 
 | Pattern | Proto Construct | Naming Convention | Publishing |
 |---------|-----------------|-------------------|------------|
-| **Command** | RPC that mutates state | `CreateFoo`, `UpdateFoo`, `DeleteFoo` | Synchronous call; may emit Event |
+| **Command** | RPC that mutates state | Business verb: `PlaceOrder`, `ApproveQuote` | Synchronous call; emits Event |
 | **Query** | RPC that reads state | `GetFoo`, `ListFoos`, `SearchFoos` | Synchronous call; no side effects |
-| **Event** | Message representing a fact | `FooCreated`, `FooUpdated`, `FooDeleted` | Published via Watermill CQRS |
+| **Event** | Message representing a fact | Past-tense: `OrderPlaced`, `QuoteApproved` | Published via Watermill CQRS |
 
 **Typical flow:**
 
@@ -462,11 +490,12 @@ This is the standard pattern for implementing a Domain primitive:
 
 ```proto
 service OpportunityService {
-  // Commands (mutate state, may emit events)
+  // Commands (mutate state, emit events) - business verbs, not CRUD
   rpc CreateOpportunity(CreateOpportunityRequest) returns (Opportunity);
-  rpc UpdateOpportunityStage(UpdateOpportunityStageRequest) returns (Opportunity);
+  rpc QualifyOpportunity(QualifyOpportunityRequest) returns (Opportunity);  // Not "UpdateStage"
   rpc WinOpportunity(WinOpportunityRequest) returns (Opportunity);
   rpc LoseOpportunity(LoseOpportunityRequest) returns (Opportunity);
+  rpc ReassignOpportunity(ReassignOpportunityRequest) returns (Opportunity);  // Not "SetOwner"
 
   // Queries (read-only, no side effects)
   rpc GetOpportunity(GetOpportunityRequest) returns (Opportunity);
@@ -475,20 +504,27 @@ service OpportunityService {
 }
 ```
 
-**Event publishing (Go example with Watermill):**
+Note: `QualifyOpportunity` instead of `UpdateOpportunityStage` - the command expresses **what the business is doing**, not which field is changing. The domain decides internally what "qualify" means (stage change, validation, notifications, etc.).
+
+**Event publishing (Go example with Transactional Outbox):**
 
 ```go
 func (s *OpportunityService) WinOpportunity(ctx context.Context, req *pb.WinOpportunityRequest) (*pb.Opportunity, error) {
+    // Start transaction - aggregate update + outbox insert must be atomic
+    tx, err := s.db.BeginTx(ctx, nil)
+    if err != nil { return nil, err }
+    defer tx.Rollback()
+
     // 1. Validate and update aggregate
-    opp, err := s.repo.Get(ctx, req.Id)
+    opp, err := s.repo.GetForUpdate(ctx, tx, req.Id)
     if err != nil { return nil, err }
     opp.Stage = "won"
     opp.WonAt = timestamppb.Now()
 
-    // 2. Persist
-    if err := s.repo.Save(ctx, opp); err != nil { return nil, err }
+    // 2. Persist aggregate (within transaction)
+    if err := s.repo.Save(ctx, tx, opp); err != nil { return nil, err }
 
-    // 3. Publish event
+    // 3. Write event to outbox (same transaction - NO dual write!)
     event := &events.OpportunityWon{
         Id:         opp.Id,
         TenantId:   opp.TenantId,
@@ -496,20 +532,67 @@ func (s *OpportunityService) WinOpportunity(ctx context.Context, req *pb.WinOppo
         Amount:     opp.Amount,
         WonAt:      opp.WonAt,
     }
-    if err := s.publisher.Publish(ctx, "sales.events.v1.OpportunityWon", event); err != nil {
-        // Log but don't fail the command - outbox pattern handles retries
-        log.Warn("failed to publish event", "error", err)
+    if err := s.outbox.Insert(ctx, tx, "sales.events.v1.OpportunityWon", event); err != nil {
+        return nil, err
     }
+
+    // 4. Commit transaction - aggregate + event are now atomically persisted
+    if err := tx.Commit(); err != nil { return nil, err }
 
     return opp, nil
 }
 ```
 
+**Important**: Never call `publisher.Publish()` directly from domain code. The outbox dispatcher (a separate background process) reads the outbox table and publishes to the broker, handling retries and delivery guarantees. See §3.3.1.1 for full outbox pattern details.
+
 This pattern ensures:
 - Commands are the only way to mutate state
 - Queries never have side effects
+- **No dual writes**: aggregate + event are in the same transaction
 - Events provide eventual consistency across domains
-- The outbox pattern (§3.3.1) ensures reliable event delivery
+- The outbox pattern (§3.3.1.1) ensures reliable, at-least-once event delivery
+
+### 2.9 Primitive Code Generation Philosophy
+
+The CLI scaffolds **technical shape**, not business meaning. This follows patterns established by industry tools:
+
+| Tool | What It Generates | Ameide Equivalent |
+|------|-------------------|-------------------|
+| **Buf/Connect** | Types, clients, server handler interfaces | Domain primitive skeletons |
+| **Backstage Templates** | Repo structure, Docker, CI, docs | All primitive scaffolds |
+| **Kubebuilder** | CRD types, controller skeleton, RBAC | Operator scaffolds only |
+| **Temporal examples** | Worker main, workflow/activity signatures | Process primitive skeletons |
+
+#### 2.9.1 What Gets Generated per Primitive Kind
+
+| Primitive | Generated (Shape) | Not Generated (Meaning) |
+|-----------|-------------------|------------------------|
+| **Domain** | `cmd/main.go`, handler files with signatures, repository interfaces, test harness | Handler implementations, invariants, SQL migrations |
+| **Process** | Worker main, workflow/activity stubs, Temporal registration | Workflow logic, compensations, branching |
+| **Agent** | Agent harness, tool skeletons, prompt config files | Prompts, reasoning logic, tool implementations |
+| **UISurface** | Next.js app skeleton, SDK wrapper, E2E test scaffold | Pages, components, UI workflows |
+
+#### 2.9.2 Generation Rules
+
+1. **Idempotent and additive**: Only create files that don't exist; never overwrite hand-edited code
+2. **Bootstrap, not serving layer**: After scaffold, all changes are normal editing
+3. **Proto as single source**: Handler signatures derived from proto via Buf, not a second DSL
+4. **One-shot**: Scaffold only when folder doesn't exist; refuse to regenerate
+5. **Backstage alignment**: CLI templates match Backstage Software Templates for the same primitives
+
+#### 2.9.3 Anti-Pattern: JHipster-Style Full-Stack Generation
+
+Avoid generating:
+- Full CRUD stacks from domain models
+- Entity structs beyond proto definitions
+- Any "businessy" validation or aggregation
+- DSLs deeper than proto + Transformation artifacts
+
+This would recreate the "metadata universe" problem where generated code becomes untouchable and domain invariants get smudged into templates.
+
+**The CLI is 70% observer/validator** (`describe`, `verify`, `impact`) **and 30% scaffolder of boring wiring** (`scaffold` for structure + tests).
+
+For CLI command details, see [484-ameide-cli.md §4](484-ameide-cli.md).
 
 ---
 
@@ -597,6 +680,219 @@ Watermill’s CQRS layer gives us:
 - A router abstraction that makes it easy to compose Process primitives from command and event handlers.
 
 When describing Process/Domain implementations, reference Watermill CQRS so teams standardize on the same event-driven plumbing; see [`github.com/ThreeDotsLabs/watermill`](https://github.com/ThreeDotsLabs/watermill?utm_source=chatgpt.com) and the [Watermill CQRS docs](https://watermill.io/docs/cqrs/?utm_source=chatgpt.com). For lighter weight use cases (e.g., TypeScript agents) we still follow the same CQRS concepts even if Watermill is not involved.
+
+#### 3.3.1.1 Transactional Outbox Pattern (Required)
+
+**Problem**: Updating DB + publishing event is a **dual write**; one can succeed and the other fail, leading to inconsistent state.
+
+**Solution**: In the same DB transaction as the business change, write an outbox row. A background dispatcher reads the outbox and publishes to the broker, retrying until success.
+
+```go
+func (s *OrdersService) CancelOrder(ctx context.Context, req *pb.CancelOrderRequest) (*pb.Order, error) {
+    tx, _ := s.db.BeginTx(ctx, nil)
+    defer tx.Rollback()
+
+    // 1. Update aggregate
+    order, _ := s.repo.GetForUpdate(ctx, tx, req.Id)
+    order.Status = "cancelled"
+    order.CancelledAt = time.Now()
+    s.repo.Save(ctx, tx, order)
+
+    // 2. Write event to outbox (same transaction)
+    event := &events.OrderCancelled{
+        Id:       order.Id,
+        TenantId: order.TenantId,
+        Reason:   req.Reason,
+    }
+    s.outbox.Insert(ctx, tx, "orders.events.v1.OrderCancelled", event)
+
+    tx.Commit()
+    return order, nil
+}
+```
+
+**Rules**:
+- Never call `publisher.Publish()` directly from domain code
+- All event writes go through the outbox table
+- The outbox dispatcher handles retries, ordering, and delivery guarantees
+
+**CLI enforcement**: `verify` should warn if domain code publishes events without outbox.
+
+**References**: [Transactional Outbox Pattern](https://microservices.io/patterns/data/transactional-outbox.html), [AWS Outbox Pattern](https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/transactional-outbox.html)
+
+### 3.3.2 Idempotency & Inbox Pattern
+
+Most brokers + outbox give **at-least-once** delivery. Consumers **must** be idempotent.
+
+**Inbox Pattern**: Track processed event IDs to guarantee exactly-once processing per aggregate:
+
+```go
+func (h *OrderEventHandler) HandleOrderCreated(ctx context.Context, event *events.OrderCreated) error {
+    // 1. Check inbox - already processed?
+    if h.inbox.Exists(ctx, event.EventId) {
+        return nil // Idempotent: skip duplicate
+    }
+
+    // 2. Process event (in transaction with inbox insert)
+    tx, _ := h.db.BeginTx(ctx, nil)
+    defer tx.Rollback()
+
+    h.projection.UpdateFromOrder(ctx, tx, event)
+    h.inbox.Insert(ctx, tx, event.EventId)
+
+    tx.Commit()
+    return nil
+}
+```
+
+**Rules**:
+- Every event handler must be idempotent given the same event ID
+- Use Inbox table or derive idempotency from natural keys
+- Single transaction per "consume event → update state" operation
+- This aligns with the "no imperative writes" principle: applying `OrderCancelled` twice must yield the same state
+
+**References**: [Inbox Pattern](https://event-driven.io/en/outbox_inbox_patterns_and_delivery_guarantees_explained/)
+
+### 3.3.3 Go Concurrency Patterns for Events
+
+**Principles**:
+1. **One responsibility per goroutine**: reader, processor, dispatcher are separate
+2. **Always propagate `context.Context`**: for cancellation, timeouts, and tracing
+3. **Bounded worker pools**: over goroutine-per-message for backpressure control
+
+**Standard event consumer shape** (this pattern is scaffolded by CLI):
+
+```go
+func (c *EventConsumer) Run(ctx context.Context) error {
+    msgs := make(chan *Message, c.bufferSize)
+
+    // Reader goroutine
+    go c.readFromBroker(ctx, msgs)
+
+    // Bounded worker pool
+    var wg sync.WaitGroup
+    for i := 0; i < c.workerCount; i++ {
+        wg.Add(1)
+        go func() {
+            defer wg.Done()
+            for msg := range msgs {
+                c.processWithRetry(ctx, msg)
+            }
+        }()
+    }
+
+    <-ctx.Done()
+    close(msgs)
+    wg.Wait()
+    return ctx.Err()
+}
+```
+
+**Anti-patterns to avoid**:
+- Goroutine-per-message without bounds (leads to OOM under load)
+- Forgetting to propagate context (breaks cancellation and tracing)
+- Blocking the reader goroutine with slow processing
+
+**References**: [Event-Driven Architecture in Go](https://blog.devops.dev/event-driven-architecture-in-go-golang-ab46f23bf9a8)
+
+### 3.3.4 EDA Principles Checklist
+
+For **every Domain/Process/Agent primitive** in Go, these principles apply:
+
+| # | Principle | Enforcement |
+|---|-----------|-------------|
+| 1 | **Commands, not CRUD** | All writes via proto commands, not field setters (§2.8.6) |
+| 2 | **Event as fact** | Every business change emits an event type in proto |
+| 3 | **Outbox required** | DB + event writes in single transaction (§3.3.1.1) |
+| 4 | **Consumers idempotent** | Inbox pattern or natural key idempotency (§3.3.2) |
+| 5 | **Schema-first** | All events in Buf proto modules; no ad-hoc JSON (§2.7) |
+| 6 | **Clean boundaries** | Domain logic doesn't import broker clients directly (§2.9) |
+| 7 | **Explicit concurrency** | Bounded worker pools + contexts (§3.3.3) |
+| 8 | **Observable** | Correlation IDs, structured logs, metrics per event |
+| 9 | **12-factor** | Stateless services, config via env, GitOps for runtime |
+
+CLI `verify` enforces principles 1, 3, 4, 5 via static analysis; principles 7-9 are checked in code review and observability dashboards.
+
+### 3.3.5 Event Schema Versioning
+
+**Principle**: Event schemas evolve over time. Use Buf proto conventions for backwards compatibility:
+
+| Rule | Description |
+|------|-------------|
+| **Additive only** | Add new optional fields; never remove or rename existing fields |
+| **Reserved fields** | Use `reserved` for deprecated field numbers to prevent reuse |
+| **Package versioning** | Breaking changes require a new package (`events.v2`) |
+
+```proto
+package ameide.sales.events.v1;
+
+message OpportunityWon {
+    string id = 1;
+    string tenant_id = 2;
+    double amount = 3;
+    google.protobuf.Timestamp won_at = 4;
+
+    // v1.1 addition (backwards compatible)
+    string currency = 5;
+
+    reserved 6; // was: deprecated_field
+}
+```
+
+**Consumer compatibility rules**:
+- Handle missing optional fields gracefully (use proto3 defaults or explicit presence checks)
+- Never fail on unknown fields (proto3 default behavior)
+- When breaking changes are unavoidable, publish to `events.v2` and run parallel consumers during migration
+
+**CLI enforcement**: `verify` warns when event messages violate Buf breaking change rules.
+
+### 3.3.6 Dead Letter Queues & Error Handling
+
+Events that repeatedly fail processing should be routed to a dead-letter queue (DLQ) for manual inspection:
+
+| Scenario | Handling |
+|----------|----------|
+| **Transient failure** | Retry with exponential backoff (Watermill middleware) |
+| **Poison pill** | After N retries, route to DLQ, continue processing |
+| **Schema mismatch** | Log error, route to DLQ, alert team |
+
+**Observability requirements**:
+
+| Metric | Purpose |
+|--------|---------|
+| `events_processed_total{domain, event_type, outcome}` | Track success/failure/dlq rates |
+| `consumer_lag_seconds{domain, consumer_group}` | Monitor processing delays |
+| `dlq_depth{domain}` | Alert on accumulating failures |
+
+**Alerting thresholds**:
+- Consumer lag > 5 minutes → Warning
+- DLQ depth > 0 → Alert (requires manual investigation)
+
+### 3.3.7 Multi-Tenant Event Isolation
+
+Events carry `tenant_id` and consumers **must** enforce tenant scoping:
+
+```go
+func (h *Handler) HandleEvent(ctx context.Context, event *events.OpportunityWon) error {
+    // Validate tenant context matches event
+    ctxTenant := middleware.TenantFromContext(ctx)
+    if event.TenantId != ctxTenant {
+        return fmt.Errorf("tenant mismatch: event=%s, context=%s", event.TenantId, ctxTenant)
+    }
+    // ... process event
+}
+```
+
+**Topic partitioning strategy**:
+- Partition by `tenant_id` to ensure ordering within a tenant
+- Allows parallel processing across tenants
+- Prevents cross-tenant message leakage
+
+**Multi-tenant isolation rules**:
+1. Every event message **must** include `tenant_id` field
+2. Consumers validate `tenant_id` against execution context
+3. RLS policies in downstream projections enforce tenant isolation
+4. Event streams are never shared across tenants without explicit cross-tenant integration
 
 ### 3.4 Knowledge Graph (Read-side only)
 

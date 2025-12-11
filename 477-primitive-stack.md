@@ -339,3 +339,4 @@ Each scaffold includes:
 | [474-refactoring-to-primitives](474-refactoring-to-primitives.md) | Migration plan to this layout |
 | [478-ameide-extensions](478-ameide-extensions.md) | Tenant namespace/SKU strategy |
 | [484-ameide-cli](484-ameide-cli.md) | CLI commands that scaffold primitives |
+| [495-ameide-operators](495-ameide-operators.md) | Operator CRD shapes, reconciliation logic, publishing & deployment |

@@ -998,6 +998,8 @@ sources/charts/foundation/operators-config/keycloak_realm/templates/externalsecr
 
 ### 10.1 Software Templates (Design-Time Integration)
 
+> **Template philosophy**: For why Backstage templates should be "thin" (structure not business logic) and how this aligns with CLI scaffolding, see [484-ameide-cli.md §16](484-ameide-cli.md).
+
 Per [472-ameide-information-application.md](472-ameide-information-application.md) §4, Backstage templates scaffold the primitive lifecycle:
 
 | Template | Artifact Type | Output |

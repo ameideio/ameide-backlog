@@ -192,7 +192,7 @@ All primitives expose proto-based APIs and are consumed via the Ameide SDKs; thi
 
 * **Domain primitives**
 
-  * `TenantsController`, `OrganizationsController`, `UsersController`, `MembershipsController`, `RolesController`, `SubscriptionsController`. 
+  * `TenantsDomain`, `OrganizationsDomain`, `UsersDomain`, `MembershipsDomain`, `RolesDomain`, `SubscriptionsDomain`.
 * **Process primitives**
 
   * `SelfServeOnboardingProcess`, `EnterpriseOnboardingProcess`, `SubscriptionLifecycleProcess`.
@@ -201,9 +201,9 @@ All primitives expose proto-based APIs and are consumed via the Ameide SDKs; thi
 
 * **Domain primitives**
 
-  * `TransformationController` (initiatives, metrics, stages).
-  * `BacklogController` (epics, stories, tasks).
-  * `ArtifactController` (Transformation design tooling artifacts & revisions, including ProcessDefinitions and AgentDefinitions).
+  * `TransformationDomain` (initiatives, metrics, stages).
+  * `BacklogDomain` (epics, stories, tasks).
+  * `ArtifactDomain` (Transformation design tooling artifacts & revisions, including ProcessDefinitions and AgentDefinitions).
 * **Design-time artifacts owned by this domain**
 
   * ProcessDefinitions – BPMN-compliant process models.
@@ -216,10 +216,10 @@ All primitives expose proto-based APIs and are consumed via the Ameide SDKs; thi
 
 **Domain primitives**
 
-* `ProductController`
+* `ProductDomain`
 
   * Product master, variants, attributes, product hierarchies.
-* `PricingController`
+* `PricingDomain`
 
   * Price lists, discount rules, regional pricing, customer segments.
 
@@ -248,10 +248,10 @@ Rather than being “special”, L2O and O2C are **canonical examples** of how t
 
 * Uses domain primitives:
 
-  * `LeadsController`, `AccountsController`, `OpportunitiesController`, `ProductController`, `PricingController`, `ContractsController`, plus Identity.
+  * `LeadsDomain`, `AccountsDomain`, `OpportunitiesDomain`, `ProductDomain`, `PricingDomain`, `ContractsDomain`, plus Identity.
 * Orchestrates:
 
-  * Lead capture → qualification → offer/quote → negotiation → contract → **hand‑over to O2C** via `OrdersController`.
+  * Lead capture → qualification → offer/quote → negotiation → contract → **hand‑over to O2C** via `OrdersDomain`.
 * Agent primitives:
 
   * L2O‑specialised advisors, executing AgentDefinitions stored in Transformation Domain primitive (e.g. `tags: ["process:L2O", "domain:pricing"]`).
@@ -260,11 +260,11 @@ Rather than being “special”, L2O and O2C are **canonical examples** of how t
 
 * Uses domain primitives:
 
-  * `OrdersController`, `FulfillmentController`, `InvoicingController`, `PaymentsController`, `ProductController`, `PricingController`.
+  * `OrdersDomain`, `FulfillmentDomain`, `InvoicingDomain`, `PaymentsDomain`, `ProductDomain`, `PricingDomain`.
 * Orchestrates:
 
   * Order validation → fulfillment → billing → payments/collections.
-* Again, O2C is “just another process” that composes existing domains.
+* Again, O2C is "just another process" that composes existing domains.
 
 ### 4.5 Other E2E Processes
 
@@ -289,7 +289,7 @@ Agent primitives are **not** a separate domain. They are cross-cutting runtimes 
 
 Backstage templates (for Domain/Process/Agent/UISurface primitives) are **internal implementation details**; they live in the Application/Tech layer and are used by engineers and transformation agents to spin up new primitives, not by business users directly.
 
-### 4.7 Tenant-Specific Controllers
+### 4.7 Tenant-Specific Primitives
 
 Whenever possible, small, local customizations should attach to Tier 1 WASM extension hooks on existing primitives. The model below describes **Tier 2 primitive-based extensions** for requirements that justify new services—see [479-ameide-extensibility-wasm.md](479-ameide-extensibility-wasm.md) for how both tiers relate.
 
@@ -298,7 +298,7 @@ When tenants require custom primitives beyond the standard product, Backstage te
 * **Platform primitives** run in `ameide-{env}` (Shared SKU) or `tenant-{id}-{env}-base` (Namespace/Private SKU)
 * **Tenant custom primitives** always run in `tenant-{id}-{env}-cust` namespaces
 * Custom code is scaffolded via Backstage templates with tenant-specific parameters
-* Code lives in `tenant-{id}-controllers` repos, manifests in `tenant-{id}-gitops` repos
+* Code lives in `tenant-{id}-primitives` repos, manifests in `tenant-{id}-gitops` repos
 
 > **See [478-ameide-extensions.md](478-ameide-extensions.md)** for the complete tenant extension model, namespace strategy by SKU, and the E2E flow from requirement to running primitives.
 

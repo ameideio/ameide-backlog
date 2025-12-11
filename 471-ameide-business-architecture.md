@@ -129,7 +129,9 @@ Business architecture cares mostly about *how* tenants combine these building bl
 
 ### 2.3 Implementation guardrails (proto-first + event-driven)
 
-All primitives follow the proto-first chain described in [472 §2.7](472-ameide-information-application.md#27-contract--implementation--runtime-chain): Buf modules in `packages/ameide_core_proto` define the contracts, workspace SDKs (TS/Go/Py) consume them, and GitOps manifests record which image/proto versions run in each environment. Go-based Process/Domain primitives also standardize on Watermill’s CQRS component for command/event routing (see [472 §3.3.1](472-ameide-information-application.md#331-event-driven-cqrs-runtime-watermill)). Business flows therefore assume commands mutate write models, events update read models, and read-only queries hit the projections maintained by those handlers.
+All primitives follow the proto-first chain described in [472 §2.7](472-ameide-information-application.md#27-contract--implementation--runtime-chain): Buf modules in `packages/ameide_core_proto` define the contracts, workspace SDKs (TS/Go/Py) consume them, and GitOps manifests record which image/proto versions run in each environment. Go-based Process/Domain primitives also standardize on Watermill's CQRS component for command/event routing (see [472 §3.3.1](472-ameide-information-application.md#331-event-driven-cqrs-runtime-watermill)). Business flows therefore assume commands mutate write models, events update read models, and read-only queries hit the projections maintained by those handlers.
+
+**Command/event naming discipline**: APIs express business intent, not field changes. Commands are verbs like `PlaceOrder`, `ApproveQuote`; never generic CRUD like `UpdateOrder`, `SetStatus`. This ensures the domain owns invariants and callers don't bypass business logic. See [472 §2.8.6](472-ameide-information-application.md#286-cqrs-recipe-commands--queries--events) for the full pattern and [484 §4.0.2.2](484-ameide-cli.md) for CLI enforcement.
 
 ---
 

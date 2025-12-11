@@ -134,6 +134,54 @@ The goal is to give implementers a **vendor-aligned blueprint** that can be exec
 * For most orchestration, **Temporal replaces bespoke message buses** (sagas, retries, compensation all live in workflows). ([Temporal][3])
 * Lightweight, event-style notifications (e.g. for UI refresh) can use NATS/Kafka, but they are not a source of truth.
 
+### 3.2.1 Broker Selection & Delivery Guarantees
+
+Event-driven architectures require intentional broker selection. Ameide uses different technologies for different use cases:
+
+| Use Case | Technology | Delivery Guarantee | Rationale |
+|----------|------------|-------------------|-----------|
+| **Domain events (outbox relay)** | Postgres + Watermill | At-least-once, ordered per aggregate | Transactional outbox ensures no dual writes; ordering by aggregate ID is sufficient |
+| **Cross-domain integration** | NATS JetStream | At-least-once, durable | Low-latency, persistent streams; per-tenant subject partitioning |
+| **Analytics & replay** | Kafka (or Redpanda) | At-least-once, replayable | High-throughput, long retention for graph projections and analytics |
+| **UI real-time updates** | NATS (non-persistent) | Best-effort | Fire-and-forget for UI refresh; not source of truth |
+| **Process orchestration** | Temporal | Exactly-once (within workflow) | Deterministic replay; no external broker needed |
+
+**Delivery guarantee rules:**
+
+1. **At-least-once is the default** – All event consumers must be idempotent (see [472 §3.3.2](472-ameide-information-application.md))
+2. **Exactly-once is only for Temporal** – Never promise exactly-once delivery over external brokers
+3. **Ordering is per-aggregate** – Partition by `(tenant_id, aggregate_id)` to ensure causal ordering within an aggregate
+4. **Cross-aggregate ordering is not guaranteed** – Use Temporal sagas for cross-aggregate coordination
+
+**Stream configuration patterns:**
+
+```yaml
+# NATS JetStream - Domain events
+stream:
+  name: domain-events-{domain}
+  subjects: ["events.{domain}.>"]
+  retention: limits          # 7-day rolling window
+  max_age: 604800s
+  storage: file              # Durable
+  replicas: 3
+
+# Kafka - Analytics replay
+topic:
+  name: analytics.{domain}
+  partitions: 12             # By tenant_id hash
+  retention.ms: 2592000000   # 30 days
+  min.insync.replicas: 2
+```
+
+**Multi-tenant stream isolation:**
+
+* Events always carry `tenant_id` in the payload
+* NATS subjects include tenant prefix: `events.{tenant_id}.{domain}.{event_type}`
+* Kafka partitions by `tenant_id` to ensure tenant-local ordering
+* Consumers validate `tenant_id` against execution context (see [472 §3.3.7](472-ameide-information-application.md))
+
+> **Invariant**: Domain primitives MUST NOT import broker clients directly. All event publishing goes through the outbox interface; the outbox dispatcher handles broker-specific publishing.
+
 ---
 
 ### 3.3 Service Layer: Domains, Processes, Agents, Transformation
@@ -149,6 +197,8 @@ In addition to the Domain/Process/Agent primitives described below, the platform
   * A clear API surface (CRUD + domain commands) expressed in proto.
   * No direct UI logic; only data + domain rules.
 * Domain primitives are deployed via standard Helm charts generated from Backstage templates (see §4). ([Backstage][7])
+
+> **Event reliability**: Go-based Domain primitives must follow the EDA patterns in [472 §3.3](472-ameide-information-application.md): transactional outbox (§3.3.1.1), idempotent consumers (§3.3.2), schema versioning (§3.3.5), and multi-tenant isolation (§3.3.7).
 
 **3.3.2 Process primitives (processes)**
 

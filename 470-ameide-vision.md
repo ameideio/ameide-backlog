@@ -83,6 +83,22 @@
 >
 > 7. **Backstage is internal only.** Backstage is the factory for Ameide engineers and transformation agents. Tenants never see Backstage; tenant UX is delivered through UISurface primitives.
 
+> **Event-Driven Architecture (EDA) Invariants**
+>
+> All Domain/Process/Agent primitives must follow these EDA principles. See [472 §3.3](472-ameide-information-application.md) for implementation details.
+>
+> 8. **Commands express business intent, not CRUD.** APIs use business verbs (`PlaceOrder`, `ApproveQuote`) not generic operations (`UpdateOrder`, `SetStatus`). See [472 §2.8.6](472-ameide-information-application.md).
+>
+> 9. **Events are immutable facts.** Every state-changing command emits at least one domain event as a past-tense fact (`OrderPlaced`, `QuoteApproved`). Events are the primary integration mechanism.
+>
+> 10. **Transactional outbox required.** Domain primitives MUST write events to an outbox table in the same transaction as the aggregate update. Never call `publisher.Publish()` directly from domain code. See [472 §3.3.1.1](472-ameide-information-application.md).
+>
+> 11. **Consumers must be idempotent.** All event handlers must handle duplicates gracefully via inbox pattern or natural key idempotency. Assume at-least-once delivery. See [472 §3.3.2](472-ameide-information-application.md).
+>
+> 12. **Domain primitives don't import broker clients.** All event publishing goes through outbox interfaces. Domain logic is isolated from Watermill, NATS, Kafka, or other broker implementations. See [473 §3.2.1](473-ameide-technology.md).
+>
+> 13. **Events carry tenant context.** Every event message includes `tenant_id`. Consumers validate tenant context matches before processing. See [472 §3.3.7](472-ameide-information-application.md).
+
 > **Security Spine**
 >
 > Security is a cross-cutting concern addressed in [476-ameide-security-trust.md](476-ameide-security-trust.md). Key areas:
@@ -364,7 +380,8 @@ Where Process/Domain primitives run inside Go services, we rely on Watermill’s
 12. **Single proto & SDK contract layer**
 
     * All services use `ameide_core_proto` and generated SDKs; no direct wire-level improvisation.
-    * Frontends always go through the TS SDK; agents and workers use Go/Python SDKs. 
+    * Frontends always go through the TS SDK; agents and workers use Go/Python SDKs.
+    * **Command/event naming discipline**: APIs express business intent (`PlaceOrder`, `ApproveQuote`), not field changes (`UpdateOrder`, `SetStatus`). See [472 §2.8.6](472-ameide-information-application.md) for the CQRS pattern.
 
 13. **Clean separation of concerns**
 
