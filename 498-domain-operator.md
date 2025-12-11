@@ -1,6 +1,6 @@
 # 498 – Domain Operator
 
-**Status:** Planned
+**Status:** Active (Phase 1 Complete)
 **Audience:** Platform engineers implementing Domain operator
 **Scope:** Implementation tracking, development phases, acceptance criteria
 
@@ -81,16 +81,20 @@ Reference implementation: [497 §10.3](497-operator-implementation-patterns.md#1
 
 ## 4. Development Phases
 
-### Phase 1: Core Reconciliation
+### Phase 1: Core Reconciliation ✅ IMPLEMENTED
 
-| Task | Description | Acceptance Criteria |
-|------|-------------|---------------------|
-| **CRD types** | Define `Domain`, `DomainSpec`, `DomainStatus` in Go | Types compile, `make manifests` generates CRD YAML |
-| **Basic reconciler** | Implement 7-step reconcile flow skeleton | Controller starts, logs "reconciling" on CR create |
-| **Finalizer handling** | Add/remove finalizer on create/delete | `kubectl delete domain/foo` blocks until finalizer removed |
-| **Deployment creation** | `reconcileWorkload` creates Deployment | `kubectl get deploy` shows domain deployment |
-| **Service creation** | Create ClusterIP Service for domain | `kubectl get svc` shows domain service |
-| **Status conditions** | Set `Ready`, `WorkloadReady` conditions | `kubectl get domain -o yaml` shows conditions |
+> **Implementation**: See [operators/domain-operator/](../operators/domain-operator/)
+
+| Task | Description | Status |
+|------|-------------|--------|
+| **CRD types** | Define `Domain`, `DomainSpec`, `DomainStatus` in Go | ✅ `api/v1/domain_types.go` |
+| **Basic reconciler** | Implement 7-step reconcile flow skeleton | ✅ `internal/controller/domain_controller.go` |
+| **Finalizer handling** | Add/remove finalizer on create/delete | ✅ Implemented |
+| **Deployment creation** | `reconcileWorkload` creates Deployment | ✅ `internal/controller/reconcile_workload.go` |
+| **Service creation** | Create ClusterIP Service for domain | ✅ Implemented |
+| **Status conditions** | Set `Ready`, `WorkloadReady` conditions | ✅ `internal/controller/conditions.go` |
+
+**Helm chart**: Operators deployable via unified chart at `operators/helm/`
 
 ### Phase 2: Database Integration
 

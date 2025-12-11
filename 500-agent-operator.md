@@ -1,6 +1,6 @@
 # 500 – Agent Operator
 
-**Status:** Planned
+**Status:** Active (Phase 1 Complete)
 **Audience:** Platform engineers implementing Agent operator
 **Scope:** Implementation tracking, development phases, acceptance criteria
 
@@ -119,15 +119,19 @@ type AgentStatus struct {
 
 ## 5. Development Phases
 
-### Phase 1: Core Reconciliation
+### Phase 1: Core Reconciliation ✅ IMPLEMENTED
 
-| Task | Description | Acceptance Criteria |
-|------|-------------|---------------------|
-| **CRD types** | Define `Agent`, `AgentSpec`, `AgentStatus` | Types compile, CRD YAML generated |
-| **Basic reconciler** | 7-step reconcile skeleton | Controller logs on Agent create |
-| **Finalizer handling** | Add/remove finalizer | Delete blocks until cleanup done |
-| **Runtime Deployment** | Create Deployment for agent runtime | `kubectl get deploy` shows agent |
-| **Status conditions** | Set `Ready`, `RuntimeReady` | Conditions reflect deployment state |
+> **Implementation**: See [operators/agent-operator/](../operators/agent-operator/)
+
+| Task | Description | Status |
+|------|-------------|--------|
+| **CRD types** | Define `Agent`, `AgentSpec`, `AgentStatus` | ✅ `api/v1/agent_types.go` |
+| **Basic reconciler** | 7-step reconcile skeleton | ✅ `internal/controller/agent_controller.go` |
+| **Finalizer handling** | Add/remove finalizer | ✅ Implemented |
+| **Runtime Deployment** | Create Deployment for agent runtime | ✅ `internal/controller/reconcile_workload.go` |
+| **Status conditions** | Set `Ready`, `RuntimeReady` | ✅ `internal/controller/conditions.go` |
+
+**Helm chart**: Operators deployable via unified chart at `operators/helm/`
 
 ### Phase 2: Security & Secrets
 

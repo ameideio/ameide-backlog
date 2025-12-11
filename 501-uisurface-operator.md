@@ -1,6 +1,6 @@
 # 501 – UISurface Operator
 
-**Status:** Planned
+**Status:** Active (Phase 1 Complete)
 **Audience:** Platform engineers implementing UISurface operator
 **Scope:** Implementation tracking, development phases, acceptance criteria
 
@@ -114,16 +114,20 @@ type UISurfaceStatus struct {
 
 ## 5. Development Phases
 
-### Phase 1: Core Reconciliation
+### Phase 1: Core Reconciliation ✅ IMPLEMENTED
 
-| Task | Description | Acceptance Criteria |
-|------|-------------|---------------------|
-| **CRD types** | Define `UISurface`, `UISurfaceSpec`, `UISurfaceStatus` | Types compile, CRD YAML generated |
-| **Basic reconciler** | 7-step reconcile skeleton | Controller logs on UISurface create |
-| **Finalizer handling** | Add/remove finalizer | Delete blocks until cleanup done |
-| **Deployment** | Create Next.js Deployment | `kubectl get deploy` shows app |
-| **Service** | Create ClusterIP Service | `kubectl get svc` shows service |
-| **Status conditions** | Set `Ready` condition | Conditions reflect deployment state |
+> **Implementation**: See [operators/uisurface-operator/](../operators/uisurface-operator/)
+
+| Task | Description | Status |
+|------|-------------|--------|
+| **CRD types** | Define `UISurface`, `UISurfaceSpec`, `UISurfaceStatus` | ✅ `api/v1/uisurface_types.go` |
+| **Basic reconciler** | 7-step reconcile skeleton | ✅ `internal/controller/uisurface_controller.go` |
+| **Finalizer handling** | Add/remove finalizer | ✅ Implemented |
+| **Deployment** | Create Next.js Deployment | ✅ `internal/controller/reconcile_workload.go` |
+| **Service** | Create ClusterIP Service | ✅ Implemented |
+| **Status conditions** | Set `Ready` condition | ✅ `internal/controller/conditions.go` |
+
+**Helm chart**: Operators deployable via unified chart at `operators/helm/`
 
 ### Phase 2: Routing (Gateway API)
 

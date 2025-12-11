@@ -1,6 +1,6 @@
 # 499 – Process Operator
 
-**Status:** Planned
+**Status:** Active (Phase 1 Complete)
 **Audience:** Platform engineers implementing Process operator
 **Scope:** Implementation tracking, development phases, acceptance criteria
 
@@ -121,16 +121,20 @@ type ProcessDefinitionStatus struct {
 
 ## 5. Development Phases
 
-### Phase 1: Core Reconciliation
+### Phase 1: Core Reconciliation ✅ IMPLEMENTED
 
-| Task | Description | Acceptance Criteria |
-|------|-------------|---------------------|
-| **CRD types** | Define `Process`, `ProcessSpec`, `ProcessStatus` | Types compile, CRD YAML generated |
-| **Basic reconciler** | 7-step reconcile skeleton | Controller logs on Process create |
-| **Finalizer handling** | Add/remove finalizer | Delete blocks until cleanup done |
-| **Dependency validation** | Check referenced Domains/Agents exist and are Ready | Condition `Degraded` if deps missing |
-| **Worker Deployment** | Create Deployment for Temporal workers | `kubectl get deploy` shows workers |
-| **Status conditions** | Set `Ready`, `WorkersReady` | Conditions reflect deployment state |
+> **Implementation**: See [operators/process-operator/](../operators/process-operator/)
+
+| Task | Description | Status |
+|------|-------------|--------|
+| **CRD types** | Define `Process`, `ProcessSpec`, `ProcessStatus` | ✅ `api/v1/process_types.go` |
+| **Basic reconciler** | 7-step reconcile skeleton | ✅ `internal/controller/process_controller.go` |
+| **Finalizer handling** | Add/remove finalizer | ✅ Implemented |
+| **Dependency validation** | Check referenced Domains/Agents exist and are Ready | ⏳ Pending (Phase 2) |
+| **Worker Deployment** | Create Deployment for Temporal workers | ✅ `internal/controller/reconcile_workload.go` |
+| **Status conditions** | Set `Ready`, `WorkersReady` | ✅ `internal/controller/conditions.go` |
+
+**Helm chart**: Operators deployable via unified chart at `operators/helm/`
 
 ### Phase 2: Transformation Integration
 
