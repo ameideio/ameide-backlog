@@ -71,13 +71,34 @@ Non-goals:
 
 2. **Install / reconcile Argo CD**  
    - Install Argo CD via the pinned Helm chart (`argo-cd@9.1.3`) with base + environment values from GitOps.  
-   - Wait for `Deployment/argocd-repo-server`, `Deployment/argocd-application-controller`, and `StatefulSet/argocd-redis` to reach the desired state.  
+   - **Bootstrap uses public images** to avoid the ghcr-pull chicken-and-egg (see § 3.3.1 below).
+   - Wait for `Deployment/argocd-repo-server`, `Deployment/argocd-application-controller`, and `Deployment/argocd-redis` to reach the desired state.
    - **Login flows:** ensure both password-based and OIDC-based access are validated after install (see login flow section).
 
-3. **Seed repo + registry secrets**  
-   - Dev/k3d continues to reuse the `.env`-based GHCR secret derivation for convenience.  
-   - AKS environments lean on Azure-managed identity wherever possible: node pools or workload identity service accounts get pull permissions on ACR, and bootstrap skips minting GHCR secrets there.  
-   - When AKS must reach GHCR directly (e.g., before an image is mirrored), bootstrap sources a GitHub App/PAT from Key Vault or workload-identity token material described in the Bicep outputs, never from developer laptops.
+### 3.3.1 Bootstrap public images (chicken-and-egg resolution)
+
+ArgoCD's Redis uses the GHCR mirror (`ghcr.io/ameideio/mirror/redis`) which requires the `ghcr-pull` secret. However:
+
+1. `ghcr-pull` is created by ExternalSecrets pulling from Azure Key Vault
+2. ExternalSecrets operator is deployed BY ArgoCD
+3. This creates a circular dependency during initial bootstrap
+
+**Resolution:** Bootstrap installs ArgoCD with public images via environment-specific overrides:
+- `sources/values/{env}/foundation/foundation-argocd.yaml` sets `global.imagePullSecrets: []` and uses `redis:7.2.5-alpine` from Docker Hub
+- Once ArgoCD deploys ExternalSecrets → SecretStore → ExternalSecret, the `ghcr-pull` secret materializes
+- ArgoCD self-manages and reconciles to the GHCR mirror images defined in `sources/values/common/argocd.yaml`
+
+**Why not pre-deploy ExternalSecrets before ArgoCD?**
+- Would require bootstrap to also deploy: ExternalSecrets CRDs, operator, SecretStore (with Workload Identity), ExternalSecret
+- Adds significant bootstrap complexity for marginal benefit
+- Public images work reliably and the transition to GHCR is automatic
+
+**Azure Key Vault remains authoritative** for all third-party secrets (GHCR credentials, etc.). The public image workaround is bootstrap-only; steady-state uses GHCR mirror with proper auth.
+
+3. **Seed repo + registry secrets**
+   - **ghcr-pull is NOT seeded by bootstrap** - it comes from ExternalSecrets after ArgoCD deploys the operator.
+   - AKS environments lean on Azure-managed identity wherever possible: node pools or workload identity service accounts get pull permissions on ACR.
+   - Azure Key Vault is the authoritative source for GHCR credentials; Terraform seeds `.env` values to Key Vault during infrastructure provisioning.
 
 4. **Apply GitOps definitions**  
    - Apply the single "root" Application checked into `gitops/ameide-gitops/environments/<env>/argocd/applications/ameide.yaml` that manages Argo’s own namespace, repo definitions, AppProjects, and the RollingSync ApplicationSet.  
