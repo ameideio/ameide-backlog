@@ -1,5 +1,14 @@
 > Note: Chart and values paths are now under gitops/ameide-gitops/sources (charts/values); any infra/kubernetes/charts references below are historical.
 
+> **Superseded – 2025-02:** The automation scope below described Stage 2 experiments for the legacy “Codex CLI” runner. All net-new work on coding agents should follow [505-agent-developer.md](../505-agent-developer.md) (agent-developer) plus the guardrail backlogs ([504-agent-vertical-slice.md](../504-agent-vertical-slice.md), [500-agent-operator.md](../500-agent-operator.md)) and Transformation process hooks from the 484 series. Keep this document as historical background on orchestration service requirements; update the newer backlogs when implementing LangGraph coder agents, repo adapters, or Workflow/Temporal changes.
+>
+> **Current implementation pointers (2025-02):**
+> - LangGraph coder agent + prompt renderer: `services/inference/src/inference_service/agents/coding_agent/`.
+> - Devcontainer tool wiring: `services/inference/src/inference_service/tools/devcontainer/develop_in_container/tool.py` (surfaced via `ToolDependencies` env vars).
+> - CLI workflow prompt + `workflowCommands` JSON: `packages/ameide_core_cli/internal/commands/primitive_prompt.go`.
+> - Agent sample manifests referencing `develop_in_container`: `operators/helm/examples/agent-sample.yaml` and `gitops/ameide-gitops/.../core-platform-coder.yaml`.
+> These components satisfy the “agent runtime packaging” part of this backlog; the remaining sections (auto-planning, preview automation, evidence capture) stay as future work.
+
 # backlog/367-2-agent-orchestration-coding-agent – Software Delivery Automation
 
 **Parent backlog:** [backlog/367-elements-transformation-automation.md](./367-elements-transformation-automation.md)

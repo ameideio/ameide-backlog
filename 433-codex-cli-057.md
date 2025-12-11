@@ -9,6 +9,7 @@
   3. Expand it into `~/.local/share/codex-cli/0.57.0/codex` and point `~/.local/bin/codex` at that binary.
 - `~/.codex/config.toml` now explicitly sets `model = "gpt-5-codex"` with `model_reasoning_effort = "high"` so every CLI invocation consistently targets the desired back-end model.
 - Note: This pin governs the codex binary used by shell sessions and automation in the DevContainer. The VS Code Codex extension ships its own CLI; set **Settings → Extensions → Codex → Codex: CLI Path** to `~/.local/bin/codex` (or the explicit version path) if the IDE agent itself must run 0.57.0.
+- The `develop_in_container` LangGraph tool (see [505-agent-developer.md](505-agent-developer.md)) shells out to this exact CLI inside the devcontainer service. Keeping the version + config stable guarantees coder agents and humans execute guardrail commands with identical behavior.
 
 ## Devcontainer automation
 

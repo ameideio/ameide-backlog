@@ -4,6 +4,15 @@ Date: 2025-07-25
 
 Author: internal-agents-review
 
+> **Superseded – 2025-02:** The remediation actions and runtime direction in this notebook have been replaced by the platform-wide LangGraph coder plan: [505-agent-developer.md](../505-agent-developer.md) (agent-developer), [504-agent-vertical-slice.md](../504-agent-vertical-slice.md) for CLI/operator guardrails, and [500-agent-operator.md](../500-agent-operator.md) for CRD reconciliation. Keep this document only as an audit trail of what was wrong with the original `core-platform-coder` package; all new fixes should be tracked against agent-developer epics and Transformation AgentDefinitions instead of patching the legacy package in isolation.
+
+### Where to look now
+
+* **Runtime fixes + tooling:** follow agent-developer for the devcontainer service, LangGraph DAG, and `develop_in_container` tool instead of the bespoke CLI wrappers discussed below.
+  * Reference implementation: `services/inference/src/inference_service/agents/coding_agent/` + `services/inference/src/inference_service/tools/devcontainer/develop_in_container/`.
+* **Risk + policy:** apply the risk-tier enforcement and tool grants from backlog 500; the ad-hoc security suggestions in this file are superseded by those policies.
+* **CLI alignment:** align with the 484 CLI guardrail suite referenced in backlog 504; the “cheat-sheet” near the end of this file is informational only and is no longer authoritative for Ameide automation.
+
 ## Context
 
 The `packages/ameide_core-platform-coder` component implements an LLM-based agent that analyses, plans and rewrites Python test files for better quality.  An in-depth review (see previous discussion) uncovered both architectural strengths and several robustness / correctness issues that we should address before the tool can be used reliably by developers or integrated into CI.

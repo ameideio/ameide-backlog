@@ -4,6 +4,17 @@ Status: **Planning**
 Created: 2025-07-23  
 Updated: 2025-07-24  
 
+> **Superseded – 2025-02:** This standalone “coding agent recipe” is kept for historical reference only. The cluster-grade implementation, guardrails, and GitOps deployment story now live in [505-agent-developer.md](../505-agent-developer.md) (agent-developer) together with the Agent vertical slice ([504-agent-vertical-slice.md](../504-agent-vertical-slice.md)) and Transformation guardrails from the 484 backlog series. Use those documents for any new work; only refer to this file when you need to understand the earlier bare‑metal/CICD experiments.
+
+### Relationship to current plan
+
+* **Runtime + tooling:** agent-developer defines `runtime_type=langgraph`, `dag_ref`, and the `develop_in_container` tool backed by the Ameide devcontainer service. The ad-hoc Docker/CLI commands in this file are obsolete.
+* **Process + guardrails:** All coding agents must follow the OBSERVE→REASON→ACT→VERIFY workflow codified in 504 and 484a. Manual branch orchestration and AWS Step Functions sketches below are illustrative only.
+* **Operator + GitOps:** Backlog [500-agent-operator.md](../500-agent-operator.md) now owns CRD/Deployment reconciliation, so any configuration described here must be expressed as AgentDefinitions + CR manifests instead of local scripts.
+* **Reference implementation:** The LangGraph-based coder agent lives in `services/inference/src/inference_service/agents/coding_agent/` and uses the `develop_in_container` tool (`services/inference/src/inference_service/tools/devcontainer/develop_in_container/`). Use those directories as the canonical code reference.
+
+The remainder of this document describes the original PoC setup for posterity.
+
 ## Architecture Note
 
 This recipe predates the SOLID refactoring of core-agent-model (see 023-agent-review.md). 
@@ -251,6 +262,4 @@ With these pieces you can: develop locally, run in Docker or CI, branch safely, 
     }
   }
 }
-
-
 

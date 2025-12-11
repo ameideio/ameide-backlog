@@ -74,6 +74,14 @@ status:
 8. Update status (conditions, observedGeneration)
 ```
 
+### 3.1 LangGraph coder runtime (agent-developer linkage)
+
+Backlog [505-agent-developer.md](505-agent-developer.md) introduces `runtime_type=langgraph`, `dag_ref`, and the `develop_in_container` tool binding for the `core-platform-coder` AgentDefinition. Implications for the operator:
+
+* **Spec propagation.** When the Transformation domain resolves an AgentDefinition that includes `runtime_type=langgraph`, the operator must surface the referenced DAG module/image to the runtime Deployment (env vars or ConfigMap). This keeps the runtime controller generic while enabling LangGraph to build the DAG defined in Transformation.
+* **Tool grants.** `develop_in_container` is treated like any other tool grant, but it is automatically `riskTier=high`. The existing policy validation (Phase 3) should reject Agent CRs that request `develop_in_container` without `spec.riskTier=high` or without the platform-approved devcontainer service configuration.
+* **Runtime service wiring.** For LangGraph coder agents, `reconcileRuntime()` needs to include Service annotations or env vars that point at the devcontainer gRPC endpoint deployed via GitOps. Document this under Phase 3/4 artifacts so the ApplicationSet that deploys the devcontainer service stays in sync with the Agent operator rollout described in backlog 504.
+
 ---
 
 ## 4. CRD Types (Go)
@@ -297,6 +305,7 @@ ctrl.NewControllerManagedBy(mgr).
 | **External Secrets Operator** | Sync secrets from vault |
 | **Security Policy** | ConfigMap or CRD defining allowed models/tools |
 | **Tool Grants Service** | Optional central registry for tool access |
+| **agent-developer (LangGraph coder)** | Defines LangGraph DAG metadata + devcontainer service contract consumed by the operator |
 
 ---
 
@@ -321,3 +330,4 @@ ctrl.NewControllerManagedBy(mgr).
 | [497-operator-implementation-patterns.md](497-operator-implementation-patterns.md) | Go patterns & adaptation (§10.9) |
 | [477-primitive-stack.md](477-primitive-stack.md) | Agent in primitive architecture |
 | [471-ameide-business-architecture.md](471-ameide-business-architecture.md) | AgentDefinition as design artifact |
+| [505-agent-developer.md](505-agent-developer.md) | LangGraph coder runtime + `develop_in_container` tool requirements |
