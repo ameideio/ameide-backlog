@@ -77,6 +77,7 @@ Goal: make “an agent that writes code in the official devcontainer, then opens
 * **Vertical slice contract.** The coder runtime extends the `core-platform-coder` scenario delivered in [504-agent-vertical-slice.md](504-agent-vertical-slice.md §2-5); every LangGraph DAG invocation must run the same OBSERVE→REASON→ACT→VERIFY loop by invoking the CLI commands from [484a-ameide-cli-primitive-workflows.md](484a-ameide-cli-primitive-workflows.md) (`describe`, `drift`, `plan`, `impact`, `scaffold`, `verify`, `prompt`). The DAG should treat these commands/tool calls as explicit nodes so that prompts/logs stay identical to the human/agent workflows already documented.
 * **Sample assets + GitOps.** When we add the devcontainer service and LangGraph runtime, update the sample manifests referenced in 504 (e.g. `operators/helm/examples/agent-sample.yaml`, `gitops/.../primitives/agent/core-platform-coder.yaml`, prompt profiles under `prompts/agent/default.md`) so the guardrail demo script keeps working with the new `runtime_type=langgraph` AgentDefinition and the `develop_in_container` tool binding.
 * **Dual-track reporting.** Continue the dual-track format from [502-domain-vertical-slice.md](502-domain-vertical-slice.md) by documenting operator changes (new CRD fields, ApplicationSet wiring for the devcontainer service) and CLI changes (new prompt profile hints, scaffold updates) in the same structure once the LangGraph DAG is implemented, so downstream teams can trace status exactly like they do for backlog 504.
+* **Primitive-first scaffolds.** The CLI must scaffold agents into `primitives/{kind}/{name}` (e.g. `primitives/agent/core-platform-coder`). Service catalog entries stay human-authored while we pivot the tooling toward agentic coding, so Backstage metadata can lag without blocking the primitive workflow.
 
 ---
 
@@ -282,6 +283,9 @@ Mapping to gRPC is hidden behind the Agent runtime’s tool adapter layer.
   (plus `platform-devcontainer-service.yaml`) deploy the Deployment/Service/workspace volume, and the
   `platform-devcontainer-agent-token-sync` ExternalSecret materializes the PAT used by both the service and the
   sample AgentDefinitions.
+* **Service catalog template – GAP.** `service_catalog/agents/` still only exposes the `_primitive/template.yaml`
+  placeholder; no `langgraph-scribe` (or equivalent) Backstage entry exists yet, so teams cannot scaffold the
+  coder runtime from the Service Catalog.
 
 ---
 
