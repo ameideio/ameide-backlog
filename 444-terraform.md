@@ -93,23 +93,29 @@ ameide-gitops/
 
 ### State Management
 
-Terraform in this repo still uses **local state** (see `infra/terraform/azure/versions.tf`). The remote azurerm backend is designed but not yet configured, and `infra/scripts/deploy.sh` does not provision the storage resources or inject backend configuration. Until TF-10/TF-14 are implemented, local `terraform.tfstate` stays inside `infra/terraform/azure/`.
+Terraform now uses an **azurerm remote backend**. The backend definition lives in `infra/terraform/azure/versions.tf` and points at the shared state account:
 
-> Planned remote backend (add to `infra/terraform/azure/versions.tf` when TF-10/TF-14 close):
->
-> ```hcl
-> terraform {
->   backend "azurerm" {
->     resource_group_name  = "ameide-tfstate"
->     storage_account_name = "ameidetfstate"
->     container_name       = "tfstate"
->     key                  = "azure.tfstate"
->     use_azuread_auth     = true
->   }
-> }
-> ```
->
-> The storage account/role assignments still need automation (or manual provisioning) before enabling the block.
+```hcl
+backend "azurerm" {
+  resource_group_name  = "ameide-tfstate"
+  storage_account_name = "ameidetfstate"
+  container_name       = "tfstate"
+  key                  = "azure.tfstate"
+  use_azuread_auth     = true
+}
+```
+
+`infra/scripts/deploy.sh` (TF-10/TF-14) ensures the resource group, storage account, and container exist before it runs `terraform init`. Defaults can be overridden via environment variables:
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `TF_BACKEND_RG` | `ameide-tfstate` | Resource group for remote state |
+| `TF_BACKEND_SA` | `ameidetfstate` | Storage account hosting the container |
+| `TF_BACKEND_CONTAINER` | `tfstate` | Blob container name |
+| `TF_BACKEND_KEY` | `azure.tfstate` | Blob key used by the backend |
+| `TF_BACKEND_LOCATION` | `<tfvars location>` | Location used when auto-creating the RG/SA |
+
+Set any of the above before invoking `deploy.sh azure` to target alternate infra (e.g. per-tenant state stores). The backend uses Azure AD auth, so developers simply `az login` prior to running Terraform.
 
 ## Deployment Flow
 
@@ -349,6 +355,8 @@ The `deploy.sh` script automatically seeds secrets from `.env` and `.env.local` 
 
 The Helm template also guards against missing chart overrides. When `secretSource=local`, the CronJob automatically mounts the JSON file and defaults `EXTERNAL_SECRETS_NAMESPACES` to the release namespace. When `secretSource=azure`, it falls back to Azure Key Vault and uses the federated workload identity outputs from Terraform. In either case the CronJob now injects the Kubernetes audience (`https://kubernetes.default.svc`) when it creates Vault roles, matching the requirements introduced in Vault 1.21.
 
+> **TF-21**: During Azure deploys, `deploy.sh` proactively deletes legacy `env-*` Key Vault secrets so only the sanitized hyphenated keys remain. This keeps the vault clean once the CronJob migrates to the new naming scheme.
+
 ### How It Works
 
 1. **Parse .env files** → `deploy.sh` reads `.env` and `.env.local`
@@ -409,11 +417,11 @@ azure:
 - [x] **TF-5**: Create Azure workspace → `infra/terraform/azure/`
 - [x] **TF-6**: Validate parity with Bicep → 33 resources imported
 - [x] **TF-7**: Refactor deploy.sh → `infra/scripts/deploy.sh` with bootstrap integration
-- [ ] **TF-10**: Enable remote state backend → backend block still needs to be added to `infra/terraform/azure/versions.tf` once automation is in place
+- [x] **TF-10**: Enable remote state backend → azurerm backend block added to `infra/terraform/azure/versions.tf`; uses `ameide-tfstate/ameidetfstate/tfstate` by default → **2025-12-11**
 - [x] **TF-11**: Normalize output names → 23 outputs now use consistent snake_case across Terraform and Bicep
 - [x] **TF-12**: Add per-env Envoy IPs to Bicep → `main.bicep` now creates 4 IPs (ArgoCD + 3 env-specific)
 - [x] **TF-13**: Create consistency test script → `infra/scripts/test-iac-consistency.sh`
-- [ ] **TF-14**: Auto-create backend storage → `deploy.sh` still needs logic to create the tfstate RG/SA/container and assign roles before TF-10 can be completed → **2025-12-04**
+- [x] **TF-14**: Auto-create backend storage → `deploy.sh` now provisions the tfstate resource group, storage account, and container (override via `TF_BACKEND_*` env vars) → **2025-12-11**
 - [x] **TF-15**: Unify .env loading → `deploy.sh` now loads `.env`/`.env.local` like `deploy-bicep.sh` → **2025-12-04**
 - [x] **TF-16**: Add error trap with line numbers → Better debugging aligned with `deploy-bicep.sh` → **2025-12-04**
 - [x] **TF-17**: Add Key Vault soft-delete recovery → Pre-deployment recovery aligned with Bicep → **2025-12-04**
@@ -421,7 +429,7 @@ azure:
 - [x] **TF-19**: Parse .env secrets to Azure Key Vault → `deploy.sh` now seeds secrets via `env_secrets` Terraform variable → **2025-12-05**
 - [x] **TF-20**: Federated identity credentials per environment → vault-bootstrap can authenticate from ameide-dev/staging/prod namespaces → **2025-12-05**
 - [x] **TF-22**: Add explicit DNS subdomain records → explicit A records (www, platform, api, etc.) override wildcards and must be Terraform-managed → **2025-12-05**
-- [ ] **TF-21**: Clean up legacy `env-*` prefixed secrets from Azure Key Vault (19 secrets) → now using non-prefixed secrets with `secretPrefix: ""`
+- [x] **TF-21**: Clean up legacy `env-*` prefixed secrets from Azure Key Vault (19 secrets) → deploy script deletes/purges `env-*` secrets before seeding sanitized keys → **2025-12-11**
 - [x] **TF-23**: Add `secretSource=local` mode to `foundation-vault-bootstrap` so k3d clusters can bootstrap without Azure Key Vault → **2025-12-10**
 - [x] **TF-24**: Create `infra/scripts/seed-local-secrets.sh` and wire it into `deploy.sh local` to populate `vault-bootstrap-local-secrets` → **2025-12-10**
 - [ ] **TF-8**: AWS EKS module (future)
