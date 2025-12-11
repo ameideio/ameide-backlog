@@ -100,21 +100,24 @@ Operator images are published to GHCR via `cd-service-images.yml`:
 | **Examples** | Sample CRs for testing | ✅ |
 | **README** | GitOps deployment guide | ✅ |
 
-### Phase 2: ArgoCD Integration (ameide-gitops)
+### Phase 2: ArgoCD Integration ✅ IMPLEMENTED
+
+> **Implementation**: See [ameide-gitops/environments/_shared/components/cluster/](https://github.com/ameideio/ameide-gitops)
 
 The chart integrates with the ameide-gitops **cluster-scoped ApplicationSet** architecture. Per [446-namespace-isolation.md](446-namespace-isolation.md) and [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md), AMEIDE operators are **cluster-scoped** – deployed **once per cluster** to watch all namespaces.
 
 > **Key principle**: Operators deploy ONCE per cluster (like CNPG, Strimzi, Keycloak operators), not per-environment. CRs (Domain, Process, Agent, UISurface) are environment-scoped.
 
-| Task | Description | Acceptance Criteria |
-|------|-------------|---------------------|
-| **CRD component** | Create `component.yaml` in `environments/_shared/components/cluster/crds/ameide/` | ApplicationSet discovers CRDs at rolloutPhase 010 |
-| **Operator component** | Create `component.yaml` in `environments/_shared/components/cluster/operators/ameide-operators/` | ApplicationSet discovers operators at rolloutPhase 020 |
-| **Helm chart CRD mode** | Add `crdsOnly: true` values flag for CRD-only installation | CRDs installable separately from controllers |
-| **Shared values** | Create `sources/values/_shared/cluster/crds-ameide.yaml` | CRD installation defaults |
-| **Operator values** | Create `sources/values/_shared/cluster/ameide-operators.yaml` | Operator installation with `skipCrds: true` |
+| Task | Description | Status |
+|------|-------------|--------|
+| **CRD component** | Create `component.yaml` in `environments/_shared/components/cluster/crds/ameide/` | ✅ |
+| **Operator component** | Create `component.yaml` in `environments/_shared/components/cluster/operators/ameide-operators/` | ✅ |
+| **Helm chart in gitops** | Copy chart to `sources/charts/platform/ameide-operators/` | ✅ |
+| **crdsOnly mode** | Add `crdsOnly: true` values flag for CRD-only installation | ✅ |
+| **Shared values** | Create `sources/values/_shared/cluster/crds-ameide.yaml` | ✅ |
+| **Operator values** | Create `sources/values/_shared/cluster/ameide-operators.yaml` | ✅ |
 
-#### CRD Component Definition
+#### CRD Component (Implemented)
 
 ```yaml
 # environments/_shared/components/cluster/crds/ameide/component.yaml
@@ -126,8 +129,8 @@ dependencyPhase: "crd"
 componentType: "crd"
 rolloutPhase: "010"  # First wave: CRDs
 chart:
-  repoURL: https://github.com/ameideio/ameide-core.git
-  path: operators/helm
+  repoURL: https://github.com/ameideio/ameide-gitops.git
+  path: sources/charts/platform/ameide-operators
   version: main
   valueFiles:
     - $values/sources/values/_shared/cluster/crds-ameide.yaml
@@ -136,7 +139,7 @@ syncOptions:
   - PruneLastAppliedConfiguration=true
 ```
 
-#### Operator Component Definition
+#### Operator Component (Implemented)
 
 ```yaml
 # environments/_shared/components/cluster/operators/ameide-operators/component.yaml
@@ -148,8 +151,8 @@ dependencyPhase: "operator"
 componentType: "operator"
 rolloutPhase: "020"  # Second wave: operators (after CRDs)
 chart:
-  repoURL: https://github.com/ameideio/ameide-core.git
-  path: operators/helm
+  repoURL: https://github.com/ameideio/ameide-gitops.git
+  path: sources/charts/platform/ameide-operators
   version: main
   skipCrds: true  # CRDs already installed in phase 010
 syncOptions:
@@ -177,7 +180,7 @@ Phase 100+: Environment workloads (dev, staging, production)
     └─ Domain/Process/Agent/UISurface CRs in ameide-{env} namespaces
 ```
 
-#### Helm Chart Values for CRD-Only Mode
+#### Helm Chart Values (Implemented)
 
 ```yaml
 # sources/values/_shared/cluster/crds-ameide.yaml

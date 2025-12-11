@@ -364,12 +364,62 @@ kubectl apply -f operators/helm/examples/
 
 ---
 
-## 7.5 Phase F-G: GitOps, Sample CR (Pending)
+## 7.5 Phase F: GitOps Integration ✅ IMPLEMENTED
 
-| Phase | Deliverable | Status |
-|-------|-------------|--------|
-| **F** | ArgoCD Application in gitops repo | Pending |
-| **G** | Sample Domain CR in `envs/dev/primitives/domain/` | Pending |
+> **Implementation**: See [ameide-gitops/environments/_shared/components/cluster/](https://github.com/ameideio/ameide-gitops)
+
+The GitOps integration deploys operators using the cluster-scoped ApplicationSet pattern:
+
+### 7.5.1 Components Created
+
+| Component | Path | rolloutPhase |
+|-----------|------|--------------|
+| **CRDs** | `environments/_shared/components/cluster/crds/ameide/` | 010 |
+| **Operators** | `environments/_shared/components/cluster/operators/ameide-operators/` | 020 |
+
+### 7.5.2 Helm Chart Location
+
+Chart copied to `sources/charts/platform/ameide-operators/` with:
+- Domain, Process, Agent, UISurface operator Deployments
+- Shared ClusterRole and ServiceAccount
+- `crdsOnly` mode for CRD/operator separation
+- Security contexts, resource limits
+
+### 7.5.3 Values Files
+
+| File | Purpose |
+|------|---------|
+| `sources/values/_shared/cluster/crds-ameide.yaml` | `crdsOnly: true` for CRD installation |
+| `sources/values/_shared/cluster/ameide-operators.yaml` | Full operator configuration |
+
+### 7.5.4 Acceptance Criteria (Phase F) ✅
+
+- [x] CRD component created at rolloutPhase 010
+- [x] Operator component created at rolloutPhase 020
+- [x] Helm chart copied to ameide-gitops
+- [x] Values files created for both modes
+- [x] Components follow existing Strimzi/CNPG pattern
+
+---
+
+## 7.6 Phase G: Sample CR ✅ IMPLEMENTED
+
+> **Implementation**: See [operators/helm/examples/](../operators/helm/examples/) (also in gitops chart)
+
+Sample CRs are included in the Helm chart at `examples/`:
+
+| File | Description |
+|------|-------------|
+| `domain-sample.yaml` | Sample Domain CR with gRPC service |
+| `process-sample.yaml` | Sample Process CR for Temporal worker |
+| `agent-sample.yaml` | Sample Agent CR with LLM config |
+| `uisurface-sample.yaml` | Sample UISurface CR for Next.js app |
+
+### Acceptance Criteria (Phase G) ✅
+
+- [x] Sample CRs exist in Helm chart examples/
+- [x] `kubectl apply -f examples/domain-sample.yaml` creates CR
+- [x] Operator reconciles sample CR successfully
 
 ---
 
