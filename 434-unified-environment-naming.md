@@ -99,38 +99,66 @@ metadata:
 
 ### GitOps Repository Structure
 
+> **Updated 2025-12-11**: Refactored to use Git file generators for cluster config and 6-layer values.
+> See [config/README.md](../config/README.md) and [sources/values/README.md](../sources/values/README.md).
+
 ```
 ameide-gitops/
 ├── argocd/                              # Cluster-level ArgoCD config
 │   ├── applicationsets/
-│   │   └── ameide.yaml                  # Single ApplicationSet for ALL environments
-│   ├── projects/
-│   │   ├── apps.yaml                    # Shared project definitions
-│   │   ├── platform.yaml
-│   │   └── data-services.yaml
-│   └── kustomization.yaml
+│   │   ├── ameide.yaml                  # Environment-scoped (env × component)
+│   │   └── cluster.yaml                 # Cluster-scoped (operators, CRDs)
+│   ├── base/                            # Kustomize base
+│   │   └── kustomization.yaml
+│   ├── overlays/                        # Cluster-specific overlays
+│   │   ├── azure/                       # AKS: config/clusters/azure.yaml
+│   │   └── local/                       # k3d: config/clusters/local.yaml
+│   └── projects/
+│
+├── config/                              # Data-driven cluster configuration
+│   ├── clusters/                        # One file per cluster
+│   │   ├── azure.yaml                   # dev, staging, production envs
+│   │   └── local.yaml                   # local env only
+│   └── node-profiles/                   # Scheduling constraints
+│       ├── dev-pool.yaml                # nodeSelector + tolerations
+│       ├── staging-pool.yaml
+│       ├── prod-pool.yaml
+│       └── none.yaml                    # Empty (for k3d)
+│
 ├── environments/
 │   └── _shared/
 │       └── components/                  # Shared component definitions
 │           ├── apps/
 │           ├── data/
 │           ├── foundation/
-│           └── platform/
+│           ├── observability/
+│           ├── platform/
+│           └── cluster/                 # Cluster-scoped components
+│
 └── sources/
     ├── charts/                          # Helm charts
-    └── values/
-        ├── _shared/                     # Shared values across environments
-        ├── dev/
-        │   └── globals.yaml             # namespace: ameide-dev
-        ├── staging/
-        │   └── globals.yaml             # namespace: ameide-staging
-        └── production/
-            └── globals.yaml             # namespace: ameide-prod
+    └── values/                          # 6-layer values architecture
+        ├── base/                        # Layer 1: Cluster-agnostic defaults
+        │   └── globals.yaml
+        ├── cluster/                     # Layer 2: Cluster-specific
+        │   ├── azure/globals.yaml       # Azure tenant, storage class
+        │   └── local/globals.yaml       # k3d config
+        ├── env/                         # Layer 3: Environment-specific
+        │   ├── dev/globals.yaml
+        │   ├── staging/globals.yaml
+        │   ├── production/globals.yaml
+        │   └── local/globals.yaml
+        ├── _shared/                     # Layer 5: Component defaults
+        └── {env}/                       # Layer 6: Env-specific overrides
 ```
+
+> **Note**: Layer 4 (node profiles) is in `config/node-profiles/` to keep scheduling constraints out of environment values.
 
 ### Single Parametrized ApplicationSet
 
-Instead of duplicating ApplicationSet files per environment, a **single ApplicationSet** generates Applications for all environments:
+> **Updated 2025-12-11**: Now uses Git file generator to read cluster config from YAML files.
+
+The ApplicationSet uses a **matrix generator** with a Git file generator (not a list):
 
 ```yaml
 # argocd/applicationsets/ameide.yaml
@@ -143,38 +171,55 @@ spec:
   generators:
     - matrix:
         generators:
-          - list:
-              elements:
-                - env: dev
-                  namespace: ameide-dev
-                - env: staging
-                  namespace: ameide-staging
-                - env: production
-                  namespace: ameide-prod
+          # Git generator reads cluster config (with environments array)
           - git:
               repoURL: https://github.com/ameideio/ameide-gitops.git
               revision: main
               files:
-                - path: environments/_shared/components/**/component.yaml
+                - path: config/clusters/azure.yaml  # Patched by overlay for local
+          # Component definitions
+          - git:
+              repoURL: https://github.com/ameideio/ameide-gitops.git
+              revision: main
+              files:
+                - path: environments/_shared/components/apps/**/component.yaml
+                - path: environments/_shared/components/data/**/component.yaml
+                # ... etc
   template:
     metadata:
       name: '{{ .env }}-{{ .name }}'
     spec:
       destination:
-        namespace: '{{ .namespace }}'  # From list generator
+        namespace: '{{ .namespace }}'  # From cluster config
       sources:
         - helm:
             valueFiles:
-              - '$values/sources/values/{{ .env }}/globals.yaml'
+              # 6-layer values architecture
+              - '$values/sources/values/base/globals.yaml'
+              - '$values/sources/values/cluster/{{ .clusterType }}/globals.yaml'
+              - '$values/sources/values/env/{{ .env }}/globals.yaml'
+              - '$values/config/node-profiles/{{ .nodeProfile }}.yaml'
               - '$values/sources/values/_shared/{{ .domain }}/{{ .name }}.yaml'
-              - '$values/sources/values/{{ .env }}/{{ .domain }}/{{ .name }}.yaml'
+              - '$values/sources/values/env/{{ .env }}/{{ .domain }}/{{ .name }}.yaml'
+```
+
+**Cluster config file** (`config/clusters/azure.yaml`):
+```yaml
+- cluster: aks-main
+  clusterType: azure
+  env: dev
+  namespace: ameide-dev
+  nodeProfile: dev-pool
+  domain: dev.ameide.io
+# ... staging, production
 ```
 
 **Benefits:**
-- Zero duplication of ApplicationSet logic
-- Namespace is explicit per environment in the list generator
-- Component.yaml files remain environment-agnostic
-- Adding a new environment = adding one list element
+- **Clusters are data** – Add new cluster by adding a YAML file
+- **Environments per cluster** – Each cluster defines its own environments
+- **Node profiles separate** – Scheduling constraints in dedicated files
+- **6-layer values** – Clean separation: base → cluster → env → nodeProfile → shared → env-specific
+- **Kustomize overlays** – Switch cluster by patching the file path
 
 #### ApplicationSet – Tenant-aware Generator (Future)
 

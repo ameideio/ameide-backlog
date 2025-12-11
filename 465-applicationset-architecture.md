@@ -66,19 +66,17 @@ Ameide uses **two ApplicationSets** to manage all deployments. Understanding the
 
 #### Generator: Matrix (Environments × Components)
 
+> **Updated 2025-12-11**: Now uses Git file generator for environments instead of hardcoded list.
+> Cluster configs live in `config/clusters/*.yaml`, selected by Kustomize overlay.
+
 ```yaml
 generators:
   - matrix:
       generators:
-        # List generator: 3 environments
-        - list:
-            elements:
-              - env: dev
-                namespace: ameide-dev
-              - env: staging
-                namespace: ameide-staging
-              - env: production
-                namespace: ameide-prod
+        # Git generator: reads cluster config (environments are defined in YAML)
+        - git:
+            files:
+              - path: config/clusters/azure.yaml  # Patched to local.yaml by overlay
         # Git generator: scans for component.yaml files
         - git:
             files:
@@ -87,6 +85,17 @@ generators:
               - path: environments/_shared/components/foundation/**/component.yaml
               - path: environments/_shared/components/observability/**/component.yaml
               - path: environments/_shared/components/platform/**/component.yaml
+```
+
+**Cluster config example** (`config/clusters/azure.yaml`):
+```yaml
+- cluster: aks-main
+  clusterType: azure
+  env: dev
+  namespace: ameide-dev
+  nodeProfile: dev-pool
+  domain: dev.ameide.io
+# ... staging, production entries
 ```
 
 #### How Matrix Multiplication Works
@@ -105,26 +114,33 @@ production  × grafana   = production-grafana
 
 **Result**: Each component in `apps/`, `data/`, `foundation/`, `observability/`, or `platform/` generates **3 Applications** (one per environment).
 
-#### Values Resolution Order
+#### Values Resolution Order (6 Layers)
 
-For `dev-plausible`:
+> **Updated 2025-12-11**: Now uses 6-layer values with separate cluster and node-profile files.
+
+For `dev-plausible` on Azure:
 
 ```yaml
 valueFiles:
-  - $values/sources/values/dev/globals.yaml                      # 1. Environment globals
-  - $values/sources/values/_shared/observability/plausible.yaml  # 2. Shared values
-  - $values/sources/values/dev/observability/plausible.yaml      # 3. Environment override
+  - $values/sources/values/base/globals.yaml                     # 1. Cluster-agnostic defaults
+  - $values/sources/values/cluster/azure/globals.yaml            # 2. Cluster-specific
+  - $values/sources/values/env/dev/globals.yaml                  # 3. Environment-specific
+  - $values/config/node-profiles/dev-pool.yaml                   # 4. Scheduling constraints
+  - $values/sources/values/_shared/observability/plausible.yaml  # 5. Shared values
+  - $values/sources/values/env/dev/observability/plausible.yaml  # 6. Environment override
 ```
 
 All files use `ignoreMissingValueFiles: true`, so optional overrides don't cause errors.
 
 #### Namespace Assignment
 
-The namespace comes from the **list generator**, NOT the component:
+The namespace comes from the **cluster config file**, NOT the component:
 
 ```yaml
+# config/clusters/azure.yaml
 - env: dev
   namespace: ameide-dev  # ← All dev apps deploy here
+  nodeProfile: dev-pool  # ← Used for layer 4
 ```
 
 This means ALL environment-scoped components in an environment share the same namespace.
