@@ -96,15 +96,18 @@ Reference implementation: [497 §10.3](497-operator-implementation-patterns.md#1
 
 **Helm chart**: Operators deployable via unified chart at `operators/helm/`
 
-### Phase 2: Database Integration
+### Phase 2: Database Integration ✅ IMPLEMENTED
 
-| Task | Description | Acceptance Criteria |
-|------|-------------|---------------------|
-| **Migration Job** | Create Job running `migrationJobImage` | Job appears, runs Flyway/similar |
-| **CNPG secret injection** | Mount CNPG credentials into Job | Job can connect to Postgres |
-| **Migration status** | Set `DBReady`, `MigrationSucceeded`/`MigrationFailed` | Condition reflects Job status |
-| **Migration version tracking** | Extract version from Job logs/output | `status.dbMigrationVersion` populated |
-| **Schema cleanup on delete** | Optional: drop schema on Domain deletion | Schema dropped when retention policy allows |
+> **Implementation**: See [operators/domain-operator/internal/controller/reconcile_db.go](../operators/domain-operator/internal/controller/reconcile_db.go)
+
+| Task | Description | Status |
+|------|-------------|--------|
+| **Migration Job** | Create Job running `migrationJobImage` | ✅ `reconcileMigrationJob()` |
+| **CNPG secret injection** | Mount CNPG credentials into Job | ✅ `buildMigrationJob()` |
+| **Migration status** | Set `DBReady`, `MigrationSucceeded`/`MigrationFailed` | ✅ `handleExistingMigrationJob()` |
+| **DB credentials in Deployment** | Inject PGHOST/PGUSER/etc into Domain Deployment | ✅ `getDBEnvVars()` |
+| **Migration version tracking** | Extract version from Job logs/output | ⏳ Deferred (requires Job log parsing) |
+| **Schema cleanup on delete** | Optional: drop schema on Domain deletion | ⏳ Deferred (configurable per-environment) |
 
 ### Phase 3: Production Readiness
 
