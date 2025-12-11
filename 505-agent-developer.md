@@ -20,9 +20,9 @@
 |------------|-------|-----------------------|
 | **Agent primitive plumbing** | ✅ | Agent CRD/operator Helm/GitOps bundles were refreshed (see `operators/helm/crds/ameide.io_agents.yaml`, `gitops/ameide-gitops/sources/charts/platform/ameide-operators/crds/ameide.io_agents.yaml`) so `definitionRef`/tooling fields in this backlog are available cluster-wide. Demo assets live under `gitops/.../primitives/agent/core-platform-coder.yaml` + `scripts/demo-agent-slice.sh`. |
 | **CLI guardrails + prompts** | ✅ | `packages/ameide_core_cli/internal/commands/primitive.go` ships `--repo-root/--gitops-root/--mode` plumbing plus naming/security/EDA/test heuristics for `verify --mode all`, and `primitive_prompt.go` + `prompts/agent/default.md` now instruct agents to run the full guardrail loop via the devcontainer tool. |
-| **LangGraph coder DAG** | ⚠️ Partial | `services/agent_runtime_langgraph/src/agent_runtime_langgraph/coder/agent.py` registers the `core-platform-coder` runtime and drives the `develop_in_container` tool, but it still executes as a single tool call (no explicit LangGraph DAG nodes or multi-step plan). Transformation AgentDefinitions with `runtime_type=langgraph` remain TODO. |
+| **LangGraph coder DAG** | ⚠️ Partial | `services/agent_runtime_langgraph/src/agent_runtime_langgraph/coder/agent.py` registers the `core-platform-coder` runtime and now loads `runtime_type=langgraph` / `dag_ref` metadata surfaced by the Agent operator (`operators/agent-operator/internal/controller/agent_controller.go`), but the DAG still executes the guardrail loop as a single tool invocation. Multi-node LangGraph orchestration remains open. |
 | **Devcontainer gRPC service** | ✅ | `services/devcontainer_service` exposes `POST /v1/develop` (packaged inside `ghcr.io/ameide/devcontainer-service`), and `gitops/.../platform/platform-devcontainer-service.yaml` wires the Deployment/Service + ExternalSecret (`platform-devcontainer-agent-token`) via the new `platform-devcontainer-service` component. |
-| **develop_in_container tool** | ✅ | `services/inference/src/inference_service/tools/devcontainer/develop_in_container/tool.py` registers the tool, enforces repo/command arguments, streams logs back to LangGraph, and the default agent prompt now calls it whenever a CLI command needs to run inside the devcontainer. |
+| **develop_in_container tool** | ✅ | `services/agent_runtime_langgraph/src/agent_runtime_langgraph/tools/develop_in_container.py` registers the tool, enforces repo/command arguments, streams logs back to LangGraph, and the default agent prompt now calls it whenever a CLI command needs to run inside the devcontainer. |
 | **Workflow/Temporal metadata** | ⚠️ Partial | **Future automation (Stage‑2)** – backlog/300-400/367-2-agent-orchestration-coding-agent.md tracked the idea of auto-planning/auto-running Coding Agent work via the existing Workflow + Temporal stack. That orchestration layer still lacks methodology metadata (`timebox_ids`, repo adapter policies) and isn’t part of the LangGraph/devcontainer slice; keep the row as a reminder that the governance/attestation automation remains open downstream. |
 
 > Keep this table in sync with backlog/504 and 502 snapshots so platform/agent teams can see exactly what’s implemented. The workflow/Temporal row references the historical Stage‑2 automation plan (`367-2-agent-orchestration-coding-agent.md`); that document remains as a governance/auto-plan blueprint, not as a dependency for the LangGraph/devcontainer runtime described here.
@@ -152,6 +152,8 @@ AgentDefinition:
 
 Transformation remains the **design-time owner**; promotion & risk governance live there.
 
+**Implementation status:** The AgentDefinition schema + migration now include `runtime_type`, `dag_ref`, `scope`, `risk_tier`, and tool grants (`db/flyway/sql/transformation/V2__agent_definitions.sql`, `services/transformation/src/transformations/service.ts:672-845`). The Agent operator fetches these definitions through the Go SDK and mounts the serialized JSON alongside the basic ID/tenant metadata for runtimes to consume (`operators/agent-operator/internal/controller/agent_controller.go`).
+
 #### 4.2 Agent runtime (coder)
 
 A standard Agent runtime service:
@@ -219,6 +221,8 @@ Security:
 * Service must be configured **per repo / tenant**; no free‑for‑all shell.
 * No cluster credentials inside the devcontainer; everything goes via Git hosting and CI/CD.
 
+**Implementation status:** The platform devcontainer Deployment/Service plus ExternalSecret wiring live under `gitops/ameide-gitops/sources/values/_shared/platform/platform-devcontainer-service.yaml`, and the `core-platform-coder` Agent manifest (`gitops/ameide-gitops/sources/values/_shared/platform/agents/core-platform-coder.yaml`) binds to the `develop_in_container` grant so LangGraph runtimes can reach the gRPC endpoint.
+
 #### 4.4 `develop_in_container` tool
 
 From LangGraph’s perspective, this is just a tool that:
@@ -250,7 +254,7 @@ Mapping to gRPC is hidden behind the Agent runtime’s tool adapter layer.
 
 #### 4.5 Implementation status (2025‑02)
 
-* **Tool runtime.** `services/inference/src/inference_service/tools/devcontainer/develop_in_container/tool.py`
+* **Tool runtime.** `services/agent_runtime_langgraph/src/agent_runtime_langgraph/tools/develop_in_container.py`
   registers the LangChain tool. It reads the guardrail command list that LangGraph hands it, then:
   * Calls the remote devcontainer service via HTTP/JSON when `DEVELOP_IN_CONTAINER_ENDPOINT` +
     `DEVELOP_IN_CONTAINER_TOKEN` are present (timeouts configurable via `DEVELOP_IN_CONTAINER_TIMEOUT`).

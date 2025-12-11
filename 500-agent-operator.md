@@ -31,7 +31,7 @@ kind: Agent
 metadata:
   name: core-platform-coder
 spec:
-  image: ghcr.io/ameide/agent-langgraph:2.1.0
+  image: ghcr.io/ameide/agent-runtime-langgraph:2.1.0
   definitionRef:
     id: core-platform-coder-v4
     tenantId: t123
@@ -81,6 +81,8 @@ Backlog [505-agent-developer.md](505-agent-developer.md) introduces `runtime_typ
 * **Spec propagation.** When the Transformation domain resolves an AgentDefinition that includes `runtime_type=langgraph`, the operator must surface the referenced DAG module/image to the runtime Deployment (env vars or ConfigMap). This keeps the runtime controller generic while enabling LangGraph to build the DAG defined in Transformation.
 * **Tool grants.** `develop_in_container` is treated like any other tool grant, but it is automatically `riskTier=high`. The existing policy validation (Phase 3) should reject Agent CRs that request `develop_in_container` without `spec.riskTier=high` or without the platform-approved devcontainer service configuration.
 * **Runtime service wiring.** For LangGraph coder agents, `reconcileRuntime()` needs to include Service annotations or env vars that point at the devcontainer gRPC endpoint deployed via GitOps. Document this under Phase 3/4 artifacts so the ApplicationSet that deploys the devcontainer service stays in sync with the Agent operator rollout described in backlog 504.
+
+**Implementation status:** `internal/controller/agent_controller.go` now calls Transformation via the Go SDK, writes the resolved AgentDefinition (including `runtime_type`, `dag_ref`, `scope`, and `risk_tier`) into the definition ConfigMap as `definition.json`, and rejects LangGraph tool requests that violate the risk-tier guardrails (`sharedv1.ConditionDefinitionResolved`, `ConditionPolicyCompliant`). The operator Deployment exposes env vars for the Transformation address/token so GitOps overlays can point at the right service endpoint.
 
 ---
 
@@ -165,10 +167,10 @@ type AgentStatus struct {
 
 | Task | Description | Acceptance Criteria |
 |------|-------------|---------------------|
-| **Transformation client** | gRPC client to fetch AgentDefinition | Can call `GetAgentDefinition` RPC |
-| **Definition fetching** | `reconcileDefinition()` fetches by ID | Definition retrieved |
-| **Definition as ConfigMap** | Store definition for agent runtime | Agent can read definition |
-| **DefinitionResolved condition** | Set based on fetch success | Condition reflects definition state |
+| **Transformation client** | ✅ gRPC client to fetch AgentDefinition | Operator dials Transformation via the Go SDK with env-configurable address/token (`operators/agent-operator/cmd/main.go`). |
+| **Definition fetching** | ✅ `reconcileDefinition()` fetches by ID | `internal/controller/agent_controller.go` fetches definitions per reconcile. |
+| **Definition as ConfigMap** | ✅ Store definition for agent runtime | Definition metadata + serialized proto stored under `definition.json` for runtime mounts. |
+| **DefinitionResolved condition** | ✅ Set based on fetch success | Condition now reflects Transformation sync outcome. |
 
 ### Phase 5: Production Readiness
 
