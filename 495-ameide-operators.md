@@ -433,11 +433,13 @@ ameide-core/
     process-operator/
     agent-operator/
     uisurface-operator/
-  charts/
-    ameide-operators/           # umbrella Helm chart for all 4 operators
+    shared/                     # Shared Go types (conditions)
+    helm/                       # Helm chart for all 4 operators
       Chart.yaml
       values.yaml
-      templates/...
+      crds/                     # CRD manifests (copied from operator config/)
+      templates/
+      examples/                 # Sample CRs for testing
 ```
 
 ### 6.2 CI Pipeline (Core Repo)

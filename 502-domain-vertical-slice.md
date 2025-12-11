@@ -91,9 +91,9 @@ This vertical slice spans **two repositories**:
 │  ameide-core (core repo)                                                │
 │  ────────────────────────                                               │
 │  • operators/domain-operator/     ← CRD types, reconciler, Makefile     │
+│  • operators/helm/                ← Helm chart for all operators        │
 │  • packages/ameide_core_cli/      ← CLI commands                        │
 │  • packages/ameide_core_proto/    ← Proto message definitions           │
-│  • charts/ameide-operators/       ← Helm chart templates                │
 │                                                                         │
 │  What lives here: Implementation code, build artifacts, tests           │
 └─────────────────────────────────────────────────────────────────────────┘
@@ -294,13 +294,78 @@ Uses shared vocabulary from `operators/shared/api/v1/conditions.go`:
 
 ---
 
-## 7. Phase E-G: Helm, GitOps, Sample CR (Pending)
+## 7. Phase E: Helm Chart ✅ IMPLEMENTED
 
-See [498-domain-operator.md](498-domain-operator.md) Phases 3-4 for detailed tasks.
+> **Implementation**: See [operators/helm/](../operators/helm/)
+
+The unified Helm chart deploys all four primitive operators from a single installation.
+
+### 7.1 Chart Structure
+
+```
+operators/helm/
+├── Chart.yaml              # Chart metadata (v0.1.0)
+├── values.yaml             # Default values for all operators
+├── crds/                   # CRDs (auto-installed by Helm)
+│   ├── ameide.io_domains.yaml
+│   ├── ameide.io_processes.yaml
+│   ├── ameide.io_agents.yaml
+│   └── ameide.io_uisurfaces.yaml
+├── templates/
+│   ├── _helpers.tpl
+│   ├── serviceaccount.yaml
+│   ├── clusterrole.yaml
+│   ├── clusterrolebinding.yaml
+│   ├── domain-operator-deployment.yaml
+│   ├── process-operator-deployment.yaml
+│   ├── agent-operator-deployment.yaml
+│   ├── uisurface-operator-deployment.yaml
+│   └── NOTES.txt
+└── examples/               # Sample CRs for testing
+    ├── domain-sample.yaml
+    ├── process-sample.yaml
+    ├── agent-sample.yaml
+    └── uisurface-sample.yaml
+```
+
+### 7.2 Key Features
+
+- **Single chart for all operators**: Each operator can be enabled/disabled independently
+- **Shared RBAC**: One ClusterRole covers all four primitive CRDs
+- **CRDs in /crds folder**: Helm installs CRDs before templates
+- **Security by default**: Non-root, drop ALL capabilities
+- **Health probes**: Liveness/readiness on all operators
+
+### 7.3 Usage
+
+```bash
+# Install all operators
+helm install ameide ./operators/helm -n ameide-system --create-namespace
+
+# Install only domain operator
+helm install ameide ./operators/helm \
+  --set operators.process.enabled=false \
+  --set operators.agent.enabled=false \
+  --set operators.uisurface.enabled=false
+
+# Test with sample CRs
+kubectl apply -f operators/helm/examples/
+```
+
+### 7.4 Acceptance Criteria (Phase E) ✅
+
+- [x] `helm lint` passes
+- [x] `helm template` renders valid manifests
+- [x] All four operator Deployments rendered
+- [x] ClusterRole covers all AMEIDE CRDs
+- [x] CRDs copied from operator config/crd/bases
+
+---
+
+## 7.5 Phase F-G: GitOps, Sample CR (Pending)
 
 | Phase | Deliverable | Status |
 |-------|-------------|--------|
-| **E** | Helm chart in `charts/ameide-operators/` | Pending |
 | **F** | ArgoCD Application in gitops repo | Pending |
 | **G** | Sample Domain CR in `envs/dev/primitives/domain/` | Pending |
 
