@@ -1,7 +1,7 @@
 # 444 – Terraform Infrastructure
 
 **Created**: 2025-12-04
-**Updated**: 2025-12-10
+**Updated**: 2025-12-11
 
 > **Related documents:**
 > - [439-deploy-infrastructure.md](439-deploy-infrastructure.md) – Deployment flow and scripts
@@ -29,15 +29,18 @@ Terraform-first infrastructure provisioning for multi-cloud deployment. Bicep re
 ## Command Interface
 
 ```bash
-./infra/scripts/deploy.sh [target] -e [environment]
+./infra/scripts/deploy.sh [target]
 
 Targets:
-  azure         Terraform Azure (default)
-  azure-bicep   Bicep for Azure Marketplace only
-  aws           Terraform AWS (future)
-  local         k3d + Terraform (designed, not yet implemented)
-  bootstrap     ArgoCD bootstrap only (any existing cluster)
+  azure            Terraform Azure (default, always renders dev/staging/prod namespaces)
+  azure-bicep      Bicep for Azure Marketplace only
+  aws              Terraform AWS (future)
+  local            k3d + Terraform (implemented)
+  bootstrap-azure  ArgoCD bootstrap for an existing Azure cluster
+  bootstrap-local  ArgoCD bootstrap for an existing local k3d cluster
 ```
+
+Targets no longer accept a `-e` flag because a single cluster hosts all namespaces. Use the dedicated `bootstrap-*` targets to run only the ArgoCD step.
 
 ## Architecture
 
@@ -60,59 +63,47 @@ ameide-gitops/
 │   │   │   ├── azure-keyvault/    # Key Vault + secrets
 │   │   │   ├── azure-dns/         # DNS zones + records
 │   │   │   ├── azure-identity/    # Managed identities + federation
-│   │   │   └── k3d-cluster/       # Local k3d cluster (TF-9)
+│   │   │   ├── k3d-cluster/       # Local k3d cluster (TF-9)
+│   │   │   └── argocd-bootstrap/  # ArgoCD install + GitOps (TF-23/24/25)
 │   │   ├── azure/                 # Azure workspace
 │   │   │   ├── main.tf
 │   │   │   ├── variables.tf
 │   │   │   ├── outputs.tf
 │   │   │   └── terraform.tfvars
 │   │   └── local/                 # Local k3d workspace (TF-9)
-│   │       ├── main.tf
+│   │       ├── main.tf            # Includes data.external for .env reading
 │   │       ├── variables.tf
-│   │       ├── outputs.tf
+│   │       ├── outputs.tf         # Includes argocd_credentials
 │   │       └── versions.tf
 │   ├── bicep/                     # Azure Marketplace ONLY
 │   │   └── managed-application/
 │   └── scripts/
 │       ├── deploy.sh              # Main entry point
-│       └── deploy-bicep.sh        # Bicep deployment
+│       ├── deploy-bicep.sh        # Bicep deployment
+│       └── lib/
+│           └── env.sh             # Shared env loading helper (TF-26)
 └── sources/                       # Helm charts + values
 ```
 
 ### State Management
 
-The Terraform backend storage is **auto-created** by `deploy.sh` if it doesn't exist:
+Terraform in this repo still uses **local state** (see `infra/terraform/azure/versions.tf`). The remote azurerm backend is designed but not yet configured, and `infra/scripts/deploy.sh` does not provision the storage resources or inject backend configuration. Until TF-10/TF-14 are implemented, local `terraform.tfstate` stays inside `infra/terraform/azure/`.
 
-```bash
-# Backend storage configuration (can be overridden via environment variables)
-TF_STATE_RG="ameide-tfstate"           # Resource group
-TF_STATE_SA="ameidetfstate"            # Storage account
-TF_STATE_CONTAINER="tfstate"           # Blob container
-TF_STATE_LOCATION="westeurope"         # Location
-
-# deploy.sh automatically:
-# 1. Creates resource group if missing
-# 2. Creates storage account with TLS 1.2, no public blob access
-# 3. Creates container with Azure AD auth
-# 4. Assigns Storage Blob Data Contributor role to current user
-```
-
-```hcl
-# Azure backend (infra/terraform/azure/versions.tf)
-terraform {
-  backend "azurerm" {
-    resource_group_name  = "ameide-tfstate"
-    storage_account_name = "ameidetfstate"
-    container_name       = "tfstate"
-    key                  = "azure.tfstate"
-    use_azuread_auth     = true  # No storage keys needed
-  }
-}
-```
-
-> **Auth requirement**: Requires Azure CLI login (`az login`) with access to the tfstate storage account and **Storage Blob Data Contributor** role on the container. For CI with GitHub OIDC, can swap to `use_oidc = true`.
-
-> **Current status**: Remote backend designed (TF-14) but not yet wired into `azure/versions.tf`. The azure workspace currently uses local state in devcontainer. Use the example `backend "azurerm"` block above when turning on remote state.
+> Planned remote backend (add to `infra/terraform/azure/versions.tf` when TF-10/TF-14 close):
+>
+> ```hcl
+> terraform {
+>   backend "azurerm" {
+>     resource_group_name  = "ameide-tfstate"
+>     storage_account_name = "ameidetfstate"
+>     container_name       = "tfstate"
+>     key                  = "azure.tfstate"
+>     use_azuread_auth     = true
+>   }
+> }
+> ```
+>
+> The storage account/role assignments still need automation (or manual provisioning) before enabling the block.
 
 ## Deployment Flow
 
@@ -146,43 +137,36 @@ Provisions AKS cluster with environment-specific node pools.
 module "aks" {
   source = "../modules/azure-aks"
 
-  name                = "ameide"
-  resource_group_name = azurerm_resource_group.main.name
-  location            = var.location
+  name                       = local.cluster_name
+  environment                = var.environment
+  location                   = var.location
+  resource_group_name        = data.azurerm_resource_group.main.name
+  kubernetes_version         = var.kubernetes_version
+  aad_tenant_id              = var.aad_tenant_id
+  admin_group_object_ids     = var.admin_group_object_ids
+  user_assigned_identity_id  = module.aks_identity.id
+  log_analytics_workspace_id = azurerm_log_analytics_workspace.main.id
+  linux_admin_public_key     = var.linux_admin_public_key
 
-  node_pools = {
-    system = {
-      vm_size    = "Standard_D4as_v6"
-      node_count = 2
-      taints     = ["CriticalAddonsOnly=true:NoSchedule"]
-    }
-    dev = {
-      vm_size   = "Standard_D2as_v6"
-      min_count = 0
-      max_count = 2
-      labels    = { "ameide.io/pool" = "dev" }
-      taints    = ["ameide.io/environment=dev:NoSchedule"]
-    }
-    staging = {
-      vm_size   = "Standard_D2as_v6"
-      min_count = 0
-      max_count = 2
-      labels    = { "ameide.io/pool" = "staging" }
-      taints    = ["ameide.io/environment=staging:NoSchedule"]
-    }
-    prod = {
-      vm_size   = "Standard_D4as_v6"
-      min_count = 3
-      max_count = 8
-      labels    = { "ameide.io/pool" = "prod" }
-      taints    = ["ameide.io/environment=production:NoSchedule"]
-    }
-  }
+  # Pool settings are individual variables, not a map
+  system_pool_vm_size = "Standard_D4as_v6"
+  system_pool_count   = 2
 
-  enable_workload_identity = true
-  enable_oidc_issuer       = true
+  dev_pool_vm_size   = "Standard_D2as_v6"
+  dev_pool_min_count = 2
+  dev_pool_max_count = 5
+
+  staging_pool_vm_size   = "Standard_D2as_v6"
+  staging_pool_min_count = 2
+  staging_pool_max_count = 5
+
+  prod_pool_vm_size   = "Standard_D4as_v6"
+  prod_pool_min_count = 3
+  prod_pool_max_count = 8
 }
 ```
+
+The module always enables workload identity/oidc and exposes taints/labels internally, so consumers do not need feature flags for those settings.
 
 ### azure-identity
 
@@ -197,9 +181,8 @@ module "dns_identity" {
 
   federated_credentials = {
     cert-manager = {
-      issuer    = module.aks.oidc_issuer_url
-      namespace = "cert-manager"
-      service_account = "cert-manager"
+      issuer  = module.aks.oidc_issuer_url
+      subject = "system:serviceaccount:argocd:argocd-cert-manager"
     }
   }
 
@@ -211,6 +194,8 @@ module "dns_identity" {
   }
 }
 ```
+
+`federated_credentials` keys map to direct OIDC subjects; the module does not accept `namespace`/`service_account` fields.
 
 ### k3d-cluster
 
@@ -233,15 +218,16 @@ module "k3d" {
 }
 ```
 
+`deploy.sh local` already provisions this workspace: it ensures Docker is running, creates the `ameide-network` bridge if needed, applies Terraform, and then runs the normal bootstrap flow.
+
 **Design decisions:**
 - **Provider**: `moio/k3d` v0.0.12 (shell fallback only if provider fails)
-- **Secrets**: Same Azure Key Vault chain as cloud targets
+- **Secrets**: The local Terraform workspace reads `.env` (or exported env vars) through `data.external` to supply `GITHUB_TOKEN`; infrastructure does not create Azure resources when targeting local-only flows.
 - **Registry**: GHCR (no local registry)
 - **Traefik**: Disabled (we use Envoy Gateway)
 - **Kubeconfig**: Auto-updated via provider (`update_default_kubeconfig = true`)
 
 **What stays the same:**
-- Secrets chain: `.env → AKV → vault-bootstrap → Vault → K8s Secrets`
 - Bootstrap flow: ArgoCD + ApplicationSets
 - Image registry: GHCR
 
@@ -254,10 +240,11 @@ module "k3d" {
 Location: `infra/scripts/deploy.sh`
 
 ```bash
-./infra/scripts/deploy.sh azure -e dev        # Terraform + bootstrap
-./infra/scripts/deploy.sh azure-bicep -e dev  # Bicep + bootstrap
-./infra/scripts/deploy.sh local -e dev        # k3d + bootstrap (TF-9)
-./infra/scripts/deploy.sh bootstrap           # Bootstrap only
+./infra/scripts/deploy.sh azure           # Terraform + bootstrap
+./infra/scripts/deploy.sh azure-bicep     # Bicep + bootstrap
+./infra/scripts/deploy.sh local           # k3d + bootstrap
+./infra/scripts/deploy.sh bootstrap-azure # Bootstrap only (Azure)
+./infra/scripts/deploy.sh bootstrap-local # Bootstrap only (local)
 ```
 
 The script orchestrates:
@@ -290,7 +277,6 @@ The script orchestrates:
 ### Phase 4: Future Targets
 
 - [ ] AWS EKS module
-- [ ] Local k3d configuration
 - [ ] GCP GKE module (if needed)
 
 ## Terraform vs Bicep Feature Mapping
@@ -307,21 +293,56 @@ The script orchestrates:
 
 ## Outputs
 
-Both Terraform and Bicep produce identical outputs for bootstrap:
+Terraform (`infra/terraform/azure/outputs.tf`) now exposes the same normalized keys as Bicep, including per-environment maps that bootstrap consumes:
 
 ```hcl
-output "aks_cluster_name" { value = module.aks.name }
-output "aks_oidc_issuer" { value = module.aks.oidc_issuer_url }
-output "keyvault_uri" { value = module.keyvault.vault_uri }
-output "dns_identity_client_id" { value = module.dns_identity.client_id }
-output "envoy_public_ip" { value = azurerm_public_ip.envoy.ip_address }
+output "envoy_public_ips" {
+  value = {
+    for ns in local.env_namespaces : ns => {
+      address     = azurerm_public_ip.envoy[ns].ip_address
+      resource_id = azurerm_public_ip.envoy[ns].id
+    }
+  }
+}
+
+output "dns_identity_client_ids" {
+  value = {
+    for env, identity in module.dns_identity : env => identity.client_id
+  }
+}
+
+output "backup" {
+  value = {
+    for env in local.env_namespaces : env => {
+      storage_account_name  = var.enable_backup_storage ? azurerm_storage_account.backup[env].name : ""
+      blob_endpoint         = var.enable_backup_storage ? azurerm_storage_account.backup[env].primary_blob_endpoint : ""
+      identity_client_id    = var.enable_backup_storage ? module.backup_identity[env].client_id : ""
+      identity_principal_id = var.enable_backup_storage ? module.backup_identity[env].principal_id : ""
+    }
+  }
+}
+
+output "environment_dns_zone" {
+  value = local.environment_dns_zone
+}
 ```
 
-Outputs written to `artifacts/terraform-outputs/azure.json` for bootstrap consumption.
+`infra/scripts/test-iac-consistency.sh` validates that the Terraform and Bicep schemas remain aligned. `deploy.sh azure` writes Terraform outputs to `artifacts/terraform-outputs/azure.json` for bootstrap consumption.
 
 ## Secrets Seeding from .env
 
-The `deploy.sh` script automatically seeds secrets from `.env` and `.env.local` to Azure Key Vault during Terraform deployment. See [451-secrets-management.md](451-secrets-management.md) for the complete flow.
+The `deploy.sh` script automatically seeds secrets from `.env` and `.env.local` to Azure Key Vault during the **Azure** Terraform deployment. The `local` target does not push anything into Key Vault; instead, `infra/terraform/local/main.tf` reads `GITHUB_TOKEN` via a `data.external` helper that falls back to `.env`. See [451-secrets-management.md](451-secrets-management.md) for the complete cloud secret flow.
+
+### Local-only bootstrap (planned)
+
+Problem: even when running `deploy.sh local`, ArgoCD still deploys `foundation-vault-bootstrap` in Azure mode and expects an Azure Key Vault populated with sanitized secrets. This breaks offline/local-only workflows.
+
+Refactor plan:
+1. Extend `foundation-vault-bootstrap` values with a `secretSource` switch: `azure` retains the managed identity + Key Vault CSI setup; `local` mounts a standard Kubernetes secret (`vault-bootstrap-local-secrets`) and skips Azure identity bits entirely.
+2. Teach `deploy.sh local` to call a helper (e.g. `infra/scripts/seed-local-secrets.sh`) after Terraform completes. The helper reuses the `.env` parsing/sanitization logic and materializes a secret in k3d (`kubectl create secret ... --dry-run=client | kubectl apply -f -`).
+3. Document the local secret keys so platform teams know which `.env` values feed which Vault paths.
+
+Result: pure local deployments no longer require any Azure resources, while Azure targets continue to rely on Key Vault.
 
 ### How It Works
 
@@ -383,11 +404,11 @@ azure:
 - [x] **TF-5**: Create Azure workspace → `infra/terraform/azure/`
 - [x] **TF-6**: Validate parity with Bicep → 33 resources imported
 - [x] **TF-7**: Refactor deploy.sh → `infra/scripts/deploy.sh` with bootstrap integration
-- [x] **TF-10**: Enable remote state backend → designed with `use_azuread_auth`; example in 444, not yet wired into `azure/versions.tf`
+- [ ] **TF-10**: Enable remote state backend → backend block still needs to be added to `infra/terraform/azure/versions.tf` once automation is in place
 - [x] **TF-11**: Normalize output names → 23 outputs now use consistent snake_case across Terraform and Bicep
 - [x] **TF-12**: Add per-env Envoy IPs to Bicep → `main.bicep` now creates 4 IPs (ArgoCD + 3 env-specific)
 - [x] **TF-13**: Create consistency test script → `infra/scripts/test-iac-consistency.sh`
-- [x] **TF-14**: Auto-create backend storage → `deploy.sh` can auto-create RG, storage account, and container; backend block not yet in `azure/versions.tf` → **2025-12-04**
+- [ ] **TF-14**: Auto-create backend storage → `deploy.sh` still needs logic to create the tfstate RG/SA/container and assign roles before TF-10 can be completed → **2025-12-04**
 - [x] **TF-15**: Unify .env loading → `deploy.sh` now loads `.env`/`.env.local` like `deploy-bicep.sh` → **2025-12-04**
 - [x] **TF-16**: Add error trap with line numbers → Better debugging aligned with `deploy-bicep.sh` → **2025-12-04**
 - [x] **TF-17**: Add Key Vault soft-delete recovery → Pre-deployment recovery aligned with Bicep → **2025-12-04**
@@ -396,24 +417,36 @@ azure:
 - [x] **TF-20**: Federated identity credentials per environment → vault-bootstrap can authenticate from ameide-dev/staging/prod namespaces → **2025-12-05**
 - [x] **TF-22**: Add explicit DNS subdomain records → explicit A records (www, platform, api, etc.) override wildcards and must be Terraform-managed → **2025-12-05**
 - [ ] **TF-21**: Clean up legacy `env-*` prefixed secrets from Azure Key Vault (19 secrets) → now using non-prefixed secrets with `secretPrefix: ""`
+- [ ] **TF-23**: Add `secretSource=local` mode to `foundation-vault-bootstrap` so k3d clusters can bootstrap without Azure Key Vault
+- [ ] **TF-24**: Create `infra/scripts/seed-local-secrets.sh` and wire it into `deploy.sh local` to populate `vault-bootstrap-local-secrets`
 - [ ] **TF-8**: AWS EKS module (future)
-- [ ] **TF-9**: Local k3d setup → **designed 2025-12-10**, implementation pending
+- [x] **TF-9**: Local k3d setup → Implemented via `infra/terraform/local/` and `deploy.sh local` target → **2025-12-10**
+- [x] **TF-23**: Auto-read `.env` from Terraform → `data.external.env` reads `GITHUB_TOKEN` directly from `.env` file, no manual `export` required → **2025-12-11**
+- [x] **TF-24**: ArgoCD port-forward on terraform apply → Terraform auto-starts port-forward to `localhost:8443` after ArgoCD install → **2025-12-11**
+- [x] **TF-25**: Expose ArgoCD credentials in terraform output → `terraform output -json argocd_credentials` shows actual password (sensitive) → **2025-12-11**
+- [x] **TF-26**: Unified env loading helper → `infra/scripts/lib/env.sh` provides `load_env_files` with `set -a` for both `deploy.sh` and `deploy-bicep.sh` → **2025-12-11**
 
-## TF-9: Local k3d Target (Design)
+## TF-9: Local k3d Target (Reference)
 
-**Goal**: `deploy.sh local` with same aligned experience as Azure - Terraform manages full lifecycle.
+Implementation lives in `infra/terraform/local/` and the `deploy.sh local` target; the notes below capture the delivered structure.
 
-### Files to Create
+**Goal (shipped)**: `deploy.sh local` with the same aligned experience as Azure - Terraform manages full lifecycle.
+
+### Files Created
 
 | File | Purpose |
 |------|---------|
 | `infra/terraform/modules/k3d-cluster/main.tf` | k3d cluster resource via moio/k3d |
 | `infra/terraform/modules/k3d-cluster/variables.tf` | name, servers, agents, network, ports, k3s_image |
 | `infra/terraform/modules/k3d-cluster/outputs.tf` | cluster name |
-| `infra/terraform/local/main.tf` | Module instantiation |
+| `infra/terraform/modules/argocd-bootstrap/main.tf` | ArgoCD install, GitOps manifests, port-forward |
+| `infra/terraform/modules/argocd-bootstrap/variables.tf` | overlay, namespace, github_token, port_forward_port |
+| `infra/terraform/modules/argocd-bootstrap/outputs.tf` | argocd_url, argocd_admin_password |
+| `infra/terraform/local/main.tf` | Module instantiation + .env reading |
 | `infra/terraform/local/variables.tf` | Local workspace vars |
-| `infra/terraform/local/outputs.tf` | cluster_name, cluster_context |
+| `infra/terraform/local/outputs.tf` | cluster_name, cluster_context, argocd_credentials |
 | `infra/terraform/local/versions.tf` | Local state (no remote backend) |
+| `infra/scripts/lib/env.sh` | Shared env loading helper with `set -a` |
 | `bootstrap/configs/local.yaml` | Bootstrap config for k3d |
 
 ### k3d-cluster Module
@@ -459,21 +492,57 @@ resource "k3d_cluster" "this" {
 }
 ```
 
+### argocd-bootstrap Module
+
+Installs ArgoCD via Helm CLI, applies GitOps manifests, and optionally starts port-forward.
+
+```hcl
+# modules/argocd-bootstrap/main.tf
+module "argocd" {
+  source = "../modules/argocd-bootstrap"
+
+  gitops_root       = var.gitops_root
+  overlay           = "local"               # Kustomize overlay (local, azure)
+  namespace         = "ameide-local"        # Environment namespace
+  github_token      = local.github_token    # For private repo access
+  port_forward_port = 8443                  # 0 to disable
+}
+```
+
+**Outputs:**
+- `argocd_namespace` → "argocd"
+- `argocd_url` → "https://localhost:8443" (if port-forward enabled)
+- `argocd_admin_password` → Actual password (sensitive)
+- `environment_namespace` → The namespace created
+
+**Features (TF-23 to TF-25):**
+- Reads `GITHUB_TOKEN` from environment or `.env` file via `data.external`
+- Auto-starts port-forward on `localhost:8443` (detached process)
+- Exposes actual ArgoCD admin password via `terraform output -json argocd_credentials`
+
 ### deploy.sh local case
 
 ```bash
-local)
-    echo "Deploying local k3d cluster..."
-    docker info > /dev/null 2>&1 || { echo "Docker not running"; exit 1; }
-    docker network inspect ameide-network >/dev/null 2>&1 || \
-        docker network create ameide-network
-    terraform -chdir=infra/terraform/local init
-    terraform -chdir=infra/terraform/local apply -auto-approve
-    ./bootstrap/bootstrap.sh \
-        --config bootstrap/configs/local.yaml \
-        --install-argo \
-        --apply-root-apps
-    ;;
+local_k3d() {
+  log "Deploying local k3d cluster with Terraform"
+  local tf_dir="${REPO_ROOT}/infra/terraform/local"
+
+  if ! docker info > /dev/null 2>&1; then
+    fail "Docker is not running. Please start Docker and try again."
+  fi
+
+  if ! docker network inspect ameide-network >/dev/null 2>&1; then
+    log "Creating Docker network: ameide-network"
+    docker network create ameide-network
+  fi
+
+  cd "${tf_dir}"
+  terraform init -upgrade
+  terraform apply -auto-approve
+  cd "${REPO_ROOT}"
+
+  log "k3d cluster created. Context switched to k3d-ameide"
+}
 ```
 
 ### bootstrap/configs/local.yaml
