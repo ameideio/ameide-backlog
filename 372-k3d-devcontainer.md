@@ -7,6 +7,9 @@
 > - **No Docker-in-Docker** – DevContainer only needs kubectl + telepresence CLI
 >
 > See [435-remote-first-development.md](435-remote-first-development.md) for the current approach.
+>
+> **📌 LOCAL K3D VIA TERRAFORM (2025-12):** For offline/air-gapped scenarios, local k3d is now available
+> via Terraform. See [444-terraform.md](444-terraform.md#local-k3d-deployment) for `./infra/scripts/deploy.sh local`.
 
 # k3d Cluster Vendor Alignment
 

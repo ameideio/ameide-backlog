@@ -1,7 +1,7 @@
 # 444 – Terraform Infrastructure
 
 **Created**: 2025-12-04
-**Updated**: 2025-12-05
+**Updated**: 2025-12-10
 
 > **Related documents:**
 > - [439-deploy-infrastructure.md](439-deploy-infrastructure.md) – Deployment flow and scripts
@@ -35,7 +35,7 @@ Targets:
   azure         Terraform Azure (default)
   azure-bicep   Bicep for Azure Marketplace only
   aws           Terraform AWS (future)
-  local         k3d + Terraform (future)
+  local         k3d + Terraform local dev cluster
   bootstrap     ArgoCD bootstrap only (any existing cluster)
 ```
 
@@ -59,12 +59,17 @@ ameide-gitops/
 │   │   │   ├── azure-aks/         # AKS cluster
 │   │   │   ├── azure-keyvault/    # Key Vault + secrets
 │   │   │   ├── azure-dns/         # DNS zones + records
-│   │   │   └── azure-identity/    # Managed identities + federation
-│   │   └── azure/                 # Azure workspace
+│   │   │   ├── azure-identity/    # Managed identities + federation
+│   │   │   └── k3d-cluster/       # Local k3d cluster module
+│   │   ├── azure/                 # Azure workspace
+│   │   │   ├── main.tf
+│   │   │   ├── variables.tf
+│   │   │   ├── outputs.tf
+│   │   │   └── terraform.tfvars
+│   │   └── local/                 # Local k3d workspace
 │   │       ├── main.tf
 │   │       ├── variables.tf
-│   │       ├── outputs.tf
-│   │       └── terraform.tfvars
+│   │       └── outputs.tf
 │   ├── bicep/                     # Azure Marketplace ONLY
 │   │   └── managed-application/
 │   └── scripts/
@@ -235,8 +240,105 @@ The script orchestrates:
 ### Phase 4: Future Targets
 
 - [ ] AWS EKS module
-- [ ] Local k3d configuration
+- [x] Local k3d configuration
 - [ ] GCP GKE module (if needed)
+
+## Local k3d Deployment
+
+The `local` target creates a k3d cluster for local development using Terraform.
+
+### Usage
+
+```bash
+./infra/scripts/deploy.sh local
+```
+
+### What It Does
+
+1. **Creates Docker network** `ameide-network` (for devcontainer connectivity)
+2. **Runs Terraform** (`infra/terraform/local/`) to create k3d cluster:
+   - 1 server + 2 agents
+   - Ports 80/443 mapped to host
+   - Traefik disabled (uses Envoy Gateway)
+3. **Bootstraps ArgoCD** with local config (`bootstrap/configs/local.yaml`)
+4. **Applies root ApplicationSet** for GitOps
+
+### Local ArgoCD Configuration
+
+The local environment uses `environments/local/argocd/values/argocd-values.yaml` which:
+- Uses public Redis image (avoids GHCR auth chicken-and-egg)
+- Disables imagePullSecrets (no private registry auth needed initially)
+- Single replicas (resource efficiency)
+- Disables ServiceMonitors and NetworkPolicy
+
+Once ExternalSecrets deploys `ghcr-pull` secret, ArgoCD self-manages to GHCR mirror.
+
+### k3d Terraform Module
+
+```hcl
+# infra/terraform/local/main.tf
+module "k3d" {
+  source = "../modules/k3d-cluster"
+
+  name         = "ameide"
+  servers      = 1
+  agents       = 2
+  network_name = "ameide-network"
+  k3s_image    = var.k3s_image
+
+  port_mappings = [
+    { host = 443, container = 443 },
+    { host = 80, container = 80 },
+  ]
+}
+```
+
+### Idempotent Deployment
+
+Running `deploy.sh local` multiple times is safe:
+- Terraform detects existing cluster (no-op if unchanged)
+- Helm upgrades ArgoCD if already installed
+- Bootstrap Application is applied idempotently
+
+### Local Environment File Structure
+
+The local environment follows the same two-location pattern as other environments:
+
+```
+# Bootstrap-time ArgoCD values (used by bootstrap/bootstrap.sh)
+environments/local/argocd/values/argocd-values.yaml
+
+# GitOps-managed component values (used by ApplicationSets)
+sources/values/local/
+├── globals.yaml      # Environment globals
+├── foundation/       # Foundation component values
+├── platform/         # Platform component values
+└── apps/             # Application values
+```
+
+### ArgoCD Access (Local)
+
+ArgoCD runs in insecure mode (HTTP) for local development - TLS would be terminated at gateway.
+
+```bash
+# Port-forward is started automatically by deploy.sh
+# Access: http://localhost:8443
+# Username: admin
+# Password: kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+```
+
+### DevContainer Network Configuration
+
+The devcontainer must be on the `ameide-network` Docker network to communicate with k3d:
+
+```jsonc
+// .devcontainer/devcontainer.json
+"runArgs": ["--init", "--network=ameide-network"],
+"forwardPorts": [8443],
+"portsAttributes": {
+  "8443": { "label": "ArgoCD UI" }
+}
+```
 
 ## Terraform vs Bicep Feature Mapping
 
@@ -340,4 +442,4 @@ azure:
 - [x] **TF-22**: Add explicit DNS subdomain records → explicit A records (www, platform, api, etc.) override wildcards and must be Terraform-managed → **2025-12-05**
 - [ ] **TF-21**: Clean up legacy `env-*` prefixed secrets from Azure Key Vault (19 secrets) → now using non-prefixed secrets with `secretPrefix: ""`
 - [ ] **TF-8**: AWS EKS module (future)
-- [ ] **TF-9**: Local k3d setup (future)
+- [x] **TF-9**: Local k3d setup → `infra/terraform/local/` + `infra/terraform/modules/k3d-cluster/` + `environments/local/argocd/values/` → **2025-12-10**
