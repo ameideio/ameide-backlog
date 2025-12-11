@@ -232,8 +232,8 @@
 | Area | Status | Notes |
 |------|--------|-------|
 | Folder structure | ✅ Documented | `service_catalog/domains/`, `processes/`, `agents/` pattern |
-| Base controllers | ⏳ Not started | `_controller/` base definitions pending |
-| Backstage alignment | ⚠️ Partial | Structure supports templates; templates not implemented |
+| Base primitive definitions | ⏳ Not started | `_primitive/` base definitions pending |
+| Backstage alignment | ✅ Complete | Templates live in `service_catalog/{domains,processes,agents}/_primitive/` |
 
 ### 6.6 Adding New Service (482)
 

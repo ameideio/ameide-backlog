@@ -35,6 +35,13 @@ This guide describes **how we move from the current service topology and legacy 
 
 ---
 
+## Implementation Status (2025-02-14)
+
+- ✅ Proto-first governance is active through the shared Buf workspace and downstream consumers (`packages/ameide_core_proto/buf.yaml:1-20`, `services/transformation/package.json:1-47`).
+- ✅ Knowledge Graph write paths are blocked so operators can rely on the projection boundary while migrating workloads (`services/graph/src/graph/service.ts:118-135`, `services/graph/src/graph/service.ts:4879-4905`).
+- ✅ Backstage/CLI scaffolds now emit the correct primitive vocabulary (`service_catalog/domains/_primitive/template.yaml:1-40`, `service_catalog/processes/_primitive/template.yaml:1-40`, `service_catalog/agents/_primitive/template.yaml:1-32`).
+- ⚠️ ProcessDefinitions/AgentDefinitions are persisted in the workflows runtime instead of the Transformation domain, preventing gradual wrapping around them (`services/workflows/src/repositories/definitions-graph.ts:1-80`).
+
 ## 1. Objectives
 
 ### 1.1 What we’re aiming for

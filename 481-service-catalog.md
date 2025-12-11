@@ -24,8 +24,8 @@ This document defines the **Service Catalog** architecture: a flat structure for
 
 **Key concepts:**
 - **service_catalog/** – Single folder containing all primitive types
-- **_controller/** – Base definitions (contracts + base types) under each primitive type (folder name unchanged for now)
-- **{name}/** – Concrete implementations alongside `_controller`
+- **_primitive/** – Base definitions (contracts + base types) under each primitive type
+- **{name}/** – Concrete implementations alongside `_primitive`
 
 This structure enables Backstage to scaffold new primitives via Software Templates while keeping definitions and implementations co-located. The architectural rationale for the proto → implementation → runtime chain lives in [472-ameide-information-application.md §2.7](472-ameide-information-application.md); this document focuses on how that chain maps to source folders and GitOps repos. Remember that proto contracts live in `packages/ameide_core_proto/` (the service catalog merely references those modules), so the catalog is an implementation detail rather than a new architecture center of gravity.
 
@@ -37,19 +37,19 @@ This structure enables Backstage to scaffold new primitives via Software Templat
 ameide/                                    # github.com/ameideio/ameide
 ├── service_catalog/
 │   ├── domains/                        # Domain primitives
-│   │   ├── _controller/                # Base contract + helpers
+│   │   ├── _primitive/                 # Base contract + helpers
 │   │   ├── transformation/             # Transformation Domain primitive
 │   │   ├── platform/                   # Platform Domain primitive
 │   │   ├── sales/                      # Sales Domain primitive
 │   │   └── ...
 │   ├── processes/                      # Process primitives
-│   │   ├── _controller/                # Base contract + helpers
+│   │   ├── _primitive/                 # Base contract + helpers
 │   │   ├── togaf_adm/                  # TOGAF ADM Process primitive
 │   │   ├── agile/                      # Agile/Scrum Process primitive
 │   │   ├── l2o/                        # Lead-to-Opportunity
 │   │   └── ...
 │   └── agents/                         # Agent primitives
-│       ├── _controller/                # Base contract + helpers
+│       ├── _primitive/                 # Base contract + helpers
 │       ├── architect/                  # Architect Agent primitive
 │       ├── sales_clerk/                # Sales Clerk Agent primitive
 │       └── ...
@@ -65,9 +65,9 @@ ameide/                                    # github.com/ameideio/ameide
 
 ---
 
-## 3. Base Definitions (_controller/)
+## 3. Base Definitions (_primitive/)
 
-**Purpose:** Contracts and thin base abstractions for each primitive type (folder name `_controller` retained for now).
+**Purpose:** Contracts and thin base abstractions for each primitive type.
 
 ### 3.1 What goes here (future)
 
@@ -85,13 +85,13 @@ ameide/                                    # github.com/ameideio/ameide
 
 ```
 service_catalog/
-├── domains/_controller/
+├── domains/_primitive/
 │   └── v1/
 │       └── primitive.proto        # GetPrimitiveInfo, HealthCheck, ListCapabilities
-├── processes/_controller/
+├── processes/_primitive/
 │   └── v1/
 │       └── primitive.proto        # StartProcess, AbortProcess, QueryProcess
-└── agents/_controller/
+└── agents/_primitive/
     └── v1/
         └── primitive.proto        # InvokeAgent, StreamAgentResponse
 ```
@@ -154,11 +154,11 @@ This decision is deferred until we understand tenant customization requirements 
 
 ### 6.1 Software Templates
 
-Backstage templates scaffold into `service_catalog/`. Templates are implemented in `_controller/` directories:
+Backstage templates scaffold into `service_catalog/`. Templates are implemented in `_primitive/` directories:
 
 ```
 service_catalog/
-├── domains/_controller/
+├── domains/_primitive/
 │   ├── template.yaml              # Backstage template definition
 │   └── skeleton/                  # Scaffolding files
 │       ├── catalog-info.yaml      # Component registration (Jinja)
@@ -167,7 +167,7 @@ service_catalog/
 │       ├── Dockerfile.release     # Production container (Jinja)
 │       ├── src/.gitkeep
 │       └── migrations/.gitkeep
-├── processes/_controller/
+├── processes/_primitive/
 │   ├── template.yaml
 │   └── skeleton/
 │       ├── catalog-info.yaml
@@ -175,7 +175,7 @@ service_catalog/
 │       ├── Dockerfile.dev
 │       ├── Dockerfile.release
 │       └── src/{workflows,activities}/.gitkeep
-└── agents/_controller/
+└── agents/_primitive/
     ├── template.yaml
     └── skeleton/
         ├── catalog-info.yaml
@@ -251,12 +251,12 @@ The existing `services/` folder contains legacy services that predate this archi
 - [x] Create folder structure with `.gitkeep` files
 - [x] Create this spec document
 - [x] Implement Backstage templates for all primitive types:
-  - [x] Domain primitive template (`service_catalog/domains/_controller/`)
-  - [x] Process primitive template (`service_catalog/processes/_controller/`)
-  - [x] Agent primitive template (`service_catalog/agents/_controller/`)
+  - [x] Domain primitive template (`service_catalog/domains/_primitive/`)
+  - [x] Process primitive template (`service_catalog/processes/_primitive/`)
+  - [x] Agent primitive template (`service_catalog/agents/_primitive/`)
 
 ### Phase 2: Base contracts
-- [ ] Define base proto contracts in `service_catalog/{domains,processes,agents}/_controller/`
+- [ ] Define base proto contracts in `service_catalog/{domains,processes,agents}/_primitive/`
 - [ ] Update Buf workspace
 - [ ] Generate base SDK types
 
@@ -302,7 +302,7 @@ The existing `services/` folder contains legacy services that predate this archi
 
 | Date | Decision | Rationale |
 |------|----------|-----------|
-| 2025-12-07 | Flat structure: `service_catalog/{domains,processes,agents}/` with `_controller/` for base definitions | Simpler hierarchy; co-locates definitions with implementations |
+| 2025-12-07 | Flat structure: `service_catalog/{domains,processes,agents}/` with `_primitive/` for base definitions | Simpler hierarchy; co-locates definitions with implementations |
 | 2025-12-07 | Keep existing `packages/ameide_core_proto/` unchanged | Minimize disruption; proto strategy TBD |
 | 2025-12-07 | Non-primitives stay in `services/` | UIs and infrastructure don't fit primitive model |
 | 2025-12-07 | Backstage templates implemented | Domain primitive, Process primitive, Agent primitive templates with skeleton/ directories |

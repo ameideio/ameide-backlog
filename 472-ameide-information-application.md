@@ -11,6 +11,12 @@ Here's a first cut of the **Application & Information Architecture** doc, aligne
 
 ---
 
+## Implementation Status (2025-02-14)
+
+- ✅ The Domain operator handles CNPG secrets and migration jobs so runtime CRDs truly manage persistence concerns (`operators/domain-operator/internal/controller/reconcile_db.go:36-158`).
+- ✅ Graph write paths are now blocked, keeping the projection layer aligned with this document’s read-only assumption (`services/graph/src/graph/service.ts:118-135`, `services/graph/src/graph/service.ts:4879-4905`).
+- ⚠️ ProcessDefinitions/AgentDefinitions continue to live in the workflows runtime instead of Transformation, and the Process operator does not fetch/checksum definitions yet (`services/workflows/src/repositories/definitions-graph.ts:1-80`, `operators/process-operator/internal/controller/process_controller.go:54-149`).
+
 ## 1. Objectives & Constraints
 
 ### 1.1 What this document does

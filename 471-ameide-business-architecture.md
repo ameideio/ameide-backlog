@@ -30,6 +30,13 @@ This doc describes **how Ameide is used as a business platform**: how tenants, o
 
 It assumes the high‑level vision/principles are accepted and stops short of implementation details (those go into App/Info and Tech Architecture).
 
+## Implementation Status (2025-02-14)
+
+- ✅ Tenant → organization → membership behavior is live inside the platform domain service (`services/platform/src/tenants/service.ts:1-160`, `services/platform/src/organizations/service.ts:1-120`).
+- ✅ Process primitives already execute in Temporal namespaces/task queues through the shared facade (`services/workflows/src/temporal/facade.ts:78-130`).
+- ⚠️ Transformation design artifacts (ProcessDefinitions/AgentDefinitions) still live outside the Transformation domain, so agents can’t yet govern them centrally (`services/transformation/src/transformations/service.ts:1-75`).
+- ✅ Backstage templates and CLI scaffolds use the Domain/Process/Agent primitive vocabulary (`service_catalog/domains/_primitive/template.yaml:1-40`, `service_catalog/processes/_primitive/template.yaml:1-40`, `service_catalog/agents/_primitive/template.yaml:1-32`).
+
 ---
 
 ## 1. Scope & intent

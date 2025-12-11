@@ -36,6 +36,12 @@
 
 ---
 
+## Implementation Status (2025-02-14)
+
+- ✅ Knowledge Graph writes are now blocked so this document’s read-only projection rule is enforceable in production (`services/graph/src/graph/service.ts:118-135`, `services/graph/src/graph/service.ts:4879-4905`).
+- ⚠️ The domain portfolio is still represented by placeholder manifests (e.g., the Orders Domain CR just runs `nginx`), so no business domains have been migrated into primitives yet (`gitops/ameide-gitops/environments/_shared/primitives/domain/orders.yaml:1-22`).
+- ⚠️ ProcessDefinitions/AgentDefinitions live in the workflows runtime instead of the Transformation domain, which keeps Process primitives from declaring real definition refs (`services/workflows/src/repositories/definitions-graph.ts:1-80`, `operators/process-operator/internal/controller/process_controller.go:54-149`).
+
 # 475 – Domains Architecture (Universal Business Platform)
 
 **Status:** Draft

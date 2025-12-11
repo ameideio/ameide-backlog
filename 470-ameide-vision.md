@@ -30,6 +30,12 @@
 
 ---
 
+## Implementation Status (2025-02-14)
+
+- ✅ Graph handlers now reject every mutation RPC so the Knowledge Graph remains a projection-only surface (`services/graph/src/graph/service.ts:118-135`, `services/graph/src/graph/service.ts:4879-4905`).
+- ✅ The proto→SDK→service chain is enforced through the shared Buf module (`packages/ameide_core_proto/buf.yaml:1-20`) and consumed by workspace services.
+- ⚠️ Transformation services still only persist `Transformation` aggregates; ProcessDefinitions/AgentDefinitions are not yet stored in the Transformation domain (`services/transformation/src/transformations/service.ts:1-75`).
+
 ## 0. Core Definitions: Domain / Process / Agent / UISurface primitives, CRDs, and Graph
 
 > **Domain primitives** own the authoritative data and rules for a bounded business context (Orders, Customers, Transformation, etc.) and expose proto-first APIs plus migrations/tests as normal code.

@@ -23,6 +23,12 @@ Here’s **Document 4/6 – Technology Architecture**.
 
 ---
 
+## Implementation Status (2025-02-14)
+
+- ✅ Graph mutations are now blocked centrally so operators and services can trust the projection boundary (`services/graph/src/graph/service.ts:118-135`, `services/graph/src/graph/service.ts:4879-4905`).
+- ✅ Backstage is delivered as a GitOps-managed chart with OIDC/HTTPRoute wiring, matching the “platform factory” deployment story (`gitops/ameide-gitops/sources/charts/platform/backstage/values.yaml:1-100`).
+- ⚠️ Process and UISurface operators still reconcile only Deployments/Services without definition/Temporal/routing validation, so additional slices are required for parity (`operators/process-operator/internal/controller/process_controller.go:54-149`, `operators/uisurface-operator/internal/controller/uisurface_controller.go:55-169`).
+
 ## 1. Purpose & Relationship to Other Docs
 
 * The **Vision** document says *what* Ameide aspires to be.

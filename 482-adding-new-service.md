@@ -17,7 +17,7 @@ Use this checklist whenever you create a net-new service under `services/` or `s
 | Topic | Questions to answer | Primary references |
 |-------|--------------------|--------------------|
 | **Architecture & positioning** | Is this a primitive (Tier 2) or a platform service? How does it map to the extensibility model? | `481-service-catalog.md`, `479-ameide-extensibility-wasm.md`, `480-ameide-extensibility-wasm-service.md` |
-| **Scaffolding & repo layout** | Which folders/files must exist (README, Dockerfiles, Tilt targets, catalog info)? | `service_catalog/*/_controller/skeleton/README.md`, `service_catalog/*/_controller/skeleton/Dockerfile.*`, `services/README.md` |
+| **Scaffolding & repo layout** | Which folders/files must exist (README, Dockerfiles, Tilt targets, catalog info)? | `service_catalog/*/_primitive/skeleton/README.md`, `service_catalog/*/_primitive/skeleton/Dockerfile.*`, `services/README.md` |
 | **Dockerfiles & build pipelines** | Do we have dev/release Dockerfiles aligned with repo conventions? Are we leveraging multi-stage builds? | `service_catalog/.../Dockerfile.dev`, `Dockerfile.release`, `services/platform/Dockerfile.dev` (patterns) |
 | **Secrets & configuration** | What secrets/config does the service need? Are ExternalSecrets defined (zero inline secrets per guardrail)? Does Vault bootstrap cover it? | `362-unified-secret-guardrails-v2.md`, `348-envs-secrets-harmonization.md` (historical), `services/<service>/README.md` examples |
 | **Storage / dependencies** | Does the service rely on shared infrastructure (MinIO, Postgres, Temporal, etc.)? Where are the dependencies documented? | `380-minio-config-overview.md`, `442-environment-isolation.md`, service-specific backlogs (e.g., `359-resilient-deploy-sequencing.md` for sequencing) |
@@ -37,7 +37,7 @@ Use this checklist whenever you create a net-new service under `services/` or `s
 ## 3. Detailed Steps
 
 1. **Decide service type**
-   - Primitive (Domain/Process/Agent/UISurface) → use Backstage template (see `service_catalog/…/_controller/template.yaml`).
+  - Primitive (Domain/Process/Agent/UISurface) → use Backstage template (see `service_catalog/…/_primitive/template.yaml`).
    - Platform/legacy service → follow `services/README.md` contract.
 
 2. **Scaffold files**
@@ -98,7 +98,7 @@ Use this checklist whenever you create a net-new service under `services/` or `s
 | Test infrastructure | `backlog/430-unified-test-infrastructure.md`, `tools/integration-runner/README.md`, `services/_templates/README.md` |
 | Environment naming & networking | `backlog/434-unified-environment-naming.md`, `backlog/441-networking.md`, `backlog/442-environment-isolation.md` |
 | Extensibility/Tier1 runtime | `backlog/479-ameide-extensibility-wasm.md`, `backlog/480-ameide-extensibility-wasm-service.md` |
-| Service catalog patterns | `backlog/481-service-catalog.md`, `service_catalog/domains/_controller/skeleton/*` |
+| Service catalog patterns | `backlog/481-service-catalog.md`, `service_catalog/domains/_primitive/skeleton/*` |
 | Bootstrap/devcontainer | `backlog/429-devcontainer-bootstrap.md`, `backlog/367-bootstrap-v2.md`, `435-remote-first-development.md` |
 
 ---
