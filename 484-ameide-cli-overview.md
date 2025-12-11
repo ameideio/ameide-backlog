@@ -185,6 +185,12 @@ ameide config set <k> <v> # Update config value
 - **Scaffolding coverage expanded** – All primitive kinds can be scaffolded across Go/TypeScript/Python; outputs include Dockerfiles, Backstage `catalog-info.yaml`, GitOps manifests respecting `--gitops-root`, language-aware integration harnesses, and intentionally failing tests per RPC so agents follow RED→GREEN→REFACTOR regardless of language.
 - **Next focus** – Wire Buf/cascade summaries into cluster-mode verification, tighten npm/pytest dependency bootstrapping inside the integration harness, and extend cascade signals into future non-code consumers (docs, SDK publish workflows).
 
+### 9.1 Cascade Roadmap
+
+- **Non-code consumers** – Upcoming cascade hooks target SDK publish jobs (`./scripts/release/sdk_*`) and doc generators (`packages/docs_*`), so `ameide primitive verify --cascade` can fail fast when proto edits require regenerating artifacts even if no service imports the package.
+- **Dependency awareness** – Repo + cluster modes will share Buf summaries, per-consumer language hints, and dependency bootstrap guidance (npm install / uv sync) so agents know whether to install tooling or re-run cascade.
+- **Pipeline hand-off** – CLI will emit future `cascade` entries for documentation/SDK pipelines using `PrimitiveKind=UNSPECIFIED` with `language=workflow` to tell automation which GitHub workflow or publish script must be re-run.
+
 ## 10. Cross-References
 
 | Backlog | Relationship |
