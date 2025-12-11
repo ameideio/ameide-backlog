@@ -426,9 +426,9 @@ Recovery completed successfully:
 This incident affected **staging and production** environments, causing `workflows-runtime` pods to CrashLoopBackOff after Temporal was deployed:
 
 1. **Temporal Namespace Configuration Mismatch**: The `temporal-namespace-bootstrap` job creates a namespace called `ameide`, but the `workflows-runtime` values files for staging/production were configured to connect to the `default` namespace:
-   - `sources/values/staging/apps/workflows-runtime.yaml`: `config.temporal.namespace: default` ❌
-   - `sources/values/production/apps/workflows-runtime.yaml`: `config.temporal.namespace: default` ❌
-   - `sources/values/dev/apps/workflows-runtime.yaml`: `config.temporal.namespace: ameide` ✓
+   - `sources/values/env/staging/apps/workflows-runtime.yaml`: `config.temporal.namespace: default` ❌
+   - `sources/values/env/production/apps/workflows-runtime.yaml`: `config.temporal.namespace: default` ❌
+   - `sources/values/env/dev/apps/workflows-runtime.yaml`: `config.temporal.namespace: ameide` ✓
 
    Result: `workflows-runtime` crashed with error: *"Temporal namespace is missing; create it or update configuration"*
 
@@ -444,7 +444,7 @@ This incident affected **staging and production** environments, causing `workflo
 
 #### 1. Staging workflows-runtime (commit `a4a9b3a`)
 
-**File**: `sources/values/staging/apps/workflows-runtime.yaml`
+**File**: `sources/values/env/staging/apps/workflows-runtime.yaml`
 ```yaml
 config:
   temporal:
@@ -461,7 +461,7 @@ nodeSelector:
 
 #### 2. Production workflows-runtime (commit `a4a9b3a`)
 
-**File**: `sources/values/production/apps/workflows-runtime.yaml`
+**File**: `sources/values/env/production/apps/workflows-runtime.yaml`
 ```yaml
 config:
   temporal:
@@ -481,7 +481,7 @@ nodeSelector:
 
 ```bash
 # 1. Push the fix
-git add sources/values/staging/apps/workflows-runtime.yaml sources/values/production/apps/workflows-runtime.yaml
+git add sources/values/env/staging/apps/workflows-runtime.yaml sources/values/env/production/apps/workflows-runtime.yaml
 git commit -m "fix(workflows-runtime): align Temporal namespace with dev and add tolerations"
 git push
 
@@ -521,8 +521,8 @@ Recovery completed successfully:
 
 | File | Change |
 |------|--------|
-| `sources/values/staging/apps/workflows-runtime.yaml` | Changed namespace from `default` to `ameide`; added tolerations/nodeSelector |
-| `sources/values/production/apps/workflows-runtime.yaml` | Changed namespace from `default` to `ameide`; added tolerations/nodeSelector |
+| `sources/values/env/staging/apps/workflows-runtime.yaml` | Changed namespace from `default` to `ameide`; added tolerations/nodeSelector |
+| `sources/values/env/production/apps/workflows-runtime.yaml` | Changed namespace from `default` to `ameide`; added tolerations/nodeSelector |
 
 ### Key Takeaway: Reproducible Temporal Deployment
 

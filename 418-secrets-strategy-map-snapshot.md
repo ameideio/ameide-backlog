@@ -2015,16 +2015,16 @@ Generated at 2025-11-29T22:38:58.700935+00:00 from root `/workspaces/ameide-core
       "details": "Failed to parse YAML: while scanning a simple key\n  in \"/workspaces/ameide-core/gitops/ameide-gitops/environments/dev/components/component-template.yaml\", line 12, column 1\ncould not find expected ':'\n  in \"/workspaces/ameide-core/gitops/ameide-gitops/environments/dev/components/component-template.yaml\", line 13, column 1"
     },
     {
-      "file": "gitops/ameide-gitops/sources/values/staging/tests/integration/repository.yaml",
-      "details": "Failed to parse YAML: mapping values are not allowed here\n  in \"/workspaces/ameide-core/gitops/ameide-gitops/sources/values/staging/tests/integration/repository.yaml\", line 3, column 6"
+      "file": "gitops/ameide-gitops/sources/values/env/staging/tests/integration/repository.yaml",
+      "details": "Failed to parse YAML: mapping values are not allowed here\n  in \"/workspaces/ameide-core/gitops/ameide-gitops/sources/values/env/staging/tests/integration/repository.yaml\", line 3, column 6"
     },
     {
-      "file": "gitops/ameide-gitops/sources/values/local/tests/integration/port-proxy.yaml",
-      "details": "Failed to parse YAML: mapping values are not allowed here\n  in \"/workspaces/ameide-core/gitops/ameide-gitops/sources/values/local/tests/integration/port-proxy.yaml\", line 44, column 16"
+      "file": "gitops/ameide-gitops/sources/values/env/local/tests/integration/port-proxy.yaml",
+      "details": "Failed to parse YAML: mapping values are not allowed here\n  in \"/workspaces/ameide-core/gitops/ameide-gitops/sources/values/env/local/tests/integration/port-proxy.yaml\", line 44, column 16"
     },
     {
-      "file": "gitops/ameide-gitops/sources/values/production/tests/integration/repository.yaml",
-      "details": "Failed to parse YAML: mapping values are not allowed here\n  in \"/workspaces/ameide-core/gitops/ameide-gitops/sources/values/production/tests/integration/repository.yaml\", line 3, column 6"
+      "file": "gitops/ameide-gitops/sources/values/env/production/tests/integration/repository.yaml",
+      "details": "Failed to parse YAML: mapping values are not allowed here\n  in \"/workspaces/ameide-core/gitops/ameide-gitops/sources/values/env/production/tests/integration/repository.yaml\", line 3, column 6"
     },
     {
       "file": "gitops/ameide-gitops/sources/charts/platform-layers/gitlab/templates/httproute.yaml",

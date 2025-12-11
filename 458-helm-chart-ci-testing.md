@@ -98,8 +98,8 @@ helm unittest sources/charts/apps/inference-gateway
 # Template with composed values (mimics ArgoCD)
 helm template www-ameide sources/charts/apps/www-ameide \
   -f sources/values/_shared/apps/www-ameide.yaml \
-  -f sources/values/dev/apps/www-ameide.yaml \
-  -f sources/values/dev/globals.yaml
+  -f sources/values/env/dev/apps/www-ameide.yaml \
+  -f sources/values/env/dev/globals.yaml
 ```
 
 **Catches**: Template rendering errors, value path mismatches, missing required values

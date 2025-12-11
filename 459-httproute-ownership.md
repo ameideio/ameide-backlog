@@ -27,7 +27,7 @@ sources/charts/apps/{app-name}/
 │   └── httproute.yaml    # App owns its route
 └── values.yaml           # httproute.enabled, domain, etc.
 
-sources/values/{env}/apps/{app-name}.yaml  # Per-env domain config
+sources/values/env/{env}/apps/{app-name}.yaml  # Per-env domain config
 environments/_shared/components/apps/{category}/{app-name}/component.yaml
 ```
 
@@ -83,7 +83,7 @@ environments/_shared/components/apps/{category}/{app-name}/component.yaml
    - `templates/httproute.yaml` with `{{- if .Values.httproute.enabled }}`
    - `templates/_helpers.tpl` if missing
    - Update `values.yaml` with `httproute` config
-3. **Add per-env values** in `sources/values/{env}/apps/{name}.yaml`
+3. **Add per-env values** in `sources/values/env/{env}/apps/{name}.yaml`
 4. **Add component.yaml** if new chart
 5. **Remove from gateway** (template file or extraHttpRoutes entry)
 6. **Test** helm template renders correctly

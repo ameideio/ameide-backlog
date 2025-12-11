@@ -397,7 +397,7 @@ When multiple identity sources are configured, the following precedence applies:
 **Integration Test Dual-Mode Alignment (376)**
 
 - Onboarding E2E tests explicitly follow the dual-mode contract:
-  - Cluster runs use `INTEGRATION_TEST_MODE=cluster` and point at the in-cluster `www-ameide-platform` service (`gitops/ameide-gitops/sources/values/local/integration-tests/playwright.yaml`), exercising real Keycloak + platform flows end-to-end.
+  - Cluster runs use `INTEGRATION_TEST_MODE=cluster` and point at the in-cluster `www-ameide-platform` service (`gitops/ameide-gitops/sources/values/env/local/integration-tests/playwright.yaml`), exercising real Keycloak + platform flows end-to-end.
   - Mocked-mode integration for onboarding remains limited to unit/integration tests that stub gRPC and database dependencies; no attempt is made to run the Playwright signup journey in `mock` mode.
 - `tools/integration-runner` and the Playwright integration values ensure `INTEGRATION_TEST_MODE` is always set explicitly; unknown values fail fast per #376, and cluster-mode tests are never run implicitly from local/devcontainer workflows.
 

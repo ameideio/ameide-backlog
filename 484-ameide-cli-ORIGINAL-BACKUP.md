@@ -549,7 +549,7 @@ Introspects the repo + proto to produce a testable plan.
       "paths": {
         "service": "services/orders",
         "tests": "services/orders/internal/tests",
-        "gitops": "gitops/sources/values/dev/apps/orders.yaml"
+        "gitops": "gitops/sources/values/env/dev/apps/orders.yaml"
       }
     }
   ],
@@ -579,7 +579,7 @@ Creates service stubs, empty test files, and GitOps manifests from proto.
     "services/orders/main.go",
     "services/orders/internal/handlers/create_order.go",
     "services/orders/internal/tests/create_order_test.go",
-    "gitops/sources/values/dev/apps/orders.yaml"
+    "gitops/sources/values/env/dev/apps/orders.yaml"
   ],
   "tests_created": ["orders.api.create_order.success"],
   "next_steps": [
@@ -1548,7 +1548,7 @@ labels:
 Per 434's single parametrized ApplicationSet design, scaffold does NOT create per-environment values. Environment-specific overrides go in:
 
 ```
-gitops/sources/values/{env}/primitives/{kind}/{name}.yaml  # Optional override
+gitops/sources/values/env/{env}/primitives/{kind}/{name}.yaml  # Optional override
 ```
 
 ---

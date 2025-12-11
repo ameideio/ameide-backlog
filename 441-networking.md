@@ -424,7 +424,7 @@ rateLimit:
   enabled: true
   requestsPerMinute: 1000
 
-# sources/values/production/platform/platform-gateway.yaml
+# sources/values/env/production/platform/platform-gateway.yaml
 rateLimit:
   enabled: true
   requestsPerMinute: 5000  # Higher for production
@@ -688,8 +688,8 @@ When an Invalid BackendTrafficPolicy is attached to the Gateway, Envoy Gateway g
 
 **Fix** (commit `58a29c1`):
 - Disabled global rate limiting in staging and production:
-  - `sources/values/staging/platform/platform-gateway.yaml`: `rateLimit.global.enabled: false`
-  - `sources/values/production/platform/platform-gateway.yaml`: `rateLimit.global.enabled: false`
+  - `sources/values/env/staging/platform/platform-gateway.yaml`: `rateLimit.global.enabled: false`
+  - `sources/values/env/production/platform/platform-gateway.yaml`: `rateLimit.global.enabled: false`
 
 **To re-enable global rate limiting**, you must first configure Envoy Gateway with a rate limit service:
 

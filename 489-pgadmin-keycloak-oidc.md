@@ -141,7 +141,7 @@ This backlog documents the now-working configuration and the guardrails needed t
 - Vault fixtures: `sources/values/_shared/foundation/foundation-vault-bootstrap.yaml`
 - pgAdmin chart: `sources/charts/platform/pgadmin/`
 - Shared pgAdmin values: `sources/values/_shared/data/data-pgadmin.yaml`
-- Dev overlay: `sources/values/dev/data/data-pgadmin.yaml`
+- Dev overlay: `sources/values/env/dev/data/data-pgadmin.yaml`
 - ExternalSecret template: `sources/charts/platform/pgadmin/templates/externalsecret.yaml`
 - Gateway exposure: `sources/values/{dev,staging,production}/platform/platform-gateway.yaml`
 - Incident log (Dec 2025): `backlog/417-envoy-route-tracking.md` tracks the debugging steps leading up to this document.

@@ -387,9 +387,9 @@ To align with the new structure, the remote cluster needs:
   | File | Change |
   |------|--------|
 | *(legacy)* `.devcontainer/manage-host-domains.sh` | removed in the remote-first workflow; Telepresence handles DNS routing |
-  | `gitops/ameide-gitops/sources/values/local/apps/platform/gateway.yaml` | `https-local` listener + `auth.local.ameide.io` route |
-  | `gitops/ameide-gitops/sources/values/dev/platform/platform-cert-manager-config.yaml` | Wildcard SANs for `*.local.ameide.io` |
-  | `gitops/ameide-gitops/sources/values/dev/apps/apps-www-ameide(-platform)-tilt.yaml` | Hostnames + cookie domains moved to `local.ameide.io` |
+  | `gitops/ameide-gitops/sources/values/env/local/apps/platform/gateway.yaml` | `https-local` listener + `auth.local.ameide.io` route |
+  | `gitops/ameide-gitops/sources/values/env/dev/platform/platform-cert-manager-config.yaml` | Wildcard SANs for `*.local.ameide.io` |
+  | `gitops/ameide-gitops/sources/values/env/dev/apps/apps-www-ameide(-platform)-tilt.yaml` | Hostnames + cookie domains moved to `local.ameide.io` |
   | `gitops/ameide-gitops/sources/values/_shared/platform/platform-keycloak-realm.yaml` | Redirect URIs include the local origin |
 
   Certificates inherit the new SANs automatically and documentation now references `local.ameide.io` (see [367-bootstrap-v2.md §3.8](367-bootstrap-v2.md#38-domain-naming)).
@@ -603,15 +603,15 @@ Infrastructure values flow from Bicep to Helm via git:
 | ApplicationSet (all envs) | `argocd/applicationsets/ameide.yaml` |
 | Projects | `argocd/projects/*.yaml` |
 | **Environment globals** | |
-| Dev globals | `sources/values/dev/globals.yaml` |
-| Staging globals | `sources/values/staging/globals.yaml` |
-| Production globals | `sources/values/production/globals.yaml` |
+| Dev globals | `sources/values/env/dev/globals.yaml` |
+| Staging globals | `sources/values/env/staging/globals.yaml` |
+| Production globals | `sources/values/env/production/globals.yaml` |
 | **Infrastructure** | |
 | Bicep outputs sync | `scripts/update-globals-from-bicep.sh` |
-| Dev cert-manager | `sources/values/dev/platform/platform-cert-manager-config.yaml` |
-| Staging cert-manager | `sources/values/staging/platform/platform-cert-manager-config.yaml` |
-| Production cert-manager | `sources/values/production/platform/platform-cert-manager-config.yaml` |
-| Gateway config (dev) | `sources/values/dev/platform/platform-gateway.yaml` |
+| Dev cert-manager | `sources/values/env/dev/platform/platform-cert-manager-config.yaml` |
+| Staging cert-manager | `sources/values/env/staging/platform/platform-cert-manager-config.yaml` |
+| Production cert-manager | `sources/values/env/production/platform/platform-cert-manager-config.yaml` |
+| Gateway config (dev) | `sources/values/env/dev/platform/platform-gateway.yaml` |
 | **Components** | |
 | Shared components | `environments/_shared/components/` |
 

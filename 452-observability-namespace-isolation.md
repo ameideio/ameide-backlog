@@ -93,12 +93,12 @@ With full namespace isolation:
 
 | File | Change |
 |------|--------|
-| `sources/values/dev/observability/platform-alloy-logs.yaml` | Added `rbac.namespaces: [ameide-dev]` |
-| `sources/values/staging/observability/platform-alloy-logs.yaml` | Added `rbac.namespaces: [ameide-staging]` |
-| `sources/values/production/observability/platform-alloy-logs.yaml` | Added `rbac.namespaces: [ameide-prod]` |
-| `sources/values/dev/observability/platform-prometheus.yaml` | Added namespace selectors + kube-state-metrics namespace |
-| `sources/values/staging/observability/platform-prometheus.yaml` | Added namespace selectors + kube-state-metrics namespace |
-| `sources/values/production/observability/platform-prometheus.yaml` | Added namespace selectors + kube-state-metrics namespace |
+| `sources/values/env/dev/observability/platform-alloy-logs.yaml` | Added `rbac.namespaces: [ameide-dev]` |
+| `sources/values/env/staging/observability/platform-alloy-logs.yaml` | Added `rbac.namespaces: [ameide-staging]` |
+| `sources/values/env/production/observability/platform-alloy-logs.yaml` | Added `rbac.namespaces: [ameide-prod]` |
+| `sources/values/env/dev/observability/platform-prometheus.yaml` | Added namespace selectors + kube-state-metrics namespace |
+| `sources/values/env/staging/observability/platform-prometheus.yaml` | Added namespace selectors + kube-state-metrics namespace |
+| `sources/values/env/production/observability/platform-prometheus.yaml` | Added namespace selectors + kube-state-metrics namespace |
 
 ---
 

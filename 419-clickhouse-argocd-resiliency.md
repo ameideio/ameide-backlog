@@ -49,7 +49,7 @@
   - CRDs: `sources/charts/foundation/common/raw-manifests/files/clickhouse-crd-{chi,chit,chk,chopcfg}.yaml`
   - CRD values: `sources/values/_shared/data/data-crds-clickhouse.yaml`
   - CHI component: `environments/dev/components/data/core/clickhouse/component.yaml`
-  - CHI values: `sources/values/_shared/data/data-clickhouse.yaml` (+ `sources/values/dev/data/data-clickhouse.yaml`)
+  - CHI values: `sources/values/_shared/data/data-clickhouse.yaml` (+ `sources/values/env/dev/data/data-clickhouse.yaml`)
   - Health script & OpenLibs: `sources/values/common/argocd.yaml`, `environments/dev/argocd/ops/argocd-cm.yaml`
   - Orphan ignores: `environments/dev/argocd/project-ameide.yaml`
 

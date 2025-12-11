@@ -21,9 +21,9 @@ Removed fallback defaults from shared config and added explicit `postgresHost` p
 
 | Environment | File | Value |
 |-------------|------|-------|
-| dev | `sources/values/dev/foundation/foundation-vault-secrets-platform.yaml` | `postgres-ameide-rw.ameide-dev.svc.cluster.local` |
-| staging | `sources/values/staging/apps/platform/vault-secrets-platform.yaml` | `postgres-ameide-rw.ameide-staging.svc.cluster.local` |
-| production | `sources/values/production/apps/platform/vault-secrets-platform.yaml` | `postgres-ameide-rw.ameide-prod.svc.cluster.local` |
+| dev | `sources/values/env/dev/foundation/foundation-vault-secrets-platform.yaml` | `postgres-ameide-rw.ameide-dev.svc.cluster.local` |
+| staging | `sources/values/env/staging/apps/platform/vault-secrets-platform.yaml` | `postgres-ameide-rw.ameide-staging.svc.cluster.local` |
+| production | `sources/values/env/production/apps/platform/vault-secrets-platform.yaml` | `postgres-ameide-rw.ameide-prod.svc.cluster.local` |
 
 Shared config (`_shared/foundation/foundation-vault-secrets-platform.yaml`) now uses `.Values.postgresHost` directly without fallback.
 
@@ -33,16 +33,16 @@ Created per-environment CoreDNS configs with correct Envoy service references:
 
 | Environment | File | Envoy Service |
 |-------------|------|---------------|
-| dev | `sources/values/dev/foundation/foundation-coredns-config.yaml` | `envoy.ameide-dev.svc.cluster.local` |
-| staging | `sources/values/staging/foundation/foundation-coredns-config.yaml` | `envoy.ameide-staging.svc.cluster.local` |
-| production | `sources/values/production/foundation/foundation-coredns-config.yaml` | `envoy.ameide-prod.svc.cluster.local` |
+| dev | `sources/values/env/dev/foundation/foundation-coredns-config.yaml` | `envoy.ameide-dev.svc.cluster.local` |
+| staging | `sources/values/env/staging/foundation/foundation-coredns-config.yaml` | `envoy.ameide-staging.svc.cluster.local` |
+| production | `sources/values/env/production/foundation/foundation-coredns-config.yaml` | `envoy.ameide-prod.svc.cluster.local` |
 
 Updated platform coredns-config.yaml files:
 
 | Environment | File | Value |
 |-------------|------|-------|
-| staging | `sources/values/staging/apps/platform/coredns-config.yaml` | `envoy.ameide-staging.svc.cluster.local` |
-| production | `sources/values/production/apps/platform/coredns-config.yaml` | `envoy.ameide-prod.svc.cluster.local` |
+| staging | `sources/values/env/staging/apps/platform/coredns-config.yaml` | `envoy.ameide-staging.svc.cluster.local` |
+| production | `sources/values/env/production/apps/platform/coredns-config.yaml` | `envoy.ameide-prod.svc.cluster.local` |
 
 Shared config (`_shared/foundation/foundation-coredns-config.yaml`) cleared - per-environment files now define rules.
 

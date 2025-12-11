@@ -62,9 +62,9 @@ GatewayClass (envoy)
 | `sources/charts/apps/gateway/templates/envoyproxy-telemetry.yaml` | EnvoyProxy resource with telemetry config |
 | `sources/charts/apps/gateway/templates/gatewayclass.yaml` | GatewayClass with `parametersRef` |
 | `sources/charts/apps/gateway/values.yaml` | Base telemetry configuration |
-| `sources/values/dev/platform/platform-gateway.yaml` | Dev cluster name override |
-| `sources/values/staging/platform/platform-gateway.yaml` | Staging cluster name override |
-| `sources/values/production/platform/platform-gateway.yaml` | Production cluster name override |
+| `sources/values/env/dev/platform/platform-gateway.yaml` | Dev cluster name override |
+| `sources/values/env/staging/platform/platform-gateway.yaml` | Staging cluster name override |
+| `sources/values/env/production/platform/platform-gateway.yaml` | Production cluster name override |
 
 ### EnvoyProxy Resource
 
@@ -150,7 +150,7 @@ infrastructure:
     service.beta.kubernetes.io/azure-load-balancer-resource-group: "Ameide"
 ```
 
-Per-environment values (e.g., `sources/values/dev/platform/platform-gateway.yaml`):
+Per-environment values (e.g., `sources/values/env/dev/platform/platform-gateway.yaml`):
 
 ```yaml
 infrastructure:
@@ -165,9 +165,9 @@ infrastructure:
 
 | Environment | Cluster Name | File |
 |-------------|--------------|------|
-| Dev | `ameide-dev` | `sources/values/dev/platform/platform-gateway.yaml` |
-| Staging | `ameide-staging` | `sources/values/staging/platform/platform-gateway.yaml` |
-| Production | `ameide-production` | `sources/values/production/platform/platform-gateway.yaml` |
+| Dev | `ameide-dev` | `sources/values/env/dev/platform/platform-gateway.yaml` |
+| Staging | `ameide-staging` | `sources/values/env/staging/platform/platform-gateway.yaml` |
+| Production | `ameide-production` | `sources/values/env/production/platform/platform-gateway.yaml` |
 
 ## Telemetry Flow
 

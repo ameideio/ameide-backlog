@@ -45,7 +45,7 @@ Targets no longer accept a `-e` flag because a single cluster hosts all namespac
 `deploy.sh` and `deploy-bicep.sh` both source `infra/scripts/lib/env.sh`, which loads `.env` and `.env.local` via `set -a` before invoking Terraform or Helm. The CLI contract is now:
 
 1. Populate `.env`/`.env.local` with the required API tokens (e.g. `GITHUB_TOKEN`); no manual `export` is necessary.
-2. Run `./infra/scripts/deploy.sh <target>` – the helper guarantees child processes inherit those variables, and Terraform’s `data.external.env` shim will fall back to `.env` if the variable is absent from the shell.
+2. Run `./infra/scripts/deploy.sh <target>` – the helper writes `infra/terraform/azure/env.auto.tfvars.json` from `.env`, so every Terraform invocation (including ad-hoc `terraform -chdir=infra/terraform/azure plan`) automatically sees `var.env_secrets`. To refresh the file without a full deploy, run `./infra/scripts/write-env-secrets-tfvars.sh`.
 3. After apply, Terraform writes the latest outputs to `artifacts/terraform-outputs/<target>.json`, and the local target also starts an ArgoCD port-forward plus prints the credentials banner.
 
 ## Architecture
@@ -101,11 +101,10 @@ backend "azurerm" {
   storage_account_name = "ameidetfstate"
   container_name       = "tfstate"
   key                  = "azure.tfstate"
-  use_azuread_auth     = true
 }
 ```
 
-`infra/scripts/deploy.sh` (TF-10/TF-14) ensures the resource group, storage account, and container exist before it runs `terraform init`. Defaults can be overridden via environment variables:
+`infra/scripts/deploy.sh` (TF-10/TF-14) ensures the resource group, storage account, and container exist before it runs `terraform init`, and it retrieves a storage account key that is passed via `terraform init -backend-config=access_key=...`. Defaults can be overridden via environment variables:
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
@@ -115,7 +114,7 @@ backend "azurerm" {
 | `TF_BACKEND_KEY` | `azure.tfstate` | Blob key used by the backend |
 | `TF_BACKEND_LOCATION` | `<tfvars location>` | Location used when auto-creating the RG/SA |
 
-Set any of the above before invoking `deploy.sh azure` to target alternate infra (e.g. per-tenant state stores). The backend uses Azure AD auth, so developers simply `az login` prior to running Terraform.
+Set any of the above before invoking `deploy.sh azure` to target alternate infra (e.g. per-tenant state stores). Developers only need to `az login`—the helper fetches the storage account key on demand and tears it down after the run.
 
 ## Deployment Flow
 
@@ -140,6 +139,24 @@ deploy.sh local
         ├── Installs: ArgoCD + ApplicationSet (same as cloud)
         └── Starts ArgoCD port-forward + prints admin credentials
 ```
+
+### Local Target Safeguards
+
+- The `local` workspace **only** provisions the k3d cluster, bootstrap ServiceAccount/Secrets, and ArgoCD; it never talks to Azure. `infra/terraform/local/main.tf` depends exclusively on Docker/k3d providers, so running it inside the devcontainer cannot destroy shared cloud resources.
+- `deploy.sh local` always recreates the `ameide-network` Docker network instead of pruning other networks, keeping unrelated containers intact even after a devcontainer restart.
+- Terraform state for the local run is stored under `infra/terraform/local/terraform.tfstate` inside the repo (not the azurerm backend). Deleting and re-running the target impacts only the local cluster.
+
+### Post-Apply Verification (Local)
+
+After `deploy.sh local`, validate GitOps health before handing the environment to developers:
+
+1. **ArgoCD control plane** – `kubectl -n argocd get pods` should show the controllers, repo-server, Redis, and Dex in `Running`. Two replicas of repo-server ensure chart rendering is healthy.
+2. **Application health sweep** – `kubectl -n argocd get applications` confirms each generated Application reconciles. Expect some workloads to sit in `Progressing` (images still pulling), but foundation components (Vault, namespaces, cert-manager) must be `Healthy`.
+3. **SecretStore readiness** – `kubectl -n ameide-local describe secretstore ameide-vault` should report `Ready=True`. If it cannot resolve `vault-core-<env>`, Vault was deployed with the wrong service name; fix the env overlay and re-sync.
+4. **ExternalSecrets/Secrets** – `kubectl -n ameide-local get externalsecrets` should eventually show `Ready=True`. Spot-check `ghcr-pull-sync` and verify `kubectl -n ameide-local get secret ghcr-pull` exists, since GHCR credentials gate most pods.
+5. **Smoke applications** – Trigger `local-foundation-bootstrap-smoke` or run `kubectl logs job/local-foundation-operators-smoke` to ensure guardrails see the freshly-synced secrets.
+
+Document any failures (for example, SecretStore DNS mismatches) back in the relevant backlog so the next Terraform run inherits the fix.
 
 ## Terraform Modules
 
@@ -347,6 +364,16 @@ output "environment_dns_zone" {
 
 The `deploy.sh` script automatically seeds secrets from `.env` and `.env.local` to Azure Key Vault during the **Azure** Terraform deployment. The `local` target does not push anything into Key Vault; instead, `infra/terraform/local/main.tf` reads `GITHUB_TOKEN` via a `data.external` helper that falls back to `.env`. See [451-secrets-management.md](451-secrets-management.md) for the complete cloud secret flow.
 
+Whenever `.env` changes, run `./infra/scripts/write-env-secrets-tfvars.sh` (or any `deploy.sh` target) to regenerate `infra/terraform/azure/env.auto.tfvars.json`. Terraform auto-loads that file for every `terraform -chdir=infra/terraform/azure ...` command, so no ad-hoc `TF_VAR_env_secrets` exports are required.
+
+```bash
+# Refresh env.auto.tfvars.json without running a full deploy
+./infra/scripts/write-env-secrets-tfvars.sh
+
+# Now terraform commands pick up env_secrets automatically
+terraform -chdir=infra/terraform/azure plan
+```
+
 ### Local-only bootstrap
 
 `foundation-vault-bootstrap` now has `secretSource.type` (`azure` or `local`). Cloud environments keep the Azure Key Vault path, while the `local` overlay switches to a Kubernetes Secret mount (`vault-bootstrap-local-secrets`) and sets `LOCAL_SECRET_FILE` for the CronJob.
@@ -361,7 +388,7 @@ The Helm template also guards against missing chart overrides. When `secretSourc
 
 1. **Parse .env files** → `deploy.sh` reads `.env` and `.env.local`
 2. **Sanitize keys** → `GHCR_TOKEN` becomes `ghcr-token` (lowercase, underscores to dashes)
-3. **Create tfvars.json** → Temporary file with `env_secrets` variable
+3. **Write env.auto.tfvars.json** → `infra/terraform/azure/env.auto.tfvars.json` keeps `env_secrets` in the standard Terraform auto-load format (regenerate anytime via `./infra/scripts/write-env-secrets-tfvars.sh`)
 4. **Terraform apply** → `azurerm_key_vault_secret` resources created
 5. **vault-bootstrap** → CronJob fetches from Key Vault, writes to HashiCorp Vault
 6. **ExternalSecrets** → Syncs from Vault to Kubernetes Secrets
@@ -396,7 +423,7 @@ resource "azurerm_key_vault_secret" "env_secrets" {
 ### Helm Values for vault-bootstrap
 
 ```yaml
-# sources/values/dev/foundation/foundation-vault-bootstrap.yaml
+# sources/values/env/dev/foundation/foundation-vault-bootstrap.yaml
 azure:
   workloadIdentity:
     enabled: true

@@ -51,7 +51,7 @@
 
 ## Progress – 2025-02-18
 - ✅ **Docs & onboarding** – `README.md`, `infra/README.md`, and `infra/kubernetes/environments/README.md` now prescribe HTTPS-only access and the `.devcontainer/export-cert.sh`/`install-cert.sh` trust flow. Host dnsmasq automation is no longer needed in the remote-first Telepresence workflow.
-- ✅ **k3d / Gateway plumbing** – `infra/docker/local/k3d.yaml`, `build/scripts/dev.sh`, `gitops/ameide-gitops/sources/values/local/apps/platform/gateway.yaml`, and the gateway chart README were updated to remove 8080/8443 listeners and describe the 80/443 mapping exclusively.
+- ✅ **k3d / Gateway plumbing** – `infra/docker/local/k3d.yaml`, `build/scripts/dev.sh`, `gitops/ameide-gitops/sources/values/env/local/apps/platform/gateway.yaml`, and the gateway chart README were updated to remove 8080/8443 listeners and describe the 80/443 mapping exclusively.
 - ✅ **DNS + TLS configs** – Local CoreDNS values and the cert-manager chart comments reference only `*.dev.ameide.io`; backlog text now mandates single-SAN dev certificates.
 - ✅ **Helm chart defaults / policies** – Gateway CORS defaults and inference-gateway `SecurityPolicy` derive HTTPS origins from `Values.domain`; Keycloak HTTPRoute templates inject `X-Forwarded-Port: 443`.
 - ✅ **Tooling & tests** – Playwright global setup removed the 8443 rewrite shim, integration `playwright.yaml` dropped the port rewrite flag, telemetry scripts and `scripts/test-ssl.sh` probe the 443 endpoints, and the www SUMMARY file calls out the new standard + trust automation.
@@ -74,14 +74,14 @@ Every infrastructure surface that still references `*.dev.ameide.io` or host por
 - `infra/kubernetes/charts/platform/coredns-config/README.md:3-112` – refresh examples (`nslookup`, troubleshooting) for the new domain.
 
 ### TLS & Certificate Management
-- `gitops/ameide-gitops/sources/values/local/platform/platform-cert-manager-config.yaml:17-53` – regenerate the wildcard certificate with SANs for `*.dev.ameide.io`, `dev.ameide.io`, and retire `.dev.ameide.io` once migration ends.
+- `gitops/ameide-gitops/sources/values/env/local/platform/platform-cert-manager-config.yaml:17-53` – regenerate the wildcard certificate with SANs for `*.dev.ameide.io`, `dev.ameide.io`, and retire `.dev.ameide.io` once migration ends.
 - `infra/kubernetes/environments/local/cert-manager/README.md:21-52` – rewrite verification commands (`curl https://platform…`) and certificate tables to the new hostnames.
 - `infra/kubernetes/environments/local/infrastructure/keycloak.yaml:4-16` & `infra/kubernetes/charts/operators-config/keycloak_instance/values.yaml:9-18` – set `hostname` and HTTPS port expectations to `auth.dev.ameide.io`.
 - `infra/kubernetes/charts/operators-config/keycloak_realm/values.yaml:151-420` – update redirect URIs, web origins, CSP entries, and OAuth client settings that currently reference `https://platform.dev.ameide.io` on port 8443 and the legacy `k8s-dashboard.dev.ameide.io`/`argocd.dev.ameide.io` 8433 endpoints.
 - `infra/kubernetes/values/infrastructure/grafana.yaml:1652`, `infra/kubernetes/values/infrastructure/pgadmin.yaml:31-43`, and `infra/kubernetes/charts/platform/pgadmin/values.yaml:60-79` – adjust `GF_SERVER_ROOT_URL`, OAuth redirect URIs, and allowed domains.
 
 ### Gateway, Envoy & Routing
-- `gitops/ameide-gitops/sources/values/local/apps/platform/gateway.yaml:2-251` – convert listener hostnames, `redirect.httpsPort`, Plausible CORS origin, and every extra HTTPRoute host (ArgoCD, pgAdmin, temporal, prometheus, alertmanager, langfuse, loki, tempo, etc.).
+- `gitops/ameide-gitops/sources/values/env/local/apps/platform/gateway.yaml:2-251` – convert listener hostnames, `redirect.httpsPort`, Plausible CORS origin, and every extra HTTPRoute host (ArgoCD, pgAdmin, temporal, prometheus, alertmanager, langfuse, loki, tempo, etc.).
 - `infra/kubernetes/environments/local/platform/envoy-gateway.yaml:12-46` – ensure Gateway API resources and the gRPC hostname use `*.dev.ameide.io`.
 - `gitops/ameide-gitops/sources/charts/apps/gateway/templates/httproute-keycloak.yaml:17-35` – update `hostnames` and injected `X-Forwarded-*` headers to the new domain/port.
 - `gitops/ameide-gitops/sources/charts/apps/gateway/templates/cors-policy.yaml:28-34` – rebase default `Access-Control-Allow-Origin` values away from `dev.ameide.io:8080/8443`.

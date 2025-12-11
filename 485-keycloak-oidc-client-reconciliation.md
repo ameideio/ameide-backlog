@@ -327,9 +327,9 @@ sources/charts/foundation/operators-config/keycloak_realm/
 
 # Values updates (all environments)
 sources/values/_shared/platform/platform-keycloak-realm.yaml  # Add clientSpecs
-sources/values/dev/platform/platform-keycloak-realm.yaml      # Dev-specific URIs
-sources/values/staging/platform/platform-keycloak-realm.yaml  # Staging URIs
-sources/values/production/platform/platform-keycloak-realm.yaml  # Prod URIs
+sources/values/env/dev/platform/platform-keycloak-realm.yaml      # Dev-specific URIs
+sources/values/env/staging/platform/platform-keycloak-realm.yaml  # Staging URIs
+sources/values/env/production/platform/platform-keycloak-realm.yaml  # Prod URIs
 ```
 
 ---
@@ -343,7 +343,7 @@ sources/values/production/platform/platform-keycloak-realm.yaml  # Prod URIs
 helm template keycloak-realm \
   sources/charts/foundation/operators-config/keycloak_realm \
   -f sources/values/_shared/platform/platform-keycloak-realm.yaml \
-  -f sources/values/dev/platform/platform-keycloak-realm.yaml \
+  -f sources/values/env/dev/platform/platform-keycloak-realm.yaml \
   | grep -A 50 "client-specs"
 ```
 
@@ -623,7 +623,7 @@ client-patcher Job
 | `sources/charts/foundation/operators-config/keycloak_realm/templates/client-reconciliation-configmap.yaml` | NEW: ConfigMap with client specs |
 | `sources/charts/foundation/operators-config/keycloak_realm/values.yaml` | Added clientReconciliation schema |
 | `sources/values/_shared/platform/platform-keycloak-realm.yaml` | Added clientReconciliation with backstage/argocd clients |
-| `sources/values/dev/platform/platform-keycloak-realm.yaml` | Added dev-specific clientReconciliation |
+| `sources/values/env/dev/platform/platform-keycloak-realm.yaml` | Added dev-specific clientReconciliation |
 | `sources/charts/foundation/vault-bootstrap/templates/cronjob.yaml` | Added backstage-* to keycloak-client-patcher policy |
 
 ---

@@ -91,7 +91,7 @@ For each third-party chart:
 
 **Correct path**:
 ```yaml
-# sources/values/{env}/observability/platform-alloy-logs.yaml
+# sources/values/env/{env}/observability/platform-alloy-logs.yaml
 controller:
   tolerations:
     - key: "ameide.io/environment"
@@ -102,9 +102,9 @@ controller:
 ```
 
 **Files modified**:
-- `sources/values/dev/observability/platform-alloy-logs.yaml` (fixed path)
-- `sources/values/staging/observability/platform-alloy-logs.yaml` (created)
-- `sources/values/production/observability/platform-alloy-logs.yaml` (created)
+- `sources/values/env/dev/observability/platform-alloy-logs.yaml` (fixed path)
+- `sources/values/env/staging/observability/platform-alloy-logs.yaml` (created)
+- `sources/values/env/production/observability/platform-alloy-logs.yaml` (created)
 
 ---
 
@@ -116,7 +116,7 @@ controller:
 
 **Correct paths** (for singleBinary mode):
 ```yaml
-# sources/values/{env}/observability/platform-loki.yaml
+# sources/values/env/{env}/observability/platform-loki.yaml
 singleBinary:
   tolerations:
     - key: "ameide.io/environment"
@@ -135,9 +135,9 @@ gateway:
 ```
 
 **Files modified**:
-- `sources/values/dev/observability/platform-loki.yaml` (fixed path)
-- `sources/values/staging/observability/platform-loki.yaml` (created)
-- `sources/values/production/observability/platform-loki.yaml` (created)
+- `sources/values/env/dev/observability/platform-loki.yaml` (fixed path)
+- `sources/values/env/staging/observability/platform-loki.yaml` (created)
+- `sources/values/env/production/observability/platform-loki.yaml` (created)
 
 ---
 
@@ -149,7 +149,7 @@ gateway:
 
 **Correct path**:
 ```yaml
-# sources/values/{env}/platform/platform-envoy-gateway.yaml
+# sources/values/env/{env}/platform/platform-envoy-gateway.yaml
 deployment:
   pod:
     tolerations:
@@ -161,9 +161,9 @@ deployment:
 ```
 
 **Files modified**:
-- `sources/values/dev/platform/platform-envoy-gateway.yaml` (fixed path)
-- `sources/values/staging/platform/platform-envoy-gateway.yaml` (created)
-- `sources/values/production/platform/platform-envoy-gateway.yaml` (created)
+- `sources/values/env/dev/platform/platform-envoy-gateway.yaml` (fixed path)
+- `sources/values/env/staging/platform/platform-envoy-gateway.yaml` (created)
+- `sources/values/env/production/platform/platform-envoy-gateway.yaml` (created)
 
 ---
 
@@ -175,7 +175,7 @@ deployment:
 
 **Correct paths** (multiple components):
 ```yaml
-# sources/values/{env}/data/data-temporal.yaml
+# sources/values/env/{env}/data/data-temporal.yaml
 server:
   tolerations:
     - key: "ameide.io/environment"
@@ -206,9 +206,9 @@ web:
 ```
 
 **Files modified**:
-- `sources/values/dev/data/data-temporal.yaml` (already existed, verified correct)
-- `sources/values/staging/data/data-temporal.yaml` (created)
-- `sources/values/production/data/data-temporal.yaml` (created)
+- `sources/values/env/dev/data/data-temporal.yaml` (already existed, verified correct)
+- `sources/values/env/staging/data/data-temporal.yaml` (created)
+- `sources/values/env/production/data/data-temporal.yaml` (created)
 
 ---
 
@@ -220,7 +220,7 @@ web:
 
 **Correct path**:
 ```yaml
-# sources/values/{env}/observability/platform-langfuse.yaml
+# sources/values/env/{env}/observability/platform-langfuse.yaml
 langfuse:
   tolerations:
     - key: "ameide.io/environment"
@@ -231,9 +231,9 @@ langfuse:
 ```
 
 **Files modified**:
-- `sources/values/dev/observability/platform-langfuse.yaml` (created - was using _shared only)
-- `sources/values/staging/observability/platform-langfuse.yaml` (created)
-- `sources/values/production/observability/platform-langfuse.yaml` (created)
+- `sources/values/env/dev/observability/platform-langfuse.yaml` (created - was using _shared only)
+- `sources/values/env/staging/observability/platform-langfuse.yaml` (created)
+- `sources/values/env/production/observability/platform-langfuse.yaml` (created)
 
 **Image Path Note**: The Langfuse chart expects image repositories at:
 - `langfuse.web.image.repository` (for web pods)
@@ -251,7 +251,7 @@ NOT at `langfuse.image.repository` (which only sets global tag/pullSecrets). Fix
 
 **Correct paths**:
 ```yaml
-# sources/values/{env}/observability/platform-prometheus.yaml
+# sources/values/env/{env}/observability/platform-prometheus.yaml
 prometheus:
   prometheusSpec:
     tolerations:
@@ -292,9 +292,9 @@ prometheus-node-exporter:
 **DaemonSet Correction**: Originally documented as using `operator: "Exists"` to run on all nodes. This causes **hostPort 9100 conflicts** when multiple environments deploy node-exporter to the same cluster. Each environment's node-exporter must use `nodeSelector` to run only on its own node pool. Fixed in commit `1beb8cc`.
 
 **Files modified**:
-- `sources/values/dev/observability/platform-prometheus.yaml` (added node-exporter)
-- `sources/values/staging/observability/platform-prometheus.yaml` (created)
-- `sources/values/production/observability/platform-prometheus.yaml` (created)
+- `sources/values/env/dev/observability/platform-prometheus.yaml` (added node-exporter)
+- `sources/values/env/staging/observability/platform-prometheus.yaml` (created)
+- `sources/values/env/production/observability/platform-prometheus.yaml` (created)
 
 ---
 
@@ -306,7 +306,7 @@ prometheus-node-exporter:
 
 **Correct path**:
 ```yaml
-# sources/values/{env}/apps/plausible.yaml
+# sources/values/env/{env}/apps/plausible.yaml
 tolerations:
   - key: "ameide.io/environment"
     value: "dev"
@@ -316,9 +316,9 @@ nodeSelector:
 ```
 
 **Files modified**:
-- `sources/values/dev/apps/plausible.yaml` (created)
-- `sources/values/staging/apps/plausible.yaml` (created)
-- `sources/values/production/apps/plausible.yaml` (created)
+- `sources/values/env/dev/apps/plausible.yaml` (created)
+- `sources/values/env/staging/apps/plausible.yaml` (created)
+- `sources/values/env/production/apps/plausible.yaml` (created)
 
 ---
 
@@ -330,7 +330,7 @@ nodeSelector:
 
 **Correct path**:
 ```yaml
-# sources/values/{env}/data/foundation-strimzi-operator.yaml
+# sources/values/env/{env}/data/foundation-strimzi-operator.yaml
 tolerations:
   - key: "ameide.io/environment"
     value: "dev"
@@ -340,9 +340,9 @@ nodeSelector:
 ```
 
 **Files modified**:
-- `sources/values/dev/data/foundation-strimzi-operator.yaml` (updated from placeholder)
-- `sources/values/staging/data/foundation-strimzi-operator.yaml` (created)
-- `sources/values/production/data/foundation-strimzi-operator.yaml` (created)
+- `sources/values/env/dev/data/foundation-strimzi-operator.yaml` (updated from placeholder)
+- `sources/values/env/staging/data/foundation-strimzi-operator.yaml` (created)
+- `sources/values/env/production/data/foundation-strimzi-operator.yaml` (created)
 
 ---
 
@@ -354,7 +354,7 @@ nodeSelector:
 
 **Correct paths** (Strimzi CR format):
 ```yaml
-# sources/values/{env}/data/data-kafka-cluster.yaml
+# sources/values/env/{env}/data/data-kafka-cluster.yaml
 kafka:
   template:
     pod:
@@ -388,9 +388,9 @@ entityOperator:
 **Note**: Strimzi CRs use `affinity.nodeAffinity` instead of `nodeSelector` for pod placement.
 
 **Files modified**:
-- `sources/values/dev/data/data-kafka-cluster.yaml` (already existed, verified correct)
-- `sources/values/staging/data/data-kafka-cluster.yaml` (created)
-- `sources/values/production/data/data-kafka-cluster.yaml` (created)
+- `sources/values/env/dev/data/data-kafka-cluster.yaml` (already existed, verified correct)
+- `sources/values/env/staging/data/data-kafka-cluster.yaml` (created)
+- `sources/values/env/production/data/data-kafka-cluster.yaml` (created)
 
 ---
 
@@ -402,7 +402,7 @@ entityOperator:
 
 **Correct paths**:
 ```yaml
-# sources/values/{env}/data/data-redis-failover.yaml
+# sources/values/env/{env}/data/data-redis-failover.yaml
 redis:
   tolerations:
     - key: "ameide.io/environment"
@@ -421,9 +421,9 @@ sentinel:
 ```
 
 **Files modified**:
-- `sources/values/dev/data/data-redis-failover.yaml` (already existed)
-- `sources/values/staging/data/data-redis-failover.yaml` (created)
-- `sources/values/production/data/data-redis-failover.yaml` (created)
+- `sources/values/env/dev/data/data-redis-failover.yaml` (already existed)
+- `sources/values/env/staging/data/data-redis-failover.yaml` (created)
+- `sources/values/env/production/data/data-redis-failover.yaml` (created)
 
 ---
 
@@ -435,7 +435,7 @@ sentinel:
 
 **Correct path**:
 ```yaml
-# sources/values/{env}/platform/platform-langfuse-bootstrap.yaml
+# sources/values/env/{env}/platform/platform-langfuse-bootstrap.yaml
 tolerations:
   - key: "ameide.io/environment"
     value: "dev"
@@ -445,9 +445,9 @@ nodeSelector:
 ```
 
 **Files modified**:
-- `sources/values/dev/platform/platform-langfuse-bootstrap.yaml` (updated)
-- `sources/values/staging/platform/platform-langfuse-bootstrap.yaml` (created)
-- `sources/values/production/platform/platform-langfuse-bootstrap.yaml` (created)
+- `sources/values/env/dev/platform/platform-langfuse-bootstrap.yaml` (updated)
+- `sources/values/env/staging/platform/platform-langfuse-bootstrap.yaml` (created)
+- `sources/values/env/production/platform/platform-langfuse-bootstrap.yaml` (created)
 
 ---
 
@@ -463,7 +463,7 @@ nodeSelector:
 
 **Correct paths** (unique dual-path requirement):
 ```yaml
-# sources/values/{env}/platform/platform-keycloak.yaml
+# sources/values/env/{env}/platform/platform-keycloak.yaml
 
 # Import jobs inherit from spec.scheduling
 scheduling:
@@ -482,9 +482,9 @@ unsupported:
 ```
 
 **Files modified**:
-- `sources/values/dev/platform/platform-keycloak.yaml`
-- `sources/values/staging/platform/platform-keycloak.yaml`
-- `sources/values/production/platform/platform-keycloak.yaml`
+- `sources/values/env/dev/platform/platform-keycloak.yaml`
+- `sources/values/env/staging/platform/platform-keycloak.yaml`
+- `sources/values/env/production/platform/platform-keycloak.yaml`
 
 **Commit**: `8b85655`
 

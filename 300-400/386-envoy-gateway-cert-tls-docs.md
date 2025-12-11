@@ -26,14 +26,14 @@
 
 ### Paths and knobs (dev)
 - EG shared values (certgen enabled, no hooks): `gitops/ameide-gitops/sources/charts/shared-values/infrastructure/envoy-gateway.yaml`
-- EG dev overlay (currently empty): `gitops/ameide-gitops/sources/values/dev/platform/platform-envoy-gateway.yaml`
-- Cert-manager control-plane PKI for EG: `gitops/ameide-gitops/sources/values/dev/platform/platform-cert-manager-config.yaml`
+- EG dev overlay (currently empty): `gitops/ameide-gitops/sources/values/env/dev/platform/platform-envoy-gateway.yaml`
+- Cert-manager control-plane PKI for EG: `gitops/ameide-gitops/sources/values/env/dev/platform/platform-cert-manager-config.yaml`
 - Argo app / wave: see rolloutPhase values in component files (310 CRDs, 320 operator, 330 certs, 340 gateway)
 
 ## Detailed implementation steps (dev)
 
 ### 1) Control-plane PKI (cert-manager)
-- Files: `sources/values/dev/platform/platform-cert-manager-config.yaml`
+- Files: `sources/values/env/dev/platform/platform-cert-manager-config.yaml`
   - Issuers:
     - `self-signed-root` (local root CA for dev)
     - `ameidet-ca-issuer` (Issuer from self-signed root)
@@ -68,7 +68,7 @@ Per `backlog/387-argocd-waves-v2.md`, CRDs are split from the operator chart:
   - Namespace: `ameide`
   - Value files (in order):
     1) `sources/charts/shared-values/infrastructure/envoy-gateway.yaml`
-    2) `sources/values/local/platform/infrastructure/envoy-gateway.yaml` (empty placeholder)
+    2) `sources/values/env/local/platform/infrastructure/envoy-gateway.yaml` (empty placeholder)
   - Sync options: `CreateNamespace=true`, `RespectIgnoreDifferences=true`, `ServerSideApply=true`, `Replace=true`
 
 ### 4) External TLS (Gateways)
@@ -184,7 +184,7 @@ Rollout order follows `backlog/387-argocd-waves-v2.md` Platform band: CRDs (310)
 
 Values and overlays:
 - Shared EG values (certgen on/no hooks): `sources/charts/shared-values/infrastructure/envoy-gateway.yaml`
-- Dev overlay (currently empty): `sources/values/dev/platform/platform-envoy-gateway.yaml`
-- Cert-manager EG PKI (dev): `sources/values/dev/platform/platform-cert-manager-config.yaml`
+- Dev overlay (currently empty): `sources/values/env/dev/platform/platform-envoy-gateway.yaml`
+- Cert-manager EG PKI (dev): `sources/values/env/dev/platform/platform-cert-manager-config.yaml`
 
 All paths relative to `gitops/ameide-gitops/`.

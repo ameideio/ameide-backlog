@@ -427,7 +427,7 @@ kubectl exec -n ameide-<env> vault-core-<env>-0 -- sh -c "VAULT_TOKEN=$ROOT_TOKE
 | Terraform identity | `infra/terraform/azure/main.tf` (vault_bootstrap_identity) |
 | vault-bootstrap CronJob | `sources/charts/foundation/vault-bootstrap/templates/cronjob.yaml` |
 | vault-bootstrap values (shared) | `sources/values/_shared/foundation/foundation-vault-bootstrap.yaml` |
-| vault-bootstrap values (dev) | `sources/values/dev/foundation/foundation-vault-bootstrap.yaml` |
+| vault-bootstrap values (dev) | `sources/values/env/dev/foundation/foundation-vault-bootstrap.yaml` |
 | SecretStore template | `sources/values/_shared/foundation/foundation-vault-secret-store.yaml` |
 
 ---
