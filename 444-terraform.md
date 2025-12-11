@@ -158,6 +158,13 @@ After `deploy.sh local`, validate GitOps health before handing the environment t
 
 Document any failures (for example, SecretStore DNS mismatches) back in the relevant backlog so the next Terraform run inherits the fix.
 
+## Teardown & Idempotence
+
+- **Remote backend bootstrapping** – `deploy.sh` provisions the `ameide-tfstate` resource group/storage/container (override via `TF_BACKEND_*`), so every shell can run `terraform -chdir=infra/terraform/azure destroy -auto-approve` immediately after `az login`. A quick `terraform init` reuses the backend without re-seeding secrets.
+- **Secrets auto-loading** – `infra/scripts/lib/env.sh` uses `set -a` and writes `infra/terraform/azure/env.auto.tfvars.json`, which Terraform auto-loads. There is no reason to pass `TF_VAR_env_secrets` manually or juggle temp JSON exports—the helper keeps the canonical file synced with `.env` and `.env.local`.
+- **Handling PodDisruptionBudgets** – AKS node pool drains can hang on Kafka/Plausible PDBs. Delete the offending PDBs/namespaces before destroy, or shortcut with `az aks nodepool delete --ignore-pdb -g Ameide --cluster-name ameide -n <pool>` to evict dev/staging/prod pools. Once the user pools are gone, Terraform removes the cluster, Key Vault identity, and Log Analytics workspace without timing out.
+- **State hygiene** – Successful destroy runs leave the remote backend empty (`terraform state list` prints nothing). Local `terraform.tfstate*` artifacts are safe to delete afterward, but keeping the backend RG/SA/container lets future applies remain idempotent.
+
 ## Terraform Modules
 
 ### azure-aks
@@ -383,6 +390,22 @@ terraform -chdir=infra/terraform/azure plan
 The Helm template also guards against missing chart overrides. When `secretSource=local`, the CronJob automatically mounts the JSON file and defaults `EXTERNAL_SECRETS_NAMESPACES` to the release namespace. When `secretSource=azure`, it falls back to Azure Key Vault and uses the federated workload identity outputs from Terraform. In either case the CronJob now injects the Kubernetes audience (`https://kubernetes.default.svc`) when it creates Vault roles, matching the requirements introduced in Vault 1.21.
 
 > **TF-21**: During Azure deploys, `deploy.sh` proactively deletes legacy `env-*` Key Vault secrets so only the sanitized hyphenated keys remain. This keeps the vault clean once the CronJob migrates to the new naming scheme.
+
+### Local cert-manager (self-signed)
+
+- `sources/values/env/local/foundation/foundation-cert-manager.yaml` + `foundation-cert-manager-wi.yaml` rename the release to `cert-manager-local` in `ameide-local`, so Workload Identity subjects stay unique per environment.
+- `sources/values/env/local/platform/platform-cert-manager-config.yaml` turns on the chart’s self-signed Issuer, mints a long-lived `ameide-local-ca` secret, and signs the shared wildcard (`ameide-wildcard-tls`) locally with SANs for both `*.dev.ameide.io` and `*.local.ameide.io`.
+- No Azure DNS or Let’s Encrypt issuers run in k3d; the platform overlay only relies on cert-manager primitives that work offline.
+
+Verification:
+
+```bash
+kubectl -n ameide-local get deploy cert-manager-local
+kubectl -n ameide get certificate ameide-local-ca -o yaml | grep -A2 Ready
+kubectl -n ameide get secret ameide-wildcard-tls -o yaml | grep -A2 tls.crt
+```
+
+If `platform-gateway` stays `Degraded`, re-sync `platform-cert-manager-config` first so the wildcard secret refreshes before Envoy Gateway requests it.
 
 ### How It Works
 
