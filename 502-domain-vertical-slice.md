@@ -36,26 +36,31 @@ A **vertical slice** delivers a complete, deployable feature across all layers. 
 │  C. Workload                           J. K8s Client                    │
 │      └─ Deployment + Service               └─ Read Domain CRs           │
 │         ↓                                      ↓                        │
-│  D. Status                             K. JSON Output                   │
-│      └─ Conditions                         └─ Matches proto shapes      │
+│  C2. Database                          K. JSON Output                   │
+│      └─ CNPG + Migration Job               └─ Matches proto shapes      │
 │         ↓                                      ↓                        │
-│  E. Helm Chart                         L. Integration Test              │
-│         ↓                                  └─ CLI → Operator → Status   │
+│  D. Status                             L. Integration Test              │
+│      └─ Ready, WorkloadReady,              └─ CLI → Operator → Status   │
+│         DBReady, MigrationSucceeded                                     │
+│         ↓                                                               │
+│  E. Helm Chart                                                          │
+│         ↓                                                               │
 │  F. GitOps                                                              │
 │         ↓                                                               │
 │  G. Sample CR                                                           │
 │                                                                         │
 │  ═══════════════════════════════════════════════════════════════════   │
 │                      M. End-to-End Demo                                 │
-│      Create Domain CR → Operator reconciles → CLI reports Ready         │
+│   Create Domain CR → Migration runs → Deployment ready → CLI reports    │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
 **Deliverable**: Full loop where:
-1. `kubectl apply` a Domain CR
-2. Operator reconciles Deployment + Service
-3. `ameide primitive describe --kind domain --json` shows status
-4. `ameide primitive verify --kind domain --name orders --json` validates health
+1. `kubectl apply` a Domain CR with `spec.db` configured
+2. Operator runs Migration Job (connects to CNPG, applies schema)
+3. Operator reconciles Deployment + Service (with DB credentials injected)
+4. `ameide primitive describe --kind domain --json` shows status including DBReady
+5. `ameide primitive verify --kind domain --name orders --json` validates health
 
 ---
 
@@ -63,9 +68,13 @@ A **vertical slice** delivers a complete, deployable feature across all layers. 
 
 ### What This Slice Covers
 
+A complete vertical slice includes **all** Domain functionality:
+
 - Domain CRD types with kubebuilder markers
-- Basic reconciler: Deployment + Service creation
-- Status conditions (Ready, WorkloadReady)
+- Full reconciler: Deployment + Service + Migration Job
+- **CNPG integration**: Database connection, secret injection
+- **Migration Job**: Run Flyway/similar migrations on deploy
+- Status conditions (Ready, WorkloadReady, DBReady, MigrationSucceeded)
 - Helm chart for operator deployment
 - CLI `describe` and `verify` commands (read-only)
 - Proto message shapes for JSON output
@@ -74,13 +83,9 @@ A **vertical slice** delivers a complete, deployable feature across all layers. 
 
 | Deferred | Reason | Future Slice |
 |----------|--------|--------------|
-| **DB migrations** | `spec.db` is accepted but not acted on | 498 Phase 2 |
-| **CNPG integration** | Schema creation, secret injection | 498 Phase 2 |
-| **HPA, NetworkPolicy, ServiceMonitor** | Production readiness | 498 Phase 3 |
-| **CLI scaffold command** | Write operations need Git/PR flow | 484d Phase 2 |
-| **Transformation integration** | Requires Transformation Domain APIs | 484d Phase 4 |
+| **HPA, NetworkPolicy, ServiceMonitor** | Production hardening | 498 Phase 3 |
 
-> **Key constraint**: This slice is **read-only** for CLI operations. Any future write operations (scaffolding GitOps CRs, generating code) will go through Git/PR workflow, not direct imperative API calls.
+> **Note**: CLI write operations (scaffold, generate) use Git/PR workflow, not direct imperative API calls. This is by design, not a deferral.
 
 ---
 
@@ -178,10 +183,11 @@ Execute these phases in order. Each phase has clear acceptance criteria.
 | **A** | CRD Types | `operators/domain-operator/api/v1/*.go` | `make manifests` generates valid CRD YAML |
 | **B** | Reconciler | `internal/controller/*.go` | Controller starts, logs reconcile events |
 | **C** | Workload | `reconcile_workload.go` | Deployment + Service created from CR |
-| **D** | Status | `conditions.go` | `status.conditions` updated, `Ready` computed |
+| **C2** | Database | `reconcile_db.go` | Migration Job created, CNPG secrets injected |
+| **D** | Status | `conditions.go` | `status.conditions` includes DBReady, MigrationSucceeded |
 | **E** | Helm | `charts/ameide-operators/` | `helm template` renders valid manifests |
 | **F** | GitOps | gitops repo changes | ArgoCD syncs operator to dev cluster |
-| **G** | Sample CR | gitops `primitives/domain/` | Full reconcile cycle works in dev |
+| **G** | Sample CR | gitops `primitives/domain/` | Full reconcile cycle with DB works in dev |
 
 ### CLI Track
 
@@ -197,7 +203,7 @@ Execute these phases in order. Each phase has clear acceptance criteria.
 
 | Phase | Focus | Acceptance Criteria |
 |-------|-------|---------------------|
-| **M** | E2E Demo | Create CR → Operator reconciles → CLI reports Ready |
+| **M** | E2E Demo | Create CR → Migration runs → Workload ready → CLI reports Ready |
 
 ---
 
@@ -272,7 +278,81 @@ operators/{primitive}-operator/
 
 ---
 
-## 6. Phase D: Status & Conditions ✅ IMPLEMENTED
+## 5.5 Phase C2: Database Integration (Pending)
+
+> **Implementation**: `operators/domain-operator/internal/controller/reconcile_db.go` (to be created)
+
+This phase implements CNPG database integration for Domain primitives.
+
+### 5.5.1 Reconcile Flow
+
+```
+1. Check if spec.db is defined
+2. Lookup CNPG Cluster secret from spec.db.clusterRef
+3. Create/Update Migration Job
+   - Image: spec.db.migrationJobImage
+   - Env: PGHOST, PGUSER, PGPASSWORD, PGDATABASE from CNPG secret
+   - Command: run Flyway or similar migrations
+4. Watch Job completion
+5. Set DBReady condition based on Job status
+6. Set MigrationSucceeded or MigrationFailed condition
+7. Inject DB credentials into Domain Deployment
+```
+
+### 5.5.2 Key Implementation Details
+
+**CNPG Secret Lookup:**
+```go
+// spec.db.clusterRef format: "namespace/cluster-name" or just "cluster-name" (same namespace)
+secretName := fmt.Sprintf("%s-app", clusterName) // CNPG naming convention
+```
+
+**Migration Job Template:**
+```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {domain}-migration
+  ownerReferences:
+    - apiVersion: ameide.io/v1
+      kind: Domain
+      name: {domain}
+spec:
+  template:
+    spec:
+      containers:
+        - name: migrate
+          image: {spec.db.migrationJobImage}
+          env:
+            - name: PGHOST
+              valueFrom:
+                secretKeyRef:
+                  name: {cnpg-cluster}-app
+                  key: host
+            - name: PGDATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: {cnpg-cluster}-app
+                  key: dbname
+            # ... PGUSER, PGPASSWORD similarly
+      restartPolicy: Never
+  backoffLimit: 3
+```
+
+### 5.5.3 Acceptance Criteria (Phase C2)
+
+- [ ] Migration Job created when `spec.db` is defined
+- [ ] Job uses correct CNPG secret for credentials
+- [ ] Job runs `migrationJobImage` with proper env vars
+- [ ] `DBReady` condition set to True when Job succeeds
+- [ ] `MigrationSucceeded` condition shows migration version
+- [ ] `MigrationFailed` condition set if Job fails
+- [ ] Domain Deployment has DB credentials injected
+- [ ] Job re-runs when `spec.db.migrationJobImage` changes
+
+---
+
+## 6. Phase D: Status & Conditions ✅ IMPLEMENTED (Partial)
 
 > **Implementation**: See [operators/domain-operator/internal/controller/conditions.go](../operators/domain-operator/internal/controller/conditions.go)
 
@@ -280,19 +360,27 @@ operators/{primitive}-operator/
 
 Uses shared vocabulary from `operators/shared/api/v1/conditions.go`:
 
-| Condition | Meaning |
-|-----------|---------|
-| `Ready` | Computed: WorkloadReady && !Degraded |
-| `WorkloadReady` | Deployment has available replicas |
-| `DBReady` | Database schema ready (future) |
-| `Degraded` | Running but with errors |
+| Condition | Meaning | Status |
+|-----------|---------|--------|
+| `Ready` | Computed: WorkloadReady && DBReady && !Degraded | ✅ Implemented |
+| `WorkloadReady` | Deployment has available replicas | ✅ Implemented |
+| `DBReady` | Database schema ready, migration completed | ⏳ Pending (Phase C2) |
+| `MigrationSucceeded` | Latest migration Job completed successfully | ⏳ Pending (Phase C2) |
+| `MigrationFailed` | Migration Job failed | ⏳ Pending (Phase C2) |
+| `Degraded` | Running but with errors | ✅ Implemented |
 
-### 6.2 Acceptance Criteria (Phase D) ✅
+### 6.2 Acceptance Criteria (Phase D)
 
+**Implemented:**
 - [x] `kubectl get domain` shows Ready column
 - [x] `status.conditions` includes Ready, WorkloadReady
 - [x] `status.readyReplicas` reflects Deployment status
 - [x] `status.observedGeneration` matches `metadata.generation`
+
+**Pending (after Phase C2):**
+- [ ] `status.conditions` includes DBReady, MigrationSucceeded
+- [ ] `status.dbMigrationVersion` shows current migration version
+- [ ] Ready computation includes DBReady when spec.db is defined
 
 ---
 
