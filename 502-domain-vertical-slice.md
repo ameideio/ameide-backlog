@@ -507,56 +507,144 @@ Sample CRs are included in the Helm chart at `examples/`:
 
 ---
 
-## 8. Phase H-L: CLI Track ✅ IMPLEMENTED
+## 8. CLI Track: Agentic Guardrail System
 
 > **Implementation**: See [packages/ameide_core_cli/internal/commands/primitive.go](../packages/ameide_core_cli/internal/commands/primitive.go)
+> **Full Specification**: See [484a-ameide-cli-primitive-workflows.md](484a-ameide-cli-primitive-workflows.md)
 
-The CLI track implements `ameide primitive` commands that interact with operator CRDs.
+The CLI is designed as a **guardrail system for AI agents** following the "Shape vs Meaning" principle:
+- **CLI owns Shape**: Directory layout, proto/SDK freshness, convention enforcement
+- **Agent owns Meaning**: Business logic, test assertions, implementation details
 
-### 8.1 Proto Messages ✅
+### 8.0 Design Philosophy
+
+```
+OBSERVE → REASON → DRY-RUN → HUMAN GATE → ACT → VERIFY
+```
+
+CLI commands support this workflow:
+- **OBSERVE**: `describe`, `drift` - understand current state
+- **REASON**: `plan`, `impact` - research what's needed
+- **ACT**: `scaffold` - generate mechanical skeletons
+- **VERIFY**: `verify` - validate health and conventions
+
+### 8.1 Phase H: Proto Messages ✅ IMPLEMENTED
 
 Proto definitions in `packages/ameide_core_proto/src/ameide_core_proto/primitive/v1/`:
 
 | File | Messages |
 |------|----------|
-| `primitive_types.proto` | `PrimitiveKind` enum, `Condition`, `PrimitiveInfo`, `CheckResult`, kind-specific details |
-| `primitive_service.proto` | `PrimitiveService` with `Describe` and `Verify` RPCs |
+| `primitive_types.proto` | `PrimitiveKind`, `Condition`, `PrimitiveInfo`, `CheckResult`, `DriftInfo`, `ImpactInfo` |
+| `primitive_service.proto` | `PrimitiveService` with all RPCs |
 
 Generated code in:
 - Go: `packages/ameide_sdk_go/gen/ameide_core_proto/primitive/v1/`
 - TypeScript: `packages/ameide_core_proto/gen/ts/ameide_core_proto/primitive/v1/`
 
-### 8.2 CLI Commands ✅
+### 8.2 Phase I: CLI Commands
 
-| Command | Description | Key Flags |
-|---------|-------------|-----------|
-| `ameide primitive describe` | List primitives and status | `--kind`, `--name`, `--namespace`, `--selector`, `--json` |
-| `ameide primitive verify` | Health checks on primitives | `--kind`, `--name`, `--namespace`, `--check`, `--json` |
+| Command | Purpose | Status |
+|---------|---------|--------|
+| **describe** | Introspect what exists (K8s CRs + repo state) | ✅ K8s implemented, ⏳ Repo pending |
+| **drift** | Detect SDK/proto staleness, missing tests, convention violations | ❌ NOT IMPLEMENTED |
+| **plan** | Research what work is needed (tests to create, scaffolds) | ❌ NOT IMPLEMENTED |
+| **impact** | Analyze proto changes - cascade scope, affected consumers | ❌ NOT IMPLEMENTED |
+| **verify** | Run health checks with structured output | ✅ K8s checks, ⏳ Convention checks pending |
+| **scaffold** | Generate mechanical proto-driven skeletons (TDD-aligned) | ❌ NOT IMPLEMENTED |
 
-### 8.3 K8s Client ✅
+**Flags** (common to all commands):
+```bash
+--kind domain|process|agent|uisurface
+--name <primitive-name>
+--namespace <k8s-namespace>
+--json                    # Structured output for agents
+--repo-root <path>        # Core repo root (default: cwd)
+--gitops-root <path>      # GitOps repo root (default: env or ../ameide-gitops)
+```
+
+### 8.3 Phase J: K8s Client ✅ IMPLEMENTED
 
 Dynamic client implementation in `packages/ameide_core_cli/internal/k8s/client.go`:
 - Uses `k8s.io/client-go/dynamic` for CRD operations
 - GVR constants for all four primitive types (Domain, Process, Agent, UISurface)
 - Kubeconfig auto-detection (env var, default path, in-cluster)
 
-### 8.4 Check Implementations ✅
+### 8.4 Phase K: Verification Checks
 
-| Check | Description |
-|-------|-------------|
-| `WorkloadReady` | Verifies Deployment has available replicas |
-| `ConditionsHealthy` | Validates Ready condition is True, Degraded is False |
+| Check | What It Validates | Status |
+|-------|-------------------|--------|
+| **WorkloadReady** | Deployment has available replicas | ✅ Implemented |
+| **ConditionsHealthy** | Ready=True, Degraded=False | ✅ Implemented |
+| **DBReady** | Database connectivity (Domain only) | ✅ Implemented |
+| **MigrationStatus** | Migration job succeeded/failed (Domain only) | ✅ Implemented |
+| **naming** | RPC naming conventions (business verbs, not CRUD) | ❌ NOT IMPLEMENTED |
+| **eda** | Outbox wiring, event emission, idempotency | ❌ NOT IMPLEMENTED |
+| **security** | Secret scan, vuln scan, SAST hooks | ❌ NOT IMPLEMENTED |
+| **schema** | Buf compatibility, event metadata | ❌ NOT IMPLEMENTED |
+| **tests** | Unit/integration test execution | ❌ NOT IMPLEMENTED |
 
-### 8.5 Acceptance Criteria (Phases H-L) ✅
+### 8.5 Phase L: Scaffold Command
 
+The scaffold command generates **mechanical, proto-driven skeletons** that are TDD-aligned:
+
+**Key Properties**:
+- **One-shot only**: Refuses to scaffold if folder exists (never overwrites)
+- **TDD-aligned**: Scaffolded tests CALL handlers and FAIL until implemented
+- **No business logic**: Handlers return `codes.Unimplemented`
+- **Mechanical only**: No fuzzy reasoning, purely proto-driven
+
+**Generates** (for Domain):
+```
+primitives/domain/{name}/
+├── cmd/main.go                    # Entry point
+├── internal/
+│   ├── handlers/                  # RPC handlers (return Unimplemented)
+│   ├── repository/                # Data access interfaces
+│   └── tests/                     # Test skeletons (FAILING)
+├── Dockerfile, go.mod, README.md
+│
+gitops/primitives/domain/{name}/   # If --include-gitops
+├── values.yaml                    # Helm values
+├── component.yaml                 # ApplicationSet discovery
+└── kustomization.yaml
+```
+
+**Flags**:
+```bash
+ameide primitive scaffold \
+  --kind domain \
+  --name orders \
+  --proto-path orders.proto \
+  --lang go \
+  --dry-run \
+  --include-gitops \
+  --include-test-harness \
+  --json
+```
+
+**Status**: ❌ NOT IMPLEMENTED
+
+### 8.6 Acceptance Criteria (CLI Track)
+
+**Implemented**:
 - [x] `buf lint` passes on primitive protos
 - [x] `buf generate` creates Go/TS types
-- [x] `ameide primitive --help` shows subcommands
-- [x] `ameide primitive describe --help` shows flags
-- [x] `ameide primitive verify --help` shows flags
-- [x] K8s client can list Domain CRs via dynamic client
+- [x] `ameide primitive describe` lists K8s CRs with status
+- [x] `ameide primitive verify` runs K8s health checks
+- [x] DBReady and MigrationStatus checks for Domain
 - [x] JSON output matches proto shapes
 - [x] Unit tests pass (`go test ./packages/ameide_core_cli/...`)
+
+**Pending** (per 484a-e full scope):
+- [ ] `describe` includes repo state (expected vs actual primitives)
+- [ ] `drift` detects SDK staleness and missing tests
+- [ ] `plan` suggests work needed for a primitive
+- [ ] `impact` analyzes proto change cascades
+- [ ] `scaffold` generates TDD-aligned skeletons
+- [ ] `verify --check naming` validates RPC naming conventions
+- [ ] `verify --check eda` validates outbox/event wiring
+- [ ] `verify --check security` runs secret/vuln scans
+- [ ] `verify --check tests` executes unit/integration tests
 
 ---
 
@@ -598,3 +686,103 @@ The E2E demo validates the full vertical slice by creating a Domain CR and verif
 | [484a-ameide-cli-primitive-workflows.md](484a-ameide-cli-primitive-workflows.md) | CLI commands, TDD loop, agentic workflow |
 | [484b-ameide-cli-proto-contract.md](484b-ameide-cli-proto-contract.md) | Proto message definitions for CLI |
 | [484d-ameide-cli-migration.md](484d-ameide-cli-migration.md) | CLI phased implementation plan |
+
+---
+
+## 11. Known Gaps & Issues
+
+This section tracks implementation gaps discovered during review. These must be addressed before declaring the vertical slice complete.
+
+### 11.1 Cross-Namespace DB Secrets Unsupported
+
+**Location**: [reconcile_db.go:172-360](../operators/domain-operator/internal/controller/reconcile_db.go)
+
+**Issue**: The `spec.db.clusterRef` format supports `namespace/cluster-name`, but the implementation only looks up secrets in the Domain's own namespace. CNPG clusters in different namespaces (common pattern) won't work.
+
+**Impact**: Domains cannot reference shared CNPG clusters deployed in a central `database` namespace.
+
+**Fix Required**: Add cross-namespace secret lookup with appropriate RBAC.
+
+### 11.2 status.dbMigrationVersion Never Populated
+
+**Location**:
+- [domain_types.go:86-102](../operators/domain-operator/api/v1/domain_types.go) - Status field defined
+- [primitive.go:298-325](../packages/ameide_core_cli/internal/commands/primitive.go) - CLI expects it
+
+**Issue**: `DomainStatus.DBMigrationVersion` is defined in the CRD but never set by the controller. The CLI `checkMigrationStatus()` checks for `migrationVersion` in DomainDetails but it's never populated.
+
+**Impact**: CLI cannot report which migration version is deployed.
+
+**Fix Required**: Controller must parse migration Job logs or use a ConfigMap to track completed version.
+
+### 11.3 Full Loop Demo Cannot Exercise Migrations
+
+**Location**: [domain-sample.yaml:7-25](../operators/helm/examples/domain-sample.yaml)
+
+**Issue**: The sample Domain CR lacks `spec.db` configuration. Phase M E2E demo cannot validate the Migration Job flow because there's no sample that exercises it.
+
+**Impact**: Phase M acceptance criteria ("Migration runs → Workload ready") cannot be verified.
+
+**Fix Required**: Add `domain-with-db-sample.yaml` that includes:
+- `spec.db.clusterRef`: Reference to CNPG cluster
+- `spec.db.migrationJobImage`: Flyway/Liquibase image
+- Requires CNPG cluster to exist in test environment
+
+### 11.4 Proto Contract and CLI Scope Diverge from Docs
+
+**Location**:
+- [484b lines 103-206](484b-ameide-cli-proto-contract.md) - Specifies `DriftInfo`, `ImpactInfo`, `PlanResult` messages
+- [primitive_service.proto](../packages/ameide_core_proto/src/ameide_core_proto/primitive/v1/primitive_service.proto) - Actual proto
+
+**Issue**: The proto files implement a subset of what 484b specifies. Missing:
+- `DriftInfo` message and `DetectDrift` RPC
+- `ImpactInfo` message and `AnalyzeImpact` RPC
+- `PlanResult` message and `GeneratePlan` RPC
+- `ScaffoldResult` message and `Scaffold` RPC
+
+**Impact**: CLI commands `drift`, `impact`, `plan`, `scaffold` have no proto contract to implement against.
+
+**Fix Required**: Extend proto files per 484b specification.
+
+### 11.5 Verify Only Checks Cluster Conditions, Not Repo/Tests
+
+**Location**:
+- [484a lines 70-80](484a-ameide-cli-primitive-workflows.md) - Full check scope
+- [primitive.go:414-719](../packages/ameide_core_cli/internal/commands/primitive.go) - Current implementation
+
+**Issue**: `ameide primitive verify` only validates K8s cluster state (conditions, replicas). Per 484a, it should also verify:
+- Naming conventions (RPC business verbs, not CRUD)
+- EDA wiring (outbox table, event emission)
+- Security hooks (secret scan, vuln scan)
+- Test execution (unit/integration tests pass)
+
+**Impact**: Agents cannot use `verify` to ensure code quality, only deployment health.
+
+**Fix Required**: Implement `--check naming`, `--check eda`, `--check security`, `--check tests` flags.
+
+### 11.6 Phase L and Phase M Deliverables Unverified
+
+**Location**:
+- [Section 2 lines 200-206](#2-implementation-sequence) - Phase L/M acceptance criteria
+- [primitive_test.go](../packages/ameide_core_cli/internal/commands/primitive_test.go) - Unit tests only
+
+**Issue**:
+- **Phase L (CLI Tests)**: Only unit tests exist. No integration tests that exercise CLI → K8s → Operator flow.
+- **Phase M (E2E Demo)**: No demo script exists. Acceptance criteria unmarked.
+
+**Impact**: Cannot verify the vertical slice works end-to-end.
+
+**Fix Required**:
+- Phase L: Add integration test that creates Domain CR and verifies CLI output
+- Phase M: Create `scripts/demo-domain-slice.sh` that runs full flow
+
+### 11.7 Summary Table
+
+| Gap | Severity | Blocking E2E? | Fix Complexity |
+|-----|----------|---------------|----------------|
+| Cross-namespace secrets | Medium | No (workaround: same-ns CNPG) | Medium |
+| dbMigrationVersion | Low | No | Low |
+| Sample with DB | High | **Yes** | Low |
+| Proto contract gaps | Medium | No (CLI works without) | Medium |
+| Verify repo/tests | Medium | No | High |
+| Phase L/M unverified | High | **Yes** | Medium |
