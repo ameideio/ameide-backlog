@@ -1,0 +1,303 @@
+# 484c – Ameide CLI: Repo & GitOps Alignment
+
+**Status:** Active
+**Audience:** CLI implementers, platform engineers
+**Scope:** Core vs GitOps repo split, directory structure, test infrastructure (430), GitOps alignment (434)
+
+> **Parent document**: [484 – Ameide CLI Overview](484-ameide-cli.md)
+
+---
+
+## 1. Core Repo vs GitOps Repo Split
+
+The CLI operates across **two logical repositories** (which may be consolidated or separate):
+
+| Repo | Contains | CLI Focus |
+|------|----------|-----------|
+| **Core repo** | Code, proto, SDKs, operators, CRD *schemas* | `describe`, `drift`, `verify`, `scaffold` (code) |
+| **GitOps repo** | CRD *instances*, environment values, ApplicationSets | `scaffold --include-gitops`, `verify --gitops` |
+
+**Key distinction:**
+- **CRD schemas/kinds + operators** live in the **core repo** (`config/crd/bases/`, `operators/`)
+- **CRD instances + environment config** live in the **GitOps repo** (`gitops/primitives/`, `gitops/environments/`)
+
+> **Reference**: See [477-primitive-stack.md §2](477-primitive-stack.md) for the authoritative repo layout.
+
+---
+
+## 2. CLI Flags for Repo Roots
+
+All `primitive` commands accept:
+
+```bash
+--repo-root <path>      # Core repo root (default: cwd or auto-detected)
+--gitops-root <path>    # GitOps repo root (default: {repo-root}/gitops or separate repo)
+```
+
+Examples:
+
+```bash
+# Monorepo (gitops is a subdirectory)
+ameide primitive describe --json
+# Uses: repo-root=cwd, gitops-root=cwd/gitops
+
+# Separate repos
+ameide primitive describe --repo-root ~/ameide-core --gitops-root ~/ameide-gitops --json
+
+# GitOps-only operations
+ameide primitive verify --gitops-root ~/ameide-gitops --check gitops-only --json
+```
+
+---
+
+## 3. Directory Structure
+
+### 3.1 Core Repo (AI Coder Sandbox)
+
+```
+ameide/
+├── packages/
+│   ├── ameide_core_proto/           # Buf module (contracts)
+│   ├── ameide_sdk_go/               # Generated clients
+│   ├── ameide_sdk_ts/
+│   └── ameide_sdk_python/
+│
+├── config/
+│   └── crd/
+│       └── bases/                   # CRD SCHEMAS (Domain, Process, Agent, UISurface)
+│           ├── domain.ameide.io.yaml
+│           ├── process.ameide.io.yaml
+│           ├── agent.ameide.io.yaml
+│           └── uisurface.ameide.io.yaml
+│
+├── operators/                       # Operator code (reconciles CRD instances)
+│   ├── domain/
+│   ├── process/
+│   ├── agent/
+│   └── uisurface/
+│
+├── primitives/
+│   ├── domain/
+│   │   ├── orders/
+│   │   ├── transformation/
+│   │   └── ...
+│   ├── process/
+│   │   ├── l2o/
+│   │   └── onboarding/
+│   ├── agent/
+│   │   └── core_platform_coder/
+│   └── uisurface/
+│       └── www_ameide_platform/
+```
+
+### 3.2 GitOps Repo (CRD Instances & Environment Config)
+
+```
+ameide-gitops/  # or gitops/ subdirectory in monorepo
+├── environments/
+│   ├── dev/
+│   │   └── argocd/                  # ApplicationSets for dev
+│   ├── staging/
+│   └── prod/
+│
+├── primitives/                      # CRD INSTANCES (actual runtime wiring)
+│   ├── domain/
+│   │   └── orders/
+│   │       ├── domain.yaml          # Domain CRD instance
+│   │       └── values.yaml          # Helm values
+│   ├── process/
+│   ├── agent/
+│   └── uisurface/
+│
+└── sources/
+    └── values/
+        ├── dev/
+        ├── staging/
+        └── prod/                    # Environment-specific overrides
+```
+
+### 3.3 Key Points
+
+- **CRD schemas** (what a Domain/Process/Agent/UISurface looks like) → **core repo**
+- **CRD instances** (the actual orders Domain, the actual l2o Process) → **GitOps repo**
+- **Operators** (code that reconciles CRs into Deployments) → **core repo**
+- The CLI scaffolds **code** in core repo; **CRD instances** go in gitops repo (via `--include-gitops`)
+
+### 3.4 Migration from Current Structure
+
+| Current | Target |
+|---------|--------|
+| `services/orders/` | `primitives/domain/orders/` |
+| `services/inference/` | `primitives/domain/inference/` |
+| `services/workflows_runtime/` | `primitives/process/workflows_runtime/` |
+| `services/www_ameide_platform/` | `primitives/uisurface/www_ameide_platform/` |
+
+---
+
+## 4. Test Infrastructure Alignment (Backlog 430)
+
+The CLI aligns with the unified test infrastructure defined in [430-unified-test-infrastructure.md](430-unified-test-infrastructure.md).
+
+### 4.1 Verify Modes
+
+`ameide primitive verify` supports two modes:
+
+| Mode | Flag | Behavior |
+|------|------|----------|
+| `mock` | `--mode mock` (default) | In-memory stubs, fast, local |
+| `cluster` | `--mode cluster` | Real Kubernetes services via Telepresence |
+
+```bash
+# Fast local check (default)
+ameide primitive verify --kind domain --name orders --json
+
+# Against live cluster
+ameide primitive verify --kind domain --name orders --mode cluster --json
+```
+
+### 4.2 Scaffolded Test Structure
+
+Scaffold outputs follow the 430 canonical structure:
+
+```
+primitives/domain/{name}/
+├── __mocks__/                    # Mock implementations (required by 430)
+│   ├── index.ts
+│   ├── client.ts                 # createMockTransport()
+│   └── fixtures.ts               # Typed fixture data
+├── __tests__/
+│   ├── unit/
+│   └── integration/
+│       ├── run_integration_tests.sh  # 430-compliant runner
+│       ├── helpers.ts                # Mode-aware client factory
+│       └── *.test.ts
+```
+
+### 4.3 Runner Script Contract
+
+Scaffolded `run_integration_tests.sh` follows the 430 contract:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+source "tools/integration-runner/integration-mode.sh"
+MODE="$(integration_mode)"
+export INTEGRATION_TEST_MODE="${MODE}"
+
+if [[ "${MODE}" == "cluster" ]]; then
+  require_cluster_mode "${MODE}"
+  for var in GRPC_ADDRESS; do
+    [[ -z "${!var:-}" ]] && { echo "${var} required"; exit 1; }
+  done
+fi
+
+source "tools/integration-runner/junit-path.sh"
+JUNIT_PATH="$(resolve_junit_path {name})"
+# ... run tests
+```
+
+### 4.4 Verify Output Formats
+
+Verify emits both JSON and JUnit:
+
+```bash
+ameide primitive verify --kind domain --name orders --json
+# stdout: VerifyResult JSON
+# artifacts/{name}/junit.xml: JUnit XML for CI
+```
+
+### 4.5 Fail Fast
+
+Per 430, verify must:
+- Exit non-zero immediately on any failure
+- Never skip tests silently
+- Never fallback to defaults in cluster mode
+
+---
+
+## 5. GitOps Alignment (Backlog 434)
+
+The CLI aligns with environment naming and GitOps structure from [434-unified-environment-naming.md](434-unified-environment-naming.md).
+
+### 5.1 Scaffolded GitOps Structure
+
+```
+gitops/primitives/{kind}/{name}/
+├── values.yaml                   # Base values
+├── kustomization.yaml            # Optional kustomize overlay
+└── component.yaml                # For ApplicationSet discovery
+```
+
+The `component.yaml` allows the single parametrized ApplicationSet to discover new primitives:
+
+```yaml
+# gitops/primitives/domain/orders/component.yaml
+name: orders
+domain: apps                      # ArgoCD Project domain
+kind: domain
+```
+
+### 5.2 Required Labels
+
+Scaffolded Helm values include 434-mandated labels:
+
+```yaml
+# gitops/primitives/domain/orders/values.yaml
+labels:
+  ameide.io/tier: backend         # Domain/Process/Agent = backend, UISurface = frontend
+  ameide.io/primitive-kind: domain
+```
+
+### 5.3 Tier Mapping
+
+| Primitive Kind | Tier Label |
+|----------------|------------|
+| Domain | `backend` |
+| Process | `backend` |
+| Agent | `backend` |
+| UISurface | `frontend` |
+
+### 5.4 No Per-Environment Files
+
+Per 434's single parametrized ApplicationSet design, scaffold does NOT create per-environment values. Environment-specific overrides go in:
+
+```
+gitops/sources/values/{env}/primitives/{kind}/{name}.yaml  # Optional override
+```
+
+---
+
+## 6. Automating the New Service Checklist (Backlog 482)
+
+Backlog [482-adding-new-service](482-adding-new-service.md) defines a manual checklist for spinning up new services. The `ameide primitive scaffold` command **automates** this checklist:
+
+| 482 Checklist Item | `scaffold` Output |
+|-------------------|-------------------|
+| Decide service type | `--kind domain\|process\|agent\|uisurface` |
+| Scaffold files (README, Dockerfiles, Tilt) | `cmd/`, `Dockerfile.dev`, `Dockerfile.release`, `README.md` |
+| Define interfaces (proto) | Uses proto from `--proto-path` |
+| Secrets & config | ExternalSecret template in gitops |
+| Testing | `__mocks__/`, `__tests__/integration/`, runner script |
+| GitOps deployment | `component.yaml`, `values.yaml`, kustomization |
+| Observability | Health probe stubs, OTel wiring |
+| Documentation | README with deps, rotation steps; `catalog-info.yaml` |
+| CI/CD wiring | Adds service to workflow matrices |
+
+**Before scaffold:** AI agent creates/edits proto, runs `buf generate`.
+**After scaffold:** All 482 checklist items are generated; AI agent implements business logic.
+
+This makes 482 the "what" and 484 the "how" (automated).
+
+---
+
+## 7. Cross-References
+
+| Backlog | Relationship |
+|---------|--------------|
+| [430-unified-test-infrastructure](430-unified-test-infrastructure.md) | Test modes, folder structure, runner contracts |
+| [434-unified-environment-naming](434-unified-environment-naming.md) | GitOps structure, namespace labels, tier mapping |
+| [435-remote-first-development](435-remote-first-development.md) | Telepresence, cluster mode context |
+| [477-primitive-stack](477-primitive-stack.md) | Repo layout, operator structure |
+| [482-adding-new-service](482-adding-new-service.md) | Manual checklist that `scaffold` automates |
+| [495-ameide-operators](495-ameide-operators.md) | Operator CRD shapes, reconciliation logic |

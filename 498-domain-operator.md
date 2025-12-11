@@ -1,0 +1,205 @@
+# 498 – Domain Operator
+
+**Status:** Planned
+**Audience:** Platform engineers implementing Domain operator
+**Scope:** Implementation tracking, development phases, acceptance criteria
+
+> **Related**:
+> - [502-domain-vertical-slice.md](502-domain-vertical-slice.md) – End-to-end implementation guide
+> - [495-ameide-operators.md](495-ameide-operators.md) – CRD shapes & responsibilities
+> - [497-operator-implementation-patterns.md](497-operator-implementation-patterns.md) – Go patterns & reference implementation
+
+---
+
+## 1. Overview
+
+The Domain operator manages the lifecycle of **Domain primitives** – the bounded contexts that hold business data and expose gRPC APIs. Each `Domain` CR results in:
+
+- Database schema + migration Job (via CNPG)
+- Application Deployment with gRPC server
+- Service (ClusterIP) for internal traffic
+- HPA, NetworkPolicy, ServiceMonitor
+
+**Key insight**: The operator owns all runtime infrastructure; the Domain image owns all business logic.
+
+---
+
+## 2. CRD Summary
+
+```yaml
+apiVersion: ameide.io/v1
+kind: Domain
+metadata:
+  name: orders
+spec:
+  image: ghcr.io/ameide/orders-domain:1.12.3
+  db:
+    clusterRef: cnpg/orders
+    schema: orders
+    migrationJobImage: ghcr.io/ameide/migrator:latest
+  resources:
+    cpu: "500m"
+    memory: "512Mi"
+  env: [...]
+  observability:
+    logLevel: info
+  security:
+    serviceAccountName: orders-domain
+    networkProfile: backend
+  rollout:
+    strategy: RollingUpdate
+status:
+  conditions:
+    - type: Ready
+    - type: DBReady
+    - type: WorkloadReady
+    - type: MigrationSucceeded
+  observedGeneration: 5
+  dbMigrationVersion: "V3__add_status_column"
+  readyReplicas: 2
+```
+
+Full CRD Go types: [497 §10.1](497-operator-implementation-patterns.md#101-crd-types-go)
+
+---
+
+## 3. Reconcile Flow
+
+```
+1. Fetch Domain CR
+2. Handle deletion (finalizer cleanup)
+3. Ensure finalizer present
+4. Validate spec
+5. reconcileDB()       ← Migration Job, wait for completion
+6. reconcileWorkload() ← Deployment, Service, HPA, NetworkPolicy, ServiceMonitor
+7. Update status (conditions, observedGeneration)
+```
+
+Reference implementation: [497 §10.3](497-operator-implementation-patterns.md#103-main-reconcile-flow)
+
+---
+
+## 4. Development Phases
+
+### Phase 1: Core Reconciliation
+
+| Task | Description | Acceptance Criteria |
+|------|-------------|---------------------|
+| **CRD types** | Define `Domain`, `DomainSpec`, `DomainStatus` in Go | Types compile, `make manifests` generates CRD YAML |
+| **Basic reconciler** | Implement 7-step reconcile flow skeleton | Controller starts, logs "reconciling" on CR create |
+| **Finalizer handling** | Add/remove finalizer on create/delete | `kubectl delete domain/foo` blocks until finalizer removed |
+| **Deployment creation** | `reconcileWorkload` creates Deployment | `kubectl get deploy` shows domain deployment |
+| **Service creation** | Create ClusterIP Service for domain | `kubectl get svc` shows domain service |
+| **Status conditions** | Set `Ready`, `WorkloadReady` conditions | `kubectl get domain -o yaml` shows conditions |
+
+### Phase 2: Database Integration
+
+| Task | Description | Acceptance Criteria |
+|------|-------------|---------------------|
+| **Migration Job** | Create Job running `migrationJobImage` | Job appears, runs Flyway/similar |
+| **CNPG secret injection** | Mount CNPG credentials into Job | Job can connect to Postgres |
+| **Migration status** | Set `DBReady`, `MigrationSucceeded`/`MigrationFailed` | Condition reflects Job status |
+| **Migration version tracking** | Extract version from Job logs/output | `status.dbMigrationVersion` populated |
+| **Schema cleanup on delete** | Optional: drop schema on Domain deletion | Schema dropped when retention policy allows |
+
+### Phase 3: Production Readiness
+
+| Task | Description | Acceptance Criteria |
+|------|-------------|---------------------|
+| **HPA** | Create HPA if enabled in spec | HPA scales pods on load |
+| **NetworkPolicy** | Create policy based on `networkProfile` | Only allowed traffic reaches pods |
+| **ServiceMonitor** | Create ServiceMonitor for Prometheus | Metrics scraped, visible in Grafana |
+| **Resource defaulting** | Apply default CPU/memory if not specified | Pods have resource limits |
+| **Event recording** | Emit K8s events on reconcile actions | `kubectl describe domain` shows events |
+| **Metrics** | Expose reconciliation metrics | Prometheus can scrape operator metrics |
+
+### Phase 4: Testing & Validation
+
+| Task | Description | Acceptance Criteria |
+|------|-------------|---------------------|
+| **Unit tests** | Test reconcile logic with fake client | `go test ./...` passes |
+| **envtest tests** | Integration tests with local API server | Tests create/reconcile/delete Domain |
+| **E2E tests** | Full cluster tests in CI | Domain→Deployment→Pod→healthy in real cluster |
+| **CLI verify integration** | `ameide primitive verify` checks Domain status | CLI reports Domain health correctly |
+
+---
+
+## 5. Key Implementation Details
+
+### 5.1 DB Credentials Flow
+
+```
+CNPG Cluster → Secret (auto-generated)
+                  ↓
+Domain Operator reads secret name from ClusterRef
+                  ↓
+Migration Job gets secret mounted as env
+                  ↓
+Domain Deployment gets same secret for runtime
+```
+
+### 5.2 Owned Resources
+
+```go
+// SetupWithManager
+ctrl.NewControllerManagedBy(mgr).
+    For(&amv1.Domain{}).
+    Owns(&appsv1.Deployment{}).
+    Owns(&batchv1.Job{}).
+    Owns(&corev1.Service{}).
+    Owns(&autoscalingv2.HorizontalPodAutoscaler{}).
+    Owns(&networkingv1.NetworkPolicy{}).
+    Owns(&monitoringv1.ServiceMonitor{}).
+    Complete(r)
+```
+
+### 5.3 Condition Precedence
+
+Overall `Ready` is computed as:
+```
+Ready = DBReady && WorkloadReady && !MigrationFailed && !Degraded
+```
+
+---
+
+## 6. Non-Goals
+
+| What | Why |
+|------|-----|
+| Entity schemas | Domain image defines tables via migrations |
+| Business rules | Live in Domain service code |
+| Tenant isolation | Enforced by app + DB RLS, not operator |
+| Proto validation | Handled by Buf, not operator |
+| Image building | CI builds images; operator just deploys |
+
+---
+
+## 7. Dependencies
+
+| Dependency | Purpose |
+|------------|---------|
+| **CNPG** | Postgres clusters, secrets, connection pooling |
+| **Prometheus/ServiceMonitor** | Metrics collection |
+| **Gateway API** | (Not direct – domains are internal only) |
+| **controller-runtime** | Reconciliation framework |
+
+---
+
+## 8. Open Questions
+
+| Question | Status |
+|----------|--------|
+| Schema retention policy on delete? | TBD – configurable per-environment |
+| Migration timeout handling? | TBD – Job deadline + requeue strategy |
+| Multi-schema domains? | Out of scope – one schema per Domain |
+
+---
+
+## 9. Cross-References
+
+| Backlog | Relationship |
+|---------|--------------|
+| [495-ameide-operators.md](495-ameide-operators.md) | Domain operator responsibilities (§1) |
+| [497-operator-implementation-patterns.md](497-operator-implementation-patterns.md) | Reference implementation (§10) |
+| [477-primitive-stack.md](477-primitive-stack.md) | Domain in primitive architecture |
+| [472-ameide-information-application.md](472-ameide-information-application.md) | Domain as bounded context |
