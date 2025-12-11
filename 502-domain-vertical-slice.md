@@ -8,6 +8,8 @@
 > - [498-domain-operator.md](498-domain-operator.md) – Operator development tracking
 > - [497-operator-implementation-patterns.md](497-operator-implementation-patterns.md) – Go patterns
 > - [495-ameide-operators.md](495-ameide-operators.md) – CRD shapes & responsibilities
+> - [446-namespace-isolation.md](446-namespace-isolation.md) – Namespace isolation (operators cluster-scoped)
+> - [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md) – Cluster-scoped deployment
 > - [484a-ameide-cli-primitive-workflows.md](484a-ameide-cli-primitive-workflows.md) – CLI commands & agentic workflow
 > - [484b-ameide-cli-proto-contract.md](484b-ameide-cli-proto-contract.md) – Proto message definitions
 
@@ -453,6 +455,9 @@ The E2E demo validates the full vertical slice by creating a Domain CR and verif
 
 | Backlog | Relationship |
 |---------|--------------|
+| [446-namespace-isolation.md](446-namespace-isolation.md) | Namespace isolation – operators deploy once per cluster |
+| [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md) | Cluster-scoped deployment via ApplicationSet |
+| [503-operators-helm-chart.md](503-operators-helm-chart.md) | Helm chart for operator deployment (Phase E) |
 | [498-domain-operator.md](498-domain-operator.md) | Operator development phases & acceptance criteria |
 | [497-operator-implementation-patterns.md](497-operator-implementation-patterns.md) | Go patterns & reference implementation |
 | [495-ameide-operators.md](495-ameide-operators.md) | CRD shapes & responsibilities |

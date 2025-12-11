@@ -314,6 +314,9 @@ ctrl.NewControllerManagedBy(mgr).
 
 | Backlog | Relationship |
 |---------|--------------|
+| [446-namespace-isolation.md](446-namespace-isolation.md) | Operator deploys once per cluster |
+| [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md) | Cluster-scoped deployment via ApplicationSet |
+| [503-operators-helm-chart.md](503-operators-helm-chart.md) | Helm chart for operator deployment |
 | [495-ameide-operators.md](495-ameide-operators.md) | Agent operator responsibilities (§3) |
 | [497-operator-implementation-patterns.md](497-operator-implementation-patterns.md) | Go patterns & adaptation (§10.9) |
 | [477-primitive-stack.md](477-primitive-stack.md) | Agent in primitive architecture |

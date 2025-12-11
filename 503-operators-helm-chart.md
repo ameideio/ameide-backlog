@@ -6,6 +6,8 @@
 
 > **Related**:
 > - [495-ameide-operators.md](495-ameide-operators.md) – CRD shapes & responsibilities
+> - [446-namespace-isolation.md](446-namespace-isolation.md) – Namespace isolation architecture (operators are cluster-scoped)
+> - [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md) – Dual ApplicationSet model for cluster-scoped deployment
 > - [498-domain-operator.md](498-domain-operator.md) – Domain operator development
 > - [499-process-operator.md](499-process-operator.md) – Process operator development
 > - [500-agent-operator.md](500-agent-operator.md) – Agent operator development
@@ -100,43 +102,93 @@ Operator images are published to GHCR via `cd-service-images.yml`:
 
 ### Phase 2: ArgoCD Integration (ameide-gitops)
 
-The chart integrates with the existing ameide-gitops ApplicationSet architecture.
+The chart integrates with the ameide-gitops **cluster-scoped ApplicationSet** architecture. Per [446-namespace-isolation.md](446-namespace-isolation.md) and [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md), AMEIDE operators are **cluster-scoped** – deployed **once per cluster** to watch all namespaces.
+
+> **Key principle**: Operators deploy ONCE per cluster (like CNPG, Strimzi, Keycloak operators), not per-environment. CRs (Domain, Process, Agent, UISurface) are environment-scoped.
 
 | Task | Description | Acceptance Criteria |
 |------|-------------|---------------------|
-| **Component definition** | Create `component.yaml` in `environments/_shared/components/foundation/operators/ameide-operators/` | ApplicationSet discovers component |
-| **Shared values** | Create `sources/values/_shared/foundation/foundation-ameide-operators.yaml` | Defaults applied to all envs |
-| **Dev values** | Create `sources/values/dev/foundation/foundation-ameide-operators.yaml` | Dev-specific config (`:dev` tag, tolerations) |
-| **Staging values** | Create `sources/values/staging/foundation/foundation-ameide-operators.yaml` | Staging config (`:main` tag) |
-| **Production values** | Create `sources/values/production/foundation/foundation-ameide-operators.yaml` | Prod config (pinned version, HA) |
+| **CRD component** | Create `component.yaml` in `environments/_shared/components/cluster/crds/ameide/` | ApplicationSet discovers CRDs at rolloutPhase 010 |
+| **Operator component** | Create `component.yaml` in `environments/_shared/components/cluster/operators/ameide-operators/` | ApplicationSet discovers operators at rolloutPhase 020 |
+| **Helm chart CRD mode** | Add `crdsOnly: true` values flag for CRD-only installation | CRDs installable separately from controllers |
+| **Shared values** | Create `sources/values/_shared/cluster/crds-ameide.yaml` | CRD installation defaults |
+| **Operator values** | Create `sources/values/_shared/cluster/ameide-operators.yaml` | Operator installation with `skipCrds: true` |
 
-#### Component Definition
+#### CRD Component Definition
 
 ```yaml
-# environments/_shared/components/foundation/operators/ameide-operators/component.yaml
-name: foundation-ameide-operators
+# environments/_shared/components/cluster/crds/ameide/component.yaml
+name: crds-ameide
 project: ameide
-domain: foundation
-dependencyPhase: "controllers"
-componentType: "operator"
-rolloutPhase: "120"  # After CRDs (110), with other operators
+namespace: argocd
+domain: crds
+dependencyPhase: "crd"
+componentType: "crd"
+rolloutPhase: "010"  # First wave: CRDs
 chart:
   repoURL: https://github.com/ameideio/ameide-core.git
   path: operators/helm
   version: main
+  valueFiles:
+    - $values/sources/values/_shared/cluster/crds-ameide.yaml
 syncOptions:
-  - CreateNamespace=false
-  - RespectIgnoreDifferences=true
+  - ServerSideApply=true
+  - PruneLastAppliedConfiguration=true
+```
+
+#### Operator Component Definition
+
+```yaml
+# environments/_shared/components/cluster/operators/ameide-operators/component.yaml
+name: ameide-operators
+project: ameide
+namespace: ameide-system
+domain: operators
+dependencyPhase: "operator"
+componentType: "operator"
+rolloutPhase: "020"  # Second wave: operators (after CRDs)
+chart:
+  repoURL: https://github.com/ameideio/ameide-core.git
+  path: operators/helm
+  version: main
+  skipCrds: true  # CRDs already installed in phase 010
+syncOptions:
+  - CreateNamespace=true
   - ServerSideApply=true
 ```
 
 #### Resulting Applications
 
-| Application Name | Environment | Namespace |
-|------------------|-------------|-----------|
-| `dev-foundation-ameide-operators` | dev | ameide-dev |
-| `staging-foundation-ameide-operators` | staging | ameide-staging |
-| `production-foundation-ameide-operators` | production | ameide-prod |
+| Application Name | Namespace | What It Deploys |
+|------------------|-----------|-----------------|
+| `cluster-crds-ameide` | argocd | CRDs only (rolloutPhase 010) |
+| `cluster-ameide-operators` | ameide-system | Operator Deployments (rolloutPhase 020) |
+
+#### Rollout Sequence
+
+```
+Phase 010: cluster-crds-ameide
+    └─ Installs ameide.io CRDs (Domain, Process, Agent, UISurface)
+              ↓
+Phase 020: cluster-ameide-operators
+    └─ Installs operator Deployments to ameide-system namespace
+              ↓
+Phase 100+: Environment workloads (dev, staging, production)
+    └─ Domain/Process/Agent/UISurface CRs in ameide-{env} namespaces
+```
+
+#### Helm Chart Values for CRD-Only Mode
+
+```yaml
+# sources/values/_shared/cluster/crds-ameide.yaml
+crdsOnly: true  # Only render CRDs, skip Deployments
+
+# sources/values/_shared/cluster/ameide-operators.yaml
+# CRDs skipped via chart.skipCrds in component.yaml
+global:
+  imageRegistry: ghcr.io/ameideio
+  imagePullPolicy: IfNotPresent
+```
 
 ### Phase 3: Production Hardening
 
@@ -321,6 +373,8 @@ The shared ClusterRole covers:
 
 | Backlog | Relationship |
 |---------|--------------|
+| [446-namespace-isolation.md](446-namespace-isolation.md) | Namespace isolation – operators are cluster-scoped |
+| [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md) | Dual ApplicationSet model for cluster-scoped deployment |
 | [495-ameide-operators.md](495-ameide-operators.md) | CRD shapes & responsibilities |
 | [497-operator-implementation-patterns.md](497-operator-implementation-patterns.md) | Go patterns & reference implementation |
 | [498-domain-operator.md](498-domain-operator.md) | Domain operator development |

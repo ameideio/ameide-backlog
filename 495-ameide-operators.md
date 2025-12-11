@@ -24,6 +24,8 @@ Think of each operator as a **compiler from a Primitive CRD to a bundle of K8s +
 > **Scaffolding context**: For how operator patterns relate to Ameide's overall code generation philosophy (vs Kubebuilder, Backstage, Buf), see [484-ameide-cli.md](484-ameide-cli.md).
 >
 > **Implementation patterns**: For Go-level reconciler design, controller-runtime usage, and testing strategies, see [497-operator-implementation-patterns.md](497-operator-implementation-patterns.md).
+>
+> **Deployment architecture**: Operators deploy **once per cluster** (cluster-scoped, watching all namespaces). CRs deploy per-environment. See [446-namespace-isolation.md](446-namespace-isolation.md) and [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md).
 
 ---
 
@@ -666,6 +668,9 @@ replace github.com/ameideio/ameide/operators/shared => ../shared
 
 | Backlog | Relationship |
 |---------|--------------|
+| [446-namespace-isolation.md](446-namespace-isolation.md) | Namespace isolation – operators deploy once per cluster |
+| [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md) | Dual ApplicationSet model for cluster-scoped deployment |
+| [503-operators-helm-chart.md](503-operators-helm-chart.md) | Helm chart for operator deployment |
 | [497-operator-implementation-patterns.md](497-operator-implementation-patterns.md) | Go-level reconciler design, controller-runtime patterns, testing strategies |
 | [498-domain-operator.md](498-domain-operator.md) | Domain operator development tracking |
 | [499-process-operator.md](499-process-operator.md) | Process operator development tracking |
