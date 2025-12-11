@@ -187,7 +187,7 @@ ameide config set <k> <v> # Update config value
 
 ### 9.1 Cascade Roadmap
 
-- **Non-code consumers** – `verify --cascade` now emits `language=workflow` entries for proto/SDK workflows (e.g., `scripts/ci/check_proto_sdk_regen.sh`, `scripts/check_ameide_client_manifest.sh`, `release/verify_{ts,python,go}_sdk.sh`) so agents run the same checks SDK pipelines expect; documentation generators are the next addition.
+- **Non-code consumers** – `verify --cascade` now emits `language=workflow` entries for proto/SDK workflows (e.g., `scripts/ci/check_proto_sdk_regen.sh`, `scripts/check_ameide_client_manifest.sh`, `release/verify_{ts,python,go}_sdk.sh`, `release/verify_docs.sh`) so agents run the same checks SDK/doc pipelines expect.
 - **Dependency awareness** – Repo + cluster modes now share Buf summaries, per-consumer language hints, and dependency bootstrap guidance (npm install / uv sync) so agents know whether to install tooling or re-run cascade.
 - **Pipeline hand-off** – Workflow cascade entries identify the exact script + directory the automation runs, prepping the future GitHub workflow hand-off once we wire docs/publish consumers into the same map.
 
