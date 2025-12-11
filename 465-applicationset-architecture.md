@@ -121,6 +121,8 @@ production  × grafana   = production-grafana
 > **Updated 2025-12-11**: Now uses 6-layer values with separate cluster and node-profile files.
 >
 > **Updated 2025-12-12**: Template resolves a `valuesEnvironment` variable (defaults to `.env`) before rendering chart-provided value files, so placeholders such as `{{ .valuesEnvironment }}`, `{{ .env }}`, `{{ .namespace }}`, and `{{ .domain }}` inside component `valueFiles` are expanded safely.
+>
+> **Updated 2025-12-12**: Component-level `valueFiles` are filtered to paths starting with `$values/` so redundant entries (for example, legacy `foundation` strings) can be removed incrementally without polluting rendered Applications.
 
 For `dev-plausible` on Azure:
 
@@ -135,6 +137,16 @@ valueFiles:
 ```
 
 All files use `ignoreMissingValueFiles: true`, so optional overrides don't cause errors.
+
+**Labeling / DNS Visibility**
+
+Each generated Application now surfaces the environment DNS suffix via the `dns-zone` label (`dns-zone=dev.ameide.io`, `dns-zone=staging.ameide.io`, etc.). Example query:
+
+```bash
+kubectl -n argocd get app -l dns-zone=dev.ameide.io
+```
+
+Dashboards/pipelines can rely on this label to scope operations (for example, “show all dev apps” or “tail logs for staging DNS”).
 
 #### Namespace Assignment
 
