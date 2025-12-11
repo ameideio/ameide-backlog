@@ -337,6 +337,7 @@ message Consumer {
   string name = 2;
   string path = 3;
   repeated string imports = 4;  // Which types/services are imported
+  map<string, string> metadata = 5; // Workflow metadata (workflow_cmd, workflow_args, etc.)
 }
 ```
 
@@ -445,6 +446,14 @@ message ConsumerResult {
       "language": "npm",
       "status": "FAIL",
       "details": "NPM cascade tests failed for primitives/process/l2o"
+    },
+    {
+      "kind": "PRIMITIVE_KIND_UNSPECIFIED",
+      "name": "docs-release-verify",
+      "path": "release/verify_docs.sh",
+      "language": "workflow",
+      "status": "WARN",
+      "details": "release/verify_docs.sh failed (SUMMARY.md drift)"
     }
   ],
   "buf": {
@@ -456,7 +465,7 @@ message ConsumerResult {
 }
 ```
 
-`checks` contains every guardrail invoked (naming, security scans, repo tests, etc.). `buf` surfaces Buf lint/breaking summaries so agents can react without scraping `checks`. `cascade` lists each downstream consumer with its primitive kind, repo path, detected language (Go, npm, pytest), and PASS/FAIL/SKIP state so agents immediately know which test runner must go green again.
+`checks` contains every guardrail invoked (naming, security scans, repo tests, etc.). `buf` surfaces Buf lint/breaking summaries so agents can react without scraping `checks`. `cascade` lists each downstream consumer with its primitive kind, repo path, detected language (Go, npm, pytest, workflow), and PASS/FAIL/SKIP state so agents immediately know which test runner or workflow script must go green again. Workflow consumers stuff their script metadata into `Consumer.metadata` so agents can rerun the exact command outside of the CLI if needed.
 
 ### 5.2 ImpactResult
 
@@ -465,7 +474,8 @@ message ConsumerResult {
   "proto_path": "ameide_core_proto/orders/v1/orders.proto",
   "consumers": [
     {"kind": "DOMAIN", "name": "orders", "path": "primitives/domain/orders", "imports": ["OrdersService", "Order"]},
-    {"kind": "PROCESS", "name": "l2o", "path": "primitives/process/l2o", "imports": ["OrdersServiceClient"]}
+    {"kind": "PROCESS", "name": "l2o", "path": "primitives/process/l2o", "imports": ["OrdersServiceClient"]},
+    {"kind": "PRIMITIVE_KIND_UNSPECIFIED", "name": "docs-release-verify", "path": "release/verify_docs.sh", "imports": ["workflow"], "metadata": {"workflow_cmd": "release/verify_docs.sh"}}
   ],
   "sdks_affected": ["ameide-sdk-go", "ameide-sdk-ts"],
   "cascade_tests_required": 25,

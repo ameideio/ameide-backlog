@@ -191,6 +191,11 @@ ameide config set <k> <v> # Update config value
 - **Dependency awareness** – Repo + cluster modes now share Buf summaries, per-consumer language hints, and dependency bootstrap guidance (npm install / uv sync) so agents know whether to install tooling or re-run cascade.
 - **Pipeline hand-off** – Workflow cascade entries identify the exact script + directory the automation runs, prepping the future GitHub workflow hand-off once we wire docs/publish consumers into the same map.
 
+### 9.2 Known Gaps
+
+- **Docs beyond SUMMARY** – `release/verify_docs.sh` only enforces the SUMMARY.md snapshots. The technical writer workflows (MkDocs/Next.js/Storybook) are still outside of `verify --cascade`, so doc builds can drift until the frontdoor scripts expose a deterministic entry point.
+- **Workflow status provenance** – Workflow cascades currently run local shell scripts; we still need to emit the associated GitHub workflow IDs/targets so CI/CD can selectively retry or parallelize them without re-running the full verify command.
+
 ## 10. Cross-References
 
 | Backlog | Relationship |
