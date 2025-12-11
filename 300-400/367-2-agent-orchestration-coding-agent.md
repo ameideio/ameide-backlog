@@ -3,8 +3,8 @@
 > **Superseded – 2025-02:** The automation scope below described Stage 2 experiments for the legacy “Codex CLI” runner. All net-new work on coding agents should follow [505-agent-developer.md](../505-agent-developer.md) (agent-developer) plus the guardrail backlogs ([504-agent-vertical-slice.md](../504-agent-vertical-slice.md), [500-agent-operator.md](../500-agent-operator.md)) and Transformation process hooks from the 484 series. Keep this document as historical background on orchestration service requirements; update the newer backlogs when implementing LangGraph coder agents, repo adapters, or Workflow/Temporal changes.
 >
 > **Current implementation pointers (2025-02):**
-> - LangGraph coder agent + prompt renderer: `services/inference/src/inference_service/agents/coding_agent/`.
-> - Devcontainer tool wiring: `services/inference/src/inference_service/tools/devcontainer/develop_in_container/tool.py` (surfaced via `ToolDependencies` env vars).
+> - LangGraph coder agent + prompt renderer: `primitives/agent/ameide-coder/src/agent.py`.
+> - Devcontainer tool wiring: `primitives/agent/ameide-coder/src/tools/develop_in_container.py`.
 > - CLI workflow prompt + `workflowCommands` JSON: `packages/ameide_core_cli/internal/commands/primitive_prompt.go`.
 > - Agent sample manifests referencing `develop_in_container`: `operators/helm/examples/agent-sample.yaml` and `gitops/ameide-gitops/.../core-platform-coder.yaml`.
 > These components satisfy the “agent runtime packaging” part of this backlog; the remaining sections (auto-planning, preview automation, evidence capture) stay as future work.

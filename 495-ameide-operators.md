@@ -246,7 +246,7 @@ kind: Agent
 metadata:
   name: core-platform-coder
 spec:
-  image: ghcr.io/ameide/agent-langgraph:2.1.0
+  image: ghcr.io/ameide/agent-runtime-langgraph:2.1.0
   definitionRef:
     id: core-platform-coder-v4
     tenantId: t123
@@ -679,4 +679,3 @@ replace github.com/ameideio/ameide/operators/shared => ../shared
 | [477-primitive-stack.md](477-primitive-stack.md) | Primitive architecture context |
 | [484-ameide-cli.md](484-ameide-cli.md) | CLI integration with operator status |
 | [502-domain-vertical-slice.md](502-domain-vertical-slice.md) | CLI Track (Phases H-L) implementation |
-

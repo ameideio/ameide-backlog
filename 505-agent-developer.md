@@ -20,9 +20,9 @@
 |------------|-------|-----------------------|
 | **Agent primitive plumbing** | ✅ | Agent CRD/operator Helm/GitOps bundles were refreshed (see `operators/helm/crds/ameide.io_agents.yaml`, `gitops/ameide-gitops/sources/charts/platform/ameide-operators/crds/ameide.io_agents.yaml`) so `definitionRef`/tooling fields in this backlog are available cluster-wide. Demo assets live under `gitops/.../primitives/agent/core-platform-coder.yaml` + `scripts/demo-agent-slice.sh`. |
 | **CLI guardrails + prompts** | ✅ | `packages/ameide_core_cli/internal/commands/primitive.go` ships `--repo-root/--gitops-root/--mode` plumbing plus naming/security/EDA/test heuristics for `verify --mode all`, and `primitive_prompt.go` + `prompts/agent/default.md` now instruct agents to run the full guardrail loop via the devcontainer tool. |
-| **LangGraph coder DAG** | ⚠️ Partial | `services/agent_runtime_langgraph/src/agent_runtime_langgraph/coder/agent.py` backs the runtime; the new devtools (`coder/print_dag.py`, `coder/dev_graph.py`) and `langgraph.dev.json` allow local DAG inspection (`uv run … python -m agent_runtime_langgraph.coder.print_dag`) and `langgraph dev` launches. The graph, however, is still a single develop_in_container call—explicit nodes for describe/drift/plan/impact/scaffold/verify remain TODO. |
+| **LangGraph coder DAG** | ⚠️ Partial | `primitives/agent/ameide-coder/src/agent.py` backs the runtime; the new devtools (`src/print_dag.py`, `langgraph.dev.json`) allow local DAG inspection (`uv run --project primitives/agent/ameide-coder python -m src.print_dag`) and `langgraph dev` launches. The graph, however, is still a single develop_in_container call—explicit nodes for describe/drift/plan/impact/scaffold/verify remain TODO. |
 | **Devcontainer gRPC service** | ✅ | `services/devcontainer_service` exposes `POST /v1/develop` (packaged inside `ghcr.io/ameide/devcontainer-service`), and `gitops/.../platform/platform-devcontainer-service.yaml` wires the Deployment/Service + ExternalSecret (`platform-devcontainer-agent-token`) via the new `platform-devcontainer-service` component. |
-| **develop_in_container tool** | ✅ | `services/agent_runtime_langgraph/src/agent_runtime_langgraph/tools/develop_in_container.py` registers the tool, enforces repo/command arguments, streams logs back to LangGraph, and the default agent prompt now calls it whenever a CLI command needs to run inside the devcontainer. |
+| **develop_in_container tool** | ✅ | `primitives/agent/ameide-coder/src/tools/develop_in_container.py` registers the tool, enforces repo/command arguments, streams logs back to LangGraph, and the default agent prompt now calls it whenever a CLI command needs to run inside the devcontainer. |
 | **Workflow/Temporal metadata** | ⚠️ Partial | **Future automation (Stage‑2)** – backlog/300-400/367-2-agent-orchestration-coding-agent.md tracked the idea of auto-planning/auto-running Coding Agent work via the existing Workflow + Temporal stack. That orchestration layer still lacks methodology metadata (`timebox_ids`, repo adapter policies) and isn’t part of the LangGraph/devcontainer slice; keep the row as a reminder that the governance/attestation automation remains open downstream. |
 
 > Keep this table in sync with backlog/504 and 502 snapshots so platform/agent teams can see exactly what’s implemented. The workflow/Temporal row references the historical Stage‑2 automation plan (`367-2-agent-orchestration-coding-agent.md`); that document remains as a governance/auto-plan blueprint, not as a dependency for the LangGraph/devcontainer runtime described here.
@@ -172,15 +172,15 @@ A standard Agent runtime service:
 
 No special semantics beyond “runtime_type=langgraph”.
 
-**Implementation status:** `services/agent_runtime_langgraph/src/agent_runtime_langgraph/coder/agent.py`
-and `services/agent_runtime_langgraph/src/agent_runtime_langgraph/app.py` register the
+**Implementation status:** `primitives/agent/ameide-coder/src/agent.py`
+and `primitives/agent/ameide-coder/src/main.py` register the
 `core-platform-coder` runtime as a dedicated LangGraph service so the Agent runtime can
-invoke the `develop_in_container` tool directly. Dev helpers (`coder/print_dag.py`,
-`coder/dev_graph.py`, `services/agent_runtime_langgraph/langgraph.dev.json`) now let us
-render the DAG locally and run it via `langgraph dev`, but the graph still executes the
-guardrail workflow as a single develop_in_container call; future iterations must split
-describe → drift → plan → scaffold → verify into explicit LangGraph nodes and load DAG
-metadata directly from Transformation AgentDefinitions.
+invoke the `develop_in_container` tool directly. Dev helpers (`src/print_dag.py`,
+`langgraph.dev.json`) now let us render the DAG locally and run it via `langgraph dev`,
+but the graph still executes the guardrail workflow as a single develop_in_container
+call; future iterations must split describe → drift → plan → scaffold → verify into
+explicit LangGraph nodes and load DAG metadata directly from Transformation
+AgentDefinitions.
 
 #### 4.3 devcontainer service + Claude SDK gRPC
 
@@ -257,7 +257,7 @@ Mapping to gRPC is hidden behind the Agent runtime’s tool adapter layer.
 
 #### 4.5 Implementation status (2025‑02)
 
-* **Tool runtime.** `services/agent_runtime_langgraph/src/agent_runtime_langgraph/tools/develop_in_container.py`
+* **Tool runtime.** `primitives/agent/ameide-coder/src/tools/develop_in_container.py`
   registers the LangChain tool. It reads the guardrail command list that LangGraph hands it, then:
   * Calls the remote devcontainer service via HTTP/JSON when `DEVELOP_IN_CONTAINER_ENDPOINT` +
     `DEVELOP_IN_CONTAINER_TOKEN` are present (timeouts configurable via `DEVELOP_IN_CONTAINER_TIMEOUT`).
@@ -266,7 +266,7 @@ Mapping to gRPC is hidden behind the Agent runtime’s tool adapter layer.
 * **Dependency wiring.** `ToolDependencies` / `_tool_dependencies` now include the devcontainer endpoint
   fields, so every tool builder gets the same configuration (`services/inference/src/inference_service/tools/base.py`,
   `services/inference/src/inference_service/context.py`).
-* **Coder agent.** `services/agent_runtime_langgraph/src/agent_runtime_langgraph/coder/agent.py` renders the guardrail
+* **Coder agent.** `primitives/agent/ameide-coder/src/agent.py` renders the guardrail
   prompt via `ameide primitive prompt --json` (with an inline fallback), extracts `workflowCommands`, and invokes
   `develop_in_container` with repo/branch/task metadata derived from the Transformation context. The agent emits
   a summary with PR URL/branch/log links supplied by the tool.
@@ -285,7 +285,7 @@ Mapping to gRPC is hidden behind the Agent runtime’s tool adapter layer.
   (plus `platform-devcontainer-service.yaml`) deploy the Deployment/Service/workspace volume, and the
   `platform-devcontainer-agent-token-sync` ExternalSecret materializes the PAT used by both the service and the
   sample AgentDefinitions.
-* **Repo-first scaffold.** `primitives/agent/langgraph-scribe/**` now carries the LangGraph coder runtime skeleton
+* **Repo-first scaffold.** `primitives/agent/ameide-coder/**` now carries the LangGraph coder runtime skeleton
   (Dockerfiles, prompts, tests, Backstage metadata) so teams scaffold directly from the monorepo while Backstage
   templates remain deprioritised.
 
@@ -317,7 +317,7 @@ Mapping to gRPC is hidden behind the Agent runtime’s tool adapter layer.
   * Builds the LangGraph DAG from `dag_ref`.
   * Executes the DAG with given task context.
     2.3. Repo scaffold (Backstage deferred):
-* Keep LangGraph coder scaffolds under `primitives/agent/{name}` (e.g. `primitives/agent/langgraph-scribe`). Backstage
+* Keep LangGraph coder scaffolds under `primitives/agent/{name}` (e.g. `primitives/agent/ameide-coder`). Backstage
   templates remain optional and are no longer a near-term target.
   2.4. ArgoCD:
 * Helm chart + ApplicationSet entry to deploy Agent runtime in `ameide-{env}`.

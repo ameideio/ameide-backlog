@@ -174,6 +174,7 @@ ameide config set <k> <v> # Update config value
 | **[484c – Repo & GitOps Alignment](484c-ameide-cli-repo-gitops.md)** | Core vs GitOps repo split, directory structure, test infrastructure (430), GitOps alignment (434) |
 | **[484d – Migration & Phases](484d-ameide-cli-migration.md)** | Legacy command migration, phased implementation plan |
 | **[484e – Industry Patterns](484e-ameide-cli-industry-patterns.md)** | Backstage, Buf, Kubebuilder alignment; what we don't do (JHipster) |
+| **[484f – Scaffold Implementation](484f-ameide-cli-scaffold-implementation.md)** | Per-primitive scaffold outputs, templates, worked examples, cross-reference index |
 
 ---
 

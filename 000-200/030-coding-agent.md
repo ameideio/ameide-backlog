@@ -11,7 +11,7 @@ Updated: 2025-07-24
 * **Runtime + tooling:** agent-developer defines `runtime_type=langgraph`, `dag_ref`, and the `develop_in_container` tool backed by the Ameide devcontainer service. The ad-hoc Docker/CLI commands in this file are obsolete.
 * **Process + guardrails:** All coding agents must follow the OBSERVE→REASON→ACT→VERIFY workflow codified in 504 and 484a. Manual branch orchestration and AWS Step Functions sketches below are illustrative only.
 * **Operator + GitOps:** Backlog [500-agent-operator.md](../500-agent-operator.md) now owns CRD/Deployment reconciliation, so any configuration described here must be expressed as AgentDefinitions + CR manifests instead of local scripts.
-* **Reference implementation:** The LangGraph-based coder agent lives in `services/inference/src/inference_service/agents/coding_agent/` and uses the `develop_in_container` tool (`services/inference/src/inference_service/tools/devcontainer/develop_in_container/`). Use those directories as the canonical code reference.
+* **Reference implementation:** The LangGraph-based coder agent lives in `primitives/agent/ameide-coder/src/agent.py` and uses the `develop_in_container` tool (`primitives/agent/ameide-coder/src/tools/develop_in_container.py`). Use those directories as the canonical code reference.
 
 The remainder of this document describes the original PoC setup for posterity.
 
@@ -262,4 +262,3 @@ With these pieces you can: develop locally, run in Docker or CI, branch safely, 
     }
   }
 }
-

@@ -9,7 +9,7 @@ Author: internal-agents-review
 ### Where to look now
 
 * **Runtime fixes + tooling:** follow agent-developer for the devcontainer service, LangGraph DAG, and `develop_in_container` tool instead of the bespoke CLI wrappers discussed below.
-  * Reference implementation: `services/inference/src/inference_service/agents/coding_agent/` + `services/inference/src/inference_service/tools/devcontainer/develop_in_container/`.
+  * Reference implementation: `primitives/agent/ameide-coder/src/agent.py` + `primitives/agent/ameide-coder/src/tools/develop_in_container.py`.
 * **Risk + policy:** apply the risk-tier enforcement and tool grants from backlog 500; the ad-hoc security suggestions in this file are superseded by those policies.
 * **CLI alignment:** align with the 484 CLI guardrail suite referenced in backlog 504; the “cheat-sheet” near the end of this file is informational only and is no longer authoritative for Ameide automation.
 
