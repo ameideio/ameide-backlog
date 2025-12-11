@@ -177,7 +177,15 @@ ameide config set <k> <v> # Update config value
 
 ---
 
-## 9. Cross-References
+## 9. Implementation Status (2024-05)
+
+- **Repo-first workflows delivered** – `primitive describe` now emits `repo_path`, `proto_path`, `drift`, and `expected_but_missing` so agents understand local shape and GitOps gaps without Kubernetes access.
+- **Guardrail-rich verify** – `verify --mode repo` executes the documented security/EDA checks (gitleaks, govulncheck, Semgrep, event coverage) alongside naming/tests before touching the cluster, and `--cascade --proto-path` runs downstream `go test` suites for all detected consumers.
+- **Cross-SDK drift + impact** – Proto drift and impact analysis now cover Go, TypeScript, and Python artifacts/consumers, ensuring downstream awareness beyond Go services.
+- **Scaffolding coverage expanded** – All primitive kinds can be scaffolded; outputs now include Dockerfiles, Backstage `catalog-info.yaml`, GitOps manifests respecting `--gitops-root`, and (via `--include-test-harness`) integration runners aligned with backlog 430.
+- **Next focus** – Surface Buf lint/breaking summaries plus cascade verification for non-Go consumers (per 484b) and round out scaffold mocks/tests beyond Go.
+
+## 10. Cross-References
 
 | Backlog | Relationship |
 |---------|--------------|
