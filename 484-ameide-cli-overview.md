@@ -187,9 +187,9 @@ ameide config set <k> <v> # Update config value
 
 ### 9.1 Cascade Roadmap
 
-- **Non-code consumers** – Upcoming cascade hooks target SDK publish jobs (`./scripts/release/sdk_*`) and doc generators (`packages/docs_*`), so `ameide primitive verify --cascade` can fail fast when proto edits require regenerating artifacts even if no service imports the package.
-- **Dependency awareness** – Repo + cluster modes will share Buf summaries, per-consumer language hints, and dependency bootstrap guidance (npm install / uv sync) so agents know whether to install tooling or re-run cascade.
-- **Pipeline hand-off** – CLI will emit future `cascade` entries for documentation/SDK pipelines using `PrimitiveKind=UNSPECIFIED` with `language=workflow` to tell automation which GitHub workflow or publish script must be re-run.
+- **Non-code consumers** – `verify --cascade` now emits `language=workflow` entries for proto/SDK workflows (e.g., `scripts/ci/check_proto_sdk_regen.sh`, `scripts/check_ameide_client_manifest.sh`) so agents run the same checks SDK pipelines expect; doc generators and publish jobs are next on the list.
+- **Dependency awareness** – Repo + cluster modes now share Buf summaries, per-consumer language hints, and dependency bootstrap guidance (npm install / uv sync) so agents know whether to install tooling or re-run cascade.
+- **Pipeline hand-off** – Workflow cascade entries identify the exact script + directory the automation runs, prepping the future GitHub workflow hand-off once we wire docs/publish consumers into the same map.
 
 ## 10. Cross-References
 
