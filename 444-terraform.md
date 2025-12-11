@@ -369,9 +369,16 @@ output "environment_dns_zone" {
 
 ## Secrets Seeding from .env
 
-The `deploy.sh` script automatically seeds secrets from `.env` and `.env.local` to Azure Key Vault during the **Azure** Terraform deployment. The `local` target does not push anything into Key Vault; instead, `infra/terraform/local/main.tf` reads `GITHUB_TOKEN` via a `data.external` helper that falls back to `.env`. See [451-secrets-management.md](451-secrets-management.md) for the complete cloud secret flow.
+The `deploy.sh` script automatically seeds secrets from `.env` and `.env.local` to Azure Key Vault during the **Azure** Terraform deployment. The `local` target does not push anything into Key Vault; instead, `infra/terraform/local/main.tf` reads `GITHUB_TOKEN` via a `data.external` helper that falls back to `.env`. See [451-secrets-management.md](451-secrets-management.md) for the complete cloud secret flow. `.env` keeps the canonical values in `VAR=value` format; `infra/scripts/lib/env.sh` wraps every Terraform/Helm call with `set -a` so those variables are exported before child processes (and Terraform data sources) run.
 
-Whenever `.env` changes, run `./infra/scripts/write-env-secrets-tfvars.sh` (or any `deploy.sh` target) to regenerate `infra/terraform/azure/env.auto.tfvars.json`. Terraform auto-loads that file for every `terraform -chdir=infra/terraform/azure ...` command, so no ad-hoc `TF_VAR_env_secrets` exports are required.
+Whenever `.env` changes, run `./infra/scripts/write-env-secrets-tfvars.sh` (or any `deploy.sh` target) to regenerate `infra/terraform/azure/env.auto.tfvars.json`. Terraform auto-loads that file for every `terraform -chdir=infra/terraform/azure ...` command, so no ad-hoc `TF_VAR_env_secrets` exports or throwaway JSON files are required—just regenerate the auto tfvars file and keep `.env` up to date.
+
+```bash
+# Optional helper when running Terraform manually
+source infra/scripts/lib/env.sh
+load_env_files   # Exports .env/.env.local without editing them
+terraform -chdir=infra/terraform/azure plan
+```
 
 ```bash
 # Refresh env.auto.tfvars.json without running a full deploy
