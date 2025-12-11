@@ -67,6 +67,8 @@ Ameide uses **two ApplicationSets** to manage all deployments. Understanding the
 #### Generator: Matrix (Environments × Components)
 
 > **Updated 2025-12-11**: Now uses Git file generator for environments instead of hardcoded list.
+>
+> **Updated 2025-12-12**: Cluster entries publish `dnsZone` (environment DNS suffix) so component `domain` metadata can remain tied to folder structure. The ApplicationSet template still labels Applications with `.domain`; use `dnsZone` only for DNS/ingress decisions.
 > Cluster configs live in `config/clusters/*.yaml`, selected by Kustomize overlay.
 
 ```yaml
@@ -94,7 +96,7 @@ generators:
   env: dev
   namespace: ameide-dev
   nodeProfile: dev-pool
-  domain: dev.ameide.io
+  dnsZone: dev.ameide.io
 # ... staging, production entries
 ```
 
@@ -117,6 +119,8 @@ production  × grafana   = production-grafana
 #### Values Resolution Order (6 Layers)
 
 > **Updated 2025-12-11**: Now uses 6-layer values with separate cluster and node-profile files.
+>
+> **Updated 2025-12-12**: Template resolves a `valuesEnvironment` variable (defaults to `.env`) before rendering chart-provided value files, so placeholders such as `{{ .valuesEnvironment }}`, `{{ .env }}`, `{{ .namespace }}`, and `{{ .domain }}` inside component `valueFiles` are expanded safely.
 
 For `dev-plausible` on Azure:
 
