@@ -83,6 +83,10 @@ serviceAccount:
 1. **Phase 115**: `foundation-cert-manager-wi` - Creates ServiceAccounts
 2. **Phase 120**: `foundation-cert-manager` - Deploys cert-manager using those SAs
 
+### Local (offline) environments
+
+Local k3d clusters do not talk to Azure DNS or Let’s Encrypt, so the Workload Identity helper chart is disabled via `enabled: false` in `sources/values/env/local/foundation/foundation-cert-manager-wi.yaml`. The cert-manager release (`cert-manager-local`) still uses the same ServiceAccount names for RBAC parity, but the SAs are created directly by the upstream chart without Azure annotations. Cloud environments (dev/staging/prod) keep `enabled: true` so the helper continues to enforce the managed identity wiring before cert-manager starts.
+
 ## Verification
 
 ```bash
