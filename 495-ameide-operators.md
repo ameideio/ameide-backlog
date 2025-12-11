@@ -671,4 +671,5 @@ replace github.com/ameideio/ameide/operators/shared => ../shared
 | [501-uisurface-operator.md](501-uisurface-operator.md) | UISurface operator development tracking |
 | [477-primitive-stack.md](477-primitive-stack.md) | Primitive architecture context |
 | [484-ameide-cli.md](484-ameide-cli.md) | CLI integration with operator status |
+| [502-domain-vertical-slice.md](502-domain-vertical-slice.md) | CLI Track (Phases H-L) implementation |
 
