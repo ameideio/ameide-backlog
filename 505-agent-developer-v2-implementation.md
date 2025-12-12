@@ -57,7 +57,7 @@ Legend: 🟢 complete · 🟡 in progress · 🔴 not started
 
 ### 2.1 Track P0 – Process primitive(s)
 
-**Goal:** ship Temporal workflows that own the governance lifecycle, publish the events catalogued in 496 §11 / 506 §2, and integrate with Transformation commands and data model decisions from `506-scrum-vertical.md`.
+**Goal:** ship Temporal workflows that own the governance lifecycle, publish the events catalogued in 496 §11 and `506-scrum-vertical-v2.md`, and integrate with Transformation commands and data model decisions from `506-scrum-vertical-v2.md`.
 
 *Tasks*
 1. **Proto + SDK updates**

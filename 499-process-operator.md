@@ -17,6 +17,13 @@
 - ProcessDefinition schema and storage are defined in the Transformation/ProcessDefinition backlogs (`367-1-*`, `471-ameide-business-architecture.md`).  
 - Shared operator condition types are defined in `operators/shared/api/v1/conditions.go`.
 
+## Runtime contract (Scrum governance workflows)
+
+- **Domain writes via intents:** Temporal workflows that implement Scrum governance must request all Scrum state changes by publishing **domain intents** on `scrum.domain.intents.v1` (e.g., `StartSprintRequested`, `EndSprintRequested`, `CommitSprintBacklogRequested`, `RecordProductBacklogItemDoneRequested`, `RecordIncrementRequested`).  
+- **Domain state via facts:** They observe Scrum state by consuming **domain facts** from `scrum.domain.facts.v1` (e.g., `SprintCreated`, `SprintStarted`, `SprintBacklogCommitted`, `ProductBacklogItemDoneRecorded`, `IncrementUpdated`).  
+- **Process facts only for governance cues:** Any additional events they emit are **process facts** on `scrum.process.facts.v1` (e.g., `SprintBacklogReadyForExecution`, `SprintBacklogItemReadyForWork`, `SprintTimeboxReachedEnd`), never alternate copies of Scrum domain facts.  
+- **No runtime RPC coupling:** All synchronous calls from the Process operator into Transformation (e.g., `GetProcessDefinition`) are control‑plane only; runtime workflows must not issue direct RPCs to mutate or read Scrum domain state, but instead follow the seam in `506-scrum-vertical-v2.md` / `508-scrum-protos.md`.
+
 > **Related**:
 > - [495-ameide-operators.md](495-ameide-operators.md) – CRD shapes & responsibilities
 > - [497-operator-implementation-patterns.md](497-operator-implementation-patterns.md) – Go patterns & reference implementation
