@@ -270,7 +270,7 @@ This section tracks how much of 510 is implemented in the current CLI (`packages
       - `Dispatcher` struct with `*sql.DB`, `OutboxPublisher`, `pollInterval`, `batchSize`.
       - `WithPollInterval` and `WithBatchSize` options.
       - `Run(ctx)` ticker loop with TODO for `SELECT … FOR UPDATE SKIP LOCKED` polling.
-    - `cmd/dispatcher/main.go` (inline-generated) wires:
+    - `cmd/dispatcher/main.go` (rendered from `templates/domain/cmd/dispatcher_main.go.tmpl`) wires:
       - `DISPATCHER_POLL_INTERVAL` and `DISPATCHER_BATCH_SIZE` via `envDuration`/`envInt`.
       - Instantiates `Dispatcher` with `New(db, publisher, ...)` (db/publisher still TODO).
   - Outbox migration:
@@ -287,22 +287,21 @@ This section tracks how much of 510 is implemented in the current CLI (`packages
 
 ### 6.2 Templates vs inline strings
 
-**Status:** Partially implemented for Domain; fully implemented for README and core EDA files.
+**Status:** Fully template-driven for Domain/Go; README, mains, and core EDA helpers now come from templates, and guardrail tests prevent backlog IDs from leaking into generated docs.
 
-- Fully template-driven (Domain/Go):
+- Domain/Go files rendered from templates:
   - README: `templates/domain/readme.md.tmpl`.
+  - gRPC main: `templates/domain/cmd/main.go.tmpl`.
+  - Dispatcher main: `templates/domain/cmd/dispatcher_main.go.tmpl`.
   - Outbox port: `templates/domain/internal/ports/outbox_port.go.tmpl`.
   - Postgres outbox adapter: `templates/domain/internal/adapters/postgres/outbox_postgres.go.tmpl`.
   - Dispatcher: `templates/domain/internal/dispatcher/dispatcher.go.tmpl`.
-- Still inline in `primitive_scaffold.go`:
-  - `cmd/main.go` and `cmd/dispatcher/main.go` content.
-  - Outbound SDK adapter stub (`internal/adapters/sdk/clients.go`).
-  - Non-Domain READMEs (Process/Agent/UISurface).
-
-**Planned (to fully satisfy “templates only” for Domain):**
-
-- Move `cmd/main.go` and `cmd/dispatcher/main.go` Domain variants into `templates/domain/cmd/*.tmpl`.
-- Move the Domain-specific SDK adapter stub into `templates/domain/internal/adapters/sdk/*.tmpl`.
+  - SDK adapters: `templates/domain/internal/adapters/sdk/clients.go.tmpl`.
+- Guardrails for generated docs:
+  - `templates_domain_test.go` includes `TestDomainReadmeTemplateHasNoBacklogIds`, which renders the Domain README template and fails if any `NNN-*.md` backlog references appear.
+  - Agent README templates are similarly guarded by `TestAgentReadmeTemplateHasNoBacklogIds` (see 512), keeping scaffolded docs self-contained per 510/514.
+- Non-Domain scaffolds:
+  - Process/UISurface scaffolds still rely on the generic `buildReadmeContent` and inline builders; dedicated templates will be introduced as 511/513 are implemented.
 
 ### 6.3 Verify: `ameide primitive verify --kind domain`
 
@@ -310,15 +309,16 @@ This section tracks how much of 510 is implemented in the current CLI (`packages
 
 - `Imports` check:
   - Implemented in `checkPrimitiveImportPolicy`:
-    - Walks non-test `.go` files under `primitives/domain/<name>`.
-    - Fails when runtime code imports:
-      - `packages/ameide_core_proto`.
-      - `buf.build/gen/go/**` modules.
-    - Detects cross-primitive imports:
-      - Reads `module` from `go.mod`.
-      - Flags imports under `github.com/ameideio/ameide/primitives/...` that are not the primitive’s own module or subpackages.
-    - Enforces handler-level broker isolation:
-      - Flags Watermill imports in `internal/handlers/**`.
+    - For Domains (Go), walks non-test `.go` files under `primitives/domain/<name>` and:
+      - Fails when runtime code imports:
+        - `packages/ameide_core_proto`.
+        - `buf.build/gen/go/**` modules.
+      - Detects cross-primitive imports:
+        - Reads `module` from `go.mod`.
+        - Flags imports under `github.com/ameideio/ameide/primitives/...` that are not the primitive’s own module or subpackages.
+      - Enforces handler-level broker isolation:
+        - Flags Watermill imports in `internal/handlers/**`.
+    - The same `Imports` check is reused for other primitives and languages; see 514 §6.1 for TS/Python coverage.
 - `EDA` check:
   - Implemented in `checkEDAReadiness(kind, serviceDir)`:
     - Applies only to Domain kind; skips other kinds with an explanatory message.

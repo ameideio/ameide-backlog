@@ -155,11 +155,14 @@ This section describes the current implementation status of 512 in the CLI (`pac
     - `src/prompts/default.md`,
     - `tests/test_agent.py`.
   - Adds GitOps manifests under `gitops/primitives/agent/<name>` when `--include-gitops` is set.
+  - Enforces the canonical language choice from 514:
+    - `runScaffold` rejects `--lang` values other than `py`/`python` for Agent scaffolds, so Agents are always Python projects.
 
 - Templates vs inline strings:
   - Agent scaffolds are driven by `templates/agent/*.tmpl` via `templates_agent.go`:
     - README, pyproject, package init, tools init, prompt content, and parts of the Dockerfiles come from templates.
   - This satisfies 512’s requirement that Agent scaffold instructions live in templates, not inline CLI strings.
+  - `templates_agent_test.go` includes `TestAgentReadmeTemplateHasNoBacklogIds`, which renders the Agent README template and fails if any `NNN-*.md` backlog references appear, keeping scaffolded docs self-contained.
 
 ### 6.2 Runtime and SDK expectations
 
@@ -180,10 +183,10 @@ This section describes the current implementation status of 512 in the CLI (`pac
 
 - `primitive verify --kind agent --name <name>`:
   - Inherits generic checks:
-    - Naming, security/SAST/secret scan, tests, and optional GitOps checks.
+    - Naming, security/SAST/secret scan, tests, shared `Imports` policy, and optional GitOps checks.
   - Does **not** currently:
     - Confirm presence of specific AgentPrimitive methods/tools beyond the scaffold files existing.
-    - Enforce SDK-only imports for Python.
+    - Enforce a full SDK wiring pattern (it only guards against obvious proto/core-proto and cross-primitive imports in Python runtime code).
     - Validate AgentDefinition wiring or risk-tier metadata; these remain in the 504/505 vertical slices and Backstage metadata.
 
 ### 6.4 Known gaps and next steps

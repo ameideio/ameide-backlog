@@ -140,48 +140,38 @@ This section describes the current implementation status of 513 in the CLI (`pac
 
 ### 6.1 Scaffolder behavior for UISurface primitives
 
-**Status:** Partially implemented; current UISurface scaffolds use a generic TS handler pattern, not the HTTP/SDK structure described here.
+**Status:** Not yet implemented; the CLI currently rejects UISurface scaffolds so we do not generate the outdated generic TS handler shape.
 
 - `ameide primitive scaffold --kind uisurface`:
-  - Uses the generic TypeScript path in `primitive_scaffold.go`:
-    - Creates `primitives/uisurface/<name>` with:
-      - `package.json`, `tsconfig.json`, `jest.config.cjs`,
-      - `Dockerfile`,
-      - `src/handlers.ts` (class with methods per RPC),
-      - `tests/handlers.test.ts` (RED tests calling the handler).
-    - Adds GitOps manifests under `gitops/primitives/uisurface/<name>` when `--include-gitops` is set.
-  - Does **not** currently emit:
-    - `src/server.ts`,
-    - `src/routes/<name>.ts`,
-    - `src/proto/index.ts` or any SDK wiring file.
-
+  - `runScaffold` recognizes the `UISURFACE` kind but returns an explicit error:
+    - `"UISurface scaffolding not yet implemented; see backlog/513-uisurface-primitive-scaffolding.md"`.
+  - This disables the older generic TypeScript handler scaffold for new UISurface primitives until a proper HTTP/SDK scaffold is implemented.
 - Templates vs inline strings:
-  - There are no UISurface-specific templates under `templates/`.
-  - TS scaffolding logic (handlers, tests, tsconfig, Dockerfile) is generated from inline string builders, not from templates as 513 envisions.
+  - There are still **no** UISurface-specific templates under `templates/`.
+  - The generic TypeScript builders (`buildTypeScriptHandlers`, `buildTypeScriptTest`, etc.) remain in `primitive_scaffold.go` but are not invoked for UISurface primitives; they are effectively legacy helpers until 513’s shape is implemented.
 
 ### 6.2 SDK-only and HTTP surface behavior
 
-**Status:** Planned in 513, but not enforced or scaffolded yet.
+**Status:** Planned in 513, but not scaffolded yet; UISurface behavior exists only as a spec.
 
 - Runtime shape:
-  - The spec’s HTTP/Connect server + routes + SDK clients pattern is not reflected in current scaffolds.
-  - Generated TS code is a simple handler class, with no HTTP server or route definitions.
+  - No UISurface-specific runtime code is generated today; the HTTP/Connect server + routes + SDK clients pattern exists only in this backlog.
 - SDK usage:
-  - The current scaffold does not reference `@ameideio/ameide-sdk-ts`.
-  - There is no TS-specific import policy in `primitive verify` to enforce:
+  - There is no generated `src/proto/index.ts`, and no default wiring to `@ameideio/ameide-sdk-ts`.
+  - No TS-specific import policy exists in `primitive verify` to enforce:
     - SDK-only imports,
     - Avoiding `@ameide/core-proto` in runtime code.
 
 ### 6.3 Verify behavior for UISurface primitives
 
-**Status:** Generic checks only; UISurface-specific rules are not implemented.
+**Status:** Generic checks only; UISurface-specific rules are not implemented, but the shared import policy now applies to TS runtime code.
 
 - `primitive verify --kind uisurface --name <name>`:
-  - Runs generic repo checks (naming, security, tests, etc.).
+  - Still runs the shared repo checks (naming, security/SAST, tests, shared `Imports` policy, optional GitOps) if a UISurface project exists.
   - Does **not** currently check:
     - Presence of `src/server.ts` or `src/routes/**`.
     - That `src/proto/index.ts` exists or uses SDK-based imports.
-    - That runtime code avoids `@ameide/core-proto`.
+    - Higher-level SDK usage patterns; it only guards against obvious proto/core-proto and cross-primitive imports in TypeScript runtime code.
 
 ### 6.4 Known gaps and next steps
 

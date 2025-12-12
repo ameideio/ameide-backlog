@@ -110,7 +110,9 @@ We carry forward the earlier principles and make them concrete here:
 
 **Responsibility:** Orchestrate **cross-domain** flows such as L2O, O2C, Procure-to-Pay, or Transformation workflows (Scrum/Togaf ADM).
 
-*Design-time:* **ProcessDefinitions** are BPMN-compliant artifacts produced by a **custom React Flow modeller** and stored in the **Transformation Domain** (modelled via Transformation design tooling UIs). At runtime they are executed by **Process primitives** backed by Temporal workflows.
+*Design-time:* **ProcessDefinitions** are BPMN-compliant artifacts produced by a **custom React Flow modeller** and stored in the **Transformation Domain** (modelled via Transformation design tooling UIs). They capture intent, stages, gateways, and bindings, but are **not executed directly**.
+
+*Runtime:* **Process primitives** are Temporal-backed services whose workflow code is derived from ProcessDefinitions by CLI/agents and human developers during implementation. At runtime they execute their own compiled workflows and **do not load or interpret BPMN/ProcessDefinitions dynamically.**
 
 **Key concepts**
 
@@ -121,11 +123,11 @@ We carry forward the earlier principles and make them concrete here:
   * Stored and versioned in the **Transformation Domain** with revisions & promotions (modelled via Transformation design tooling UIs).
 * **Process primitive** (runtime)
 
-  * Logical unit that "executes" a ProcessDefinition:
+  * Logical unit that implements Temporal workflows whose behavior is informed by ProcessDefinitions:
 
-    * Loads ProcessDefinition from the Transformation Domain.
-    * Maps BPMN tasks to Domain primitive API calls and/or Agent primitive tools.
-    * Handles business-level errors and compensations.
+    * CLI/agents read ProcessDefinitions and generate or refactor workflow code in the Process primitive.
+    * At runtime, the Process primitive runs its own workflow code; it does **not** fetch or interpret ProcessDefinitions on the hot path, and operators do not call Transformation for design-time artifacts.
+    * Workflows map conceptual BPMN tasks to Domain primitive API calls and/or Agent primitive tools and handle business-level errors and compensations.
   * Backed by Temporal workflows.
 * **Execution**
 
@@ -144,7 +146,7 @@ We carry forward the earlier principles and make them concrete here:
   * Execution state (activity id, token position)
   * Audit trail (who approved, when)
 * Stored in **Temporal** plus Ameide projections (for consolidated reporting).
-* **Runtime representation** – Process primitives are declared via `Process` CRDs that reference ProcessDefinition versions, Temporal namespaces, rollout policies, and dependent Domain/Agent primitives. The Process operator reconciles those CRDs into worker Deployments, Services, and monitoring assets.
+* **Runtime representation** – Process primitives are declared via `Process` CRDs that describe runtime wiring only (image, Temporal namespaces, rollout policies, and dependent Domain/Agent primitives). Any references to ProcessDefinition IDs are treated as opaque metadata for the Process image and tooling; the Process operator never fetches or interprets ProcessDefinitions.
 
 ### 2.3 Agents (Agent layer)
 
@@ -1261,8 +1263,8 @@ Only the **Transformation Domain** manipulates primitive definitions (ProcessDef
 | Legacy Term | 472 Term |
 |-------------|----------|
 | IPA (Intelligent Process Automation) | Domain primitive + Process primitive + Agent primitive bundle |
-| Platform Workflows (305) | Process primitive (executes ProcessDefinitions) |
-| AgentRuntime (310) | Agent primitive (executes AgentDefinitions) |
+| Platform Workflows (305) | Process primitive (Temporal-backed runtime informed by ProcessDefinitions, not a BPMN interpreter) |
+| AgentRuntime (310) | Agent primitive (runtime implementing behavior informed by AgentDefinitions) |
 | "Graph service" | Knowledge Graph (read projection) |
 | DomainService | Domain primitive |
 | BPMN definition | ProcessDefinition (from custom React Flow modeller) |

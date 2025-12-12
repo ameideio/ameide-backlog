@@ -98,19 +98,37 @@ Process scaffolds assume:
 
 - **Ingress router**:
   - Subscribes to one or more **domain facts** topics (e.g., `scrum.domain.facts.v1`).  
-  - For each fact, computes a deterministic workflow ID (e.g., `product/{product_id}/sprint/{sprint_id}`) and calls `SignalWithStart`.  
-  - Contains all non‑deterministic concerns (bus client, JSON/proto parsing, logging).
+  - For each fact, computes a deterministic workflow ID (e.g., `product/{product_id}/sprint/{sprint_id}`) and uses the Temporal client to call `SignalWithStart` on the **Temporal service** (not directly on workers).  
+  - Contains all non‑deterministic concerns (bus client, JSON/proto parsing, logging) and remains outside workflow code.
 
 - **Workflows**:
-  - Are deterministic and signal‑driven (no direct network calls).  
+  - Are deterministic and signal‑driven (no direct network calls or access to mutable runtime config).  
   - Maintain only **derived, process‑local state**:
     - `lastSeenAggregateVersion` per aggregate,
     - boolean flags for “already emitted” process facts (`SprintBacklogReadyForExecution`, etc.).  
-  - Emit **process facts** (e.g., `ScrumProcessFact`) via an injected port or activity that writes to an outbox / event bus, not via direct broker clients in workflow code.
+  - Emit **process facts** (e.g., `ScrumProcessFact`) via an injected port or Activity that writes to an outbox / event bus, not via direct broker clients in workflow code.
 
 - **Idempotency**:
   - Workflows must ignore domain facts where `aggregate_version <= lastSeenAggregateVersion`.  
-  - Process facts are emitted exactly once per logical condition by checking “already emitted” flags.
+  - Activities that emit process facts must be **idempotent** (e.g., accept a stable idempotency key per fact), because Temporal may retry Activities.  
+  - Process facts are emitted exactly once per logical condition by checking “already emitted” flags and using idempotent Activities/ports.
+
+- **Determinism and definitions**:
+  - BPMN / ProcessDefinition artifacts from Transformation are **design knowledge only**; they are not compiled into Temporal at runtime. The Process primitive’s code, typically authored via agentic development, implements workflows that follow these designs.
+  - Workflows must not consult “latest definition from ConfigMap/registry” on each replayed step. Instead:
+    - capture a **definition version/checksum** as workflow input when starting, and
+    - treat that version as immutable per Workflow Execution, or
+    - record any derived routing/decision data into workflow history via an Activity/SideEffect once, then use the recorded value.
+  - Definition changes are handled at coarse‑grained boundaries (e.g., **Continue‑As‑New** or new Workflow Executions) rather than by changing behavior within a running execution based on live config.
+
+- **Signal ordering / initialization**:
+  - When using `SignalWithStart`, Temporal may deliver Signals before the workflow’s main logic has fully initialized. Scaffolded workflows are expected to:
+    - initialize `State` and any required fields **before** entering the signal handling loop, and
+    - treat Signals as potentially arriving at any time in the workflow’s lifetime.
+
+- **Long‑running entity workflows**:
+  - Process workflows are expected to behave like **entity workflows** (one workflow per business key) and may run for a long time. To avoid unbounded history and ease versioning:
+    - scaffolds should plan for **Continue‑As‑New** once a history size or event count threshold is reached, or when a definition version changes.
 
 Topic and event naming follow `509-proto-naming-conventions.md` and the relevant process proto (e.g., `ameide_core_proto.process.scrum.v1`).
 
@@ -118,34 +136,36 @@ Topic and event naming follow `509-proto-naming-conventions.md` and the relevant
 
 ## 4. Workflow and test semantics (Process / Go)
 
-Scaffolded workflows:
+Scaffolded workflows (target shape and current scaffold):
 
-- Live under `internal/workflows/<name>_workflow.go`.  
-- Provide function signatures like:
+- Live under `internal/workflows/workflow.go` in the current scaffold (per-process files like `<name>_workflow.go` remain the long-term goal).  
+- Provide a function signature like:
 
 ```go
-func <Name>Workflow(ctx workflow.Context, params Params) error
+func ExampleWorkflow(ctx context.Context, state *process.State) error
 ```
 
 with placeholder state and TODOs for:
 
+- initializing `process.State` before handling signals,  
 - tracking `lastSeenAggregateVersion`,  
 - scheduling timers,  
-- emitting process facts.
+- emitting process facts via idempotent Activities/ports,  
+- optionally performing **Continue‑As‑New** after configurable thresholds.
 
-Scaffolded tests:
+Scaffolded tests (target shape):
 
-- Live under `internal/tests/<workflow>_workflow_test.go`.  
+- Live under `internal/tests/process_workflow_test.go` in the current scaffold (per-workflow test files are the long-term goal).  
 - Are RED by default:
   - invoke workflows through the Temporal test harness,
-  - assert `Unimplemented` or TODO behavior,
-  - provide comments pointing to `506-scrum-vertical-v2.md` / `496-eda-principles.md` for the expected behavior.
+  - assert TODO behavior,
+  - provide comments pointing to `506-scrum-vertical-v2.md` / `496-eda-principles.md` for the expected behavior and Temporal’s determinism/idempotency constraints.
 
 Agents/humans are expected to:
 
-1. Fill in workflow logic (timers, derived state, process fact emissions).  
-2. Wire ingress router to call workflow signals based on domain facts.  
-3. Update tests to assert correct behavior and idempotency.
+1. Fill in workflow logic (timers, derived state, process fact emissions) in a way that respects Temporal determinism and idempotent Activities.  
+2. Wire ingress router to call workflow signals based on domain facts using a Temporal client and deterministic workflow IDs.  
+3. Update tests to assert correct behavior, idempotency, and (where appropriate) Continue‑As‑New behavior.
 
 ---
 
@@ -169,22 +189,42 @@ This section describes the current implementation status of 511 in the CLI (`pac
 
 ### 6.1 Scaffolder behavior for Process primitives
 
-**Status:** Partially implemented; Process currently uses the generic Go scaffold, not the Temporal-specific shape described above.
+**Status:** Partially implemented with a Process-specific Go scaffold shape (worker + ingress + workflows), now including basic Temporal SDK wiring.
 
 - `ameide primitive scaffold --kind process`:
-  - Shares the same code path as Domain/Go in `primitive_scaffold.go`:
-    - Creates `primitives/process/<name>/go.mod`, `Dockerfile`, `catalog-info.yaml`.
-    - Generates a single `cmd/main.go` that logs a placeholder and calls `internal/handlers.New()`.
-    - Generates `internal/handlers/handlers.go` with one method per RPC returning `codes.Unimplemented`.
-    - Generates per-RPC RED tests under `internal/tests/<rpc>_test.go` and an integration harness script.
-  - Does **not** currently emit:
-    - `cmd/worker/main.go` / `cmd/ingress/main.go`.
-    - `internal/workflows/**`, `internal/ingress/router.go`, or `internal/process/state.go`.
-    - Temporal-specific `go.mod` dependencies or worker bootstrap code.
+  - Uses a dedicated Process shape in the shared Go scaffold path (`primitive_scaffold.go`):
+    - Creates `primitives/process/<name>/go.mod` with `go.temporal.io/sdk` and `github.com/ameideio/ameide-sdk-go` dependencies, a worker-focused `Dockerfile`, and `catalog-info.yaml`.
+    - Generates `cmd/worker/main.go` – a worker entrypoint that:
+      - reads `PROCESS_NAME`, `TEMPORAL_NAMESPACE`, `TEMPORAL_TASK_QUEUE`, and `TEMPORAL_ADDRESS`,
+      - creates a Temporal client (`go.temporal.io/sdk/client`),
+      - creates a worker (`go.temporal.io/sdk/worker`) for the configured task queue,
+      - registers `workflows.ExampleWorkflow`, and
+      - calls `worker.Run(worker.InterruptCh())`.
+    - Generates `cmd/ingress/main.go` – an ingress entrypoint that:
+      - reads `PROCESS_NAME`, `PROCESS_INGRESS_SOURCE`, `TEMPORAL_NAMESPACE`, `TEMPORAL_TASK_QUEUE`, and `TEMPORAL_ADDRESS`,
+      - creates a Temporal client,
+      - logs the configured source/namespace/task queue/address, and
+      - includes TODO comments to subscribe to domain facts and call `SignalWithStartWorkflow` with deterministic workflow IDs.
+    - Generates `internal/workflows/workflow.go` – an `ExampleWorkflow` stub that:
+      - uses `workflow.Context` from `go.temporal.io/sdk/workflow`,
+      - depends on `internal/process.State`,
+      - includes TODO comments for timers, signals, idempotency, and Continue-As-New.
+    - Generates `internal/ingress/router.go` – a `Router` stub with `HandleFact` placeholder.
+    - Generates `internal/process/state.go` – a `State` struct with `LastSeenAggregateVersion` and TODOs for derived state/idempotency flags.
+    - Generates a RED test `internal/tests/process_workflow_test.go` that references the workflow stub and reminds implementers to replace it with real assertions.
+    - Adds a shared integration test harness when `--include-test-harness` is set.
+  - Enforces Go as the canonical language:
+    - `runScaffold` rejects `--lang` values other than `go` for Process scaffolds and defaults `--lang` to `go` when omitted, matching 514’s P4 rule for Process primitives.
 
 - Templates vs inline strings:
-  - Process-specific templates under `templates/process/**` do not yet exist.
-  - Process README and comments are currently produced by the generic `buildReadmeContent` and handler/test builders, not 511-specific templates.
+  - Process-specific templates under `templates/process/**` now exist and are wired via `templates_process.go`:
+    - README: `templates/process/readme.md.tmpl`.
+    - Worker main: `templates/process/cmd/worker_main.go.tmpl`.
+    - Ingress main: `templates/process/cmd/ingress_main.go.tmpl`.
+    - Workflow stub: `templates/process/internal/workflows/workflow.go.tmpl`.
+    - Ingress router stub: `templates/process/internal/ingress/router.go.tmpl`.
+    - State struct: `templates/process/internal/process/state.go.tmpl`.
+  - `buildReadmeContent` renders Process/Go READMEs from the template instead of inline strings, and `templates_process_test.go` includes `TestProcessReadmeTemplateHasNoBacklogIds` to ensure the template stays free of backlog ID references.
 
 ### 6.2 Verify behavior for Process primitives
 
@@ -206,12 +246,9 @@ This section describes the current implementation status of 511 in the CLI (`pac
 ### 6.3 Known gaps and next steps
 
 - Scaffold:
-  - Introduce a Process-specific scaffold path that:
-    - Generates `cmd/worker/main.go` and `cmd/ingress/main.go` with Temporal bootstrap and ingress routing stubs.
-    - Creates `internal/workflows`, `internal/ingress`, and `internal/process/state.go` as described in §2–§3.
-    - Uses dedicated Process templates for README and code comments (similar to Domain’s template approach).
+  - Enrich `internal/workflows` and `internal/ingress` stubs with stronger examples (e.g., example Activities, signal handlers, Continue-As-New patterns) once Temporal patterns are finalized.
 - Verify:
   - Add Process-specific checks to `primitive verify` to ensure:
-    - Worker/ingress entrypoints and workflow/router files are present.
+    - Worker/ingress entrypoints and workflow/router/state files are present and wired into the go module.
     - Temporal configuration is wired in GitOps (values.yaml).
     - Optional: enforce idempotency patterns and fact emission conventions via heuristics.

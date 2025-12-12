@@ -199,7 +199,7 @@ All artifacts are **stored by the Transformation Domain** (optionally event-sour
 
 From a business‑architecture perspective:
 
-> "The **Transformation Domain** is the single source of truth for all design-time artifacts. **Transformation design tooling** is the set of modelling UIs (BPMN editor, diagram editor, Markdown editor) that call the Transformation Domain APIs—Transformation design tooling does not own storage. Process primitives and Agent primitives execute definitions from the Transformation Domain; they do not own the process/agent logic themselves."
+> "The **Transformation Domain** is the single source of truth for all design-time artifacts. **Transformation design tooling** is the set of modelling UIs (BPMN editor, diagram editor, Markdown editor) that call the Transformation Domain APIs—Transformation design tooling does not own storage. Process primitives and Agent primitives implement runtime behavior that *follows* definitions from the Transformation Domain; they do not store design-time artifacts themselves."
 
 ### 3.3 Methodology selection & parallel initiatives
 
@@ -233,8 +233,8 @@ From a business angle:
 * Each **Backstage template** corresponds to a *type of capability*:
 
   * `Domain primitive template` – create a new DDD domain with proto APIs.
-  * `Process primitive template` – create a runtime that executes ProcessDefinitions from Transformation design tooling.
-  * `Agent primitive template` – create a runtime that executes AgentDefinitions from Transformation design tooling.
+  * `Process primitive template` – create a runtime skeleton for Process primitives whose workflow code is derived from ProcessDefinitions in Transformation design tooling (via CLI/agents), but that does **not** load or interpret those definitions at runtime.
+  * `Agent primitive template` – create a runtime skeleton for Agent primitives whose behavior follows AgentDefinitions, with translation from design-time specs to code handled by CLI/agents, not by operators.
   * `UISurface template` – spin up new UX for domain/process combinations.
 
 * The **Transformation Domain** and its Agent primitives populate Backstage with:
@@ -563,7 +563,7 @@ This Business Architecture should be read with the following documents:
 The Element graph (300) and Business Architecture (471) coexist:
 
 * **Graph = design‑time knowledge projection**: Elements *represent* BPMN models, initiatives, backlog items, etc., **projected from the Transformation and other Domain primitives**.
-* **Process primitive = runtime execution**: Compiled from ProcessDefinitions stored in the Transformation Domain into executable Temporal workflows.
+* **Process primitive = runtime execution**: Implements Temporal workflows whose behavior is derived from ProcessDefinitions stored in the Transformation Domain, but the compilation/translation step from design‑time artifacts to code happens in CLI/agents and the primitive’s source, not in operators.
 * **Graph is a read projection**: Operational data lives in domains; the graph receives projections for analysis, transformation, and agent context.
 
 > **Important**: Transformation remains the source of truth for transformation artifacts; the graph stores references and read-optimised views, not the authoritative records.
@@ -577,8 +577,8 @@ This means: Transformation domain entities (initiatives, backlogs, artifacts) ar
 | Legacy Term | New Term (471) |
 |-------------|----------------|
 | IPA (Intelligent Process Automation) | Domain primitive + Process primitive + Agent primitive bundle |
-| Platform Workflows (305) | Process primitive (executes ProcessDefinitions) |
-| AgentRuntime (310) | Agent primitive (executes AgentDefinitions) |
+| Platform Workflows (305) | Process primitive (Temporal-backed runtime informed by ProcessDefinitions, not a BPMN interpreter) |
+| AgentRuntime (310) | Agent primitive (runtime implementing behavior informed by AgentDefinitions) |
 | DomainService | Domain primitive |
 
 ---

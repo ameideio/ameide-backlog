@@ -514,9 +514,9 @@ The E2E flow in 478 §6 describes how primitives are scaffolded via Backstage an
 | 473 Term | Related Terms | Notes |
 |----------|---------------|-------|
 | Domain primitive | DomainService (deprecated) | Consistent across 470-476 ✅ |
-| Process primitive | Workflow (305) | Runtime that executes ProcessDefinitions |
+| Process primitive | Workflow (305) | Runtime that implements Temporal workflows informed by ProcessDefinitions (code, not dynamic BPMN execution) |
 | ProcessDefinition | BPMN model (deprecated) | Design-time artifact in Transformation design tooling (from custom React Flow modeller) |
-| Agent primitive | AgentRuntime (deprecated) | Runtime that executes AgentDefinitions |
+| Agent primitive | AgentRuntime (deprecated) | Runtime that implements agent behavior informed by AgentDefinitions |
 | AgentDefinition | Agent config (deprecated) | Design-time artifact in Transformation design tooling |
 | Deployment category (465) | "component domain" (deprecated) | 465 folder categories (apps, data, platform); not business domains |
 

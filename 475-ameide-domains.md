@@ -24,9 +24,9 @@
 > that align with the design-time/runtime split defined in [471‑ameide‑business‑architecture](471-ameide-business-architecture.md):
 >
 > - **ProcessDefinitions** (design-time): BPMN-compliant artifacts from custom React Flow modeller, stored in **Transformation Domain primitive** (modelled via Transformation design tooling UIs)
-> - **Process primitives** (runtime): Execute ProcessDefinitions, backed by Temporal
+> - **Process primitives** (runtime): Implement Temporal workflows whose behavior is derived from ProcessDefinitions, but the translation from design-time artifacts to code happens in CLI/agents and the primitive’s source, not in operators or dynamic runtime compilation
 > - **AgentDefinitions** (design-time): Declarative agent specs stored in **Transformation Domain primitive** (modelled via Transformation design tooling UIs)
-> - **Agent primitives** (runtime): Execute AgentDefinitions
+> - **Agent primitives** (runtime): Implement agent behavior that follows AgentDefinitions; they do not persist or compile design-time artifacts themselves
 >
 > **Core Definitions** (see [470-ameide-vision.md §0](470-ameide-vision.md)):
 > - **Transformation design tooling** is the set of modelling UIs—it does not own storage. All Transformation design tooling-originated artifacts are persisted by the **Transformation Domain primitive**.
@@ -191,8 +191,8 @@ We use three runtime primitive types plus two design-time artifact types:
 
 **Runtime (primitives)**:
 * **Domain primitive** – owns data+rules for a particular domain.
-* **Process primitive** – executes ProcessDefinitions; orchestrates multiple Domain primitives and Agent primitives to implement an E2E process. Backed by Temporal.
-* **Agent primitive** – executes AgentDefinitions; non-deterministic LLM/tool automation that reads/writes via domain/process APIs.
+* **Process primitive** – implements Temporal workflows whose behavior is derived from ProcessDefinitions authored in the Transformation Domain; orients those workflows around cross-domain orchestration, but does **not** load or interpret ProcessDefinitions dynamically at runtime. Backed by Temporal.
+* **Agent primitive** – implements agent behavior that follows AgentDefinitions; non-deterministic LLM/tool automation that reads/writes via domain/process APIs, without persisting or compiling design-time specs itself.
 
 **Extension hooks (Tier 1)**
 
@@ -329,7 +329,8 @@ To show that this is universal, take a generic **E2E Process X** (e.g. some futu
 2. **Design → Runtime deployment**
 
    * Transformation processes (Agile/TOGAF) lead to formal ProcessDefinitions + requirements.
-   * A Process primitive `ProcessX` is deployed (executes ProcessDefinitions via Temporal).
+   * CLI/agents use those ProcessDefinitions and requirements to generate or evolve the Temporal workflow code for a Process primitive `ProcessX`.
+   * A Process primitive `ProcessX` is built and deployed; at runtime it executes its own workflow code informed by the ProcessDefinitions, but does **not** interpret BPMN/process definitions dynamically.
 
 3. **Domains reused**
 
@@ -498,9 +499,9 @@ This extends the domain portfolio in §3 with tenant-specific variants while mai
 | 475 Term | Related Terms | Notes |
 |----------|---------------|-------|
 | Domain primitive | DomainService (deprecated) | Consistent across 470-476 |
-| Process primitive | Workflow (305) | Runtime that executes ProcessDefinitions |
+| Process primitive | Workflow (305) | Runtime that implements Temporal workflows informed by ProcessDefinitions (code, not dynamic BPMN execution) |
 | ProcessDefinition | BPMN model (deprecated) | Design-time artifact in Transformation Domain primitive |
-| Agent primitive | AgentRuntime (deprecated) | Runtime that executes AgentDefinitions |
+| Agent primitive | AgentRuntime (deprecated) | Runtime that implements agent behavior informed by AgentDefinitions |
 | AgentDefinition | Agent config (deprecated) | Design-time artifact in Transformation Domain primitive |
 
 **Clarification**: AgentDefinitions are design-time artifacts owned by **Transformation Domain primitive** (§3.2), modelled via Transformation design tooling UIs. There is no separate "Transformation design tooling service"—Transformation design tooling is the UI layer that calls Transformation APIs. Agent primitives are runtime components that execute AgentDefinitions.

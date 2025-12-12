@@ -35,11 +35,11 @@
 The Process operator manages the lifecycle of **Process primitives** – long-running orchestrations backed by Temporal. Each `Process` CR results in:
 
 - ProcessDefinition fetched from a **Definition Registry** (which may be implemented inside Transformation as a separate subsystem, but is not the Scrum domain API)
-- ConfigMap with compiled definition (BPMN → Temporal mapping)
+- ConfigMap with the **raw process definition** / BPMN‑annotated JSON as a design‑time reference (no runtime “BPMN → Temporal compilation” happens in the operator)
 - Temporal worker Deployment
 - Optional CronJobs for SLA checks / cleanup
 
-**Key insight**: The operator wires Temporal workers to definitions; the Process image implements workflow/activity logic.
+**Key insight**: The operator wires Temporal workers to definitions and exposes them as configuration; the Process image implements workflow/activity logic and is where BPMN‑inspired designs are translated into Temporal workflows via agentic development, not by the operator at runtime.
 
 ---
 
@@ -161,16 +161,15 @@ type ProcessDefinitionStatus struct {
 
 **Helm chart**: Operators deployable via unified chart at `operators/helm/`
 
-### Phase 2: Transformation Integration
+### Phase 2: (intentionally no design‑time integration)
 
-| Task | Description | Acceptance Criteria |
-|------|-------------|---------------------|
-| **Transformation client** | gRPC client to fetch ProcessDefinition | Can call `GetProcessDefinition` RPC |
-| **Definition fetching** | `reconcileDefinition()` fetches by ID | Definition JSON retrieved |
-| **ConfigMap creation** | Store definition in ConfigMap | ConfigMap contains definition |
-| **Checksum tracking** | Compute SHA256 of definition | `status.definition.checksum` set |
-| **Version tracking** | Extract version from definition | `status.definition.version` set |
-| **Definition refresh** | Re-fetch on spec change or periodic | ConfigMap updated when definition changes |
+Design‑time artifacts such as BPMN diagrams and ProcessDefinitions live entirely in the Transformation Domain and are consumed by developer/agent workflows and the Process primitive’s own code. The Process operator **does not**:
+
+- fetch ProcessDefinitions,
+- create ConfigMaps with compiled BPMN/definitions, or
+- compute definition checksums/versions.
+
+Any references to ProcessDefinitions in the `Process` spec are treated as **opaque metadata only** (for example, passed through as environment variables) and are not used by the operator to call back into Transformation. All design‑time/definition integration is the responsibility of CLI tooling and Process primitives, not the operator.
 
 ### Phase 3: Temporal Wiring
 
@@ -186,6 +185,7 @@ type ProcessDefinitionStatus struct {
 
 | Task | Description | Acceptance Criteria |
 |------|-------------|---------------------|
+| **Safe Temporal deployments** | Adopt a safe rollout strategy for workflow code (Temporal Worker Versioning, patching, or task‑queue‑per‑version) so mixed worker versions never break determinism or task handling on a Task Queue | Operator configuration and deployment docs describe how Process workers use Worker Versioning or equivalent; rollouts do not introduce “workflow type not found” or non‑deterministic replay errors |
 | **Canary rollout** | Optional canary Deployment for new versions | Canary workers run alongside stable |
 | **SLA CronJobs** | Create CronJobs for SLA checks if configured | CronJobs appear, run on schedule |
 | **Graceful shutdown** | On delete, stop new workflow starts | No new workflows started during deletion |
@@ -205,35 +205,18 @@ type ProcessDefinitionStatus struct {
 
 ## 6. Key Implementation Details
 
-### 6.1 Definition Fetch Flow
-
-```
-Process CR created
-        ↓
-reconcileDefinition() calls Transformation gRPC
-        ↓
-GetProcessDefinition(id, tenantId) → ProcessDefinition JSON
-        ↓
-Compute SHA256 checksum
-        ↓
-CreateOrUpdate ConfigMap with definition
-        ↓
-Set status.definition.checksum, status.definition.version
-```
-
-### 6.2 Reconciler Struct
+### 6.1 Reconciler Struct
 
 ```go
 type ProcessReconciler struct {
     client.Client
     Scheme              *runtime.Scheme
     Recorder            record.EventRecorder
-    TransformationClient transformationv1.TransformationServiceClient
-    TemporalAdminClient  temporaladmin.Client // optional
+    TemporalAdminClient temporaladmin.Client // optional
 }
 ```
 
-### 6.3 Worker Deployment Template
+### 6.2 Worker Deployment Template
 
 ```go
 func mutateWorkerDeployment(deploy *appsv1.Deployment, process *amv1.Process, configMapName string) {
@@ -291,7 +274,7 @@ ctrl.NewControllerManagedBy(mgr).
 
 | Dependency | Purpose |
 |------------|---------|
-| **Transformation Domain** | Source of ProcessDefinitions |
+| **Transformation Domain** | Source of design-time ProcessDefinitions (used by CLI/agents and Process primitives, not by the operator) |
 | **Temporal** | Workflow execution engine |
 | **Domain operator** | Referenced domains must be Ready |
 | **Agent operator** | Referenced agents must be Ready |
