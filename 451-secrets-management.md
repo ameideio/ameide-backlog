@@ -247,6 +247,8 @@ spec:
         property: value
 ```
 
+Cluster-scoped workloads also need docker credentials. The shared template accepts `registry.additionalNamespaces` (`sources/values/_shared/foundation/foundation-ghcr-pull-secret.yaml:1-45`) and renders one ExternalSecret per entry; local clusters set this to `["argocd"]` in `sources/values/env/local/foundation/foundation-ghcr-pull-secret.yaml:1-4` so both `ameide-local` and `argocd` receive `ghcr-pull`.
+
 ---
 
 ## Secret Key Mapping (External/Third-Party Only)

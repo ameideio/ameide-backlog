@@ -74,7 +74,7 @@
   - Values: `sources/values/_shared/data/data-crds-clickhouse.yaml` with four `manifestFiles` pointing to the vendored CRDs above.
   - SSA: disabled (client-side apply). SyncOptions: `CreateNamespace`, `RespectIgnoreDifferences`.
 - **CHI app (`data-clickhouse`):**
-  - Chart: `sources/charts/third_party/altinity/clickhouse/clickhouse`
+  - Chart: `sources/charts/third_party/altinity/clickhouse/0.3.6`
   - Values: `_shared` defines storage/resources/users/image; `dev` overlay tweaks storage/resources.
   - SyncOptions: `CreateNamespace`, `RespectIgnoreDifferences`, `SkipDryRunOnMissingResource` (no SSA).
   - Operator subchart: disabled (`operator.enabled: false`).

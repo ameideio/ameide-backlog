@@ -88,6 +88,7 @@ With full namespace isolation:
 | `sources/values/_shared/observability/platform-loki.yaml` | Added `rbac.namespaced: true` |
 | `sources/values/_shared/platform/platform-grafana.yaml` | Added `rbac.namespaced: true` |
 | `sources/values/_shared/observability/platform-grafana.yaml` | Added `rbac.namespaced: true` |
+| `sources/values/_shared/cluster/prometheus-operator.yaml` | Leaves `prometheusOperator` cluster-scoped but explicitly disables the chart’s `httproute` template so cluster-gateway no longer renders unused traffic resources |
 
 ### Per-Environment
 
@@ -99,6 +100,9 @@ With full namespace isolation:
 | `sources/values/env/dev/observability/platform-prometheus.yaml` | Added namespace selectors + kube-state-metrics namespace |
 | `sources/values/env/staging/observability/platform-prometheus.yaml` | Added namespace selectors + kube-state-metrics namespace |
 | `sources/values/env/production/observability/platform-prometheus.yaml` | Added namespace selectors + kube-state-metrics namespace |
+| `sources/values/env/local/observability/platform-prometheus.yaml` | Mirrors the same selectors for `ameide-local` and pins local hostnames (`prometheus.local.ameide.io`, `alertmanager.local.ameide.io`) so the local Application matches the isolation contract |
+| `sources/values/env/local/observability/platform-alloy-logs.yaml` | Restricts `rbac.namespaces` to `ameide-local`, keeping log collection scoped even when only a single namespace exists |
+| `sources/values/env/local/observability/platform-loki.yaml` | Drops the empty `singleBinary` override so local Loki inherits the shared annotations instead of rendering `nil` |
 
 ---
 

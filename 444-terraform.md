@@ -29,6 +29,8 @@
 
 Terraform-first infrastructure provisioning for multi-cloud deployment. Bicep retained only for Azure Marketplace SaaS offer compliance.
 
+> **Hybrid direction:** Remote-first dev on AKS (see [435-remote-first-development.md](435-remote-first-development.md)) remains the daily default, but Terraform now underpins the sanctioned “local k3d” fallback. The expectation is that both paths stay in lockstep—GitOps owns the desired state, AKS is the shared cluster, and Terraform can spin up a disposable local replica when offline or air-gapped needs arise.
+
 ## Why Terraform + Bicep
 
 | Requirement | Terraform | Bicep |
@@ -173,7 +175,7 @@ After `deploy.sh local`, validate GitOps health before handing the environment t
 1. **ArgoCD control plane** – `kubectl -n argocd get pods` should show the controllers, repo-server, Redis, and Dex in `Running`. Two replicas of repo-server ensure chart rendering is healthy.
 2. **Application health sweep** – `kubectl -n argocd get applications` confirms each generated Application reconciles. Expect some workloads to sit in `Progressing` (images still pulling), but foundation components (Vault, namespaces, cert-manager) must be `Healthy`.
 3. **SecretStore readiness** – `kubectl -n ameide-local describe secretstore ameide-vault` should report `Ready=True`. If it cannot resolve `vault-core-<env>`, Vault was deployed with the wrong service name; fix the env overlay and re-sync.
-4. **ExternalSecrets/Secrets** – `kubectl -n ameide-local get externalsecrets` should eventually show `Ready=True`. Spot-check `ghcr-pull-sync` and verify `kubectl -n ameide-local get secret ghcr-pull` exists, since GHCR credentials gate most pods. `.env` / `.env.local` remain the authoritative source for `GHCR_USERNAME` + PAT; `seed-local-secrets.sh` copies those values into `vault-bootstrap-local-secrets` so Vault can mint the Docker config.
+4. **ExternalSecrets/Secrets** – `kubectl -n ameide-local get externalsecrets` should eventually show `Ready=True`. Spot-check `ghcr-pull-sync` and verify `kubectl -n ameide-local get secret ghcr-pull` exists, since GHCR credentials gate most pods. Cluster-scoped controllers also rely on this secret—confirm the argocd copy via `kubectl -n argocd get externalsecret ghcr-pull-sync` and `kubectl -n argocd get secret ghcr-pull`. `.env` / `.env.local` remain the authoritative source for `GHCR_USERNAME` + PAT; `seed-local-secrets.sh` copies those values into `vault-bootstrap-local-secrets` so Vault can mint the Docker config.
 5. **Smoke applications** – Trigger `local-foundation-bootstrap-smoke` or run `kubectl logs job/local-foundation-operators-smoke` to ensure guardrails see the freshly-synced secrets.
 
 Document any failures (for example, SecretStore DNS mismatches) back in the relevant backlog so the next Terraform run inherits the fix.
