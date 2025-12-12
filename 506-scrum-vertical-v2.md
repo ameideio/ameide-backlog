@@ -567,24 +567,50 @@ This section sketches a **bottom‑up path** to implementing the contract above 
    - Protos: `transformation-scrum-*` under `ameide_core_proto.transformation.scrum.v1` (see `508-scrum-protos.md`) plus a `scrum.process.facts.v1` package.  
    - Message classes and topics: this file defines the three classes (domain intents, domain facts, process facts), required envelope (`ScrumMessageMeta` equivalent), `ScrumAggregateRef`/`aggregate_version`, and topics: `scrum.domain.intents.v1`, `scrum.domain.facts.v1`, `scrum.process.facts.v1`.  
    - Codegen: SDKs for Go/TS/Python used by Transformation, Process workers, and agents/portal. No bespoke JSON at runtime.  
+   _Implementation checklist (Layer 0):_  
+   - [x] `transformation-scrum-*` proto files live under `packages/ameide_core_proto/src/ameide_core_proto/transformation/scrum/v1/` (see `transformation-scrum-common.proto`, `-artifacts.proto`, `-intents.proto`, `-facts.proto`, `-query.proto`).  
+   - [x] `process-scrum-facts.proto` lives under `packages/ameide_core_proto/src/ameide_core_proto/process/scrum/v1/` and defines `ScrumProcessFact`.  
+   - [x] `pnpm -F @ameide/core-proto build` (using `buf.gen.yaml` / `buf.gen.sdk-go.yaml` / `buf.gen.sdk-python.yaml`) generates and commits Go/TS/Python stubs for these packages into `packages/ameide_core_proto/gen`, `packages/ameide_sdk_go/gen`, and `packages/ameide_sdk_python/src`.  
+   - [x] Language SDKs expose Scrum types via their public proto surfaces (TS: `packages/ameide_core_proto/src/index.ts` and `packages/ameide_sdk_ts/src/proto/index.ts` → `@ameide/core-proto` / `@ameideio/ameide-sdk-ts/proto.js`; Go: `github.com/ameideio/ameide-sdk-go/gen/go/ameide_core_proto/transformation/scrum/v1`; Python: `ameide_core_proto.transformation.scrum.v1` and `ameide_core_proto.process.scrum.v1` modules under `packages/ameide_sdk_python/src`).  
+   - [ ] Runtime primitives that consume this Scrum contract (Domain, Process, Agent, UISurface) call it **only via SDKs**, never by importing `@ameide/core-proto` or `packages/ameide_core_proto` directly in their runtime code (see `393-ameide-sdk-import-policy.md` and `514-primitive-sdk-isolation.md`).  
 
 2. **Layer 1 – Transformation Scrum domain (source of truth)**  
    - Implements the aggregates and invariants in §2 using normal domain code + Postgres.  
    - Consumes `scrum.domain.intents.v1`, validates, persists, and emits `scrum.domain.facts.v1` with monotonic `aggregate_version` (via transactional outbox).  
    - Exposes a read‑only `ScrumQueryService` for UI/agents and debugging. No Temporal, no timers.
+   _Implementation checklist (Layer 1):_  
+   - [ ] Transformation DB schema extended with Scrum tables and outbox aligned to `ameide_core_proto.transformation.scrum.v1` (e.g. `db/flyway/sql/transformation/V3__scrum_domain.sql` defining `transformation.scrum_*` tables and `transformation.scrum_domain_outbox`).  
+   - [ ] Intent handlers in the Transformation domain primitive (`primitives/domain/transformation`) persist aggregates and write `ScrumDomainFact` rows with monotonic `aggregate_version` using `ScrumAggregateRef` and `ScrumDomainFactSchema`.  
+   - [ ] An outbox dispatcher (following `496-eda-principles.md` and the Graph outbox pattern in `services/graph/src/graph/events/outbox.ts`) publishes serialized `ScrumDomainFact` envelopes to `scrum.domain.facts.v1`.  
+   - [ ] `ScrumQueryService` RPC handlers are implemented in the Transformation domain primitive (`primitives/domain/transformation`) and exposed via the platform gateway (see `transformation-scrum-query.proto` and `367-1-scrum-transformation.md` for routing expectations).  
 
 3. **Layer 2 – Process primitive(s) (Temporal governor)**  
    - Ingress router subscribes to `scrum.domain.facts.v1` and signals workflows via `SignalWithStart` using deterministic workflow IDs.  
    - Workflows implement the structure in §7, keep only derived state, and dedupe by `aggregate_version` + “already emitted” flags for process facts.  
    - All writes back to the domain are published as intents on `scrum.domain.intents.v1`; all additional emissions are process facts on `scrum.process.facts.v1`.
+   _Implementation checklist (Layer 2):_  
+   - [ ] Ingress router process subscribes to `scrum.domain.facts.v1` and calls `SignalWithStart` on Temporal workflows using deterministic IDs (e.g. `product/{product_id}/sprint/{sprint_id}`), as described in §7 and `496-eda-principles.md`.  
+   - [ ] `SprintWorkflow` and `SprintBacklogItemWorkflow` implemented per §7 under the workflows runtime (e.g. `services/workflows_runtime` / `workflow_worker`), owning timers, signals, and child workflow orchestration but not domain persistence.  
+   - [ ] Idempotency state (`last_seen_aggregate_version`, “already emitted” flags for each process fact) is persisted in workflow state and/or a dedicated process-side table to handle replays and `ContinueAsNew`.  
+   - [ ] `ScrumProcessFact` messages (from `ameide_core_proto.process.scrum.v1`) are emitted on `scrum.process.facts.v1` using the same envelope conventions (meta + subject) and are published via a process outbox/dispatcher analogous to the domain outbox.  
 
 4. **Layer 3 – Operators & GitOps**  
    - Process operator (499) fetches `ProcessDefinition` from the Definition Registry (Transformation), creates ConfigMaps, and wires Temporal workers (env vars, task queue, namespaces).  
    - Domain operator (498) and `502-domain-vertical-slice.md` provide the pattern for implementing the Scrum domain as a Domain primitive; operators deploy once per cluster, CRDs per environment.
+   _Implementation checklist (Layer 3):_  
+   - [ ] Process CRD (see `499-process-operator.md`) describes the Scrum governance workflows and references the Temporal task queue / namespace to use.  
+   - [ ] Process operator implementation fetches `ProcessDefinition` from the Definition Registry in Transformation (per `367-1-scrum-transformation.md`), stores it in a ConfigMap/Secret, and mounts it into worker pods.  
+   - [ ] Temporal worker Deployments/StatefulSets are wired via env/ConfigMaps for namespace, task queue, and broker settings, and are registered in the GitOps manifests under `gitops/ameide-gitops`.  
+   - [ ] Domain/operator CRDs and reconcilers deploy the Transformation domain (including the Scrum profile) following the domain primitive pattern in `502-domain-vertical-slice.md` and `495-ameide-operators.md`.  
 
 5. **Layer 4 – Agents, UI, and automation**  
    - AmeidePO/AmeideSA/AmeideCoder stack (`505-agent-developer-v2*.md`) sits *on top* of this seam: PO consumes process facts and issues domain intents; SA delegates to Coder via A2A; Coder uses Ameide CLI internally.  
    - Portal surfaces (backlog views, Sprint views, run dashboards in 367‑5) read from `ScrumQueryService` and process facts; they do not define new Scrum state.
+   _Implementation checklist (Layer 4):_  
+   - [ ] AmeidePO/AmeideSA/AmeideCoder flows (see `505-agent-developer-v2*.md` and agent DAGs) updated to use `ScrumDomainIntent` / `ScrumDomainFact` / `ScrumProcessFact` only (no legacy `Requirement*` lifecycle), with A2A payloads carrying Scrum IDs.  
+   - [ ] Portal Scrum views (backlog, Sprint, Increment dashboards in `services/www_ameide_platform`) backed by `ScrumQueryService` and `scrum.process.facts.v1` projections instead of ad‑hoc tables or legacy transformation endpoints.  
+   - [ ] CLI/agent tooling wired so Coder uses the Ameide CLI against the Scrum seam (publishing intents, consuming facts) rather than bespoke RPCs; guardrails in `484a-ameide-cli-primitive-workflows.md` enforced.  
+   - [ ] Any non‑Scrum extensions (DoR, acceptance workflows, board columns) clearly labelled in profile/backlog docs and implemented as policy/process extensions around the core Scrum contract, not as new domain state in Transformation.  
 
 _Progress notes for this ladder (non‑normative, snapshot only):_
 
@@ -631,6 +657,10 @@ When Slice A + B work end‑to‑end (intents in → facts out → process facts
    - Lock the topic names to exactly `scrum.domain.intents.v1`, `scrum.domain.facts.v1`, `scrum.process.facts.v1` and generate Go/TS/Python SDKs (no bespoke JSON at runtime).  
 
 2. **Step B – Implement the Transformation Scrum subdomain (Layer 1, Slice A+B)**  
+   - Use the Ameide CLI to scaffold/extend the **Transformation domain primitive** with the Scrum profile, following the domain primitive patterns in `484a-ameide-cli-primitive-workflows.md` and `502-domain-vertical-slice.md`, rather than hand‑rolling a bespoke service skeleton. Concretely, this means:  
+     - scaffolding the Go domain primitive `primitives/domain/transformation` (if it does not already exist) with  
+       `ameide primitive scaffold --kind domain --name transformation --proto-path packages/ameide_core_proto/src/ameide_core_proto/transformation/scrum/v1/transformation-scrum-query.proto --lang go --include-gitops --include-test-harness`;  
+     - treating this primitive as the **Scrum system-of-record endpoint** for `ScrumQueryService`, while the legacy `services/transformation` Node service either acts as a façade or is retired over time.  
    - Add Postgres schema and handlers in the Transformation domain that:  
      - consume domain intents (starting with Slice A+B) from `scrum.domain.intents.v1`;  
      - enforce the aggregates and invariants in §2 (Scrum artifacts + commitments only);  
@@ -640,6 +670,7 @@ When Slice A + B work end‑to‑end (intents in → facts out → process facts
      - expose a read‑only `ScrumQueryService` for PBIs, Sprints, Sprint Backlogs, and Increments.
 
 3. **Step C – Implement the Process primitive as “governance over facts” (Layer 2, Slice A)**  
+   - Use the Ameide CLI primitives/workflows scaffolding (see `484a-ameide-cli-primitive-workflows.md` and `499-process-operator.md`) to create the Temporal process primitive skeleton, keeping process code aligned with the shared EDA and operator patterns.  
    - Build a non‑deterministic ingress router that subscribes to `scrum.domain.facts.v1` and routes into Temporal via `SignalWithStart` using deterministic workflow IDs.  
    - Implement the workflow hierarchy from §7 (`SprintWorkflow`, `SprintBacklogItemWorkflow` as child), keeping only derived state needed for timers and governance decisions.  
    - Apply the idempotency rules from §7.3: track `last_seen_aggregate_version`, ignore facts where `aggregate_version <= last_seen`, and track “already emitted” flags for each process fact.  

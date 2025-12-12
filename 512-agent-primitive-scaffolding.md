@@ -1,0 +1,125 @@
+# 512 – Agent Primitive Scaffolding (Python, opinionated)
+
+**Status:** Draft  
+**Audience:** AI agents, Python developers, CLI implementers  
+**Scope:** Exact scaffold shape and patterns for **Agent** primitives, extracted from 484f. One opinionated Python pattern, aligned with `514-primitive-sdk-isolation.md` (SDK-only, self-contained primitives, CLI treated as out-of-band). No additional Agent-specific CLI parameters beyond the canonical `ameide primitive scaffold` flags.
+
+---
+
+## General implementation guidelines (for CLI scaffolder)
+
+- Use a single, opinionated scaffold per primitive kind; **do not add extra CLI parameters** beyond the existing `ameide primitive scaffold` flags.  
+- All Agent scaffold instructions must be authored in **template files** (README/templates, comment templates), not hard‑coded as inline strings in the CLI implementation.  
+- Scaffolded README and code comments must be **fully self‑contained** and **must not reference backlog IDs**; this backlog informs design, but generated projects must stand alone.  
+
+---
+
+## Grounding & cross‑references
+
+- **Agent stack:** `400-agentic-development.md`, `505-agent-developer-v2*.md`.  
+- **Agent vertical slice:** `504-agent-vertical-slice.md`.  
+- **CLI overview & scaffold:** `484-ameide-cli-overview.md`, `484a-ameide-cli-primitive-workflows.md`, `484f-ameide-cli-scaffold-implementation.md`.  
+- **Agent operator:** `500-agent-operator.md`.  
+
+---
+
+## 1. Canonical scaffold command (Agent / Python)
+
+Agents use a dedicated Python scaffold with a single recommended pattern:
+
+```bash
+ameide primitive scaffold \
+  --kind agent \
+  --name <name> \
+  --include-gitops \
+  --include-test-harness
+```
+
+This creates an Agent primitive under:
+
+```text
+primitives/agent/<name>/
+gitops/primitives/agent/<name>/
+```
+
+---
+
+## 2. Generated structure (Agent / Python)
+
+```text
+primitives/agent/<name>/
+├── README.md                            # Wiring checklist, purpose, TODOs
+├── catalog-info.yaml                    # Backstage component
+├── pyproject.toml                       # Python project with FastAPI, LangGraph, SDK
+├── Dockerfile.dev                       # Dev container (hot reload)
+├── Dockerfile.release                   # Production build (multi-stage)
+├── src/
+│   ├── __init__.py                      # Package initializer
+│   ├── main.py                          # FastAPI entrypoint (/healthz, /invoke)
+│   ├── agent.py                         # AgentPrimitive skeleton (NotImplementedError)
+│   ├── prompts/
+│   │   └── default.md                   # Default prompt template
+│   └── tools/
+│       └── __init__.py                  # Tool registration stub
+└── tests/
+    └── test_agent.py                    # Failing test (RED)
+```
+
+GitOps with `--include-gitops`:
+
+```text
+gitops/primitives/agent/<name>/
+├── values.yaml                          # Deployment, secrets, model config
+├── component.yaml                       # Argo CD component descriptor
+└── kustomization.yaml                   # Kustomize stub
+```
+
+---
+
+## 3. Opinionated agent pattern
+
+Scaffolded Agent primitives assume:
+
+- A **single AgentPrimitive** entrypoint in `src/agent.py` with:
+  - tools registration,
+  - prompt loading from `src/prompts/default.md`,
+  - a `run`/`invoke` method used by `src/main.py`.
+
+- **FastAPI service** in `src/main.py`:
+  - exposes `/healthz` and `/invoke` endpoints,
+  - delegates to the AgentPrimitive.
+
+- Integration with the Ameide system:
+  - Agent uses SDK clients to talk to Domain/Process primitives (never imports proto packages directly for outbound calls).  
+  - Agent runtime **does not** invoke `ameide` CLI commands or depend on devcontainer tooling during normal request handling; CLI guardrail workflows remain the responsibility of AmeideCoder and related A2A dev agents described in `504-agent-vertical-slice.md` / `505-agent-developer-v2*.md`.
+
+---
+
+## 4. Test and wiring semantics (Agent / Python)
+
+Scaffolded tests:
+
+- Live in `tests/test_agent.py`.  
+- Are RED by default:
+  - instantiate the agent,
+  - call a minimal `invoke` path,
+  - assert `NotImplementedError` or a TODO response.
+
+Agents/humans are expected to:
+
+1. Implement the AgentPrimitive’s behavior in `src/agent.py` (tools, prompts, orchestration).  
+2. Wire external secrets, models, and SDK clients in `Dockerfile.*` and GitOps.  
+3. Replace scaffold test assertions with real expectations (GREEN).
+
+---
+
+## 5. Verification expectations
+
+`ameide primitive verify --kind agent --name <name>` should verify:
+
+- Presence of AgentPrimitive skeleton and FastAPI entrypoint.  
+- Tests exist and initially fail.  
+- GitOps manifests for the agent are valid (if generated).  
+- Linting / packaging checks for `pyproject.toml`.
+
+Behavioral details (e.g., how AmeideCoder delegates work) remain in `504-agent-vertical-slice.md` and `505-agent-developer-v2*.md`. This backlog only constrains the **scaffold shape** for Agent primitives.
