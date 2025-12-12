@@ -162,8 +162,9 @@ deploy.sh local
 - The `local` workspace **only** provisions the k3d cluster, bootstrap ServiceAccount/Secrets, and ArgoCD; it never talks to Azure. `infra/terraform/local/main.tf` depends exclusively on Docker/k3d providers, so running it inside the devcontainer cannot destroy shared cloud resources.
 - `deploy.sh local` always recreates the `ameide-network` Docker network instead of pruning other networks, keeping unrelated containers intact even after a devcontainer restart.
 - Terraform state for the local run is stored under `infra/terraform/local/terraform.tfstate` inside the repo (not the azurerm backend). Deleting and re-running the target impacts only the local cluster.
-- The devcontainer now mounts the host socket to `/var/run/docker-host.sock`, lets the docker-outside-of-docker feature manage `/var/run/docker.sock`, and executes `.devcontainer/lib/check-docker.sh` on every start. If `docker ps` fails, the container startup fails immediately so Terraform never attempts to run without Docker access.
-- `infra/scripts/tf-local.sh` is the canonical way to plan/apply/destroy the k3d workspace. It fails fast when Docker is unavailable, recreates the Docker network, deletes unmanaged `k3d-ameide` clusters when the Terraform state file lacks `module.k3d.k3d_cluster.this`, and finally invokes Terraform with your requested subcommand.
+- The devcontainer now mounts the host socket to `/var/run/docker-host.sock`, lets the docker-outside-of-docker feature manage `/var/run/docker.sock`, and executes `.devcontainer/lib/check-docker.sh` on every start. If `docker ps` fails, the container startup fails immediately so Terraform v1.14.2 and the Argo CD CLI v3.2.1 (current stable releases) are pre-installed inside the devcontainer image. This keeps `tf-local.sh`, `argocd app wait`, and `scripts/check-argocd-app-sync.sh` runnable immediately after `Dev Containers: Rebuild` without manual curl/unzip steps.
+- Devcontainer instances always pass `--add-host=host.docker.internal:host-gateway`, and the k3d module pins `kube_api.host=host.docker.internal`, `host_port=6550`, plus `--tls-san=host.docker.internal`. Every kubeconfig now targets `https://host.docker.internal:6550` directly—no manual rewrites or `insecure-skip-tls-verify` hacks survive code review.
+- `infra/scripts/tf-local.sh` is the canonical way to plan/apply/destroy the k3d workspace. It fails fast when Docker is unavailable, recreates the Docker network, deletes unmanaged `k3d-ameide` clusters when the Terraform state file lacks `module.k3d.k3d_cluster.this`, and resets the entire `infra/terraform/local/terraform.tfstate*` blob any time the cluster disappeared while Terraform still tracks `module.k3d`/`module.argocd`. That guarantees the next apply performs a clean re-create instead of piecemeal `state rm` surgery.
 
 ### Post-Apply Verification (Local)
 
@@ -172,7 +173,7 @@ After `deploy.sh local`, validate GitOps health before handing the environment t
 1. **ArgoCD control plane** – `kubectl -n argocd get pods` should show the controllers, repo-server, Redis, and Dex in `Running`. Two replicas of repo-server ensure chart rendering is healthy.
 2. **Application health sweep** – `kubectl -n argocd get applications` confirms each generated Application reconciles. Expect some workloads to sit in `Progressing` (images still pulling), but foundation components (Vault, namespaces, cert-manager) must be `Healthy`.
 3. **SecretStore readiness** – `kubectl -n ameide-local describe secretstore ameide-vault` should report `Ready=True`. If it cannot resolve `vault-core-<env>`, Vault was deployed with the wrong service name; fix the env overlay and re-sync.
-4. **ExternalSecrets/Secrets** – `kubectl -n ameide-local get externalsecrets` should eventually show `Ready=True`. Spot-check `ghcr-pull-sync` and verify `kubectl -n ameide-local get secret ghcr-pull` exists, since GHCR credentials gate most pods.
+4. **ExternalSecrets/Secrets** – `kubectl -n ameide-local get externalsecrets` should eventually show `Ready=True`. Spot-check `ghcr-pull-sync` and verify `kubectl -n ameide-local get secret ghcr-pull` exists, since GHCR credentials gate most pods. `.env` / `.env.local` remain the authoritative source for `GHCR_USERNAME` + PAT; `seed-local-secrets.sh` copies those values into `vault-bootstrap-local-secrets` so Vault can mint the Docker config.
 5. **Smoke applications** – Trigger `local-foundation-bootstrap-smoke` or run `kubectl logs job/local-foundation-operators-smoke` to ensure guardrails see the freshly-synced secrets.
 
 Document any failures (for example, SecretStore DNS mismatches) back in the relevant backlog so the next Terraform run inherits the fix.
@@ -445,12 +446,12 @@ If `platform-gateway` stays `Degraded`, re-sync `platform-cert-manager-config` f
 ```bash
 # Example .env file
 GHCR_TOKEN=ghp_xxx
-GHCR_USER=myuser
+GHCR_USERNAME=myuser
 LANGFUSE_SECRET_KEY=xxx
 
 # Results in Azure Key Vault secrets:
 # - ghcr-token
-# - ghcr-user
+# - ghcr-username
 # - langfuse-secret-key
 ```
 
@@ -673,6 +674,6 @@ secrets:
   docker:
     strategy: env
     registry: ghcr.io
-    usernameEnv: GHCR_USER
+    usernameEnv: GHCR_USERNAME
     tokenEnv: GHCR_TOKEN
 ```

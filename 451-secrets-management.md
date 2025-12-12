@@ -40,7 +40,7 @@ This document describes the end-to-end secrets flow from developer `.env` files 
 │   .env / .env.local                                                         │
 │   ┌────────────────────┐                                                    │
 │   │ GHCR_TOKEN=ghp_xxx │                                                    │
-│   │ GHCR_USER=myuser   │                                                    │
+│   │ GHCR_USERNAME=myuser │                                                  │
 │   │ LANGFUSE_SECRET=xx │                                                    │
 │   └────────────────────┘                                                    │
 │              │                                                               │
@@ -59,7 +59,7 @@ This document describes the end-to-end secrets flow from developer `.env` files 
 │   Azure Key Vault (ameidekv)                                                │
 │   ┌────────────────────────────┐                                            │
 │   │ ghcr-token = ghp_xxx       │                                            │
-│   │ ghcr-user = myuser         │                                            │
+│   │ ghcr-username = myuser     │                                            │
 │   │ langfuse-secret = xx       │                                            │
 │   └────────────────────────────┘                                            │
 │              │                                                               │
@@ -87,7 +87,7 @@ This document describes the end-to-end secrets flow from developer `.env` files 
 │  │  HashiCorp Vault (foundation-vault-core)                            │   │
 │  │  ┌────────────────────────────┐                                     │   │
 │  │  │ secret/ghcr-token          │                                     │   │
-│  │  │ secret/ghcr-user           │                                     │   │
+│  │  │ secret/ghcr-username       │                                     │   │
 │  │  │ secret/langfuse-secret     │                                     │   │
 │  │  └────────────────────────────┘                                     │   │
 │  │              │                                                       │   │
@@ -258,7 +258,7 @@ spec:
 | .env Variable | Azure Key Vault | HashiCorp Vault | K8s Secret |
 |---------------|-----------------|-----------------|------------|
 | `GHCR_TOKEN` | `ghcr-token` | `secret/ghcr-token` | `ghcr-pull` |
-| `GHCR_USER` | `ghcr-user` | `secret/ghcr-user` | `ghcr-pull` |
+| `GHCR_USERNAME` | `ghcr-username` | `secret/ghcr-username` | `ghcr-pull` |
 | `LANGFUSE_SECRET_KEY` | `langfuse-secret-key` | `secret/langfuse-secret-key` | `langfuse-secrets` |
 | `ANTHROPIC_API_KEY` | `anthropic-api-key` | `secret/anthropic-api-key` | `inference-api-credentials` |
 | `OPENAI_API_KEY` | `openai-api-key` | `secret/openai-api-key` | `inference-api-credentials` |
