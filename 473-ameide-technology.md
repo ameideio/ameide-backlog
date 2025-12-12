@@ -21,6 +21,12 @@ Here’s **Document 4/6 – Technology Architecture**.
 > | [426-keycloak-config-map.md](426-keycloak-config-map.md) | Secrets handling, OIDC client extraction |
 > | [467-backstage.md](467-backstage.md) | Backstage implementation (§2.3 factory pattern) |
 
+## Grounding & contract alignment
+
+- **Primitive runtime layer:** Describes how the primitives from `470-ameide-vision.md` and `472-ameide-information-application.md` are realized technically (Kubernetes, operators, Temporal, Backstage, Buf/SDKs), forming the basis that operator/vertical-slice backlogs (`495-ameide-operators.md`, `497-operator-implementation-patterns.md`, `498-domain-operator.md`, `499-process-operator.md`, `500-agent-operator.md`, `501-uisurface-operator.md`, `503-operators-helm-chart.md`, `502-domain-vertical-slice.md`) implement.  
+- **EDA and infra alignment:** Binds infra choices (CNPG, Envoy/Gateway, ExternalSecrets, Vault, Temporal) to the EDA and proto-chain rules further detailed in `472-ameide-information-application.md` and `496-eda-principles.md`.  
+- **Scrum/agent relevance:** Provides the technical substrate (Temporal workers, agent runtimes, devcontainers, GitOps model) that the Scrum stack (`506-scrum-vertical-v2.md`, `508-scrum-protos.md`) and agent backlogs (`505-agent-developer-v2*.md`, `504-agent-vertical-slice.md`) rely on without redefining their contracts.
+
 ---
 
 ## Implementation Status (2025-02-14)

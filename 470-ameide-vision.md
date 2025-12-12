@@ -30,6 +30,14 @@
 
 ---
 
+## Grounding & contract alignment
+
+- **Primitive model:** Establishes the canonical four primitives (Domain, Process, Agent, UISurface) and Graph/Transformation invariants that all later primitive/operator/Scrum backlogs (471–477, 495–505, 506–508) must follow.  
+- **EDA/security spine:** Defines the EDA invariants and security assumptions that are expanded in `472-ameide-information-application.md`, `473-ameide-technology.md`, `476-ameide-security-trust.md`, and codified for events in `496-eda-principles.md`.  
+- **Scrum & agents:** Provides the platform-level constraints (Transformation-as-domain, Graph read-only, primitive CRDs only) that the Scrum stack (`367-1-scrum-transformation.md`, `506-scrum-vertical-v2.md`, `508-scrum-protos.md`) and agent backlogs (`505-agent-developer-v2*.md`) refine rather than override.
+
+---
+
 ## Implementation Status (2025-02-14)
 
 - ✅ Graph handlers now reject every mutation RPC so the Knowledge Graph remains a projection-only surface (`services/graph/src/graph/service.ts:118-135`, `services/graph/src/graph/service.ts:4879-4905`).

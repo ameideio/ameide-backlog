@@ -1,6 +1,19 @@
 
+> **Contract alignment**
+> - **Canonical contract:** Scrum data and events follow `transformation-scrum-*` protos (`ameide_core_proto.transformation.scrum.v1`) and the event seams in `506-scrum-vertical-v2.md` / `508-scrum-protos.md`; this file’s Requirement-centric event names are legacy only.  
+> - **Canonical integration:** Process primitives interact with Transformation only via intents/facts on the bus; any direct RPC coupling or agent↔domain shortcuts described here are historical and superseded by 505-v2/506-v2/367-1.  
+> - **Non-Scrum extensions:** any acceptance workflows, impediment models, or board columns in this file must be treated as optional extensions or migration notes, not canonical Scrum artifacts.
+
 
 ## agent-developer – Agent Developer Execution Environment (Two-Agent Architecture with A2A)
+
+**Authority & supersession**
+
+- The **canonical architecture** for Agent Developer now lives in `505-agent-developer-v2.md` (Process + AmeidePO + AmeideSA + AmeideCoder). That file, together with `506-scrum-vertical.md` and `300-400/367-1-scrum-transformation.md`, is authoritative for agent roles, A2A contracts, and the domain↔process event model.  
+- This file is **historical and implementation-tracking only**: it preserves the earlier two-agent (PO + Coder) A2A design and current implementation status, to support migration and evidence. It must not be treated as normative when it conflicts with 505‑v2 or 506.  
+- Any event names, topic layouts, or domain/process coupling described here are superseded by the `scrum.intents.v1` / `scrum.facts.v1` / `process.facts.v1` contracts in 506; any places where AmeidePO or AmeideCoder appear to cross those boundaries should be read as legacy behavior to be removed during migration.
+
+> **Target architecture lives in [505-agent-developer-v2.md](505-agent-developer-v2.md).** This file now tracks implementation progress, migration notes, and historical two-agent context while we land the Process + AmeidePO + AmeideSA + AmeideCoder model.
 
 **Status:** Active (guardrail plumbing landed; A2A integration in progress)
 **Owner:** Platform / Agents
@@ -11,6 +24,13 @@
 * Agent primitive / AgentDefinitions (Transformation)
 * ArgoCD / GitOps / ApplicationSet patterns
 * Historical context: [000-200/030-coding-agent.md](000-200/030-coding-agent.md) and [000-200/041-coder.md](000-200/041-coder.md) capture the earlier PoC implementations and are now marked as superseded in favour of this backlog.
+
+## Grounding & cross-references
+
+- **Status & purpose:** Historical record of the original two-agent (PO + Coder) A2A model and Requirement-centric contracts; retained to explain existing assets and migration steps, but superseded by `505-agent-developer-v2.md`, `506-scrum-vertical-v2.md`, and `508-scrum-protos.md` for any new design or implementation.  
+- **Architecture grounding:** Built on the same primitive and vision backlogs as v2 (`470-ameide-vision.md`, `471-ameide-business-architecture.md`, `472-ameide-information-application.md`, `473-ameide-technology.md`, `475-ameide-domains.md`, `477-primitive-stack.md`, and `496-eda-principles.md`), but before the strict Scrum-aligned contract was introduced.  
+- **Legacy consumers:** Older operator/CLI demos and A2A experiments that still reference Requirement events or direct domain RPCs should treat this file as migration guidance only and target the v2 contracts when updated. `504-agent-vertical-slice.md` and `500-agent-operator.md` now follow the v2 architecture.  
+- **Navigation:** `507-scrum-agent-map.md` and `505-agent-developer-v2-implementation.md` show how the new multi-agent stack replaces this design while preserving evidence from its implementation history.
 
 ---
 
@@ -26,7 +46,9 @@
 | **EDA Integration** | ⚠️ Partial | EDA infrastructure exists (backlog 496). Event schemas for agent coordination (RequirementCreated, RequirementCompleted) need definition. |
 | **Workflow/Temporal metadata** | ⚠️ Deferred | Historical Stage-2 automation (`367-2-agent-orchestration-coding-agent.md`) remains as governance blueprint. Not part of A2A architecture. |
 
-> **Architecture shift:** This backlog now describes a **two-agent A2A model** (AmeidePO + AmeideCoder) instead of the original single-agent develop_in_container pattern. See Section 3 for the new architecture.
+> **V2 alignment note:** Each workstream above remains active only insofar as it unlocks the Process + PO + SA + Coder flow defined in [505-agent-developer-v2.md](505-agent-developer-v2.md). Treat the two-agent descriptions below as implementation breadcrumbs while we update every runtime, CRD, and CLI reference.
+
+> **Architecture shift:** Canonical target architecture is the **Process + AmeidePO + AmeideSA + AmeideCoder** model in [505-agent-developer-v2.md](505-agent-developer-v2.md). The remainder of this document tracks migration progress and retains the earlier **two-agent A2A model** (AmeidePO + AmeideCoder) for compatibility and evidence until every implementation artifact is updated.
 
 ---
 

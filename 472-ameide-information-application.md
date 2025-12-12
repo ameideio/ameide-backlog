@@ -9,6 +9,12 @@ Here's a first cut of the **Application & Information Architecture** doc, aligne
 
 > **Core Invariants**: See [470-ameide-vision.md §0 "Ameide Core Invariants"](470-ameide-vision.md) for the canonical list (four primitives, Graph read-only, Transformation as domain, proto chain, tenant isolation, Backstage internal).
 
+## Grounding & contract alignment
+
+- **Primitive/application contracts:** Turns the vision-level primitives from `470-ameide-vision.md` and business concepts from `471-ameide-business-architecture.md` into concrete application building blocks (Domain/Process/Agent/UISurface primitives, Transformation, Graph) that later operator and CLI backlogs (`495-ameide-operators.md`, `497-operator-implementation-patterns.md`, `502-domain-vertical-slice.md`, `477-primitive-stack.md`) implement.  
+- **EDA & proto chain:** Defines the proto→SDK→runtime and CQRS/EDA rules that are referenced by `473-ameide-technology.md`, `496-eda-principles.md`, and the CLI/primitive workflows in `484a-484f`; all primitive code and operators are expected to obey these patterns.  
+- **Scrum and agent stack:** Provides the generic Domain/Process/Agent information-flow model that the Scrum-specific contracts (`367-1-scrum-transformation.md`, `506-scrum-vertical-v2.md`, `508-scrum-protos.md`) and agent architecture (`505-agent-developer-v2*.md`) instantiate with Scrum nouns and A2A semantics.
+
 ---
 
 ## Implementation Status (2025-02-14)

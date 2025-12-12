@@ -6,6 +6,12 @@
 
 > **Core Invariants**: EDA invariants §8-13 are defined in [470-ameide-vision.md](470-ameide-vision.md). This document provides the complete reference with implementation guidance.
 
+## Grounding & contract alignment
+
+- **EDA spine for primitives:** Expands the high-level EDA invariants from `470-ameide-vision.md` and the application architecture from `472-ameide-information-application.md` into concrete messaging rules that all primitives and operators must follow (commands vs events, transactional outbox, idempotent consumers).  
+- **Operator/CLI integration:** Provides the event-handling expectations and patterns that operator/vertical-slice backlogs (`473-ameide-technology.md`, `495-ameide-operators.md`, `497-operator-implementation-patterns.md`, `498-domain-operator.md`, `499-process-operator.md`, `502-domain-vertical-slice.md`) and CLI tooling (`484a-484f`) use when validating primitive behavior.  
+- **Scrum/process catalog:** Defines the Scrum-aware process event catalog and domain/process topic separation (`scrum.domain.intents.v1`, `scrum.domain.facts.v1`, `scrum.process.facts.v1`) that the Scrum stack (`506-scrum-vertical-v2.md`, `508-scrum-protos.md`) and agent architecture (`505-agent-developer-v2*.md`, `507-scrum-agent-map.md`) build on.
+
 ---
 
 ## 1. Purpose
@@ -17,6 +23,8 @@ This document defines the **event-driven architecture principles** that all Amei
 - Clean separation between domain logic and infrastructure
 - Multi-tenant isolation in event flows
 - Observable, traceable event processing
+
+Agent-to-agent (A2A) communication per [505-agent-developer-v2.md](505-agent-developer-v2.md) is deliberately **out of scope** for this document; A2A is a peer-to-peer contract between AmeideSA and AmeideCoder, whereas this backlog codifies domain ↔ process ↔ agent EDA traffic.
 
 ---
 
@@ -621,6 +629,32 @@ func (h *Handler) HandleOrderPlaced(ctx context.Context, event *events.OrderPlac
 | **Backing services** | Postgres, NATS, Kafka are attached resources |
 | **Build, release, run** | Immutable images tagged with proto version |
 | **Processes** | Stateless event handlers, state in DB + event log |
+
+---
+
+## 11. Process primitive event catalog (per 505/506-v2/508)
+
+Process primitives own the sprint/ADM lifecycle defined in [505-agent-developer-v2.md](505-agent-developer-v2.md) and follow the **Scrum intent/fact split** described in [506-scrum-vertical-v2.md](506-scrum-vertical-v2.md) and the `transformation-scrum-*` protos in [508-scrum-protos.md](508-scrum-protos.md):
+
+- **Scrum domain facts** (e.g., `SprintCreated`, `SprintStarted`, `SprintBacklogCommitted`, `ProductBacklogItemDoneRecorded`, `IncrementUpdated`) are emitted by the Transformation domain on `scrum.domain.facts.v1`.  
+- **Scrum domain intents** (e.g., `StartSprintRequested`, `EndSprintRequested`, `CommitSprintBacklogRequested`, `RecordProductBacklogItemDoneRequested`, `RecordIncrementRequested`) are emitted by Process or agents on `scrum.domain.intents.v1`.  
+- **Process facts** (governance/orchestration signals) are emitted by Process on `scrum.process.facts.v1` and consumed by AmeidePO/SA/observers.
+
+Canonical **Scrum process facts** (see 506-v2 §6 for the authoritative list and field definitions):
+
+| Event | Emitted by | Consumers | Payload (summary) |
+|-------|------------|-----------|-------------------|
+| `SprintBacklogReadyForExecution` | Process primitive | AmeidePO | `sprintId`, `productId` |
+| `SprintBacklogItemReadyForWork` | Process primitive | AmeidePO, SA, downstream automation | `sprintId`, `productBacklogItemId`, optional `devBriefRef` |
+| `SprintStartingSoon` / `SprintEndingSoon` | Process primitive | AmeidePO, reporting services | `sprintId`, `productId`, warning thresholds |
+| `SprintTimeboxReachedEnd` | Process primitive | AmeidePO, observability, escalation handlers | `sprintId`, `productId`, `timeboxId`, `deadline` |
+| `SLAWarning` / `SLAExceeded` | Process primitive | Observability, escalation handlers | `sprintId`, `productBacklogItemId?`, `timeboxId`, `breachKind`, `deadline` |
+
+Implementation guidance:
+
+- Publish these **process facts** on the `scrum.process.facts.v1` topic family so AmeidePO and other consumers can subscribe without special wiring.  
+- Do **not** re-emit Scrum domain facts such as `SprintStarted` or `ProductBacklogItemDoneRecorded` on the process topic; downstream systems that need raw domain state listen to `scrum.domain.facts.v1` instead.  
+- Include `process_scope` / `timebox_id` and the relevant aggregate identifiers (`sprintId`, `productBacklogItemId`) on every event so AmeideSA/AmeidePO DAGs can correlate Tasks → EDA events deterministically.
 | **Port binding** | gRPC/Connect services self-contained |
 | **Concurrency** | Scale out via consumer groups, not threads |
 | **Disposability** | Fast startup/shutdown, graceful drain on SIGTERM |

@@ -9,6 +9,12 @@
 > - [495-ameide-operators.md](495-ameide-operators.md) – CRD shapes & responsibilities
 > - [497-operator-implementation-patterns.md](497-operator-implementation-patterns.md) – Go patterns & reference implementation
 
+## Grounding & contract alignment
+
+- **Primitive/operator model:** Implements the Domain primitive/operator responsibilities implied by `470-ameide-vision.md`, `472-ameide-information-application.md`, `473-ameide-technology.md`, `475-ameide-domains.md`, and `477-primitive-stack.md`, using the shared operator patterns from `495-ameide-operators.md` and `497-operator-implementation-patterns.md`.  
+- **Vertical slice & CLI:** Instantiates the Domain side of the vertical-slice pattern in `502-domain-vertical-slice.md` and is packaged via `503-operators-helm-chart.md`, exposing status/conditions that `484a-484f` CLI workflows (`ameide primitive describe/verify/...`) consume.  
+- **Scrum/Transformation usage:** Provides the control plane for Domain primitives such as the Transformation Scrum domain (`300-400/367-1-scrum-transformation.md`, `508-scrum-protos.md`), which participate in the Scrum seam defined by `506-scrum-vertical-v2.md` and the agent stack in `505-agent-developer-v2*.md`.
+
 ---
 
 ## 1. Overview

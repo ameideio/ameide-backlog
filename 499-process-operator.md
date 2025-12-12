@@ -4,6 +4,19 @@
 **Audience:** Platform engineers implementing Process operator
 **Scope:** Implementation tracking, development phases, acceptance criteria
 
+**Authority & supersession**
+
+- This backlog is **authoritative for the Process operator control plane**: the `Process` CRD shape, reconciliation flow, and how Process workers are wired/deployed.  
+- **Runtime event contracts and workflow structure** live in `506-scrum-vertical-v2.md` (Scrum seam) and any methodology-specific workflow docs; Temporal workflows must follow those contracts.  
+- **Primitive/condition vocabulary** is shared with other operators and owned by `495-ameide-operators.md` and `502-domain-vertical-slice.md`.  
+- Older stage or methodology docs must not override the runtime rule stated here: **workflows interact with Transformation only via bus messages defined in 506-v2/508**.
+
+**Contract surfaces (owned elsewhere, referenced here)**
+
+- `scrum.domain.intents.v1` / `scrum.domain.facts.v1` (Scrum domain intents/facts) and `scrum.process.facts.v1` (process facts) topics and envelopes are defined in `506-scrum-vertical-v2.md` and `508-scrum-protos.md`.  
+- ProcessDefinition schema and storage are defined in the Transformation/ProcessDefinition backlogs (`367-1-*`, `471-ameide-business-architecture.md`).  
+- Shared operator condition types are defined in `operators/shared/api/v1/conditions.go`.
+
 > **Related**:
 > - [495-ameide-operators.md](495-ameide-operators.md) – CRD shapes & responsibilities
 > - [497-operator-implementation-patterns.md](497-operator-implementation-patterns.md) – Go patterns & reference implementation
@@ -14,7 +27,7 @@
 
 The Process operator manages the lifecycle of **Process primitives** – long-running orchestrations backed by Temporal. Each `Process` CR results in:
 
-- ProcessDefinition fetched from Transformation Domain
+- ProcessDefinition fetched from a **Definition Registry** (which may be implemented inside Transformation as a separate subsystem, but is not the Scrum domain API)
 - ConfigMap with compiled definition (BPMN → Temporal mapping)
 - Temporal worker Deployment
 - Optional CronJobs for SLA checks / cleanup
@@ -44,6 +57,9 @@ spec:
       - name: billing
     agents:
       - name: l2o-coach
+    # Optional: eventing/bus bindings (topics, clusters) are configured here
+    # so Process workers can publish/subscribe to the correct `scrum.*` /
+    # `process.*` streams without hardcoding environment details.
   rollout:
     strategy: RollingUpdate
     maxConcurrencyPerTenant: 100
@@ -75,6 +91,8 @@ status:
 6. reconcileWorkers()    ← Temporal worker Deployment
 7. Update status (conditions, definition.checksum, observedGeneration)
 ```
+
+> **Control plane vs. runtime:** `reconcileDefinition()` is allowed to call Transformation synchronously via gRPC/Connect to resolve static `ProcessDefinition` metadata (control plane). The **runtime** Temporal workflows described in `506-scrum-vertical-v2.md` MUST interact with Transformation only via bus messages (`scrum.domain.intents.v1` and `scrum.domain.facts.v1`) and must not issue direct RPCs to mutate or read domain state.
 
 ---
 

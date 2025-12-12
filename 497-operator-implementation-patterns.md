@@ -6,6 +6,12 @@
 
 > **Related**: [495-ameide-operators.md](495-ameide-operators.md) for CRD shapes and responsibilities
 
+## Grounding & contract alignment
+
+- **Operator implementation contract:** Provides the controller-runtime patterns and reconciler design guidance that all primitive operators (`498-domain-operator.md`, `499-process-operator.md`, `500-agent-operator.md`, `501-uisurface-operator.md`) must follow when realizing the primitive/operator model from `470-ameide-vision.md`, `472-ameide-information-application.md`, `473-ameide-technology.md`, and `477-primitive-stack.md`.  
+- **Vertical slices & CLI:** Underpins the status/condition and reconcile-phase expectations in `502-domain-vertical-slice.md`, `503-operators-helm-chart.md`, and the primitive CLI workflows in `484a-484f`, ensuring a consistent Ready/Degraded model across Domain/Process/Agent/UISurface.  
+- **Scrum/agent relevance:** Gives the concrete operator patterns Process and Agent operators use when hosting Scrum-aware workflows and agent runtimes as described in `506-scrum-vertical-v2.md`, `508-scrum-protos.md`, `504-agent-vertical-slice.md`, `505-agent-developer-v2*.md`, and `507-scrum-agent-map.md`.
+
 ---
 
 ## 1. Core Mental Model: Control Loop & Reconciler

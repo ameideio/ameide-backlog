@@ -34,6 +34,12 @@
 >
 > For cross-references and gaps analysis, see §10 and §11.
 
+## Grounding & contract alignment
+
+- **Domain & process portfolio:** Specializes the primitive model from `470-ameide-vision.md`, `471-ameide-business-architecture.md`, and `472-ameide-information-application.md` into a concrete domain/process portfolio, with Transformation modeled explicitly as a Domain primitive owning design-time artifacts (ProcessDefinitions/AgentDefinitions).  
+- **Primitive patterns:** Provides the domain/process architecture patterns that operator and vertical-slice backlogs (`495-ameide-operators.md`, `498-domain-operator.md`, `499-process-operator.md`, `502-domain-vertical-slice.md`, `477-primitive-stack.md`, `481-service-catalog.md`) follow when structuring primitives and their GitOps artifacts.  
+- **Scrum & transformation:** Establishes how Transformation and Graph behave as domains, which is a prerequisite for the Scrum-specific modeling in `300-400/367-1-scrum-transformation.md`, `506-scrum-vertical-v2.md`, and the Scrum protos in `508-scrum-protos.md`.
+
 ---
 
 ## Implementation Status (2025-02-14)

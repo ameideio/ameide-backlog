@@ -10,6 +10,13 @@
 
 ---
 
+## Grounding & cross-references
+
+- **Architecture grounding:** Implements the UISurface primitive described in `470-ameide-vision.md`, `471-ameide-business-architecture.md`, `472-ameide-information-application.md`, `473-ameide-technology.md`, `475-ameide-domains.md`, and `477-primitive-stack.md` as a first-class operator alongside Domain, Process, and Agent primitives.  
+- **Operator ecosystem:** Shares CRD/status/condition conventions with `498-domain-operator.md`, `499-process-operator.md`, `500-agent-operator.md`, the shared guidance in `495-ameide-operators.md`, and the unified packaging in `503-operators-helm-chart.md`.  
+- **Runtime relationships:** UISurfaces typically front Domain/Process/Agent APIs that follow the vertical slices in `502-domain-vertical-slice.md`, `499-process-operator.md`, and `504-agent-vertical-slice.md`; dependency wiring in this operator reflects those contracts.  
+- **Scrum stack usage:** Any Scrum-oriented UI (e.g., backlog views or PO dashboards) that visualizes the artifacts from `300-400/367-1-scrum-transformation.md` / `508-scrum-protos.md` or the events from `506-scrum-vertical-v2.md` is hosted via this UISurface operator, even though Scrum semantics themselves are owned by those backlogs.
+
 ## 1. Overview
 
 The UISurface operator manages the lifecycle of **UISurface primitives** – Next.js web applications serving the Ameide frontend. Each `UISurface` CR results in:

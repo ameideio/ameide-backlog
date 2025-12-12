@@ -4,6 +4,25 @@
 **Audience:** Platform engineers, AI agents implementing Domain
 **Scope:** Complete vertical slice: Operator + CLI + Proto + GitOps
 
+**Authority & supersession**
+
+- This backlog is **authoritative for the vertical-slice pattern and shared condition vocabulary** used by primitive operators and the `ameide primitive` CLI.  
+- The **Domain operator** (`498-domain-operator.md`) is expected to follow this slice exactly; Process (`499`) and Agent (`500`/`504`) slices must align their status/condition modeling with the definitions here.  
+- Any older backlog that invents bespoke condition names or Ready/Degraded semantics for a primitive is superseded by the shared vocabulary in §1.3 of this file.
+
+**Contract surfaces (shared across primitives)**
+
+- Condition types (`Ready`, `WorkloadReady`, `DBReady`, `MigrationSucceeded`, `MigrationFailed`, `Degraded`) and reasons defined in `operators/shared/api/v1/conditions.go`.  
+- CLI expectations for `describe`/`verify`/`drift`/`plan`/`impact` output as defined in the 484a–484f CLI backlogs.  
+- Operator CRD layout, spec/status patterns, and namespace/helm deployment patterns as defined in `495-ameide-operators.md` and `503-operators-helm-chart.md`.
+
+## Grounding & cross-references
+
+- **Architecture grounding:** Encodes the vertical-slice pattern implied by `470-ameide-vision.md`, `471-ameide-business-architecture.md`, `472-ameide-information-application.md`, `473-ameide-technology.md`, `475-ameide-domains.md`, `476-ameide-security-trust.md`, `477-primitive-stack.md`, and the EDA rules in `496-eda-principles.md` for Domain primitives.  
+- **Operator & CLI relationships:** Serves as the reference implementation that `498-domain-operator.md`, `495-ameide-operators.md`, `497-operator-implementation-patterns.md`, `503-operators-helm-chart.md`, and the 484a–484f CLI backlogs follow when defining CRDs, conditions, Helm packaging, and `ameide primitive` behavior for all primitives.  
+- **Cross-primitive alignment:** Process (`499-process-operator.md`), Agent (`500-agent-operator.md` / `504-agent-vertical-slice.md`), and UISurface (`501-uisurface-operator.md`) operators are expected to mirror this slice’s condition vocabulary, reconcile phases, and GitOps wiring.  
+- **Scrum stack usage:** The Transformation Scrum domain defined in `300-400/367-1-scrum-transformation.md` and `508-scrum-protos.md` should be implemented as a Domain primitive that follows this vertical slice; the Scrum runtime seam in `506-scrum-vertical-v2.md` and the agent stack in `505-agent-developer-v2.md` assume this pattern for status and CLI visibility.
+
 > **Related**:
 > - [498-domain-operator.md](498-domain-operator.md) – Operator development tracking
 > - [497-operator-implementation-patterns.md](497-operator-implementation-patterns.md) – Go patterns
@@ -191,6 +210,11 @@ This vocabulary is referenced in:
 - [495-ameide-operators.md](495-ameide-operators.md) §2 – CRD status shapes
 - [497-operator-implementation-patterns.md](497-operator-implementation-patterns.md) §3.2 – Spec/Status separation
 - [498-domain-operator.md](498-domain-operator.md) §5.3 – Condition precedence
+
+### 1.3.1 Process + Agent alignment
+
+- **Process operator (`499-process-operator.md`)**: Process primitives MUST expose `Ready` and `Degraded` using the same semantics, so `ameide primitive verify` can treat Domain and Process consistently when reporting workflow health. Any Temporal- or SLA-specific conditions should build on top of, not replace, this vocabulary.  
+- **Agent operator (`500-agent-operator.md` / `504-agent-vertical-slice.md`)**: Agent primitives MUST surface `Ready`, `DefinitionResolved`, `SecretsReady`, `ToolingReady`, `PolicyCompliant`, and `Degraded` in a way that composes cleanly into `Ready` as described above. CLI slices for Agents reuse the same `Ready` and `Degraded` meaning as Domains/Processes, so status tables in 499/500/504 should be kept in sync with this section.
 
 ---
 

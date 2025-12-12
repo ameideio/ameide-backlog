@@ -14,6 +14,12 @@
 
 ---
 
+## Grounding & contract alignment
+
+- **Placement contract:** Concretizes the design/deploy/runtime split from `470-ameide-vision.md`, `472-ameide-information-application.md`, `473-ameide-technology.md`, and `475-ameide-domains.md` into a precise repo and GitOps layout for primitives, operators, and tenant repos.  
+- **Operator & CLI dependencies:** Provides the layout that operator/vertical-slice backlogs (`495-ameide-operators.md`, `497-operator-implementation-patterns.md`, `498-domain-operator.md`, `499-process-operator.md`, `500-agent-operator.md`, `501-uisurface-operator.md`, `502-domain-vertical-slice.md`, `503-operators-helm-chart.md`, `504-agent-vertical-slice.md`) and CLI backlogs (`484a-484f`) assume for code, CRDs, and GitOps.  
+- **Scrum/agent grounding:** Defines where the Transformation Scrum domain, Scrum Process primitives, and AmeidePO/AmeideSA/AmeideCoder artifacts live in the repos, which the Scrum stack (`367-1-scrum-transformation.md`, `506-scrum-vertical-v2.md`, `508-scrum-protos.md`, `505-agent-developer-v2*.md`, `507-scrum-agent-map.md`) relies on when describing Stage 0–3 behavior.
+
 ## 1. Design ≠ Deploy ≠ Runtime (recap)
 
 We standardise on the same 3-step chain everywhere:
@@ -178,6 +184,12 @@ For each of the four primitives we keep a hard boundary:
 **Agent primitive (code, `primitives/agent/{name}`)**
 
 * Implements an AgentDefinition: tools, prompts, orchestration graph, risk tier.
+
+> **V2 alignment:** [505-agent-developer-v2.md](505-agent-developer-v2.md) defines three standard Agent primitives that live in this tree:
+> - **AmeidePO** (`runtime_role=product_owner`) – product decisions only, no repo/tool access.
+> - **AmeideSA** (`runtime_role=solution_architect`) – technical decomposition + A2A client.
+> - **AmeideCoder** (`runtime_role=a2a_server`) – devcontainer service exposing the A2A REST binding (`/v1/message:send`, `/v1/message:stream`, `/v1/tasks/*`).
+> Process primitives remain separate (Temporal workers), but they orchestrate PO/SA via EDA events and never host agents themselves.
 
 **Agent operator (code, `operators/agent`)**
 

@@ -9,9 +9,11 @@
 
 # 310: Agents Platform V2 (n8n-Aligned)
 
-**Status**: Draft
+**Status**: Archived (superseded by [505-agent-developer-v2.md](../505-agent-developer-v2.md))
 **Priority**: High
 **Complexity**: Large
+
+> **Historical note:** This n8n-aligned control-plane rewrite is preserved for reference only. The Process + AmeidePO + AmeideSA + AmeideCoder architecture replaces it as the active target.
 
 ---
 

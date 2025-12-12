@@ -18,7 +18,7 @@ Key drivers:
 
 ## Current Position
 
-- The platform already standardizes on per-method Buf modules (`ameide.scrum.v1`, `ameide.safe.v1`, `ameide.togaf.v1`, `ameide.governance.v1`) plus a shared Connect ingress.
+- The platform already standardizes on per-method Buf modules (for example, `ameide_core_proto.transformation.scrum.v1`, `ameide_core_proto.transformation.safe.v1`, `ameide_core_proto.transformation.togaf.v1`, `ameide_core_proto.governance.v1`) plus a shared Connect ingress.
 - Postgres hosts shared schemas; we rely on tenant/org scoping, partitioning plans, CDC to warehouse, and Temporal for long-running processes.
 - Auditability is handled via versioned tables and soon-to-be Attestation records (`governance.v1`), not append-only event logs.
 - Infrastructure plan favors “shared cluster + partitioning/sharding for large tenants” over per-tenant databases to keep ops costs low.
@@ -54,7 +54,7 @@ Out of Scope (handled in sibling work):
 
 ## Proposed Architecture (Target Shape)
 
-1. **Command layer** (unchanged): Connect RPCs (ScrumLifecycleService, GovernanceService, WorkflowsService, etc.) validate commands and write to local ACID storage.
+1. **Command layer** (unchanged): Connect RPCs (Scrum domain query/intent services, GovernanceService, WorkflowsService, etc.) validate commands and write to local ACID storage.
 2. **Event emission**: Each command writes to an outbox (`*_events_outbox`) containing serialized Buf event payloads; a relay publishes to the event store (Kafka topic per domain).
 3. **Event store**: Append-only topics stored in Kafka (short retention) + object storage (long retention). For low-traffic tenants we can leverage Postgres logical decoding instead.
 4. **Projections**: Materialized Postgres tables (current backlog state, PI dashboards, release bundles) are fed by event consumers. Projections can be rebuilt by replaying topics from offset 0.

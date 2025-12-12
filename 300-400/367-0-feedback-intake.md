@@ -1,5 +1,10 @@
 > Note: Chart and values paths are now under gitops/ameide-gitops/sources (charts/values); any infra/kubernetes/charts references below are historical.
 
+> **Contract alignment**
+> - **Canonical contract:** `transformation-scrum-*` protos under `ameide_core_proto.transformation.scrum.v1` (Scrum nouns only) plus sibling packages for other methodologies.  
+> - **Canonical integration:** intents + facts via bus; process orchestration in Temporal; no runtime RPC coupling between Process and Transformation.  
+> - **Non-Scrum extensions:** explicitly listed (e.g., readiness checklists, impediments, board columns, acceptance workflows) and treated as optional policy/UX metadata, not Scrum artifacts.
+
 # backlog/367-0 – Feedback Intake & Elements Wiring
 
 **Parent backlog:** [backlog/367-elements-transformation-automation.md](./367-elements-transformation-automation.md)
@@ -7,22 +12,28 @@
 ## Purpose
 Stand up the capture + triage foundations so every piece of customer or internal feedback is persisted as an `element` with provenance, satisfying G1–G2 of the parent backlog and the “Everything is an Element” principle from backlog/303.
 
-> **Runtime separation:** Elements/graph remain the authoritative knowledge graph for current/future architecture, while the Transformation service is the runtime that executes methodologies. Intake emits elements first (graph), then the transformation runtime consumes those elements to drive Scrum/SAFe/TOGAF workflows and writes its own runtime state (timeboxes, goals, policies) back into the graph for analytics.
+> **Runtime separation:** Elements/graph remain the authoritative knowledge graph for current/future architecture. Transformation is the system of record for Scrum and other methodology artifacts and emits domain facts. Process (Temporal) orchestrates timeboxes and governance by emitting intents and process facts and does not directly mutate the domain. Graph hosts projections, lineage, and analytics built from those facts.
+
+**Authority & supersession**
+
+- This backlog is **authoritative for Stage 0 intake and element wiring only**: capture channels, element creation, and methodology profile tagging.  
+- Stage 1 Scrum/other methodology profiles are defined in `300-400/367-1-scrum-transformation.md` and siblings, and the **runtime event contracts** between Transformation and Process live in `506-scrum-vertical-v2.md` and the `transformation-scrum-*` protos in `508-scrum-protos.md`.  
+- Earlier statements in this file about per‑methodology protos and the absence of a neutral `WorkItem` abstraction are superseded by the newer Scrum contract in 367‑1/506‑v2/508 and the per‑profile event surfaces described there.
 
 ## Scope
 - Unified intake endpoints:
   - **Portal header feature** (existing “Request Feature” entry) upgrades to a guided modal with **agentic AI assistance**. The assistant prompts for: user roles, desired outcome, process context, tech preferences, acceptance criteria / “definition of success,” and optional user-story format.  
   - Public API and Slack bot continue to feed the same pipeline.
 - Intake records land in `feedback_intake`; the worker converts them into Element rows with `element_kind=FEATURE_REQUEST` (not generic feedback), `type_key=feature.request`, and initial `TraceLink` relationships.
-- Each element stores DoR metadata plus **definition of success/done** fields supplied in the modal, plus subscription metadata (requester auto-subscribed to status notifications, others can opt in).
+- Each element can store **team policy / working agreement metadata** (for example, team-defined readiness checklists) plus **definition of success/done** fields supplied in the modal, plus subscription metadata (requester auto-subscribed to status notifications, others can opt in). These readiness fields are optional and are not Scrum artifacts or required Scrum compliance.
 - Lightweight triage UI inside Transformation/Elements workspace showing feature-request metadata, attachments, AI-suggested tags, and discussion threads.
 
-## Methodology contracts (no shared business layer)
-- **Per-methodology protos** – Scrum, TOGAF, SAFe (etc.) define their own backlog artifacts, states, and lifecycle RPCs in `ameide/*/v1`. Intake records tag which contract they expect so downstream services pick the right package.
-- **Subject binding at intake** – feedback is linked to a declared methodology (e.g., Scrum) and later becomes a `scrum.v1.BacklogItem`, `togaf.v1.Deliverable`, or `safe.v1.Feature`. No neutral `WorkItem` entity is created.
-- **Lifecycle sources of truth** – each methodology publishes its state machine + guards and enforces transitions inside its own service. Intake metadata pre-selects the intended lifecycle so there’s no lexicon indirection.
-- **Governance envelope** – release/policy checks consume `governance.v1.SubjectRef` + `governance.v1.Attestation` so promotion logic can stay shared while the business artifacts stay method-specific.
-- **Role maps & permissions** – profiles still ship `role_map` data (PO, Scrum Master, Architecture Board, etc.), but intake simply captures *candidate owners* so the target methodology service can materialize them later.
+## Methodology contracts (profile binding into per-method artifacts)
+- **Profile binding at intake** – feedback is still linked to a declared methodology (e.g., Scrum/SAFe/TOGAF) via `methodology_profile_id`, but Stage 1 materializes this into the **method-specific domain contract** (for Scrum, `ameide_core_proto.transformation.scrum.v1` artifacts/messages) rather than a neutral `WorkItem`/`Timebox`/`Goal` model.  
+- **Per-profile storage, shared semantics envelope** – Transformation persists runtime state in per-profile tables/protos (e.g., `transformation-scrum-*` for Scrum) and uses the methodology profile to interpret lexicon and policies. Intake does **not** decide which proto package to store into; it provides profile hints that Stage 1 uses when writing method-native artifacts.  
+- **Lifecycle sources of truth** – each methodology profile still publishes its allowed transitions and guards, but enforcement happens inside the method-specific Transformation domain and the Process primitive using the event model from `506-scrum-vertical-v2.md` / `508-scrum-protos.md`.  
+- **Governance envelope** – release/policy checks continue to consume `governance.v1.SubjectRef` + `governance.v1.Attestation` so promotion logic can stay shared while business semantics are profile-specific.  
+- **Role maps & permissions** – profiles still ship `role_map` data (PO, Scrum Master, Architecture Board, etc.), but Stage 0 intake only captures *candidate owners*; Stage 1 applies the profile to materialize roles and permissions in the Transformation domain.
 
 ## Deliverables
 1. **Schema & migrations** – Flyway scripts for `feedback_intake` + necessary enums, along with SDK/ORM updates.
@@ -40,12 +51,12 @@ Stand up the capture + triage foundations so every piece of customer or internal
 
 ## Exit Criteria
 - Submitting feedback through UI/API/Slack creates an element visible in Elements workspace within seconds.
-- Architects can tag, comment, and mark Definition of Ready checklist items directly on the feedback element.
+- Architects can tag, comment, and mark team-defined readiness checklist items (working agreement metadata) directly on the feedback element.
 - Telemetry dashboards show volume, channel mix, and processing latency for feedback intake.
 
 ## Implementation guide
 - **Schema & migrations**
-  - Add `db/flyway/sql/platform/V3__feedback_intake.sql` to create `platform.feedback_intake`, `platform.feedback_intake_subscriptions`, and `platform.feedback_events` with the workflow-friendly fields (tenant/org, channel, persona, DoR/DoD text, AI-enriched metadata, status timestamps, and `graph_element_id`). Reuse the Flyway pattern already in `db/flyway/sql/platform/V1__initial_schema.sql` so the migration image picked up by `infra/kubernetes/charts/platform/db-migrations` needs no special casing.
+  - Add `db/flyway/sql/platform/V3__feedback_intake.sql` to create `platform.feedback_intake`, `platform.feedback_intake_subscriptions`, and `platform.feedback_events` with the workflow-friendly fields (tenant/org, channel, persona, team-defined readiness/done text, AI-enriched metadata, status timestamps, and `graph_element_id`). Reuse the Flyway pattern already in `db/flyway/sql/platform/V1__initial_schema.sql` so the migration image picked up by `infra/kubernetes/charts/platform/db-migrations` needs no special casing.
   - Seed or reference the repository that will hold `feature_request` elements. If we keep them in a dedicated graph, insert that repository/node hierarchy in `db/flyway/sql/graph/V1__initial_schema.sql` (or a follow-up migration) so the worker can safely target it.
   - Extend `packages/ameide_core_proto/src/ameide_core_proto/graph/v1/graph.proto` with a dedicated `ElementKind` for feature-intake WorkItems (e.g., `ELEMENT_KIND_WORK_ITEM_FEATURE`) and regenerate the DB adapters (`services/graph/src/graph/service.ts` uses `elementKindToDbString`). Update the UI serializers (`services/www_ameide_platform/lib/sdk/elements/mappers.ts`, `types.ts`) so the new kind stays visible without casting to `NODE`.
   - Document new secrets (Slack webhook, public API token, optional inference override) inside `scripts/vault/ensure-local-secrets.py` so local clusters and the Layer 15 bundles can hydrate the service before Flyway runs.
@@ -59,7 +70,7 @@ Stand up the capture + triage foundations so every piece of customer or internal
   - Register the handler inside `services/platform/src/server.ts` (new `createGrpcServiceDefinition` call) so Connect clients can reach it through Envoy and the `/api/proto/[...path]` proxy.
   - The worker that turns intake rows into `graph.Element` records can either live in Temporal (reusing `services/workflows/src/temporal/facade.ts` + `services/workflows_runtime`) or as a lightweight poller inside `services/platform`. Whichever path we choose, the worker should:
     - Read pending rows from `platform.feedback_intake` (respecting tenant/org scoping) and call `client.graphService.createElement(...)` (`services/platform/src/clients/index.ts` already exposes Graph + Transformation clients).
-    - Stamp `element.metadata` with DoR/DoD text, methodology hints, subscription IDs, and the cross-links needed for TraceLink edges. Use `graph.element_relationships` inserts (see `services/graph/src/graph/service.ts` for how relationships are persisted) to express the initial TraceLinks.
+    - Stamp `element.metadata` with team-defined readiness/done text, methodology hints, subscription IDs, and the cross-links needed for TraceLink edges. Use `graph.element_relationships` inserts (see `services/graph/src/graph/service.ts` for how relationships are persisted) to express the initial TraceLinks.
     - Publish status into `platform.feedback_events` and optional Temporal runs via the existing workflows status adapter (`services/workflows/src/status-updates.ts`), so notifications and dashboards can reuse the `workflows_execution_status_updates` feed.
   - Integration tests should follow the established pattern in `services/platform/__tests__/integration/platform-service.grpc.test.ts`: spin up the gRPC server, hit the new RPCs, assert Postgres rows, then delete the tenant.
 
@@ -84,7 +95,7 @@ Stand up the capture + triage foundations so every piece of customer or internal
   - Include a Temporal/worker regression (if applicable) by adding a scenario to `services/workflows/__tests__` or the runtime fixtures in `services/workflows_runtime/__tests__`.
 
 ## Open Topics / Criticalities
-- **Method-specific backlog items are undefined.** There are no `scrum.v1`, `togaf.v1`, or `safe.v1` protos/tables yet, so the worker cannot materialize the eventual BacklogItem/Deliverable rows described above. Stage 1 must land those contracts before intake can emit method-native records.
+- **Method-specific backlog items are undefined.** There are no `ameide_core_proto.transformation.scrum.v1`, `ameide_core_proto.transformation.safe.v1`, or `ameide_core_proto.transformation.togaf.v1` protos/tables wired into runtime yet, so the worker cannot materialize the eventual Product Backlog Item / SAFe Feature / TOGAF Deliverable rows described above. Stage 1 must land those contracts before intake can emit method-native records.
 - **TraceLink edges are undefined in code.** The only references to `TraceLink` are textual (see `backlog/220-*/TraceLink` mentions); `graph.element_relationships` has no predefined `type_key` for it. We must lock down the relationship keys/directions before other services can rely on provenance queries.
 - **Target repository + routing for feature requests is unclear.** `db/flyway/sql/graph/V1__initial_schema.sql` seeds only architecture/governance repositories. Decide whether feature requests belong there, in a new repository, or in tenant-scoped graphs so the worker knows where to create elements.
 - **Portal notifications are placeholder-only.** `services/www_ameide_platform/features/navigation/components/NotificationsDropdown.tsx` still serves mock objects. Without a real notification feed, requesters will never see the “status change” events promised in this backlog.

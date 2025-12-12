@@ -3,7 +3,7 @@
 **Parent backlog:** [backlog/367-elements-transformation-automation.md](./367-elements-transformation-automation.md)  
 **Related:** [backlog/367-3-ameide-on-ameide.md](./367-3-ameide-on-ameide.md)
 
-This document walks through the end-to-end experience inside the Ameide-on-Ameide tenant, showing how the per-method protobuf packages (Scrum/SAFe/TOGAF), governance envelope, automation, and release governance feel to a user. The journey highlights forks for Scrum (default squad experience), SAFe (program initiatives), and TOGAF (architecture governance) without relying on a shared business layer.
+This document walks through the end-to-end experience inside the Ameide-on-Ameide tenant, showing how the per-method protobuf packages (Scrum/SAFe/TOGAF), governance envelope, automation, and release governance feel to a user. The journey highlights forks for Scrum (default squad experience), SAFe (program initiatives), and TOGAF (architecture governance) without relying on a shared business layer. For Scrum, the canonical contract is the `transformation-scrum-*` profile under `ameide_core_proto.transformation.scrum.v1` and the event seams in `506-scrum-vertical-v2.md` / `508-scrum-protos.md`; any “DoR” or sign-off flows described here are optional extensions, not Scrum artifacts.
 
 ---
 
@@ -12,22 +12,22 @@ This document walks through the end-to-end experience inside the Ameide-on-Ameid
 1. **Capture the idea (seconds).**  
    - From the portal header, click the **Request Feature** icon (or choose **➕ New → Feature Request** / post via Slack).  
    - The guided modal launches an **agentic AI assistant** that asks for goal/outcome, process context, user roles, technology preferences, story format, definition of success/done, and any attachments. The assistant pre-fills tags and DoR hints.  
-   - Submission writes to `feedback_intake`; because the tenant’s default profile is Scrum, the worker materializes a **`scrum.v1.BacklogItem`** entry (persisted via graph + transformation) with `element_kind=FEATURE_REQUEST`, `type_key=feature.request`, provenance metadata, success criteria, and automatic subscriptions for the requester.  
+   - Submission writes to `feedback_intake`; because the tenant’s default profile is Scrum, the worker later materializes a **Scrum Product Backlog Item** (`ProductBacklogItem` from `ameide_core_proto.transformation.scrum.v1`) with provenance metadata, success criteria, and automatic subscriptions for the requester, projected into the graph as an element with `element_kind=FEATURE_REQUEST`, `type_key=feature.request`.  
    - The feature request appears on the triage board for tagging/commenting, already linked to the default methodology profile.
 
 2. **Promote to backlog (minutes).**  
    - In **Elements Workspace**, select the item → **Promote to Backlog**.  
-   - During promotion, the architect links the emerging backlog item to the right context: existing **Epics/Product Goals**, parent initiatives/transformations, impacted repositories/services, and any architectural views. These become explicit `element_relationships`, so downstream agents inherit full context.  
-   - The platform commits the `scrum.v1.BacklogItem` (and matching graph element) with those relationships plus the original feedback link. Effective methodology profile resolution (`initiative.profile → product.profile → tenant.default → platform.default`) still happens, but it selects one of the concrete packages (Scrum here).  
+   - During promotion, the architect links the emerging Product Backlog Item to the right context: existing **Epics/Product Goals**, parent initiatives/transformations, impacted repositories/services, and any architectural views. These become explicit `element_relationships`, so downstream agents inherit full context.  
+   - The platform commits the Scrum Product Backlog Item (and matching graph element) with those relationships plus the original feedback link. Effective methodology profile resolution (`initiative.profile → product.profile → tenant.default → platform.default`) still happens, but it selects one of the concrete packages (Scrum here).  
    - The card shows up in **Transformation → Backlog**, now carrying traceability to the broader program/architecture.
 
 3. **Sprint planning (goal-first).**  
-   - Within **Planning**, choose the active **Timebox** (Sprint).  
-   - **PO** sets the **Sprint Goal** (neutral `Goal` object) using the Scrum lexicon; DoR items must be satisfied before commitment.  
+   - Within **Planning**, choose the active **Sprint**.  
+   - **PO** sets the **Sprint Goal** (Scrum commitment for the Sprint Backlog) using the Scrum lexicon; team-defined readiness items (DoR) may be checked before commitment but are treated as optional working-agreement metadata, not Scrum state.  
    - **Role map** enforces who can reorder backlog (PO), accept increments (PO), manage impediments (SM). **Daily** view highlights WIP, aging items, and open impediments.
 
 4. **Automation plan auto-creation.**  
-   - Once DoR is satisfied (context links complete, success criteria captured), the platform automatically instantiates a default Coding Agent plan using the backlog item’s repo adapter/profile defaults and resolved methodology context (`timebox_ids[]`, `goal_ids[]`, `scrum_backlog_item_id`).  
+   - Once DoR is satisfied (context links complete, success criteria captured), the platform automatically instantiates a default Coding Agent plan using the Product Backlog Item’s repo adapter/profile defaults and resolved methodology context (`timebox_ids[]`, `goal_ids[]`, Scrum Product Backlog Item identifier).  
    - Users can still tweak plan parameters, but no manual “Create Plan” click is required.
 
 5. **Auto-run + notifications.**  
@@ -38,9 +38,9 @@ This document walks through the end-to-end experience inside the Ameide-on-Ameid
    - Navigate to **Automation → Runs → #<id>**. See diffs, CI results, preview link, and the **Scrum DoD checklist** fed by the newly registered Attestations.  
    - Any missing attestation surfaces as policy warnings; humans can attach additional files manually (still via `governance.v1.Attestation` helpers).
 
-7. **Sprint Review & PO acceptance.**  
-   - During Sprint Review, the **Increment** view lists all attestations per backlog item.  
-   - The PO clicks **Accept** once DoD predicates (from lifecycle config/policy bundles) pass. Acceptance calls `ScrumLifecycleService.AdvanceItem` to move the backlog item forward.
+7. **Sprint Review & Increment inspection.**  
+   - During Sprint Review, the **Increment** view lists all attestations per Product Backlog Item that meets the Definition of Done and is included in an Increment.  
+   - The Scrum Team inspects the Increment against the Sprint Goal and Definition of Done and adapts the Product Backlog as needed. Any optional “sign-off” workflow is modeled as a governance extension (e.g., additional `governance.v1.Attestation` entries), not as a Scrum lifecycle RPC.
 
 8. **Promotion with governance.**  
    - Open **Release → Promotions**. Each PR/run produces a **release bundle** (branch, PR metadata, Attestation references, preview URL).  
@@ -57,7 +57,7 @@ This document walks through the end-to-end experience inside the Ameide-on-Ameid
 3. `Planning → Sprint` → set Sprint Goal / confirm DoR  
 4. `Automation (auto plan/run)` → monitor run  
 5. `Runs → #<id>` → review diff/tests/preview/evidence + notifications  
-6. `Sprint Review → Increment → Accept`  
+6. `Sprint Review → Increment`  
 7. `Release → Promotions → Promote`  
 8. `Dashboards` for telemetry & follow-ups
 
@@ -103,7 +103,7 @@ For initiatives needing ADM oversight:
 - **Surface the CTA + modal.** `services/www_ameide_platform/features/header/components/HeaderActions.tsx` already renders the “Request Feature” affordance and lazy-loads the modal, so keep that entry point and extend `RequestFeatureModal` (`features/request-feature/components/RequestFeatureModal.tsx`) to capture definition-of-success/done fields that backlog/367-0 calls out.  
 - **Server handler modeled after existing Graph APIs.** Follow the pattern in `services/www_ameide_platform/app/api/repositories/route.ts` (auth via `requireOrganizationMember`, Connect client hydration via `getServerClient`) to introduce `/api/feature-requests`. Use this handler to accept the modal payload, enrich it with session metadata (tenant/org IDs, requester) and enqueue persistence work.  
 - **Persist as Elements immediately.** Until a dedicated `feedback_intake` table exists, write feature requests through the Graph service using the Buf SDK described in backlog/365. Reuse the `AmeideClient` plumbing in `packages/ameide_sdk_ts/src/client.ts` plus the metamodel conversion helpers in `services/graph/src/graph/elements/model.ts` to create an `element_kind=DOCUMENT`, `type_key=feature.request` row with trace metadata (per backlog/300 and backlog/303). The underlying schema in `db/flyway/sql/graph/V1__initial_schema.sql` already supports repository/tenant scoping and versioning.  
-- **Seed policy-ready metadata.** Store methodology hints (desired profile, DoR evidence) as JSON in the element metadata so the coming `scrum.v1`/`safe.v1` backlog rows can inherit them once Stage 1 ships. Capture subscribers up front so notifications can flow as soon as concrete backlog IDs exist.  
+- **Seed policy-ready metadata.** Store methodology hints (desired profile, DoR evidence) as JSON in the element metadata so the coming Scrum/SAFe/Togaf backlog rows (for example, `ameide_core_proto.transformation.scrum.v1` PBIs) can inherit them once Stage 1 ships. Capture subscribers up front so notifications can flow as soon as concrete backlog IDs exist.  
 - **Guard secrets + local loops.** Intake workers (whether they run inside `services/platform` or a lightweight queue consumer) must use the shared Vault bootstrap in `scripts/vault/ensure-local-secrets.py` (backlog/362) so local/staging clusters expose the same `INTEGRATION_*` secrets the Buf SDK clients expect. This keeps automated smoke tests and Codex agents from hard-failing the first time a tenant enables dogfooding intake.
 
 ### 2. Context linking & backlog promotion

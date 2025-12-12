@@ -27,6 +27,12 @@ Think of each operator as a **compiler from a Primitive CRD to a bundle of K8s +
 >
 > **Deployment architecture**: Operators deploy **once per cluster** (cluster-scoped, watching all namespaces). CRs deploy per-environment. See [446-namespace-isolation.md](446-namespace-isolation.md) and [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md).
 
+## Grounding & contract alignment
+
+- **Primitive operator contract:** Codifies shared CRD/spec/status/condition patterns for the four primitives introduced in `470-ameide-vision.md`, structurally elaborated in `472-ameide-information-application.md`, `473-ameide-technology.md`, and `477-primitive-stack.md`, and instantiated by `498-domain-operator.md`, `499-process-operator.md`, `500-agent-operator.md`, and `501-uisurface-operator.md`.  
+- **Vertical slices & CLI:** Provides the operator side of the vertical-slice story that `502-domain-vertical-slice.md`, `503-operators-helm-chart.md`, and the CLI backlogs (`484a-484f`) rely on to reason about primitive readiness and guardrails.  
+- **Scrum & agents:** Supplies the operator vocabulary and deployment expectations that the Scrum stack (`506-scrum-vertical-v2.md`, `508-scrum-protos.md`) and agent backlogs (`504-agent-vertical-slice.md`, `505-agent-developer-v2*.md`, `507-scrum-agent-map.md`) assume when describing how Process and Agent primitives are hosted.
+
 ---
 
 ## 1. Domain operator (Domain → app + DB + infra)

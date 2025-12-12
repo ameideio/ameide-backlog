@@ -4,10 +4,33 @@
 **Audience:** Platform engineers, AI agents implementing Agent primitives  
 **Scope:** Deliver an Agent primitive end-to-end (operator, CLI, GitOps, sample CR, prompt workflow)
 
+**Authority & supersession**
+
+- This backlog is **authoritative for the Agent vertical slice implementation**: Agent CRD/operator wiring, CLI guardrails, and demo assets for a generic Agent primitive.  
+- For the **AmeidePO/AmeideSA/AmeideCoder split and runtime roles**, defer to `505-agent-developer-v2.md` and `477-primitive-stack.md`; this file describes the toolchain that AmeideCoder (`runtime_role=a2a_server`) uses internally.  
+- Operator responsibilities shared across primitives are described in `495-ameide-operators.md` and the Domain slice (`502-domain-vertical-slice.md`); this backlog is expected to stay in lockstep with those documents’ condition vocabulary and status snapshot tables.  
+- Any historical patterns that imply PO/SA run CLI commands directly are superseded by the v2 architecture: **only AmeideCoder’s devcontainer runtime runs these CLI workflows**.
+
+**Contract surfaces (owned elsewhere, referenced here)**
+
+- Agent runtime roles and A2A contracts are defined in `505-agent-developer-v2.md` and enforced by the Agent operator backlog (`500-agent-operator.md`).  
+- CLI proto contracts and JSON output shapes are defined in `484b-ameide-cli-proto-contract.md`.  
+- Shared condition vocabulary used by `primitive verify`/`primitive describe` is defined in `502-domain-vertical-slice.md` and `495-ameide-operators.md`.  
+- Stage 0/1/2/3 mapping for Scrum and the placement of AmeidePO/AmeideSA/AmeideCoder in that stack are described in `507-scrum-agent-map.md`; this backlog focuses only on the Agent slice from that map.
+
+## Grounding & cross-references
+
+- **Architecture grounding:** Follows the primitive stack and operator patterns from `470-ameide-vision.md`, `471-ameide-business-architecture.md`, `472-ameide-information-application.md`, `473-ameide-technology.md`, `475-ameide-domains.md`, `477-primitive-stack.md`, `495-ameide-operators.md`, and the vertical-slice pattern in `502-domain-vertical-slice.md`.  
+- **Runtime relationships:** Assumes Agent CRDs and operator behavior from `500-agent-operator.md` and Helm/GitOps deployment via `503-operators-helm-chart.md`; UISurface integration patterns (for any frontends that drive agents) follow `501-uisurface-operator.md`.  
+- **Scrum stack alignment:** Provides the tooling slice that AmeideCoder (runtime_role=`a2a_server`) uses inside the Scrum/Process stack defined in `505-agent-developer-v2.md`, `505-agent-developer-v2-implementation.md`, `506-scrum-vertical-v2.md`, and `508-scrum-protos.md`, as mapped in `507-scrum-agent-map.md`.  
+- **CLI & A2A dependencies:** Depends on CLI contract backlogs `484a-ameide-cli-primitive-workflows.md` … `484f` and the A2A binding described in `505-agent-developer-v2.md`; agents treat the CLI workflows here as internal tools, not customer-facing UIs.
+
 > **Related**
 > - [495-ameide-operators.md](495-ameide-operators.md) – shared CRD principles
 > - [497-operator-implementation-patterns.md](497-operator-implementation-patterns.md) – controller-runtime patterns
 > - [502-domain-vertical-slice.md](502-domain-vertical-slice.md) – reference format
+> - [505-agent-developer-v2.md](505-agent-developer-v2.md) – Process + AmeidePO/AmeideSA/AmeideCoder architecture
+> - [507-scrum-agent-map.md](507-scrum-agent-map.md) – cross-layer map (Stage 0–3) this slice plugs into
 > - [484a-ameide-cli-primitive-workflows.md](484a-ameide-cli-primitive-workflows.md) – CLI guardrails
 > - [484b-ameide-cli-proto-contract.md](484b-ameide-cli-proto-contract.md) – proto schemas
 
@@ -31,6 +54,8 @@
 | **Prompt Profiles (P)** | ⚠️ Partial | Default profile exists; additional profiles + profile selection logic remain TODO. |
 
 > Update this table alongside 502 to keep intent vs. implementation in sync each sprint.
+
+> **V2 alignment:** In the Process + AmeidePO + AmeideSA + AmeideCoder architecture (505-agent-developer-v2.md), everything in this backlog describes the **internal toolchain of AmeideCoder**. PO/SA agents never invoke these CLI commands directly; they rely on AmeideCoder's A2A server to run the OBSERVE→REASON→ACT→VERIFY loop documented here.
 
 ---
 
@@ -106,6 +131,11 @@ spec:
   definitionRef:
     id: core-platform-coder-v4      # Stored in Transformation Domain
     tenantId: t123                 # Transformation design tooling writes this
+  # runtimeRole was introduced with the v2 agent architecture:
+  # - product_owner
+  # - solution_architect
+  # - a2a_server (AmeideCoder devcontainer)
+  runtimeRole: a2a_server
   tools:
     domains: ["transformation", "platform"]
     processes: ["l2o"]
@@ -137,6 +167,8 @@ Key responsibilities:
 - Enforce risk tier + tool/model policy before permitting runtime changes
 - Run Deployment with concurrency controls (HPA optional)
 - Report conditions for CLI consumption (`Ready`, `DefinitionResolved`, `SecretsReady`, `ToolingReady`, `PolicyCompliant`, `Degraded`)
+
+> **V2 alignment:** In the Process + AmeidePO + AmeideSA + AmeideCoder architecture (505-agent-developer-v2.md), CRDs with `runtimeRole=a2a_server` represent AmeideCoder instances that expose the A2A REST binding (`/v1/message:send`, `/v1/message:stream`, `/v1/tasks/*`). PO/SA agents are separate Agent CRs with `runtimeRole=product_owner` / `solution_architect` and outbound-only HTTP; they never run the CLI directly and instead delegate to AmeideCoder.
 
 ---
 

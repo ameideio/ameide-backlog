@@ -4,6 +4,26 @@
 **Audience:** Platform engineers implementing Agent operator
 **Scope:** Implementation tracking, development phases, acceptance criteria
 
+**Authority & supersession**
+
+- This backlog is **authoritative for the Agent operator control plane**: the `Agent` CRD shape, reconciliation flow, and how Agent runtimes (including AmeidePO/AmeideSA/AmeideCoder) are wired/deployed.  
+- **Agent behavior and A2A contracts** live in `505-agent-developer-v2.md` and its implementation plan; this file must enforce the runtime roles and risk tiers those backlogs define.  
+- **CLI/guardrail behavior** for AmeideCoder is documented in `504-agent-vertical-slice.md` and the 484a–484f series; this operator only wires those tools, it does not implement them.  
+- If any older “coder agent” framing implies that LangGraph agents run Ameide CLI directly, prefer the v2 split: **PO/SA as A2A clients, AmeideCoder as `runtime_role=a2a_server` devcontainer**.
+
+**Contract surfaces (owned elsewhere, referenced here)**
+
+- A2A REST binding (`/.well-known/agent-card.json`, `/v1/message:send`, `/v1/message:stream`, `/v1/tasks/*`) and Agent Card schema are defined in the A2A proto/backlog and 505-v2.  
+- Runtime roles (`product_owner`, `solution_architect`, `a2a_server`) are defined in 505-v2 and 477-primitive-stack; this operator enforces them via spec validation and, over time, explicit CRD fields such as `spec.runtimeRole` and `spec.a2a` so GitOps manifests can declare the intended role and A2A surface declaratively.  
+- Shared operator condition types and vocabulary are defined in `operators/shared/api/v1/conditions.go` and described in 495/498/502.
+
+## Grounding & cross-references
+
+- **Architecture grounding:** Implements the Agent primitive described by the vision/primitive backlogs (`470-ameide-vision.md`, `471-ameide-business-architecture.md`, `472-ameide-information-application.md`, `473-ameide-technology.md`, `475-ameide-domains.md`, `477-primitive-stack.md`) and the operator/EDA guidelines in `495-ameide-operators.md`, `496-eda-principles.md`, and `497-operator-implementation-patterns.md`.  
+- **Operator ecosystem:** Works alongside the Domain, Process, and UISurface operators tracked in `498-domain-operator.md`, `499-process-operator.md`, and `501-uisurface-operator.md`, and is packaged via the unified Helm chart in `503-operators-helm-chart.md`; all share the condition vocabulary and vertical-slice expectations set by `502-domain-vertical-slice.md`.  
+- **Scrum stack alignment:** Hosts the AmeidePO/AmeideSA/AmeideCoder Agent primitives defined in `505-agent-developer-v2.md` and implemented via `505-agent-developer-v2-implementation.md`, wiring them into the Scrum stack that uses `506-scrum-vertical-v2.md` and `508-scrum-protos.md` as canonical domain/process contracts (see `507-scrum-agent-map.md`).  
+- **CLI & A2A dependencies:** Exposes runtimes that consume the CLI/tooling slice from `504-agent-vertical-slice.md` and the A2A REST binding defined in the 505-v2/A2A backlogs; `ameide primitive` commands from the 484a–484f series are used inside Coder runtimes, not embedded into this operator.
+
 > **Related**:
 > - [495-ameide-operators.md](495-ameide-operators.md) – CRD shapes & responsibilities
 > - [497-operator-implementation-patterns.md](497-operator-implementation-patterns.md) – Go patterns & reference implementation
@@ -20,6 +40,8 @@ The Agent operator manages the lifecycle of **Agent primitives** – LLM-powered
 - Agent runtime Deployment (LangGraph, custom framework, etc.)
 
 **Key insight**: The operator wires secrets + policy; the Agent image implements prompt orchestration and tool execution.
+
+> **505 alignment:** The Process + AmeidePO + AmeideSA + AmeideCoder architecture in [505-agent-developer-v2.md](505-agent-developer-v2.md) introduces an explicit split between A2A clients (PO/SA) and an A2A server (Coder). This backlog now tracks the operator work required to host all three Agent primitives plus the devcontainer runtime surfaces they depend on.
 
 ---
 
@@ -76,11 +98,15 @@ status:
 
 ### 3.1 LangGraph coder runtime (agent-developer linkage)
 
-Backlog [505-agent-developer.md](505-agent-developer.md) introduces `runtime_type=langgraph`, `dag_ref`, and the `develop_in_container` tool binding for the `core-platform-coder` AgentDefinition. Implications for the operator:
+Backlog [505-agent-developer-v2.md](505-agent-developer-v2.md) cements the Process + AmeidePO + AmeideSA + AmeideCoder split. It introduces `runtime_type=langgraph`, `dag_ref`, the `develop_in_container` compatibility tool, and a new `runtime_role` concept (`product_owner`, `solution_architect`, `a2a_server`). Implications for the operator:
 
 * **Spec propagation.** When the Transformation domain resolves an AgentDefinition that includes `runtime_type=langgraph`, the operator must surface the referenced DAG module/image to the runtime Deployment (env vars or ConfigMap). This keeps the runtime controller generic while enabling LangGraph to build the DAG defined in Transformation.
 * **Tool grants.** `develop_in_container` is treated like any other tool grant, but it is automatically `riskTier=high`. The existing policy validation (Phase 3) should reject Agent CRs that request `develop_in_container` without `spec.riskTier=high` or without the platform-approved devcontainer service configuration.
 * **Runtime service wiring.** For LangGraph coder agents, `reconcileRuntime()` needs to include Service annotations or env vars that point at the devcontainer gRPC endpoint deployed via GitOps. Document this under Phase 3/4 artifacts so the ApplicationSet that deploys the devcontainer service stays in sync with the Agent operator rollout described in backlog 504.
+* **A2A roles.** AmeidePO and AmeideSA instances only require outbound HTTP (A2A client) plus access to Process/Transformation APIs. AmeideCoder instances must expose the standardized REST binding (`/v1/message:send`, `/v1/message:stream`, `/v1/tasks/*`) and publish an Agent Card at `/.well-known/agent-card.json`. Capture these requirements via annotations or an explicit `spec.runtimeRole`, and enforce that:
+  * `runtimeRole=product_owner` / `solution_architect` **cannot** request high‑risk tools such as `develop_in_container` or direct repo CLI grants and typically run with `riskTier=medium`.  
+  * `runtimeRole=a2a_server` (AmeideCoder devcontainer) **must** expose the A2A REST binding and run with `riskTier=high`, as it owns repo write/PR capabilities and internal CLI usage.
+* **Process metadata.** AmeideSA AgentDefinitions reference Process lifecycle metadata (sprint/phase ids) when delegating to AmeideCoder. Propagate `process_scope`/`timebox_id` fields from the definition ConfigMap into the runtime environment so SA pods can correlate EDA events without hardcoding cluster config.
 
 **Implementation status:** `internal/controller/agent_controller.go` now calls Transformation via the Go SDK, writes the resolved AgentDefinition (including `runtime_type`, `dag_ref`, `scope`, and `risk_tier`) into the definition ConfigMap as `definition.json`, and rejects LangGraph tool requests that violate the risk-tier guardrails (`sharedv1.ConditionDefinitionResolved`, `ConditionPolicyCompliant`). The operator Deployment exposes env vars for the Transformation address/token so GitOps overlays can point at the right service endpoint.
 

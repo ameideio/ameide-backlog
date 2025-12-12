@@ -16,6 +16,12 @@
 > | [475-ameide-domains.md](475-ameide-domains.md) | §3 – Domain portfolio |
 > | [467-backstage.md](467-backstage.md) | §10 – Software Templates for primitives |
 
+## Grounding & contract alignment
+
+- **Catalog view of primitives:** Applies the primitive definitions and information-flow model from `470-ameide-vision.md`, `471-ameide-business-architecture.md`, `472-ameide-information-application.md`, and `475-ameide-domains.md` to a Backstage/service‑catalog folder layout for Domain/Process/Agent primitives.  
+- **Alignment with placement:** Mirrors the placement and GitOps conventions in `477-primitive-stack.md`, ensuring that Service Catalog structure, primitive code in `primitives/*`, and GitOps manifests remain coherent.  
+- **Scrum & transformation anchoring:** Shows where the Transformation domain and its Agile/Scrum Process primitives appear in the catalog (e.g., `domains/transformation`, `processes/agile`), which the Scrum stack (`300-400/367-1-scrum-transformation.md`, `506-scrum-vertical-v2.md`, `508-scrum-protos.md`) and agent backlogs (`505-agent-developer-v2*.md`) can reference without redefining structure.
+
 ---
 
 ## 1. Executive Summary

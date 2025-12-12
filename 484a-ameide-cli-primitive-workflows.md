@@ -6,6 +6,11 @@
 
 > **Parent document**: [484 – Ameide CLI Overview](484-ameide-cli.md)
 
+## Grounding & contract alignment
+
+- **Primitive CLI surface:** Defines the `ameide primitive` workflows for Domain/Process/Agent/UISurface primitives introduced in `470-ameide-vision.md`, `472-ameide-information-application.md`, and placed by `477-primitive-stack.md`, with status/condition semantics coming from `502-domain-vertical-slice.md` and shared operator guidance in `495-ameide-operators.md`.  
+- **Scrum/agent usage:** Provides the guardrail and verification flows that AmeideCoder uses internally in the agent stack (`504-agent-vertical-slice.md`, `505-agent-developer-v2*.md`) when operating on primitives, including the Scrum-related ones built on `300-400/367-1-scrum-transformation.md`, `506-scrum-vertical-v2.md`, and `508-scrum-protos.md`.
+
 ---
 
 ## 1. Primitive Commands Overview
