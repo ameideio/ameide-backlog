@@ -1,14 +1,14 @@
 
 
-## agent-developer – Agent Developer Execution Environment (LangGraph + DevContainer + Claude SDK)
+## agent-developer – Agent Developer Execution Environment (Two-Agent Architecture with A2A)
 
-**Status:** Active (guardrail plumbing landed; LangGraph/devcontainer runtime in progress)
+**Status:** Active (guardrail plumbing landed; A2A integration in progress)
 **Owner:** Platform / Agents
 **Depends on:**
 
 * 471/472/473/475/476 (Vision, App, Tech, Domains, Security)
+* 496 (EDA Principles) - Domain↔Agent contracts
 * Agent primitive / AgentDefinitions (Transformation)
-* Existing `core-platform-coder` / codex-cli work (if any)
 * ArgoCD / GitOps / ApplicationSet patterns
 * Historical context: [000-200/030-coding-agent.md](000-200/030-coding-agent.md) and [000-200/041-coder.md](000-200/041-coder.md) capture the earlier PoC implementations and are now marked as superseded in favour of this backlog.
 
@@ -18,28 +18,57 @@
 
 | Workstream | State | Notes & repo pointers |
 |------------|-------|-----------------------|
-| **Agent primitive plumbing** | ✅ | Agent CRD/operator Helm/GitOps bundles were refreshed (see `operators/helm/crds/ameide.io_agents.yaml`, `gitops/ameide-gitops/sources/charts/platform/ameide-operators/crds/ameide.io_agents.yaml`) so `definitionRef`/tooling fields in this backlog are available cluster-wide. Demo assets live under `gitops/.../primitives/agent/core-platform-coder.yaml` + `scripts/demo-agent-slice.sh`. |
-| **CLI guardrails + prompts** | ✅ | `packages/ameide_core_cli/internal/commands/primitive.go` ships `--repo-root/--gitops-root/--mode` plumbing plus naming/security/EDA/test heuristics for `verify --mode all`, and `primitive_prompt.go` + `prompts/agent/default.md` now instruct agents to run the full guardrail loop via the devcontainer tool. |
-| **LangGraph coder DAG** | ⚠️ Partial | `primitives/agent/ameide-coder/src/agent.py` backs the runtime; the new devtools (`src/print_dag.py`, `langgraph.dev.json`) allow local DAG inspection (`uv run --project primitives/agent/ameide-coder python -m src.print_dag`) and `langgraph dev` launches. The graph, however, is still a single develop_in_container call—explicit nodes for describe/drift/plan/impact/scaffold/verify remain TODO. |
-| **Devcontainer gRPC service** | ✅ | `services/devcontainer_service` exposes `POST /v1/develop` (packaged inside `ghcr.io/ameide/devcontainer-service`), and `gitops/.../platform/platform-devcontainer-service.yaml` wires the Deployment/Service + ExternalSecret (`platform-devcontainer-agent-token`) via the new `platform-devcontainer-service` component. |
-| **develop_in_container tool** | ✅ | `primitives/agent/ameide-coder/src/tools/develop_in_container.py` registers the tool, enforces repo/command arguments, streams logs back to LangGraph, and the default agent prompt now calls it whenever a CLI command needs to run inside the devcontainer. |
-| **Workflow/Temporal metadata** | ⚠️ Partial | **Future automation (Stage‑2)** – backlog/300-400/367-2-agent-orchestration-coding-agent.md tracked the idea of auto-planning/auto-running Coding Agent work via the existing Workflow + Temporal stack. That orchestration layer still lacks methodology metadata (`timebox_ids`, repo adapter policies) and isn’t part of the LangGraph/devcontainer slice; keep the row as a reminder that the governance/attestation automation remains open downstream. |
+| **Agent primitive plumbing** | ✅ | Agent CRD/operator Helm/GitOps bundles were refreshed (see `operators/helm/crds/ameide.io_agents.yaml`, `gitops/ameide-gitops/sources/charts/platform/ameide-operators/crds/ameide.io_agents.yaml`). Demo assets live under `gitops/.../primitives/agent/core-platform-coder.yaml` + `scripts/demo-agent-slice.sh`. |
+| **CLI guardrails (AmeideCoder tool)** | ✅ | `packages/ameide_core_cli/internal/commands/primitive.go` ships guardrail commands (describe, drift, plan, verify, etc.). These are tools for AmeideCoder, NOT workflow for AmeidePO. |
+| **AmeidePO LangGraph DAG** | ⚠️ Partial | `primitives/agent/ameide-coder/` needs refactoring to become AmeidePO. Current graph still has coding tools - must be removed. Product management DAG nodes (analyze, delegate, review, loop) TODO. |
+| **A2A Protocol** | ❌ Not started | A2A server (AmeideCoder) and client (AmeidePO) need implementation. AgentCard discovery, JSON-RPC endpoint, SSE streaming all TODO. |
+| **AmeideCoder (Devcontainer)** | ⚠️ Partial | `services/devcontainer_service` provides base runtime (`POST /v1/develop`). Needs A2A server endpoint and full tool palette (CLI is one tool among many). |
+| **EDA Integration** | ⚠️ Partial | EDA infrastructure exists (backlog 496). Event schemas for agent coordination (RequirementCreated, RequirementCompleted) need definition. |
+| **Workflow/Temporal metadata** | ⚠️ Deferred | Historical Stage-2 automation (`367-2-agent-orchestration-coding-agent.md`) remains as governance blueprint. Not part of A2A architecture. |
 
-> Keep this table in sync with backlog/504 and 502 snapshots so platform/agent teams can see exactly what’s implemented. The workflow/Temporal row references the historical Stage‑2 automation plan (`367-2-agent-orchestration-coding-agent.md`); that document remains as a governance/auto-plan blueprint, not as a dependency for the LangGraph/devcontainer runtime described here.
+> **Architecture shift:** This backlog now describes a **two-agent A2A model** (AmeidePO + AmeideCoder) instead of the original single-agent develop_in_container pattern. See Section 3 for the new architecture.
 
 ---
 
 ### 1. Purpose
 
-Provide a **first‑class “agent developer” runtime** inside Ameide:
+Provide a **two-agent architecture** for autonomous code development inside Ameide:
 
-* Every new **change request** can be executed by a **LangGraph‑based coding DAG** (“coder agent”) running in the cluster.
-* The DAG orchestrates steps like: understand requirement → plan changes → edit code in a dev container → run tests → open PR.
-* Actual code edits happen via **Claude Code SDK/CLI** running inside a **.devcontainer image** (`ameideio/ameide`) exposed to the cluster via **gRPC**.
-* The existing **Agent primitive** stays high‑level; we just add a `type=langgraph` + DAG + tool config.
-* A dedicated **CRD + Agent runtime** turns this into a **primitive in Ameide**, deployable and operable at scale via ArgoCD.
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│  Transformation │    │    AmeidePO     │    │   AmeideCoder   │
+│     (Domain)    │    │ (Agent Primitive│    │     (Agent)     │
+│                 │    │   LangGraph)    │    │   Devcontainer  │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+        │                      │                      │
+        │ EDA (496)            │ A2A Protocol         │ Tools
+        │ Events               │ Continuous Loop      │ (CLI, Claude, Git...)
+        ▼                      ▼                      ▼
+```
 
-Goal: make “an agent that writes code in the official devcontainer, then opens a PR” a **repeatable, observable, safe pattern**, not a one‑off script.
+**Three Components:**
+
+| Component | Type | Runtime | Responsibilities |
+|-----------|------|---------|------------------|
+| **Transformation** | Domain | gRPC service | Backlog, requirements, events |
+| **AmeidePO** | Agent primitive | LangGraph DAG | Product management, orchestration |
+| **AmeideCoder** | Agent | Devcontainer | Code execution, generic coding |
+
+**Two Contract Types:**
+
+| Contract | Protocol | Pattern |
+|----------|----------|---------|
+| Domain ↔ Agents | EDA (496) | Async events, decoupled |
+| Agent ↔ Agent | A2A | Continuous loop, not one-off |
+
+**Key Principles:**
+
+* **AmeidePO** (Product Owner) handles **product management only** - no coding tools
+* **AmeideCoder** is a **generic coding agent** with many tools (Ameide CLI is one of them)
+* Development is a **continuous A2A loop** between PO and Coder until PO is satisfied
+* Domain communication follows **EDA principles** (backlog 496)
+
+Goal: make "an agent that manages product development and delegates coding to a specialist coder agent" a **repeatable, observable, safe pattern**.
 
 ---
 
@@ -83,333 +112,488 @@ Goal: make “an agent that writes code in the official devcontainer, then opens
 
 ### 3. High‑Level Architecture
 
-Text diagram:
+#### 3.1 Two-Agent Model
 
 ```text
-                ┌───────────────────────────────────────┐
-                │            ArgoCD / GitOps            │
-                │  (deploy Agent runtimes & dev svc)  │
-                └───────────────────────────────────────┘
-
-                    (platform namespaces: ameide-{env})
-
-┌───────────────────────────────────────────────────────────────────────┐
-│                       Agent Runtime Plane                            │
-│                                                                       │
-│  ┌─────────────────────────┐       gRPC        ┌───────────────────┐  │
-│  │  Agent runtime (coder)│──────────────────▶│ devcontainer svc  │  │
-│  │  (LangGraph runtime)    │                  │ (.devcontainer     │  │
-│  │  - loads AgentDefinition│                  │  ameideio/ameide)  │  │
-│  │  - runs LangGraph DAG   │                  │  + Claude SDK/CLI  │  │
-│  │  - calls tools (incl.   │◀─────────────────┤  exposed via gRPC  │  │
-│  │    develop_in_container)│   responses       └───────────────────┘  │
-│  └─────────────────────────┘                                         │
-│                                                                       │
-└───────────────────────────────────────────────────────────────────────┘
-
-Data/control flow for a dev task:
-
-1. Transformation domain creates a BacklogItem/Initiative.
-2. A Process primitive (e.g. “Transform with Ameide”) triggers the coder Agent runtime.
-3. The Agent runtime loads an AgentDefinition (runtime_type=langgraph, dag_ref=..., tools=[develop_in_container,...]).
-4. LangGraph DAG orchestrates steps; whenever it needs to actually change code, it calls `develop_in_container`.
-5. `develop_in_container` tool calls devcontainer gRPC (repo, branch, instructions).
-6. devcontainer gRPC wrapper drives Claude SDK/CLI inside the .devcontainer.
-7. At the end, DAG opens a PR / posts status back to Transformation domain.
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              ArgoCD / GitOps                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+        ┌─────────────────────────────┼─────────────────────────────┐
+        ▼                             ▼                             ▼
+┌───────────────────┐    ┌───────────────────────┐    ┌───────────────────────┐
+│  TRANSFORMATION   │    │       AmeidePO        │    │     AmeideCoder       │
+│     (Domain)      │    │   (LangGraph DAG)     │    │    (Devcontainer)     │
+│  ─────────────────│    │  ─────────────────────│    │  ─────────────────────│
+│                   │    │                       │    │                       │
+│  • Backlog items  │    │  • Product management │    │  • Generic coder      │
+│  • Requirements   │    │  • Reads requirements │    │  • Many tools:        │
+│  • AgentDefs      │    │  • Prioritizes work   │    │    - Ameide CLI       │
+│                   │    │  • Delegates to Coder │    │    - Claude/Codex     │
+│                   │    │  • Reviews results    │    │    - Git CLI          │
+│  EDA Events ◀────▶│    │  • Loops until done   │    │    - Build/Test       │
+│  (backlog 496)    │    │  • Emits domain events│    │    - Linters          │
+│                   │    │                       │    │    - Any other...     │
+└───────────────────┘    └───────────────────────┘    └───────────────────────┘
+                                    │                          │
+                                    │◀─────── A2A ────────────▶│
+                                    │   Continuous Loop        │
+                                    │   (not one-off)          │
 ```
+
+#### 3.2 A2A Development Loop
+
+```text
+     AmeidePO                              AmeideCoder
+    (LangGraph)                           (Devcontainer)
+         │                                      │
+    ┌────┴────┐                                 │
+    │ PLAN    │──── A2A: plan task ────────────▶│
+    │ phase   │◀─── A2A: plan result ───────────│
+    └────┬────┘                                 │
+         │ (PO reviews)                         │
+    ┌────┴────┐                                 │
+    │IMPLEMENT│──── A2A: implement ────────────▶│
+    │ phase   │◀─── A2A: code done ─────────────│
+    └────┬────┘                                 │
+         │ (PO verifies)                        │
+    ┌────┴────┐                                 │
+    │ VERIFY  │──── A2A: fix issues ───────────▶│  ◀─── LOOP
+    │ phase   │◀─── A2A: fixed ─────────────────│       until
+    └────┬────┘                                 │       satisfied
+         │                                      │
+         ▼                                      │
+  EDA Event: RequirementCompleted              │
+  (PR URL, summary) → Transformation           │
+```
+
+#### 3.3 Agent Responsibilities
+
+| AmeidePO (LangGraph DAG) | AmeideCoder (Devcontainer) |
+|--------------------------|---------------------------|
+| Product management | Code execution |
+| Reads requirements | Generic coding agent |
+| Prioritizes work | Has MANY tools available |
+| Delegates via A2A | Ameide CLI = one tool |
+| Reviews results | Claude/Codex = one tool |
+| Loops until satisfied | Git, build, lint = tools |
+| Emits domain events | Agent decides how to use |
+| **DAG = orchestration** | **Agent = autonomous executor** |
+| **NO coding tools** | **ALL coding tools** |
 
 Key points:
 
-* **AgentDefinition** stays the source of truth for “how this coder agent behaves” (DAG, tools, risk tier).
-* **Agent runtime** is just one more Agent runtime (like other Agent runtimes), but specialised for coding tasks.
-* **devcontainer service** is the only thing that actually runs Claude Code / codex CLI with filesystem access to repos.
+* **AmeidePO** is a product management DAG - no coding activities
+* **AmeideCoder** is a generic autonomous coder - uses tools as needed
+* **Ameide CLI** is a tool for the coder, not a workflow for the DAG
+* **A2A loop** continues until PO is satisfied (not single handoff)
+* **EDA events** connect to domain (backlog 496)
 
 ---
 
 ### 4. Design Details
 
-#### 4.1 AgentDefinition extensions
+#### 4.1 Two-Agent Architecture
 
-Extend the agent primitive (in Transformation) with fields like:
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         TWO AGENT DEFINITIONS                               │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   AmeidePO (Product Owner)              AmeideCoder (Coder)                 │
+│   ────────────────────────              ────────────────────                │
+│   • runtime_type: langgraph             • runtime_type: devcontainer        │
+│   • scope: PRODUCT_MANAGEMENT           • scope: CODE_EXECUTION             │
+│   • risk_tier: MEDIUM                   • risk_tier: HIGH                   │
+│   • tools: NONE (product mgmt only)     • tools: ALL coding tools           │
+│   • a2a_client: true                    • a2a_server: true                  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**AmeidePO AgentDefinition:**
 
 ```yaml
-# conceptual
 AgentDefinition:
-  id: "core-platform-coder"
+  id: "ameide-product-owner"
   runtime_type: "langgraph"
   dag_ref:
-    image: "ghcr.io/ameideio/agent-runtime-langgraph:main"  # for codegen
-    module: "ameide.agents.coder.graph"
+    image: "ghcr.io/ameideio/agent-runtime-langgraph:main"
+    module: "ameide.agents.product_owner.graph"
     entrypoint: "build_graph"
-  tools:
-    - id: "develop_in_container"
-      type: "internal"
-      config_ref: "develop-in-container-config/v1"
-    - id: "read_repo_state"
-    - id: "create_pr"
-  scope: "WRITE_CODE"
+  tools: []  # NO coding tools - product management only
+  a2a_client:
+    target_agent: "ameide-coder"
+  scope: "PRODUCT_MANAGEMENT"
+  risk_tier: "MEDIUM"
+```
+
+**AmeideCoder AgentDefinition:**
+
+```yaml
+AgentDefinition:
+  id: "ameide-coder"
+  runtime_type: "devcontainer"
+  image: "ghcr.io/ameideio/devcontainer-service:main"
+  tools:  # Generic coder with MANY tools
+    - id: "ameide_cli"
+    - id: "claude_code"
+    - id: "git_cli"
+    - id: "build_test"
+    - id: "linters"
+    # ... any other tools the coder needs
+  a2a_server:
+    endpoint: "/.well-known/agent-card.json"
+  scope: "CODE_EXECUTION"
   risk_tier: "HIGH"
 ```
 
-Transformation remains the **design-time owner**; promotion & risk governance live there.
+**Implementation status:** The AgentDefinition schema supports `runtime_type`, `dag_ref`, `scope`, `risk_tier`, and tool grants. A2A client/server fields are new and need schema extension.
 
-**Implementation status:** The AgentDefinition schema + migration now include `runtime_type`, `dag_ref`, `scope`, `risk_tier`, and tool grants (`db/flyway/sql/transformation/V2__agent_definitions.sql`, `services/transformation/src/transformations/service.ts:672-845`). The Agent operator fetches these definitions through the Go SDK and mounts the serialized JSON alongside the basic ID/tenant metadata for runtimes to consume (`operators/agent-operator/internal/controller/agent_controller.go`).
+#### 4.2 A2A Protocol Integration
 
-#### 4.2 Agent runtime (coder)
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            A2A PROTOCOL                                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  Transport: JSON-RPC 2.0 over HTTP(S)                                       │
+│  Discovery: AgentCard at /.well-known/agent-card.json                       │
+│  Methods:  message/send, tasks/get, tasks/sendSubscribe (SSE streaming)     │
+│  Headers:  A2A-Version: 1.0                                                 │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
 
-A standard Agent runtime service:
+**AmeideCoder AgentCard (/.well-known/agent-card.json):**
 
-* Image: e.g. `agent-runtime-langgraph` (Python).
-* Responsibilities:
-
-  * Load AgentDefinition by id from Transformation.
-  * Instantiate LangGraph DAG via `dag_ref`.
-  * Expose an `InvokeAgent`/`RunTask` RPC (already in Agent runtime contract) that:
-
-    * Takes a “dev task” (link to backlog item / requirement artifact).
-    * Runs the DAG, which calls tools.
-    * Returns status + artifacts (PR URL, summary, logs).
-
-No special semantics beyond “runtime_type=langgraph”.
-
-**Implementation status:** `primitives/agent/ameide-coder/src/agent.py`
-and `primitives/agent/ameide-coder/src/main.py` register the
-`core-platform-coder` runtime as a dedicated LangGraph service so the Agent runtime can
-invoke the `develop_in_container` tool directly. Dev helpers (`src/print_dag.py`,
-`langgraph.dev.json`) now let us render the DAG locally and run it via `langgraph dev`,
-but the graph still executes the guardrail workflow as a single develop_in_container
-call; future iterations must split describe → drift → plan → scaffold → verify into
-explicit LangGraph nodes and load DAG metadata directly from Transformation
-AgentDefinitions.
-
-#### 4.3 devcontainer service + Claude SDK gRPC
-
-Service runs **.devcontainer `ameideio/ameide`** (the same environment humans would use) as a long‑lived DevPod, but:
-
-* Adds a small **gRPC server** in front of Claude Code SDK/CLI with an API like:
-
-```protobuf
-service DevContainerCoding {
-  rpc DevelopInContainer(DevelopRequest) returns (DevelopResponse);
-}
-
-message DevelopRequest {
-  string repo_url;
-  string branch_name;        // or "create from main"
-  string task_id;            // backlink to Ameide backlog item
-  string instruction;        // natural language + structured hints
-  repeated string paths;     // optional files/folders to focus on
-}
-
-message DevelopResponse {
-  string new_branch;
-  string pr_url;            // optional
-  string log_url;           // build/test logs
-  bool   success;
-  string summary;
+```json
+{
+  "name": "ameide-coder",
+  "description": "Generic coding agent with Ameide CLI guardrails + devcontainer",
+  "version": "1.0.0",
+  "url": "https://coder.ameide.internal/a2a",
+  "protocolVersion": "1.0",
+  "capabilities": { "streaming": true, "pushNotifications": false },
+  "defaultInputModes": ["text/plain"],
+  "defaultOutputModes": ["text/plain", "application/json"],
+  "skills": [
+    {
+      "id": "implementRequirement",
+      "name": "Implement requirement",
+      "description": "Implement/modify code using available tools autonomously",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "requirementId": { "type": "string" },
+          "repoUrl": { "type": "string" },
+          "instruction": { "type": "string" }
+        },
+        "required": ["requirementId", "repoUrl", "instruction"]
+      }
+    }
+  ],
+  "auth": { "type": "oauth2", "tokenUrl": "...", "scopes": ["ameide.coder.run"] }
 }
 ```
 
-Implementation inside the devcontainer:
+**A2A Task Request (PO → Coder):**
 
-* Clone repo (if not already).
-* Create or reuse a “work” branch.
-* Run Claude Code SDK/CLI with the instruction, letting it edit files.
-* Run tests / formatting commands.
-* Commit and optionally push + open PR.
-* Return summary & URLs.
-
-Security:
-
-* Service must be configured **per repo / tenant**; no free‑for‑all shell.
-* No cluster credentials inside the devcontainer; everything goes via Git hosting and CI/CD.
-
-**Implementation status:** The platform devcontainer Deployment/Service plus ExternalSecret wiring live under `gitops/ameide-gitops/sources/values/_shared/platform/platform-devcontainer-service.yaml`, and the `core-platform-coder` Agent manifest (`gitops/ameide-gitops/sources/values/_shared/platform/agents/core-platform-coder.yaml`) binds to the `develop_in_container` grant so LangGraph runtimes can reach the gRPC endpoint.
-
-#### 4.4 `develop_in_container` tool
-
-From LangGraph’s perspective, this is just a tool that:
-
-* Takes a structured instruction (plus repo + branch context)
-* Calls the devcontainer gRPC
-* Returns structured result (PR URL, summary, logs)
-
-Conceptual type:
-
-```ts
-type DevelopInContainerArgs = {
-  repoId: string;
-  branchStrategy: "feature-per-task" | "reuse";
-  paths?: string[];
-  instruction: string;   // generated by agent from requirement
-};
-
-type DevelopInContainerResult = {
-  prUrl?: string;
-  branchName: string;
-  summary: string;
-  success: boolean;
-  logsUrl?: string;
-};
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "req-123",
+  "method": "message/send",
+  "params": {
+    "task": {
+      "id": "task-uuid",
+      "status": { "state": "submitted" },
+      "metadata": {
+        "skill": "implementRequirement",
+        "requirementId": "REQ-123",
+        "repoUrl": "git@github.com:ameideio/ameide.git"
+      },
+      "history": [
+        { "role": "user", "parts": [{ "kind": "text", "text": "Implement..." }] }
+      ]
+    }
+  }
+}
 ```
 
-Mapping to gRPC is hidden behind the Agent runtime’s tool adapter layer.
+**A2A Task Response (Coder → PO):**
 
-#### 4.5 Implementation status (2025‑02)
+```json
+{
+  "jsonrpc": "2.0",
+  "result": {
+    "task": {
+      "id": "task-uuid",
+      "status": { "state": "completed" },
+      "artifacts": [
+        { "id": "pr", "kind": "link", "parts": [{ "text": "https://github.com/.../pull/123" }] },
+        { "id": "summary", "kind": "text", "parts": [{ "text": "Implemented validation..." }] }
+      ]
+    }
+  }
+}
+```
 
-* **Tool runtime.** `primitives/agent/ameide-coder/src/tools/develop_in_container.py`
-  registers the LangChain tool. It reads the guardrail command list that LangGraph hands it, then:
-  * Calls the remote devcontainer service via HTTP/JSON when `DEVELOP_IN_CONTAINER_ENDPOINT` +
-    `DEVELOP_IN_CONTAINER_TOKEN` are present (timeouts configurable via `DEVELOP_IN_CONTAINER_TIMEOUT`).
-  * Falls back to local execution (`subprocess_shell` inside the inference pod) so unit tests can run
-    without the cluster service. Logs/stdout/stderr for every guardrail command are returned to the DAG.
-* **Dependency wiring.** `ToolDependencies` / `_tool_dependencies` now include the devcontainer endpoint
-  fields, so every tool builder gets the same configuration (`services/inference/src/inference_service/tools/base.py`,
-  `services/inference/src/inference_service/context.py`).
-* **Coder agent.** `primitives/agent/ameide-coder/src/agent.py` renders the guardrail
-  prompt via `ameide primitive prompt --json` (with an inline fallback), extracts `workflowCommands`, and invokes
-  `develop_in_container` with repo/branch/task metadata derived from the Transformation context. The agent emits
-  a summary with PR URL/branch/log links supplied by the tool.
-* **CLI contract.** `packages/ameide_core_cli/internal/commands/primitive_prompt.go` now exposes `--json`
-  output containing the rendered prompt + `workflowCommands`, plus `--proto-path`/`--gitops-root` flags so
-  LangGraph can pass the paths it resolved from Transformation. Tests (`primitive_prompt_test.go`) verify
-  the JSON payload and fallback behavior.
-* **Sample manifests + GitOps.** The `core-platform-coder` Agent CRs under `operators/helm/examples/…` and
-  `gitops/ameide-gitops/**/core-platform-coder.yaml` now grant the `develop_in_container` tool (riskTier=high) and
-  reference the devcontainer endpoint secret (`platform/devcontainer-agent-token`). The guardrail demo script
-  keeps working once the devcontainer Deployment + ExternalSecret are deployed.
-* **Devcontainer service.** `services/devcontainer_service` packages the HTTP/JSON wrapper (`POST /v1/develop`)
-  inside the official devcontainer image (`ghcr.io/ameide/devcontainer-service`). It clones repositories on-demand
-  via `DEVCONTAINER_GIT_TOKEN`, executes each guardrail command via `/bin/sh`, and returns logs/branch summaries.
-* **Cluster rollout.** `gitops/ameide-gitops/environments/_shared/components/platform/developer/devcontainer-service/component.yaml`
-  (plus `platform-devcontainer-service.yaml`) deploy the Deployment/Service/workspace volume, and the
-  `platform-devcontainer-agent-token-sync` ExternalSecret materializes the PAT used by both the service and the
-  sample AgentDefinitions.
-* **Repo-first scaffold.** `primitives/agent/ameide-coder/**` now carries the LangGraph coder runtime skeleton
-  (Dockerfiles, prompts, tests, Backstage metadata) so teams scaffold directly from the monorepo while Backstage
-  templates remain deprioritised.
+**Implementation status:** A2A protocol support is new and needs implementation in both agents.
+
+#### 4.3 AmeidePO (LangGraph DAG)
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     AmeidePO LangGraph DAG                                  │
+│                   (Product Management ONLY)                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌─────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐      │
+│  │  START  │───▶│ Analyze Req │───▶│ Delegate to │───▶│   Review    │      │
+│  └─────────┘    │ (internal)  │    │ Coder (A2A) │    │   Result    │      │
+│                 └─────────────┘    └─────────────┘    └──────┬──────┘      │
+│                                                              │             │
+│                                     ┌────────────────────────┤             │
+│                                     │                        │             │
+│                              ┌──────▼──────┐          ┌──────▼──────┐      │
+│                              │  Not Done   │          │    Done     │      │
+│                              │ (loop A2A)  │          │ (EDA event) │      │
+│                              └──────┬──────┘          └─────────────┘      │
+│                                     │                                      │
+│                                     └─────▶ Back to Delegate               │
+│                                                                             │
+│  NO CODING TOOLS IN THIS DAG                                               │
+│  • Does NOT run: describe, drift, plan, scaffold, verify                   │
+│  • Only: analyzes, delegates, reviews, loops, emits events                 │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Implementation status:** `primitives/agent/ameide-coder/src/agent.py` needs refactoring to become AmeidePO - removing coding tools and adding A2A client.
+
+#### 4.4 AmeideCoder (Devcontainer)
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      AmeideCoder (Devcontainer)                             │
+│                       Generic Autonomous Coder                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  A2A Server (receives tasks from AmeidePO)                                  │
+│       │                                                                     │
+│       ▼                                                                     │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                        TOOL PALETTE                                 │   │
+│  │                                                                     │   │
+│  │  ┌───────────┐  ┌───────────┐  ┌───────────┐  ┌───────────┐       │   │
+│  │  │ Ameide    │  │ Claude    │  │ Git CLI   │  │ Build/    │       │   │
+│  │  │ CLI       │  │ Code      │  │           │  │ Test      │       │   │
+│  │  └───────────┘  └───────────┘  └───────────┘  └───────────┘       │   │
+│  │                                                                     │   │
+│  │  ┌───────────┐  ┌───────────┐  ┌───────────┐  ┌───────────┐       │   │
+│  │  │ Linters   │  │ File Ops  │  │ Search    │  │ Any       │       │   │
+│  │  │           │  │           │  │           │  │ Other...  │       │   │
+│  │  └───────────┘  └───────────┘  └───────────┘  └───────────┘       │   │
+│  │                                                                     │   │
+│  │  Agent decides HOW to use tools autonomously                        │   │
+│  │  Ameide CLI is ONE tool among many (not a workflow)                 │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│       │                                                                     │
+│       ▼                                                                     │
+│  A2A Response (PR URL, summary, artifacts)                                  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+The coder is a **generic autonomous agent** that:
+* Receives task via A2A
+* Decides which tools to use
+* Ameide CLI provides guardrails but is NOT prescriptive
+* Returns results via A2A
+
+**Implementation status:** `services/devcontainer_service` provides the base runtime. Needs A2A server endpoint and tool palette wiring.
+
+#### 4.5 EDA Integration (Domain ↔ Agents)
+
+Per backlog 496, communication between Transformation domain and agents uses EDA:
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                       EDA (backlog 496)                                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  Transformation Domain                   AmeidePO                           │
+│         │                                    │                              │
+│         │ Event: RequirementCreated          │                              │
+│         │────────────────────────────────────▶                              │
+│         │                                    │                              │
+│         │      (PO orchestrates via A2A)     │                              │
+│         │                                    │                              │
+│         │ Event: RequirementCompleted        │                              │
+│         │◀────────────────────────────────────                              │
+│         │ (PR URL, summary, status)          │                              │
+│                                                                             │
+│  • Async, decoupled                                                         │
+│  • Domain emits events, agents subscribe                                    │
+│  • Agents emit events, domain subscribes                                    │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Implementation status:** EDA infrastructure from 496 applies here. Event schemas for agent coordination need definition.
 
 ---
 
 ### 5. Implementation Plan (Epics & Tasks)
 
-#### Epic 1 – Spec & contract (agent-developer‑SPEC)
+#### Epic 1 – AgentDefinition Schema for Two-Agent Model (agent-developer‑SCHEMA)
 
-1.1. Extend AgentDefinition schema in Transformation:
+1.1. Extend AgentDefinition for AmeidePO:
+* Add `a2a_client` field with `target_agent` reference
+* Set `scope: PRODUCT_MANAGEMENT`, `risk_tier: MEDIUM`
+* Empty `tools[]` - no coding tools
 
-* Add `runtime_type`, `dag_ref`, `tools`, `scope`, `risk_tier` fields for LangGraph agents.
-  1.2. Define “coder agent” contract:
-* What inputs it expects (link to backlog item / requirement).
-* What outputs it guarantees (PR URL, summary, status).
-  1.3. Document security expectations:
-* Coder agents are always `risk_tier=HIGH`.
-* Only Transformation / Platform can invoke them directly.
+1.2. Extend AgentDefinition for AmeideCoder:
+* Add `a2a_server` field with endpoint configuration
+* Set `scope: CODE_EXECUTION`, `risk_tier: HIGH`
+* Full tool palette: `ameide_cli`, `claude_code`, `git_cli`, `build_test`, `linters`
 
-#### Epic 2 – LangGraph Agent runtime runtime (agent-developer‑RUNTIME)
+1.3. Schema migration:
+* Add A2A fields to `V3__agent_a2a_support.sql`
+* Update Agent operator to parse A2A configuration
 
-2.1. Build `agent-runtime-langgraph` image:
+#### Epic 2 – A2A Protocol Implementation (agent-developer‑A2A)
 
-* Base Python image with LangGraph + Ameide SDK + gRPC server.
-  2.2. Implement Agent runtime server:
-* `InvokeAgent` API that:
+2.1. A2A Server (AmeideCoder):
+* Implement `/.well-known/agent-card.json` endpoint
+* Implement `/a2a` JSON-RPC endpoint (message/send, tasks/get)
+* Implement SSE streaming for tasks/sendSubscribe
+* Task lifecycle: submitted → working → completed/failed
 
-  * Loads AgentDefinition from Transformation.
-  * Builds the LangGraph DAG from `dag_ref`.
-  * Executes the DAG with given task context.
-    2.3. Repo scaffold (Backstage deferred):
-* Keep LangGraph coder scaffolds under `primitives/agent/{name}` (e.g. `primitives/agent/ameide-coder`). Backstage
-  templates remain optional and are no longer a near-term target.
-  2.4. ArgoCD:
-* Helm chart + ApplicationSet entry to deploy Agent runtime in `ameide-{env}`.
+2.2. A2A Client (AmeidePO):
+* Integrate A2A Python SDK into LangGraph runtime
+* AgentCard discovery from `a2a_client.target_agent`
+* Task submission and response handling
+* SSE streaming for real-time updates
 
-#### Epic 3 – Devcontainer coding service (agent-developer‑DEVCONTAINER)
+2.3. A2A Authentication:
+* OAuth2 token exchange between agents
+* Scopes: `ameide.coder.run`, `ameide.po.delegate`
 
-3.1. Decide DevPod vs plain Deployment:
+#### Epic 3 – AmeidePO LangGraph DAG (agent-developer‑PO)
 
-* For now: one long‑lived pod per env, running `.devcontainer ameideio/ameide`.
-  3.2. Wrap Claude Code SDK/CLI in gRPC:
-* Implement `DevContainerCoding` service:
+3.1. Refactor existing coder agent:
+* Rename `core-platform-coder` → `ameide-product-owner`
+* Remove all coding tools (describe, drift, plan, etc.)
+* Add A2A client tool for coder delegation
 
-  * Shells out to CLI with correct environment.
-  * Manages repo checkout and branch creation.
-  * Opens PR via Git provider API.
-    3.3. Configuration & secrets:
-* Per‑env config: which repos are allowed, Git tokens, etc.
-* Use ExternalSecrets for tokens.
-  3.4. Observability:
-* Metrics: number of tasks, success rate, duration.
-* Logs correlated to Ameide task IDs.
+3.2. Implement PO DAG nodes:
+* `analyze_requirement` - parse incoming requirement
+* `delegate_to_coder` - send A2A task
+* `review_result` - evaluate coder output
+* `loop_or_complete` - decide if more work needed
+* `emit_eda_event` - notify Transformation domain
 
-#### Epic 4 – `develop_in_container` tool wiring (agent-developer‑TOOL)
+3.3. Product management focus:
+* NO coding activities in this DAG
+* Decision making, delegation, quality review only
 
-4.1. Tool adapter in Agent runtime runtime:
+#### Epic 4 – AmeideCoder Devcontainer (agent-developer‑CODER)
 
-* Implement LangGraph tool that maps to `DevContainerCoding.DevelopInContainer`.
-  4.2. Update AgentDefinition tooling registry:
-* Allow “develop_in_container” as a known tool with config reference.
-  4.3. Example DAG:
-* Implement a reference LangGraph DAG for `core-platform-coder`:
+4.1. Tool palette implementation:
+* `ameide_cli` - CLI guardrails (describe, drift, plan, verify, etc.)
+* `claude_code` - Claude Code SDK/CLI for file editing
+* `git_cli` - clone, branch, commit, push, PR
+* `build_test` - run build and test commands
+* `linters` - code quality checks
+* Extensible for additional tools
 
-  * Plan → call `develop_in_container` → evaluate → maybe iterate → output PR summary.
+4.2. Autonomous execution:
+* Agent decides which tools to use and when
+* Ameide CLI provides guardrails, not prescriptive workflow
+* Returns artifacts via A2A (PR URL, summary, logs)
 
-#### Epic 5 – Integration with Transformation & Processes (agent-developer‑INTEGRATION)
+4.3. Runtime environment:
+* Based on `services/devcontainer_service`
+* `.devcontainer ameideio/ameide` base image
+* A2A server embedded in service
 
-5.1. Extend Transformation domain:
+#### Epic 5 – EDA Integration (agent-developer‑EDA)
 
-* Add a “DevTask” / “ControllerImplementationDraft” binding so each coding run is tied to a backlog item.
-  5.2. ProcessController hook:
-* In the Transformation process (Scrum/TOGAF), add a step that:
+5.1. Event schemas (per backlog 496):
+* `RequirementCreated` - domain → AmeidePO
+* `RequirementCompleted` - AmeidePO → domain
+* `RequirementFailed` - AmeidePO → domain
+* `DevelopmentStarted` - AmeidePO → domain (optional)
 
-  * Calls the coder Agent runtime for certain tasks.
-  * Stores PR URL & status back in the Transformation domain.
-    5.3. UI wiring:
-* In the Transformation workspace, show:
+5.2. Event handlers:
+* AmeidePO subscribes to `RequirementCreated`
+* Transformation subscribes to completion/failure events
+* Update backlog item status from events
 
-  * “Run via coder agent” button on tasks.
-  * Status of agent runs and PRs.
+5.3. Decouple from direct invocation:
+* Remove `InvokeAgent` direct calls
+* All coordination via EDA events
 
-#### Epic 6 – Security & guardrails (agent-developer‑SECURITY)
+#### Epic 6 – Security & Observability (agent-developer‑SECURITY)
 
 6.1. Network boundaries:
+* NetworkPolicy: AmeidePO ↔ AmeideCoder (A2A only)
+* AmeideCoder cannot access cluster services
+* Repo whitelisting per environment
 
-* NetworkPolicy so:
+6.2. A2A Security:
+* mTLS between agents
+* OAuth2 token validation
+* Audit logging for all A2A calls
 
-  * Agent runtime can talk to devcontainer service.
-  * devcontainer service cannot talk to random cluster services.
-    6.2. Repo whitelisting:
-* Only allow specific repos (platform, selected tenant repos) per env.
-  6.3. Audit logging:
-* Log every `develop_in_container` invocation with:
+6.3. Observability:
+* Trace A2A task lifecycle (submitted → completed)
+* Metrics: task count, duration, success rate
+* Logs correlated to requirement ID
 
-  * tenant/org/user (if relevant),
-  * task/backlog id,
-  * repo + branch,
-  * result.
-    6.4. SRE controls:
-* Feature flag / kill‑switch for:
-
-  * the coder Agent runtime,
-  * specific tools,
-  * specific repos.
+6.4. SRE controls:
+* Feature flags per agent
+* Kill-switch for A2A communication
+* Rate limiting on task submission
 
 ---
 
 ### 6. Open Questions
 
-You can leave these in the backlog item as discussion points:
+1. **A2A Loop Termination**
 
-1. **Persistent vs ephemeral devcontainers**
+   * How does AmeidePO decide when to stop the A2A loop?
+   * Options: max iterations, quality threshold, explicit "done" signal from coder
+   * What happens if the loop times out?
 
-   * v1 assumes a long‑lived devcontainer; later we can switch to “one ephemeral pod per task” using a CRD or Job.
-2. **Multi‑repo work**
+2. **Tool Palette Extensibility**
 
-   * Do we need cross‑repo changes in a single run, or is “one repo per task” enough?
-3. **LangGraph DAG source of truth**
+   * How do we add new tools to AmeideCoder without redeploying?
+   * Dynamic tool loading vs static tool palette?
+   * Tool versioning and compatibility?
 
-   * Do we store DAG code in:
+3. **Multi-Requirement Coordination**
 
-     * platform repo (versioned), and just reference it from AgentDefinition,
-     * or inline small DAG definitions inside Transformation artifacts?
-4. **Claude SDK vs Codex CLI vs A2A**
+   * Can AmeidePO handle multiple requirements in parallel?
+   * How do we manage shared state across concurrent A2A tasks?
+   * Ordering and dependency resolution?
 
-   * For now, treat “develop_in_container” as an abstraction; implementation could swap between Claude SDK, codex CLI, or an A2A protocol.
+4. **Persistent vs Ephemeral Devcontainers**
+
+   * v1 assumes a long-lived devcontainer for AmeideCoder
+   * Future: "one ephemeral pod per A2A task" using a CRD or Job
+   * Tradeoff: startup latency vs isolation
+
+5. **A2A Protocol Extensions**
+
+   * Do we need Ameide-specific A2A extensions?
+   * How do we handle streaming artifacts (logs, progress)?
+   * Should we support push notifications for long-running tasks?
+
+6. **EDA Event Granularity**
+
+   * How detailed should progress events be?
+   * Options: coarse (started/completed) vs fine (per-tool, per-file)
+   * Impact on domain storage and UI updates
