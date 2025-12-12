@@ -1,5 +1,7 @@
 ## Envoy Gateway TLS & Cert Management (dev) — Vendor-aligned shape with cert-manager present
 
+> **Status:** Active for shared AKS plus Terraform-managed local clusters. Cloud environments pull wildcard certificates from Let’s Encrypt DNS-01 Issuers (see [438](../438-cert-manager-dns01-azure-workload-identity.md)), while local/offline clusters rely on the self-signed Issuer stack maintained in [444-terraform.md](../444-terraform.md#local-target-safeguards). All flows still defer to cert-manager; certgen remains enabled everywhere.
+
 > **Related**: See [436-envoy-gateway-observability.md](436-envoy-gateway-observability.md) for telemetry configuration using `EnvoyProxy` resource, [417-envoy-route-tracking.md](417-envoy-route-tracking.md) for route inventory, and [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md) for dual ApplicationSet architecture.
 >
 > **Updated 2025-12-04**: EnvoyProxy resources are now deployed per-environment to `envoy-gateway-system` namespace with dedicated static IPs. See 436 for IP table.
@@ -188,3 +190,9 @@ Values and overlays:
 - Cert-manager EG PKI (dev): `sources/values/env/dev/platform/platform-cert-manager-config.yaml`
 
 All paths relative to `gitops/ameide-gitops/`.
+
+## Local / Offline Considerations
+
+- Terraform’s local overlay (`sources/values/env/local/platform/platform-cert-manager-config.yaml`) mirrors the same Issuer/Certificate names but sources from the in-cluster SelfSigned CA rather than Let’s Encrypt DNS-01.
+- `platform-envoy-gateway` consumes the same shared values; no special-case tolerations or chart forks are needed. The only difference is the TLS secret content (self-signed) and the ArgoCD Application name (`local-platform-envoy-*`).
+- Because cert-manager’s webhook runs in hostNetwork mode locally (see [448](../448-cert-manager-workload-identity.md#local-offline-environments)), the EG control-plane certificates reconcile even when Pod IPs aren’t routable inside k3d.

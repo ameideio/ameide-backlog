@@ -1,4 +1,6 @@
 > Note: Chart and values paths are now under gitops/ameide-gitops/sources (charts/values); any infra/kubernetes/charts references below are historical.
+>
+> **Status – Archived:** The remote-first workflow in [435-remote-first-development.md](../435-remote-first-development.md) replaces this bootstrap entirely. Retain this document only when maintaining the legacy local k3d bootstrap (now managed by Terraform per [444-terraform.md](../444-terraform.md)). New work should default to the remote-first path.
 
 # DevContainer Startup Hardening _(partially archived)_
 

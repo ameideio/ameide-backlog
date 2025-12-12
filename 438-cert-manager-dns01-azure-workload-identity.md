@@ -2,6 +2,8 @@
 
 **Updated**: 2025-12-05
 
+> **Scope:** Applies to dev/staging/prod AKS clusters where Azure DNS + ACME DNS-01 is enabled. Local/offline clusters intentionally disable DNS-01 and rely on self-signed Issuer/CA chains (see [444-terraform.md](444-terraform.md#local-target-safeguards) and the local note in [448-cert-manager-workload-identity.md](448-cert-manager-workload-identity.md#local-offline-environments)).
+
 > **Related backlogs:**
 > - [434-unified-environment-naming.md](434-unified-environment-naming.md) — Environment naming, domain matrix, and certificate architecture
 > - [386-envoy-gateway-cert-tls-docs.md](386-envoy-gateway-cert-tls-docs.md) — TLS strategy for Envoy Gateway and cert-manager PKI
@@ -417,6 +419,13 @@ If certificate issuance is stuck:
    kubectl rollout restart deployment/cert-manager-staging -n ameide-staging
    kubectl rollout restart deployment/cert-manager-prod -n ameide-prod
    ```
+
+## Local / Offline Environments
+
+- Local k3d clusters disable DNS-01 Issuers entirely and instead use cert-manager’s SelfSigned → CA Issuer pattern documented in [444-terraform.md](444-terraform.md#local-target-safeguards). Certificates never leave the cluster.
+- `foundation-cert-manager-wi` is disabled, so ServiceAccounts are created directly by the upstream chart without Azure Workload Identity annotations (see [448-cert-manager-workload-identity.md](448-cert-manager-workload-identity.md#local-offline-environments)).
+- The cert-manager webhook binds to the node network (`hostNetwork: true`, `securePort: 10260`) to avoid Pod IP reachability issues in k3d; see `sources/values/env/local/foundation/foundation-cert-manager.yaml`.
+- Vault injector TLS and Envoy Gateway TLS flows defer to the local secrets described in [378-argocd-vault-injector-cert-manager.md](300-400/378-argocd-vault-injector-cert-manager.md) and [386-envoy-gateway-cert-tls-docs.md](300-400/386-envoy-gateway-cert-tls-docs.md).
 
 ## File Reference
 

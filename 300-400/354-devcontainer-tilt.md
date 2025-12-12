@@ -1,5 +1,7 @@
 # Devcontainer Bootstrap Simplification
 
+> **Status – Historical Reference:** Remote-first development ([435-remote-first-development.md](../435-remote-first-development.md)) is the supported workflow, and any remaining local k3d bootstrap work should use Terraform per [444-terraform.md](../444-terraform.md). Keep this file for context on how Tilt assumed responsibility for local reconciliation; do not extend it for new remote-first initiatives.
+
 **Created:** Nov 2025  
 **Owner:** Platform DX / Developer Productivity
 

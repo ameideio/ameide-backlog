@@ -3,12 +3,27 @@
 **Created**: 2025-12-04
 **Updated**: 2025-12-11
 
-> **Related documents:**
-> - [439-deploy-infrastructure.md](439-deploy-infrastructure.md) – Deployment flow and scripts
-> - [443-tenancy-models.md](443-tenancy-models.md) – Multi-tenant architecture
-> - [148-azure-managed-offering.md](148-azure-managed-offering.md) – Azure Marketplace (Bicep required)
-> - [449-per-environment-infrastructure.md](449-per-environment-infrastructure.md) – Per-environment Azure resources
-> - [451-secrets-management.md](451-secrets-management.md) – Secrets flow from .env to Kubernetes
+> **Status – Maintained:** Remote-first dev (see [435-remote-first-development.md](435-remote-first-development.md)) remains the default workflow. This document is the canonical reference for Terraform-managed environments (cloud + optional local k3d fallback) and is required when offline/air-gapped scenarios demand local infrastructure.
+
+> **Related Backlog Items**
+> 
+> **Core Documents (Docker/DevContainer/Terraform/k3d)**
+> 
+> | Backlog | Title | Status | Relevance |
+> |---------|-------|--------|-----------|
+> | [444-terraform.md](444-terraform.md) | Terraform Infrastructure | Complete | Primary reference for local k3d via Terraform |
+> | [435-remote-first-development.md](435-remote-first-development.md) | Remote-First Development | Active | Current recommended approach (no local k3d by default) |
+> | [429-devcontainer-bootstrap.md](429-devcontainer-bootstrap.md) | DevContainer Bootstrap | Superseded by 435 | Historical k3d bootstrap documentation |
+> | [372-k3d-devcontainer.md](372-k3d-devcontainer.md) | k3d Cluster Vendor Alignment | Deprecated | Docker-from-Docker implementation details |
+> | [338-devcontainer-startup-hardening.md](338-devcontainer-startup-hardening.md) | DevContainer Startup Hardening | Partially archived | Bootstrap flow and verification checklist |
+> 
+> **Supporting Documents**
+> 
+> | Backlog | Relevance |
+> |---------|-----------|
+> | [432-devcontainer-modes-offline-online.md](432-devcontainer-modes-offline-online.md) | Retired dual-mode approach |
+> | [354-devcontainer-tilt.md](354-devcontainer-tilt.md) | Tilt integration (simplified) |
+> | [415-k3d-dev-registry-e2e.md](415-k3d-dev-registry-e2e.md) | Deprecated local registry |
 
 ## Overview
 
@@ -47,6 +62,8 @@ Targets no longer accept a `-e` flag because a single cluster hosts all namespac
 1. Populate `.env`/`.env.local` with the required API tokens (e.g. `GITHUB_TOKEN`); no manual `export` is necessary.
 2. Run `./infra/scripts/deploy.sh <target>` – the helper writes `infra/terraform/azure/env.auto.tfvars.json` from `.env`, so every Terraform invocation (including ad-hoc `terraform -chdir=infra/terraform/azure plan`) automatically sees `var.env_secrets`. To refresh the file without a full deploy, run `./infra/scripts/write-env-secrets-tfvars.sh`.
 3. After apply, Terraform writes the latest outputs to `artifacts/terraform-outputs/<target>.json`, and the local target also starts an ArgoCD port-forward plus prints the credentials banner.
+
+For day-to-day local work, call `infra/scripts/tf-local.sh` instead of running `terraform -chdir=infra/terraform/local ...` directly. The wrapper performs the Docker availability check, recreates the `ameide-network` bridge, removes orphaned `k3d-ameide` clusters when Terraform state went missing, and then forwards every argument to Terraform (defaults to `apply`).
 
 ## Architecture
 
@@ -145,6 +162,8 @@ deploy.sh local
 - The `local` workspace **only** provisions the k3d cluster, bootstrap ServiceAccount/Secrets, and ArgoCD; it never talks to Azure. `infra/terraform/local/main.tf` depends exclusively on Docker/k3d providers, so running it inside the devcontainer cannot destroy shared cloud resources.
 - `deploy.sh local` always recreates the `ameide-network` Docker network instead of pruning other networks, keeping unrelated containers intact even after a devcontainer restart.
 - Terraform state for the local run is stored under `infra/terraform/local/terraform.tfstate` inside the repo (not the azurerm backend). Deleting and re-running the target impacts only the local cluster.
+- The devcontainer now mounts the host socket to `/var/run/docker-host.sock`, lets the docker-outside-of-docker feature manage `/var/run/docker.sock`, and executes `.devcontainer/lib/check-docker.sh` on every start. If `docker ps` fails, the container startup fails immediately so Terraform never attempts to run without Docker access.
+- `infra/scripts/tf-local.sh` is the canonical way to plan/apply/destroy the k3d workspace. It fails fast when Docker is unavailable, recreates the Docker network, deletes unmanaged `k3d-ameide` clusters when the Terraform state file lacks `module.k3d.k3d_cluster.this`, and finally invokes Terraform with your requested subcommand.
 
 ### Post-Apply Verification (Local)
 

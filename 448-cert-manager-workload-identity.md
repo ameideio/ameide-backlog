@@ -2,6 +2,8 @@
 
 ## Status: Implemented
 
+> **Cloud vs local:** This document is the active reference for cloud environments (dev/staging/prod). Local/offline clusters still install cert-manager, but Terraform now disables the Workload Identity helper (`foundation-cert-manager-wi`) and binds the webhook to the node network (`hostNetwork: true`, `securePort: 10260`) per [444-terraform.md](444-terraform.md#local-target-safeguards). Treat the sections below as mandatory for Azure-backed clusters and follow the _Local (offline) environments_ note for k3d.
+
 ## Problem
 
 Cert-manager needs Azure Workload Identity to authenticate with Azure DNS for ACME DNS-01 challenges. The client ID must be set as an annotation on the ServiceAccount.
@@ -85,7 +87,7 @@ serviceAccount:
 
 ### Local (offline) environments
 
-Local k3d clusters do not talk to Azure DNS or Let’s Encrypt, so the Workload Identity helper chart is disabled via `enabled: false` in `sources/values/env/local/foundation/foundation-cert-manager-wi.yaml`. The cert-manager release (`cert-manager-local`) still uses the same ServiceAccount names for RBAC parity, but the SAs are created directly by the upstream chart without Azure annotations. Cloud environments (dev/staging/prod) keep `enabled: true` so the helper continues to enforce the managed identity wiring before cert-manager starts.
+Local k3d clusters do not talk to Azure DNS or Let’s Encrypt, so the Workload Identity helper chart is disabled via `enabled: false` in `sources/values/env/local/foundation/foundation-cert-manager-wi.yaml`. In addition, Terraform forces the webhook onto the node network namespace to avoid Pod IP reachability issues (`hostNetwork: true`, `securePort: 10260`) within `sources/values/env/local/foundation/foundation-cert-manager.yaml`. The cert-manager release (`cert-manager-local`) still uses the same ServiceAccount names for RBAC parity, but the SAs are created directly by the upstream chart without Azure annotations. Cloud environments (dev/staging/prod) keep `enabled: true` so the helper continues to enforce the managed identity wiring before cert-manager starts.
 
 ## Verification
 

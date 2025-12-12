@@ -25,6 +25,8 @@
 | `ameide-prod` | `ameide-prod` | `ameide-prod` | `ameide.io` | Production | ⏸️ Namespace reserved |
 
 > **Naming note:** As finalized in [435-remote-first-development.md](435-remote-first-development.md), local development tunnels into the shared AKS cluster. All contexts follow the `ameide-{environment}` convention and simply select different namespaces inside the single `ameide` cluster.
+>
+> **Local/offline fallback:** When Terraform provisions a k3d cluster (see [444-terraform.md](444-terraform.md#local-target-safeguards)), it uses namespace/context `ameide-local`, domain suffix `local.ameide.io`, and mirrors the same label scheme so Envoy, cert-manager, and Vault components keep their environment-aware routing.
 
 ## Tenancy & Environment Matrix
 

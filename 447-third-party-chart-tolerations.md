@@ -1,5 +1,7 @@
 # 447 – Third-Party Chart Tolerations
 
+> **Status:** Applies uniformly to both shared AKS and Terraform-managed local clusters. Local/offline clusters inherit the same tolerations/nodeSelector settings via the env/local value files described here, so taints such as `ameide.io/environment=local:NoSchedule` remain enforceable without bespoke overrides.
+
 > **Note:** This document (447) covers chart tolerations. For rollout phases and cluster-scoped operators, see [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md).
 
 > **Cross-References (Deployment Architecture Suite)**:

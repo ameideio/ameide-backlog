@@ -5,6 +5,8 @@
 **Updated:** 2025-12-03
 **Supersedes:** 432 (DevContainer Modes), parts of 367 (Bootstrap v2), parts of 429 (DevContainer Bootstrap)
 
+> **Status – Active Canonical Workflow:** This is the authoritative reference for day-to-day development. Legacy k3d work is preserved only for historical/offline scenarios and, when required, is driven through Terraform per [444-terraform.md](444-terraform.md).
+
 ## Overview
 
 Pivot from dual-mode (offline-full k3d + online-telepresence) to a single **AKS + Telepresence + Tilt** model:

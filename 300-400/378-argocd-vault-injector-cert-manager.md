@@ -1,5 +1,7 @@
 # 378: ArgoCD Vault injector TLS via cert-manager (vendor-aligned)
 
+> **Scope:** Applies to every environment where Vault injector relies on cert-manager. Cloud clusters consume Azure-issued wildcard/CA chains, while Terraform-managed local clusters reuse the same chart with a SelfSigned → CA Issuer pattern (see [444-terraform.md](../444-terraform.md#local-target-safeguards)). The operational guidance below covers both; local simply points the Issuer at the in-cluster CA secrets.
+
 ## Why
 - Vault injector webhook drifted because the live `caBundle` gained multiple PEMs; Argo marked `MutatingWebhookConfiguration` OutOfSync.
 - We want vendor-aligned TLS for the injector with cert-manager managing issuance, while keeping Argo health/sync deterministic.
@@ -14,7 +16,7 @@
 - cert-manager CA injection docs: https://cert-manager.io/docs/concepts/ca-injector/
 
 ## Chosen approach (dev)
-- Use cert-manager to issue a self-signed CA + serving cert for the injector (`vault-webhook-certs` chart/component).
+- Use cert-manager to issue a self-signed CA + serving cert for the injector (`vault-webhook-certs` chart/component). Local/k3d clusters reuse the same component with Issuers defined inside `ameide-local` so no Azure/DNS-01 dependency exists.
 - Pin `injector.certs.secretName` to the cert-manager secret and set `cert-manager.io/inject-ca-from` on the webhook.
 - Pin `injector.certs.caBundle` to the CA PEM (single chain from cert-manager) so Argo has a deterministic manifest, with an ignore-diff on `webhooks[0].clientConfig.caBundle` acknowledging cainjector ownership.
 
