@@ -5,7 +5,7 @@
 **Updated:** 2025-12-03
 **Supersedes:** 432 (DevContainer Modes), parts of 367 (Bootstrap v2), parts of 429 (DevContainer Bootstrap)
 
-> **Status – Active Canonical Workflow:** This is the authoritative reference for day-to-day development. Legacy k3d work is preserved only for historical/offline scenarios and, when required, is driven through Terraform per [444-terraform.md](444-terraform.md).
+> **Status – Active Canonical Workflow:** This is the authoritative reference for day-to-day development. We are now officially hybrid: AKS + Telepresence remains the default inner loop, while Terraform-driven local k3d (see [444-terraform.md](444-terraform.md)) is the supported fallback for offline/air-gapped scenarios. Both flows must reconcile to the same GitOps state.
 
 ## Overview
 
@@ -34,9 +34,9 @@ Docs that still reference `tools/bootstrap/bootstrap-v2.sh` refer to the GitOps 
 
 ## Non-Goals
 
-- Offline development capability (accept network dependency)
-- Per-developer isolated clusters (share dev namespace with developer-specific deployments)
-- Local k3d clusters (fully remote-first)
+- Per-developer isolated AKS clusters (we still share the dev namespace)
+- Local k3d as the default (it is now a Terraform fallback, not the primary workflow)
+- Telepresence replacement (it remains the networking tool of choice even when local clusters exist)
 
 ## Why Remote Dev Cluster (No k3d)
 
@@ -579,3 +579,4 @@ Telepresence can import the intercepted pod's environment into your local proces
 - **367** (Bootstrap v2) - Bootstrap logic moves to gitops
 - **429** (DevContainer Bootstrap) - Simplified; most content moves to gitops
 - **432** (DevContainer Modes) - Retired; single mode (AKS + Telepresence)
+> **Update (Dec 2025):** Terraform-based local k3d now exists for offline/air-gapped work. Use it sparingly—spin up the local cluster only when connectivity is impossible, then return to the remote-first flow so the shared AKS dev cluster keeps representing day-to-day reality.

@@ -222,6 +222,11 @@ SecretStore/ameide-vault → foundation-vault-core.ameide-staging.svc.cluster.lo
 SecretStore/ameide-vault → foundation-vault-core.ameide-prod.svc.cluster.local:8200
 ```
 
+#### Cross-namespace consumers (local-only)
+
+- Local overlays can extend the shared template via `extraSecretStores` (see `sources/values/env/local/foundation/foundation-vault-secret-store.yaml`). Each entry renders an additional `SecretStore` in the listed namespace while still pointing to the same Vault endpoint. We use this to make the `argocd` namespace trust the local Vault for the GHCR pull secret.
+- Any namespace added to `extraSecretStores` **must also** be whitelisted in `vault-bootstrap` so Vault policies allow writes from that namespace. The local overlay sets `externalSecrets.namespaces: "ameide-local,argocd"` in `sources/values/env/local/foundation/foundation-vault-bootstrap.yaml`.
+
 ### 6. ExternalSecrets
 
 ExternalSecrets sync from Vault to Kubernetes Secrets. Example:
