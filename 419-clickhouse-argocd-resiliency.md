@@ -43,6 +43,7 @@
 ## Remediations applied
 - **CRDs:** Vendored all four Altinity CRDs individually (`clickhouse-crd-*.yaml`); `data-crds-clickhouse` now applies all four. Verified via `kubectl get crd | grep clickhouse`.
 - **SSA:** Disabled SSA on `data-crds-clickhouse` and `data-clickhouse` to avoid the Argo CRD diff panic path (client-side apply only).
+- **Watch scope:** `sources/values/_shared/cluster/clickhouse-operator.yaml` sets `WATCH_NAMESPACES` to `ameide-{dev,staging,prod,local}` so the single cluster-scoped operator reconciles every environment (Azure and local) without additional overrides.
 - **Orphans:** Added project-level ignore patterns for `chi-*` Service/StatefulSet/PDB/ConfigMap, `warn: false`, so operator-managed children no longer raise warnings.
 - **Cleanup:** Cleared stale `operationState` once after fixes; subsequent syncs are clean.
 - **Files touched (authoritative):**

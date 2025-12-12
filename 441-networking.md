@@ -132,7 +132,7 @@ kubectl get networkpolicies -A
 | argocd | `argocd-*-network-policy` | ArgoCD components | ✅ Good |
 
 **Implemented policies (2025-12-04):**
-- ✅ Cross-environment isolation (`deny-cross-environment` in `foundation-namespaces.yaml`)
+- ✅ Cross-environment isolation (`deny-cross-environment` in `foundation-namespaces.yaml`; now includes an explicit allowlist for `clickhouse-system` so the Altinity operator in that namespace can probe ClickHouse pods without violating the isolation contract)
 - ✅ Tier-based flow enforcement (`tier-based-ingress` in `foundation-namespaces.yaml`)
 - ⏳ Default deny ingress per namespace (not yet implemented - consider carefully as it's restrictive)
 
