@@ -6,6 +6,14 @@
 
 ---
 
+## Primitive/operator alignment
+
+- **Operator responsibilities (495, 499, 497):** The Process operator reconciles `Process` CRDs into runtime infrastructure for Temporal workers and ingress (Deployments, Services, Routes, secrets, HPA). It owns definition references, Temporal namespace/task queue wiring, and health conditions, but never implements workflow logic itself.  
+- **Primitive responsibilities (this backlog, 496):** The Process scaffold is responsible for the Temporal-side behavior: workflow/ingress code, idempotency state, fact emission, and SDK-based communication with Domains and other primitives. It runs inside the image referenced by the Process CRD and is the only place that knows about business processes and derived state.  
+- **Boundary:** Operators act as a **compiler from Process CRDs to Temporal + K8s objects**, while Process primitives remain **pure workflow services** that consume facts and emit process events. 511’s scaffold should make it impossible to “fix infra in code” (that’s the operator’s job) and equally impossible for the operator to absorb business logic. This separation is defined in `495-ameide-operators.md`, `497-operator-implementation-patterns.md`, and `499-process-operator.md`.
+
+---
+
 ## General implementation guidelines (for CLI scaffolder)
 
 - Exactly one fixed, opinionated scaffold per primitive kind; **do not introduce new CLI flags** beyond the existing `ameide primitive scaffold` parameters.  
@@ -19,6 +27,7 @@
 - **Primitive stack:** `477-primitive-stack.md` (Process primitives in `primitives/process/{name}`).  
 - **EDA / idempotency:** `470-ameide-vision.md`, `472-ameide-information-application.md`, `496-eda-principles.md`.  
 - **CLI workflows:** `484-ameide-cli-overview.md`, `484a-ameide-cli-primitive-workflows.md`, `484f-ameide-cli-scaffold-implementation.md`.  
+- **Primitive/operator contract:** `495-ameide-operators.md`, `497-operator-implementation-patterns.md`.  
 - **Process operator / vertical slice:** `499-process-operator.md`, `506-scrum-vertical-v2.md`.  
 
 ---
@@ -151,3 +160,58 @@ Agents/humans are expected to:
 - Process facts published via a port or activity (not directly from workflows), consistent with EDA rules in `496-eda-principles.md`.
 
 Vertical slices like `506-scrum-vertical-v2.md` remain authoritative for **which workflows and facts** exist; this backlog only constrains the **scaffold shape and Temporal/EDA pattern** for Process primitives.
+
+---
+
+## 6. Implementation progress (CLI & scaffold)
+
+This section describes the current implementation status of 511 in the CLI (`packages/ameide_core_cli`) and repo scaffolds. It is descriptive; the rest of 511 remains the target spec.
+
+### 6.1 Scaffolder behavior for Process primitives
+
+**Status:** Partially implemented; Process currently uses the generic Go scaffold, not the Temporal-specific shape described above.
+
+- `ameide primitive scaffold --kind process`:
+  - Shares the same code path as Domain/Go in `primitive_scaffold.go`:
+    - Creates `primitives/process/<name>/go.mod`, `Dockerfile`, `catalog-info.yaml`.
+    - Generates a single `cmd/main.go` that logs a placeholder and calls `internal/handlers.New()`.
+    - Generates `internal/handlers/handlers.go` with one method per RPC returning `codes.Unimplemented`.
+    - Generates per-RPC RED tests under `internal/tests/<rpc>_test.go` and an integration harness script.
+  - Does **not** currently emit:
+    - `cmd/worker/main.go` / `cmd/ingress/main.go`.
+    - `internal/workflows/**`, `internal/ingress/router.go`, or `internal/process/state.go`.
+    - Temporal-specific `go.mod` dependencies or worker bootstrap code.
+
+- Templates vs inline strings:
+  - Process-specific templates under `templates/process/**` do not yet exist.
+  - Process README and comments are currently produced by the generic `buildReadmeContent` and handler/test builders, not 511-specific templates.
+
+### 6.2 Verify behavior for Process primitives
+
+**Status:** Generic checks only; no Temporal/Process-specific enforcement yet.
+
+- `primitive verify --kind process --name <name>`:
+  - Runs generic repo checks:
+    - Naming (`checkNamingConventions`),
+    - Security/SAST/secret scan,
+    - Dependency vulnerabilities (for Go modules),
+    - Tests (`go test` under the primitive),
+    - Optional Buf / GitOps checks when configured.
+  - Does **not** currently validate:
+    - Presence of `cmd/worker` or `cmd/ingress` binaries.
+    - Existence of `internal/workflows/**` or `internal/ingress/router.go`.
+    - Idempotency helpers or Process fact emission patterns.
+    - Temporal namespace/task queue configuration in code or GitOps.
+
+### 6.3 Known gaps and next steps
+
+- Scaffold:
+  - Introduce a Process-specific scaffold path that:
+    - Generates `cmd/worker/main.go` and `cmd/ingress/main.go` with Temporal bootstrap and ingress routing stubs.
+    - Creates `internal/workflows`, `internal/ingress`, and `internal/process/state.go` as described in §2–§3.
+    - Uses dedicated Process templates for README and code comments (similar to Domain’s template approach).
+- Verify:
+  - Add Process-specific checks to `primitive verify` to ensure:
+    - Worker/ingress entrypoints and workflow/router files are present.
+    - Temporal configuration is wired in GitOps (values.yaml).
+    - Optional: enforce idempotency patterns and fact emission conventions via heuristics.
