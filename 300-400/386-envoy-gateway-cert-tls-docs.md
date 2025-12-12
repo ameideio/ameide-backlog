@@ -28,7 +28,7 @@
 
 ### Paths and knobs (dev)
 - EG shared values (certgen enabled, no hooks): `gitops/ameide-gitops/sources/charts/shared-values/infrastructure/envoy-gateway.yaml`
-- EG dev overlay (currently empty): `gitops/ameide-gitops/sources/values/env/dev/platform/platform-envoy-gateway.yaml`
+- EG dev overlay (pins controller tolerations/node selectors so pods land on the dev pool): `gitops/ameide-gitops/sources/values/env/dev/platform/platform-envoy-gateway.yaml`
 - Cert-manager control-plane PKI for EG: `gitops/ameide-gitops/sources/values/env/dev/platform/platform-cert-manager-config.yaml`
 - Argo app / wave: see rolloutPhase values in component files (310 CRDs, 320 operator, 330 certs, 340 gateway)
 
@@ -62,7 +62,7 @@
 Per `backlog/387-argocd-waves-v2.md`, CRDs are split from the operator chart:
 - **CRDs (310)**: `environments/dev/components/platform/control-plane/envoy-crds/component.yaml`
   - Chart: `sources/charts/third_party/oci/docker.io/envoyproxy/gateway-crds-helm`
-  - Deploys Gateway API and Envoy Gateway CRDs before the operator
+  - Installs the Envoy Gateway-specific CRDs (EnvoyProxy, BackendTrafficPolicy, etc.) ahead of the operator. Gateway API CRDs come from the dedicated cluster-scoped `crds-gateway-api` component, which vendors `sources/charts/foundation/common/raw-manifests/files/gateway-api-standard-install.yaml` via `sources/values/_shared/foundation/foundation-crds-gateway.yaml`. The shared toggle file `sources/values/_shared/cluster/platform-envoy-crds.yaml` intentionally leaves `crds.gatewayAPI.enabled=false` so SSA ownership stays split cleanly between the two components.
   - `ignoreDifferences` for CRD annotations (Argo vs controller metadata churn)
 - **Operator (320)**: `environments/dev/components/platform/control-plane/envoy-gateway/component.yaml`
   - Chart: `sources/charts/third_party/oci/docker.io/envoyproxy/gateway-helm/1.6.0-nocreds`
@@ -70,7 +70,7 @@ Per `backlog/387-argocd-waves-v2.md`, CRDs are split from the operator chart:
   - Namespace: `ameide`
   - Value files (in order):
     1) `sources/charts/shared-values/infrastructure/envoy-gateway.yaml`
-    2) `sources/values/env/local/platform/infrastructure/envoy-gateway.yaml` (empty placeholder)
+    2) `sources/values/env/local/platform/infrastructure/envoy-gateway.yaml` (forces the controller Service to `ClusterIP` and strips cloud-specific annotations so local clusters stay internal-only; Azure clusters keep their load balancer settings in `_shared`)
   - Sync options: `CreateNamespace=true`, `RespectIgnoreDifferences=true`, `ServerSideApply=true`, `Replace=true`
 
 ### 4) External TLS (Gateways)
@@ -186,7 +186,7 @@ Rollout order follows `backlog/387-argocd-waves-v2.md` Platform band: CRDs (310)
 
 Values and overlays:
 - Shared EG values (certgen on/no hooks): `sources/charts/shared-values/infrastructure/envoy-gateway.yaml`
-- Dev overlay (currently empty): `sources/values/env/dev/platform/platform-envoy-gateway.yaml`
+- Dev overlay (nodeSelector + tolerations for the dev pool): `sources/values/env/dev/platform/platform-envoy-gateway.yaml`
 - Cert-manager EG PKI (dev): `sources/values/env/dev/platform/platform-cert-manager-config.yaml`
 
 All paths relative to `gitops/ameide-gitops/`.
@@ -194,5 +194,6 @@ All paths relative to `gitops/ameide-gitops/`.
 ## Local / Offline Considerations
 
 - Terraform’s local overlay (`sources/values/env/local/platform/platform-cert-manager-config.yaml`) mirrors the same Issuer/Certificate names but sources from the in-cluster SelfSigned CA rather than Let’s Encrypt DNS-01.
-- `platform-envoy-gateway` consumes the same shared values; no special-case tolerations or chart forks are needed. The only difference is the TLS secret content (self-signed) and the ArgoCD Application name (`local-platform-envoy-*`).
+- `sources/values/env/local/platform/infrastructure/envoy-gateway.yaml` pins the controller Service to `ClusterIP` (and leaves annotations empty) so k3d/k3s never tries to provision an Azure load balancer or cloud-specific resources while still consuming the shared Helm chart.
+- `sources/values/env/local/platform/platform-gateway.yaml` carries the local-only EnvoyProxy overrides: telemetry host/service type swaps to `otel-collector.ameide-local.svc.cluster.local` with `ClusterIP`, backend service names line up with the non-AKS Helm releases, and local-only listener tweaks (e.g., disabling the redirect Gateway) stay scoped to `env/local`.
 - Because cert-manager’s webhook runs in hostNetwork mode locally (see [448](../448-cert-manager-workload-identity.md#local-offline-environments)), the EG control-plane certificates reconcile even when Pod IPs aren’t routable inside k3d.
