@@ -161,6 +161,7 @@ To avoid manual intervention the next time the hook needs to run:
 
 1. **Hook auto-trigger** – The `data-migrations-temporal` Helm chart now derives the `force-trigger` annotation automatically from the chart version + target schema versions. Any bump to either value causes ArgoCD to see a diff and rerun the pre-install hook; no more timestamp edits in `sources/values/_shared/data/data-migrations-temporal.yaml`.
 2. **Skip duplicate `setup-schema`** – The hook template now calls `setup-schema` only if `describe-schema` fails. If the schema already exists (even if the version is stuck at `0.0`), the job jumps straight to `update-schema`, which prevents the duplicate-key crash that previously required manual clean-up.
+3. **Auto-heal namespace_metadata conflicts (2025-12-12)** – The same hook now runs a guarded cleanup before `update-schema` when the default schema reports version `0.0` or missing. It issues `DELETE FROM namespace_metadata WHERE partition_id=54321` (matching the earlier manual fix) so the vendor tool doesn’t panic on the duplicate-key insert. The cleanup only runs for the default schema, keeping visibility untouched. This means fresh/partial installs self-recover without human intervention.
 
 > **Reminder:** The namespace bootstrap job (`data-temporal-namespace-bootstrap`) still depends on Temporal’s gRPC endpoint. Run the migrations first, ensure the Temporal deployments are healthy, and only then re-sync the namespace bootstrap Application.
 
