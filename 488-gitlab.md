@@ -450,6 +450,36 @@ You asked to “verify vendor documentation,” so here’s a concise mapping:
 
 If you paste in your **actual** Argo CD / values / CR YAML later, I can sanity-check it line-by-line against these docs for you.
 
+[//]: # (Local overlay regression guardrail)
+
+---
+
+## Local overlay fixture drift (2025-12-12)
+
+**Symptom**: `ExternalSecret/gitlab-oidc-provider` in `ameide-local` looped with `cannot find secret data for key: "gitlab-oidc.json"` and blocked all GitLab pods (`webservice`, `sidekiq`, `toolbox`). The local Vault fixture seeds `platform/dev/gitlab/oidc-provider` via `foundation-vault-bootstrap`, which writes every entry to the `value` field (`vault kv put secret/<path> value="$payload"`). The default chart values expect a `gitlab-oidc.json` property instead, so the secret never materializes in local.
+
+**Fix** (local-only): `sources/values/env/local/platform/platform-gitlab.yaml` overrides:
+
+```yaml
+oidcProvider:
+  data:
+    - secretKey: gitlab-oidc.json
+      remoteRef:
+        key: platform/dev/gitlab/oidc-provider
+        property: value
+```
+
+Nothing else changes for dev/staging/prod—the shared values still reference the `gitlab-oidc.json` property those environments populate manually.
+
+**Runbook**:
+
+1. `git commit && git push` the override (local overlay only).
+2. `argocd app sync local-platform-gitlab` so the ExternalSecret re-renders with `property: value`.
+3. Wait for `ExternalSecret/gitlab-oidc-provider` to report `Ready=True`, verify `Secret/gitlab-oidc-provider` exists, then confirm `Deployment/platform-gitlab-{webservice,sidekiq,toolbox}` turn Healthy.
+4. Re-sync downstream apps that depend on GitLab’s OIDC clients (Backstage, Plausible, Langfuse) if they were previously blocked on GitLab.
+
+A smoke check is `kubectl -n ameide-local describe externalsecret gitlab-oidc-provider | grep -A3 Property`, which should now show `property: value`.
+
 [1]: https://docs.gitlab.com/charts/?utm_source=chatgpt.com "GitLab Helm chart"
 [2]: https://www.fnde.gov.br/repositorio/help/install/kubernetes/index.md?utm_source=chatgpt.com "Index · Kubernetes · Install · Help · GitLab"
 [3]: https://docs.gitlab.com/operator/?utm_source=chatgpt.com "GitLab Operator"
