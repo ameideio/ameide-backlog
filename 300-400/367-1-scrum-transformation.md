@@ -8,6 +8,7 @@
 > - **Canonical contract:** `transformation-scrum-*` protos under `ameide_core_proto.transformation.scrum.v1` (Scrum nouns only: Product Backlog, Product Backlog Item, Sprint, Sprint Backlog, Increment, Product Goal, Sprint Goal, Definition of Done).  
 > - **Canonical integration:** intents + facts via bus; Process (Temporal) orchestrates timeboxes and governance; no runtime RPC coupling between Process and the Scrum domain.  
 > - **Non-Scrum extensions:** explicitly listed (e.g., impediments, readiness checklists, board columns, sign-off workflows) and treated as optional policy/UX metadata, not Scrum artifacts.
+> - **Proto naming:** This profile’s `ameide_core_proto.transformation.scrum.v1` package and any sister methodology packages must follow the conventions in [509-proto-naming-conventions.md](../509-proto-naming-conventions.md).
 
 ## Purpose
 Implement the Scrum methodology profile within the Transformation service so backlog intake (Stage 0) can flow into Scrum-native artifacts: Product Goal, Sprint Goal, Product Backlog, Sprint Backlog, Increment, and optional extensions such as impediment tracking. This profile becomes the reference implementation for other governance models and must remain aligned with the canonical Scrum contract in `506-scrum-vertical-v2.md` and `508-scrum-protos.md`.

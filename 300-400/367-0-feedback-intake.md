@@ -4,6 +4,7 @@
 > - **Canonical contract:** `transformation-scrum-*` protos under `ameide_core_proto.transformation.scrum.v1` (Scrum nouns only) plus sibling packages for other methodologies.  
 > - **Canonical integration:** intents + facts via bus; process orchestration in Temporal; no runtime RPC coupling between Process and Transformation.  
 > - **Non-Scrum extensions:** explicitly listed (e.g., readiness checklists, impediments, board columns, acceptance workflows) and treated as optional policy/UX metadata, not Scrum artifacts.
+> - **Proto naming:** All methodology-specific proto packages referenced here (Scrum/SAFe/TOGAF) must follow the conventions in [509-proto-naming-conventions.md](../509-proto-naming-conventions.md).
 
 # backlog/367-0 – Feedback Intake & Elements Wiring
 

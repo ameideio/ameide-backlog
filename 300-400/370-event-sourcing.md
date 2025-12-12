@@ -18,7 +18,7 @@ Key drivers:
 
 ## Current Position
 
-- The platform already standardizes on per-method Buf modules (for example, `ameide_core_proto.transformation.scrum.v1`, `ameide_core_proto.transformation.safe.v1`, `ameide_core_proto.transformation.togaf.v1`, `ameide_core_proto.governance.v1`) plus a shared Connect ingress.
+- The platform already standardizes on per-method Buf modules (for example, `ameide_core_proto.transformation.scrum.v1`, `ameide_core_proto.transformation.safe.v1`, `ameide_core_proto.transformation.togaf.v1`, `ameide_core_proto.governance.v1`) plus a shared Connect ingress, with package/topic naming governed by [509-proto-naming-conventions.md](../509-proto-naming-conventions.md).
 - Postgres hosts shared schemas; we rely on tenant/org scoping, partitioning plans, CDC to warehouse, and Temporal for long-running processes.
 - Auditability is handled via versioned tables and soon-to-be Attestation records (`governance.v1`), not append-only event logs.
 - Infrastructure plan favors “shared cluster + partitioning/sharding for large tenants” over per-tenant databases to keep ops costs low.

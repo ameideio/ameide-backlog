@@ -82,8 +82,8 @@ Temporal workflows can’t “subscribe to Kafka” directly in a deterministic 
 
 Responsibilities:
 
-* subscribe to `scrum.facts.v1`
-* optionally subscribe to `process.facts.v1` (if you want feedback loops)
+* subscribe to the **legacy** `scrum.facts.v1` topic (canonical name in 506‑v2/508: `scrum.domain.facts.v1`)
+* optionally subscribe to the **legacy** `process.facts.v1` topic (canonical name in 506‑v2/508: `scrum.process.facts.v1`) if you want feedback loops
 * map messages → workflow signal calls
 * guarantee *at-least-once* delivery to Temporal (workflows dedupe)
 

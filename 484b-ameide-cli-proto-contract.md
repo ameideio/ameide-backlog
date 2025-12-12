@@ -5,6 +5,8 @@
 **Scope:** `ameide_core_proto.primitive.v1` message definitions, local vs service mode
 
 > **Parent document**: [484 – Ameide CLI Overview](484-ameide-cli.md)
+>
+> **Proto naming:** The `ameide_core_proto.primitive.v1` package and any future CLI-related proto packages must follow the conventions in [509-proto-naming-conventions.md](509-proto-naming-conventions.md).
 
 ---
 

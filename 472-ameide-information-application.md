@@ -8,6 +8,8 @@ Here's a first cut of the **Application & Information Architecture** doc, aligne
 **Scope:** How Ameide is structured as software (domains, processes, agents, UI) and how information flows and is stored across the platform.
 
 > **Core Invariants**: See [470-ameide-vision.md §0 "Ameide Core Invariants"](470-ameide-vision.md) for the canonical list (four primitives, Graph read-only, Transformation as domain, proto chain, tenant isolation, Backstage internal).
+>
+> **Proto naming:** All proto packages and modules discussed in this document are expected to follow the conventions in [509-proto-naming-conventions.md](509-proto-naming-conventions.md).
 
 ## Grounding & contract alignment
 

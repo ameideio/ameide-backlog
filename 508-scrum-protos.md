@@ -14,6 +14,7 @@ No “requirements”, no “phase gates”, no “Definition of Ready”, no pl
 - **Upstream backlogs:** `470-ameide-vision.md`, `471-ameide-business-architecture.md`, `472-ameide-information-application.md`, `475-ameide-domains.md`, and `300-400/367-1-scrum-transformation.md` define Transformation’s role and the Scrum profile this package implements.  
 - **Runtime seams:** `506-scrum-vertical-v2.md` maps these types onto bus topics (`scrum.domain.intents.v1`, `scrum.domain.facts.v1`); `496-eda-principles.md` constrains envelope/meta fields (`ScrumMessageMeta`, `ScrumAggregateRef`) and event-sourcing rules.  
 - **Consumers:** `499-process-operator.md` and `506-scrum-vertical-v2.md` describe Process primitives that consume/emit these messages; `505-agent-developer-v2.md` and `505-agent-developer-v2-implementation.md` describe how AmeidePO/AmeideSA/AmeideCoder use the SDKs; `507-scrum-agent-map.md` locates this package in the Stage 0–3 stack; `502-domain-vertical-slice.md` provides the implementation pattern for Transformation as a Domain primitive.
+ - **Proto naming:** This package (and its future methodology siblings) must follow the repo-wide conventions in [509-proto-naming-conventions.md](509-proto-naming-conventions.md).
 
 ---
 

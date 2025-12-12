@@ -9,9 +9,9 @@
 
 **Authority & supersession**
 
-- The **canonical architecture** for Agent Developer now lives in `505-agent-developer-v2.md` (Process + AmeidePO + AmeideSA + AmeideCoder). That file, together with `506-scrum-vertical.md` and `300-400/367-1-scrum-transformation.md`, is authoritative for agent roles, A2A contracts, and the domain↔process event model.  
+- The **canonical architecture** for Agent Developer now lives in `505-agent-developer-v2.md` (Process + AmeidePO + AmeideSA + AmeideCoder). That file, together with `506-scrum-vertical-v2.md`, `508-scrum-protos.md`, and `300-400/367-1-scrum-transformation.md`, is authoritative for agent roles, A2A contracts, and the domain↔process event model.  
 - This file is **historical and implementation-tracking only**: it preserves the earlier two-agent (PO + Coder) A2A design and current implementation status, to support migration and evidence. It must not be treated as normative when it conflicts with 505‑v2 or 506.  
-- Any event names, topic layouts, or domain/process coupling described here are superseded by the `scrum.intents.v1` / `scrum.facts.v1` / `process.facts.v1` contracts in 506; any places where AmeidePO or AmeideCoder appear to cross those boundaries should be read as legacy behavior to be removed during migration.
+- Any event names, topic layouts, or domain/process coupling described here are superseded by the `scrum.domain.intents.v1` / `scrum.domain.facts.v1` / `scrum.process.facts.v1` contracts in `506-scrum-vertical-v2.md` / `508-scrum-protos.md`; any places where AmeidePO or AmeideCoder appear to cross those boundaries should be read as legacy behavior to be removed during migration.
 
 > **Target architecture lives in [505-agent-developer-v2.md](505-agent-developer-v2.md).** This file now tracks implementation progress, migration notes, and historical two-agent context while we land the Process + AmeidePO + AmeideSA + AmeideCoder model.
 

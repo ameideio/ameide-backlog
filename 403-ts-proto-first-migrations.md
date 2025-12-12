@@ -26,6 +26,8 @@ created: 2025-11-24
 - Packages: `@ameide/core-proto`, `@ameideio/ameide-sdk-ts`, shared TS config/telemetry helpers.
 - CI/Tilt/Docker flows used by the TS services above.
 
+> **Proto naming:** All proto packages referenced here must follow the conventions in [509-proto-naming-conventions.md](509-proto-naming-conventions.md) (root `ameide_core_proto.<context>[.<sub>].v<major>` packages and the intent/fact suffix rules).
+
 ## Non-goals
 - Go/Python migration (covered elsewhere).
 - Changing AmeideClient behaviour; this plan only rewires how TS services consume it.
