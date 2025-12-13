@@ -25,6 +25,8 @@
 > **Comparative Briefs (Ameide vs incumbent ERPs)**:
 > - [470a-ameide-vision-vs-d365.md](470a-ameide-vision-vs-d365.md) – Code-first Ameide platform compared to Microsoft D365FO's metadata/AOT paradigm.
 > - [470b-ameide-vision-vs-saps4.md](470b-ameide-vision-vs-saps4.md) – Ameide positioning versus SAP S/4HANA's DDIC/CDS/Fiori/Customizing stack.
+> - [470c-ameide-vision-vs-oracle.md](470c-ameide-vision-vs-oracle.md) – Ameide positioning versus Oracle Fusion Cloud ERP's SaaS + configuration/extensibility model.
+> - [470d-ameide-vision-vs-odoo.md](470d-ameide-vision-vs-odoo.md) – Ameide positioning versus Odoo's modular, Python/ORM + configuration/customization model.
 >
 > These appendices translate the high-level Ameide principles in this document into head-to-head comparisons with the dominant metadata/configuration ERPs so product, field, and architecture teams can articulate what stays the same (coherence, discoverability) and what changes (code-first, AI operated, CRD-based infra) when pitching Ameide.
 
@@ -219,14 +221,14 @@ We can build a **cloud-native business platform** where:
    We maintain a strict separation between:
 
    * **Design-time**: ProcessDefinitions, AgentDefinitions, ExtensionDefinitions, and other Transformation design tooling artifacts stored in Transformation.
-   * **Deployment-time**: Backstage templates, GitOps, and `Domain` / `Process` / `Agent` / `UISurface` CRs committed to Git.
+   * **Deployment-time**: Backstage templates, GitOps, and `Domain` / `Process` / `Agent` / `UISurface` / `Projection` / `Integration` CRs committed to Git.
    * **Runtime**: Operators reconcile those CRDs into Deployments, Services, Temporal workers, and other workloads on Kubernetes.
 
 ---
 
 ## 4. Conceptual model
 
-At the highest level we standardise on four building blocks, with a clear **design-time vs runtime** split:
+At the highest level we standardise on **six primitives**, with a clear **design-time vs runtime** split:
 
 ### 4.0 Design-Time Artifacts (owned by the Transformation Domain)
 
@@ -269,6 +271,18 @@ Every running primitive is described by exactly one CRD so Git remains the sourc
    * Next.js workspaces or process views that expose domain workspaces and process timelines using the TS SDK.
    * **Runtime representation**: `UISurface` CRD declares image, routing, auth scopes, feature flags, and dependencies on Domain/Process/Agent primitives.
 
+5. **Projection primitive**
+
+   * Read-optimized query services and materialized views derived from Domain facts/events and/or transactional data.
+   * Used for fast UI queries, analytics, cross-domain views, and integration read models; never a source of truth.
+   * **Runtime representation**: `Projection` CRD declares image, storage bindings, ingestion bindings, refresh/backfill policy, and query exposure.
+
+6. **Integration primitive**
+
+   * “Flows-as-code” runtimes that connect Ameide to external systems using proto-declared ports/contracts.
+   * Operator-managed day-2 operations (sync, schedules, drift detection, retries) and secrets/config injection (no secrets in proto).
+   * **Runtime representation**: `Integration` CRD declares runtime type, flow sync refs, endpoint bindings, schedules, and rollout strategy.
+
 These are **logical roles** implemented by concrete services described in the proto/API and North‑Star docs (graph/repository/platform/transformation/workflows/agents/chat/threads/www_*).
 
 ### 4.2 Transformation domain & design tooling
@@ -290,7 +304,7 @@ Backstage is the **factory** that turns Transformation Domain decisions into run
 
 * **Catalog**:
 
-  * Indexes Domain, Process, Agent, and UISurface primitives plus their sources (repos, Helm releases, proto APIs).
+  * Indexes Domain, Process, Agent, UISurface, Projection, and Integration primitives plus their sources (repos, Helm releases, proto APIs).
 * **Templates**:
 
   * Scaffold new primitives using standard Ameide patterns (proto, SDK, GitOps/operators) and emit the corresponding CRDs (Domain/Process/Agent/UISurface/Projection/Integration) that GitOps/Argo will apply.

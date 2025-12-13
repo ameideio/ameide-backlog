@@ -14,6 +14,7 @@
   - Operators own infra and health.
   - Primitives own SDK-based runtime behavior.
   - The CLI/scaffolder stitches them together without collapsing these boundaries.
+  - Codegen plugin evolution is tracked in `backlog/521-code-generation-improvements.md`; CLI/orchestration evolution is tracked in `backlog/522-cli-orchestration-improvements.md`.
 
 ---
 
@@ -66,11 +67,11 @@ This backlog is **normative** for new primitives and for CLI/scaffold behavior. 
 
 - For each primitive kind we support **one canonical language/shape** and **minimal flags**:
   - Domain:
-    - Required: `--kind domain --name <name> --proto-path <service.proto>`.
+    - Required: `--kind domain --name <name>`.
     - Implied: `--lang go`.
     - Optional: `--include-gitops`, `--include-test-harness`.
   - Process:
-    - Required: `--kind process --name <name> --proto-path <process_api.proto>`.
+    - Required: `--kind process --name <name>`.
     - Implied: `--lang go`.
     - Optional: `--include-gitops`, `--include-test-harness`.
   - Agent:

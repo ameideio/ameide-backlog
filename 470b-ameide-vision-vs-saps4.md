@@ -1,12 +1,9 @@
-Here’s a version of the same “vision” but framed explicitly **vs SAP S/4HANA** instead of D365.
-
----
-
 # 470.B – Ameide Code-First / AI-First ERP vs. SAP S/4HANA Metadata- & Config-Driven ERP
 
 **Status:** Draft  
 **Owner:** Architecture / Product  
 **Companion:** [470-ameide-vision.md](470-ameide-vision.md)
+**Related:** [520-primitives-stack-v2.md](520-primitives-stack-v2.md) (normative primitives stack v2)
 
 ## 1. Purpose
 
@@ -50,7 +47,8 @@ We are **not** trying to rebuild S/4HANA’s DDIC + CDS + Customizing stack insi
      * `Projection` – read-optimized consumption/analytics
      * `Integration` – flows-as-code external integration
 
-   * No CRDs for “table”, “field”, “form”, or “UI annotation”.
+	   * No CRDs for “table”, “field”, “form”, or “UI annotation”.
+	   * CRDs are **operational only** (operators reconcile lifecycle/config); behavior remains **code + proto**, with `buf generate` as the canonical generator runner and CI “regen-diff” guardrails.
 
 3. **Central, coherent system graph derived from code**
 

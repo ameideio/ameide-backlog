@@ -1,8 +1,8 @@
 # 510 – Domain Primitive Scaffolding (Go, opinionated)
 
-> **Deprecation notice (520):** This backlog specifies a Domain scaffold generated via `ameide primitive scaffold`. That approach is deprecated. Canonical v2 uses **`buf generate`** (pinned plugins, deterministic outputs, generated-only roots, regen-diff CI gate). See `backlog/520-primitives-stack-v2.md`.
+> **Status update (520/521):** This backlog specifies the Domain scaffold produced by the Ameide CLI (`ameide primitive scaffold`). The consolidated approach is a split: the CLI orchestrates scaffolding + external wiring (repo layout, GitOps), and `buf generate` + plugins handle internal deterministic generation (SDKs, generated-only glue). See `backlog/520-primitives-stack-v2.md` and `backlog/521-code-generation-improvements.md`.
 
-**Status:** Deprecated (superseded by 520)  
+**Status:** Active reference (aligned with 520/521)  
 **Audience:** AI agents (primary), Go developers (secondary), CLI implementers  
 **Scope:** Exact scaffold shape and patterns for **Domain** primitives. One opinionated pattern, aligned with `514-primitive-sdk-isolation.md` (SDK-only, self-contained primitives), no extra Domain-specific CLI parameters beyond the canonical `ameide primitive scaffold` flags.
 
@@ -158,8 +158,9 @@ Topic naming and envelope semantics follow `509-proto-naming-conventions.md` and
 Scaffolded handlers:
 
 - Live under `internal/handlers/handlers.go`.  
-- Are generated from the proto service: one method per RPC, returning `codes.Unimplemented`.  
-- Embed the generated `<ServiceName>Server` interface (for example `UnimplementedScrumQueryServiceServer`) so they can be registered directly in `cmd/main.go`.  
+- Implement the SDK-generated `<ServiceName>Server` interface (the method set comes from proto via `buf generate`, not from bespoke CLI proto parsing).  
+- Any proto-driven registration glue lives in generated-only roots (e.g., `internal/gen/**`) and is safe to delete/regenerate.  
+- Use `codes.Unimplemented` placeholders only as a scaffold starting point; generated tests/harnesses and/or compile-time interfaces should force RED→GREEN when contracts evolve.  
 - Provide a simple `New()` constructor; concrete primitives are expected to extend the handler to accept dependencies (DB handle, outbox, SDK-backed adapters) as needed.
 
 Scaffolded tests:

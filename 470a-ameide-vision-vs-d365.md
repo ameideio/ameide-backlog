@@ -3,6 +3,7 @@
 **Status:** Draft  
 **Owner:** Architecture / Product  
 **Companion:** [470-ameide-vision.md](470-ameide-vision.md)
+**Related:** [520-primitives-stack-v2.md](520-primitives-stack-v2.md) (normative primitives stack v2)
 
 ## 1. Purpose
 
@@ -42,7 +43,8 @@ We explicitly **do not** aim to recreate the D365 AOT stack in Kubernetes. Inste
      * `UISurface`
      * `Projection`
      * `Integration`
-   * We do **not** create CRDs for low‑level concepts like EDTs, fields, or individual forms.
+	   * We do **not** create CRDs for low‑level concepts like EDTs, fields, or individual forms.
+	   * CRDs are **operational only** (operators reconcile lifecycle/config); behavior remains **code + proto**, with `buf generate` as the canonical generator runner and CI “regen-diff” guardrails.
 
 3. **Central, coherent system graph derived from code**
 

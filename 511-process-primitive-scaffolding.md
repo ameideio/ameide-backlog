@@ -1,8 +1,8 @@
 # 511 – Process Primitive Scaffolding (Go, opinionated)
 
-> **Deprecation notice (520):** This backlog specifies a Process scaffold generated via `ameide primitive scaffold`. That approach is deprecated. Canonical v2 uses **`buf generate`** (pinned plugins, deterministic outputs, generated-only roots, regen-diff CI gate). See `backlog/520-primitives-stack-v2.md`.
+> **Status update (520/521):** This backlog specifies the Process scaffold produced by the Ameide CLI (`ameide primitive scaffold`). The consolidated approach is a split: the CLI orchestrates scaffolding + external wiring (repo layout, GitOps), and `buf generate` + plugins handle internal deterministic generation (SDKs, generated-only glue). See `backlog/520-primitives-stack-v2.md` and `backlog/521-code-generation-improvements.md`.
 
-**Status:** Deprecated (superseded by 520)  
+**Status:** Active reference (aligned with 520/521)  
 **Audience:** AI agents, Go developers, CLI implementers  
 **Scope:** Exact scaffold shape and patterns for **Process** primitives. One opinionated Temporal/EDA pattern, aligned with `514-primitive-sdk-isolation.md` (SDK-only, self-contained primitives), no new Process-specific CLI parameters beyond the canonical `ameide primitive scaffold` flags.
 
@@ -100,6 +100,7 @@ Process scaffolds assume:
 - **Ingress router**:
   - Subscribes to one or more **domain facts** topics (e.g., `scrum.domain.facts.v1`).  
   - For each fact, computes a deterministic workflow ID (e.g., `product/{product_id}/sprint/{sprint_id}`) and uses the Temporal client to call `SignalWithStart` on the **Temporal service** (not directly on workers).  
+  - Pins `WorkflowIDReusePolicy` explicitly for `SignalWithStart` (do not rely on defaults) and includes a test that asserts the selected policy for the primary workflows.  
   - Contains all non‑deterministic concerns (bus client, JSON/proto parsing, logging) and remains outside workflow code.
 
 - **Workflows**:

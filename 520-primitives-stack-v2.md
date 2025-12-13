@@ -21,15 +21,17 @@ This document is the consolidated, normative version of the Domain / Process / A
 
 ## Principles (platform constitution)
 
-Normative language: **MUST** and **MUST NOT** are used intentionally to indicate requirement level.
+This document uses direct requirement statements; treat them as non-negotiable for the v2 stack.
 
 1. **Proto is the behavior schema.** Protos define APIs, messages, events/facts, tools/ports (shape + minimal intent), not environment configuration or runtime policy logic.
-2. **`buf generate` is canonical.** Use `buf generate` and standard tooling. Plugins are invoked via Buf remote plugins (or an internal mirror of those remote plugins) with pinned versions/revisions; offline/restricted environments are a first-class requirement (see “Remote plugins: offline + supply chain” below). There is no bespoke “ameide scaffold/verify” CLI inner loop.
+2. **`buf generate` is canonical for internal generation.** Use `buf generate` and standard tooling for SDKs and deterministic, generated-only outputs. Plugins are invoked via Buf remote plugins (or an internal mirror of those remote plugins) with pinned versions/revisions; offline/restricted environments are a first-class requirement (see “Remote plugins: offline + supply chain” below).
+
+   The Ameide CLI is still valuable, but its job is orchestration and guardrails: scaffolding human-owned files, wiring GitOps, and running standard generation/verification commands. The CLI does not replace Buf plugins; it calls them.
 3. **Generation is deterministic.** Pin plugin versions (and ideally revisions), use `clean: true`, and enforce “regen-diff” in CI (run generation, fail if `git diff` is non-empty). ([Buf remote plugins][5], [Buf generate][6], [buf.gen.yaml v2][18])
 4. **Generated outputs are clobber-safe.** Generators write only to generated-only dirs/files. Human-owned code lives outside those directories. Regeneration deletes outputs. (`clean: true` makes deletion/renames correct.) ([buf.gen.yaml v2][18])
 5. **Operators are operational only.** Operators reconcile Kubernetes resources and surface status/conditions; they never interpret behavior semantics or contain language/framework logic. ([Kubernetes operator pattern][1])
 6. **Runtime code imports generated SDK outputs only.** Enforce import policy so runtime code never imports the proto source tree directly (avoid “proto-in-repo” coupling).
-7. **Fail early on drift.** Regeneration MUST cause compile failures and/or failing tests until human implementations are updated—no silent runtime rot. ([gRPC Go quickstart][4])
+7. **Fail early on drift.** Regeneration causes compile failures and/or failing tests until human implementations are updated—no silent runtime rot. ([gRPC Go quickstart][4])
 8. **Custom options are allowed, but protos are not a behavior DSL.** Use protobuf custom options/extensions for intent and metadata; keep routing/policy/prompt/provider behavior in `_impl` code + tests. ([Proto guide][20], [Proto guide][21])
 9. **Secrets stay in Kubernetes.** No secret literals in protos or generated artifacts. Operators inject secrets/config at runtime (env/volumes/secret refs, or platform-specific parameter stores). ([Kubernetes secrets][12])
 10. **Human-owned surface stays tiny.** The generator creates almost everything; the human “escape hatch” is a small set of `_impl` files and behavior tests.
@@ -48,9 +50,9 @@ Normative language: **MUST** and **MUST NOT** are used intentionally to indicate
 
 These are the lock-in decisions that keep the stack coherent:
 
-- `buf generate` is the canonical generator runner; no bespoke “scaffold/verify” CLI inner loop.
+- `buf generate` is the canonical generator runner for internal artifacts; the CLI orchestrates external wiring (repo layout, GitOps) and guardrails around it.
 - `clean: true` + regen-diff in CI is mandatory; generation must be clobber-safe and deterministic.
-- Generated outputs are written only to approved generated roots (`packages/ameide_sdk_ts/src/proto/gen/ts/**`, `packages/ameide_sdk_python/gen/python/**`, `packages/ameide_sdk_go/gen/go/**`, `build/generated/**`); never to `.`.
+- Generated outputs are written only to approved generated roots (`packages/ameide_sdk_ts/src/proto/gen/ts/**`, `packages/ameide_sdk_python/gen/python/**`, `packages/ameide_sdk_go/gen/go/**`, `primitives/**/internal/gen/**`, `build/generated/**`); never to `.`.
 - Operators are operational only (Kubernetes resources + conditions); behavior/policy stays in runtime code.
 - Protos are contracts, not a behavior DSL; custom options are “intent metadata”, not decision logic.
 - Per-environment bindings (URLs, brokers, topic names, secrets) never live in proto; they live in CRDs/runtime config and are injected at runtime.
@@ -64,7 +66,7 @@ This stack explicitly does not do the following:
 
 - Define a new orchestration layer above Kubernetes operators (“operators interpreting behavior semantics”).
 - Encode policy logic in `.proto` (prompts, routing rules, model/provider settings, env-specific endpoints).
-- Provide a bespoke scaffolding system outside the Protobuf/Buƒ plugin mechanism.
+- Provide a parallel “second generator pipeline” that duplicates protoc/Buƒ plugin behavior (e.g., hand-parsing protos and reimplementing descriptor resolution).
 - Allow generators to write into human-owned directories or produce non-deterministic output.
 - Hide drift until runtime (drift must surface as regen-diff, compile errors, or failing tests).
 
@@ -75,12 +77,13 @@ This stack explicitly does not do the following:
 - **Fact/Event**: a published payload message; use a stable external identifier (e.g., `type`) independent of package/type refactors.
 - **`stream_ref`**: a logical stream identifier in proto (e.g., `orders.facts`), bound to actual topics/subjects per environment via CRDs/runtime config.
 - **`binding_ref` / `endpoint_ref`**: logical references in proto used to bind to environment-specific transport configuration (Kafka subscriptions, HTTP endpoints, etc.).
-- **Approved generated root**: any directory that is safe to delete/recreate on regen and enforced by CI. In this repo, CI-enforced generator outputs MUST only land in:
+- **Approved generated root**: any directory that is safe to delete/recreate on regen and enforced by CI. In this repo, CI-enforced generator outputs land only in:
   - `packages/ameide_sdk_ts/src/proto/gen/ts/**` (TypeScript/ES SDK outputs)
   - `packages/ameide_sdk_python/gen/python/**` (Python SDK outputs)
   - `packages/ameide_sdk_go/gen/go/**` (Go SDK outputs)
-  - `build/generated/**` (primitive skeletons/tests/harness and other generated artifacts)
-- **SDK outputs**: generated language packages consumed by runtimes (MUST be the only way runtimes depend on proto contracts).
+  - `primitives/**/internal/gen/**` (per-primitive generated glue/tests; clobber-safe)
+  - `build/generated/**` (other generated artifacts; clobber-safe)
+- **SDK outputs**: generated language packages consumed by runtimes (the only way runtimes depend on proto contracts).
 
 ---
 
@@ -95,7 +98,7 @@ Each primitive kind is a Kubernetes API (CRD + controller) that reconciles a sma
 - Configuration: env/envFrom, projected volumes, Secret/ConfigMap references ([Define env vars][15], [Projected volumes][16], [Kubernetes secrets][12])
 - Status: conditions surfaced via standard Kubernetes conventions (`metav1.Condition`). ([metav1][38])
 
-Operators MUST follow standard operator/controller good practices (idempotent reconcile, watch-driven behavior). ([Kubebuilder good practices][22], [Watching resources][23])
+Operators follow standard operator/controller good practices (idempotent reconcile, watch-driven behavior). ([Kubebuilder good practices][22], [Watching resources][23])
 
 For Temporal-backed primitives, “operator manages Temporal concerns as Kubernetes resources and surfaces conditions” matches established ecosystem patterns. ([Temporal Operator][39])
 
@@ -146,9 +149,9 @@ Protobuf supports **option retention** (e.g., SOURCE-retained options) so “des
 
 Rules:
 
-- **All Ameide-specific custom options MUST be SOURCE-retained by default.** Only make an option runtime-retained when there is a deliberate, documented runtime reflection use case.
-- **Generators MUST read Ameide options from Protobuf source descriptors** (i.e., `CodeGeneratorRequest.source_file_descriptors`) and only fall back to `proto_file` when source descriptors are unavailable.
-- **Buf plugins MUST handle this correctly** or they will silently miss options and generate incorrect output.
+- **All Ameide-specific custom options are SOURCE-retained by default.** Use runtime retention only when there is a deliberate, documented runtime reflection use case.
+- **Generators read Ameide options from Protobuf source descriptors** (i.e., `CodeGeneratorRequest.source_file_descriptors`) and fall back to `proto_file` only when source descriptors are unavailable.
+- **Buf plugins handle this correctly** or they will silently miss options and generate incorrect output.
 
 ### 2) Ownership contract (generated vs human)
 
@@ -161,8 +164,26 @@ This pattern is especially important for Agent (LangGraph) scaffolds where node 
 
 **Implication for `clean: true`:**
 
-- Any directory used as a plugin `out` **MUST** be generated-only and safe to delete wholesale.
-- Therefore: do **not** rely on generators to “create human-owned files once” inside a cleaned `out` directory. If you want scaffolding templates, generate them under `build/generated/**` and copy them into human-owned locations once.
+- Any directory used as a plugin `out` is generated-only and safe to delete wholesale.
+- Therefore: do **not** rely on generators to “create human-owned files once” inside a cleaned `out` directory. Human-owned scaffolding is owned by the CLI orchestrator; Buf plugins only emit clobber-safe outputs (e.g., `primitives/**/internal/gen/**`).
+
+### 2b) Tool split (Buf vs CLI vs CI vs operators)
+
+Hard boundary:
+
+- Everything derived from protobuf descriptors is reproducible by running `buf generate` in a clean checkout.
+- Everything else (repo layout, GitOps wiring, multi-step dev loops) is CLI orchestration and/or human-owned.
+
+Responsibility matrix:
+
+| Concern / artifact | Proto | Buf plugins (`buf generate`) | CLI orchestrator | Operators |
+| --- | --- | --- | --- | --- |
+| API/event schemas + custom options | ✅ source of truth | reads descriptors | selects targets only | ❌ |
+| SDKs (Go/TS/Py) | ❌ | ✅ generate | runs generators | ❌ |
+| Generated glue inside primitives | ❌ | ✅ generate to generated roots | runs generators | ❌ |
+| Human-owned primitive skeleton | ❌ | ❌ | ✅ create/update | ❌ |
+| GitOps components / CR instances | ❌ | ❌ | ✅ create/update | reconciles CRs |
+| Canonical gate | CI uses proto+buf+tests | ✅ | optional wrapper | runtime only |
 
 **Repo layout (canonical pattern):**
 
@@ -171,7 +192,8 @@ This pattern is especially important for Agent (LangGraph) scaffolds where node 
   - `packages/ameide_sdk_ts/src/proto/gen/ts/**` (TypeScript/ES)
   - `packages/ameide_sdk_python/gen/python/**` (Python)
   - `packages/ameide_sdk_go/gen/go/**` (Go)
-- **Primitive skeletons/tests/harness (codegen)**: `build/generated/**` (pure generated; safe to delete).
+- **Per-primitive generated glue/tests (codegen)**: `primitives/**/internal/gen/**` (pure generated; safe to delete).
+- **Other generated artifacts (codegen)**: `build/generated/**` (pure generated; safe to delete).
 - **Human primitive implementations**: `primitives/**` (never generated/cleaned).
 - **Operators**: `operators/**` (never generated/cleaned; CRDs rendered under `operators/helm/**`).
 
@@ -188,7 +210,8 @@ This section is the “where does this live?” contract for all implementation 
   - Python: `packages/ameide_sdk_python/gen/python/**`
   - Go: `packages/ameide_sdk_go/gen/go/**`
 - **Primitive runtime implementations** (human-owned): `primitives/**` (per-kind subtrees under `primitives/agent/**`, `primitives/domain/**`, `primitives/process/**`, etc.).
-- **Generated skeletons/tests/harness** (clobber-safe): `build/generated/**`.
+- **Per-primitive generated glue/tests** (clobber-safe): `primitives/**/internal/gen/**`.
+- **Other generated artifacts** (clobber-safe): `build/generated/**`.
 - **Operators** (human-owned controllers + APIs): `operators/**` (e.g., `operators/domain-operator/**`, `operators/process-operator/**`).
 - **CRDs/manifests/examples**: `operators/helm/**` and `gitops/**`.
 - **Codegen and CI tooling**: `build/tools/**` and `tools/**`.
@@ -197,7 +220,7 @@ Flow (required):
 
 1. Edit protos under `packages/ameide_core_proto/src/ameide_core_proto/**`.
 2. Run `buf generate` from `packages/ameide_core_proto/` to refresh SDK outputs under `packages/ameide_sdk_ts/src/proto/gen/ts/**`, `packages/ameide_sdk_python/gen/python/**`, and `packages/ameide_sdk_go/gen/go/**`.
-3. Run primitive-kind generators via `buf generate` (or the canonical codegen entrypoint) to refresh `build/generated/**`.
+3. Run primitive-kind generators via `buf generate` (or the canonical codegen entrypoint) to refresh `primitives/**/internal/gen/**` (and `build/generated/**` when relevant).
 4. Implement behavior in `primitives/**` and operators in `operators/**` until CI gates pass.
 
 ### 3) “Operators don’t interpret behavior” contract
@@ -219,13 +242,13 @@ Operators do not:
 Operator reconciliation is not a “script runner”; it is a control loop. Two non-negotiables:
 
 - **Idempotent:** running reconcile repeatedly converges on the same desired state (safe retries; no “do it once” side effects).
-- **Short/fast:** reconcile MUST avoid long-running work so other resources are not starved and UX remains responsive.
+- **Short/fast:** reconcile avoids long-running work so other resources are not starved and UX remains responsive.
 
 Pattern for heavy operations (migrations, backfills, NiFi flow syncs, large installs):
 
 - Push long operations into **Jobs** / **async work queues** / **external orchestrators**.
-- Reconcile MUST (a) create/patch the work resource, (b) observe progress, and (c) update `status.conditions[]` with actionable `reason`/`message`.
-- Reconcile MUST requeue from observed state changes (watch Job/Route/Deployment status) and MUST NOT use sleep/poll loops.
+- Reconcile (a) creates/patches the work resource, (b) observes progress, and (c) updates `status.conditions[]` with actionable `reason`/`message`.
+- Reconcile requeues from observed state changes (watch Job/Route/Deployment status) and does not use sleep/poll loops.
 
 ### 4) Shared event/fact metadata spine
 
@@ -235,13 +258,13 @@ Minimum contract for the shared module:
 
 - **MessageOptions** annotation for event/fact messages:
   - `type` (stable external identifier; does not change when package paths refactor)
-  - `schema_subject` (schema registry subject naming; MUST be set on every fact/event message)
+  - `schema_subject` (schema registry subject naming; set on every fact/event message)
   - `stream_ref` (logical stream identifier; environment binds to actual topic/subject names via CRDs/runtime config)
   - `partition_key_fields[]` and `idempotency_key_fields[]` (field-path hints)
 
 Hard rule: do not place per-environment topic names/broker URLs in proto; bind those via CRDs/runtime config and inject at runtime.
 
-**CloudEvents compatibility (MUST)**
+**CloudEvents compatibility**
 
 To reduce bespoke “event envelope” design and improve interoperability, align emitted facts/events with **CloudEvents**:
 
@@ -250,21 +273,21 @@ To reduce bespoke “event envelope” design and improve interoperability, alig
 - Carry schema pointers via CloudEvents `dataschema` and content type via `datacontenttype` where applicable.
 - Keep `stream_ref` as a *logical routing identifier* (topic/subject binding) outside the CloudEvents attribute set.
 
-**Trace context (MUST)**
+**Trace context**
 
 Propagate distributed tracing consistently by carrying W3C Trace Context (e.g., `traceparent`) alongside CloudEvents (headers/attributes depending on transport). This avoids inventing a separate tracing metadata scheme per primitive.
 
 ### 5) Operator↔runtime contract (baseline)
 
-Every primitive runtime MUST expose a small, predictable “narrow waist” that operators can target across languages:
+Every primitive runtime exposes a small, predictable “narrow waist” that operators can target across languages:
 
 - **Health endpoints**: `GET /healthz` (liveness), `GET /readyz` (readiness), `GET /metrics` (Prometheus).
-- **Ports**: operator sets `PORT_HTTP` (and `PORT_GRPC` where applicable). Runtimes MUST NOT introduce primitive-specific port env vars. Any existing primitive-specific port env vars MUST be aliases of the standard `PORT_HTTP` / `PORT_GRPC`.
+- **Ports**: operator sets `PORT_HTTP` (and `PORT_GRPC` where applicable). Runtimes do not introduce primitive-specific port env vars. Any existing primitive-specific port env vars are aliases of the standard `PORT_HTTP` / `PORT_GRPC`.
 - **Identity**: operator sets a stable identifier env var (e.g., `DOMAIN_NAME`, `PROCESS_NAME`, `AGENT_ID`, `PROJECTION_NAME`) so the runtime can load the correct generated wiring.
 
 ### 6) Conditions glossary (baseline)
 
-All primitive CRDs MUST use `status.conditions[]` (`metav1.Condition`) and reuse a baseline vocabulary so tooling can reason across kinds:
+All primitive CRDs use `status.conditions[]` (`metav1.Condition`) and reuse a baseline vocabulary so tooling can reason across kinds:
 
 - **Schema:** use `metav1.Condition` fields as intended:
   - set `.status.observedGeneration` to the primitive CR’s `.metadata.generation` on every status update
@@ -274,7 +297,7 @@ All primitive CRDs MUST use `status.conditions[]` (`metav1.Condition`) and reuse
 - **Polarity:** follow Kubernetes/Gateway API “positive polarity” conventions:
   - condition types name the *happy-path achieved state* (`SecretsReady`, not `SecretsMissing`)
   - `status=True` means achieved; `status=False` means not achieved; avoid double-negatives
-  - MUST use specific `reason` values (e.g., `SecretMissing`, `DialFailed`, `InvalidSpec`) over creating ad-hoc negative condition types
+  - Use specific `reason` values (e.g., `SecretMissing`, `DialFailed`, `InvalidSpec`) over creating ad-hoc negative condition types
 
 - `SecretsReady`: all referenced Secrets/ConfigMaps exist and are mounted/rendered.
 - `DependenciesReady`: external dependencies are reachable (DB/broker/Temporal/NiFi/Registry/etc.).
@@ -282,9 +305,9 @@ All primitive CRDs MUST use `status.conditions[]` (`metav1.Condition`) and reuse
 - `RouteReady`: HTTPRoute is accepted/programmed/resolved by the Gateway implementation.
 - `Ready`: umbrella condition (true when all required conditions are true for the primitive kind).
 
-**Gateway API alignment (MUST when exposing HTTPRoute):**
+**Gateway API alignment (when exposing HTTPRoute):**
 
-- When a primitive exposes an HTTPRoute, map `RouteReady` directly from the Route’s own conditions (positive polarity) where available: `Accepted`, `ResolvedRefs`, `Programmed`. Operators MUST surface the underlying Gateway API `reason` and `message` in the primitive’s `RouteReady`.
+- When a primitive exposes an HTTPRoute, map `RouteReady` directly from the Route’s own conditions (positive polarity) where available: `Accepted`, `ResolvedRefs`, `Programmed`. Operators surface the underlying Gateway API `reason` and `message` in the primitive’s `RouteReady`.
 
 Primitive-specific conditions (examples): `TemporalReady`, `NamespaceReady`, `OutboxReady`, `FlowSynced`, `StoreReady`, `MigrationSucceeded`, `IngestionHealthy`, `BackpressureOK`.
 
@@ -303,12 +326,12 @@ Make the inner loop and CI gates identical across primitives:
 Treat plugin and proto evolution as a first-class operational workflow:
 
 - **Plugin upgrades**: change plugin version/revision in one PR, run `buf generate`, commit the full regen diff, and keep the regen-diff CI gate strict.
-- **Generated/human boundary**: generators only write under generated roots (`packages/ameide_sdk_ts/src/proto/gen/ts/**`, `packages/ameide_sdk_python/gen/python/**`, `packages/ameide_sdk_go/gen/go/**`, `build/generated/**`); never write to `.` or mixed human directories when `clean: true` is enabled.
+- **Generated/human boundary**: generators only write under generated roots (`packages/ameide_sdk_ts/src/proto/gen/ts/**`, `packages/ameide_sdk_python/gen/python/**`, `packages/ameide_sdk_go/gen/go/**`, `primitives/**/internal/gen/**`, `build/generated/**`); never write to `.` or mixed human directories when `clean: true` is enabled.
 - **Schema evolution**:
   - additive proto changes are default
   - breaking changes require a major version bump (`…v2`) and/or parallel message variants for replay-safe systems (especially Temporal/Process)
   - stable event/fact `type` identifiers come from the shared metadata spine, not from package/type names.
-  - runtimes MUST tolerate mixed-version payloads (unknown fields, missing fields, and new `oneof` variants) without crashing or wedging ingestion.
+  - runtimes tolerate mixed-version payloads (unknown fields, missing fields, and new `oneof` variants) without crashing or wedging ingestion.
 
 ### 9) Plugin implementation discipline (avoid subtle protoc/Buƒ bugs)
 
@@ -317,28 +340,28 @@ Primitive-kind generators are “supply-chain critical”: they sit between the 
 Minimum required:
 
 - **Use a well-maintained protoc plugin harness** (e.g., Buf’s `bufbuild/protoplugin` or an equivalent) to avoid common response-format and feature-negotiation bugs.
-- **Hermetic generators only**: generators MUST be pure functions of `CodeGeneratorRequest`; they MUST NOT read the repo filesystem, MUST NOT read outputs from other plugins, MUST NOT call the network, and MUST NOT depend on environment variables or clocks (no timestamps).
-- **Modern plugin handshake**: generators MUST set `CodeGeneratorResponse.supported_features` correctly and MUST support Protobuf Editions and `proto3 optional` without requiring generator changes. ([Protobuf Editions][46])
+- **Hermetic generators only**: generators are pure functions of `CodeGeneratorRequest`; they do not read the repo filesystem, other plugin outputs, or the network, and they do not depend on environment variables or clocks (no timestamps).
+- **Modern plugin handshake**: generators set `CodeGeneratorResponse.supported_features` correctly and support Protobuf Editions and `proto3 optional` without requiring generator changes. ([Protobuf Editions][46])
 - **Golden tests on deterministic inputs**: run the generator against a fixed `FileDescriptorSet` / `CodeGeneratorRequest` fixture and assert byte-for-byte stable outputs (no timestamps, stable ordering, stable formatting).
 - **Deterministic emission rules**: sort all emitted files, symbols, tables, fields, and edges deterministically; never rely on map iteration order.
 - **Retention-aware parsing**: read SOURCE-retained options from `CodeGeneratorRequest.source_file_descriptors` (see 1a).
 - **Descriptor-first symbol resolution**: never parse `.proto` text for type/service/method resolution; use `CodeGeneratorRequest` descriptors and resolve symbols across imports (e.g., return types like `google.protobuf.Empty`) so generators don’t break on cross-file dependencies.
-- **Import graph completeness**: generators MUST resolve and validate the full transitive import graph (including WKTs like `google.protobuf.Empty`) for every generated output.
+- **Import graph completeness**: generators resolve and validate the full transitive import graph (including WKTs like `google.protobuf.Empty`) for every generated output.
 
-**Scaffold stance (MUST, per primitive kind)**
+**Scaffold stance (per primitive kind)**
 
 Proto-driven “service skeleton” generators tend to fail when they try to be “too helpful.” Decide up front which of these you want:
 
 - **Compile-clean but unimplemented**: generated scaffolds compile, but default behavior returns “unimplemented” or placeholder results until humans implement extension points.
 - **Won’t compile until wired** (default for Ameide runtimes): generated scaffolds intentionally require explicit wiring/implementation so drift and missing dependencies fail at compile time or CI time, not at runtime.
 
-Default stance (MUST):
+Default stance:
 
 - **Domain/Process/Projection**: “won’t compile until wired” (forces handler/workflow impl + required config boundaries).
 - **Agent**: compile-clean scaffold + generated tests that fail until node/policy implementations exist.
 - **Integration**: compile-clean artifact generation, but structural tests fail if required ports/params/artifacts are missing or inconsistent.
 
-### 10) Remote plugins: offline + supply chain (MUST decisions)
+### 10) Remote plugins: offline + supply chain
 
 Remote plugins are a good default for consistency and pinning, but they introduce two real operational risks:
 
@@ -348,19 +371,19 @@ Remote plugins are a good default for consistency and pinning, but they introduc
 **Guardrails (required)**
 
 - **Never generate into `.` or any human-owned directory.** With `clean: true`, Buf deletes the plugin `out` directory before writing; this is only safe when `out` is generated-only.
-- **CI MUST validate generator outputs are safe to delete.** Reject any generation template executed in CI where a plugin `out` is `.` or outside approved generated roots (`packages/ameide_sdk_ts/src/proto/gen/ts/**`, `packages/ameide_sdk_python/gen/python/**`, `packages/ameide_sdk_go/gen/go/**`, `build/generated/**`).
+- **CI validates generator outputs are safe to delete.** Reject any generation template executed in CI where a plugin `out` is `.` or outside approved generated roots (`packages/ameide_sdk_ts/src/proto/gen/ts/**`, `packages/ameide_sdk_python/gen/python/**`, `packages/ameide_sdk_go/gen/go/**`, `primitives/**/internal/gen/**`, `build/generated/**`).
 
-**Offline strategy (MUST): mirror + pre-warm**
+**Offline strategy: mirror + pre-warm**
 
 - Mirror remote plugins into an internal registry/artifact store and reference the mirrored location (still pinned by version/revision).
 - Bake CI images with a pre-populated Buf cache for the pinned plugins/modules so `buf generate` is offline-safe in CI.
-- CI and dev inner loops MUST NOT download plugins from the public BSR.
+- CI and dev inner loops do not download plugins from the public BSR.
 
-**Supply chain / provenance (MUST)**
+**Supply chain / provenance**
 
 - Treat the generation step as a build: generator identity (plugin name + version + revision or digest), inputs (proto module + lockfiles), and outputs (generated file roots) are part of the reviewable change.
-- CI MUST emit and store provenance metadata (SLSA vocabulary) for generation runs.
-- Keep regen-diff strict: if provenance or plugin pins change, the full regen diff MUST be reviewed and committed in the same PR.
+- CI emits and stores provenance metadata (SLSA vocabulary) for generation runs.
+- Keep regen-diff strict: if provenance or plugin pins change, review and commit the full regen diff in the same PR.
 
 ---
 
@@ -406,7 +429,7 @@ Temporal namespaces are a first-class isolation boundary; treat namespace config
 
 **Intent:** read-optimized materialized views / analytical query services built from transactional data and/or domain facts/events.
 
-- **Proto:** query APIs + projected schema declarations; input bindings are required and MUST be declared as either fact/event consumption or CDC.
+- **Proto:** query APIs + projected schema declarations; input bindings are required and are declared as either fact/event consumption or CDC.
 - **Generation:** SDKs, ingestion stubs, schema/migration outputs, and harness/tests.
 - **Operator:** reconciles workloads plus backing stores/references, migrations/backfills, HTTPRoute exposure, and status conditions. Prefer idempotent, watch-driven reconcile patterns. ([Kubebuilder good practices][22], [controller-runtime reconcile][24])
 
@@ -424,7 +447,7 @@ Projection storage options are deliberately pluggable:
 
 - **Proto:** ports/contracts declared as annotated service methods; message schemas describe what is consumed/emitted; parameters remain placeholders.
 - **Generation:** flow artifacts (registry versioned flow snapshots), parameter context templates (placeholders only), descriptor sets/schemas, structural tests/harness.
-- **Operator (MUST):** reuse an upstream NiFi control plane (NiFiKop) for NiFi cluster/registry/dataflow/parameter-context reconciliation, and implement the Integration primitive as a thin adapter that translates proto-defined intent into those CRDs; surface conditions based on NiFi health signals (status, bulletins, queues/backpressure).
+- **Operator:** reuse an upstream NiFi control plane (NiFiKop) for NiFi cluster/registry/dataflow/parameter-context reconciliation, and implement the Integration primitive as a thin adapter that translates proto-defined intent into those CRDs; surface conditions based on NiFi health signals (status, bulletins, queues/backpressure).
 
 ---
 
@@ -441,32 +464,32 @@ Projection storage options are deliberately pluggable:
 - Primitive-kind generators use a standard plugin harness (e.g., `bufbuild/protoplugin`) and have golden tests that assert byte-for-byte deterministic outputs.
 - Primitive-kind generators are hermetic: no filesystem reads (outside the request), no network, no timestamps, and no dependence on other plugin outputs.
 - Primitive-kind generators implement the modern plugin handshake and support Protobuf Editions and `proto3 optional`.
-- Offline strategy is implemented: mirror remote plugins internally and pre-warm caches; CI and dev inner loops MUST NOT download plugins from the public BSR.
+- Offline strategy is implemented: mirror remote plugins internally and pre-warm caches; CI and dev inner loops do not download plugins from the public BSR.
 - Runtimes import only generated SDK outputs (no proto source-tree imports).
 - Reconcile loops are idempotent and short; long-running work is delegated to Jobs/async workflows with progress surfaced via conditions.
 - Operators set `.status.observedGeneration` on every status update and set `status.conditions[].observedGeneration` for every condition update; condition types follow positive-polarity naming aligned with Gateway API; baseline types are `SecretsReady`, `DependenciesReady`, `WorkloadReady`, `RouteReady` (if exposed), and `Ready`.
-- Observability uses OpenTelemetry conventions: generated runtimes propagate trace context across RPC/HTTP/event boundaries and MUST follow OpenTelemetry semantic conventions for span/metric naming to avoid bespoke “metric name wars”.
-- Facts/events emitted across system boundaries MUST be CloudEvents-compatible, with `event_fact.type` mapped to CloudEvents `type`.
-- CI MUST emit generation provenance metadata (SLSA vocabulary) as a build artifact when generation outputs are part of the repo.
+- Observability uses OpenTelemetry conventions: generated runtimes propagate trace context across RPC/HTTP/event boundaries and follow OpenTelemetry semantic conventions for span/metric naming to avoid bespoke “metric name wars”.
+- Facts/events emitted across system boundaries are CloudEvents-compatible, with `event_fact.type` mapped to CloudEvents `type`.
+- CI emits generation provenance metadata (SLSA vocabulary) as a build artifact when generation outputs are part of the repo.
 
 ### Domain
 
 - Emits facts/events annotated with the shared `(ameide_core_proto.common.v1.event_fact)` option.
 - Has an outbox story (if event-driven) that is testable and drift-checked.
 - Any generated gRPC-Go server stub embeds `Unimplemented<Service>Server` **by value**, not pointer, and includes a unit test that asserts a zero-value server does not panic when an unimplemented RPC is called (guards the known nil-embed foot-gun).
-- Generated stubs MUST preserve compile/CI drift detection: do not rely on `Unimplemented<Service>Server` to “cover missing methods”; generate explicit per-RPC stubs and/or a required handler interface so missing wiring fails early.
+- Generated stubs preserve compile/CI drift detection: do not rely on `Unimplemented<Service>Server` to “cover missing methods”; generate explicit per-RPC stubs and/or a required handler interface so missing wiring fails early.
 
 ### Process
 
 - Workflow inputs are replay-safe: start args versioned explicitly; breaking payload changes handled via parallel variants.
 - Generated guardrails enforce determinism constraints and ban non-deterministic imports/calls in workflow impl.
 - Generated wiring uses shared constants/config for task queue/workflow type to avoid silent stalls from name mismatches, and always sets `WorkflowIDReusePolicy` explicitly for Signal-With-Start (do not rely on SDK defaults).
-- Generated code MUST NOT assume legacy/experimental Temporal Worker Versioning methods (vendor docs warn pre-2025 experimental support is removed from Temporal Server March 2026); generated code MUST use replay-safe code versioning patterns and stable worker deployment/versioning approaches.
+- Generated code does not assume legacy/experimental Temporal Worker Versioning methods (vendor docs warn pre-2025 experimental support is removed from Temporal Server March 2026); generated code uses replay-safe code versioning patterns and stable worker deployment/versioning approaches.
 
 ### Agent
 
 - Proto defines only tool I/O + state schema + minimal graph hints; prompts/policy remain in `_impl` code.
-- Persistence/state discipline is enforced: requests MUST provide a stable `thread_id` as a first-class request field; persisted state stays small (IDs/cursors/keys), and large artifacts are stored out-of-band with references in state; tool outputs and structured responses are runtime-validated against generated schemas.
+- Persistence/state discipline is enforced: requests provide a stable `thread_id` as a first-class request field; persisted state stays small (IDs/cursors/keys), and large artifacts are stored out-of-band with references in state; tool outputs and structured responses are runtime-validated against generated schemas.
 
 ### Projection
 
