@@ -117,3 +117,30 @@ Each primitive vertical MUST be tracked in its own checklist document:
 - [ ] `backlog/520-primitives-stack-v2-tdd-projection.md`
 - [ ] `backlog/520-primitives-stack-v2-tdd-integration.md`
 - [ ] `backlog/520-primitives-stack-v2-tdd-uisurface.md`
+
+## Appendix: Dev 1 Retrospective + Generator Improvements (MUST)
+
+This appendix MUST document what was learned while implementing Domain v0 and MUST translate those learnings into generator requirements that remove developer guesswork.
+
+### Observed Friction (FACTS)
+
+- The runtime `go.mod` used a local `replace` to the Go SDK, which required the Docker build context to include `packages/ameide_sdk_go`.
+- The gRPC surface was defined by proto shape, but the runtime still needed a deterministic and repeatable way to register services without hand-editing imports and `Register*Server` calls.
+- The build/publish step was the only manual deviation; this surfaced environment drift (Docker daemon access) that is unrelated to the primitive/operator architecture.
+
+### Generator Improvements for “No-Brainer” Development (MUST)
+
+- The Domain generator MUST auto-discover which services to generate for; it MUST NOT require an explicit `services=...` list in generator parameters.
+- The Domain generator MUST generate runtime wiring that is compile-time safe; generated code MUST NOT rely on `any` + type assertions for service registration.
+- The Domain generator MUST generate a complete v0 runtime skeleton (server bootstrap + health + reflection) so a developer MUST NOT create `cmd/main.go` by hand.
+- The Domain generator MUST generate “create-if-missing” human-owned extension points (handlers) and MUST NOT overwrite human-owned files.
+- The Domain generator MUST generate a Docker build contract that works in CI and locally:
+  - It MUST specify the required build context explicitly.
+  - It MUST NOT depend on local-only `go.work` behavior inside Docker builds.
+- The Domain generator MUST emit deterministic file names and stable ordering to guarantee reproducible outputs and reliable regen-diff gating.
+- The Domain generator MUST read Ameide options from `source_file_descriptors` when present and MUST NOT assume runtime descriptors contain SOURCE-retained data.
+
+### Repo Automation Improvements (MUST)
+
+- The repo MUST provide a single command that runs the vertical loop for each primitive (generate → build → push → GitOps sync → probe).
+- The repo MUST provide a single command that validates generator determinism via golden tests for each generator plugin.
