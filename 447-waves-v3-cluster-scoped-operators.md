@@ -112,7 +112,7 @@ environments/_shared/components/
 │       ├── keycloak/           → keycloak-system namespace
 │       ├── redis/              → redis-system namespace
 │       ├── strimzi/            → strimzi-system namespace
-│       └── temporal-operator/  → temporal-system namespace
+│       └── temporal-operator/  → argocd namespace (see note below)
 ├── foundation/                 # Per-environment foundation
 ├── data/                       # Per-environment data workloads
 ├── platform/                   # Per-environment platform
@@ -132,7 +132,9 @@ Each operator deploys to a dedicated `-system` namespace:
 | Keycloak | `keycloak-system` | All namespaces |
 | cert-manager | `cert-manager` | All namespaces |
 | external-secrets | `external-secrets` | All namespaces |
-| Temporal operator | `temporal-system` | All namespaces |
+| Temporal operator | `argocd` | All namespaces |
+
+**Note on Temporal operator namespace:** the Temporal operator bundles admission webhooks and requires cert-manager to mint its serving certificate and inject the CA bundle. In our current setup, cert-manager instances are namespace-scoped, and `argocd` already runs an isolated `argocd-cert-manager`, so the operator is deployed in `argocd`. Moving it to a dedicated `*-system` namespace is possible, but requires an equivalent cert-manager instance in that namespace (or switching to a cluster-wide cert-manager model).
 
 Operators are configured with `watchNamespaces: []` (empty = all namespaces) so they can manage CRs in any environment namespace.
 
