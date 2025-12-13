@@ -33,13 +33,14 @@ Primary outcomes:
 - **AppSet waves still function**: component definitions retain `rolloutPhase` and RollingSync steps continue to gate rollouts.
 - **AppSet strict templating is enabled**: `goTemplateOptions: ["missingkey=error"]` is enforced so mis-templated apps fail fast.
 - **A `global.ameide.*` contract exists**: cluster/env globals now publish a Helm-native contract and at least one owned chart enforces it via `values.schema.json`.
-- **Cluster-type component set scaffolding exists**: local can now be driven from `environments/local/components/**` (curation/allowlist work still pending).
+- **Cluster-type component set scaffolding exists (local)**: local can now be driven from `environments/local/components/**` (curation/allowlist work still pending). Azure keeps using `_shared` as the canonical full set until it needs to diverge.
 - **Destination-cluster secret management is in place** for Vault + SecretStore + GHCR pull secrets; cross-namespace Vault role now explicitly includes `ameide-system`.
 - **Argo drift mitigations exist** where needed:
   - CNPG drift fix for `cluster.*` key collisions applied in templates.
   - Argo CD system `resource.customizations` covers Temporal CRs and CRDs to keep health deterministic (no “Unknown” during controller/CRD ordering).
 - **Backstage stable session secret is operator-managed**: cookie signing secret is sourced from Vault KV and synced via External Secrets Operator (no Helm randomness, no Argo diff ignores).
 - **Postgres credential Secrets are operator-managed**: CNPG user Secrets are now sourced from Vault KV and synced via External Secrets Operator (no Helm `rand*/lookup` loops, no secret payload diff ignores).
+- **Schema guardrails are expanding**: additional internal charts now validate the `global.ameide.*` contract (start with Backstage + CNPG config charts).
 - **Postgres password drift can be reconciled (local-only)**: a gated PostSync hook Job can reconcile existing DB role passwords from the synced Secrets using the CNPG superuser secret. This is intended as a migration/self-heal tool when switching password sources (e.g. Helm-generated → Vault KV → ESO).
 - **A proper chart toggle exists for one vendor chart fork**: Langfuse worker can be disabled (currently implemented inside the vendored chart tree).
 - **Temporal bootstrap is operator-native**: Temporal namespaces are managed via `TemporalNamespace` CRs and Temporal DB readiness is gated by an idempotent Argo hook Job (no “run this once” manual bootstrap).
@@ -62,7 +63,9 @@ Primary outcomes:
    - Platform/fleet globals live under `global.ameide.*` (Helm-native propagation).
    - Avoid ambiguous root keys like `cluster`, `name`, `type`, `spec` in global values.
 2. **Wave-safe fleet targeting**
-   - AppSets install the right component set per cluster type (`environments/local/components/**` vs `environments/azure/components/**`) while preserving `rolloutPhase` gating.
+   - AppSets install the right component set per cluster type while preserving `rolloutPhase` gating:
+     - Azure: uses `environments/_shared/components/**` as the canonical full set.
+     - Local: uses `environments/local/components/**` as a curated allowlist/subset.
 3. **First-class enablement**
    - Every workload we own or wrap supports `enabled: true|false`.
    - For truly unsupported components, prefer “do not generate the Application” over “install disabled placeholder resources”.
@@ -114,8 +117,9 @@ global:
 
 ### 4.2 Cluster-type component sets
 
-- `environments/azure/components/**/component.yaml` – canonical full set for hosted clusters.
-- `environments/local/components/**/component.yaml` – curated subset for local k3d; either omits unsupported components or points to wrappers with `enabled=false`.
+- Azure hosted clusters use `environments/_shared/components/**/component.yaml` as the canonical full set.
+- `environments/local/components/**/component.yaml` is the curated subset for local k3d; either omits unsupported components or points to wrappers with `enabled=false`.
+- If/when Azure needs to diverge from `_shared`, introduce a real `environments/azure/components/**` tree (not a symlink mirror) and document the divergence.
 
 ### 4.3 Wrappers for vendor charts
 
@@ -150,10 +154,9 @@ Example wrapper conventions:
 
 ### Phase B — ApplicationSet generator split by clusterType
 
-1. Create `environments/local/components/**` (start minimal) and `environments/azure/components/**` (can initially symlink/copy existing `_shared` definitions).
-2. Patch AppSet overlays so:
-   - local overlay reads `environments/local/components/**`
-   - azure overlay reads `environments/azure/components/**`
+1. Create `environments/local/components/**` (start minimal).
+2. Patch AppSet overlays so the local overlay reads `environments/local/components/**`.
+3. Azure remains on `environments/_shared/components/**` by default; only introduce `environments/azure/components/**` if Azure needs to diverge.
 3. Enforce strict AppSet templating (fail fast):
    - `goTemplateOptions: ["missingkey=error"]`
 4. Preserve wave labels (`rolloutPhase`) and validate RollingSync still progresses.
