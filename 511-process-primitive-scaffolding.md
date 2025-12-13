@@ -34,13 +34,12 @@
 
 ## 1. Canonical scaffold command (Process / Go)
 
-For Process primitives we use a single, opinionated Temporal pattern:
+For Process primitives we use a single, opinionated Temporal pattern. Scaffolds are SDK/shape‑based and do not require a proto path:
 
 ```bash
 ameide primitive scaffold \
   --kind process \
   --name <name> \
-  --proto-path <path/to/process_api.proto> \
   --include-gitops \
   --include-test-harness
 ```
@@ -189,7 +188,7 @@ This section describes the current implementation status of 511 in the CLI (`pac
 
 ### 6.1 Scaffolder behavior for Process primitives
 
-**Status:** Partially implemented with a Process-specific Go scaffold shape (worker + ingress + workflows), now including basic Temporal SDK wiring.
+**Status:** Implemented as a Process-specific Go scaffold shape (worker + ingress + workflows), SDK/shape-based and proto-path free.
 
 - `ameide primitive scaffold --kind process`:
   - Uses a dedicated Process shape in the shared Go scaffold path (`primitive_scaffold.go`):
@@ -228,7 +227,7 @@ This section describes the current implementation status of 511 in the CLI (`pac
 
 ### 6.2 Verify behavior for Process primitives
 
-**Status:** Generic checks only; no Temporal/Process-specific enforcement yet.
+**Status:** Generic checks plus a Process-specific shape check.
 
 - `primitive verify --kind process --name <name>`:
   - Runs generic repo checks:
@@ -237,18 +236,18 @@ This section describes the current implementation status of 511 in the CLI (`pac
     - Dependency vulnerabilities (for Go modules),
     - Tests (`go test` under the primitive),
     - Optional Buf / GitOps checks when configured.
-  - Does **not** currently validate:
-    - Presence of `cmd/worker` or `cmd/ingress` binaries.
-    - Existence of `internal/workflows/**` or `internal/ingress/router.go`.
-    - Idempotency helpers or Process fact emission patterns.
-    - Temporal namespace/task queue configuration in code or GitOps.
+  - Adds a Process-specific scaffold check:
+    - `checkProcessShape(kind, serviceDir)` ensures the following files exist:
+      - `cmd/worker/main.go`
+      - `cmd/ingress/main.go`
+      - `internal/workflows/workflow.go`
+      - `internal/ingress/router.go`
+      - `internal/process/state.go`
+    - Fails when any of these are missing with a `ProcessShape` issue.
 
 ### 6.3 Known gaps and next steps
 
 - Scaffold:
   - Enrich `internal/workflows` and `internal/ingress` stubs with stronger examples (e.g., example Activities, signal handlers, Continue-As-New patterns) once Temporal patterns are finalized.
 - Verify:
-  - Add Process-specific checks to `primitive verify` to ensure:
-    - Worker/ingress entrypoints and workflow/router/state files are present and wired into the go module.
-    - Temporal configuration is wired in GitOps (values.yaml).
-    - Optional: enforce idempotency patterns and fact emission conventions via heuristics.
+  - Extend Process-specific checks to understand Temporal configuration and idempotency/fact emission conventions (currently out of scope for `checkProcessShape`).

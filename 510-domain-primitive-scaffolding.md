@@ -41,12 +41,11 @@ For Domain primitives we use **one opinionated pattern**:
 ameide primitive scaffold \
   --kind domain \
   --name <name> \
-  --proto-path <path/to/service.proto> \
   --include-gitops \
   --include-test-harness
 ```
 
-- `--kind`, `--name`, `--proto-path`, `--include-gitops`, `--include-test-harness` are the **canonical** CLI flags for Domain scaffolds.  
+- `--kind`, `--name`, `--include-gitops`, `--include-test-harness` are the **canonical** CLI flags for Domain scaffolds.  
 - The implementation must **implicitly choose Go** as the language for Domain scaffolds (`--lang` is effectively fixed to `go` and treated as a compatibility flag only).  
 - After scaffolding, the CLI should **automatically add the new module to `go.work`** (via `go work use ./primitives/domain/<name>`) so `go build ./primitives/domain/<name>/...` works without additional wiring.  
 - The expected location for the scaffold is:
@@ -214,7 +213,7 @@ This section tracks how much of 510 is implemented in the current CLI (`packages
     - `kind = PRIMITIVE_KIND_DOMAIN`
     - `lang` defaulted to `go` if empty, per 510.
   - The CLI enforces:
-    - `--proto-path` is required for Domain.
+    - SDK-based, Go-only scaffolds for Domains (no proto-path required).
     - `--include-gitops` and `--include-test-harness` supported.
   - `buildPrimitivePaths` places scaffolds at:
     - `primitives/domain/<name>`
@@ -230,7 +229,7 @@ This section tracks how much of 510 is implemented in the current CLI (`packages
   - Domain/Go README content is rendered from:
     - `templates/domain/readme.md.tmpl` via `renderDomainTemplate` in `templates_domain.go`.
   - The README includes:
-    - Scaffold command (with `--kind domain`, `--name`, `--proto-path`, `--include-gitops`, `--include-test-harness`).
+    - Scaffold command (with `--kind domain`, `--name`, `--include-gitops`, `--include-test-harness`).
     - Explanation of outbox/dispatcher pattern and SDK-only outbound calls.
     - “Running locally” instructions:
       - `go build ./cmd/...`
@@ -240,19 +239,14 @@ This section tracks how much of 510 is implemented in the current CLI (`packages
     - Development checklist that references `ameide primitive verify`.
 
 - **Handlers and gRPC server**
-  - The CLI parses:
-    - RPC definitions with `parseRPCDefinitions`.
-    - The first `service` name via `parseServiceName`.
+  - The CLI no longer parses proto files for Domains; scaffolds are SDK/shape only.
   - `buildHandlersContent` for Domain/Go:
-    - Imports the SDK package computed by `deriveImportPath`.
-    - Embeds `Unimplemented<ServiceName>Server` into `Handler`.
-    - Stubs one method per RPC returning `codes.Unimplemented`.
+    - Generates a minimal `Handler` type and `New()` constructor with no RPC methods when no SDK service is specified.
+    - Leaves it to the primitive author to wire specific SDK services and RPC methods.
   - `buildMainContent` for Domain/Go:
     - Emits `cmd/main.go` that:
-      - Listens on `:PORT` (default `:8080`).
-      - Registers `Register<ServiceName>Server(server, handlers.New())`.
-      - Wires gRPC health (`grpc_health_v1`) and reflection.
-      - Uses `envOrDefault` for reading `PORT`.
+      - Logs a scaffold bootstrap message and instantiates `handlers.New()`.
+      - Is intended to be replaced/extended once the Domain’s SDK service and gRPC wiring are known.
 
 - **EDA scaffolding**
   - Outbox port:

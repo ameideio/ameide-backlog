@@ -141,11 +141,10 @@ This section describes how the existing primitive-scaffolding backlogs must be i
 
 - `ameide primitive scaffold` must:
   - Enforce canonical language per kind (P4).
-  - Require `--proto-path` only for Domain/Process kinds.
   - Accept `--include-gitops` and `--include-test-harness` uniformly.
-  - For Agent/UISurface:
-    - Ignore or deprecate `--proto-path` if passed.
-    - Avoid agent-specific knobs that belong to Backstage/Transformation (owner, description, definitionRef, model) on the hot path.
+  - Avoid introducing proto-path dependencies into primitive scaffolds:
+    - Domain/Process scaffolds are SDK- and shape-only; proto analysis lives in plan/impact/verify, not scaffold.
+    - Agent/UISurface scaffolds remain SDK/HTTP-focused and do not accept proto-path as a required flag.
 
 ### 4.2 Prompt command and Coder agents
 
@@ -248,14 +247,16 @@ This section describes how much of 514 is currently enforced by the CLI (`packag
 
 ### 6.4 P4 – Opinionated, minimal scaffolders
 
-**Status:** Implemented in CLI flag handling; per-kind language and proto-path rules are enforced.
+**Status:** Implemented in CLI flag handling; scaffolders are SDK/shape-based and no longer require proto-paths.
 
 - `primitive scaffold`:
   - Enforces canonical language per kind:
     - Domain/Process: defaults to Go; `--lang` values other than `go` are rejected.
     - Agent: uses the dedicated Python scaffold path; `--lang` values other than `py`/`python` are rejected.
     - UISurface: recognized as a kind, but scaffolding is currently **disabled**; `runScaffold` returns an explicit “UISurface scaffolding not yet implemented; see 513” error instead of generating the old generic TS shape.
-  - Requires `--proto-path` for Domain/Process and treats it as optional/ignored for Agent/UISurface.
+  - Does **not** require `--proto-path` for any primitive kind:
+    - Domain/Process scaffolds are SDK-only shapes (go.mod, Dockerfile, basic handlers/worker/ingress) with no proto dependency.
+    - Agent scaffolds have never required proto-path and remain SDK/HTTP-only; any proto usage is via SDK clients.
   - Avoids per-kind “extra knobs” on the hot path:
     - Richer metadata and Backstage wiring live in templates and Backstage configs, not extra CLI flags.
 
