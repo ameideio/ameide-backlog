@@ -13,7 +13,7 @@
 > | [476-ameide-security-trust.md](476-ameide-security-trust.md) | Security architecture |
 > | [478-ameide-extensions.md](478-ameide-extensions.md) | Tenant primitive patterns |
 >
-> **Core Invariants**: See [470-ameide-vision.md §0 "Ameide Core Invariants"](470-ameide-vision.md) for the canonical list (four primitives, Graph read-only, Transformation as domain, proto chain, tenant isolation, Backstage internal).
+> **Core Invariants**: See [470-ameide-vision.md §0 "Ameide Core Invariants"](470-ameide-vision.md) for the canonical list (six primitives: Domain/Process/Agent/UISurface/Projection/Integration, Graph read-only, Transformation as domain, proto chain, tenant isolation, Backstage internal).
 >
 > **Deployment Implementation**:
 > - [461-ipc-idc-iac.md](461-ipc-idc-iac.md) – CRD operator patterns *(note: 461 uses deprecated IDC/IPC/IAC naming; use Domain/Process/Agent CRD per 470 glossary)*
@@ -299,13 +299,13 @@ Agent primitives are **not** a separate domain. They are cross-cutting runtimes 
   * `processes`: e.g. `["L2O", "O2C"]`
 * This is **metadata**, not strict ownership; any process can invoke any Agent primitive as long as policy allows.
 
-Backstage templates (for Domain/Process/Agent/UISurface primitives) are **internal implementation details**; they live in the Application/Tech layer and are used by engineers and transformation agents to spin up new primitives, not by business users directly.
+Backstage templates (for primitives) are **internal implementation details**; they live in the Application/Tech layer and are used by engineers and transformation agents to spin up new primitives, not by business users directly.
 
 ### 4.7 Tenant-Specific Primitives
 
 Whenever possible, small, local customizations should attach to Tier 1 WASM extension hooks on existing primitives. The model below describes **Tier 2 primitive-based extensions** for requirements that justify new services—see [479-ameide-extensibility-wasm.md](479-ameide-extensibility-wasm.md) for how both tiers relate.
 
-When tenants require custom primitives beyond the standard product, Backstage templates (or agents) create Domain/Process/Agent/UISurface CRDs plus repositories and GitOps manages those CRDs per environment:
+When tenants require custom primitives beyond the standard product, Backstage templates (or agents) create primitive CRDs (Domain/Process/Agent/UISurface/Projection/Integration) plus repositories and GitOps manages those CRDs per environment:
 
 * **Platform primitives** run in `ameide-{env}` (Shared SKU) or `tenant-{id}-{env}-base` (Namespace/Private SKU)
 * **Tenant custom primitives** always run in `tenant-{id}-{env}-cust` namespaces

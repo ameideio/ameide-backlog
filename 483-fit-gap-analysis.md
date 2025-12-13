@@ -193,7 +193,7 @@
 | Area | Status | Notes |
 |------|--------|-------|
 | Backstage deployment | ✅ MVP deployed | Running in `ameide-{env}` |
-| Software templates | ⏳ Not started | Templates for Domain/Process/Agent/UISurface primitives pending |
+| Software templates | ⏳ Not started | Templates for primitives pending (Domain/Process/Agent/UISurface/Projection/Integration) |
 | Catalog integration | ⚠️ Partial | Catalog modeling defined; wiring to primitives pending |
 | TechDocs | ⏳ Not started | Documentation publishing not configured |
 

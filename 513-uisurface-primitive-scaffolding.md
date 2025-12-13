@@ -1,6 +1,8 @@
 # 513 – UISurface Primitive Scaffolding (TypeScript, opinionated)
 
-**Status:** Draft  
+> **Deprecation notice (520):** This backlog specifies a UISurface scaffold generated via `ameide primitive scaffold`. That approach is deprecated. Canonical v2 uses **`buf generate`** (pinned plugins, deterministic outputs, generated-only roots, regen-diff CI gate). See `backlog/520-primitives-stack-v2.md`.
+
+**Status:** Deprecated (superseded by 520)  
 **Audience:** UI engineers, AI agents, CLI implementers  
 **Scope:** Exact scaffold shape and patterns for **UISurface** primitives. One opinionated SDK‑first pattern, aligned with `514-primitive-sdk-isolation.md` (SDK-only, self-contained primitives). No new UISurface-specific CLI parameters beyond the canonical `ameide primitive scaffold` flags.
 

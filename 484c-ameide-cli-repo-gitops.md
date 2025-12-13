@@ -1,5 +1,7 @@
 # 484c – Ameide CLI: Repo & GitOps Alignment
 
+> **Deprecation notice (520):** Any workflow here that relies on `ameide primitive scaffold` as the primary generator/scaffolder is deprecated. Canonical v2 uses **`buf generate`** with pinned plugins + regen-diff CI gate. See `backlog/520-primitives-stack-v2.md`.
+
 **Status:** Active
 **Audience:** CLI implementers, platform engineers
 **Scope:** Core vs GitOps repo split, directory structure, test infrastructure (430), GitOps alignment (434)

@@ -6,9 +6,9 @@ Here’s **Document 4/6 – Technology Architecture**.
 
 **Status:** Draft
 **Audience:** Platform / Domain & Process Teams / DevEx / SRE
-**Scope:** How Ameide is built and operated: runtimes, infra, integration points, and the technical guardrails that make "Domain / Process / Agent / UISurface" primitives real.
+**Scope:** How Ameide is built and operated: runtimes, infra, integration points, and the technical guardrails that make the Ameide primitive kinds (Domain / Process / Agent / UISurface / Projection / Integration) real.
 
-> **Core Invariants**: See [470-ameide-vision.md §0 "Ameide Core Invariants"](470-ameide-vision.md) for the canonical list (four primitives, Graph read-only, Transformation as domain, proto chain, tenant isolation, Backstage internal).
+> **Core Invariants**: See [470-ameide-vision.md §0 "Ameide Core Invariants"](470-ameide-vision.md) for the canonical list (six primitives: Domain/Process/Agent/UISurface/Projection/Integration, Graph read-only, Transformation as domain, proto chain, tenant isolation, Backstage internal).
 >
 > **Cross-References (Deployment Architecture Suite)**:
 > For GitOps deployment patterns, see:
@@ -52,7 +52,7 @@ The goal is to give implementers a **vendor-aligned blueprint** that can be exec
 
 1. **Kubernetes-native declarative primitives**
 
-   * We use Kubernetes for *both infrastructure and primitive lifecycles*. Domain/Process/Agent/UISurface primitives are declared via their CRDs; GitOps applies those CRDs and Ameide operators reconcile them into Deployments, Services, HPAs, Temporal workers, and supporting config.
+  * We use Kubernetes for *both infrastructure and primitive lifecycles*. The six primitives are declared via their CRDs; GitOps applies those CRDs and Ameide operators reconcile them into workloads and supporting config.
    * We still reserve CRDs for coarse application constructs (primitives, tenants, infra). Business aggregates (Orders, Customers, etc.) remain inside domain services; we do **not** create one CRD per aggregate. ([Kubernetes][1])
 
 2. **Proto‑first, SDK‑first APIs**
@@ -62,7 +62,7 @@ The goal is to give implementers a **vendor-aligned blueprint** that can be exec
 
 3. **Backstage as the “factory” for primitives**
 
-   * Backstage’s **Software Catalog** and **Software Templates / Scaffolder** are used to create and manage all Ameide Domain/Process/Agent/UISurface primitives and their Helm charts. ([Backstage][2])
+  * Backstage’s **Software Catalog** and **Software Templates / Scaffolder** are used to create and manage Ameide primitives and their deployment artifacts. ([Backstage][2])
    * Ameide-specific templates encapsulate all wiring (proto skeleton, SDK, deployment, monitoring), so an agent or the Transformation Domain can “ask” for a new primitive and simply fill in code.
 
 4. **Temporal for process orchestration; BPMN-compliant ProcessDefinitions for process intent**
@@ -83,7 +83,7 @@ The goal is to give implementers a **vendor-aligned blueprint** that can be exec
 
 7. **GitOps & immutable deployments**
 
-   * Argo CD + Helm remain the deployment plane. Git stores Domain/Process/Agent/UISurface CRDs, infra CRDs, and operator manifests; operators own the low-level Deployments/Services, so Argo never `kubectl apply`s mutable child resources directly.
+  * Argo CD + Helm remain the deployment plane. Git stores primitive CRDs (Domain/Process/Agent/UISurface/Projection/Integration), infra CRDs, and operator manifests; operators own the low-level child resources, so Argo never `kubectl apply`s mutable children directly.
 
 8. **Tiered extensibility (WASM for small, primitives for big)**
 
@@ -117,7 +117,7 @@ The goal is to give implementers a **vendor-aligned blueprint** that can be exec
 * Use Kubernetes “Operator pattern” for:
 
   * Databases (CNPG), Kafka (if used), Redis, ClickHouse.
-  * Application control plane: Domain, Process, Agent, and UISurface operators reconcile CRDs into workloads across namespaces/SKUs.
+  * Application control plane: Domain, Process, Agent, UISurface, Projection, and Integration operators reconcile CRDs into workloads across namespaces/SKUs.
   * Tenant lifecycle: an **`AmeideTenant` CRD** to provision baseline infra per tenant (DB schema, Keycloak realm, namespaces).
 * Operators stay focused on coarse-grained platform resources (infra, primitives, tenants). Business data and aggregates remain inside the services described by those primitives. ([Kubernetes][5])
 
@@ -254,14 +254,16 @@ In addition to the Domain/Process/Agent primitives described below, the platform
 
 **3.3.5 Primitive operators**
 
-> **Repo layout**: Operator implementations live in `ameideio/ameide: operators/{domain,process,agent,uisurface}`. See [477-primitive-stack.md §2](477-primitive-stack.md) for the full folder structure.
+> **Repo layout**: Operator implementations live under `operators/*-operator` (e.g., `operators/domain-operator`). See [477-primitive-stack.md §2](477-primitive-stack.md) for the full folder structure.
 
-* Four Ameide operators watch the primitive CRDs (one per primitive type):
+* Six Ameide operators watch the primitive CRDs (one per primitive kind):
 
-  * **Domain operator** (`operators/domain`) – reconciles each Domain CRD into Deployments, Services, HPAs, ServiceMonitors, CNPG schemas/users, migration Jobs, and NetworkPolicies. Enforces namespace/SKU placement, image policies, resource classes, and standard sidecars/env vars.
-  * **Process operator** (`operators/process`) – reconciles Process CRDs into Temporal worker Deployments, ConfigMaps linking BPMN to code, ServiceMonitors, and optional CronJobs for compensations. Validates references to ProcessDefinitions and Temporal namespaces.
-  * **Agent operator** (`operators/agent`) – reconciles Agent CRDs into agent runtime Deployments, Secrets (LLM keys, tool credentials), allowlisted tool grants, and observability wiring.
-  * **UISurface operator** (`operators/uisurface`) – reconciles UISurface CRDs into Next.js Deployment/Service, HPA, Ingress/Gateway routes (domains/paths), env config pointing at Domain/Process/Agent endpoints, and auth scopes wired to Keycloak/IdP clients. This is a **thin infra operator**—it ensures a UISurface image is reachable and correctly wired to primitives, but does not understand UI components or form layouts.
+  * **Domain operator** (`operators/domain-operator`) – reconciles each Domain CRD into Deployments, Services, HPAs, ServiceMonitors, CNPG schemas/users, migration Jobs, and NetworkPolicies. Enforces namespace/SKU placement, image policies, resource classes, and standard sidecars/env vars.
+  * **Process operator** (`operators/process-operator`) – reconciles Process CRDs into Temporal worker Deployments, ConfigMaps linking BPMN to code, ServiceMonitors, and optional CronJobs for compensations. Validates references to ProcessDefinitions and Temporal namespaces.
+  * **Agent operator** (`operators/agent-operator`) – reconciles Agent CRDs into agent runtime Deployments, Secrets (LLM keys, tool credentials), allowlisted tool grants, and observability wiring.
+  * **UISurface operator** (`operators/uisurface-operator`) – reconciles UISurface CRDs into Next.js Deployment/Service, HPA, Ingress/Gateway routes (domains/paths), env config pointing at Domain/Process/Agent endpoints, and auth scopes wired to Keycloak/IdP clients. This is a **thin infra operator**—it ensures a UISurface image is reachable and correctly wired to primitives, but does not understand UI components or form layouts.
+  * **Projection operator** (`operators/projection-operator`) – reconciles Projection CRDs into read-model/query workloads and storage bindings (e.g., Postgres materialized views, event-driven projection tables, ClickHouse/analytics backends) and surfaces refresh/lag/health conditions. Projection operators are operational only: they never interpret business semantics beyond wiring, scheduling, and status.
+  * **Integration operator** (`operators/integration-operator`) – reconciles Integration CRDs into “flows-as-code” runtimes (default: NiFi) plus day-2 lifecycle (sync from Git/registry, parameter contexts, schedules, drift detection) with secrets injected from Kubernetes. Integration operators are operational only: mapping/decision logic stays in human-owned integration code/flows.
 
 * Operators publish status/conditions back to their CRDs (e.g., `Ready`, `Degraded`, `RolloutPaused`, `MigrationFailed`) so GitOps/UIs can reason in primitive-level objects.
 * GitOps applies only the CR manifests plus the operator Deployments. All child resources are managed via reconciliation loops, so cross-cutting changes (sidecars, probes, annotations) happen centrally in operators.

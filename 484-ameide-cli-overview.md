@@ -1,5 +1,7 @@
 # 484 – Ameide CLI Overview & Index
 
+> **Deprecation notice (520):** Any guidance that treats the CLI as the **canonical generator/scaffolder** is deprecated. Canonical v2 uses **`buf generate`** (pinned plugins, deterministic outputs, generated-only roots, regen-diff CI gate); a CLI may exist only as orchestration/reporting around standard gates. See `backlog/520-primitives-stack-v2.md`.
+
 **Status:** Active
 **Audience:** AI agents (primary), developers (secondary)
 **Scope:** Proto-aligned CLI for agentic development on Ameide primitives

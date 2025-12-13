@@ -14,7 +14,7 @@
 > | [475-ameide-domains.md](475-ameide-domains.md) | Domain portfolio and structure |
 > | [476-ameide-security-trust.md](476-ameide-security-trust.md) | Security principles and threat model |
 > | [478-ameide-extensions.md](478-ameide-extensions.md) | Tenant extension model & namespace strategy |
-> | [474-ameide-refactoring.md](474-ameide-refactoring.md) | Migration plan into Domain/Process/Agent/UISurface primitives + CRDs |
+> | [474-ameide-refactoring.md](474-ameide-refactoring.md) | Migration plan into the six primitives + CRDs |
 >
 > **Deployment Implementation**:
 > - [465-applicationset-architecture.md](465-applicationset-architecture.md) – GitOps deployment model
@@ -32,7 +32,7 @@
 
 ## Grounding & contract alignment
 
-- **Primitive model:** Establishes the canonical four primitives (Domain, Process, Agent, UISurface) and Graph/Transformation invariants that all later primitive/operator/Scrum backlogs (471–477, 495–505, 506–508) must follow.  
+- **Primitive model:** Establishes the canonical six primitives (Domain, Process, Agent, UISurface, Projection, Integration) and Graph/Transformation invariants that all later primitive/operator/Scrum backlogs (471–477, 495–505, 506–508, 520+) must follow.  
 - **EDA/security spine:** Defines the EDA invariants and security assumptions that are expanded in `472-ameide-information-application.md`, `473-ameide-technology.md`, `476-ameide-security-trust.md`, and codified for events in `496-eda-principles.md`.  
 - **Scrum & agents:** Provides the platform-level constraints (Transformation-as-domain, Graph read-only, primitive CRDs only) that the Scrum stack (`367-1-scrum-transformation.md`, `506-scrum-vertical-v2.md`, `508-scrum-protos.md`) and agent backlogs (`505-agent-developer-v2*.md`) refine rather than override.
 
@@ -44,7 +44,7 @@
 - ✅ The proto→SDK→service chain is enforced through the shared Buf module (`packages/ameide_core_proto/buf.yaml:1-20`) and consumed by workspace services.
 - ⚠️ Transformation services still only persist `Transformation` aggregates; ProcessDefinitions/AgentDefinitions are not yet stored in the Transformation domain (`services/transformation/src/transformations/service.ts:1-75`).
 
-## 0. Core Definitions: Domain / Process / Agent / UISurface primitives, CRDs, and Graph
+## 0. Core Definitions: primitives, CRDs, and Graph
 
 > **Domain primitives** own the authoritative data and rules for a bounded business context (Orders, Customers, Transformation, etc.) and expose proto-first APIs plus migrations/tests as normal code.
 >
@@ -54,7 +54,11 @@
 >
 > **UISurface primitives** are user-facing entry points (process views or domain workspaces) implemented as code-first Next.js apps that rely on generated SDKs.
 >
-> **Domain / Process / Agent / UISurface CRDs** are the only application-level CRDs. Each one declares *how* the corresponding primitive is run (image, config, bindings, risk tier) so GitOps + operators can reconcile code into deployments.
+> **Projection primitives** are read-optimized query services and materialized views for consumption, analytics, and integration; they are derived from facts and are never sources of truth.
+>
+> **Integration primitives** are “flows-as-code” runtimes that connect Ameide to external systems; they are contract-first (proto ports) and operator-managed day-2 (sync, parameters, rollout, drift).
+>
+> **Domain / Process / Agent / UISurface / Projection / Integration CRDs** are the application-level CRDs. Each declares *how* the corresponding primitive is run (image, config, bindings, risk tier) so GitOps + operators can reconcile code into deployments. These CRDs remain a **thin operational metadata layer**: they do not encode business semantics, policy logic, prompts, or provider decisions.
 >
 > **Transformation design tooling** is the modelling UX (BPMN editor, diagram editor, Markdown/agent specs) that reads/writes artifacts in the Transformation Domain; it has no independent persistence.
 >
@@ -72,10 +76,14 @@
 | **AgentDefinition** | Declarative spec (tools, orchestration graph, scope, risk tier) stored in the Transformation Domain for a given Agent primitive. |
 | **Agent primitive** | Runtime chassis that loads an AgentDefinition and runs LLM/tool loops through Ameide SDKs. |
 | **UISurface primitive** | User-facing workspace or process view built in Next.js that consumes Ameide SDKs; no metadata form engine. |
+| **Projection primitive** | Read-optimized projection/query service and/or materialized view derived from facts; optimized for consumption/analytics; never a source of truth. |
+| **Integration primitive** | Flow runtime that connects Ameide to external systems using proto-declared ports/contracts; operator-managed for lifecycle and drift. |
 | **Domain CRD** | Declarative runtime config for one Domain primitive (image, config, DB bindings, resources, observability). |
 | **Process CRD** | Declarative runtime config for one Process primitive (image, process type, Temporal namespace/bindings, timeouts). |
 | **Agent CRD** | Declarative runtime config for one Agent primitive (image, model/provider config, tool grants, risk tier). |
 | **UISurface CRD** | Declarative runtime config for one UISurface primitive (image, routing, auth scopes, feature flags). |
+| **Projection CRD** | Declarative runtime config for one Projection primitive (image, storage bindings, refresh policies, query exposure). |
+| **Integration CRD** | Declarative runtime config for one Integration primitive (image/runtime type, flow sync refs, endpoint bindings, schedules). |
 | **Transformation design tooling** | Ameide’s modelling UX (BPMN editor, diagram editor, Markdown/agent specs) that stores artifacts in the Transformation Domain; the tooling itself is stateless. |
 | **Graph** | Read-only knowledge projection that ingests selected data from primitives into a graph database for traversal; never a source of truth. |
 
@@ -83,7 +91,7 @@
 >
 > All vision suite documents (470-480) must respect these invariants. Link here rather than restating.
 >
-> 1. **Four primitives only.** Domain / Process / Agent / UISurface are the only application-level CRDs. No other app-level CRD types.
+> 1. **Six primitives (thin CRD layer).** Domain / Process / Agent / UISurface / Projection / Integration are the only application-level CRD types; no app-level CRDs for low-level concepts (tables, fields, forms, etc.).
 >
 > 2. **Graph is read-only.** Knowledge Graph is a projection layer for cross-domain queries. All writes go through Domain primitives. Graph is never a source of truth.
 >
@@ -93,7 +101,7 @@
 >
 > 5. **Tenant isolation via `tenant_id`.** Every business record carries `tenant_id`. Organization-level isolation via `organization_id` + RLS is the target model.
 >
-> 6. **CRD naming is Domain / Process / Agent / UISurface.** Earlier documents (e.g., 461) used `IntelligentDomainController (IDC)`, `IntelligentProcessController (IPC)`, `IntelligentAgentController (IAC)`. These names are **deprecated**.
+> 6. **CRD naming is Domain / Process / Agent / UISurface / Projection / Integration.** Earlier documents (e.g., 461) used `IntelligentDomainController (IDC)`, `IntelligentProcessController (IPC)`, `IntelligentAgentController (IAC)`. These names are **deprecated**.
 >
 > 7. **Backstage is internal only.** Backstage is the factory for Ameide engineers and transformation agents. Tenants never see Backstage; tenant UX is delivered through UISurface primitives.
 
@@ -285,7 +293,7 @@ Backstage is the **factory** that turns Transformation Domain decisions into run
   * Indexes Domain, Process, Agent, and UISurface primitives plus their sources (repos, Helm releases, proto APIs).
 * **Templates**:
 
-  * Scaffold new Domain/Process/Agent/UISurface primitives using standard Ameide patterns (proto, SDK, Helm/Argo, CNPG, Temporal) and emit the corresponding CRDs that GitOps/Argo will apply.
+  * Scaffold new primitives using standard Ameide patterns (proto, SDK, GitOps/operators) and emit the corresponding CRDs (Domain/Process/Agent/UISurface/Projection/Integration) that GitOps/Argo will apply.
 * **Bridge**:
 
   * Listens to Transformation domain events and runs templates with specific parameters (e.g. "create L2O Process primitive variant for tenant X").

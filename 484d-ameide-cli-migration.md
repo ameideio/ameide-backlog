@@ -1,5 +1,7 @@
 # 484d – Ameide CLI: Migration & Phased Implementation
 
+> **Deprecation notice (520):** This migration plan assumes a CLI scaffolder as the primary generator; that approach is deprecated. Canonical v2 uses **`buf generate`** (pinned plugins, deterministic outputs, generated-only roots, regen-diff CI gate). See `backlog/520-primitives-stack-v2.md`.
+
 **Status:** Active
 **Audience:** Platform engineers, CLI implementers
 **Scope:** Legacy command migration, phased implementation plan

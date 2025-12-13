@@ -2,7 +2,7 @@
 
 **Status:** Draft v1
 **Audience:** Platform engineering, architecture, internal agents, AI coders
-**Goal:** Make it unambiguous *what lives where* for the four primitives (Domain, Process, Agent, UISurface), their operators, and GitOps CRDs – so humans and AI agents don't fight the repo layout.
+**Goal:** Make it unambiguous *what lives where* for the Ameide six primitives (Domain, Process, Agent, UISurface, Projection, Integration), their operators, and GitOps CRDs – so humans and AI agents don't fight the repo layout.
 
 > **Context:**
 >
@@ -31,17 +31,17 @@ We standardise on the same 3-step chain everywhere:
 
 2. **Deployment-time (Git & factories)**
 
-   * Backstage templates / Ameide CLI turn design artifacts into:
+   * Backstage templates and `buf generate` turn design artifacts/contracts into:
 
-     * Primitive **code** (Domain/Process/Agent/UISurface) in the core monorepo.
-     * Primitive **CRs** (`Domain`, `Process`, `Agent`, `UISurface`) committed to GitOps repos.
+     * Primitive **code** (Domain/Process/Agent/UISurface/Projection/Integration) in the core monorepo.
+     * Primitive **CRs** (`Domain`, `Process`, `Agent`, `UISurface`, `Projection`, `Integration`) committed to GitOps repos.
 
 3. **Runtime (Kubernetes + operators)**
 
    * Ameide operators watch primitive CRDs and reconcile them into Deployments, Services, Temporal workers, DB schemas, etc.
 
 **Key invariant:**
-*App-level CRDs exist **only** for the four primitives; they describe **how to run** code, not the business model itself.*
+*App-level CRDs exist **only** for the primitive kinds; they describe **how to run** code, not the business model itself.*
 
 ---
 
@@ -64,20 +64,24 @@ ameide/                               # github.com/ameideio/ameide
 │   ├── domain/
 │   ├── process/
 │   ├── agent/
-│   └── uisurface/
+│   ├── uisurface/
+│   ├── projection/
+│   └── integration/
 │
 ├── operators/
-│   ├── domain/
-│   ├── process/
-│   ├── agent/
-│   └── uisurface/                    # see §3.4
+│   ├── domain-operator/
+│   ├── process-operator/
+│   ├── agent-operator/
+│   ├── uisurface-operator/            # see §3.4
+│   ├── projection-operator/           # v2 (planned)
+│   └── integration-operator/          # v2 (planned)
 │
 └── service_catalog/
     └── backstage/                    # internal factory templates
 ```
 
 * Proto modules live under `packages/ameide_core_proto`.
-* Domain/Process/Agent/UISurface **primitive code** lives under `primitives/*`.
+* Primitive code lives under `primitives/*` (Domain/Process/Agent/UISurface/Projection/Integration).
 * Operators are normal Go/TS services built & released like any other platform component.
 
 ### 2.2 Platform GitOps repo (`ameideio/ameide-gitops`)
@@ -112,7 +116,9 @@ tenant-{id}-gitops/
     ├── domain/
     ├── process/
     ├── agent/
-    └── uisurface/
+    ├── uisurface/
+    ├── projection/
+    └── integration/
 ```
 
 * Platform repo **never** contains tenant-specific code; it links to `tenant-{id}-controllers` + `tenant-{id}-gitops` via Backstage locations.
@@ -122,7 +128,7 @@ tenant-{id}-gitops/
 
 ## 3. Primitive vs operator vs GitOps – responsibility split
 
-For each of the four primitives we keep a hard boundary:
+For each primitive kind we keep a hard boundary:
 
 > **Primitive code** = business logic
 > **Operator** = infra automation + rollout rules
@@ -135,7 +141,7 @@ For each of the four primitives we keep a hard boundary:
 * Owns bounded context data, invariants, migrations, events.
 * Exposes proto-first APIs via generated SDKs.
 
-**Domain operator (code, in `ameideio/ameide: operators/domain`)**
+**Domain operator (code, in `operators/domain-operator`)**
 
 * Watches `Domain` CRDs.
 * Reconciles into:
@@ -160,7 +166,7 @@ For each of the four primitives we keep a hard boundary:
 
 * Temporal workflows + activities implementing a ProcessDefinition.
 
-**Process operator (code, `operators/process`)**
+**Process operator (code, `operators/process-operator`)**
 
 * Watches `Process` CRDs.
 * Reconciles into:
@@ -191,7 +197,7 @@ For each of the four primitives we keep a hard boundary:
 > - **AmeideCoder** (`runtime_role=a2a_server`) – devcontainer service exposing the A2A REST binding (`/v1/message:send`, `/v1/message:stream`, `/v1/tasks/*`).
 > Process primitives remain separate (Temporal workers), but they orchestrate PO/SA via EDA events and never host agents themselves.
 
-**Agent operator (code, `operators/agent`)**
+**Agent operator (code, `operators/agent-operator`)**
 
 * Watches `Agent` CRDs.
 * Reconciles into:
@@ -215,7 +221,7 @@ For each of the four primitives we keep a hard boundary:
 
 * Next.js app (workspaces + process views) using Ameide SDKs.
 
-**UISurface operator (code, `operators/uisurface`) – target**
+**UISurface operator (code, `operators/uisurface-operator`)**
 
 We extend the "three operator" picture to four, matching all primitives:
 
@@ -260,7 +266,7 @@ This is a **thin infra operator**, *not* a layout engine:
 
 ### 4.2 Tenant primitives
 
-* Tenant-specific Domain/Process/Agent/UISurface primitives have CRDs in `tenant-{id}-gitops/primitives/*`.
+* Tenant-specific primitives have CRDs in `tenant-{id}-gitops/primitives/*` (Domain/Process/Agent/UISurface/Projection/Integration).
 * Backed by tenant-specific controllers (`tenant-{id}-controllers`) when custom code is needed.
 
 **No CRDs live in the core monorepo.** The core repo only references CRD *schemas* and sample manifests in docs/tests.
@@ -329,7 +335,7 @@ Each scaffold includes:
 
 1. **UISurface operator implementation detail**
 
-   * Add explicit UISurface operator section to 473 §3.3.5 to match this doc & the line that mentions all four primitives.
+   * Ensure 473 §3.3.5 covers all primitive kinds (including Projection/Integration) to match this layout doc.
 
 2. **Repo layout vs multi-repo reality**
 

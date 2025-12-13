@@ -1,5 +1,7 @@
 # 484e – Ameide CLI: Industry Patterns & Rationale
 
+> **Deprecation notice (520):** Any framing here that treats `ameide primitive scaffold` as the canonical generator inner loop is deprecated. Canonical v2 uses **`buf generate`**; CLI can exist only as orchestration/reporting. See `backlog/520-primitives-stack-v2.md`.
+
 **Status:** Active
 **Audience:** CLI implementers, platform architects
 **Scope:** Vendor alignment, what we do vs don't do, anti-patterns

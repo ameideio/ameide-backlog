@@ -5,7 +5,7 @@
 
 This guide describes **how we move from the current service topology and legacy concepts to the Domain / Process / Agent / UISurface primitives and their CRDs**, while staying **code-first and AI-first**. It complements the vision and architecture docs in the 470–480 range.
 
-> **Core Invariants**: See [470-ameide-vision.md §0 "Ameide Core Invariants"](470-ameide-vision.md) for the canonical list (four primitives, Graph read-only, Transformation as domain, proto chain, tenant isolation, Backstage internal).
+> **Core Invariants**: See [470-ameide-vision.md §0 "Ameide Core Invariants"](470-ameide-vision.md) for the canonical list (six primitives: Domain/Process/Agent/UISurface/Projection/Integration, Graph read-only, Transformation as domain, proto chain, tenant isolation, Backstage internal).
 >
 > **Cross-References**:
 > - [471 §4](471-ameide-business-architecture.md) – Backstage as the platform factory (business view)
@@ -52,9 +52,9 @@ This guide describes **how we move from the current service topology and legacy 
    * AI and humans both operate on this code directly (with help from design artifacts), not on a giant metadata layer.
    * Metadata exists only where it helps AI and operations; it never replaces code.
 
-2. **Four primitives only**
+2. **Six primitives**
 
-   We converge on **four application primitives**:
+   We converge on **six application primitives**:
 
    * **Domain** – owns business state and rules for a bounded context.
    * **Process** – orchestrates multiple Domains and Agents into an end-to-end outcome.
@@ -64,11 +64,11 @@ This guide describes **how we move from the current service topology and legacy 
    Each primitive has two faces:
 
    * A **Primitive** – the code: packages, modules, tests.
-   * A **CRD** – a declarative runtime object on Kubernetes (Domain CRD, Process CRD, Agent CRD, UISurface CRD).
+   * A **CRD** – a declarative runtime object on Kubernetes (Domain/Process/Agent/UISurface/Projection/Integration CRDs).
 
 3. **CRDs for runtime wiring, not for modeling the business**
 
-   * App-level CRDs exist **only** for the four primitives and a small number of infra objects (tenant, DB, etc.).
+   * App-level CRDs exist **only** for the primitive kinds and a small number of infra objects (tenant, DB, etc.).
    * We **never** introduce CRDs for tables, fields, forms, or other fine-grained constructs.
 
 4. **Not a traditional metadata-driven platform**
@@ -174,7 +174,7 @@ Today we have:
   * the main platform UI and adjunct tools.
 * A number of **legacy concepts** (IPA, “platform workflows”, legacy controller naming) still present in code and docs.
 
-The goal is to **relabel and reshape** these into the four primitives + CRDs without pausing the platform.
+The goal is to **relabel and reshape** these into the canonical primitive kinds + CRDs without pausing the platform.
 
 ---
 
@@ -184,11 +184,11 @@ These rules should be applied ruthlessly across code, docs and tooling.
 
 ### 4.1 Naming
 
-1. **Use `{Domain/Process/Agent/UISurface} primitive` for code**
+1. **Use `{Domain/Process/Agent/UISurface/Projection/Integration} primitive` for code**
 
    * Example: “Sales Domain primitive”, “Onboarding Process primitive”, “Transformation Agent primitive”.
 
-2. **Use `{Domain/Process/Agent/UISurface} CRD` for runtime objects**
+2. **Use `{Domain/Process/Agent/UISurface/Projection/Integration} CRD` for runtime objects**
 
    * Example: “Sales Domain CRD”, “L2O Process CRD”, “Transformation Agent CRD”, “Sales UISurface CRD”.
 
@@ -503,7 +503,7 @@ After the primitives exist, we can remove older concepts.
 
    * Replace:
 
-     * Legacy diagrams and labels with Domain/Process/Agent/UISurface primitives.
+     * Legacy diagrams and labels with only Domain/Process/Agent/UISurface; update to the six-primitives vocabulary.
    * Ensure 470–475 and related docs reference the new names consistently.
 
 3. **Simplify CRDs**
@@ -559,7 +559,7 @@ To keep the plan manageable, organize work as parallel streams:
 6. **Documentation & language stream**
 
    * Sweep docs, diagrams, and onboarding materials.
-   * Enforce the “four primitives + CRD” vocabulary everywhere.
+   * Enforce the “primitive kinds + CRD” vocabulary everywhere.
 
 ---
 
@@ -591,13 +591,13 @@ We consider this refactor “done enough” when:
 2. **Code, docs, and CRDs share the same language**
 
    * No stray references to legacy controller names.
-   * Internal onboarding materials explain the platform purely in terms of the four primitives.
+   * Internal onboarding materials explain the platform in terms of the six primitives.
 
 3. **AI agents can evolve the system via primitives and CRDs**
 
    * Agents can:
 
-     * Propose changes to Domain/Process/Agent/UISurface primitives in code.
+     * Propose changes to primitives in code (Domain/Process/Agent/UISurface/Projection/Integration).
      * Propose changes to corresponding CRDs for deployment.
    * There is no separate metadata layer they have to learn.
 

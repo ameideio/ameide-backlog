@@ -7,13 +7,13 @@ Here's a first cut of the **Application & Information Architecture** doc, aligne
 **Audience:** Platform & domain engineers, solution architects, "platform-facing" agents
 **Scope:** How Ameide is structured as software (domains, processes, agents, UI) and how information flows and is stored across the platform.
 
-> **Core Invariants**: See [470-ameide-vision.md §0 "Ameide Core Invariants"](470-ameide-vision.md) for the canonical list (four primitives, Graph read-only, Transformation as domain, proto chain, tenant isolation, Backstage internal).
+> **Core Invariants**: See [470-ameide-vision.md §0 "Ameide Core Invariants"](470-ameide-vision.md) for the canonical list (six primitives: Domain/Process/Agent/UISurface/Projection/Integration, Graph read-only, Transformation as domain, proto chain, tenant isolation, Backstage internal).
 >
 > **Proto naming:** All proto packages and modules discussed in this document are expected to follow the conventions in [509-proto-naming-conventions.md](509-proto-naming-conventions.md).
 
 ## Grounding & contract alignment
 
-- **Primitive/application contracts:** Turns the vision-level primitives from `470-ameide-vision.md` and business concepts from `471-ameide-business-architecture.md` into concrete application building blocks (Domain/Process/Agent/UISurface primitives, Transformation, Graph) that later operator and CLI backlogs (`495-ameide-operators.md`, `497-operator-implementation-patterns.md`, `502-domain-vertical-slice.md`, `477-primitive-stack.md`) implement.  
+- **Primitive/application contracts:** Turns the vision-level six primitives from `470-ameide-vision.md` and `520-primitives-stack-v2.md`, plus business concepts from `471-ameide-business-architecture.md`, into concrete application building blocks (Domain/Process/Agent/UISurface/Projection/Integration, plus Transformation and Graph) that later operator and CLI backlogs (`495-ameide-operators.md`, `497-operator-implementation-patterns.md`, `502-domain-vertical-slice.md`, `477-primitive-stack.md`) implement.  
 - **EDA & proto chain:** Defines the proto→SDK→runtime and CQRS/EDA rules that are referenced by `473-ameide-technology.md`, `496-eda-principles.md`, and the CLI/primitive workflows in `484a-484f`; all primitive code and operators are expected to obey these patterns.  
 - **Scrum and agent stack:** Provides the generic Domain/Process/Agent information-flow model that the Scrum-specific contracts (`367-1-scrum-transformation.md`, `506-scrum-vertical-v2.md`, `508-scrum-protos.md`) and agent architecture (`505-agent-developer-v2*.md`) instantiate with Scrum nouns and A2A semantics.
 
@@ -232,7 +232,7 @@ Extensions are sandboxed, multi-tenant, and never own durable state; all data ac
 
 ### 2.6 Primitive CRDs & operators
 
-At runtime Ameide treats every Domain/Process/Agent/UISurface primitive as a declarative Kubernetes custom resource:
+At runtime Ameide treats every primitive as a declarative Kubernetes custom resource (Domain/Process/Agent/UISurface/Projection/Integration):
 
 * `Domain` CRD – domain runtime desired state (image, config, DB bindings, resources)
 * `Process` CRD – process runtime desired state (image, Temporal namespace/bindings, rollout policy)
@@ -474,7 +474,7 @@ This is the standard pattern for implementing a Domain primitive.
 3. **Queries are read-only** and never have side effects
 4. **Only Domain primitives write to DB**; Process/Agent/UISurface call Domain APIs
 
-**Proto enforcement** (validated by `ameide primitive verify`):
+**Proto enforcement** (validated in CI via Buf lint/breaking + naming rules; `ameide primitive verify` may wrap these checks locally):
 - Domain/Process services: Allowed prefixes include `Create/Place/Cancel/Approve/Reject/Assign/Submit/Start/Complete/Archive/...`
 - Forbidden generics: `Update/Set/Delete/Patch/Modify` (too vague, doesn't express business intent)
 - Exception: `Delete` is acceptable for hard-delete semantics when business intent is clear (e.g., `DeleteDraftOrder`)
@@ -570,12 +570,12 @@ This pattern ensures:
 
 ### 2.9 Primitive Code Generation Philosophy
 
-The CLI scaffolds **technical shape**, not business meaning. This follows patterns established by industry tools:
+Code generation scaffolds **technical shape**, not business meaning. The canonical runner is `buf generate`; the CLI (if present) is an **orchestrator/observer**, not a parallel generator pipeline. This follows patterns established by industry tools:
 
 | Tool | What It Generates | Ameide Equivalent |
 |------|-------------------|-------------------|
-| **Buf/Connect** | Types, clients, server handler interfaces | Domain primitive skeletons |
-| **Backstage Templates** | Repo structure, Docker, CI, docs | All primitive scaffolds |
+| **Buf remote plugins** | Types, clients, server handler interfaces, wiring/tests | Primitive runtime skeletons under generated roots |
+| **Backstage Templates** | Repo structure, Docker, CI, docs | New repo/bootstrap only (not proto-driven generation) |
 | **Kubebuilder** | CRD types, controller skeleton, RBAC | Operator scaffolds only |
 | **Temporal examples** | Worker main, workflow/activity signatures | Process primitive skeletons |
 
@@ -587,14 +587,16 @@ The CLI scaffolds **technical shape**, not business meaning. This follows patter
 | **Process** | Worker main, workflow/activity stubs, Temporal registration | Workflow logic, compensations, branching |
 | **Agent** | Agent harness, tool skeletons, prompt config files | Prompts, reasoning logic, tool implementations |
 | **UISurface** | Next.js app skeleton, SDK wrapper, E2E test scaffold | Pages, components, UI workflows |
+| **Projection** | Query API stubs, projection consumers, storage bindings, test harness | Materialization logic, indexing strategy, analytical semantics |
+| **Integration** | Port contracts, runtime wiring, flow deployment harness | Flow logic, mapping rules, external system semantics |
 
 #### 2.9.2 Generation Rules
 
-1. **Idempotent and additive**: Only create files that don't exist; never overwrite hand-edited code
-2. **Bootstrap, not serving layer**: After scaffold, all changes are normal editing
-3. **Proto as single source**: Handler signatures derived from proto via Buf, not a second DSL
-4. **One-shot**: Scaffold only when folder doesn't exist; refuse to regenerate
-5. **Backstage alignment**: CLI templates match Backstage Software Templates for the same primitives
+1. **`buf generate` is canonical**: Generation is executed via Buf with pinned plugin versions/revisions; no bespoke generator inner loop.
+2. **Deterministic + clobber-safe**: Generators write only to generated-only roots and use `clean: true`; CI enforces a regen-diff gate.
+3. **Clear ownership boundary**: Generated outputs may be overwritten/deleted on regen; human-owned behavior lives in `_impl` code + tests outside generated roots.
+4. **Proto as single source**: Handler signatures, ports, and wiring are derived from proto contracts via Buf plugins; no second behavior DSL.
+5. **Backstage/CLI role**: Backstage bootstraps repos; the CLI/agents orchestrate standard gates (`buf lint`, `buf breaking`, `buf generate`, tests) and report drift/impact.
 
 #### 2.9.3 Anti-Pattern: JHipster-Style Full-Stack Generation
 
@@ -606,9 +608,9 @@ Avoid generating:
 
 This would recreate the "metadata universe" problem where generated code becomes untouchable and domain invariants get smudged into templates.
 
-**The CLI is 70% observer/validator** (`describe`, `verify`, `impact`) **and 30% scaffolder of boring wiring** (`scaffold` for structure + tests).
+**The inner loop is standard tooling** (`buf generate`, tests, git diff). A CLI can exist as a thin wrapper for orchestration/reporting (describe, drift, plan, impact, verify), but it must not become a parallel proto-aware generator system.
 
-For CLI command details, see [484-ameide-cli.md §4](484-ameide-cli.md).
+For CLI workflows, see [484a-ameide-cli-primitive-workflows.md](484a-ameide-cli-primitive-workflows.md) and [484-ameide-cli-overview.md](484-ameide-cli-overview.md).
 
 ---
 
@@ -1058,7 +1060,7 @@ Backstage templates remain **the control plane** for agents too: a transformatio
 
 > Templates are strictly **Tier 2** tooling for full primitives. Tier 1 WASM extensions follow the `ExtensionDefinition` + shared runtime path from 479/480 and do not create new services via Backstage.
 
-Every primitive-oriented template emits both a repository skeleton (code, proto, CI) and the corresponding Domain/Process/Agent/UISurface CR so GitOps/Argo can apply the runtime object. Human engineers and agents therefore work with the same declarative surface (the CR specs) regardless of who authored the primitive.
+Every primitive-oriented template emits both a repository skeleton (code, proto, CI) and the corresponding primitive CR so GitOps/Argo can apply the runtime object. Human engineers and agents therefore work with the same declarative surface (the CR specs) regardless of who authored the primitive.
 
 ---
 

@@ -1,5 +1,7 @@
 # 484a – Ameide CLI: Primitive Workflows & TDD
 
+> **Deprecation notice (520):** Any workflow here that uses `ameide primitive scaffold` as the inner-loop generator is deprecated. Canonical v2 uses **`buf generate`** (pinned plugins, deterministic outputs, generated-only roots, regen-diff CI gate). See `backlog/520-primitives-stack-v2.md`.
+
 **Status:** Active
 **Audience:** AI agents (primary), developers (secondary)
 **Scope:** Primitive commands, TDD loop, agentic development sequence, verification checks
@@ -8,14 +10,14 @@
 
 ## Grounding & contract alignment
 
-- **Primitive CLI surface:** Defines the `ameide primitive` workflows for Domain/Process/Agent/UISurface primitives introduced in `470-ameide-vision.md`, `472-ameide-information-application.md`, and placed by `477-primitive-stack.md`, with status/condition semantics coming from `502-domain-vertical-slice.md` and shared operator guidance in `495-ameide-operators.md`.  
+- **Primitive CLI surface:** Defines the `ameide primitive` workflows for the Ameide primitives (Domain/Process/Agent/UISurface/Projection/Integration) introduced in `470-ameide-vision.md` and `472-ameide-information-application.md`. This 484a document focuses on the currently implemented CLI/operator surface (Domain/Process/Agent/UISurface) and uses the shared status/condition semantics from `502-domain-vertical-slice.md` and `495-ameide-operators.md`.  
 - **Scrum/agent usage:** Provides the guardrail and verification flows that AmeideCoder uses internally in the agent stack (`504-agent-vertical-slice.md`, `505-agent-developer-v2*.md`) when operating on primitives, including the Scrum-related ones built on `300-400/367-1-scrum-transformation.md`, `506-scrum-vertical-v2.md`, and `508-scrum-protos.md`.
 
 ---
 
 ## 1. Primitive Commands Overview
 
-The `ameide primitive` subcommands support AI agents doing development work on primitives (Domain, Process, Agent, UISurface).
+The `ameide primitive` subcommands support AI agents doing development work on primitives (the six-primitives model), but the implemented workflows here focus on Domain/Process/Agent/UISurface.
 
 ```bash
 # OBSERVE: What exists, what's expected, what's the delta

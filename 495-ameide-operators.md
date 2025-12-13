@@ -1,9 +1,9 @@
 ## 0. Shared operator pattern
 
-All four primitive operators share the same skeleton:
+All primitive operators share the same skeleton:
 
 * Implemented in Go with `controller-runtime`
-* One controller per CRD kind: `Domain`, `Process`, `Agent`, `UISurface`
+* One controller per CRD kind: `Domain`, `Process`, `Agent`, `UISurface`, `Projection`, `Integration` (Projection/Integration operators are part of the v2 stack in 520)
 * GitOps applies only the CRs; operators own all children (Deployments, Jobs, HPAs, CNPG bits, ServiceMonitors, NetworkPolicies, etc.) 
 * CRDs are *runtime wiring only*, they never model tables, fields, or UI layout 
 
@@ -21,7 +21,7 @@ All four primitive operators share the same skeleton:
 
 Think of each operator as a **compiler from a Primitive CRD to a bundle of K8s + external infra objects**, with *no* business logic inside (that lives in the primitive's own service).
 
-> **Scaffolding context**: For how operator patterns relate to Ameide's overall code generation philosophy (vs Kubebuilder, Backstage, Buf), see [484-ameide-cli.md](484-ameide-cli.md).
+> **Scaffolding context**: For how operator patterns relate to Ameide's overall code generation philosophy (vs Kubebuilder, Backstage, Buf), see [484-ameide-cli-overview.md](484-ameide-cli-overview.md).
 >
 > **Implementation patterns**: For Go-level reconciler design, controller-runtime usage, and testing strategies, see [497-operator-implementation-patterns.md](497-operator-implementation-patterns.md).
 >
@@ -29,7 +29,7 @@ Think of each operator as a **compiler from a Primitive CRD to a bundle of K8s +
 
 ## Grounding & contract alignment
 
-- **Primitive operator contract:** Codifies shared CRD/spec/status/condition patterns for the four primitives introduced in `470-ameide-vision.md`, structurally elaborated in `472-ameide-information-application.md`, `473-ameide-technology.md`, and `477-primitive-stack.md`, and instantiated by `498-domain-operator.md`, `499-process-operator.md`, `500-agent-operator.md`, and `501-uisurface-operator.md`.  
+- **Primitive operator contract:** Codifies shared CRD/spec/status/condition patterns for the primitive kinds introduced in `470-ameide-vision.md` and `520-primitives-stack-v2.md`, structurally elaborated in `472-ameide-information-application.md`, `473-ameide-technology.md`, and `477-primitive-stack.md`, and instantiated by `498-domain-operator.md`, `499-process-operator.md`, `500-agent-operator.md`, and `501-uisurface-operator.md` (plus Projection/Integration operators as v2 work).  
 - **Vertical slices & CLI:** Provides the operator side of the vertical-slice story that `502-domain-vertical-slice.md`, `503-operators-helm-chart.md`, and the CLI backlogs (`484a-484f`) rely on to reason about primitive readiness and guardrails.  
 - **Scrum & agents:** Supplies the operator vocabulary and deployment expectations that the Scrum stack (`506-scrum-vertical-v2.md`, `508-scrum-protos.md`) and agent backlogs (`504-agent-vertical-slice.md`, `505-agent-developer-v2*.md`, `507-scrum-agent-map.md`) assume when describing how Process and Agent primitives are hosted.
 
@@ -416,7 +416,7 @@ status:
 
 Operators are the bridge between GitOps and the Ameide CLI / AI agents:
 
-* CLI / agents read `status.conditions` on Domain/Process/Agent/UISurface CRs to understand:
+* CLI / agents read `status.conditions` on primitive CRs to understand:
 
   * Is a primitive ready?
   * Is an upgrade stuck on migrations?
@@ -538,7 +538,7 @@ This matches the "design ≠ deploy ≠ runtime" principle:
 
 ## 7. Implementation Status
 
-The four primitive operators are **implemented and CI/CD integrated** in the core monorepo:
+Primitive operators are part of the **six-primitives model** (Domain/Process/Agent/UISurface/Projection/Integration). Today, operators for **Domain/Process/Agent/UISurface** are implemented and CI/CD integrated in the core monorepo; **Projection/Integration** operators are v2 work per `backlog/520-primitives-stack-v2.md`.
 
 ### 7.1 Directory Structure
 

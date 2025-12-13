@@ -1,5 +1,7 @@
 # 484b – Ameide CLI: Proto Contract
 
+> **Deprecation notice (520):** Any section that positions `ameide primitive scaffold` as the canonical proto→runtime generator is deprecated. Canonical v2 uses **`buf generate`** with pinned plugins and generated-only roots. See `backlog/520-primitives-stack-v2.md`.
+
 **Status:** Active
 **Audience:** CLI implementers, SDK developers, AI agents
 **Scope:** `ameide_core_proto.primitive.v1` message definitions, local vs service mode

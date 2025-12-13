@@ -1,4 +1,4 @@
-# 478 – Service Catalog
+# 481 – Service Catalog
 
 **Status:** In Progress
 **Priority:** High
@@ -10,8 +10,8 @@
 >
 > | Document | Relationship |
 > |----------|-------------|
-> | [470-ameide-vision.md](470-ameide-vision.md) | §5 – Domain/Process/Agent/UISurface primitive model |
-> | [472-ameide-information-application.md](472-ameide-information-application.md) | §2 – Domain/Process/Agent primitive definitions |
+> | [470-ameide-vision.md](470-ameide-vision.md) | §0 – Six primitives model |
+> | [472-ameide-information-application.md](472-ameide-information-application.md) | §2 – Primitive definitions |
 > | [473-ameide-technology.md](473-ameide-technology.md) | §2.3 – Backstage as factory for primitives |
 > | [475-ameide-domains.md](475-ameide-domains.md) | §3 – Domain portfolio |
 > | [467-backstage.md](467-backstage.md) | §10 – Software Templates for primitives |

@@ -1,4 +1,6 @@
-# 481 – Adding a New Service (Reference Checklist)
+# 482 – Adding a New Service (Reference Checklist)
+
+> **Deprecation notice (520):** This backlog assumes a CLI-driven scaffolding workflow (e.g., `ameide primitive scaffold`) that generates service/primitive skeletons. That approach is deprecated. Canonical v2 uses **`buf generate`** (pinned plugins, deterministic outputs, generated-only roots, regen-diff CI gate), and uses Backstage templates for repo bootstrapping. See `backlog/520-primitives-stack-v2.md`.
 
 **Status:** Draft  
 **Owner:** Architecture / Platform Enablement  
@@ -115,7 +117,7 @@ Use this checklist whenever you create a net-new service under `services/` or `s
 
 | Backlog | Relationship |
 |---------|--------------|
-| [484-ameide-cli](484-ameide-cli.md) | CLI `scaffold` command automates this checklist |
+| [484-ameide-cli](484-ameide-cli.md) | CLI scaffolding guidance is deprecated; see 520 for canonical `buf generate` gates |
 | [430-unified-test-infrastructure](430-unified-test-infrastructure.md) | Test structure requirements |
 | [434-unified-environment-naming](434-unified-environment-naming.md) | GitOps structure, labels |
 | [481-service-catalog](481-service-catalog.md) | Backstage catalog integration |

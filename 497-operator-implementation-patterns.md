@@ -1,7 +1,7 @@
 # 497 – Operator Implementation Patterns
 
 **Status:** Active
-**Audience:** Go developers implementing Domain/Process/Agent/UISurface operators
+**Audience:** Go developers implementing primitive operators (Domain/Process/Agent/UISurface/Projection/Integration)
 **Scope:** controller-runtime patterns, reconciler design, testing strategies
 
 > **Related**: [495-ameide-operators.md](495-ameide-operators.md) for CRD shapes and responsibilities
@@ -9,7 +9,7 @@
 ## Grounding & contract alignment
 
 - **Operator implementation contract:** Provides the controller-runtime patterns and reconciler design guidance that all primitive operators (`498-domain-operator.md`, `499-process-operator.md`, `500-agent-operator.md`, `501-uisurface-operator.md`) must follow when realizing the primitive/operator model from `470-ameide-vision.md`, `472-ameide-information-application.md`, `473-ameide-technology.md`, and `477-primitive-stack.md`.  
-- **Vertical slices & CLI:** Underpins the status/condition and reconcile-phase expectations in `502-domain-vertical-slice.md`, `503-operators-helm-chart.md`, and the primitive CLI workflows in `484a-484f`, ensuring a consistent Ready/Degraded model across Domain/Process/Agent/UISurface.  
+- **Vertical slices & CLI:** Underpins the status/condition and reconcile-phase expectations in `502-domain-vertical-slice.md`, `503-operators-helm-chart.md`, and the primitive CLI workflows in `484a-484f`, ensuring a consistent Ready/Degraded model across primitives.  
 - **Scrum/agent relevance:** Gives the concrete operator patterns Process and Agent operators use when hosting Scrum-aware workflows and agent runtimes as described in `506-scrum-vertical-v2.md`, `508-scrum-protos.md`, `504-agent-vertical-slice.md`, `505-agent-developer-v2*.md`, and `507-scrum-agent-map.md`.
 
 ---
@@ -87,7 +87,7 @@ Reconcile:
   7. Requeue if needed (e.g. for polling)
 ```
 
-You can treat this as a **template** for all four operators, with step 4/5 varying by primitive kind.
+You can treat this as a **template** for all primitive operators, with step 4/5 varying by primitive kind.
 
 ---
 
@@ -97,7 +97,7 @@ You can treat this as a **template** for all four operators, with step 4/5 varyi
 
 Google & others explicitly say: **use declarative CRD specs for operators, not imperative APIs.**
 
-* Users/agents say *"I want this Domain/Process/Agent/UISurface to look like X"*
+* Users/agents say *"I want this primitive to look like X"*
 * Operator figures out *how* to get there
 
 This dovetails perfectly with our "business writes are never imperative" stance – at infra level, no "scale this", "restart that"; only "here is my desired domain/process/agent surface, make it so".
@@ -269,7 +269,7 @@ This aligns with our CLI's TDD + `verify` story: tests around **primitive correc
 
 ## 8. Ameide Operator Checklist
 
-When implementing Domain/Process/Agent/UISurface operators, these patterns are **non-negotiable**:
+When implementing primitive operators, these patterns are **non-negotiable**:
 
 | # | Pattern | Reference |
 |---|---------|-----------|

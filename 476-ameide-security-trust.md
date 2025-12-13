@@ -13,7 +13,7 @@ Totally agree — we can't keep evolving Ameide without locking down the securit
 > | [479-ameide-extensibility-wasm.md](479-ameide-extensibility-wasm.md) | Tier 1 WASM + Tier 2 extension model |
 > | [480-ameide-extensibility-wasm-service.md](480-ameide-extensibility-wasm-service.md) | Shared WASM runtime implementation |
 >
-> **Core Invariants**: See [470-ameide-vision.md §0 "Ameide Core Invariants"](470-ameide-vision.md) for the canonical list (four primitives, Graph read-only, Transformation as domain, proto chain, tenant isolation, Backstage internal).
+> **Core Invariants**: See [470-ameide-vision.md §0 "Ameide Core Invariants"](470-ameide-vision.md) for the canonical list (six primitives: Domain/Process/Agent/UISurface/Projection/Integration, Graph read-only, Transformation as domain, proto chain, tenant isolation, Backstage internal).
 >
 > **Secrets & Security Implementation**:
 > - [462-secrets-origin-classification.md](462-secrets-origin-classification.md) – Secret origin taxonomy

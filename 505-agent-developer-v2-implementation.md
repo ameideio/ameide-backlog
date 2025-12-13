@@ -14,7 +14,7 @@
 
 - **Architecture grounding:** Executes the architecture defined in `505-agent-developer-v2.md` on top of the primitive/EDA foundations in `471-ameide-business-architecture.md`, `472-ameide-information-application.md`, `473-ameide-technology.md`, `475-ameide-domains.md`, `476-ameide-security-trust.md`, `477-primitive-stack.md`, and `496-eda-principles.md`.  
 - **Scrum stack dependencies:** Uses the Scrum domain/process contracts from `300-400/367-1-scrum-transformation.md`, `506-scrum-vertical-v2.md`, and `508-scrum-protos.md` as the canonical data/event model that Process primitives, AmeidePO/AmeideSA, and AmeideCoder must obey.  
-- **Primitive & operator tracks:** Aligns workstreams with the Domain/Process/Agent/UISurface operator/vertical-slice backlogs: `498-domain-operator.md`, `499-process-operator.md`, `500-agent-operator.md`, `501-uisurface-operator.md`, `502-domain-vertical-slice.md`, `503-operators-helm-chart.md`, and `504-agent-vertical-slice.md`.  
+- **Primitive & operator tracks:** Aligns workstreams with the primitive operator/vertical-slice backlogs (`498-domain-operator.md`, `499-process-operator.md`, `500-agent-operator.md`, `501-uisurface-operator.md`, `502-domain-vertical-slice.md`, `503-operators-helm-chart.md`, `504-agent-vertical-slice.md`), with Projection/Integration operators tracked as v2 work in `backlog/520-primitives-stack-v2.md`.  
 - **Navigation:** `507-scrum-agent-map.md` provides the cross-layer map this implementation plan plugs into; legacy notes and migration concerns remain in `505-agent-developer.md`.
 
 ---
@@ -28,7 +28,7 @@
 5. **Operators, CLI, GitOps, security, evidencing, observability, and migration docs** are updated to support the split roles and new protocols.
 
 This backlog is successful when:
-- All four primitives run in dev/staging with the contract described in the target doc and the canonical Scrum contract (506-v2/508).
+- All four runtime components (Process primitive + PO/SA/Coder Agent primitives) run in dev/staging with the contract described in the target doc and the canonical Scrum contract (506-v2/508).
 - PO/SA never shell into repos; only AmeideCoder touches git/build/test endpoints.
 - Transformation shows complete lifecycle evidence (commands, events, artifacts) for an automated Product Backlog Item from `SprintBacklogItemReadyForWork` to `ProductBacklogItemDoneRecorded` / `IncrementUpdated`.
 
@@ -44,7 +44,7 @@ This backlog is successful when:
 | **P3 – AmeideSA Agent** | New LangGraph DAG + repo digest tool | Agent runtime team | SA DAG assets new work | 🔴 Not started |
 | **P4 – AmeideCoder A2A server** | Devcontainer service, REST binding, Agent Card | DevX/Infracore | 504, Ameide CLI, A2A spec | 🟡 Partial (devcontainer service exists w/ develop_in_container) |
 | **P5 – Operator / CRD support** | `runtime_role`, REST binding annotations, tool grants | Operator team | 500 backlog | 🟡 Partial (runtime_type done) |
-| **P6 – CLI & tooling** | Repo scaffolds, prompt updates, `primitive verify` coverage | CLI team | 504, 505-v2 norms | 🟡 Partial |
+| **P6 – CLI & tooling** | Repo bootstrap + codegen gates, prompt updates, `primitive verify` coverage | CLI team | 504, 505-v2 norms, 520 | 🟡 Partial |
 | **P7 – GitOps & env rollout** | CR manifests, ApplicationSet wiring | Platform SRE | 503, GitOps repo | 🔴 Not started |
 | **P8 – Security & observability** | Secrets, NetworkPolicies, logs/metrics | SecOps + Observability | 8.x sections in 505-v2 | 🟡 Not started |
 | **P9 – Migration & demo** | Bridge from develop_in_container, rollout playbook | Agents + DX | 505 legacy doc | 🔴 Not started |
@@ -123,8 +123,8 @@ Legend: 🟢 complete · 🟡 in progress · 🔴 not started
 **Goal:** implement the Solution Architect DAG, including repo digest requests, technical plans, and A2A client interactions.
 
 *Tasks*
-1. **New DAG scaffolding**
-   - `primitives/agent/ameide-sa` with nodes SA1–SA7.
+1. **New DAG bootstrap**
+   - `primitives/agent/ameide-sa` with nodes SA1–SA7 (bootstrapped via Backstage template or equivalent repo template).
 2. **Repo digest interface**
    - Define `intent=repo_digest` payload; update AmeideCoder to serve it.
    - Implement LangGraph tool wrapper for the digest call.
@@ -191,13 +191,14 @@ Legend: 🟢 complete · 🟡 in progress · 🔴 not started
 
 ### 2.7 Track P6 – CLI & tooling
 
-**Goal:** ensure CLI guardrails, scaffolds, and prompts align with the 3-agent architecture.
+**Goal:** ensure CLI guardrails, codegen gates, and prompts align with the 3-agent architecture.
 
 *Tasks*
 1. **Prompt updates**
    - `prompts/agent/*` differentiate PO, SA, Coder personas.
-2. **Scaffold templates**
-   - `primitive scaffold agent --role po|sa|coder` scaffolds correct structure.
+2. **Bootstrap templates + codegen**
+   - Repo skeletons for PO/SA/Coder are created via Backstage templates (or equivalent repo templates).
+   - Proto-derived wiring/tests are produced via `buf generate` into generated roots; the CLI may wrap `buf` as an orchestrator but must not become a parallel generator system.
 3. **Verify enhancements**
    - `primitive verify` checks for `runtimeRole`, `a2a` annotations, Process event subscriptions.
 4. **Docs**
@@ -224,7 +225,7 @@ Legend: 🟢 complete · 🟡 in progress · 🔴 not started
    - Document sequencing, toggles, rollback steps.
 
 *Acceptance criteria*
-- `argocd app sync` can bring up all four primitives in dev.
+- `argocd app sync` can bring up all four runtime components in dev.
 - Runbook includes how to rotate A2A auth keys.
 
 ### 2.9 Track P8 – Security & observability
@@ -272,7 +273,7 @@ Legend: 🟢 complete · 🟡 in progress · 🔴 not started
 | Sprint | Key Deliverables |
 |--------|------------------|
 | **S1** | Proto/SDK updates (Tracks P0, P1), Process workflow skeleton, Operator CRD extension PR opened. |
-| **S2** | AmeidePO DAG MVP, AmeideCoder REST endpoints (message:send/stream), CLI scaffold updates. |
+| **S2** | AmeidePO DAG MVP, AmeideCoder REST endpoints (message:send/stream), CLI codegen/verify updates. |
 | **S3** | AmeideSA DAG, Process events hitting PO/SA, dev cluster GitOps deployment, NetworkPolicies. |
 | **S4** | Observability dashboards, demo run, migration docs, begin removing develop_in_container dependency. |
 
@@ -303,7 +304,7 @@ Dependencies:
 - [ ] AmeideSA AgentDefinition + prompts + repo digest tool
 - [ ] AmeideCoder A2A server (REST binding, Agent Card, repo digest)
 - [ ] Operator CRD updates + Helm/GitOps overlays
-- [ ] CLI scaffold/verify/prompt updates
+- [ ] CLI codegen/verify/prompt updates
 - [ ] GitOps ApplicationSets for Process/PO/SA/Coder
 - [ ] Security artifacts (NetworkPolicy, secrets, threat model)
 - [ ] Observability dashboards + runbooks

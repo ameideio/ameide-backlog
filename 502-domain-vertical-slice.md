@@ -259,7 +259,7 @@ Execute these phases in order. Each phase has clear acceptance criteria.
 
 ### 3.1 Directory Structure
 
-All four primitive operators follow this structure:
+All primitive operators follow this structure (Domain/Process/Agent/UISurface today; Projection/Integration are v2 per `backlog/520-primitives-stack-v2.md`):
 
 ```
 operators/{primitive}-operator/
@@ -431,7 +431,7 @@ Uses shared vocabulary from `operators/shared/api/v1/conditions.go`:
 
 > **Implementation**: See [operators/helm/](../operators/helm/)
 
-The unified Helm chart deploys all four primitive operators from a single installation.
+The unified Helm chart deploys the currently implemented primitive operators (Domain/Process/Agent/UISurface) from a single installation.
 
 ### 7.1 Chart Structure
 
@@ -464,7 +464,7 @@ operators/helm/
 ### 7.2 Key Features
 
 - **Single chart for all operators**: Each operator can be enabled/disabled independently
-- **Shared RBAC**: One ClusterRole covers all four primitive CRDs
+- **Shared RBAC**: One ClusterRole covers the currently implemented primitive CRDs (Domain/Process/Agent/UISurface)
 - **CRDs in /crds folder**: Helm installs CRDs before templates
 - **Security by default**: Non-root, drop ALL capabilities
 - **Health probes**: Liveness/readiness on all operators
@@ -623,7 +623,7 @@ Repo-analysis helpers (`packages/ameide_core_cli/internal/commands/primitive_ana
 
 Dynamic client implementation in `packages/ameide_core_cli/internal/k8s/client.go`:
 - Uses `k8s.io/client-go/dynamic` for CRD operations
-- GVR constants for all four primitive types (Domain, Process, Agent, UISurface)
+- GVR constants for primitive types (Domain/Process/Agent/UISurface today; Projection/Integration planned)
 - Kubeconfig auto-detection (env var, default path, in-cluster)
 
 ### 8.4 Phase K: Verification Checks

@@ -136,7 +136,7 @@ message ScrumProcessFact {
     // …
   }
 }
-```
+	```
 
 Other domains should follow the same pattern (`<Context>Command`, `<Context>Event` or `<Context>DomainFact`, `<Context>ProcessFact`), with intents carrying request payloads and facts carrying state snapshots or diffs.
 
@@ -180,7 +180,15 @@ Pattern:
 <methodology>.<class>.<kind>.v<major>
   where class ∈ { domain, process }
         kind  ∈ { intents, facts }
-```
+	```
+
+### 3.3 Projections and integrations
+
+These conventions apply across the six primitives; they do **not** introduce a second behavior DSL.
+
+- **Projection messages** SHOULD use a `*Projection` suffix (e.g., `SalesOrderProjection`) and live in the bounded context package that owns the semantics (typically the originating domain or process context).
+- **Projection services** SHOULD use a `*QueryService` or `*ProjectionQueryService` naming pattern and remain read-only (queries only).
+- **Integration services** SHOULD use a `*IntegrationService` naming pattern for stable external seams; environment-specific endpoints and secrets MUST NOT be encoded in proto (those are runtime bindings).
 
 Rules:
 

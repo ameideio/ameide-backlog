@@ -21,7 +21,7 @@ We explicitly **do not** aim to recreate the D365 AOT stack in Kubernetes. Inste
   The application is a **metadata tree** (AOT) of tables, EDTs, enums, forms, menu items, security, etc. – a compiler turns that into runtime artifacts. Humans primarily edit metadata in Visual Studio.
 
 * **Ameide model:**
-  The application is **code (Go / TS / Temporal) plus proto contracts**, living in a **single codebase**, with **Domain / Process / Agent / UISurface** as operational primitives (CRDs). An **AI agent**, not humans in a designer, is the main developer.
+  The application is **code (Go / TS / Temporal) plus proto contracts**, living in a **single codebase**, with **six primitives** modeled as Kubernetes CRDs: **Domain / Process / Agent / UISurface / Projection / Integration**. An **AI agent**, not humans in a designer, is the main developer.
 
 ---
 
@@ -40,6 +40,8 @@ We explicitly **do not** aim to recreate the D365 AOT stack in Kubernetes. Inste
      * `Process`
      * `Agent`
      * `UISurface`
+     * `Projection`
+     * `Integration`
    * We do **not** create CRDs for low‑level concepts like EDTs, fields, or individual forms.
 
 3. **Central, coherent system graph derived from code**
@@ -103,6 +105,8 @@ Maximize expressiveness and AI‑operability by treating **code as the primary m
   * `Process` (orchestration / saga)
   * `Agent` (AI worker)
   * `UISurface` (UI entry point)
+  * `Projection` (read-optimized consumption/analytics)
+  * `Integration` (flows-as-code external integration)
 * Lower‑level concepts (e.g. “EDT”, “form”, “query”) are:
 
   * **code**, patterns, and conventions,
@@ -412,7 +416,7 @@ For architects migrating from D365, here's how the CQRS pattern (see [472 §2.8.
 |--------------|-------------------|-------|
 | **CoC (Chain of Command)** | Tier 1 WASM hooks | Scoped host calls; sandboxed execution |
 | **Overlayering** (deprecated) | Tier 2 custom primitives | Tenant namespace isolation; never modifies platform code |
-| **ISV solutions** | Tier 2 primitives + Backstage templates | Full Domain/Process/Agent/UISurface in tenant namespace |
+| **ISV solutions** | Tier 2 primitives + Backstage templates | Full primitive set in tenant namespace (Domain/Process/Agent/UISurface/Projection/Integration) |
 
 **Key architectural difference**: D365 enforces security via AOT metadata (security roles, duties, privileges stored in model). Ameide enforces via:
 1. **JWT claims** (tenant, org, roles) validated at API gateway
@@ -427,7 +431,7 @@ For architects migrating from D365, here's how the CQRS pattern (see [472 §2.8.
 Compared to D365’s AOT‑driven, metadata‑first ERP development:
 
 * Ameide is **code‑first, AI‑first**.
-* We keep only a **thin operational metadata layer** (CRDs for Domains/Processes/Agents/UISurfaces + small manifests).
+* We keep only a **thin operational metadata layer** (CRDs for core primitives plus Projection/Integration + small manifests).
 * We deliberately move concepts like EDTs, forms, and extensions **into code and proto**, where AI can work most effectively.
 * We rebuild the **AOT benefits** (coherence, introspection, extensibility discipline) via:
 

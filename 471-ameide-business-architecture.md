@@ -12,7 +12,7 @@ Here we go — Business Architecture time 🔧🏗️
 > | [478-ameide-extensions.md](478-ameide-extensions.md) | Tenant extension lifecycle |
 > | [479-ameide-extensibility-wasm.md](479-ameide-extensibility-wasm.md) | Tier 1 WASM + Tier 2 extensibility model |
 >
-> **Core Invariants**: See [470-ameide-vision.md §0 "Ameide Core Invariants"](470-ameide-vision.md) for the canonical list (four primitives, Graph read-only, Transformation as domain, proto chain, tenant isolation, Backstage internal).
+> **Core Invariants**: See [470-ameide-vision.md §0 "Ameide Core Invariants"](470-ameide-vision.md) for the canonical list (six primitives: Domain/Process/Agent/UISurface/Projection/Integration, Graph read-only, Transformation as domain, proto chain, tenant isolation, Backstage internal).
 >
 > **Deployment Implementation**:
 > - [465-applicationset-architecture.md](465-applicationset-architecture.md) – Per-environment deployments
@@ -23,7 +23,7 @@ Here we go — Business Architecture time 🔧🏗️
 
 ## Grounding & contract alignment
 
-- **Primitive & tenancy model:** Applies the four-primitives and tenant/organization invariants from `470-ameide-vision.md` to concrete business constructs (tenants, orgs, domains, processes, agents, workspaces) that are later realized as primitives/CRDs in `472-ameide-information-application.md`, `473-ameide-technology.md`, and `477-primitive-stack.md`.  
+- **Primitive & tenancy model:** Applies the primitive-kind and tenant/organization invariants from `470-ameide-vision.md` to concrete business constructs (tenants, orgs, domains, processes, agents, workspaces, projections, integrations) that are later realized as primitives/CRDs in `472-ameide-information-application.md`, `473-ameide-technology.md`, `477-primitive-stack.md`, and `520-primitives-stack-v2.md`.  
 - **Transformation/Scrum context:** Treats Transformation (including Agile/Scrum/TOGAF ADM) as “just another domain + processes + agents,” providing the business framing that the Scrum stack (`367-1-scrum-transformation.md`, `506-scrum-vertical-v2.md`, `508-scrum-protos.md`) and agent backlogs (`505-agent-developer-v2*.md`) specialize.  
 - **Downstream consumers:** Service catalog, operator, and CLI backlogs (`475-ameide-domains.md`, `481-service-catalog.md`, `495-ameide-operators.md`, `496-eda-principles.md`, `484a-484f`) rely on these business concepts when describing primitive portfolios and guardrails.
 
@@ -104,7 +104,7 @@ Ameide separates **design-time artifacts** (what to build) from **runtime primit
 
 #### Runtime primitives & CRDs
 
-Runtime Domain/Process/Agent/UISurface primitives are represented as Ameide custom resources (Domain/Process/Agent/UISurface CRDs) that encode the desired state for each primitive. Operators reconcile those CRDs into Deployments, Services, Temporal workers, and supporting infrastructure; GitOps applies only the CR YAML.
+Runtime primitives are represented as Ameide custom resources (Domain/Process/Agent/UISurface/Projection/Integration CRDs) that encode the desired state for each primitive. Operators reconcile those CRDs into workloads and supporting infrastructure; GitOps applies only the CR YAML.
 
 1. **Domain primitive**
 

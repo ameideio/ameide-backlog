@@ -109,7 +109,7 @@ Each hand-off is asynchronous (EDA intents/facts or A2A) and enforced by the ope
 | Concern | Primary location | Notes |
 |---------|------------------|-------|
 | Transformation schema/protos | `services/transformation`, `packages/ameide_core_proto/transformation/scrum/v1` | Update alongside 367-1 and 508 |
-| Temporal workflows | `primitives/process/*`, `operators/process` | Follow 506-v2 & 499 |
+| Temporal workflows | `primitives/process/*`, `operators/process-operator` | Follow 506-v2 & 499 |
 | Agent DAGs | `primitives/agent/ameide-po`, `ameide-sa`, `ameide-coder` | Align with 505 plan |
 | Devcontainer service | `services/devcontainer_service` | Implements A2A REST binding per 505 |
 | CLI guardrails | `packages/ameide_core_cli`, `prompts/agent/*` | Reference 504 |

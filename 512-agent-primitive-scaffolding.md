@@ -1,6 +1,8 @@
 # 512 – Agent Primitive Scaffolding (Python, opinionated)
 
-**Status:** Draft  
+> **Deprecation notice (520):** This backlog specifies an Agent scaffold generated via `ameide primitive scaffold`. That approach is deprecated. Canonical v2 uses **`buf generate`** (pinned plugins, deterministic outputs, generated-only roots, regen-diff CI gate). See `backlog/520-primitives-stack-v2.md`.
+
+**Status:** Deprecated (superseded by 520)  
 **Audience:** AI agents, Python developers, CLI implementers  
 **Scope:** Exact scaffold shape and patterns for **Agent** primitives, extracted from 484f. One opinionated Python pattern, aligned with `514-primitive-sdk-isolation.md` (SDK-only, self-contained primitives, CLI treated as out-of-band). No additional Agent-specific CLI parameters beyond the canonical `ameide primitive scaffold` flags.
 

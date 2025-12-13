@@ -4,7 +4,7 @@ Note: this document is now largely superseded by the consolidated `backlog/520-p
 
 ### 1) Control plane is Kubernetes-native (operators own lifecycle)
 
-You’re treating each primitive kind (Domain/Process/Agent/UISurface) as a **Kubernetes API** (CRDs) with a controller that reconciles desired state → Deployments/Services/HTTPRoutes/HPAs/secrets + status/conditions. That’s the core Kubernetes **Operator pattern**: continuously reconcile cluster state and surface health via status. ([Kubernetes][1])
+You’re treating each primitive kind (Domain/Process/Agent/UISurface/Projection/Integration) as a **Kubernetes API** (CRDs) with a controller that reconciles desired state → Deployments/Services/HTTPRoutes/HPAs/secrets + status/conditions. That’s the core Kubernetes **Operator pattern**: continuously reconcile cluster state and surface health via status. ([Kubernetes][1])
 
 Using **HTTPRoute** specifically is aligned with the modern Gateway API routing model. ([Kubernetes Gateway API][2])
 

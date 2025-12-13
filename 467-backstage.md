@@ -33,11 +33,11 @@
 
 Backstage is designated as the Ameide "platform factory" – the internal developer portal that provides:
 
-1. **Software Catalog** – Registry of all Domain/Process/Agent/UISurface primitives and their APIs
+1. **Software Catalog** – Registry of Ameide primitives and their APIs
 2. **Software Templates** – Scaffolder templates for creating new primitives
 3. **TechDocs** – Technical documentation aggregation
 4. **Integration Hub** – GitHub, Keycloak, ArgoCD integrations
-5. **Primitive CR authoring** – Templates emit Domain/Process/Agent/UISurface CRDs so GitOps/Argo manage declarative primitive specs instead of raw deployments.
+5. **Primitive CR authoring** – Templates emit primitive CRDs so GitOps/Argo manage declarative primitive specs instead of raw deployments.
 
 Per architecture doc 473 §4: "Backstage's Software Catalog and Software Templates / Scaffolder are used to create and manage all Ameide services (domain/process/agent) and their Helm charts."
 

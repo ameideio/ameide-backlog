@@ -17,14 +17,14 @@
 
 ## Grounding & cross-references
 
-- **Architecture grounding:** Packages the four primitive operators described in `470-ameide-vision.md`, `471-ameide-business-architecture.md`, `472-ameide-information-application.md`, `473-ameide-technology.md`, `475-ameide-domains.md`, `477-primitive-stack.md`, `495-ameide-operators.md`, and the Domain vertical slice (`502-domain-vertical-slice.md`) into a unified Helm chart.  
+- **Architecture grounding:** Packages the currently implemented primitive operators (Domain/Process/Agent/UISurface) described in `470-ameide-vision.md`, `471-ameide-business-architecture.md`, `472-ameide-information-application.md`, `473-ameide-technology.md`, `475-ameide-domains.md`, `477-primitive-stack.md`, `495-ameide-operators.md`, and the Domain vertical slice (`502-domain-vertical-slice.md`) into a unified Helm chart (Projection/Integration operators are v2 per `backlog/520-primitives-stack-v2.md`).  
 - **Operator relationships:** Deploys the Domain, Process, Agent, and UISurface operators tracked in `498-domain-operator.md`, `499-process-operator.md`, `500-agent-operator.md`, and `501-uisurface-operator.md`; status/condition semantics are aligned via `502-domain-vertical-slice.md`.  
 - **GitOps integration:** Ties directly into the ArgoCD/ApplicationSet patterns described in `446-namespace-isolation.md`, `447-waves-v3-cluster-scoped-operators.md`, and the GitOps repo structure referenced by the 484a–484f CLI backlogs and `504-agent-vertical-slice.md`.  
 - **Scrum stack usage:** Provides the control-plane foundation for the Scrum stack defined in `506-scrum-vertical-v2.md`, `508-scrum-protos.md`, `505-agent-developer-v2.md`, and `505-agent-developer-v2-implementation.md` by ensuring their operators are installed consistently across clusters.
 
 ## 1. Overview
 
-The operators Helm chart provides a unified deployment mechanism for all four AMEIDE primitive operators:
+The operators Helm chart provides a unified deployment mechanism for the currently implemented AMEIDE primitive operators (Domain/Process/Agent/UISurface):
 
 | Operator | CRD | Purpose |
 |----------|-----|---------|
@@ -184,7 +184,7 @@ Phase 020: cluster-ameide-operators
     └─ Installs operator Deployments to ameide-system namespace
               ↓
 Phase 100+: Environment workloads (dev, staging, production)
-    └─ Domain/Process/Agent/UISurface CRs in ameide-{env} namespaces
+    └─ Primitive CRs in ameide-{env} namespaces (Domain/Process/Agent/UISurface today; Projection/Integration planned)
 ```
 
 #### Helm Chart Values (Implemented)

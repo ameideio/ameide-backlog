@@ -1,6 +1,8 @@
 # 484f – Ameide CLI: Scaffold Implementation Reference
 
-**Status:** Active
+> **Deprecation notice (520):** This file describes a bespoke CLI scaffolder. That approach is deprecated. Canonical v2 uses **`buf generate`** (pinned plugins, deterministic outputs, generated-only roots, regen-diff CI gate). See `backlog/520-primitives-stack-v2.md`.
+
+**Status:** Deprecated (superseded by 520)
 **Audience:** AI agents (primary), CLI implementers (secondary)
 **Scope:** Per-primitive scaffold outputs, templates, worked examples, cross-reference index
 

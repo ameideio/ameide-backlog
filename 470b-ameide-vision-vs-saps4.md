@@ -28,7 +28,7 @@ We are **not** trying to rebuild S/4HANA’s DDIC + CDS + Customizing stack insi
 
 **Ameide:**
 
-> A **code-first, proto-centric system** where business logic lives in Go/Temporal/TS in a single repo, with **Domain / Process / Agent / UISurface** as coarse-grained runtime primitives modeled as Kubernetes CRDs; an **AI agent** is the primary “developer” that edits code and specs.
+> A **code-first, proto-centric system** where business logic lives in Go/Temporal/TS in a single repo, with **six primitives** modeled as Kubernetes CRDs: **Domain / Process / Agent / UISurface / Projection / Integration**; an **AI agent** is the primary “developer” that edits code and specs.
 
 ---
 
@@ -47,6 +47,8 @@ We are **not** trying to rebuild S/4HANA’s DDIC + CDS + Customizing stack insi
      * `Process` – long-running orchestration
      * `Agent` – AI worker
      * `UISurface` – UI shell / entry point
+     * `Projection` – read-optimized consumption/analytics
+     * `Integration` – flows-as-code external integration
 
    * No CRDs for “table”, “field”, “form”, or “UI annotation”.
 
@@ -189,7 +191,7 @@ Keep infra simple; avoid an explosion of runtime metadata entities. Low-level se
 * Designed for **AI as the primary developer**:
 
   * AI reads/writes Go/Temporal/TS and proto,
-  * manipulates Domain/Process/Agent/UISurface CRDs.
+  * manipulates primitive CRDs (Domain/Process/Agent/UISurface/Projection/Integration).
 * Humans primarily:
 
   * express requirements,
@@ -292,7 +294,7 @@ Avoid a separate “config world” with its own UI, transport, and logic. Treat
 
   * projects from proto descriptors,
   * indexes Go/Temporal/TS code,
-  * reads Domain/Process/Agent/UISurface CRDs and module manifests.
+  * reads primitive CRDs and module manifests.
 
 * Queries like:
 
@@ -501,7 +503,7 @@ Compared to **SAP S/4HANA’s metadata- and configuration-driven architecture**,
 
   * a **single codebase**,
   * **proto contracts**,
-  * **Domain/Process/Agent/UISurface CRDs**,
+  * **primitive CRDs** (Domain/Process/Agent/UISurface/Projection/Integration),
   * and **extension modules + manifests**.
 * Keeps the *goals* of ERP metadata systems (coherence, extensibility, clean core, introspection), but:
 

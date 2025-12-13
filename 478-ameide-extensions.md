@@ -63,7 +63,7 @@ Backstage pulls truth from:
 >
 > Tier 1 WASM extensions do **not** use Backstage; they are stored as `ExtensionDefinition` artifacts and executed by the shared runtime (479/480).
 >
-> Tier 2 templates emit primitive repositories **and** the Domain/Process/Agent/UISurface CRDs that GitOps applies to realise runtime primitives.
+> Tier 2 templates emit primitive repositories **and** the six primitive CRDs (Domain/Process/Agent/UISurface/Projection/Integration) that GitOps applies to realise runtime primitives.
 
 ### 2.2 Backstage Capabilities Used
 
