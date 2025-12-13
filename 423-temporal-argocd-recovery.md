@@ -45,3 +45,8 @@
 
 - The Temporal “namespace” concept is **not** a Kubernetes namespace. Temporal namespaces are declared via `TemporalNamespace` CRs shipped with `data-temporal`.
 - Schema setup/update is owned by the operator reconcile (not Flyway, and no separate `data-migrations-temporal` app).
+
+### Addendum (2025-12-13): Naming and local DNS
+
+- We keep the service name **Temporal** (and `TemporalCluster` name `temporal`) as the canonical naming.
+- Local DNS/HTTPRoute hostnames should use the `*.local.ameide.io` convention (e.g. `temporal.local.ameide.io`) to avoid mixing “dev” and “local” semantics.

@@ -88,6 +88,14 @@
 - **Wave ordering:**
   - CRDs (wave ~210) → operator (wave ~220) → CHI (wave ~250) → dependents.
 
+## Addendum (2025-12-13): Local (arm64) specifics
+
+- Local `arm64` clusters may require **multi-arch ClickHouse images**; avoid pinning to a mirror tag unless it is verified multi-arch.
+- When Argo CD hits the CRD diff/SSA panic path, the most robust local mitigation is:
+  - keep SSA disabled for CHI,
+  - allow the CHI Application to replace resources when needed (to clear stuck state cleanly),
+  - and keep the operator namespace watch list explicitly covering `ameide-local`.
+
 ## Troubleshooting notes
 - **CRD presence check:** `kubectl get crd | grep clickhouse` must show all four; absence of `clickhouseinstallations` causes CHI sync failures.
 - **Argo panic “invalid memory address”:** the Argo CD application controller occasionally panics while diffing the `ClickHouseInstallation` resource, leaving `status.operationState.phase=Error` and `message="runtime error: invalid memory address or nil pointer dereference"` even though the CHI is `Synced/Healthy`. This is a bug in Kubernetes apimachinery’s `strategicpatch` code path, not in ClickHouse or our manifests.

@@ -32,6 +32,15 @@ Mirror all third-party Docker Hub images to GitHub Container Registry under `ghc
 - Full control over image availability
 - Weekly automated refresh keeps images current
 
+## Addendum (2025-12-13): Multi-arch validation is required
+
+Recent local `arm64` debugging showed two failure modes that this doc should explicitly guard against:
+
+- **Mirror image can be “present” but broken for a target architecture** (example: Grafana mirror crashed on `arm64` with a Go runtime fatal; local temporarily fell back to upstream `docker.io/grafana/grafana`).
+- **Upstream image can be `amd64`-only** (example: `quay.io/janus-idp/backstage-showcase:latest`), which causes instability on `arm64` clusters unless we pin a multi-arch tag or publish our own mirror.
+
+**TODO (tracked under 519):** add a mirror pipeline validation step to ensure each mirrored tag includes at least `linux/amd64` and `linux/arm64`, and optionally run a lightweight smoke check (e.g., `docker run --platform ... --version`) for critical images.
+
 ## Infrastructure
 
 ### GitHub Actions Workflow

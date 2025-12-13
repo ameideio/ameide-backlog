@@ -46,6 +46,34 @@ Primary outcomes:
 - **A proper chart toggle exists for one vendor chart fork**: Langfuse worker can be disabled (currently implemented inside the vendored chart tree).
 - **Temporal bootstrap is operator-native**: Temporal namespaces are managed via `TemporalNamespace` CRs and Temporal DB readiness is gated by an idempotent Argo hook Job (no “run this once” manual bootstrap).
 
+### Deferred TODOs (values layering contract)
+
+These are intentionally deferred to later in this backlog (but now tracked explicitly).
+
+- **Define “base chart vs env overlay” rules** (write down as repo policy):
+  - Charts must remain portable: no environment identity (domains/hostnames), no cluster-type branching unless explicitly keyed off `global.ameide.*`.
+  - `_shared` values represent Ameide baseline defaults; env values represent environment identity and sizing.
+  - If a vendor image/layout differs (paths, plugins, CLI args), add a chart-level knob (not env-specific templating).
+- **Expand schema guardrails** beyond one chart:
+  - Enforce `global.ameide.*` in every Ameide-owned chart.
+  - Add a lint/check that rejects environment hostnames in `_shared` and charts.
+- **Centralize image policy**:
+  - Add `global.ameide.images.policy.*` and standard translation patterns in wrappers.
+  - Add a validation step for “local requires multi-arch (arm64 + amd64)” so we stop discovering arch issues at runtime.
+- **Reduce environment diffs**:
+  - Collapse repeated hostname/domain wiring into `global.ameide.network.*` and service-level `httproute.hostname` only when truly needed.
+  - Use consistent env/cluster value file ordering and document it once.
+
+### Recent incident-driven fixes (captured for follow-up)
+
+- **Local `arm64` image/arch gaps surfaced**:
+  - Backstage Janus image was `amd64`-only → local moved to a multi-arch Backstage image + chart knobs for differing filesystem layouts.
+  - Grafana mirror image crashed on `arm64` → local temporarily uses upstream multi-arch image; mirror pipeline needs multi-arch validation.
+- **GitOps “self-heal” gaps surfaced**:
+  - Postgres role password drift now reconciles via a CronJob (migration/self-heal) rather than a one-shot hook.
+  - Postgres URI generation now URL-encodes passwords to avoid runtime auth failures for certain passwords.
+  - ClickHouse + Argo CD CRD diff/SSA panics required local-specific sync strategy (avoid SSA + allow Replace for the CHI app).
+
 **What remains misaligned (gaps)**
 - **Values schema collision risk remains repo-wide**: the worst offender (local top-level `cluster:`) is removed, but we still need to migrate remaining ambiguous root keys into the `global.ameide.*` contract and expand schema guardrails beyond a single chart.
 - **Local disable semantics are inconsistent**:

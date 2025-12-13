@@ -37,3 +37,8 @@
 - Monitor first rollout after image bumps to ensure `/entrypoint.sh db migrate` succeeds against ClickHouse/Postgres.***
 - Keep oauth2-proxy enabled for every environment (dev/staging/prod): Plausible must never be exposed publicly without SSO, and `/js/` + `/api/event` are the only paths allowed to bypass auth.
 - When onboarding new environments, add the Plausible OIDC client to the Keycloak realm values (`plausible` clientId, redirect URIs, `client-patcher` spec) and seed the Vault placeholders (`plausible-oidc-client-id`, `plausible-oidc-client-secret`, `plausible-oauth-cookie-secret`) instead of creating ad-hoc secrets.
+
+## Addendum (2025-12-13): Local recovery notes
+
+- Plausible can appear “broken” when ClickHouse is unavailable; the most common symptom is an initContainer/migration loop or a stuck pod.
+- In local, once ClickHouse was reconciled to a healthy `ClickHouseInstallation` state, deleting the stuck Plausible pod was enough for it to recreate cleanly and become Ready.

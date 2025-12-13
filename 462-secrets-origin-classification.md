@@ -31,6 +31,11 @@ This distinction prevents the anti-pattern where cluster-generated secrets (like
 | **Cluster-Managed (Helm-Generated)** | MinIO root, Grafana admin, bootstrap secrets | K8s Secret (created by Helm) | Helm `randAlphaNum` + `lookup` | Helm generates on first install → K8s Secret → (optional) PushSecret → Vault |
 | **Cluster-Managed (Service-Generated)** | Keycloak client secrets, OIDC tokens | Service (Keycloak, etc.) | client-patcher Job extracts from service API | Service generates → Job extracts via API → Vault → ExternalSecrets → K8s |
 
+## Addendum (2025-12-13): Determinism fixes that affect secret “ownership”
+
+- **Postgres connection URIs must be URL-encoded**: when generating `postgres://user:password@...` from Secret values, encode the password component or certain valid passwords will break clients.
+- **Operator-reconciled passwords need a self-heal path**: when migrating from one authority pattern to another (e.g., Helm-generated → Vault KV → ExternalSecrets), a one-shot hook is fragile; prefer an opt-in periodic reconciler (CronJob) until drift is fully eliminated.
+
 ### Vendor Documentation References (2025-12-07)
 
 All classifications are backed by upstream vendor documentation:

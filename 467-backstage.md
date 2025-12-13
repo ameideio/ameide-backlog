@@ -29,6 +29,22 @@
 
 ---
 
+## Update (2025-12-13): Local runtime postmortem (arm64)
+
+**Symptoms**
+- `platform-backstage` repeatedly failed health probes and restarted (often `ExitCode=137`), leaving ArgoCD `Degraded/ProgressDeadlineExceeded`.
+
+**Root cause**
+- The local k3d cluster runs on `arm64` nodes; `quay.io/janus-idp/backstage-showcase:latest` is `linux/amd64` only, so pods ran under emulation and were unstable.
+- Vendor image layout differences (`/opt/app-root/src/...` vs `/app/...`) also matter for config + migration mounts.
+
+**Fix shipped (GitOps)**
+- Local overrides now use an `arm64`-capable Backstage image (multi-arch) and adjust config/migration mount paths.
+- The Backstage chart gained explicit knobs so image filesystem/layout differences are handled declaratively (chart-level capability, not “hand edited manifests”).
+
+**Follow-up**
+- Decide whether we want to keep Janus IDP in hosted environments and, if so, ensure the chosen tag is multi-arch (or publish our own multi-arch mirror).
+
 ## 1. Executive Summary
 
 Backstage is designated as the Ameide "platform factory" – the internal developer portal that provides:

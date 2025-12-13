@@ -44,6 +44,11 @@ In other words:
 * CNPG + Kubernetes Secrets own **both** the credentials and the database roles.
 * Vault integration is **downstream** (for visibility/audit), not upstream (for provisioning).
 
+## Addendum (2025-12-13): Drift reconciliation + URI correctness
+
+- **Password drift self-heal:** when migrating credential authority patterns, add an opt-in periodic reconciler (CronJob) that forces DB roles to match the desired Secret until all drift sources are removed.
+- **URI generation correctness:** when composing Postgres URIs from Secret values, URL-encode the password component to avoid runtime failures for valid passwords.
+
 ---
 
 ## 3. Design Principles
