@@ -1,6 +1,6 @@
 # 519 – GitOps Fleet Policy + Values Schema Hardening
 
-**Status:** Planning (ready for execution)  
+**Status:** In progress (partially executed)  
 **Owner:** Platform SRE / GitOps  
 **Depends on:** 364 (Argo bootstrap + ApplicationSets), 375 (RollingSync waves), 446 (namespace isolation), 452 (Vault RBAC isolation), 456 (GHCR mirror policy), 462 (secrets origin classification), 505 (devcontainer service target architecture)
 
@@ -31,19 +31,21 @@ Primary outcomes:
 
 **What is already aligned**
 - **AppSet waves still function**: component definitions retain `rolloutPhase` and RollingSync steps continue to gate rollouts.
+- **AppSet strict templating is enabled**: `goTemplateOptions: ["missingkey=error"]` is enforced so mis-templated apps fail fast.
 - **Destination-cluster secret management is in place** for Vault + SecretStore + GHCR pull secrets; cross-namespace Vault role now explicitly includes `ameide-system`.
-- **Local arm64 reality is handled** in a few places (e.g., Vault bootstrap image, Temporal namespace bootstrap image), avoiding qemu/amd64 crash loops.
 - **Argo drift mitigations exist** where needed:
   - CNPG drift fix for `cluster.*` key collisions applied in templates.
-  - Backstage session secret diff ignored to prevent permanent OutOfSync.
+  - Argo CD system `resource.customizations` covers Temporal CRs and CRDs to keep health deterministic (no “Unknown” during controller/CRD ordering).
+- **Backstage stable session secret is operator-managed**: cookie signing secret is sourced from Vault KV and synced via External Secrets Operator (no Helm randomness, no Argo diff ignores).
 - **A proper chart toggle exists for one vendor chart fork**: Langfuse worker can be disabled (currently implemented inside the vendored chart tree).
+- **Temporal bootstrap is operator-native**: Temporal namespaces are managed via `TemporalNamespace` CRs and Temporal DB readiness is gated by an idempotent Argo hook Job (no “run this once” manual bootstrap).
 
 **What remains misaligned (gaps)**
-- **Values schema collision risk remains repo-wide**: `sources/values/cluster/local/globals.yaml` defines a top-level `cluster:` map which can collide with chart-level specs (already observed with CNPG).
+- **Values schema collision risk remains repo-wide**: the worst offender (local top-level `cluster:`) is removed, but we still lack a formal `global.ameide.*` contract and schema guardrails.
 - **Local disable semantics are inconsistent**:
   - Some components are disabled by “empty manifests” / pruning behavior instead of a first-class `enabled` contract.
   - Some components should not exist at all on local and should be excluded via the ApplicationSet generator rather than installed then pruned.
-- **Non-deterministic runtime secrets still exist** in chart templates (Backstage session secret is still Helm-generated; we’re ignoring diffs instead of moving the source of truth to Vault/ESO).
+- **Non-deterministic runtime secrets still exist** in some charts and are currently masked via Argo diff ignores (migrate them to Vault KV → ESO → Secret, and remove ignores).
 - **Vendor chart modifications exist in-tree** (e.g., Langfuse changes landed under `sources/charts/third_party/...`), which will complicate upstream upgrades.
 - **Image policy is not centralized**: multi-arch requirements and “mirror vs upstream” decisions are handled ad-hoc per chart.
 - **Bootstrap Jobs are not standardized**: job immutability, wait/retry patterns, and cleanup semantics vary per bootstrap chart.
