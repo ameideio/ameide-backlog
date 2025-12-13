@@ -106,3 +106,14 @@ Each developer MUST implement exactly one primitive vertical with the same outer
 - GitOps workload + smoke components under `gitops/ameide-gitops/`
 
 Projection and Integration MUST be included in the set of verticals; they MUST NOT be deferred by this TDD plan.
+
+## Progress Trackers (MUST)
+
+Each primitive vertical MUST be tracked in its own checklist document:
+
+- [x] `backlog/520-primitives-stack-v2-tdd-domain.md`
+- [ ] `backlog/520-primitives-stack-v2-tdd-process.md`
+- [ ] `backlog/520-primitives-stack-v2-tdd-agent.md`
+- [ ] `backlog/520-primitives-stack-v2-tdd-projection.md`
+- [ ] `backlog/520-primitives-stack-v2-tdd-integration.md`
+- [ ] `backlog/520-primitives-stack-v2-tdd-uisurface.md`
