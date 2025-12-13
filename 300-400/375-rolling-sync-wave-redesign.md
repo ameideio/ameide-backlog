@@ -183,7 +183,7 @@ Generated via `./wave_lint.sh` (it scans `gitops/ameide-gitops/environments/dev/
 - **wave26**
   - `data-temporal` (data/extended/temporal/component.yaml) – data / data-services / ameide
 - **wave27**
-  - `data-temporal-namespace-bootstrap` (data/extended/temporal-namespace-bootstrap/component.yaml) – data / data-services / ameide
+  - (removed) Temporal namespaces are now declared via `TemporalNamespace` CRs alongside `data-temporal`
 - **wave29**
   - `data-data-plane-ext-smoke` (data/extended/data-plane-ext-smoke/component.yaml) – data / data-services / ameide
 - **wave30**

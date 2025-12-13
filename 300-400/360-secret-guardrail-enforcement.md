@@ -110,7 +110,7 @@ Actions to close the regression:
 - Platform chart no longer renders its own ExternalSecret and now fails templating unless `postgresql.auth.existingSecret` is set in every environment (local/staging/production now point to `platform-db-credentials`).
 - Layer 15 owns the platform DB ExternalSecret through the new `vault-secrets-platform` release, reinforcing the guardrail that secrets must originate from the shared store instead of inline chart defaults.
 - **2026-03-11 – Tilt guardrail for ameide-vault:** `Tiltfile` automatically adds the baseline Helm layers (core proto + infra:10/12/15) to every `--only` run so the `vault-secret-store` release always reconciles `ClusterSecretStore/ameide-vault` before `www-ameide-platform` starts. This prevents the `externalsecret ... could not get ClusterSecretStore "ameide-vault"` error that blocked local rollouts.
-- Added `infra/kubernetes/charts/infrastructure/temporal-namespace-bootstrap` to Helmfile layer 45 so local clusters auto-create the `ameidemporal namespace via admin-tools before workflows-runtime guards execute; Tilt `helm upgrade workflows-runtime` now fails fast only when Temporal itself is unreachable.
+- (Superseded) Temporal namespaces are now declared via the Temporal operator (`TemporalNamespace` CRs in `data-temporal`); the old Helmfile `temporal-namespace-bootstrap` job is removed.
 - **2026-03-11 – Local db-migrations regression triaged:** `kubectl logs -n ameide job/db-migrations` surfaced missing graph/transformation/threads/agents-runtime/langgraph secrets on fresh local clusters. This backlog now tracks the Layer 15 + documentation work required to seed those credentials before the hook runs.
 
 ## Risks & Mitigations

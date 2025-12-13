@@ -120,7 +120,7 @@
   - `data-temporal` (data/extended/temporal/component.yaml) – data / ameide / ameide
   - `data-pgadmin` (data/extended/pgadmin/component.yaml) – data / ameide / ameide
 - **phase455**
-  - `data-temporal-namespace-bootstrap` (data/extended/temporal-namespace-bootstrap/component.yaml) – data / ameide / ameide
+  - (removed) Temporal namespaces are now declared via `TemporalNamespace` CRs alongside `data-temporal`
 - **phase499**
   - `data-data-plane-ext-smoke` (data/extended/data-plane-ext-smoke/component.yaml) – data / ameide / ameide
 - **phase510**

@@ -6,7 +6,7 @@
 > |----------|---------|
 > | [465-applicationset-architecture.md](465-applicationset-architecture.md) | How data-temporal apps are generated |
 > | [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md) | Rollout phases: 265 (migrations), 450/455 (runtime/bootstrap) |
-> | [464-chart-folder-alignment.md](464-chart-folder-alignment.md) | Chart at `sources/charts/third_party/temporal/` |
+> | [464-chart-folder-alignment.md](464-chart-folder-alignment.md) | Temporal charts: `sources/charts/platform/temporal-cluster` (TemporalCluster/TemporalNamespace) and `sources/charts/third_party/alexandrevilain/temporal-operator` (operator) |
 > | [426-keycloak-config-map.md](426-keycloak-config-map.md) | CNPG credential ownership pattern |
 >
 > **Related**:
@@ -34,18 +34,15 @@
 In dev, the **normal path** is now: open the DevContainer, let the GitOps bootstrap (`ameide-gitops/bootstrap/bootstrap.sh`) converge the cluster (see `backlog/429-devcontainer-bootstrap.md` for legacy context), and rely on Argo’s automated sync + retry + RollingSync to bring Temporal apps healthy. The CLI `argocd app sync` steps below remain the manual recovery path when something is stuck (see also `backlog/423-temporal-argocd-recovery.md`).
 
 ## Issues we hit and fixes
-- **Temporal CrashLoopBackOff (permission denied on `schema_version`):**
-  - **Cause:** Temporal pods were using the generic `dbuser`, which lacked grants on `schema_version`; sometimes the schema table was absent after fresh cluster brings.
-  - **Fix:** Switched chart values to the dedicated roles (`temporal`, `temporal_visibility`), removed Vault-driven secrets, and relied on CNPG-managed secrets. Ensured the Temporal schema hook (`data-migrations-temporal`) and namespace bootstrap run after sync (manual `argocd app sync data-migrations-temporal data-temporal{,-namespace-bootstrap}`).
-- **Temporal CrashLoopBackOff (relation `schema_version` does not exist):**
-  - **Cause:** Fresh cluster without Temporal schemas initialized (Temporal migrations/bootstrap not yet applied).
-  - **Fix:** Sync `data-migrations-temporal`, then `data-temporal` and `data-temporal-namespace-bootstrap`; confirm `schema_version` exists via `psql` against CNPG. Post-sync, all Temporal deployments went Running.
+- **Temporal CrashLoopBackOff (schema compatibility check / schema missing):**
+  - **Cause:** Temporal schema setup/update Jobs (owned by the operator) failed or were blocked by Postgres schema ownership/permissions on a fresh cluster.
+  - **Fix:** Inspect operator-owned schema pods (`temporal-setup-*`, `temporal-update-*`) and their logs; fix any DB ownership issues (CNPG) and let the operator rerun schema setup/update.
 - **Dev registry push hangs / missing images:**
   - **Cause:** Devcontainer resolving `k3d-ameide.localhost` to the registry container IP (no host port), and underscore image names diverging from GitOps values.
   - **Fix:** Build script now defaults push endpoint to `localhost:5001` while tagging `k3d-ameide.localhost:5001/ameide/<image>:dev`; enforces hyphenated tags; adds service filters; documents usage in README/backlog/415.
-- **Temporal schema job reran endlessly (duplicate `namespace_metadata` PK):**
-  - **Cause:** Because Argo self-healed deleted hook resources, the Helm hook job re-created itself after every sync. After the first successful `setup-schema`, the second rerun hit `duplicate key value violates unique constraint "namespace_metadata_pkey"` and exited before `update-schema` could bump the version, leaving Temporal stuck at `0.0`.
-  - **Fix:** Disabled `prune`/`selfHeal` for the `data-migrations-temporal` Application so the hook only runs when we explicitly sync or bump the chart. Added the manual cleanup procedure below to clear any partially-initialized tables before the next intentional sync.
+- **Temporal server panic (`initial versions have duplicates`):**
+  - **Cause:** Temporal DB has multiple cluster names in `cluster_metadata_info` (often leftover from a temporary rename experiment).
+  - **Fix:** Delete the stale cluster row (example: `DELETE FROM cluster_metadata_info WHERE cluster_name='active';`), then restart Temporal deployments.
 
 ## Reproducible rollout (dev)
 1) Pull repo + submodule: `git pull --recurse-submodules && git submodule update --init --recursive`.
@@ -62,36 +59,24 @@ In dev, the **normal path** is now: open the DevContainer, let the GitOps bootst
    argocd app sync dev-data-temporal --grpc-web --server localhost:8080
    argocd app wait dev-data-temporal --health --timeout 300 --grpc-web --server localhost:8080
    ```
-5) Verify pods: `kubectl get pods -n ameide | grep temporal` (all Running; namespace bootstrap Completed). DB check (optional): `psql -U temporal -d temporal -c "select * from schema_version;"` on a CNPG pod.
+5) Verify pods: `kubectl get pods -n <env-namespace> | grep temporal` (all Running). DB check (optional): `psql -U temporal -d temporal -c "select * from schema_version;"` on a CNPG pod.
 
-### Manual cleanup when `namespace_metadata_pkey` is duplicated
+### Manual DB cleanup when `namespace_metadata` is missing/duplicated
 
-> Legacy only: this section applied to the removed Helm-hook migration job. With the operator-based deployment, prefer inspecting `TemporalCluster` status and operator logs.
+If Temporal services crash with:
 
-If `data-migrations-temporal-temporal-migrations` fails with:
+- `Failed to lock namespace metadata. Error: sql: no rows in result set`, or
+- `duplicate key value violates unique constraint "namespace_metadata_pkey"`
 
-```
-duplicate key value violates unique constraint "namespace_metadata_pkey"
-```
+then the default store is missing (or has a conflicted) metadata-partition row.
 
-the schema setup phase re-ran after partially initializing the default namespace. Clean up and rerun the hook once:
-
-1. Delete the stuck hook job so we start from a clean slate:
+1) Exec into the CNPG primary and fix the metadata partition row (Postgres `partition_id=54321`):
+   ```sql
+   DELETE FROM namespace_metadata WHERE partition_id = 54321;
+   INSERT INTO namespace_metadata(partition_id, notification_version) VALUES (54321, 0);
    ```
-   kubectl -n ameide delete job data-migrations-temporal-temporal-migrations
-   ```
-2. Remove the duplicate namespace row from CNPG (pick the primary pod for `platform-postgres-clusters`):
-   ```
-   CNPG=$(kubectl -n ameide get pods -l cnpg.io/cluster=platform-postgres-clusters,role=primary -o jsonpath='{.items[0].metadata.name}')
-   kubectl -n ameide exec -it "${CNPG}" -- psql -U temporal -d temporal -c \
-     "delete from namespace_metadata where namespace_id='namespace|default';"
-   ```
-3. Trigger the hook exactly once:
-   ```
-   argocd app sync data-migrations-temporal --grpc-web --server localhost:8080
-   ```
-   Wait for the hook pod to finish and confirm `temporal-sql-tool version` now matches the chart’s expected version (currently `1.18`).
-4. Re-sync the runtime and namespace bootstrap apps as in step 4 above.
+2) Delete the operator-owned schema pods (or restart the Temporal operator) to force a reconcile and schema rerun.
+3) Restart Temporal deployments; confirm all services converge to Running.
 
 ## Follow-ups / hardening
 - Auto-sync + retry for `data-temporal*` in dev is now configured via the shared ApplicationSet template. Manual `argocd app sync`/`app wait` is reserved for explicit recovery (especially after schema or CNPG incidents).

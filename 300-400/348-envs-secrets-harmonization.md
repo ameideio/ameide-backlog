@@ -417,7 +417,7 @@ Retired and merged into `apps-agents-runtime`; no separate chart, ConfigMap, or 
 - **Env overlays**: Local/staging adjust environment, temporal namespace, addresses.
 - **ConfigMap**: Holds Temporal connection details, workflow service address, OTEL settings.
 - **Secrets**: None.
-- **Update (2025-11-07):** Layer 45 now installs a `temporal-namespace-bootstrap` job (Temporal admin-tools) that creates the `ameidemespace before the workflows-runtime namespace guard runs. Re-applied the Tilt `helm upgrade --install workflows-runtime …` path to prove the guard hook succeeds once the namespace exists.
+- **Update (superseded):** Temporal namespaces are now declared via the Temporal operator (`TemporalNamespace` CRs in `data-temporal`); the old `temporal-namespace-bootstrap` job is removed.
 - **Status:** ✅ No refactor required – defaults now assume production; overlays provide environment-specific values, and validation completed via Helm upgrade after namespace bootstrap.
 - **Notes:** Confirmed no sensitive data in ConfigMap; base values now use production identifiers so hosted overlays explicitly set their target environments.
 - **Checklist:**

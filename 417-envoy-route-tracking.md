@@ -62,7 +62,7 @@ Remaining routes still in gateway chart are candidates for future migration (see
 - HTTPRoute telemetry-https: telemetry.dev.ameide.io → platform-otel-collector:4317
 - HTTPRoute argocd: argocd.dev.ameide.io → argocd-server:80
 - App chart HTTPRoute pgadmin: pgadmin.dev.ameide.io → pgadmin:80
-- App chart HTTPRoute temporal-web: temporal.dev.ameide.io → data-temporal-web:4001
+- App chart HTTPRoute temporal-web: temporal.dev.ameide.io → temporal-ui:8080
 - App chart HTTPRoute graph-connect-internal: envoy-grpc (no hostname) → graph:8081 (Connect + gRPC-Web prefixes)
 - HTTPRoute langfuse-web: evals.dev.ameide.io → platform-langfuse-web:3000
 - HTTPRoute plausible: plausible.dev.ameide.io → plausible-oauth2-proxy:80

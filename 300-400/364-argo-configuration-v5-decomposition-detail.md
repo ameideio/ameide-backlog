@@ -141,8 +141,7 @@ Each component sets `CreateNamespace=true`, `SkipDryRunOnMissingResource=true`, 
 | --- | --- | --- | --- | --- |
 | MinIO | `data/extended/minio` | `data` | `wave25` | Shared values keep it off; the local overlay flips `enabled: true`, forces `local-path` storage, and caps replicas at one so only k3d/dev gets buckets. |
 | Neo4j | `data/extended/neo4j` | `data` | `wave25` | The component lives as `component.disabled.yaml`; rename it to `component.yaml` when we actually need Neo4j. |
-| Temporal core | `data/extended/temporal` | `data` | `wave26` | Helm chart (temporal/temporal). Requires CNPG/Postgres + Kafka; keep `SkipDryRunOnMissingResource=true`. |
-| Temporal namespace bootstrap | `data/extended/temporal-namespace-bootstrap` | `data` | `wave27` | Raw Helm chart in `platform-layers/temporal-namespace-bootstrap`; runs after Temporal core. |
+| Temporal core | `data/extended/temporal` | `data` | `wave26` | Operator-based: deploys `TemporalCluster` + `TemporalNamespace` CRs (no separate namespace bootstrap job). Requires CNPG/Postgres; keep `SkipDryRunOnMissingResource=true`. |
 | Temporal OAuth proxy | `data/extended/temporal-oauth2-proxy` | `data` | `wave28` | Bitnami oauth2-proxy chart with Azure AD config. |
 | Data plane extended smoke | `data/extended/data-plane-ext-smoke` | `data` | `wave29` | Helm test job; stays disabled until foundational components are Healthy. |
 

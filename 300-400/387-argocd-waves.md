@@ -67,10 +67,10 @@ Two ApplicationSets with separate RollingSync ladders.
 
 - `data-extended-dev` (`environments/dev/argocd/apps/data-extended.yaml`, sync-wave 5)
   - 34: temporal, pgadmin.
-  - 36: temporal-namespace-bootstrap.
+  - 36: (removed) Temporal namespaces are now declared via `TemporalNamespace` CRs alongside `data-temporal`.
   - 39: data-plane-ext-smoke.
 
-_Proposal (not applied):_ align to 20/30/99 per set — data-core: 20 runtimes (clickhouse/kafka/redis/minio), 30 db-migrations, 99 smokes; data-extended: 20 temporal/pgadmin, 30 temporal-namespace-bootstrap, 99 smokes.
+_Proposal (not applied):_ align to 20/30/99 per set — data-core: 20 runtimes (clickhouse/kafka/redis/minio), 30 db-migrations, 99 smokes; data-extended: 20 temporal/pgadmin (includes TemporalNamespace CRs), 99 smokes.
 
 ---
 

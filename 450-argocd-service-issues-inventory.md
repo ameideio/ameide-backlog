@@ -174,7 +174,7 @@ Apps still reconciling (may self-heal once P0 fixed):
 
 - `{env}-data-clickhouse` - ClickHouse installation
 - `{env}-data-kafka-cluster` - Kafka cluster startup
-- `{env}-data-temporal-namespace-bootstrap` - Temporal namespaces
+- `{env}-data-temporal` - TemporalCluster/TemporalNamespace (operator-managed)
 - `{env}-platform-keycloak` - Keycloak startup
 - `{env}-platform-postgres-clusters` - CNPG cluster initialization
 
