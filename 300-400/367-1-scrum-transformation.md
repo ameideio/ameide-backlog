@@ -11,7 +11,7 @@
 > - **Proto naming:** This profile’s `ameide_core_proto.transformation.scrum.v1` package and any sister methodology packages must follow the conventions in [509-proto-naming-conventions.md](../509-proto-naming-conventions.md).
 
 ## Purpose
-Implement the Scrum methodology profile within the Transformation service so backlog intake (Stage 0) can flow into Scrum-native artifacts: Product Goal, Sprint Goal, Product Backlog, Sprint Backlog, Increment, and optional extensions such as impediment tracking. This profile becomes the reference implementation for other governance models and must remain aligned with the canonical Scrum contract in `506-scrum-vertical-v2.md` and `508-scrum-protos.md`.
+Implement the Scrum methodology profile within the Transformation **Scrum domain** so Stage 0 intake can flow into Scrum-native artifacts: Product Goal, Sprint Goal, Product Backlog, Sprint Backlog, Increment, and optional extensions such as impediment tracking. This profile becomes the reference implementation for other governance models and must remain aligned with the canonical Scrum contract in `506-scrum-vertical-v2.md` and the repo proto sources under `packages/ameide_core_proto/src/ameide_core_proto/transformation/scrum/v1/` (documented in `508-scrum-protos.md`).
 
 > **Related:**  
 > - [506-scrum-vertical-v2.md](../506-scrum-vertical-v2.md) – canonical Scrum domain/process contract and Temporal orchestration that consume this data model.  
@@ -39,7 +39,7 @@ Implement the Scrum methodology profile within the Transformation service so bac
 - **Graph** is the architecture knowledge system: it persists elements/relationships (current + future state) and remains the source for analytics, lineage, and cross-domain reasoning. Scrum artifacts from Transformation are projected into the graph, but the graph service does not execute ceremonies itself.
 
 ## Deliverables
-1. **Schema & proto updates** – Implement and wire the `ameide_core_proto.transformation.scrum.v1` protos (artifacts, intents, facts, and query service) into the Transformation service as the canonical Scrum domain contract.
+1. **Schema & proto updates** – Implement and wire the `ameide_core_proto.transformation.scrum.v1` protos (artifacts, intents, facts, and query service) into the **Transformation Domain primitive** (`primitives/domain/transformation`) as the canonical Scrum domain contract.
 2. **Profile configuration** – Versioned YAML describing ceremonies and optional policy hooks (e.g., readiness checklists) while keeping Scrum Guide compliance centered on Definition of Done; validation CLI + CI check.
 3. **Service & SDK changes** – Domain intent publishing and read-only query RPCs for Scrum artifacts (no lifecycle/acceptance RPCs), client updates, and wiring into workflows/agents.
 4. **UI/UX** – Scrum boards, Sprint Planning forms (goal-first), Review screen showing Increments and inspection outcomes, Retro capture.
@@ -52,7 +52,13 @@ Implement the Scrum methodology profile within the Transformation service so bac
 ## Dependencies
 - Stage 0 feedback elements with optional `methodology_profile_id` references.
 - Unified element/relationship schema from [backlog/300-ameide-metamodel.md](./300-ameide-metamodel.md) and migration guidance in [backlog/303-elements.md](./303-elements.md).
-- Existing Transformation service infrastructure.
+- Existing operators + gateway wiring that expose the Transformation Domain primitive; any legacy `services/transformation` and Graph façade paths are migration-only and must not become the Scrum implementation target.
+
+## Canonical implementation placement (no exceptions)
+
+- **Domain runtime (authoritative):** `primitives/domain/transformation` implements the Scrum system-of-record (DB + outbox + `ScrumQueryService` + intent handling) and emits/consumes the bus topics defined in `506-scrum-vertical-v2.md`.
+- **Legacy services (migration-only):** any existing Scrum-adjacent behavior in `services/transformation` or Graph handlers is transitional and must be migrated behind the Domain primitive boundary; do not extend those paths for new Scrum work.
+- **Proto source of truth:** `packages/ameide_core_proto/src/ameide_core_proto/transformation/scrum/v1/**` and `packages/ameide_core_proto/src/ameide_core_proto/process/scrum/v1/**` (SDKs + generated glue via `buf generate`).
 
 ## Exit Criteria
 - Teams can run Scrum end-to-end inside Transformation: backlog ordering, Sprint Planning, Daily Scrum visualization, Increment inspection and Product Backlog adaptation, Retro follow-up.
@@ -62,13 +68,13 @@ Implement the Scrum methodology profile within the Transformation service so bac
 ## Implementation guide
 
 ### 1. Persistence & proto schema
-- **Unify table naming before layering Scrum objects.** The live read path for Transformations still runs inside the Graph service (`services/graph/src/transformation_data.ts`) and expects plain `transformations`, `transformation_workspace_nodes`, and `transformation_milestones` tables, while the schema artifacts under `db/flyway/sql/transformation/V1__initial_schema.sql` and the TypeScript service code (`services/transformation/src/transformations/service.ts#L279-L544`) still target `transformation.initiatives/*`. Close that drift first so a single Flyway path defines the canonical tables.
+- **Legacy note: unify table naming before layering Scrum objects.** If any read path still runs inside Graph (`services/graph/src/transformation_data.ts`) or a legacy Node service (`services/transformation/**`), treat it as migration debt: move the authoritative read/write path into `primitives/domain/transformation` and keep Graph as projection/analytics only.
 - **Add Scrum nouns as first-class tables.** Extend the transformation schema with Product Backlog, Product Backlog Item, Sprint, Sprint Backlog, Increment, Product Goal, Sprint Goal, and optional Impediment records that align with the `ameide_core_proto.transformation.scrum.v1` contract and the Scrum profile YAML. Keep FK/UUID links back to `graph.elements`, and store methodology metadata (team readiness checklists, cadence) in JSONB for fast policy evaluation.
 - **Methodology profile resolution.** Add `methodology_profile_id` + `effective_methodology_profile_id` columns on `transformations`, `transformations_timeboxes`, and `work_items`. Persist resolution order (initiative → product → tenant → platform) so Stage 0 (backlog/367-0) and Stage 1 profiles share the same audit trail. Seed the Scrum profile rows through the migration so Ameide-on-Ameide has defaults.
 - **Lifecycle DSL storage.** Reuse the shared policy bundle format (same `policy_bundle_versions` tables the workflows runtime uses) to store Scrum lifecycle DSL definitions. Reference those bundle IDs from the new Sprint/ProductGoal tables so guards can be swapped without schema churn. Persist Monte Carlo inputs (arrival rate, cycle time history) in `transformation_metric_snapshots` once new events land.
 
 ### 2. Proto & Buf contracts
-- **Implement the Scrum Transformation protos.** Add the `transformation-scrum-*` files from `backlog/508-scrum-protos.md` under `packages/ameide_core_proto/src/ameide_core_proto/transformation/scrum/v1/` and register the package `ameide_core_proto.transformation.scrum.v1`. This package owns the Scrum artifacts, intents, facts, and query service.
+- **Proto source of truth.** The Scrum protos live under `packages/ameide_core_proto/src/ameide_core_proto/transformation/scrum/v1/` (domain artifacts/intents/facts/query) and `packages/ameide_core_proto/src/ameide_core_proto/process/scrum/v1/` (process facts). `backlog/508-scrum-protos.md` is documentation; the repo `.proto` files are canonical.
 - **Buf + SDK plumbing.** After regenerating with `buf generate`, re-export the new descriptors from `packages/ameide_core_proto/src/index.ts` and `packages/ameide_sdk_ts/src/proto.ts`, then wire convenience clients through the shared `AmeideClient` (`packages/ameide_sdk_ts/src/client.ts`, `packages/ameide_sdk_go/client.go`, `packages/ameide_sdk_python/ameide_sdk/client.py`). Update the thin-wrapper tests (e.g., `packages/ameide_sdk_ts/__tests__/integration/ameide-client.integration.test.ts`) to assert the Scrum query/intent types exist so Dependabot bumps stay honest (per backlog/365).
 - **Gateways + routing.** Update Envoy/Gateway manifests so `/ameide_core_proto.transformation.scrum.v1.ScrumQueryService` resolves to the service that actually knows about the Scrum RPCs. Today the Connect routes in `gitops/ameide-gitops/sources/values/*/apps/platform/gateway.yaml` point at the Graph pod; once the dedicated `transformation` deployment is authoritative you can move the route or register both services and split traffic by method.
 

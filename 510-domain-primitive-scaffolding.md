@@ -337,7 +337,8 @@ This section tracks how much of 510 is implemented in the current CLI (`packages
 **Status:** Regenerated to match this backlog; used as the canonical example.
 
 - Scaffold command used (from 506/508 context):
-  - `ameide primitive scaffold --kind domain --name transformation --proto-path packages/ameide_core_proto/src/ameide_core_proto/transformation/scrum/v1/transformation-scrum-query.proto --include-gitops --include-test-harness`.
+  - `ameide primitive scaffold --kind domain --name transformation --include-gitops --include-test-harness`.
+  - Then run `buf generate` to refresh SDKs and any generated-only glue/tests from the Scrum protos; scaffold does not parse proto descriptors or emit generated code.
 - Current state under `primitives/domain/transformation`:
   - README generated from the new Domain template with:
     - Outbox/dispatcher/migration/SDK adapter bullets.

@@ -263,7 +263,7 @@ Backlog [482-adding-new-service](482-adding-new-service.md) defines a manual che
 |-------------------|-------------------|
 | Decide service type | `--kind domain\|process\|agent\|uisurface` |
 | Scaffold files (README, Dockerfiles, Tilt) | `cmd/`, `Dockerfile.dev`, `Dockerfile.release`, `README.md` |
-| Define interfaces (proto) | Uses proto from `--proto-path` |
+| Define interfaces (proto) | Proto remains the source of truth under `packages/ameide_core_proto/src/**`; SDKs and generated glue come from `buf generate` (CLI may run it, but does not parse protos or template generated code itself). |
 | Secrets & config | ExternalSecret template in gitops |
 | Testing | `__mocks__/`, `__tests__/integration/`, runner script |
 | GitOps deployment | `component.yaml`, `values.yaml`, kustomization |
