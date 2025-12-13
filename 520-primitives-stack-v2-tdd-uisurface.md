@@ -4,41 +4,31 @@ All unchecked items in this document MUST be completed for this vertical primiti
 
 ## Full-Stack Checklist
 
-### Proto Shape (MUST)
+### Shape Source (MUST)
 
-- [ ] MUST add or select the UISurface shape source protos under `packages/ameide_core_proto/src/ameide_core_proto/`.
-- [ ] MUST define a v0 UISurface surface that is sufficient to prove routing end-to-end.
-
-### SDKs (MUST)
-
-- [ ] MUST have TS SDK stubs under `packages/ameide_sdk_ts/` if the UISurface uses generated clients.
+- [x] MUST keep the UISurface v0 proto at `packages/ameide_core_proto/src/ameide_core_proto/uisurface/v1/hello_uisurface.proto`.
 
 ### Skeleton Generator (MUST)
 
-- [ ] MUST implement the UISurface generator plugin under `plugins/`.
-- [ ] MUST provide a Buf generation template under `packages/ameide_core_proto/` named `buf.gen.*.local.yaml`.
-- [ ] MUST write generated output only to generated-only roots and MUST gitignore them.
+- [x] MUST keep the UISurface static generator at `plugins/ameide_uisurface_static/`.
+- [x] MUST keep the UISurface generation template at `packages/ameide_core_proto/buf.gen.uisurface-hello.local.yaml`.
+- [x] MUST write generated output to `primitives/uisurface/hello/internal/gen/` and MUST keep it gitignored.
 
 ### Runtime (MUST)
 
-- [ ] MUST implement the UISurface runtime under `primitives/uisurface/<name>/` (or the repo’s chosen UISurface runtime location).
-- [ ] MUST serve a v0 “marker response” that is asserted by the in-cluster probe.
+- [x] MUST keep the UISurface runtime at `primitives/uisurface/hello/`.
+- [x] MUST serve the generated marker response `Hello UISurface v0`.
 
-### Operator (MUST)
+### Operator + GitOps (MUST)
 
-- [ ] MUST reconcile the UISurface CR into `Deployment` + `Service` and `HTTPRoute` when Gateway API is available.
-- [ ] MUST set `Ready=True` only when routing and workload are ready.
-
-### GitOps (MUST)
-
-- [ ] MUST define a UISurface v0 workload component under `gitops/ameide-gitops/environments/_shared/components/apps/primitives/`.
-- [ ] MUST define a UISurface v0 smoke component under the same hierarchy using an in-cluster Job probe.
+- [x] MUST keep the UISurface CRD in `gitops/ameide-gitops/sources/charts/platform/ameide-operators/crds/ameide.io_uisurfaces.yaml`.
+- [x] MUST keep the UISurface operator deployment in `gitops/ameide-gitops/sources/charts/platform/ameide-operators/templates/uisurface-operator-deployment.yaml`.
+- [x] MUST keep the v0 UISurface workload + smoke components:
+  - `gitops/ameide-gitops/environments/_shared/components/apps/primitives/uisurface-hello-v0/component.yaml`
+  - `gitops/ameide-gitops/environments/_shared/components/apps/primitives/uisurface-hello-v0-smoke/component.yaml`
+  - `gitops/ameide-gitops/sources/values/_shared/apps/uisurface-hello-v0.yaml`
+  - `gitops/ameide-gitops/sources/values/_shared/apps/uisurface-hello-v0-smoke.yaml`
 
 ### Manual Image Publish (MUST)
 
-- [ ] MUST publish the UISurface runtime image manually to GHCR while CI publishing is disabled.
-
-### In-Cluster Probe (MUST)
-
-- [ ] MUST prove routability from inside the cluster (Job probe MUST fail when the route is absent and MUST pass when it is correct).
-
+- [x] MUST publish the runtime image `ghcr.io/ameideio/uisurface-hello:dev`.

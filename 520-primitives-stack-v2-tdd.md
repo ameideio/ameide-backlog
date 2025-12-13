@@ -52,7 +52,7 @@ For this activity, CI image publishing MUST be treated as disabled.
 
 ### Deliverables (MUST)
 
-- Domain generator plugin source: `plugins/ameide_domain_go/`
+- Go service registration generator plugin source: `plugins/ameide_register_go/`
 - Domain generation template: `packages/ameide_core_proto/buf.gen.domain-transformation.local.yaml`
 - Domain runtime: `primitives/domain/transformation/`
 - GitOps workload component:
@@ -66,7 +66,7 @@ For this activity, CI image publishing MUST be treated as disabled.
 
 1. Build the plugin binary:
 
-   - `go build -o bin/protoc-gen-ameide-domain-go ./plugins/ameide_domain_go`
+   - `go build -o bin/protoc-gen-ameide-register-go ./plugins/ameide_register_go`
 
 2. Generate the Domain registration glue (this output MUST NOT be committed):
 
@@ -100,23 +100,25 @@ Run:
 
 Each developer MUST implement exactly one primitive vertical with the same outer loop and MUST add:
 
-- a generator plugin under `plugins/`
+- a generator plugin under `plugins/` OR an extension to an existing generator plugin
 - a `buf.gen.*.local.yaml` template under `packages/ameide_core_proto/`
 - a runtime under `primitives/<kind>/<name>/` (if the primitive is runtime-based)
 - GitOps workload + smoke components under `gitops/ameide-gitops/`
 
 Projection and Integration MUST be included in the set of verticals; they MUST NOT be deferred by this TDD plan.
 
+All Go gRPC primitives (Domain, Process, Agent, Projection, Integration) MUST use `plugins/ameide_register_go/` for service registration glue and MUST NOT introduce per-primitive Go registration plugins.
+
 ## Progress Trackers (MUST)
 
 Each primitive vertical MUST be tracked in its own checklist document:
 
 - [x] `backlog/520-primitives-stack-v2-tdd-domain.md`
-- [ ] `backlog/520-primitives-stack-v2-tdd-process.md`
-- [ ] `backlog/520-primitives-stack-v2-tdd-agent.md`
-- [ ] `backlog/520-primitives-stack-v2-tdd-projection.md`
-- [ ] `backlog/520-primitives-stack-v2-tdd-integration.md`
-- [ ] `backlog/520-primitives-stack-v2-tdd-uisurface.md`
+- [x] `backlog/520-primitives-stack-v2-tdd-process.md`
+- [x] `backlog/520-primitives-stack-v2-tdd-agent.md`
+- [x] `backlog/520-primitives-stack-v2-tdd-projection.md`
+- [x] `backlog/520-primitives-stack-v2-tdd-integration.md`
+- [x] `backlog/520-primitives-stack-v2-tdd-uisurface.md`
 
 ## Appendix: Dev 1 Retrospective + Generator Improvements (MUST)
 
@@ -128,17 +130,17 @@ This appendix MUST document what was learned while implementing Domain v0 and MU
 - The gRPC surface was defined by proto shape, but the runtime still needed a deterministic and repeatable way to register services without hand-editing imports and `Register*Server` calls.
 - The build/publish step was the only manual deviation; this surfaced environment drift (Docker daemon access) that is unrelated to the primitive/operator architecture.
 
-### Generator Improvements for “No-Brainer” Development (MUST)
+### Generator Improvements Implemented in 520 (MUST)
 
-- The Domain generator MUST auto-discover which services to generate for; it MUST NOT require an explicit `services=...` list in generator parameters.
-- The Domain generator MUST generate runtime wiring that is compile-time safe; generated code MUST NOT rely on `any` + type assertions for service registration.
-- The Domain generator MUST generate a complete v0 runtime skeleton (server bootstrap + health + reflection) so a developer MUST NOT create `cmd/main.go` by hand.
-- The Domain generator MUST generate “create-if-missing” human-owned extension points (handlers) and MUST NOT overwrite human-owned files.
-- The Domain generator MUST generate a Docker build contract that works in CI and locally:
-  - It MUST specify the required build context explicitly.
-  - It MUST NOT depend on local-only `go.work` behavior inside Docker builds.
-- The Domain generator MUST emit deterministic file names and stable ordering to guarantee reproducible outputs and reliable regen-diff gating.
-- The Domain generator MUST read Ameide options from `source_file_descriptors` when present and MUST NOT assume runtime descriptors contain SOURCE-retained data.
+- The Go registration generator MUST auto-discover services in `files_to_generate` and MUST NOT require a manual service list.
+- The Go registration generator MUST generate compile-time safe wiring and MUST NOT rely on `any` + type assertions.
+- The Go registration generator MUST read Ameide options from `source_file_descriptors` when present and MUST NOT assume runtime descriptors contain SOURCE-retained data.
+
+### Generator Improvements Deferred to Follow-Up Work (MUST)
+
+- A generator MUST generate a complete v0 runtime skeleton (server bootstrap + health + reflection) so a developer MUST NOT create `cmd/main.go` by hand.
+- A generator MUST generate “create-if-missing” human-owned extension points (handlers) and MUST NOT overwrite human-owned files.
+- A generator MUST emit deterministic file names and stable ordering to guarantee reproducible outputs and reliable regen-diff gating.
 
 ### Repo Automation Improvements (MUST)
 

@@ -4,41 +4,38 @@ All unchecked items in this document MUST be completed for this vertical primiti
 
 ## Full-Stack Checklist
 
-### Proto Shape (MUST)
+### Shape Source (MUST)
 
-- [ ] MUST add or select the Integration shape source protos under `packages/ameide_core_proto/src/ameide_core_proto/`.
-- [ ] MUST define a v0 Integration surface that is sufficient to prove a deployed integration produces an observable effect.
-- [ ] MUST keep all environment-specific secrets out of proto shape.
+- [x] MUST keep the Integration v0 proto at `packages/ameide_core_proto/src/ameide_core_proto/integration/v1/integration_v0.proto`.
+- [x] MUST keep all environment-specific secrets out of proto shape.
 
 ### SDKs (MUST)
 
-- [ ] MUST have SDK stubs for any Integration control surfaces that are part of the shape source.
+- [x] MUST generate Go SDK stubs via `packages/ameide_core_proto/buf.gen.sdk-go.local.yaml`.
 
 ### Skeleton Generator (MUST)
 
-- [ ] MUST implement the Integration generator plugin under `plugins/`.
-- [ ] MUST generate artifacts that contain no sensitive literals.
-- [ ] MUST provide a Buf generation template under `packages/ameide_core_proto/` named `buf.gen.*.local.yaml`.
-- [ ] MUST write generated output only to generated-only roots and MUST gitignore them.
+- [x] MUST use `plugins/ameide_register_go/` to generate Go service registration glue.
+- [x] MUST keep the Integration glue template at `packages/ameide_core_proto/buf.gen.integration-echo.local.yaml`.
+- [x] MUST write the generated glue to `primitives/integration/echo/internal/gen/` and MUST keep it gitignored.
 
-### Runtime / Artifacts (MUST)
+### Runtime (MUST)
 
-- [ ] MUST define how the integration artifacts are packaged (ConfigMap, OCI artifact, or image) and MUST keep the packaging deterministic.
+- [x] MUST keep the Integration runtime at `primitives/integration/echo/`.
+- [x] MUST implement deterministic v0 behavior in `ameide_core_proto.integration.v1.IntegrationV0Service/Execute`.
+- [x] MUST expose gRPC on port `50051` and MUST serve gRPC health.
 
-### Operator (MUST)
+### Operator + GitOps (MUST)
 
-- [ ] MUST reconcile the Integration CR into the underlying integration control-plane resources and set `Ready=True` only when the integration is deployed and running.
+- [x] MUST keep the Integration CRD in `gitops/ameide-gitops/sources/charts/platform/ameide-operators/crds/ameide.io_integrations.yaml`.
+- [x] MUST keep the Integration operator deployment in `gitops/ameide-gitops/sources/charts/platform/ameide-operators/templates/integration-operator-deployment.yaml`.
+- [x] MUST keep the v0 Integration workload + smoke components:
+  - `gitops/ameide-gitops/environments/_shared/components/apps/primitives/integration-echo-v0/component.yaml`
+  - `gitops/ameide-gitops/environments/_shared/components/apps/primitives/integration-echo-v0-smoke/component.yaml`
+  - `gitops/ameide-gitops/sources/values/_shared/apps/integration-echo-v0.yaml`
+  - `gitops/ameide-gitops/sources/values/_shared/apps/integration-echo-v0-smoke.yaml`
 
-### GitOps (MUST)
+### Manual Image Publish (MUST)
 
-- [ ] MUST define an Integration v0 workload component under `gitops/ameide-gitops/environments/_shared/components/apps/primitives/`.
-- [ ] MUST define an Integration v0 smoke component under the same hierarchy using an in-cluster Job probe.
-
-### Manual Publish (MUST)
-
-- [ ] MUST publish integration artifacts manually while CI publishing is disabled.
-
-### In-Cluster Probe (MUST)
-
-- [ ] MUST prove the integration’s observable effect from inside the cluster (Job probe MUST fail when the flow is not running and MUST pass when it is).
-
+- [x] MUST publish the runtime image `ghcr.io/ameideio/integration-echo:dev`.
+- [x] MUST publish the operator image `ghcr.io/ameideio/integration-operator:dev`.

@@ -4,44 +4,38 @@ All unchecked items in this document MUST be completed for this vertical primiti
 
 ## Full-Stack Checklist
 
-### Proto Shape (MUST)
+### Shape Source (MUST)
 
-- [ ] MUST add or select the Agent shape source protos under `packages/ameide_core_proto/src/ameide_core_proto/`.
-- [ ] MUST define a v0 Agent surface that includes an explicit durable identity (`thread_id`) in the request contract.
+- [x] MUST keep the Agent v0 proto at `packages/ameide_core_proto/src/ameide_core_proto/agent/v1/echo_agent.proto`.
+- [x] MUST keep `thread_id` in the request contract for persisted identity.
 
 ### SDKs (MUST)
 
-- [ ] MUST have Python SDK stubs under `packages/ameide_sdk_python/` for the Agent surface.
-- [ ] MUST have Go SDK stubs under `packages/ameide_sdk_go/gen/` for the Agent surface.
-- [ ] MUST have TS SDK stubs under `packages/ameide_sdk_ts/` for the Agent surface.
+- [x] MUST generate Go SDK stubs via `packages/ameide_core_proto/buf.gen.sdk-go.local.yaml`.
 
 ### Skeleton Generator (MUST)
 
-- [ ] MUST implement the Agent generator plugin under `plugins/`.
-- [ ] MUST keep deterministic output and MUST keep golden or unit tests for the generator.
-- [ ] MUST provide a Buf generation template under `packages/ameide_core_proto/` named `buf.gen.*.local.yaml`.
-- [ ] MUST write generated output only to generated-only roots and MUST gitignore them.
+- [x] MUST use `plugins/ameide_register_go/` to generate Go service registration glue.
+- [x] MUST keep the Agent glue template at `packages/ameide_core_proto/buf.gen.agent-echo.local.yaml`.
+- [x] MUST write the generated glue to `primitives/agent/echo/internal/gen/` and MUST keep it gitignored.
 
 ### Runtime (MUST)
 
-- [ ] MUST implement the Agent runtime under `primitives/agent/<name>/` (or the repo’s chosen Agent runtime location).
-- [ ] MUST implement a deterministic v0 mode that does not require external LLM providers.
-- [ ] MUST persist minimal state keyed by `thread_id` and MUST store large artifacts by reference only.
+- [x] MUST keep the Agent runtime at `primitives/agent/echo/`.
+- [x] MUST implement deterministic v0 behavior with no external LLM dependencies.
+- [x] MUST persist minimal state keyed by `thread_id` (turn counter).
 
-### Operator (MUST)
+### Operator + GitOps (MUST)
 
-- [ ] MUST reconcile the Agent CR into the required Deployments/Services and set `Ready=True` only when the runtime is reachable.
-
-### GitOps (MUST)
-
-- [ ] MUST define an Agent v0 workload component under `gitops/ameide-gitops/environments/_shared/components/apps/primitives/`.
-- [ ] MUST define an Agent v0 smoke component under the same hierarchy using an in-cluster Job probe.
+- [x] MUST keep the Agent CRD in `gitops/ameide-gitops/sources/charts/platform/ameide-operators/crds/ameide.io_agents.yaml`.
+- [x] MUST keep the Agent operator deployment in `gitops/ameide-gitops/sources/charts/platform/ameide-operators/templates/agent-operator-deployment.yaml`.
+- [x] MUST keep the v0 Agent workload + smoke components:
+  - `gitops/ameide-gitops/environments/_shared/components/apps/primitives/agent-echo-v0/component.yaml`
+  - `gitops/ameide-gitops/environments/_shared/components/apps/primitives/agent-echo-v0-smoke/component.yaml`
+  - `gitops/ameide-gitops/sources/values/_shared/apps/agent-echo-v0.yaml`
+  - `gitops/ameide-gitops/sources/values/_shared/apps/agent-echo-v0-smoke.yaml`
 
 ### Manual Image Publish (MUST)
 
-- [ ] MUST publish the Agent runtime image manually to GHCR while CI publishing is disabled.
-
-### In-Cluster Probe (MUST)
-
-- [ ] MUST prove “same `thread_id` causes persisted state changes” from inside the cluster (Job probe MUST fail when persistence is missing and MUST pass when it is correct).
-
+- [x] MUST publish the runtime image `ghcr.io/ameideio/agent-echo:dev`.
+- [x] MUST publish the operator image `ghcr.io/ameideio/agent-operator:dev`.

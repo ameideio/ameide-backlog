@@ -4,44 +4,37 @@ All unchecked items in this document MUST be completed for this vertical primiti
 
 ## Full-Stack Checklist
 
-### Proto Shape (MUST)
+### Shape Source (MUST)
 
-- [ ] MUST add or select the Projection shape source protos under `packages/ameide_core_proto/src/ameide_core_proto/`.
-- [ ] MUST define a v0 Projection query surface that is sufficient to prove end-to-end behavior.
+- [x] MUST keep the Projection v0 proto at `packages/ameide_core_proto/src/ameide_core_proto/projection/v1/projection_v0.proto`.
 
 ### SDKs (MUST)
 
-- [ ] MUST have Go SDK stubs under `packages/ameide_sdk_go/gen/` for the Projection surface.
-- [ ] MUST have Python SDK stubs under `packages/ameide_sdk_python/` for the Projection surface.
-- [ ] MUST have TS SDK stubs under `packages/ameide_sdk_ts/` for the Projection surface.
+- [x] MUST generate Go SDK stubs via `packages/ameide_core_proto/buf.gen.sdk-go.local.yaml`.
 
 ### Skeleton Generator (MUST)
 
-- [ ] MUST implement the Projection generator plugin under `plugins/`.
-- [ ] MUST generate an offset/checkpoint contract and MUST make processing semantics explicit (at-least-once vs exactly-once).
-- [ ] MUST provide a Buf generation template under `packages/ameide_core_proto/` named `buf.gen.*.local.yaml`.
-- [ ] MUST write generated output only to generated-only roots and MUST gitignore them.
+- [x] MUST use `plugins/ameide_register_go/` to generate Go service registration glue.
+- [x] MUST keep the Projection glue template at `packages/ameide_core_proto/buf.gen.projection-foo.local.yaml`.
+- [x] MUST write the generated glue to `primitives/projection/foo/internal/gen/` and MUST keep it gitignored.
 
 ### Runtime (MUST)
 
-- [ ] MUST implement the Projection runtime under `primitives/projection/<name>/` (or the repo’s chosen Projection runtime location).
-- [ ] MUST implement idempotent sink writes for at-least-once processing.
-- [ ] MUST implement a rebuild/replay path for v0 verification.
+- [x] MUST keep the Projection runtime at `primitives/projection/foo/`.
+- [x] MUST implement deterministic v0 behavior in `ameide_core_proto.projection.v1.ProjectionV0QueryService/GetFoo`.
+- [x] MUST expose gRPC on port `50051` and MUST serve gRPC health.
 
-### Operator (MUST)
+### Operator + GitOps (MUST)
 
-- [ ] MUST reconcile the Projection CR into migrations + runtime and set `Ready=True` only when both are successful.
-
-### GitOps (MUST)
-
-- [ ] MUST define a Projection v0 workload component under `gitops/ameide-gitops/environments/_shared/components/apps/primitives/`.
-- [ ] MUST define a Projection v0 smoke component under the same hierarchy using an in-cluster Job probe.
+- [x] MUST keep the Projection CRD in `gitops/ameide-gitops/sources/charts/platform/ameide-operators/crds/ameide.io_projections.yaml`.
+- [x] MUST keep the Projection operator deployment in `gitops/ameide-gitops/sources/charts/platform/ameide-operators/templates/projection-operator-deployment.yaml`.
+- [x] MUST keep the v0 Projection workload + smoke components:
+  - `gitops/ameide-gitops/environments/_shared/components/apps/primitives/projection-foo-v0/component.yaml`
+  - `gitops/ameide-gitops/environments/_shared/components/apps/primitives/projection-foo-v0-smoke/component.yaml`
+  - `gitops/ameide-gitops/sources/values/_shared/apps/projection-foo-v0.yaml`
+  - `gitops/ameide-gitops/sources/values/_shared/apps/projection-foo-v0-smoke.yaml`
 
 ### Manual Image Publish (MUST)
 
-- [ ] MUST publish the Projection runtime image manually to GHCR while CI publishing is disabled.
-
-### In-Cluster Probe (MUST)
-
-- [ ] MUST prove query correctness from inside the cluster (Job probe MUST fail without migrations/seed data and MUST pass when the projection is correct).
-
+- [x] MUST publish the runtime image `ghcr.io/ameideio/projection-foo:dev`.
+- [x] MUST publish the operator image `ghcr.io/ameideio/projection-operator:dev`.

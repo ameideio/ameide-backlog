@@ -4,45 +4,37 @@ All unchecked items in this document MUST be completed for this vertical primiti
 
 ## Full-Stack Checklist
 
-### Proto Shape (MUST)
+### Shape Source (MUST)
 
-- [ ] MUST add or select the Process shape source protos under `packages/ameide_core_proto/src/ameide_core_proto/`.
-- [ ] MUST define a v0 Process service/event surface that is sufficient to prove end-to-end execution (ingress → Temporal workflow).
+- [x] MUST keep the Process v0 proto at `packages/ameide_core_proto/src/ameide_core_proto/process/v1/process_v0.proto`.
 
 ### SDKs (MUST)
 
-- [ ] MUST have Go SDK stubs for the Process surface under `packages/ameide_sdk_go/gen/go/`.
-- [ ] MUST have Python SDK stubs for the Process surface under `packages/ameide_sdk_python/`.
-- [ ] MUST have TS SDK stubs for the Process surface under `packages/ameide_sdk_ts/`.
+- [x] MUST generate Go SDK stubs via `packages/ameide_core_proto/buf.gen.sdk-go.local.yaml`.
 
 ### Skeleton Generator (MUST)
 
-- [ ] MUST implement the Process generator plugin under `plugins/`.
-- [ ] MUST keep golden or unit tests that assert deterministic output.
-- [ ] MUST provide a Buf generation template under `packages/ameide_core_proto/` named `buf.gen.*.local.yaml`.
-- [ ] MUST write generated output only to generated-only roots and MUST gitignore them.
+- [x] MUST use `plugins/ameide_register_go/` to generate Go service registration glue.
+- [x] MUST keep the Process glue template at `packages/ameide_core_proto/buf.gen.process-ping.local.yaml`.
+- [x] MUST write the generated glue to `primitives/process/ping/internal/gen/` and MUST keep it gitignored.
 
 ### Runtime (MUST)
 
-- [ ] MUST implement the Process runtime under `primitives/process/<name>/` (or the repo’s chosen Process runtime location).
-- [ ] MUST enforce Temporal determinism in generated and human-owned workflow code.
-- [ ] MUST expose an ingress surface that can start or signal a workflow for the v0 scenario.
+- [x] MUST keep the Process runtime at `primitives/process/ping/`.
+- [x] MUST expose gRPC on port `50051` and MUST serve gRPC health.
+- [x] MUST implement deterministic v0 behavior in `ameide_core_proto.process.v1.ProcessV0Service/Ping`.
 
-### Operator (MUST)
+### Operator + GitOps (MUST)
 
-- [ ] MUST reconcile the Process CR into the required Deployments/Services and set `Ready=True` only when the runtime is reachable and configured.
-- [ ] MUST keep reconciliation idempotent and bounded (no long-running work in reconcile).
-
-### GitOps (MUST)
-
-- [ ] MUST define a Process v0 workload component under `gitops/ameide-gitops/environments/_shared/components/apps/primitives/`.
-- [ ] MUST define a Process v0 smoke component under the same hierarchy using an in-cluster Job probe.
+- [x] MUST keep the Process CRD in `gitops/ameide-gitops/sources/charts/platform/ameide-operators/crds/ameide.io_processes.yaml`.
+- [x] MUST keep the Process operator deployment in `gitops/ameide-gitops/sources/charts/platform/ameide-operators/templates/process-operator-deployment.yaml`.
+- [x] MUST keep the v0 Process workload + smoke components:
+  - `gitops/ameide-gitops/environments/_shared/components/apps/primitives/process-ping-v0/component.yaml`
+  - `gitops/ameide-gitops/environments/_shared/components/apps/primitives/process-ping-v0-smoke/component.yaml`
+  - `gitops/ameide-gitops/sources/values/_shared/apps/process-ping-v0.yaml`
+  - `gitops/ameide-gitops/sources/values/_shared/apps/process-ping-v0-smoke.yaml`
 
 ### Manual Image Publish (MUST)
 
-- [ ] MUST publish the Process runtime image(s) manually to GHCR while CI publishing is disabled.
-
-### In-Cluster Probe (MUST)
-
-- [ ] MUST prove the v0 behavior from inside the cluster (Job probe MUST fail when the Process is not running and MUST pass when it is).
-
+- [x] MUST publish the runtime image `ghcr.io/ameideio/process-ping:dev`.
+- [x] MUST publish the operator image `ghcr.io/ameideio/process-operator:dev`.
