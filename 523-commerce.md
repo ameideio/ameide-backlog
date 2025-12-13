@@ -111,4 +111,4 @@ Commerce should be explainable as an event-driven platform, not just a set of pr
 - **Integrations** are boundary adapters; inbound is at-least-once + idempotent; outcomes are surfaced as facts/conditions.
 - **Tenant isolation + traceability metadata** are required on every message.
 
-The concrete message families, envelopes, and topic naming are proposed in `523-commerce-proto.md`.
+The concrete message families, envelopes, and topic naming are proposed in `523-commerce-proto.md`, including CloudEvents/W3C Trace Context alignment for cross-broker/HTTP interoperability.

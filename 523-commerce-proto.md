@@ -13,6 +13,8 @@ It complements:
 - `509-proto-naming-conventions.md` (package/topic conventions)
 - `523-commerce*.md` (commerce decomposition)
 
+Phase 1 focus (v1): **public storefront domains + BYOD onboarding**.
+
 ## 1) Message families and topics
 
 Topic families (v1):
@@ -27,13 +29,19 @@ Transport note:
 - Domains may accept commands via RPC and publish facts via outbox→broker.
 - Intents can be carried either via RPC or via the intent topic family; choose one as canonical per deployment and keep the other as an adapter.
 
-## 2) Canonical envelope: metadata + commerce scope
+## 2) Canonical envelope: commerce scope + CloudEvents/TraceContext alignment
+
+Commerce should be able to bridge cleanly across brokers and HTTP without bespoke adapters. The envelope below is intentionally aligned so it can be mapped losslessly to:
+
+- CloudEvents attributes (`id`, `type`, `source`, `subject`, `specversion`)
+- W3C Trace Context headers (`traceparent`, `tracestate`)
 
 Every intent/fact MUST carry:
 
 - tenant isolation: `tenant_id` (required)
 - traceability: `message_id`/`event_id`, `correlation_id`, `causation_id`, and timestamps (see `496-eda-principles.md` Principle 8)
 - commerce scope: `site_id`, `sales_channel_id`, `stock_location_id`, `store_site_id` when applicable
+- event metadata that can map to CloudEvents + W3C trace context
 
 Proposal:
 
@@ -58,6 +66,15 @@ message CommerceMessageMeta {
   google.protobuf.Timestamp occurred_at = 4;
   string producer = 5;                  // workload identity
   int32 schema_version = 6;
+
+  // CloudEvents alignment (on-the-wire mapping target)
+  string event_type = 20;     // CloudEvents "type"
+  string event_source = 21;   // CloudEvents "source" (service/tenant URN)
+  string event_subject = 22;  // CloudEvents "subject" (order_id, hostname, etc.)
+
+  // W3C Trace Context (propagate across HTTP/brokers)
+  string traceparent = 23;
+  string tracestate = 24;
 }
 ```
 
@@ -65,6 +82,7 @@ Notes:
 
 - Use `message_id` as the idempotency key for commands/intents; facts should set `causation_id` to the triggering command/message ID.
 - For ordering/partitioning, prefer `{tenant_id, aggregate_id}` keys (domain-specific).
+- For CloudEvents mapping: `message_id → ce-id`, `event_type → ce-type`, `event_source → ce-source`, `event_subject → ce-subject`, and `occurred_at → ce-time`.
 
 ## 3) Domain intents and facts (v1)
 
@@ -132,13 +150,148 @@ Processes should:
 - call domain command RPCs (or emit domain intents),
 - emit process facts for observability and governance.
 
-## 5) Query APIs (read-only)
+## 5) BYOD domains (Phase 1): explicit onboarding objects + state machine
+
+BYOD onboarding is a product surface and must be representable as structured data, not just “some facts happened”.
+
+### Canonical types
+
+```proto
+enum HostnameKind {
+  HOSTNAME_KIND_UNSPECIFIED = 0;
+  HOSTNAME_KIND_APEX = 1;      // example.com
+  HOSTNAME_KIND_SUBDOMAIN = 2; // shop.example.com
+  HOSTNAME_KIND_WILDCARD = 3;  // *.example.com (v1 may choose to disallow)
+}
+
+enum DnsRecordType {
+  DNS_RECORD_TYPE_UNSPECIFIED = 0;
+  DNS_RECORD_TYPE_A = 1;
+  DNS_RECORD_TYPE_AAAA = 2;
+  DNS_RECORD_TYPE_CNAME = 3;
+  DNS_RECORD_TYPE_TXT = 4;
+}
+
+message DnsRecordRequirement {
+  DnsRecordType type = 1;
+  string name = 2;     // e.g. "_storefront-verify.shop.example.com"
+  string value = 3;    // token, CNAME target, IP, etc.
+  bool required = 4;
+  bool removable_after_validation = 5;
+}
+
+enum DomainVerificationMethod {
+  DOMAIN_VERIFICATION_METHOD_UNSPECIFIED = 0;
+  DOMAIN_VERIFICATION_METHOD_TXT = 1;
+  DOMAIN_VERIFICATION_METHOD_HTTP = 2;
+  DOMAIN_VERIFICATION_METHOD_CNAME = 3;
+}
+
+message DomainVerificationInstructions {
+  DomainVerificationMethod method = 1;
+  HostnameKind hostname_kind = 2;
+  repeated DnsRecordRequirement records = 3;
+  google.protobuf.Timestamp issued_at = 4;
+  google.protobuf.Timestamp expires_at = 5;
+}
+
+enum DomainOnboardingErrorCode {
+  DOMAIN_ONBOARDING_ERROR_UNSPECIFIED = 0;
+
+  // DNS/verification
+  DOMAIN_ONBOARDING_ERROR_DNS_TARGET_INCORRECT = 1;
+  DOMAIN_ONBOARDING_ERROR_TXT_MISSING = 2;
+  DOMAIN_ONBOARDING_ERROR_TXT_MISMATCH = 3;
+  DOMAIN_ONBOARDING_ERROR_PROPAGATION_PENDING = 4;
+
+  // TLS/certs
+  DOMAIN_ONBOARDING_ERROR_CAA_BLOCKED = 10;
+  DOMAIN_ONBOARDING_ERROR_CERT_ISSUE_RATE_LIMIT = 11;
+  DOMAIN_ONBOARDING_ERROR_CERT_ISSUE_FAILED = 12;
+
+  // Platform constraints / common “battle scars”
+  DOMAIN_ONBOARDING_ERROR_HOSTNAME_ALREADY_CLAIMED = 20;
+  DOMAIN_ONBOARDING_ERROR_CDN_INTERFERENCE = 21; // proxy/CDN obscures validation
+}
+
+message DomainOnboardingError {
+  DomainOnboardingErrorCode code = 1;
+  string detail = 2; // human-readable for UI/support
+  google.protobuf.Timestamp observed_at = 3;
+  google.protobuf.Duration suggested_retry_after = 4;
+}
+```
+
+### Claim and mapping objects
+
+```proto
+enum HostnameClaimStatus {
+  HOSTNAME_CLAIM_STATUS_UNSPECIFIED = 0;
+  HOSTNAME_CLAIM_STATUS_PENDING = 1;
+  HOSTNAME_CLAIM_STATUS_VERIFIED = 2;
+  HOSTNAME_CLAIM_STATUS_FAILED = 3;
+  HOSTNAME_CLAIM_STATUS_REVOKED = 4;
+}
+
+enum HostnameMappingStatus {
+  HOSTNAME_MAPPING_STATUS_UNSPECIFIED = 0;
+  HOSTNAME_MAPPING_STATUS_REQUESTED = 1;
+  HOSTNAME_MAPPING_STATUS_CERT_PENDING = 2;
+  HOSTNAME_MAPPING_STATUS_ROUTE_PENDING = 3;
+  HOSTNAME_MAPPING_STATUS_ACTIVE = 4;
+  HOSTNAME_MAPPING_STATUS_FAILED = 5;
+  HOSTNAME_MAPPING_STATUS_REVOKED = 6;
+}
+
+message StorefrontHostnameClaim {
+  CommerceScope scope = 1;   // must include tenant_id + site_id
+  string hostname = 2;       // lowercased FQDN
+  HostnameKind hostname_kind = 3;
+  HostnameClaimStatus status = 4;
+  DomainVerificationInstructions instructions = 5;
+  DomainOnboardingError last_error = 6;
+}
+
+message StorefrontHostnameMapping {
+  CommerceScope scope = 1;   // must include tenant_id + site_id
+  string hostname = 2;
+  string uisurface_ref = 3;          // routing target
+  HostnameMappingStatus status = 4;
+  DomainOnboardingError last_error = 5;
+
+  // Debug-only / logical selector (do not encode namespaces)
+  string exposure_class = 10; // e.g., "shared-public-gateway", "per-tenant-gateway"
+}
+```
+
+Implementation notes:
+
+- Hostname must be lowercased and validated; reject invalid/uppercase early (CloudFront-like constraints are common).
+- Treat propagation delay as normal; model retry/backoff in the error (`suggested_retry_after`).
+- Wildcards are special and often require additional validation semantics; v1 can defer wildcard support.
+
+### Process facts should be structured
+
+Prefer structured fields in process facts (not just a named event):
+
+```proto
+message DomainMappingStatusChanged {
+  string hostname = 1;
+  HostnameClaimStatus claim_status = 2;
+  HostnameMappingStatus mapping_status = 3;
+  DomainOnboardingError last_error = 4;
+}
+```
+
+## 6) Query APIs (read-only)
 
 Queries should be explicit read services (Projection or Domain query surface) and MUST be read-only:
 
 ```proto
 service CommerceQueryService {
   rpc ResolveHostname(ResolveHostnameRequest) returns (ResolveHostnameResponse);
+  rpc GetHostnameClaim(GetHostnameClaimRequest) returns (StorefrontHostnameClaim);
+  rpc GetHostnameMapping(GetHostnameMappingRequest) returns (StorefrontHostnameMapping);
   rpc SearchProducts(SearchProductsRequest) returns (SearchProductsResponse);
   rpc GetAvailability(GetAvailabilityRequest) returns (GetAvailabilityResponse);
 }
@@ -150,25 +303,148 @@ message ResolveHostnameResponse {
   string canonical_host = 3;
   bool allowed = 4;
 }
+
+message GetHostnameClaimRequest {
+  CommerceScope scope = 1; // tenant_id + site_id
+  string hostname = 2;
+}
+
+message GetHostnameMappingRequest {
+  CommerceScope scope = 1; // tenant_id + site_id
+  string hostname = 2;
+}
 ```
 
-## 6) Integration ports (external seams)
+## 7) Integration ports (external seams)
 
 Integration protos define stable seams; implementations may be NiFi-backed (flows as code) or custom runtimes:
 
 ```proto
 package ameide_core_proto.commerce.integration.v1;
 
+message Money {
+  string currency = 1; // ISO 4217
+  int64 units = 2;
+  int32 nanos = 3;
+}
+
+enum PaymentIntentStatus {
+  PAYMENT_INTENT_STATUS_UNSPECIFIED = 0;
+  PAYMENT_INTENT_STATUS_REQUIRES_PAYMENT_METHOD = 1;
+  PAYMENT_INTENT_STATUS_REQUIRES_CONFIRMATION = 2;
+  PAYMENT_INTENT_STATUS_REQUIRES_ACTION = 3;
+  PAYMENT_INTENT_STATUS_PROCESSING = 4;
+  PAYMENT_INTENT_STATUS_REQUIRES_CAPTURE = 5;
+  PAYMENT_INTENT_STATUS_SUCCEEDED = 6;
+  PAYMENT_INTENT_STATUS_CANCELED = 7;
+  PAYMENT_INTENT_STATUS_FAILED = 8;
+  PAYMENT_INTENT_STATUS_EXPIRED = 9;
+}
+
+message PaymentNextAction {
+  oneof action {
+    string redirect_url = 1;
+    string sdk_payload_json = 2; // opaque provider hints
+  }
+}
+
 service CommercePaymentsIntegrationService {
   rpc Authorize(AuthorizePaymentRequest) returns (AuthorizePaymentResponse);
   rpc Capture(CapturePaymentRequest) returns (CapturePaymentResponse);
   rpc Refund(RefundPaymentRequest) returns (RefundPaymentResponse);
 }
+
+message AuthorizePaymentRequest {
+  ameide_core_proto.commerce.v1.CommerceScope scope = 1;
+  string idempotency_key = 2; // REQUIRED
+  string order_id = 3;
+  Money amount = 4;
+  string payment_method_token = 5; // tokenized reference only (never PAN)
+  bool capture_immediately = 6;     // allow auth-only flows
+}
+
+message AuthorizePaymentResponse {
+  PaymentIntentStatus status = 1;
+  string provider_intent_id = 2;
+  PaymentNextAction next_action = 3;
+  string decline_code = 4;
+}
+
+message CapturePaymentRequest {
+  ameide_core_proto.commerce.v1.CommerceScope scope = 1;
+  string idempotency_key = 2; // REQUIRED
+  string provider_intent_id = 3;
+  Money amount_to_capture = 4; // allow partial capture
+}
+
+message CapturePaymentResponse {
+  PaymentIntentStatus status = 1;
+  string provider_charge_id = 2;
+}
+
+message RefundPaymentRequest {
+  ameide_core_proto.commerce.v1.CommerceScope scope = 1;
+  string idempotency_key = 2; // REQUIRED
+  string provider_charge_id = 3;
+  Money amount_to_refund = 4; // allow partial refund
+}
+
+message RefundPaymentResponse {
+  PaymentIntentStatus status = 1;
+  string provider_refund_id = 2;
+}
 ```
 
 Inbound (webhooks) must be idempotent and should publish outcome facts (optional `commerce.integration.facts.v1`).
 
-## 7) High-level implementation mapping (who talks to whom)
+### Replication job model (edge)
+
+```proto
+enum ReplicationJobKind {
+  REPLICATION_JOB_KIND_UNSPECIFIED = 0;
+  REPLICATION_JOB_KIND_DOWNSYNC_MASTERDATA = 1;
+  REPLICATION_JOB_KIND_UPSYNC_TRANSACTIONS = 2;
+  REPLICATION_JOB_KIND_BACKFILL = 3;
+  REPLICATION_JOB_KIND_RECOVERY = 4;
+}
+
+message ReplicationCheckpoint {
+  int64 replication_counter = 1;
+  google.protobuf.Timestamp as_of = 2;
+}
+
+message RunReplicationJobRequest {
+  ameide_core_proto.commerce.v1.CommerceScope scope = 1; // must include store_site_id
+  string idempotency_key = 2;
+  ReplicationJobKind kind = 3;
+  string binding_ref = 4; // logical binding name (no URLs/topics)
+  ReplicationCheckpoint since = 5;
+}
+```
+
+### Hardware gateway seam (edge)
+
+```proto
+enum PeripheralKind {
+  PERIPHERAL_KIND_UNSPECIFIED = 0;
+  PERIPHERAL_KIND_RECEIPT_PRINTER = 1;
+  PERIPHERAL_KIND_CASH_DRAWER = 2;
+  PERIPHERAL_KIND_PAYMENT_TERMINAL = 3;
+  PERIPHERAL_KIND_BARCODE_SCANNER = 4;
+}
+
+message RegisterDeviceRef {
+  ameide_core_proto.commerce.v1.CommerceScope scope = 1; // includes store_site_id
+  string register_id = 2;
+  string device_id = 3;
+}
+
+service CommerceHardwareIntegrationService {
+  rpc PingHardwareStation(RegisterDeviceRef) returns (google.protobuf.Empty);
+}
+```
+
+## 8) High-level implementation mapping (who talks to whom)
 
 - **UISurface → Domain**
   - emits commands/intents (RPC or intent topic)
@@ -193,7 +469,7 @@ Inbound (webhooks) must be idempotent and should publish outcome facts (optional
   - consumes facts for awareness/diagnostics
   - proposes or emits commands/intents through the same surfaces (no side-channel writes)
 
-## 8) Next steps (when implementing)
+## 9) Next steps (when implementing)
 
 - Pick the canonical command transport (RPC-first vs intent-topic-first) and document it.
 - Define the initial v1 intent/fact catalogs for the 7 first-class business processes in `523-commerce-process.md`.
@@ -201,4 +477,3 @@ Inbound (webhooks) must be idempotent and should publish outcome facts (optional
   - required metadata fields present,
   - topic naming matches package major,
   - no CRUD RPC names for write services.
-
