@@ -25,6 +25,7 @@
 - **Temporal DB ownership:** CNPG (`platform-postgres-clusters`) owns the `temporal` and `temporal_visibility` roles/secrets. The TemporalCluster config uses the CNPG-managed Secrets `temporal-db-env` / `temporal-visibility-db-env` for Postgres passwords and connection URLs.
 - **Schema ownership:** The Temporal operator owns schema init/updates via its reconcile loop (setup/update Jobs driven by `TemporalCluster.spec.version`).
 - **Namespace management:** Temporal namespaces are created declaratively via `TemporalNamespace` CRs (packaged with `data-temporal`).
+- **DB preflight (self-healing):** `data-temporal` runs a `temporal-db-preflight` Argo `PreSync` hook to wait for Postgres and ensure the metadata partition row exists (`namespace_metadata.partition_id=54321`). This removes the need for manual SQL in the normal rollout path.
 - **Dev registry wiring:** k3d local registry `k3d-ameide.localhost:5001/ameide` is the single endpoint for dev GitOps. Builds push via the host-published port `localhost:5001` (configurable via `AMEIDE_REGISTRY_PUSH_HOST`) to avoid DNS-to-container IP hangs.
 - **Image naming:** Build script enforces hyphenated image tags (`agents-runtime`, `www-ameide`, `www-ameide-platform`, etc.) even if service directories use underscores. Filters accept either form.
 - **Argo CD apps:** Temporal is deployed by:
@@ -42,7 +43,7 @@ In dev, the **normal path** is now: open the DevContainer, let the GitOps bootst
   - **Fix:** Build script now defaults push endpoint to `localhost:5001` while tagging `k3d-ameide.localhost:5001/ameide/<image>:dev`; enforces hyphenated tags; adds service filters; documents usage in README/backlog/415.
 - **Temporal server panic (`initial versions have duplicates`):**
   - **Cause:** Temporal DB has multiple cluster names in `cluster_metadata_info` (often leftover from a temporary rename experiment).
-  - **Fix:** Delete the stale cluster row (example: `DELETE FROM cluster_metadata_info WHERE cluster_name='active';`), then restart Temporal deployments.
+  - **Fix (GitOps-first):** In local/dev, enable `data-temporal.preflight.autoFix.clusterMetadataInfo` and allowlist the stale name (e.g. `active`) so the `temporal-db-preflight` hook can self-heal. In staging/prod, keep fail-fast by default; treat this as an incident and apply a temporary allowlist+autofix change via PR if appropriate.
 
 ## Reproducible rollout (dev)
 1) Pull repo + submodule: `git pull --recurse-submodules && git submodule update --init --recursive`.
@@ -60,23 +61,6 @@ In dev, the **normal path** is now: open the DevContainer, let the GitOps bootst
    argocd app wait dev-data-temporal --health --timeout 300 --grpc-web --server localhost:8080
    ```
 5) Verify pods: `kubectl get pods -n <env-namespace> | grep temporal` (all Running). DB check (optional): `psql -U temporal -d temporal -c "select * from schema_version;"` on a CNPG pod.
-
-### Manual DB cleanup when `namespace_metadata` is missing/duplicated
-
-If Temporal services crash with:
-
-- `Failed to lock namespace metadata. Error: sql: no rows in result set`, or
-- `duplicate key value violates unique constraint "namespace_metadata_pkey"`
-
-then the default store is missing (or has a conflicted) metadata-partition row.
-
-1) Exec into the CNPG primary and fix the metadata partition row (Postgres `partition_id=54321`):
-   ```sql
-   DELETE FROM namespace_metadata WHERE partition_id = 54321;
-   INSERT INTO namespace_metadata(partition_id, notification_version) VALUES (54321, 0);
-   ```
-2) Delete the operator-owned schema pods (or restart the Temporal operator) to force a reconcile and schema rerun.
-3) Restart Temporal deployments; confirm all services converge to Running.
 
 ## Follow-ups / hardening
 - Auto-sync + retry for `data-temporal*` in dev is now configured via the shared ApplicationSet template. Manual `argocd app sync`/`app wait` is reserved for explicit recovery (especially after schema or CNPG incidents).

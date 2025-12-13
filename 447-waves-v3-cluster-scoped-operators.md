@@ -134,7 +134,7 @@ Each operator deploys to a dedicated `-system` namespace:
 | external-secrets | `external-secrets` | All namespaces |
 | Temporal operator | `argocd` | All namespaces |
 
-**Note on Temporal operator namespace:** the Temporal operator bundles admission webhooks and requires cert-manager to mint its serving certificate. In our current setup, cert-manager instances are namespace-scoped, and `argocd` already runs an isolated `argocd-cert-manager`, so the operator is deployed in `argocd`. Moving it to a dedicated `*-system` namespace is possible, but requires cert-manager/Issuer availability in that namespace (or switching to a cluster-wide cert-manager/ClusterIssuer model).
+**Note on Temporal operator namespace:** the Temporal operator bundles admission webhooks and requires cert-manager to mint its serving certificate and inject the CA bundle. In our current setup, cert-manager instances are namespace-scoped, and `argocd` already runs an isolated `argocd-cert-manager`, so the operator is deployed in `argocd`. Moving it to a dedicated `*-system` namespace is possible, but requires an equivalent cert-manager instance in that namespace (or switching to a cluster-wide cert-manager model).
 
 Operators are configured with `watchNamespaces: []` (empty = all namespaces) so they can manage CRs in any environment namespace.
 
@@ -228,7 +228,6 @@ Within each band, use these sub-phases for consistent ordering:
 - 430: Secrets (temporal/db secrets from CNPG)
 - 440: Configs (pre-runtime configs)
 - 450: Runtimes (temporal, pgadmin)
-- 455: Post-runtime bootstraps (temporal-namespace-bootstrap)
 - 499: Smokes (data-plane-ext-smoke)
 
 **Observability (500-599)**

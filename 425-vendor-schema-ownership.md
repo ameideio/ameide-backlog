@@ -32,7 +32,7 @@ Some vendors (Temporal, CNPG) require their own tooling and provide clear “don
    - List every Helm chart / operator that owns its own persistence (Temporal, Keycloak, Prometheus, etc.) and determine whether upstream tooling exists for schema setup/upgrades.
    - Decide per vendor whether it’s worth delegating schema ownership (e.g., Keycloak may still be simpler via Flyway if upstream tooling is painful).
 2. **Template a “vendor schema hook” chart**:
-   - Base it on `temporal-migrations`: container image, secrets, pre-install/pre-upgrade hook, retry behavior, Prometheus-friendly logs.
+   - Base it on the **GitOps hook pattern** we use for Temporal preflight (`temporal-db-preflight`): small, idempotent, retryable, and safe-by-default (fail-fast in staging/prod, optional auto-fix only when explicitly enabled).
    - Parameterize for `install_pkg`, CLI download, and command sequences.
 3. **Migrate candidates**:
    - For each vendor we choose to delegate, add a new Argo component and shared values file (mirroring Temporal’s structure).
