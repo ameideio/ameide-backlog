@@ -7,14 +7,16 @@ Provide read-optimized views for commerce across channels and topologies.
 Projection themes:
 
 - cloud projections for storefront/admin reads (search, history, availability),
-- edge “channel DB” projection for store LAN availability,
-- hostname resolution projection for public routing.
+- hostname resolution projection for public routing,
+- edge caches/read models that support store-edge operation.
+
+Important: the store-edge “operational store” (transactional writes for POS selling) should be treated as a Domain-owned write model deployed to edge (D365 “channel DB” analogue). Projections remain read-only/derived.
 
 ## Key projections (v1 set)
 
 ### 1) Hostname resolution (storefront)
 
-- `hostname -> {tenant_id, sales_channel_id, uisurface_ref, canonical_host, status}`
+- `hostname -> {tenant_id, site_id, default_sales_channel_id, uisurface_ref, canonical_host, status}`
 
 ### 2) Catalog discovery/search (cloud)
 
@@ -26,18 +28,20 @@ Customer and CSR views; read-optimized with pagination and filters.
 
 ### 4) Inventory availability (cloud and/or edge)
 
-Expose availability by site/region with explicit staleness semantics; callers provide `sales_channel_id` and the projection defines sourcing rules.
+Expose availability with explicit staleness semantics. Callers provide `sales_channel_id` (demand context) and either:
 
-### 5) Store site projection (“channel DB” analogue) (edge)
+- request availability for a specific `stock_location_id`, or
+- request a result set keyed by `stock_location_id` (multi-location ATP).
 
-Minimal dataset required for POS selling in edge mode:
+### 5) Edge caches/read models (store-edge support)
 
-- product/pricing/promo snapshots
-- tender configuration
-- device/register/shift configuration
-- user/role mappings relevant to store
+In edge mode, keep Projections as derived/read-only datasets that support an edge-deployed transactional Domain. Typical edge caches:
 
-This projection is inherently channel-scoped (store site channel).
+- product subset snapshot (for a store channel)
+- price book + promotion ruleset snapshots (effective-dated)
+- tender configuration snapshot
+- device/register configuration snapshot
+- “last sync / lag” health read model per `store_site_id`
 
 ## Inputs
 
@@ -54,8 +58,8 @@ Fallback/bridge:
 - `ResolveHostname(hostname)`
 - `SearchProducts(sales_channel_id, query, filters)`
 - `GetOrderHistory(customer_id, cursor)`
-- `GetAvailability(sales_channel_id, sku, site_id)`
-- `GetStoreSiteSnapshot(site_id, version)`
+- `GetAvailability(sales_channel_id, sku, stock_location_id)`
+- `GetEdgeSnapshot(store_site_id, version)`
 
 ## Stack alignment (proto / generation / operator)
 
@@ -66,5 +70,4 @@ Fallback/bridge:
 ## Consistency requirements
 
 - Hostname resolution must converge quickly on revoke (fail closed; deny by default on uncertainty).
-- Edge store-site projection must expose `last_synced_at` and `checkpoint` markers for UX and diagnostics.
-
+- Edge caches/read models must expose `last_synced_at` and `checkpoint` markers per `store_site_id` for UX and diagnostics.

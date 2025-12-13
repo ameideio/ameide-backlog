@@ -11,10 +11,11 @@ Start with a small number of subdomains:
 1. Catalog & Merchandising
 2. Pricing & Promotions
 3. Cart/Checkout & Orders/Returns
-4. Inventory & Stock Locations (may start as a projection-backed API)
-5. Store Operations (register/device/shift/receipts)
-6. SalesChannel / Site (cross-cutting axis: channel-scoped configuration and policy)
-7. Customer & Loyalty (optional early; often external)
+4. Site / Storefront (domains/branding → channel selection)
+5. SalesChannel (selling context/policy)
+6. Inventory & Stock Locations (physical nodes; sourcing/ATP)
+7. Store Operations (register/device/shift/receipts)
+8. Customer & Loyalty (optional early; often external)
 
 Payments/hardware drivers are integrations; the domain owns only payment intent state and idempotency.
 
@@ -24,9 +25,17 @@ Payments/hardware drivers are integrations; the domain owns only payment intent 
 - D365 CSU/Core is a hosting/deployment unit analog (cloud and edge).
 - SAP OCC is a public REST API analog (stable contract surface).
 
-## SalesChannel is required context (not just tenant)
+## Commerce identity & scope model (tenant/site/channel/location)
 
-Commerce behavior is channel-scoped. Make `sales_channel_id` (or `site_id`) a first-class identifier used by:
+Commerce behavior is scoped across distinct axes; do not overload one ID to mean everything:
+
+- `tenant_id`: security/billing boundary
+- `site_id`: web presence (domains/base URLs) and default channel selection
+- `sales_channel_id`: selling context (currency, tax, price lists, assortment, eligible tenders/shipping)
+- `stock_location_id`: physical fulfillment/inventory node
+- `store_site_id`: edge deployment unit (store cluster) typically aligned to a store channel + stock location
+
+Make `sales_channel_id` a first-class identifier used by:
 
 - assortment/catalog visibility,
 - pricing/promo eligibility,
@@ -35,7 +44,7 @@ Commerce behavior is channel-scoped. Make `sales_channel_id` (or `site_id`) a fi
 
 Rule of thumb:
 
-- every customer-facing decision RPC should require `tenant_id` + `sales_channel_id` (and usually `currency`).
+- every customer-facing decision RPC should require `tenant_id` + `sales_channel_id` (and usually `currency`), and inventory/fulfillment decisions must include `stock_location_id` (or return results keyed by location).
 
 ## Proto shape (v2-aligned)
 
@@ -62,7 +71,7 @@ If this grows too broad, split into subcontexts (keep SalesChannel concept share
 - Pricing/promo evaluation is deterministic given `{sales_channel_id, currency, effective_at, ruleset_version}`.
 - Checkout/order creation is idempotent (message-id / order-id safe retries).
 - Store ops state machines are explicit (register/shift open/close, reconcile).
-- Store site is a first-class identity boundary for configuration and replication.
+- Store site is a first-class identity boundary for configuration and replication; stock locations are the physical availability boundary.
 
 ## API sketch (non-exhaustive)
 
@@ -71,6 +80,12 @@ Sales channels:
 - `CreateSalesChannel`, `UpdateSalesChannel`
 - `AssignCatalogToChannel`, `AssignPriceBookToChannel`, `AssignPromotionsToChannel`
 - `ConfigureChannelPolicies` (tax/shipping/payment eligibility as data)
+- `AssociateStockLocationsToChannel` (which locations can fulfill which channels)
+
+Sites/storefronts:
+
+- `CreateSite`, `UpdateSite`
+- `SetDefaultChannelForSite` (and/or `MapSiteToChannels`)
 
 Catalog:
 

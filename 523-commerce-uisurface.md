@@ -18,19 +18,27 @@ For the value-stream view (Plan-to-Merchandise, Order-to-Cash, Inventory-to-Deli
 
 The architecture assumes additional experiences over time (mobile, kiosks, partner portals) without changing the core domain model. Experiences differ in UX and topology constraints, not in business rules.
 
-## SalesChannel context (required)
+## Commerce context (required): tenant/site/channel/location
 
-All commerce UISurfaces MUST operate within a `sales_channel_id` (or `site_id`) context:
+All commerce UISurfaces MUST operate within a consistent identity/scope model:
 
-- `commerce-storefront`: hostnames map to tenant + channel.
-- `commerce-pos`: typically pinned to a store site channel.
-- `commerce-admin`: configures channels and can switch channel context.
+- `tenant_id`: security boundary
+- `site_id`: web presence boundary (domains/base URLs)
+- `sales_channel_id`: selling context (currency/tax/pricing/promos/eligible tenders/shipping)
+- `stock_location_id`: physical node for inventory/fulfillment
+- `store_site_id`: edge deployment unit (store cluster), typically aligned to a store channel + stock location
+
+Practical expectations:
+
+- `commerce-storefront`: resolves `Host -> {tenant_id, site_id}` then derives `sales_channel_id` from site configuration (and/or request locale/currency); inventory queries may be per `stock_location_id` or “best sourced for channel”.
+- `commerce-pos`: pinned to `store_site_id` and operates in a store `sales_channel_id` + `stock_location_id` context.
+- `commerce-admin`: configures sites, channels, and stock locations and can switch context explicitly.
 
 ## Topology matrix (explicit)
 
-- Cloud-only: POS/storefront require WAN to reach cloud domains.
-- Edge (store LAN): POS prefers local edge endpoints; WAN may be down.
-- Device offline (future): POS continues even if edge is unreachable.
+- Cloud mode: POS/storefront require WAN to reach cloud domains.
+- Store edge mode (LAN): POS prefers local edge endpoints; WAN may be down.
+- Device offline mode (future): POS continues even if edge is unreachable.
 
 ## Runtime responsibilities (all commerce UISurfaces)
 
@@ -40,19 +48,19 @@ All commerce UISurfaces MUST operate within a `sales_channel_id` (or `site_id`) 
 
 ## `commerce-storefront` specifics (public domains)
 
-- MUST resolve tenant/channel context from `Host` header and enforce a strict host allowlist (unmapped hosts 404).
+- MUST resolve tenant/site context from `Host` header and enforce a strict host allowlist (unmapped hosts 404).
 - MUST support platform default domains and BYOD custom domains, but it MUST NOT self-claim domains.
 - SHOULD implement safe caching (static aggressively; dynamic carefully).
 
 ## `commerce-pos` specifics (edge-first)
 
-- MUST treat store site as the primary availability boundary in edge mode.
+- MUST treat store site as the primary availability boundary in store edge mode.
 - SHOULD prefer local edge endpoints for pricing/cart/checkout and store-ops.
 - MUST expose clear UX for real-time-required operations when WAN is unavailable.
 
 ### Offline/edge capability matrix (v1; explicit)
 
-In edge mode (WAN down, LAN up), `commerce-pos` SHOULD support:
+In store edge mode (WAN down, LAN up), `commerce-pos` SHOULD support:
 
 - cart/build basket
 - price/promo evaluation from local ruleset snapshots
@@ -60,7 +68,7 @@ In edge mode (WAN down, LAN up), `commerce-pos` SHOULD support:
 - receipt issuance
 - shift/register operations
 
-In edge mode, these operations are typically real-time-required and MUST provide UX that requires WAN (or a local authoritative system):
+In store edge mode, these operations are typically real-time-required and MUST provide UX that requires WAN (or a local authoritative system):
 
 - cross-store returns/exchanges
 - loyalty/gift card operations (if external)

@@ -28,6 +28,18 @@ Default is async replication. The system MUST label and handle “real-time requ
 - inventory adjustments that affect other sites
 - fraud checks / risk holds (provider-dependent)
 
+## First-class business processes (v1)
+
+These are the “truth tests” the platform must answer end-to-end; each maps to workflows below:
+
+1. Browse & price discovery
+2. Cart & checkout
+3. Pay (authorize/capture/void/refund)
+4. Fulfill (ship/pickup)
+5. Returns/exchanges/refunds
+6. Store selling (POS: shift/register/cash)
+7. Catalog/price/promo distribution (HQ → channels/sites/stores)
+
 ## Retail value streams (Level 0/1)
 
 This section anchors Process design in retailer day-to-day operations (value streams), not just onboarding/infra.
@@ -37,14 +49,16 @@ This section anchors Process design in retailer day-to-day operations (value str
 All workflows assume:
 
 - `tenant_id` (tenant boundary)
-- `sales_channel_id` (site/channel boundary; required for most commerce decisions)
-- `store_site_id` (edge deployment unit; typically aligns to a store channel)
+- `site_id` (web presence boundary; domains/base URLs)
+- `sales_channel_id` (selling context; required for most commerce decisions)
+- `stock_location_id` (physical fulfillment/inventory node)
+- `store_site_id` (edge deployment unit; typically aligned to a store channel + stock location)
 
 ### 0) Platform onboarding & tenant/channel provisioning
 
 Golden path:
 
-- Create tenant → create sales channel(s) → connect storefront domain → go live.
+- Create tenant → create site(s) + sales channel(s) → connect storefront domain → go live.
 
 Initiating UISurface:
 
@@ -57,7 +71,7 @@ Process workflows (sketch):
 
 Projections:
 
-- Hostname resolution: `hostname -> {tenant_id, sales_channel_id, uisurface_ref, status}`
+- Hostname resolution: `hostname -> {tenant_id, site_id, default_sales_channel_id, uisurface_ref, status}`
 
 Integrations:
 
@@ -98,13 +112,22 @@ Transfers:
 
 Channel binding:
 
-- a store site MUST declare its `sales_channel_id` and replication bindings are derived from that channel.
+- a store site MUST declare its `sales_channel_id` and `stock_location_id`; replication bindings are derived from that context.
 
 ### C) Replication control
 
-- `RunDownsync(site_id)`
-- `RunUpsync(site_id)`
-- `RebuildStoreSiteProjection(site_id)` (replay/backfill)
+- `RunDownsync(store_site_id)`
+- `RunUpsync(store_site_id)`
+- `RebuildStoreEdgeState(store_site_id)` (replay/backfill; includes caches and operational store rehydration)
+
+### Two-lane replication model (required)
+
+Replication is explicitly hybrid:
+
+- **Lane 1 (async distribution):** publish/refresh master + configuration + effective-dated rulesets to edge (catalog subset, price books, promotions, tenders, device/register config).
+- **Lane 2 (real-time escape hatch):** a small set of operations must call a real-time service (see “Real-time required surface”) and must be gated in UX when WAN is down.
+
+Store edge mode assumes a transactional operational store deployed as Domains (write model) plus derived read caches/projections; do not treat the operational store as “just a projection”.
 
 ### 1) Plan-to-merchandise (Plan & Market)
 
@@ -265,13 +288,13 @@ Define and publish an explicit capability matrix.
 
 Connectivity modes:
 
-- Cloud-only: WAN required.
-- Edge mode: WAN may be down; POS reaches edge services over LAN.
-- Device offline (future): POS cannot reach edge; reduced capability + strict sync rules.
+- Cloud mode: WAN required.
+- Store edge mode: WAN may be down; POS reaches edge services over LAN.
+- Device offline mode (future): POS cannot reach edge; reduced capability + strict sync rules.
 
 Minimum expectations (v1):
 
-- Edge mode MUST keep core selling operable for a store site channel (cart/pricing/receipt/shift), while clearly gating real-time-required operations.
+- Store edge mode MUST keep core selling operable for a store site sales channel (cart/pricing/receipt/shift), while clearly gating real-time-required operations.
 - Offline payments MUST be treated as capability-limited and policy-driven; do not promise “all tenders work offline”.
 
 ## Compatibility + rollout policy (edge fleets)

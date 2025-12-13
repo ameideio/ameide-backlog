@@ -51,6 +51,18 @@ Recommended routing start:
 - wildcard listener + wildcard cert for default domain
 - per-custom-domain listeners for BYOD hostnames with per-tenant cert `Secret`s + `ReferenceGrant`
 
+Gateway/TLS reality checks (implementation-dependent):
+
+- Gateway API cross-namespace secret refs require `ReferenceGrant`; without it, per-tenant secret isolation won’t work.
+- cert-manager’s Gateway “shim” behavior is namespace-sensitive; if you need cert `Secret`s outside the Gateway namespace, prefer explicit `Certificate` resources per domain and wire them deliberately.
+- Multiple certificates per listener and SNI selection behavior varies by Gateway implementation; some implementations may honor only the first certificate ref.
+
+Operational decision to make explicitly:
+
+- which Gateway implementation (Envoy Gateway / Istio / Kong / cloud LB controller) and its limits (listener count, cert count, update churn)
+- where cert secrets live (Gateway namespace vs tenant namespaces + `ReferenceGrant`)
+- how certs are issued (annotated-Gateway shim vs explicit per-domain `Certificate`)
+
 Operational requirements (Shopify-grade UX):
 
 - Claim/Mapping workflow MUST surface precise failure reasons (DNS mismatch, propagation delay, CAA blocks, proxy/CDN interference, multiple/incorrect A records, etc.).
@@ -86,6 +98,11 @@ Treat peripherals as a local service:
 ### D) Replication (cloud ↔ edge) (CDX analogue)
 
 Default: async downsync + upsync.
+
+Two-lane model:
+
+- Lane 1 (async distribution): master/config/rulesets down; transactions up.
+- Lane 2 (real-time escape hatch): operations that cannot tolerate eventual consistency are served by real-time Domain APIs and are explicitly gated in UX when WAN is down (see `523-commerce-process.md`).
 
 Downsync candidates:
 
