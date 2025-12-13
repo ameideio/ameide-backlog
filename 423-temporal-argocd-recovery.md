@@ -23,6 +23,18 @@
 - Schema init/updates are performed by operator-owned setup/update Jobs as part of reconcile.
 - Recovery is primarily: ensure operator CRDs + controller are healthy, then resync `{env}-data-temporal` and inspect the `TemporalCluster` status conditions and operator logs.
 
+## Reproducibility / self-healing guardrails
+
+To keep Temporal deployments reproducible (no manual SQL as the “normal path”), `data-temporal` includes an idempotent **DB preflight** Argo hook:
+
+- **Job**: `temporal-db-preflight` (Argo `PreSync`, sync-wave `-1`)
+- **Purpose**:
+  - Waits for Postgres connectivity.
+  - Ensures the required `namespace_metadata(partition_id=54321)` row exists (prevents startup crash `Failed to lock namespace metadata. Error: sql: no rows in result set`).
+  - Detects stale `cluster_metadata_info` cluster names; by default it **fails fast** (staging/prod behavior). Local/dev may opt-in to auto-delete an allowlisted stale name (e.g. `active`) to self-heal previous experiments.
+
+Additionally, ArgoCD is configured to treat `TemporalCluster`/`TemporalNamespace` readiness as a first-class health signal (so RollingSync can gate reliably instead of “green but broken”).
+
 See also:
 
 - `backlog/425-vendor-schema-ownership.md` – vendor‑owned schema pattern (Temporal, CNPG).

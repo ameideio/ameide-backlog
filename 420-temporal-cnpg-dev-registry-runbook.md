@@ -25,6 +25,7 @@
 - **Temporal DB ownership:** CNPG (`platform-postgres-clusters`) owns the `temporal` and `temporal_visibility` roles/secrets. The TemporalCluster config uses the CNPG-managed Secrets `temporal-db-env` / `temporal-visibility-db-env` for Postgres passwords and connection URLs.
 - **Schema ownership:** The Temporal operator owns schema init/updates via its reconcile loop (setup/update Jobs driven by `TemporalCluster.spec.version`).
 - **Namespace management:** Temporal namespaces are created declaratively via `TemporalNamespace` CRs (packaged with `data-temporal`).
+- **DB preflight (self-healing):** `data-temporal` runs a `temporal-db-preflight` Argo `PreSync` hook to wait for Postgres and ensure the metadata partition row exists (`namespace_metadata.partition_id=54321`). This removes the need for manual SQL in the normal rollout path.
 - **Dev registry wiring:** k3d local registry `k3d-ameide.localhost:5001/ameide` is the single endpoint for dev GitOps. Builds push via the host-published port `localhost:5001` (configurable via `AMEIDE_REGISTRY_PUSH_HOST`) to avoid DNS-to-container IP hangs.
 - **Image naming:** Build script enforces hyphenated image tags (`agents-runtime`, `www-ameide`, `www-ameide-platform`, etc.) even if service directories use underscores. Filters accept either form.
 - **Argo CD apps:** Temporal is deployed by:
