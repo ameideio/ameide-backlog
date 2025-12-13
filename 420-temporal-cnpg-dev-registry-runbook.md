@@ -50,15 +50,15 @@ In dev, the **normal path** is now: open the DevContainer, let the GitOps bootst
 2) Bootstrap dev cluster: `ameide-gitops/bootstrap/bootstrap.sh --config bootstrap/configs/dev.yaml` (builds + pushes dev images to the designated registry).
 3) Port-forward and log into ArgoCD:
    ```
-   kubectl -n argocd port-forward svc/argocd-server 8080:80 >/tmp/argocd-pf.log 2>&1 &
+   kubectl -n argocd port-forward svc/argocd-server 8443:443 >/tmp/argocd-pf-8443.log 2>&1 &
    ARGOCD_PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d)
-   argocd login localhost:8080 --username admin --password "$ARGOCD_PASSWORD" --insecure --grpc-web
+   argocd login localhost:8443 --username admin --password "$ARGOCD_PASSWORD" --plaintext --grpc-web
    ```
 4) If Temporal remains degraded after bootstrap, or you want to force a clean recovery, sync Temporal schema + apps and wait for health:
    ```
-   argocd app sync cluster-crds-temporal-operator cluster-temporal-operator --grpc-web --server localhost:8080
-   argocd app sync dev-data-temporal --grpc-web --server localhost:8080
-   argocd app wait dev-data-temporal --health --timeout 300 --grpc-web --server localhost:8080
+   argocd app sync cluster-crds-temporal-operator cluster-temporal-operator --grpc-web --server localhost:8443 --plaintext
+   argocd app sync dev-data-temporal --grpc-web --server localhost:8443 --plaintext
+   argocd app wait dev-data-temporal --health --timeout 300 --grpc-web --server localhost:8443 --plaintext
    ```
 5) Verify pods: `kubectl get pods -n <env-namespace> | grep temporal` (all Running). DB check (optional): `psql -U temporal -d temporal -c "select * from schema_version;"` on a CNPG pod.
 

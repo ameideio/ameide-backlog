@@ -18,7 +18,7 @@ _Current status:_ the repo now follows this vendor workflow. _Migration plan:_ n
 
 You can keep Argo CD managing the “baseline/platform + GitOps app definitions” while letting Tilt own rapid edits to the `ameide` workload to avoid fights (details in §5).
 
-_Current status:_ the repo now follows this vendor workflow. _Migration plan:_ not applicable. _Status checkpoints:_ Verified 2025-11-12 via the bootstrap-v2 log (`/home/vscode/.devcontainer-bootstrap.log`, emitted by `.devcontainer/postCreate.sh`) showing registry/cluster ready, Argo rollout, and repo secret applied. Argo CD accessible through https://localhost:8080 once the background port-forward starts.
+_Current status:_ the repo now follows this vendor workflow. _Migration plan:_ not applicable. _Status checkpoints:_ Verified 2025-11-12 via the bootstrap-v2 log (`/home/vscode/.devcontainer-bootstrap.log`, emitted by `.devcontainer/postCreate.sh`) showing registry/cluster ready, Argo rollout, and repo secret applied. Argo CD accessible through http://localhost:8443 once the background port-forward starts.
 
 ---
 
@@ -145,12 +145,12 @@ kubectl apply -n argocd \
   -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 
 # Access the UI locally via port-forward:
-kubectl port-forward svc/argocd-server -n argocd 8080:443
+kubectl port-forward svc/argocd-server -n argocd 8443:443
 
 # Get the initial admin password and log in with the CLI
 argocd admin initial-password -n argocd | tr -d '\n' | pbcopy  # (mac) or save it
 # then:
-argocd login localhost:8080 --username admin --password <PASTE> --insecure
+argocd login localhost:8443 --username admin --password <PASTE> --plaintext
 ```
 
 Those steps (namespace, apply `install.yaml`, port‑forwarding the server, and CLI login/password retrieval) are precisely what the official docs outline. ([Argo CD][2])

@@ -295,9 +295,9 @@ The `root` kustomization (`environments/dev/argocd/applications/root/`) lists th
 2. **Re-run bootstrap (preferred):** `../ameide-gitops/bootstrap/bootstrap.sh --config bootstrap/configs/dev.yaml --reset-k3d --show-admin-password --port-forward`. This reapplies repo credentials, recreates the parent `ameide` Application (if missing), and ensures the RollingSync ApplicationSet picks up the updated spec in a clean state.
 3. **Trigger RollingSync manually (fallback):**
    ```bash
-   argocd app sync foundation-dev --server localhost:8080 --plaintext --insecure --retry-strategy backoff
+   argocd app sync foundation-dev --server localhost:8443 --plaintext --retry-strategy backoff
    argocd app wait foundation-dev --timeout 600 --health
-   argocd app sync data-services-dev --server localhost:8080 --plaintext --insecure --retry-strategy backoff
+   argocd app sync data-services-dev --server localhost:8443 --plaintext --retry-strategy backoff
    # repeat for platform-dev and apps-dev once the previous tier is Healthy
    ```
 4. **Validate the parent orchestrator:** `argocd app get ameide` should show the tier Applications as children with the expected `Sync Wave` column values. Confirm that pausing `foundation-dev` keeps the higher tiers OutOfSync but not progressing—this proves the guardrail works.
