@@ -1,25 +1,25 @@
 # 520 — Primitives Stack v2 (Repo-Aligned TDD Guide)
 
-This document MUST guide the end-to-end development of a single sample stack across all planes:
+This document guides the end-to-end development of a single sample stack across all planes:
 
 `proto shape` → `SDKs` → `skeleton generator` → `primitive runtime` → `operator reconcile` → `ArgoCD sync` → `in-cluster probe`
 
-The only permitted deviation for this activity is: image publishing MUST be done manually.
+The only permitted deviation for this activity is: image publishing is done manually.
 
-## Non-Negotiables (MUST / MUST NOT)
+## Non-Negotiables
 
-- Protobuf files under `packages/ameide_core_proto/src/` MUST be the shape source.
-- SDK packages MUST be the only language-specific SDK roots:
+- Protobuf files under `packages/ameide_core_proto/src/` are the shape source.
+- SDK packages are the only language-specific SDK roots:
   - `packages/ameide_sdk_go`
   - `packages/ameide_sdk_python`
   - `packages/ameide_sdk_ts`
-- Operators MUST NOT build binaries, build images, push images, or perform network fetches for build tooling.
-- ArgoCD/GitOps MUST NOT build images. ArgoCD MUST only apply manifests and reconcile desired state.
-- Skeleton generators MUST be deterministic (no timestamps, random IDs, environment-dependent output).
-- Ameide-specific proto options MUST be SOURCE-retained, and generators MUST read options from `source_file_descriptors` when present.
-- Generated skeleton output MUST be written only into generated-only directories and MUST be gitignored.
+- Operators do not build binaries, build images, push images, or fetch build tooling.
+- ArgoCD/GitOps applies manifests and reconciles desired state; it does not build or push images.
+- Skeleton generators are deterministic (no timestamps, random IDs, or environment-dependent output).
+- Ameide-specific proto options are SOURCE-retained; generators read options from `source_file_descriptors` when present.
+- Generated output is written only into generated-only directories and is gitignored.
 
-## Repository Locations (MUST)
+## Repository Locations
 
 - Shape source protos: `packages/ameide_core_proto/src/ameide_core_proto/**/*.proto`
 - Skeleton generators (Buf/protoc plugins): `plugins/**`
@@ -27,30 +27,31 @@ The only permitted deviation for this activity is: image publishing MUST be done
 - Operators: `operators/*-operator/`
 - GitOps deployment + smoke probes (ArgoCD): `gitops/ameide-gitops/` (submodule)
 
-## One TDD Outer Loop (MUST)
+## One TDD Outer Loop
 
-Every vertical primitive implementation MUST follow this sequence:
+Every vertical primitive implementation follows this sequence:
 
 1. Update the proto shape (if required).
-2. Regenerate or sync SDKs for all target languages (if proto changed).
-3. Build the local skeleton generator binary (if generator changed).
-4. Run `buf generate` with the primitive’s generation template.
-5. Implement the human-owned runtime behavior until the in-cluster probe passes.
+2. Regenerate SDKs for all target languages (when proto changed).
+3. Build the local generator binary (when a plugin changed).
+4. Run `buf generate` with the primitive’s generation template (internal/gen glue, static outputs).
+5. Scaffold runtime + GitOps wiring with `ameide primitive scaffold` (proto-driven for Go primitives).
+6. Implement the human-owned runtime behavior until the in-cluster probe passes.
 6. Build and publish the runtime image to a registry the cluster can pull from.
 7. Deploy via ArgoCD (GitOps components + values).
 8. Prove behavior via an in-cluster Job probe.
 
-## Temporary: Skip CI Publishing (MUST)
+## Temporary: Skip CI Publishing
 
-For this activity, CI image publishing MUST be treated as disabled.
+For this activity, treat CI image publishing as disabled.
 
-- Every push to `dev` MUST use commit messages containing `[skip ci]`.
-- No PR to `main` MUST be opened for this activity.
-- Images MUST be pushed manually with the credentials in `.env`.
+- Every push to `dev` uses commit messages containing `[skip ci]`.
+- No PR to `main` is opened for this activity.
+- Images are pushed manually with the credentials in `.env`.
 
-## Domain Vertical (Dev 1) — Transformation v0 (MUST)
+## Domain Vertical (Dev 1) — Transformation v0
 
-### Deliverables (MUST)
+### Deliverables
 
 - Go service registration generator plugin source: `plugins/ameide_register_go/`
 - Domain generation template: `packages/ameide_core_proto/buf.gen.domain-transformation.local.yaml`
@@ -62,25 +63,25 @@ For this activity, CI image publishing MUST be treated as disabled.
   - `gitops/ameide-gitops/environments/_shared/components/apps/primitives/domain-transformation-v0-smoke/component.yaml`
   - `gitops/ameide-gitops/sources/values/_shared/apps/domain-transformation-v0-smoke.yaml`
 
-### Generation (MUST)
+### Generation
 
 1. Build the plugin binary:
 
    - `go build -o bin/protoc-gen-ameide-register-go ./plugins/ameide_register_go`
 
-2. Generate the Domain registration glue (this output MUST NOT be committed):
+2. Generate the Domain registration glue (do not commit this output):
 
    - `REPO_ROOT="$(git rev-parse --show-toplevel)"`
    - `cd "$REPO_ROOT/packages/ameide_core_proto"`
    - `PATH="$REPO_ROOT/bin:$PATH" buf generate --template buf.gen.domain-transformation.local.yaml --path src/ameide_core_proto/transformation/scrum/v1/transformation-scrum-query.proto`
 
-The Domain runtime MUST import the generated registration glue from:
+The Domain runtime imports the generated registration glue from:
 
 - `primitives/domain/transformation/internal/gen/domain_services.generated.go`
 
-### Manual Image Publish (MUST)
+### Manual Image Publish
 
-The cluster MUST pull `ghcr.io/ameideio/transformation-domain:dev` (as referenced by GitOps values).
+The cluster pulls `ghcr.io/ameideio/transformation-domain:dev` (as referenced by GitOps values).
 
 Run:
 
@@ -91,27 +92,27 @@ Run:
 - `docker build -t ghcr.io/ameideio/transformation-domain:dev -f primitives/domain/transformation/Dockerfile .`
 - `docker push ghcr.io/ameideio/transformation-domain:dev`
 
-### GitOps Sync + Probe (MUST)
+### GitOps Sync + Probe
 
-- ArgoCD MUST apply the Domain CR from `gitops/ameide-gitops/sources/values/_shared/apps/domain-transformation-v0.yaml`.
-- The PostSync smoke Job MUST pass by calling `grpc.health.v1.Health/Check` against `transformation-v0-domain.<ns>.svc.cluster.local:50051`.
+- ArgoCD applies the Domain CR from `gitops/ameide-gitops/sources/values/_shared/apps/domain-transformation-v0.yaml`.
+- The PostSync smoke Job passes by calling `grpc.health.v1.Health/Check` against `transformation-v0-domain.<ns>.svc.cluster.local:50051`.
 
-## Remaining Verticals (Dev 2–Dev 6) (MUST)
+## Remaining Verticals (Dev 2–Dev 6)
 
-Each developer MUST implement exactly one primitive vertical with the same outer loop and MUST add:
+Each developer implements exactly one primitive vertical with the same outer loop and adds:
 
 - a generator plugin under `plugins/` OR an extension to an existing generator plugin
 - a `buf.gen.*.local.yaml` template under `packages/ameide_core_proto/`
 - a runtime under `primitives/<kind>/<name>/` (if the primitive is runtime-based)
 - GitOps workload + smoke components under `gitops/ameide-gitops/`
 
-Projection and Integration MUST be included in the set of verticals; they MUST NOT be deferred by this TDD plan.
+Projection and Integration are included in the set of verticals; they are not deferred by this plan.
 
-All Go gRPC primitives (Domain, Process, Agent, Projection, Integration) MUST use `plugins/ameide_register_go/` for service registration glue and MUST NOT introduce per-primitive Go registration plugins.
+All Go gRPC primitives (Domain, Process, Agent, Projection, Integration) use `plugins/ameide_register_go/` for service registration glue and do not introduce per-primitive Go registration plugins.
 
-## Progress Trackers (MUST)
+## Progress Trackers
 
-Each primitive vertical MUST be tracked in its own checklist document:
+Each primitive vertical is tracked in its own checklist document:
 
 - [x] `backlog/520-primitives-stack-v2-tdd-domain.md`
 - [x] `backlog/520-primitives-stack-v2-tdd-process.md`
@@ -120,9 +121,9 @@ Each primitive vertical MUST be tracked in its own checklist document:
 - [x] `backlog/520-primitives-stack-v2-tdd-integration.md`
 - [x] `backlog/520-primitives-stack-v2-tdd-uisurface.md`
 
-## Appendix: Dev 1 Retrospective + Generator Improvements (MUST)
+## Appendix: Dev 1 Retrospective + Generator Improvements
 
-This appendix MUST document what was learned while implementing Domain v0 and MUST translate those learnings into generator requirements that remove developer guesswork.
+This appendix documents what was learned while implementing Domain v0 and translates those learnings into generator requirements that remove developer guesswork.
 
 ### Observed Friction (FACTS)
 
@@ -130,19 +131,19 @@ This appendix MUST document what was learned while implementing Domain v0 and MU
 - The gRPC surface was defined by proto shape, but the runtime still needed a deterministic and repeatable way to register services without hand-editing imports and `Register*Server` calls.
 - The build/publish step was the only manual deviation; this surfaced environment drift (Docker daemon access) that is unrelated to the primitive/operator architecture.
 
-### Generator Improvements Implemented in 520 (MUST)
+### Generator Improvements Implemented in 520
 
-- The Go registration generator MUST auto-discover services in `files_to_generate` and MUST NOT require a manual service list.
-- The Go registration generator MUST generate compile-time safe wiring and MUST NOT rely on `any` + type assertions.
-- The Go registration generator MUST read Ameide options from `source_file_descriptors` when present and MUST NOT assume runtime descriptors contain SOURCE-retained data.
+- The Go registration generator auto-discovers services in `files_to_generate`; it does not require a manual service list.
+- The Go registration generator generates compile-time safe wiring; it does not rely on `any` or type assertions.
+- The Go registration generator reads Ameide options from `source_file_descriptors` when present; it does not assume runtime descriptors contain SOURCE-retained data.
 
-### Generator Improvements Deferred to Follow-Up Work (MUST)
+### Generator Improvements Deferred to Follow-Up Work
 
-- A generator MUST generate a complete v0 runtime skeleton (server bootstrap + health + reflection) so a developer MUST NOT create `cmd/main.go` by hand.
-- A generator MUST generate “create-if-missing” human-owned extension points (handlers) and MUST NOT overwrite human-owned files.
-- A generator MUST emit deterministic file names and stable ordering to guarantee reproducible outputs and reliable regen-diff gating.
+- Generate a complete v0 runtime skeleton (server bootstrap + health + reflection) so a developer does not create `cmd/main.go` by hand.
+- Generate “create-if-missing” human-owned extension points (handlers) without overwriting human-owned files.
+- Emit deterministic file names and stable ordering to guarantee reproducible outputs and reliable regen-diff gating.
 
-### Repo Automation Improvements (MUST)
+### Repo Automation Improvements
 
-- The repo MUST provide a single command that runs the vertical loop for each primitive (generate → build → push → GitOps sync → probe).
-- The repo MUST provide a single command that validates generator determinism via golden tests for each generator plugin.
+- Provide a single command that runs the vertical loop for each primitive (generate → build → push → GitOps sync → probe).
+- Provide a single command that validates generator determinism via golden tests for each generator plugin.
