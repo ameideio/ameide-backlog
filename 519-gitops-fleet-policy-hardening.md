@@ -32,16 +32,19 @@ Primary outcomes:
 **What is already aligned**
 - **AppSet waves still function**: component definitions retain `rolloutPhase` and RollingSync steps continue to gate rollouts.
 - **AppSet strict templating is enabled**: `goTemplateOptions: ["missingkey=error"]` is enforced so mis-templated apps fail fast.
+- **A `global.ameide.*` contract exists**: cluster/env globals now publish a Helm-native contract and at least one owned chart enforces it via `values.schema.json`.
+- **Cluster-type component set scaffolding exists**: local can now be driven from `environments/local/components/**` (curation/allowlist work still pending).
 - **Destination-cluster secret management is in place** for Vault + SecretStore + GHCR pull secrets; cross-namespace Vault role now explicitly includes `ameide-system`.
 - **Argo drift mitigations exist** where needed:
   - CNPG drift fix for `cluster.*` key collisions applied in templates.
   - Argo CD system `resource.customizations` covers Temporal CRs and CRDs to keep health deterministic (no “Unknown” during controller/CRD ordering).
 - **Backstage stable session secret is operator-managed**: cookie signing secret is sourced from Vault KV and synced via External Secrets Operator (no Helm randomness, no Argo diff ignores).
+- **Postgres credential Secrets are operator-managed**: CNPG user Secrets are now sourced from Vault KV and synced via External Secrets Operator (no Helm `rand*/lookup` loops, no secret payload diff ignores).
 - **A proper chart toggle exists for one vendor chart fork**: Langfuse worker can be disabled (currently implemented inside the vendored chart tree).
 - **Temporal bootstrap is operator-native**: Temporal namespaces are managed via `TemporalNamespace` CRs and Temporal DB readiness is gated by an idempotent Argo hook Job (no “run this once” manual bootstrap).
 
 **What remains misaligned (gaps)**
-- **Values schema collision risk remains repo-wide**: the worst offender (local top-level `cluster:`) is removed, but we still lack a formal `global.ameide.*` contract and schema guardrails.
+- **Values schema collision risk remains repo-wide**: the worst offender (local top-level `cluster:`) is removed, but we still need to migrate remaining ambiguous root keys into the `global.ameide.*` contract and expand schema guardrails beyond a single chart.
 - **Local disable semantics are inconsistent**:
   - Some components are disabled by “empty manifests” / pruning behavior instead of a first-class `enabled` contract.
   - Some components should not exist at all on local and should be excluded via the ApplicationSet generator rather than installed then pruned.
