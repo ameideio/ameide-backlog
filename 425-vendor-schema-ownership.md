@@ -2,7 +2,7 @@
 
 ## Problem / Proposal
 
-Now that Temporal’s persistence is handled by a dedicated Argo CD application (`data-migrations-temporal`) that runs the vendor-supported `temporal-sql-tool`, we have a concrete pattern for how vendor-owned schemas should be managed. This backlog explores what it would take to pivot fully to that model:
+Now that Temporal’s persistence schemas are handled by the community Temporal operator (via `TemporalCluster` reconcile and its setup/update Jobs), we have a concrete pattern for how vendor-owned schemas should be managed. This backlog explores what it would take to pivot fully to that model:
 
 - **Vendors own their internal schemas** – we never attempt to apply or version their tables via Flyway.
 - **Our application schemas stay consolidated** – Flyway remains the single entry point for Ameide-authored services.
@@ -11,7 +11,7 @@ Now that Temporal’s persistence is handled by a dedicated Argo CD application 
 
 | Schema domain                      | Owner today                          | Tooling                                     |
 |-----------------------------------|---------------------------------------|---------------------------------------------|
-| Temporal default/visibility DBs   | `data-migrations-temporal` Argo app   | `temporal-sql-tool` (setup-schema, update)  |
+| Temporal default/visibility DBs   | Temporal operator (`TemporalCluster`) | `temporal-sql-tool` (setup-schema, update)  |
 | Keycloak, agents, workflows, etc. | `data-db-migrations` Argo app (Flyway) | Custom Flyway SQL under `/flyway/sql/**`    |
 
 Some vendors (Temporal, CNPG) require their own tooling and provide clear “don’t touch” guidance. Others (e.g., third-party apps installed via Helm) may or may not have opinionated schema tooling.
@@ -58,7 +58,7 @@ Some vendors (Temporal, CNPG) require their own tooling and provide clear “don
 
 | Component / Chart                                      | DB backend / storage                                                                             | Current migration owner                    | Vendor tooling available? | Notes / Next action                                                                                   |
 |-------------------------------------------------------|--------------------------------------------------------------------------------------------------|-------------------------------------------|---------------------------|--------------------------------------------------------------------------------------------------------|
-| **Temporal** (`data-temporal`)                        | Postgres (`temporal`, `temporal_visibility` in CNPG cluster)                                      | `data-migrations-temporal` (vendor hook)  | Yes (`temporal-sql-tool`) | ✅ Already migrated to vendor flow (setup-schema + update-schema).                                     |
+| **Temporal** (`data-temporal`)                        | Postgres (`temporal`, `temporal_visibility` in CNPG cluster)                                      | Temporal operator (reconcile)             | Yes (`temporal-sql-tool`) | ✅ Operator owns schema setup/update; no Flyway involvement.                                            |
 | **Keycloak** (`platform-keycloak`)                    | Postgres (`keycloak` DB managed by CNPG)                                                         | `data-db-migrations` (Flyway)             | **Yes** (Keycloak uses embedded Liquibase auto-migrations) | Needs exploration: upstream chart can run Liquibase on startup; evaluate replacing Flyway SQL with vendor hook. |
 | **Prometheus / Alertmanager / Grafana stack**         | Prometheus TSDB, Alertmanager files, Grafana SQLite/Postgres (we currently run SQLite)           | Not applicable / in-container migrations  | Yes (managed internally)  | No relational schema we touch; nothing to migrate.                                                     |
 | **MinIO, ClickHouse, Redis, CNPG operators**          | Each operator manages its own CRDs/state; no Ameide-authored SQL                                 | Operators themselves                      | Yes (operators reconcile) | Out of scope (no Flyway involvement today).                                                            |

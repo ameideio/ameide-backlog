@@ -71,8 +71,7 @@ The `argocd/applicationsets/ameide.yaml` file contains git file generators that 
 - pgadmin
 - registry-alias
 - registry-mirror
-- temporal-migrations
-- temporal-namespace-bootstrap
+- temporal-cluster
 
 ### GAP-2: Plausible in wrong location
 

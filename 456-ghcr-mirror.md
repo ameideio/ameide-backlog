@@ -169,7 +169,7 @@ sidecar:
 | File | Changes |
 |------|---------|
 | `sources/values/_shared/data/data-temporal.yaml` | GHCR mirrors for server + busybox init container + imagePullSecrets |
-| `sources/values/_shared/data/data-migrations-temporal.yaml` | GHCR mirror for temporalio-admin-tools + imagePullSecrets |
+| `sources/values/_shared/data/data-temporal.yaml` | GHCR mirror for temporal server/ui/admin-tools images (TemporalCluster) |
 | `sources/values/_shared/platform/platform-loki.yaml` | `loki.image` path, sidecar image, imagePullSecrets |
 | `sources/values/_shared/platform/platform-grafana.yaml` | global.imagePullSecrets, GHCR image, downloadDashboardsImage |
 | `sources/values/_shared/platform/platform-tempo.yaml` | `tempo.pullSecrets` format, GHCR image |
