@@ -33,6 +33,7 @@ Primary outcomes:
 - **AppSet waves still function**: component definitions retain `rolloutPhase` and RollingSync steps continue to gate rollouts.
 - **AppSet strict templating is enabled**: `goTemplateOptions: ["missingkey=error"]` is enforced so mis-templated apps fail fast.
 - **A `global.ameide.*` contract exists**: cluster/env globals now publish a Helm-native contract and at least one owned chart enforces it via `values.schema.json`.
+- **The fleet contract is available to cluster-scoped apps too**: both local and Azure overlays ensure cluster-scoped operators/config can consume the cluster-type globals file (e.g. `sources/values/cluster/{local,azure}/globals.yaml`) when needed.
 - **Cluster-type component set scaffolding exists (local)**: local can now be driven from `environments/local/components/**` (curation/allowlist work still pending). Azure keeps using `_shared` as the canonical full set until it needs to diverge.
 - **Destination-cluster secret management is in place** for Vault + SecretStore + GHCR pull secrets; cross-namespace Vault role now explicitly includes `ameide-system`.
 - **Argo drift mitigations exist** where needed:
@@ -245,9 +246,17 @@ Example wrapper conventions:
 ## 8) Tracking checklist
 
 - [ ] Phase A: `global.ameide.*` contract + schema
+  - [x] AppSet injects `global.ameide.*` for env-scoped apps (missingkey=error)
+  - [x] Schema guardrails added to initial owned charts (Backstage + CNPG config + Temporal)
+  - [ ] Expand schema guardrails repo-wide; migrate remaining ambiguous root keys
 - [ ] Phase B: clusterType component directories + AppSet wiring
+  - [x] Local overlay reads `environments/local/components/**`
+  - [x] Azure remains canonical on `environments/_shared/components/**`
+  - [ ] Curate `environments/local/components/**` into a true local allowlist (omit unsupported apps)
 - [ ] Phase C: enablement contract across owned/wrapped charts
 - [ ] Phase D: stable secrets moved to Vault/ESO; remove Helm rand secrets
 - [ ] Phase E: central image policy + wrapper translation
 - [ ] Phase F: standardized bootstrap runner pattern
 - [ ] Phase G: system-level diff customizations + SSA policy
+  - [x] Scoped app-level drift mitigations added where required (e.g., GitLab defaulted fields)
+  - [ ] Move generic drift rules into Argo system config where appropriate; minimize `ignoreDifferences`
