@@ -40,6 +40,7 @@ Primary outcomes:
   - Argo CD system `resource.customizations` covers Temporal CRs and CRDs to keep health deterministic (no “Unknown” during controller/CRD ordering).
 - **Backstage stable session secret is operator-managed**: cookie signing secret is sourced from Vault KV and synced via External Secrets Operator (no Helm randomness, no Argo diff ignores).
 - **Postgres credential Secrets are operator-managed**: CNPG user Secrets are now sourced from Vault KV and synced via External Secrets Operator (no Helm `rand*/lookup` loops, no secret payload diff ignores).
+- **Postgres password drift can be reconciled (local-only)**: a gated PostSync hook Job can reconcile existing DB role passwords from the synced Secrets using the CNPG superuser secret. This is intended as a migration/self-heal tool when switching password sources (e.g. Helm-generated → Vault KV → ESO).
 - **A proper chart toggle exists for one vendor chart fork**: Langfuse worker can be disabled (currently implemented inside the vendored chart tree).
 - **Temporal bootstrap is operator-native**: Temporal namespaces are managed via `TemporalNamespace` CRs and Temporal DB readiness is gated by an idempotent Argo hook Job (no “run this once” manual bootstrap).
 

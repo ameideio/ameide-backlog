@@ -203,7 +203,7 @@ These can be set in `component.yaml` so ApplicationSet template injects them.
 2. Installs Argo CD (`install.yaml`) and waits for controllers.
 3. Applies repo secrets (`repos/ameide-gitops.yaml`) from `.env` (`GITHUB_TOKEN`).
 4. Applies AppProjects + ApplicationSets + ops config from `gitops/ameide-gitops`.
-5. Starts a background port-forward to https://localhost:8080.
+5. Starts a background port-forward to http://localhost:8443.
 
 After ApplicationSets exist, bootstrap will automatically render all components; helmfile is no longer needed for local dev.
 
