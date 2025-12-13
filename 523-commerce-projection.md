@@ -12,6 +12,16 @@ Projection themes:
 
 Important: the store-edge “operational store” (transactional writes for POS selling) should be treated as a Domain-owned write model deployed to edge (D365 “channel DB” analogue). Projections remain read-only/derived.
 
+## EDA responsibilities (496-native)
+
+Projections are idempotent consumers that materialize read models:
+
+- Consume domain/process facts and assume at-least-once delivery.
+- Implement idempotency via inbox or natural-key UPSERT per `496-eda-principles.md` Principle 4.
+- Surface lag/health as first-class operational signals (e.g., “revoke convergence” SLOs) per Principle 8.
+
+See `523-commerce-proto.md` for the proposed fact envelopes and topic families.
+
 ## Key projections (v1 set)
 
 ### 1) Hostname resolution (storefront)

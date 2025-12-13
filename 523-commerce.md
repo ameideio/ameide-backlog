@@ -4,6 +4,7 @@ This backlog defines “commerce” as a proto-first, primitive-first system ali
 
 - `520-primitives-stack-v2.md` (normative primitives stack)
 - `509-proto-naming-conventions.md` (proto package + topic conventions)
+- `496-eda-principles.md` (commands vs facts, outbox, idempotent consumers, tenant isolation)
 
 It is also informed by convergent industry patterns (D365 / SAP Commerce / Shopify + OSS commerce):
 
@@ -71,6 +72,7 @@ Edge is treated as topology + sync, not a new primitive kind.
 - `523-commerce-integration.md` — payments/EFT, taxes/shipping, hardware gateway, replication flows, BYOD domains plumbing
 - `523-commerce-process.md` — retail value streams + workflows (BYOD, order-to-cash, inventory-to-deliver, store ops), plus rollouts/recovery
 - `523-commerce-agent.md` — optional setup/support assistants (read-only diagnostics + guided steps)
+- `523-commerce-proto.md` — proto proposal for primitive-to-primitive communication
 
 ## “Real-time required” operations (v1 list; keep small)
 
@@ -97,3 +99,16 @@ Treat BYOD onboarding as a first-class workflow, not a support runbook:
 - surface precise failure reasons (DNS mismatch, TXT mismatch, propagation pending, CAA blocks, proxy/CDN interference, ACME rate limits)
 - implement retry/backoff; do not busy-loop DNS or ACME
 - provide explicit revoke/transfer semantics (audit + optional cooldown)
+
+## EDA articulation (496)
+
+Commerce should be explainable as an event-driven platform, not just a set of primitives:
+
+- **Commands/intents** initiate change (imperative business verbs).
+- **Domain facts** are immutable sources of truth (past tense) emitted by single-writer domains via transactional outbox.
+- **Process facts** describe orchestration progress; Temporal implements sagas (no distributed transactions).
+- **Projections** are idempotent consumers building read models (UPSERT/inbox), and lag/health are observable SLOs.
+- **Integrations** are boundary adapters; inbound is at-least-once + idempotent; outcomes are surfaced as facts/conditions.
+- **Tenant isolation + traceability metadata** are required on every message.
+
+The concrete message families, envelopes, and topic naming are proposed in `523-commerce-proto.md`.

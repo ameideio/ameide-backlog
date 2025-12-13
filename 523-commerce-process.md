@@ -17,6 +17,17 @@ Process protos define workflow envelopes and process facts; operators remain ope
 - Generation: Temporal worker wiring + determinism/versioning guardrails and tests.
 - Operator: reconciles workers/HPAs/ingress and surfaces Temporal dependency status via conditions.
 
+## EDA responsibilities (496-native)
+
+Processes implement sagas and cross-domain invariants under eventual consistency:
+
+- Consume domain facts (at-least-once) and orchestrate workflows per `496-eda-principles.md` Principle 5.
+- Request changes through domain commands (RPC) or domain intents (topic); never bypass single-writer domains.
+- Emit process facts to `commerce.process.facts.v1` so orchestration progress is observable and debuggable.
+- Use explicit workflow IDs/idempotency keys; expect duplicates and retries everywhere.
+
+See `523-commerce-proto.md` for the proposed process fact envelope and topic family.
+
 ## Real-time required surface (v1)
 
 Default is async replication. The system MUST label and handle “real-time required” operations explicitly:

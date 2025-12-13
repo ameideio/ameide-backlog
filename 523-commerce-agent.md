@@ -20,3 +20,12 @@ Primary use-cases:
 - Generation: typed state/tool adapters + compile/test harness for deterministic execution.
 - Operator: injects model/provider configuration and secrets via Kubernetes; no secrets in proto or generated outputs.
 
+## EDA responsibilities (496-native)
+
+Agents follow the same EDA invariants as other primitives:
+
+- Consume domain/process facts (at-least-once; idempotent handlers).
+- Propose or emit commands/intents only through the standard Domain/Process surfaces; no side-channel state writes.
+- Preserve tenant isolation and propagate correlation/causation metadata for auditability.
+
+See `523-commerce-proto.md` for message families and envelopes.

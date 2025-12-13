@@ -46,6 +46,21 @@ Rule of thumb:
 
 - every customer-facing decision RPC should require `tenant_id` + `sales_channel_id` (and usually `currency`), and inventory/fulfillment decisions must include `stock_location_id` (or return results keyed by location).
 
+## EDA responsibilities (496-native)
+
+Domains are the single-writer for their aggregates and the authoritative producers of domain facts:
+
+- Commands/intents use business verbs (avoid CRUD) per `496-eda-principles.md` Principle 1.
+- State change and fact emission is atomic via transactional outbox per Principle 3.
+- Consumers assume at-least-once; emitted facts must support idempotency/ordering (aggregate ref + monotonic version).
+
+Topic families (v1):
+
+- commands/intents: `commerce.domain.intents.v1` (optional if RPC-first)
+- domain facts: `commerce.domain.facts.v1` (required)
+
+See `523-commerce-proto.md` for proposed envelopes and aggregator message shapes.
+
 ## Proto shape (v2-aligned)
 
 Follow `509-proto-naming-conventions.md`.

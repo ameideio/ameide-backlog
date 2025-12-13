@@ -46,6 +46,16 @@ Practical expectations:
 - MUST call Domain APIs and/or Projection query APIs via generated SDKs (per `520-primitives-stack-v2.md`).
 - SHOULD degrade gracefully under partial connectivity (especially `commerce-pos`).
 
+## EDA responsibilities (496-native)
+
+UISurfaces initiate change via commands/intents and render from read models:
+
+- Initiate change via command RPCs and/or `commerce.domain.intents.v1`; do not mutate state directly.
+- Render state via query APIs and projections; correctness is driven by domain/process facts, not UI push.
+- UI “real-time” streams (if any) are best-effort UX signals, not replayable sources of truth (see `496-eda-principles.md` Principle 7).
+
+See `523-commerce-proto.md` for message families and envelopes.
+
 ## `commerce-storefront` specifics (public domains)
 
 - MUST resolve tenant/site context from `Host` header and enforce a strict host allowlist (unmapped hosts 404).

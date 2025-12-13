@@ -20,6 +20,17 @@ Per v2 rules, proto declares ports/contracts; endpoints and secrets are runtime-
 
 ## Integration buckets (keep them separate)
 
+## EDA responsibilities (496-native)
+
+Integrations are boundary adapters and must be correct under at-least-once delivery:
+
+- Inbound webhooks/messages MUST be idempotent (inbox or natural keys) per `496-eda-principles.md` Principle 4.
+- Prefer emitting integration outcome facts (optional `commerce.integration.facts.v1`) and/or domain/process facts that record results.
+- Long-running external coordination belongs in Process workflows (Temporal), not ad-hoc retry loops.
+- Always propagate `tenant_id` and correlation/causation metadata across calls/messages.
+
+See `523-commerce-proto.md` for proposed integration port shapes and optional integration facts.
+
 Two common “retail integration classes” have very different constraints:
 
 - **Cloud enterprise integrations**: ERP/finance, PIM/MDM, WMS/3PL, CRM, EDI.
