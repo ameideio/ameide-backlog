@@ -31,4 +31,4 @@ Complete all unchecked items in this document for this vertical primitive to be 
 
 ### Manual Image Publish
 
-- [x] Publish the runtime image `ghcr.io/ameideio/uisurface-hello:dev`.
+- [x] Publish the runtime image `ghcr.io/ameideio/uisurface-hello:dev` (use `ameide primitive publish --kind uisurface --name hello`).

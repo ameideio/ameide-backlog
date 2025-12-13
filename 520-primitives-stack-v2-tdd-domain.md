@@ -36,4 +36,4 @@ Complete all unchecked items in this document for this vertical primitive to be 
 
 ### Manual Image Publish
 
-- [x] Publish the runtime image `ghcr.io/ameideio/transformation-domain:dev`.
+- [x] Publish the runtime image `ghcr.io/ameideio/transformation-domain:dev` (use `ameide primitive publish --kind domain --name transformation`).

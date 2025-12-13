@@ -37,5 +37,5 @@ Complete all unchecked items in this document for this vertical primitive to be 
 
 ### Manual Image Publish
 
-- [x] Publish the runtime image `ghcr.io/ameideio/agent-echo:dev`.
-- [x] Publish the operator image `ghcr.io/ameideio/agent-operator:dev`.
+- [x] Publish the runtime image `ghcr.io/ameideio/agent-echo:dev` (use `ameide primitive publish --kind agent --name echo`).
+- [x] Publish the operator image `ghcr.io/ameideio/agent-operator:dev` (use `ameide primitive publish --image ghcr.io/ameideio/agent-operator:dev --dockerfile operators/agent-operator/Dockerfile.dev`).

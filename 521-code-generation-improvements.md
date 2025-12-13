@@ -15,10 +15,10 @@ Included:
 Not included:
 - Runtime implementation changes that are unrelated to generation.
 - Operator/controller logic unless it directly changes what codegen emits or how it is consumed.
-- CLI/orchestrator scaffolding templates and GitOps wiring automation (tracked in `backlog/522-cli-orchestration-improvements.md`).
+- CLI/orchestrator scaffolding templates and GitOps wiring automation (tracked in `backlog/520-primitives-stack-v2-tdd.md`).
 
 Bright line:
-- Anything derived from protobuf descriptors must be reproducible by running `buf generate` in a clean checkout; anything else belongs to the CLI orchestrator (522) and/or human-owned templates.
+- Anything derived from protobuf descriptors is reproducible by running `buf generate` in a clean checkout; anything else belongs to the CLI orchestrator and/or human-owned templates.
 
 ## How to use this log
 

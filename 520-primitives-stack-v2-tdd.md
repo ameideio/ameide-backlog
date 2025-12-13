@@ -4,7 +4,7 @@ This document guides the end-to-end development of a single sample stack across 
 
 `proto shape` → `SDKs` → `skeleton generator` → `primitive runtime` → `operator reconcile` → `ArgoCD sync` → `in-cluster probe`
 
-The only permitted deviation for this activity is: image publishing is done manually.
+The only permitted deviation for this activity is: image publishing is done manually (dev tag only).
 
 ## Non-Negotiables
 
@@ -26,6 +26,17 @@ The only permitted deviation for this activity is: image publishing is done manu
 - Primitive runtimes (sample implementations): `primitives/<kind>/<name>/`
 - Operators: `operators/*-operator/`
 - GitOps deployment + smoke probes (ArgoCD): `gitops/ameide-gitops/` (submodule)
+- CLI orchestrator (scaffold, dev publishing, drift checks): `packages/ameide_core_cli/`
+
+## Responsibilities Split (Consolidated Approach)
+
+Internal generation:
+- Run `buf generate` for SDKs and per-primitive generated glue.
+- Keep generated glue in generated-only directories (gitignored).
+
+External wiring:
+- Use the CLI (`ameide primitive scaffold`) for repo wiring (runtime skeleton, GitOps components/values).
+- Use the CLI (`ameide primitive publish`) for dev image build/push when CI publishing is skipped.
 
 ## One TDD Outer Loop
 
@@ -37,9 +48,9 @@ Every vertical primitive implementation follows this sequence:
 4. Run `buf generate` with the primitive’s generation template (internal/gen glue, static outputs).
 5. Scaffold runtime + GitOps wiring with `ameide primitive scaffold` (proto-driven for Go primitives).
 6. Implement the human-owned runtime behavior until the in-cluster probe passes.
-6. Build and publish the runtime image to a registry the cluster can pull from.
-7. Deploy via ArgoCD (GitOps components + values).
-8. Prove behavior via an in-cluster Job probe.
+7. Build and publish the runtime image to a registry the cluster can pull from.
+8. Deploy via ArgoCD (GitOps components + values).
+9. Prove behavior via an in-cluster Job probe.
 
 ## Temporary: Skip CI Publishing
 
@@ -48,6 +59,17 @@ For this activity, treat CI image publishing as disabled.
 - Every push to `dev` uses commit messages containing `[skip ci]`.
 - No PR to `main` is opened for this activity.
 - Images are pushed manually with the credentials in `.env`.
+
+### Smoke probes in ArgoCD (GitOps team feedback)
+
+- A green ArgoCD application does not prove smokes ran recently. Smokes are PostSync hook Jobs and only run when the `*-smoke` application syncs.
+- To run a smoke, sync the corresponding `*-smoke` application and inspect the Job result (Succeeded/Failed) and logs.
+
+### Smoke image baseline (gRPC)
+
+The gRPC smoke jobs run shell scripts via `/bin/sh -c`. Use the grpcurl runner image that includes a shell:
+
+- `ghcr.io/ameideio/grpcurl-runner:dev`
 
 ## Domain Vertical (Dev 1) — Transformation v0
 
@@ -83,7 +105,15 @@ The Domain runtime imports the generated registration glue from:
 
 The cluster pulls `ghcr.io/ameideio/transformation-domain:dev` (as referenced by GitOps values).
 
-Run:
+Publish with the CLI:
+
+- `ameide primitive publish --kind domain --name transformation`
+
+If you need to publish without primitive discovery (tooling images), provide `--image` and `--dockerfile`, for example:
+
+- `ameide primitive publish --image ghcr.io/ameideio/grpcurl-runner:dev --dockerfile tools/images/grpcurl-runner/Dockerfile`
+
+Equivalent manual commands:
 
 - `REPO_ROOT="$(git rev-parse --show-toplevel)"`
 - `set -a; source "$REPO_ROOT/.env"; set +a`

@@ -1,15 +1,17 @@
 # 509 – Proto Naming & Package Conventions
 
-**Status:** Draft (target conventions for all new work)  
+**Status:** Active baseline for new proto work  
 **Audience:** Platform engineers, domain teams, SDK owners, agents  
 **Scope:** Naming, packaging, and topic conventions for all Ameide proto contracts
+
+This document defines naming and packaging rules for proto contracts. For the repo workflow (Buf generation, skeleton generation, GitOps wiring, dev image publishing), use `520-primitives-stack-v2-tdd.md`.
 
 ## Grounding & contract alignment
 
 - **Architecture grounding:** Extends the proto‑first, SDK‑first contract chain defined in `470-ameide-vision.md` and `472-ameide-information-application.md` into concrete naming rules, so packages across domains, Transformation, Process, Agents, and CLI stay coherent.  
 - **EDA & runtime seams:** Aligns with the event‑driven rules in `496-eda-principles.md` and the Scrum runtime seam in `506-scrum-vertical-v2.md` / `508-scrum-protos.md`, ensuring domain/process/agent messages share a consistent envelope and naming style.  
 - **Primitive & operator ecosystem:** Provides a shared naming baseline for proto references used by primitives and operators (`495-ameide-operators.md`, `498-domain-operator.md`, `499-process-operator.md`, `500-agent-operator.md`, `501-uisurface-operator.md`, `502-domain-vertical-slice.md`, `503-operators-helm-chart.md`, `504-agent-vertical-slice.md`).  
-- **Scrum & agent stack:** Treats the Scrum packages in `508-scrum-protos.md` and the agent contracts in `505-agent-developer-v2.md` / `505-agent-developer-v2-implementation.md` as exemplars of these conventions; older packages that diverge are historical and should be migrated over time.
+- **Scrum & agent stack:** Treats the Scrum packages in `508-scrum-protos.md` and the agent contracts in `505-agent-developer-v2.md` / `505-agent-developer-v2-implementation.md` as exemplars of these conventions; treat older packages that diverge as historical and track migrations explicitly.
 
 > **Related proto/Buf backlogs**
 > - [402-buf-first-generated-clients.md](402-buf-first-generated-clients.md) – Buf-first client strategy  
@@ -138,7 +140,7 @@ message ScrumProcessFact {
 }
 	```
 
-Other domains should follow the same pattern (`<Context>Command`, `<Context>Event` or `<Context>DomainFact`, `<Context>ProcessFact`), with intents carrying request payloads and facts carrying state snapshots or diffs.
+Other domains follow the same pattern (`<Context>Command`, `<Context>Event` or `<Context>DomainFact`, `<Context>ProcessFact`), with intents carrying request payloads and facts carrying state snapshots or diffs.
 
 ---
 
@@ -146,7 +148,7 @@ Other domains should follow the same pattern (`<Context>Command`, `<Context>Even
 
 To keep EDA semantics consistent (per `496-eda-principles.md`), all event‑carrying packages share a common envelope shape inside their own context:
 
-- **Message envelope:** `ScrumMessageMeta` (for Scrum); other contexts may define analogous types (`OrdersMessageMeta`, etc.) but must retain the same semantics.
+- **Message envelope:** `ScrumMessageMeta` (for Scrum); other contexts define analogous types (`OrdersMessageMeta`, etc.) and retain the same semantics.
 - **Subject/routing key:** `ScrumSubject` – `product_id`, `sprint_id`, `product_backlog_item_id`, etc.  
 - **Actor attribution:** `ScrumActor` – `ScrumAccountability` + `actor_id`.  
 - **Aggregate identity:** `ScrumAggregateRef` – `type`, `id`, `version` (monotonic).
@@ -162,13 +164,13 @@ Envelope fields:
 - `subject` – domain‑specific routing keys.  
 - `actor` – optional attribution for who caused the change.
 
-For **domain facts**, `ScrumAggregateRef.version` must be monotonic per aggregate; downstream consumers (Temporal, analytics, projections) should rely on this for idempotency and ordering.
+For **domain facts**, keep `ScrumAggregateRef.version` monotonic per aggregate; downstream consumers (Temporal, analytics, projections) rely on this for idempotency and ordering.
 
 ---
 
 ## 5. Topic naming
 
-Topic (or subject/stream) names are logical; they should still encode class and version and map 1:1 to the aggregator message types:
+Topic (or subject/stream) names are logical; encode class and version and map 1:1 to the aggregator message types:
 
 - `scrum.domain.intents.v1` → payload `ameide_core_proto.transformation.scrum.v1.ScrumDomainIntent`.  
 - `scrum.domain.facts.v1` → payload `ameide_core_proto.transformation.scrum.v1.ScrumDomainFact`.  
@@ -180,19 +182,19 @@ Pattern:
 <methodology>.<class>.<kind>.v<major>
   where class ∈ { domain, process }
         kind  ∈ { intents, facts }
-	```
+```
 
-### 3.3 Projections and integrations
+### 5.1 Projections and integrations
 
 These conventions apply across the six primitives; they do **not** introduce a second behavior DSL.
 
-- **Projection messages** SHOULD use a `*Projection` suffix (e.g., `SalesOrderProjection`) and live in the bounded context package that owns the semantics (typically the originating domain or process context).
-- **Projection services** SHOULD use a `*QueryService` or `*ProjectionQueryService` naming pattern and remain read-only (queries only).
-- **Integration services** SHOULD use a `*IntegrationService` naming pattern for stable external seams; environment-specific endpoints and secrets MUST NOT be encoded in proto (those are runtime bindings).
+- **Projection messages:** use a `*Projection` suffix (e.g., `SalesOrderProjection`) and keep them in the bounded context package that owns the semantics (typically the originating domain or process context).
+- **Projection services:** use `*QueryService` or `*ProjectionQueryService` names and keep them read-only (queries only).
+- **Integration services:** use `*IntegrationService` names for stable external seams; do not encode environment-specific endpoints or secrets in proto (bind them at runtime).
 
 Rules:
 
-- Topic version **must** match proto package major (`*.v1` ↔ `...v1`).  
+- Match topic version to proto package major (`*.v1` ↔ `...v1`).  
 - Do not invent synonyms (`scrum.events.v1`, `scrum.stream.v1`) for the same payload; if you need multiple consumer groups, use broker‑specific constructs (consumer groups, partitions), not separate semantic topics.
 
 ---
@@ -218,17 +220,16 @@ Breaking changes require:
 
 ## 7. Legacy & compatibility
 
-Several older backlogs and packages pre‑date these conventions (e.g., `506-scrum-vertical.md`’s `scrum.intents.v1` / `scrum.facts.v1` naming, Requirement‑centric events, or neutral “WorkItem” abstractions). The rules above are **normative for new work**:
+Several older backlogs and packages pre‑date these conventions (e.g., `506-scrum-vertical.md`’s `scrum.intents.v1` / `scrum.facts.v1` naming, Requirement‑centric events, or neutral “WorkItem” abstractions). Apply the rules above to new work:
 
-- New packages must follow `ameide_core_proto.<context>[.<sub>].v<major>`.  
-- New commands/events must use the suffixes and aggregator patterns in §3.  
-- New topics must follow the `<methodology>.<class>.<kind>.v<major>` pattern and map to the aggregator messages.
+- Use `ameide_core_proto.<context>[.<sub>].v<major>` for new packages.  
+- Use the suffixes and aggregator patterns in §3 for new commands/events.  
+- Use the `<methodology>.<class>.<kind>.v<major>` pattern for new topics and map them to the aggregator messages.
 
 Legacy packages and names:
 
-- May remain in the repo for migration and compatibility.  
-- Should be explicitly labelled as historical in their backlogs (see the contract‑alignment/supersedence boxes added to 505‑legacy and 506‑legacy).  
-- Must not be used as the basis for new implementations; migrations should target the v1 packages that conform to this document.
+- Keep them in the repo for migration and compatibility.  
+- Label them as historical in their backlogs (see the contract‑alignment/supersedence boxes added to 505‑legacy and 506‑legacy).  
+- Do not use them as the basis for new implementations; target the v1 packages that conform to this document.
 
-As new domains/methodologies are added (e.g., SAFe, TOGAF), their proto backlogs should reference this file and mirror the Scrum packages (`transformation.safe.v1`, `process.safe.v1`, etc.) instead of inventing a new naming scheme.***
-*** End Patch ***!
+As new domains/methodologies are added (e.g., SAFe, TOGAF), their proto backlogs reference this file and mirror the Scrum packages (`transformation.safe.v1`, `process.safe.v1`, etc.) instead of inventing a new naming scheme.

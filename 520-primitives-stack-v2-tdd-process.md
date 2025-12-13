@@ -36,5 +36,5 @@ Complete all unchecked items in this document for this vertical primitive to be 
 
 ### Manual Image Publish
 
-- [x] Publish the runtime image `ghcr.io/ameideio/process-ping:dev`.
-- [x] Publish the operator image `ghcr.io/ameideio/process-operator:dev`.
+- [x] Publish the runtime image `ghcr.io/ameideio/process-ping:dev` (use `ameide primitive publish --kind process --name ping`).
+- [x] Publish the operator image `ghcr.io/ameideio/process-operator:dev` (use `ameide primitive publish --image ghcr.io/ameideio/process-operator:dev --dockerfile operators/process-operator/Dockerfile.dev`).
