@@ -20,6 +20,13 @@ Per v2 rules, proto declares ports/contracts; endpoints and secrets are runtime-
 
 ## Integration buckets (keep them separate)
 
+Two common “retail integration classes” have very different constraints:
+
+- **Cloud enterprise integrations**: ERP/finance, PIM/MDM, WMS/3PL, CRM, EDI.
+- **Store/edge integrations**: payments/EFT terminals, hardware peripherals, replication/sync.
+
+Keep both as Integration primitives, but expect different operator/runtime contracts and different failure/latency assumptions.
+
 ### A) Storefront public domains (routing/TLS/DNS)
 
 Goal: safely expose `commerce-storefront` on:
@@ -100,4 +107,3 @@ Implementation default:
 Channel sensitivity:
 
 - replication bindings and payload selection are channel-scoped (store site channel vs eCommerce channel can have different datasets and frequencies).
-

@@ -11,6 +11,8 @@ Define the deterministic workflows (Temporal) that make commerce operable at fle
 
 Process protos define workflow envelopes and process facts; operators remain operational only (`520-primitives-stack-v2.md`).
 
+For the business-process view (value streams and “golden paths”), see `523-commerce-process-catalog.md`.
+
 ## Stack alignment (proto / generation / operator)
 
 - Proto: workflow envelopes + process facts in `ameide_core_proto.process.commerce.v1`.
@@ -86,4 +88,3 @@ Deliverables:
 
 Commerce platforms impose real constraints on version compatibility and upgrade sequencing across “engine/runtime + storefront/POS + integrations”.
 This backlog treats compatibility and rollout policy as first-class deliverables once edge fleets are introduced.
-

@@ -4,6 +4,8 @@
 
 Define the headless commerce engine as a bounded context: stable APIs + facts/intents; UIs remain thin.
 
+This is an umbrella for multiple Domain primitives under the “commerce” platform domain (retail suites always separate at least Catalog/Pricing/Orders/Inventory/Payments/StoreOps/Channels).
+
 Start with a small number of subdomains:
 
 1. Catalog & Merchandising
@@ -98,4 +100,3 @@ Customer/loyalty (optional):
 - `CustomerCreated`, `LoyaltyRedeemed` (if owned)
 
 These facts feed projections and replication; prefer outbox discipline per v2.
-

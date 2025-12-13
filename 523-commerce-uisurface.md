@@ -12,6 +12,8 @@ UISurfaces:
 
 This document covers UISurface runtime/operator boundaries. Payments/hardware/replication and BYOD plumbing live in `523-commerce-integration.md` and `523-commerce-process.md`.
 
+For the value-stream view (Plan-to-Merchandise, Order-to-Cash, Inventory-to-Deliver, Store Ops), see `523-commerce-process-catalog.md`.
+
 ## Headless engine, many experiences
 
 The architecture assumes additional experiences over time (mobile, kiosks, partner portals) without changing the core domain model. Experiences differ in UX and topology constraints, not in business rules.
@@ -89,4 +91,3 @@ Keep UISurface protos minimal and UI-facing:
 - Proto: UI-facing contracts and view models only; no per-environment bindings.
 - Generation: `buf generate` produces SDKs + UI skeleton wiring where applicable.
 - Operator: reconciles web workloads and HTTPRoutes; BYOD domain verification/certs are not owned by the UISurface operator.
-

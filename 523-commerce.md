@@ -65,6 +65,7 @@ Edge is treated as topology + sync, not a new primitive kind.
 - `523-commerce-integration.md` — payments/EFT, taxes/shipping, hardware gateway, replication flows, BYOD domains plumbing
 - `523-commerce-process.md` — workflows: BYOD onboarding, replication control, rollouts/recovery; defines real-time required surface
 - `523-commerce-agent.md` — optional setup/support assistants (read-only diagnostics + guided steps)
+- `523-commerce-process-catalog.md` — Level 0/1 value streams (retail business-process view)
 
 ## “Real-time required” operations (v1 list; keep small)
 
@@ -91,4 +92,3 @@ Treat BYOD onboarding as a first-class workflow, not a support runbook:
 - surface precise failure reasons (DNS mismatch, TXT mismatch, propagation pending, CAA blocks, proxy/CDN interference, ACME rate limits)
 - implement retry/backoff; do not busy-loop DNS or ACME
 - provide explicit revoke/transfer semantics (audit + optional cooldown)
-
