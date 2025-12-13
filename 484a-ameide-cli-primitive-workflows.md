@@ -29,7 +29,7 @@ ameide primitive drift --json
 
 # PLAN: What work is needed
 ameide primitive plan --kind domain --name orders \
-  --proto-path packages/ameide_core_proto/src/ameide/orders/v1/orders.proto --json
+  --proto-path packages/ameide_core_proto/src/ameide_core_proto/orders/v1/orders.proto --json
 
 # IMPACT: What consumers would be affected
 ameide primitive impact --proto-path <path> --json
@@ -50,18 +50,18 @@ The CLI has **three categories** of behavior:
 
 | Category | CLI Role | Agent Role |
 |----------|----------|------------|
-| **Safe to Generate** | Directory skeletons, empty handlers, test harness, Dockerfile | — |
-| **Verify Only** | Proto breaking, SDK freshness, test results, conventions | Decide how to fix issues |
+| **Safe to Generate** | Human-owned skeletons + external wiring (repo layout, GitOps templates, boilerplate entrypoints) | — |
+| **Verify Only** | Proto breaking, regen-diff, imports, tests, conventions | Decide how to fix issues |
 | **Never Generate** | Business logic, test assertions, SQL schemas, prompts | Full ownership |
 
 ### 2.1 Safe to Generate (Scaffold)
 
-These are **mechanical, proto-driven, idempotent**:
+These are **mechanical, repo-driven, and idempotent**:
 
 - **Directory layout** per primitive kind
 - **Entrypoints** (`cmd/main.go`, `package.json`)
-- **Empty handler/activity files** with function signatures from proto (return `unimplemented` error)
-- **Test file skeletons** with imports and **failing test stubs** (not empty - they call the handler and assert it fails)
+- **Human-owned handler/workflow stubs** (shape-only; any proto-driven method sets come from SDKs + generated glue produced by `buf generate`, not by CLI templating)
+- **Test skeletons** with **failing test stubs** (RED by default)
 - **Test harness** (`run_integration_tests.sh`, `__mocks__/`, mode switching)
 - **Dockerfile**, `go.mod`/`package.json`, `README.md` stub
 
@@ -75,7 +75,7 @@ These are **mechanical, proto-driven, idempotent**:
 
 **Rules:**
 - **One-shot**: Scaffold only when folder doesn't exist. Never overwrite existing files.
-- **Generated marker**: `// CODEGEN: safe to delete, regenerate with 'ameide primitive scaffold'`
+- **Generated marker**: generated-only roots (e.g., `primitives/**/internal/gen/**`, `build/generated/**`) may include markers like `CODEGEN: safe to delete, regenerate with 'buf generate'`.
 - **GitOps is optional**: Use `--include-gitops` flag; default is `false`
 - **Tests must fail**: Scaffolded tests are not empty; they exercise the API and fail until implemented
 

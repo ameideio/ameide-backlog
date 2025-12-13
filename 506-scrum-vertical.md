@@ -60,9 +60,6 @@ These mappings are informative only; all new schema and runtime work must use th
 ### A) Historical details removed
 
 Earlier revisions of this file defined Requirement-centric aggregates (`Sprint`, `BacklogItem/Requirement`, `EvidenceSet`), status pipelines (`DRAFT → READY → … → DONE`), DoR gates, and concrete intent/fact names such as `CreateRequirementRequested`, `RequirementCompleted`, `ItemReadyForDev`, and `PhaseGateReached`. Those details are now fully superseded by the Scrum-only contracts in `506-scrum-vertical-v2.md` and `508-scrum-protos.md` and have been removed to avoid accidental reimplementation. Use this file only for the mapping above when reasoning about legacy events; implement all new work directly against the canonical Scrum aggregates, intents, and facts.
-  * include: `supporting_fact_ids[]` (which domain facts caused the gate)
-* `SLAWarning` / `SLAExceeded` (optional but very helpful)
-* `SprintEndingSoon` (optional)
 
 > This is the trick: agents don’t need to interpret raw domain state; they can react to **process facts** which encode “the governor says go”.
 
