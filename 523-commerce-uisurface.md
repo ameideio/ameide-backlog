@@ -12,7 +12,7 @@ UISurfaces:
 
 This document covers UISurface runtime/operator boundaries. Payments/hardware/replication and BYOD plumbing live in `523-commerce-integration.md` and `523-commerce-process.md`.
 
-For the value-stream view (Plan-to-Merchandise, Order-to-Cash, Inventory-to-Deliver, Store Ops), see `523-commerce-process-catalog.md`.
+For the value-stream view (Plan-to-Merchandise, Order-to-Cash, Inventory-to-Deliver, Store Ops), see `523-commerce-process.md`.
 
 ## Headless engine, many experiences
 

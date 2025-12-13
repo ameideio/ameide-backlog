@@ -63,9 +63,8 @@ Edge is treated as topology + sync, not a new primitive kind.
 - `523-commerce-uisurface.md` — `commerce-admin`, `commerce-pos`, `commerce-storefront` (thin UIs)
 - `523-commerce-projection.md` — search/availability/order-history + edge “channel DB” + hostname resolution
 - `523-commerce-integration.md` — payments/EFT, taxes/shipping, hardware gateway, replication flows, BYOD domains plumbing
-- `523-commerce-process.md` — workflows: BYOD onboarding, replication control, rollouts/recovery; defines real-time required surface
+- `523-commerce-process.md` — retail value streams + workflows (BYOD, order-to-cash, inventory-to-deliver, store ops), plus rollouts/recovery
 - `523-commerce-agent.md` — optional setup/support assistants (read-only diagnostics + guided steps)
-- `523-commerce-process-catalog.md` — Level 0/1 value streams (retail business-process view)
 
 ## “Real-time required” operations (v1 list; keep small)
 
