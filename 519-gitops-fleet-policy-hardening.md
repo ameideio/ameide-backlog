@@ -103,6 +103,8 @@ These are intentionally deferred to later in this backlog (but now tracked expli
     - Fix direction: hook Jobs must wait on prerequisites; and charts must have correct `enabled` semantics so local can disable/enable behaviors intentionally.
   - Hook-only Applications (all resources annotated as hooks) can’t rely on Argo’s `OutOfSync` detection to trigger auto-sync reruns, which can leave stale `operationState.phase=Failed` even after fixes land in Git.
     - Fix direction: ensure smoke/bootstraps include at least one non-hook tracked resource (e.g. a ConfigMap with a deterministic checksum of test definitions) so Git changes cause OutOfSync → auto-sync → new successful operation state.
+  - Local networking surfaced a bind-address portability issue: multiple services were observed listening on IPv6 wildcard (`:::PORT`) while the cluster is IPv4 service-addressed, leading to `connect: connection refused` from ClusterIP traffic.
+    - Fix direction: default application listen addresses to explicit IPv4 (`0.0.0.0:PORT`) or ensure runtimes bind dual-stack correctly; avoid shipping local smoke hooks that assume per-service IPv4 reachability until this is enforced.
 
 **What remains misaligned (gaps)**
 - **Values schema collision risk remains repo-wide**: the worst offender (local top-level `cluster:`) is removed, but we still need to migrate remaining ambiguous root keys into the `global.ameide.*` contract and expand schema guardrails beyond a single chart.

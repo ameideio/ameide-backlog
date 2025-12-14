@@ -73,6 +73,7 @@ Remediation approach (GitOps-aligned):
 2. Ensure chart `enabled: false` toggles are **semantically correct** (no `default true` footguns that ignore explicit `false`).
 3. Keep “first sync” deterministic by reducing race windows between **Vault bootstrap → ESO → consuming hook Jobs**.
 4. Avoid “hook-only Applications” for long-lived GitOps signals: add at least one small, non-hook tracked resource (e.g. a ConfigMap checksum) so Argo can detect drift and auto-sync can clear stale failed `operationState`.
+5. Fix local service bind defaults: several workloads were observed listening on IPv6 wildcard only (`:::PORT`) and refusing IPv4 ClusterIP traffic; smoke tests must not depend on such endpoints until they bind `0.0.0.0` (or the workloads are rebuilt to listen on IPv4).
 
 ---
 
