@@ -6,7 +6,7 @@
 
 - ArgoCD apps:
   - `cluster-crds-temporal-operator` (CRDs)
-  - `cluster-temporal-operator` (controller, runs in `argocd`, watches all namespaces)
+  - `cluster-temporal-operator` (controller, runs in `ameide-system`, watches all namespaces)
   - `{env}-data-temporal` (per-environment TemporalCluster + TemporalNamespace in `ameide-{env}`)
 - In each environment namespace (e.g. `ameide-dev`):
   - A `TemporalCluster` named `temporal` (services: `temporal-frontend`, `temporal-ui`, etc.)
@@ -26,7 +26,7 @@
 
 1) Ensure operator CRDs + controller are Healthy
    - ArgoCD apps: `cluster-crds-temporal-operator`, `cluster-temporal-operator`
-   - Operator logs: `kubectl -n argocd logs deploy/temporal-operator-controller-manager`
+   - Operator logs: `kubectl -n ameide-system logs deploy/temporal-operator-controller-manager`
 
 2) Ensure the environment Temporal app is Healthy
    - ArgoCD app: `{env}-data-temporal`

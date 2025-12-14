@@ -112,7 +112,7 @@ environments/_shared/components/
 │       ├── keycloak/           → keycloak-system namespace
 │       ├── redis/              → redis-system namespace
 │       ├── strimzi/            → strimzi-system namespace
-│       └── temporal-operator/  → argocd namespace (see note below)
+│       └── temporal-operator/  → ameide-system namespace (see note below)
 ├── foundation/                 # Per-environment foundation
 ├── data/                       # Per-environment data workloads
 ├── platform/                   # Per-environment platform
@@ -132,9 +132,10 @@ Each operator deploys to a dedicated `-system` namespace:
 | Keycloak | `keycloak-system` | All namespaces |
 | cert-manager | `cert-manager` | All namespaces |
 | external-secrets | `external-secrets` | All namespaces |
-| Temporal operator | `argocd` | All namespaces |
+| Temporal operator | `ameide-system` | All namespaces |
 
-**Note on Temporal operator namespace:** the Temporal operator bundles admission webhooks and requires cert-manager to mint its serving certificate and inject the CA bundle. In our current setup, cert-manager instances are namespace-scoped, and `argocd` already runs an isolated `argocd-cert-manager`, so the operator is deployed in `argocd`. Moving it to a dedicated `*-system` namespace is possible, but requires an equivalent cert-manager instance in that namespace (or switching to a cluster-wide cert-manager model).
+**Note on Temporal operator namespace:** the Temporal operator bundles admission webhooks and requires cert-manager to mint its serving certificate and inject the CA bundle. Our cert-manager instances are namespace-scoped, so the operator must live in a namespace that runs an isolated cert-manager instance for webhook CA injection.
+**Update (2025-12-14):** Temporal operator now runs in `ameide-system`, and `operators-cert-manager` is deployed in `ameide-system` to provide webhook cert issuance + CA injection.
 
 Operators are configured with `watchNamespaces: []` (empty = all namespaces) so they can manage CRs in any environment namespace.
 
