@@ -71,6 +71,10 @@ These are intentionally deferred to later in this backlog (but now tracked expli
 - **Local `arm64` image/arch gaps surfaced**:
   - Backstage Janus image was `amd64`-only → local moved to a multi-arch Backstage image + chart knobs for differing filesystem layouts.
   - Grafana mirror image crashed on `arm64` → local temporarily uses upstream multi-arch image; mirror pipeline needs multi-arch validation.
+- **GHCR mirror pipeline produced single-arch tags**:
+  - `docker pull`+`docker push` mirroring flattens upstream manifest lists into the runner’s architecture.
+  - This can surface as `ImagePullBackOff` on local `arm64` (e.g., MinIO provisioning init image `bitnami-os-shell`).
+  - Fix direction: copy with manifest preservation (`skopeo copy --all`) and validate `linux/amd64` + `linux/arm64` per mirrored tag.
 - **GitOps “self-heal” gaps surfaced**:
   - Postgres role password drift now reconciles via a CronJob (migration/self-heal) rather than a one-shot hook.
   - Postgres URI generation now URL-encodes passwords to avoid runtime auth failures for certain passwords.

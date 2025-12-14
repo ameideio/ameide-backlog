@@ -29,3 +29,4 @@ Notes and guardrails:
 - “Ready” now means “listening and can be initialized/unsealed,” not “serving.” Communicate this to operators; keep liveness stricter/off so a permanently sealed Vault still surfaces as unhealthy in other signals.
 - Long-term cleaner path is auto-unseal (KMS/HSM) with strict health codes restored and bootstrap limited to auth/config/fixtures.
 - CronJob name: `foundation-vault-bootstrap-vault-bootstrap`; manual trigger (for immediate run) stays `kubectl -n vault create job vault-bootstrap-manual --from=cronjob/foundation-vault-bootstrap-vault-bootstrap`.
+- Avoid runtime downloads inside bootstrap jobs (e.g., `curl https://dl.k8s.io/...` for `kubectl`); prefer an initContainer/tooling image so bootstraps remain reproducible and don’t fail due to transient TLS/DNS issues (tracked under 519).
