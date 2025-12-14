@@ -62,7 +62,7 @@ Rules:
 - Graph is a read-optimized projection/index; Transformation is canonical for transformation artifacts and definitions.
 - Other capabilities may reference Transformation artifacts by stable IDs; they do not become writers of those artifacts.
 
-## 4) Primitive decomposition (technology layer)
+## 4) Application realization (primitive decomposition)
 
 ### 4.1 Domain primitives (system-of-record)
 

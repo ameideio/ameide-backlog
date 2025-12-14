@@ -4,9 +4,9 @@ This document generalizes the methodology used for `523-commerce*` into a repeat
 
 1. Define a **business capability** as value streams + nouns + invariants.
 2. Define **EDA contracts** (commands/intents, domain facts, process facts, queries, integration ports) per `496-eda-principles.md`.
-3. Decompose into **technology primitives** (Domain/Process/Projection/Integration/UISurface/Agent) per `520-primitives-stack-v2.md`.
+3. Decompose into **Ameide primitives (Application Components)** (Domain/Process/Projection/Integration/UISurface/Agent) per `520-primitives-stack-v2.md`.
 
-The output is a set of artifacts that can be stored as Transformation workspace nodes (Markdown + BPMN/diagrams) and then used by agents/CLI/operators to scaffold and deploy the runtime.
+The output is a set of artifacts that can be stored as Transformation workspace nodes (ArchiMate models/views, Markdown, BPMN) and then used by agents/CLI/operators to scaffold and deploy the runtime.
 
 For an explicit IT4IT value-stream lens (R2D/R2F/D2C) over this same pipeline, see `525-it4it-value-stream-mapping.md`.
 
@@ -97,9 +97,13 @@ Define the **proto types by role** (high-level implementation mapping):
 - **Query services (Projection/Domain read APIs)**: read-only RPCs backed by projections/read models.
 - **Integration services**: stable seams for external systems; requests/responses must be idempotent.
 
-### Step 4 — Primitive decomposition (technology layer)
+Mapping note (ArchiMate/EDA): facts are **Application Events**; intents/commands are **requests to invoke Application Services** (often carried asynchronously); queries are read-only Application Services.
+
+### Step 4 — Primitive decomposition (Application realization)
 
 Deliverable: a primitive inventory with boundaries and responsibility matrices.
+
+Primitives are **Application Components** and they **use Technology Services** (brokers/DB/workflow/gateways) rather than being “technology primitives”.
 
 For each primitive, define:
 

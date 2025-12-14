@@ -2,6 +2,13 @@
 
 This document is the consolidated, normative version of the Domain / Process / Agent / UISurface / Projection / Integration research set. The core decision is to standardize on one architecture everywhere: **Kubernetes operators (control plane)** + **Protobuf/Buƒ codegen (behavior plane)** + **CI gates (guardrails plane)**.
 
+## Layer header (cross-layer execution blueprint)
+
+- **Primary ArchiMate layer(s):** Application + Technology + Implementation & Migration.
+- **Secondary layers referenced:** Strategy + Business (only for the “capability blueprint factory” mapping).
+- **Primary element types used:** Application Component, Application Service/Interface/Event, Technology Service/Node/System Software, Work Package/Deliverable/Plateau/Gap.
+- **Prohibited unless qualified:** process, service, domain, event (qualify per `backlog/529-archimate-alignment-470plus.md`).
+
 ## Contents
 
 - Principles (normative)
@@ -87,6 +94,23 @@ This stack explicitly does not do the following:
 
 ---
 
+## ArchiMate crosswalk (how to read this in layers)
+
+This doc is the execution blueprint that makes a capability definition “buildable” and “operable” across Ameide.
+
+- **Application Components (Application layer)**: Ameide primitives (Domain / Process / Projection / Integration / UISurface / Agent). (`backlog/529-archimate-alignment-470plus.md`)
+- **Application Services / Interfaces / Events (Application layer)**: proto contracts (RPC services, topic families, envelopes; intents/facts/process-facts). (`backlog/509-proto-naming-conventions.md`)
+- **Technology Services (Technology layer)**: Kubernetes/GitOps/operators, broker, DB, workflow runtime (Temporal), gateway, observability, etc. (`backlog/530-ameide-capability-design-worksheet.md`)
+- **Work Packages / Plateaus / quality gates (Implementation & Migration)**: deterministic generation, `buf lint`/`buf breaking`, regen-diff, migration/backfill/deprecation playbooks. (this doc + `backlog/530-ameide-capability-design-worksheet.md`)
+
+Three-plane mapping (practical):
+
+- **Control plane (operators)**: mostly Technology-layer concerns (lifecycle, wiring, conditions).
+- **Behavior plane (proto + generated SDKs/scaffolds)**: Application-layer concerns (services/interfaces/events realized by components).
+- **Guardrails plane (CI gates)**: Implementation & Migration discipline (drift detection + safe evolution).
+
+For new capabilities (Sales, Finance, etc.): use `backlog/530-ameide-capability-design-worksheet.md` to define Strategy/Business/Application surfaces, then use this doc as the standard realization/operation contract for the six primitives.
+
 ## Architecture: one stack, three planes
 
 ### Control plane (Kubernetes operators)
@@ -106,7 +130,6 @@ For Temporal-backed primitives, “operator manages Temporal concerns as Kuberne
 
 Protos are the source of truth; generation is the mechanism for keeping runtime scaffolds and SDKs aligned.
 
-- Code generation is executed by Buf (`buf generate`) using pinned remote plugins. ([Buf remote plugins][5], [Buf generate][6])
 - Code generation is executed by Buf (`buf generate`) using pinned remote plugins (or a pinned internal mirror). ([Buf remote plugins][5], [Buf generate][6])
 - Generators emit:
   - SDKs (Go/TS/Py) for runtime usage
@@ -409,6 +432,12 @@ Each primitive kind follows the same three planes; what varies is the behavior-p
 
 Temporal namespaces are a first-class isolation boundary; treat namespace configuration/availability as an external dependency surfaced via conditions rather than “hidden” in app crash loops. ([Temporal namespaces][40])
 
+Hard constraints (required):
+
+- Workflow code must be deterministic (use Temporal workflow APIs for time/concurrency; do not use client APIs inside workflow code).
+- Signal-With-Start must set `WorkflowIDReusePolicy` explicitly (do not rely on SDK defaults).
+- Do not assume legacy/experimental Temporal Worker Versioning behavior (server-side support is time-limited; treat it as a fixed migration deadline).
+
 ### Agent
 
 **Intent:** agent runtime (LangGraph/LangChain) with typed state + typed tool contracts; policy remains in code.
@@ -417,13 +446,20 @@ Temporal namespaces are a first-class isolation boundary; treat namespace config
 - **Generation:** Pydantic/state models, LangGraph skeleton, tool adapters, and tests (graph compiles, required tools registered, deterministic test harness). ([LangGraph Graph API][9], [LangGraph persistence][7], [LangGraph testing][8], [LangChain tools][11], [Tool calling blog][17])
 - **Operator:** injects model/provider configuration and secrets via Kubernetes Secrets/ConfigMaps; never stores prompts/secrets in proto/generated outputs. ([Kubernetes secrets][12])
 
+State discipline (required):
+
+- If persistence is enabled, requests must provide a stable `thread_id` (enforced at the API boundary and passed into LangGraph config).
+- Persisted state stays small (IDs/cursors/keys/summaries); large artifacts are stored out-of-band with references in state.
+
 ### UISurface
 
 **Intent:** web UI surfaces as first-class primitives, generated from proto-defined interfaces and deployed via operator-managed workloads/routing.
 
 - **Proto:** UI API contracts (RPC/HTTP shapes) plus typed view models as needed.
-- **Generation:** SDKs and framework skeletons (client wiring, schema-driven forms/components where applicable).
+- **Generation:** SDKs and framework skeletons (client wiring, schema-driven forms/components where applicable) written only to generated roots (e.g., `build/generated/**`).
 - **Operator:** reconciles UI workload, HTTPRoute exposure, env injection, and readiness.
+
+UISurface guardrail (required): do not place implementation-owned UI code under any generator-cleaned output root; if you want “starter code”, copy templates once into an implementation-owned app directory and evolve it there.
 
 ### Projection
 
@@ -432,6 +468,11 @@ Temporal namespaces are a first-class isolation boundary; treat namespace config
 - **Proto:** query APIs + projected schema declarations; input bindings are required and are declared as either fact/event consumption or CDC.
 - **Generation:** SDKs, ingestion stubs, schema/migration outputs, and harness/tests.
 - **Operator:** reconciles workloads plus backing stores/references, migrations/backfills, HTTPRoute exposure, and status conditions. Prefer idempotent, watch-driven reconcile patterns. ([Kubebuilder good practices][22], [controller-runtime reconcile][24])
+
+Processing semantics (required):
+
+- Choose and document at-least-once vs exactly-once; “offsets/checkpoints + idempotency” is non-negotiable.
+- Generated ingestion includes a checkpoint/offset store schema and handler skeletons that enforce idempotency keys.
 
 Projection storage options are deliberately pluggable:
 
