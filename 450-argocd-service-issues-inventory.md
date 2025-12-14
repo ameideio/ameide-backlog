@@ -61,6 +61,18 @@ Remediation approach (GitOps-aligned):
 2. **Expand app-local `ignoreDifferences`** to ignore known defaulted fields for StatefulSets when server-side diff is disabled.
 3. **One-time cleanup**: remove hook finalizer and delete the orphaned hook ConfigMap; delete stray debug Pods and add policy guardrails to prevent recreating them in `argocd`.
 
+## Update (2025-12-14): Synced/Healthy but “Last Sync Failed” (hook ordering + bootstrap race)
+
+Observed Argo applications that are currently `Synced/Healthy` but still show `operationState.phase=Failed` from an earlier reconcile:
+
+- `local-platform-langfuse-bootstrap`: ExternalSecrets briefly reported `could not get secret data from provider` during the first sync, before Vault bootstrap had seeded keys and ESO could materialize K8s Secrets.
+- `local-agent-echo-v0-smoke`: Helm-test Job hit backoff (service not ready quickly enough for the configured test/backoff window).
+
+Remediation approach (GitOps-aligned):
+1. Make bootstrap/smoke hook Jobs **wait on prerequisites** (Secrets and readiness) rather than failing fast.
+2. Ensure chart `enabled: false` toggles are **semantically correct** (no `default true` footguns that ignore explicit `false`).
+3. Keep “first sync” deterministic by reducing race windows between **Vault bootstrap → ESO → consuming hook Jobs**.
+
 ---
 
 ## P0 – Blocking Issues (Root Cause Chain)

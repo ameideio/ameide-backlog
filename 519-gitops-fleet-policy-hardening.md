@@ -97,6 +97,10 @@ These are intentionally deferred to later in this backlog (but now tracked expli
     - GitLab’s `upgrade-check` hook ConfigMap can remain in-cluster with `argocd.argoproj.io/hook-finalizer` even after the hook is disabled, preventing pruning and leaving applications `OutOfSync` while workloads are healthy.
     - Fix direction: disable Helm hooks (or wrap charts to remove hooks), and avoid depending on Argo hook finalizers for long-lived resources.
   - Disabling Argo controller server-side diff for local stability increases client-side diff sensitivity to Kubernetes-defaulted fields (e.g. gRPC probe `service: ""`, `imagePullPolicy: IfNotPresent`), requiring targeted `ignoreDifferences` to keep GitOps noise-free without reintroducing apiserver pressure.
+  - Hook/bootstrap race windows can leave “Last Sync Failed” residue even when the system self-heals:
+    - `foundation-vault-bootstrap` seeds keys on a schedule, while consuming apps (e.g., `platform-langfuse-bootstrap`) can sync immediately and temporarily observe missing Vault keys → ESO errors → Argo sync failures.
+    - Smoke hooks (e.g., `helm-test-jobs`) can fail fast if backoff/timeouts are too aggressive for first-rollout readiness.
+    - Fix direction: hook Jobs must wait on prerequisites; and charts must have correct `enabled` semantics so local can disable/enable behaviors intentionally.
 
 **What remains misaligned (gaps)**
 - **Values schema collision risk remains repo-wide**: the worst offender (local top-level `cluster:`) is removed, but we still need to migrate remaining ambiguous root keys into the `global.ameide.*` contract and expand schema guardrails beyond a single chart.
