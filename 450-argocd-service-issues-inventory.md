@@ -47,6 +47,20 @@ Remediation approach (GitOps-aligned):
 2. **Tune high-churn operators** (k8s client QPS/burst + concurrency) so leader election is resilient under load.
 3. **Remove Helm hook “stable secret generation”** where possible (e.g. GitLab `shared-secrets`), replacing with Vault KV → ESO → Secret so sync is idempotent and doesn’t block on long-running hook batches.
 
+## Update (2025-12-14): Local GitLab OutOfSync noise (Argo diff + orphaned Helm hook)
+
+Observed `local-platform-gitlab` reporting `OutOfSync` while workloads remained `Healthy`.
+
+Contributing factors:
+- **Orphaned Helm pre-upgrade hook artifacts**: `platform-gitlab-gitlab-upgrade-check` (ConfigMap) persisted with `argocd.argoproj.io/hook-finalizer` even after `gitlab.upgradeCheck.enabled=false`, preventing normal pruning and leaving an “extraneous-but-tracked” resource.
+- **Client-side diff sensitivity to defaulted fields**: when server-side diff is disabled for local stability, Argo comparisons can surface Kubernetes-defaulted fields (e.g., gRPC probe `service: ""`, `imagePullPolicy: IfNotPresent`) as spurious drift on StatefulSets.
+- **Non-GitOps “debug pod” leftovers**: manual Pods `tmp-ro-help*` in the `argocd` namespace (one `ImagePullBackOff`) add red-noise unrelated to app health.
+
+Remediation approach (GitOps-aligned):
+1. **Prefer disabling Helm hooks** (or re-wrapping vendor charts) for GitOps-managed installs; treat hook finalizers/orphans as a fleet policy violation (track under 519).
+2. **Expand app-local `ignoreDifferences`** to ignore known defaulted fields for StatefulSets when server-side diff is disabled.
+3. **One-time cleanup**: remove hook finalizer and delete the orphaned hook ConfigMap; delete stray debug Pods and add policy guardrails to prevent recreating them in `argocd`.
+
 ---
 
 ## P0 – Blocking Issues (Root Cause Chain)
