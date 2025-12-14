@@ -50,6 +50,26 @@ Store these as versioned artifacts inside the Transformation Domain workspace:
 
 `523-commerce.md` + `523-commerce-process.md` + `523-commerce-proto.md` are an example of (2)+(3)+(4)+(5)+(6) for a single capability.
 
+## Discovery discipline (524 drives decisions)
+
+This method is the discovery driver. The goal is to avoid “architecture by assumption”.
+
+Rules:
+
+- Do not lock **proto package plan** (§ Step 3) until the **glossary** (§ Step 0) and **value streams** (§ Step 1) are locked.
+- Do not lock **primitive boundaries** (§ Step 4) until the **EDA topology + catalogs** (§ Step 2) exist (topics, intents, facts, queries, integration seams).
+- Treat any early package/topic/primitive claims as hypotheses until they are backed by artifacts produced in Steps 0–3.
+
+Practical checklist before calling anything “foundational”:
+
+- Glossary page exists and is referenced by every related backlog.
+- Value-stream/process catalog exists with 5–7 first-class business processes and at least one “golden path”.
+- EDA topology exists (topic families + intent/fact catalogs + idempotency/ordering rules).
+- Proto proposal exists and follows `509-proto-naming-conventions.md` (packages + aggregator envelopes + topic mappings).
+- One end-to-end slice is written down (Step 5) that forces the architecture to answer a real scenario.
+
+Note: `527-transformation-capability.md` should be treated as the capability-definition output of this method when applied to the Transformation capability itself; keep it synchronized with these artifacts as they are produced.
+
 ## The repeatable workflow (as a Transformation Process)
 
 Implement this as a Transformation-owned ProcessDefinition (design-time) and a Process primitive (runtime) that orchestrates agent work.
@@ -124,6 +144,40 @@ Example patterns:
 - HR: “Employee onboarding” with approvals and notifications.
 
 This slice produces the first executable tests and validates the contracts.
+
+### Step 6 — Scaffold, build, publish, deploy (delivery loop)
+
+Deliverable: running primitives in-cluster + smoke probe pass for the slice.
+
+This is the “turn artifacts into running reality” loop. It is repeated per primitive and per acceptance slice and should be executed via the same deterministic gates everywhere.
+
+Required work (outer loop):
+
+1. Scaffold primitive runtimes + GitOps wiring (implementation-owned) via the CLI (`ameide primitive scaffold`).
+2. Update proto sources (if needed) and run `buf lint`, `buf breaking`, `buf generate` to refresh SDKs and generated glue.
+3. Implement behavior in implementation-owned `_impl` surfaces until compilation and tests pass.
+4. Build runtime binaries and run unit/integration tests (language-specific, but consistent gates).
+5. Build and publish container images for:
+   - primitive runtimes (Domain/Process/Projection/Integration/UISurface/Agent),
+   - operators when required,
+   using `ameide primitive publish` (dev tags when CI publishing is skipped).
+6. Update GitOps components/values for the target environment and sync via ArgoCD.
+7. Run in-cluster smoke probes (PostSync Jobs) and validate conditions/health endpoints.
+8. Iterate until the slice passes end-to-end and produces the expected facts/read models.
+9. Promote definitions/artifacts (baselines/plateaus) according to the chosen methodology governance flow.
+
+For the repo-aligned end-to-end “proto shape → runtime → operator reconcile → ArgoCD sync → in-cluster probe” loop and concrete commands, use `backlog/520-primitives-stack-v2-tdd.md` plus the per-kind TDD trackers (`backlog/520-primitives-stack-v2-tdd-*.md`).
+
+### Step 7 — Change management loop (continuous; TOGAF ADM Phase H)
+
+Deliverable: the capability can evolve safely without drifting contracts or breaking tenants.
+
+This step treats capability development as ongoing **Architecture Change Management**:
+
+- Monitor drift signals (contract changes, schema changes, broken gates, SLO regressions) from facts, process facts, and CI/operator conditions.
+- Propose changes as new work packages/slices and re-run Steps 0–6 with updated constraints and migration plans.
+- Use governance flows (TOGAF/ADM, Scrum, PMI) to gate promotions and enforce coexistence windows/backfills/deprecations.
+- Enable a tenant-scoped agent to drive users through this loop inside the transformation initiative, creating/updating the required artifacts as it goes.
 
 ## Guardrails (how the system enforces the methodology)
 
