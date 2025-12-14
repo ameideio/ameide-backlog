@@ -5,6 +5,8 @@
 ## What is supposed to exist
 
 - ArgoCD apps:
+  - `cluster-crds-cert-manager` (cert-manager CRDs, shared dependency)
+  - `operators-cert-manager` (cert-manager instance in `ameide-system` for webhook certs/CA injection)
   - `cluster-crds-temporal-operator` (CRDs)
   - `cluster-temporal-operator` (controller, runs in `ameide-system`, watches all namespaces)
   - `{env}-data-temporal` (per-environment TemporalCluster + TemporalNamespace in `ameide-{env}`)
@@ -24,9 +26,11 @@
 
 ## Recovery checklist (no manual SQL)
 
-1) Ensure operator CRDs + controller are Healthy
-   - ArgoCD apps: `cluster-crds-temporal-operator`, `cluster-temporal-operator`
+1) Ensure cert-manager + operator CRDs + controller are Healthy
+   - ArgoCD apps: `cluster-crds-cert-manager`, `operators-cert-manager`, `cluster-crds-temporal-operator`, `cluster-temporal-operator`
+   - Why: the Temporal operator admission webhooks depend on cert-manager CA injection in the same namespace (`ameide-system`).
    - Operator logs: `kubectl -n ameide-system logs deploy/temporal-operator-controller-manager`
+   - If the operator pod is stuck `ContainerCreating` with `secret "webhook-server-cert" not found`, check `operators-cert-manager` leader election isolation (it must not share `kube-system` leases with other cert-manager installs).
 
 2) Ensure the environment Temporal app is Healthy
    - ArgoCD app: `{env}-data-temporal`
