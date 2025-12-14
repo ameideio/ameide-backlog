@@ -66,6 +66,38 @@ Key paths:
 Verification:
 - Documentation review only (no runtime impact).
 
+### 2025-12-13 — Scaffold per-primitive Buf templates + guidance
+
+Change:
+- `ameide primitive scaffold` creates per-primitive Buf template files (config) and prints concrete `buf generate` commands in `next_steps` so new scaffolds compile with minimal manual wiring.
+- The CLI remains responsible for external layout; deterministic outputs remain Buf-owned (`primitives/**/internal/gen/`).
+- Agent v0 smoke hooks avoid persistent thread state by using a per-Job `threadId` instead of a fixed value.
+
+Key paths:
+- `packages/ameide_core_cli/internal/commands/primitive_scaffold.go`
+- `packages/ameide_core_cli/internal/commands/primitive_scaffold_test.go`
+- `gitops/ameide-gitops/sources/values/_shared/apps/agent-echo-v0-smoke.yaml`
+
+Verification:
+- `cd packages/ameide_core_cli && go test ./...`
+- `./bin/ameide primitive scaffold --kind domain --name scaffoldv1 --proto-path packages/ameide_core_proto/src/... --dry-run --json`
+
+### 2025-12-14 — Align scaffolds with 496 EDA principles
+
+Change:
+- Domain scaffolds model EDA-required metadata explicitly in the outbox port and migration (tenant isolation, idempotency key, correlation/causation, trace linkage).
+- Process/Projection/Integration scaffolds include an explicit EDA/idempotency checklist in scaffold docs.
+- Scaffolded handler classes/methods include clearer doc comments/docstrings.
+
+Key paths:
+- `packages/ameide_core_cli/internal/commands/templates/domain/internal/ports/outbox_port.go.tmpl`
+- `packages/ameide_core_cli/internal/commands/templates/domain/internal/adapters/postgres/outbox_postgres.go.tmpl`
+- `packages/ameide_core_cli/internal/commands/primitive_scaffold.go`
+- `packages/ameide_core_cli/internal/commands/templates/process/readme.md.tmpl`
+
+Verification:
+- `cd packages/ameide_core_cli && go test ./...`
+
 ## Follow-ups (ideas)
 
 - Add a dedicated CLI command that runs a full vertical loop (generate → build → push → GitOps sync → smoke), with clear separation between “repo actions” and “cluster actions”.
