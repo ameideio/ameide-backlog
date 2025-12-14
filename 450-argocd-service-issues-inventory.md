@@ -22,6 +22,9 @@ Total applications: 200
 - Fixed `local-platform-keycloak-realm` being blocked by a failing PreSync hook: `platform-keycloak-realm-client-patcher` is now reproducible (no runtime GitHub tool downloads; Keycloak Admin REST + Kubernetes API patch for rotation ConfigMap).
 - Fixed `local-platform-gateway` sync failure on cross-namespace `ReferenceGrant` rendering: ensure core-group `group: ""` is rendered as a string (quoted), not YAML null.
 - Verified the local set converges after sync: `local-platform-gateway`, `local-inference`, `local-inference-gateway`, `local-data-pgadmin` reach `Synced/Healthy`.
+- Fixed local “red pod noise” from provisioning/bootstrap jobs:
+  - MinIO provisioning Job was stuck `ImagePullBackOff` on `ghcr.io/ameideio/mirror/bitnami-os-shell:latest` due to missing `imagePullSecrets` and a single-arch mirror tag.
+  - Vault bootstrap Job had a transient failure due to runtime `kubectl` download TLS flakiness; bootstrap jobs should avoid runtime downloads (track under 519).
 
 ---
 

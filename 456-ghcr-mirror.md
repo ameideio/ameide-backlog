@@ -41,6 +41,16 @@ Recent local `arm64` debugging showed two failure modes that this doc should exp
 
 **TODO (tracked under 519):** add a mirror pipeline validation step to ensure each mirrored tag includes at least `linux/amd64` and `linux/arm64`, and optionally run a lightweight smoke check (e.g., `docker run --platform ... --version`) for critical images.
 
+## Addendum (2025-12-14): Preserve manifest lists (don’t “flatten” to single-arch)
+
+**Incident:** `ameide-local` MinIO provisioning Job got stuck `ImagePullBackOff` on `ghcr.io/ameideio/mirror/bitnami-os-shell:latest` because the mirror tag was published as a **single-arch** image (only `linux/amd64`), not a manifest list. This happened because the mirroring workflow used `docker pull`+`docker push`, which only mirrors the runner’s platform.
+
+**Policy:** mirroring must preserve upstream manifest lists so `linux/amd64` and `linux/arm64` are both available.
+
+**Fix:** use `skopeo copy --all` (or equivalent) in both:
+- `.github/workflows/mirror-images.yaml`
+- `infra/scripts/mirror-images-to-ghcr.sh`
+
 ## Infrastructure
 
 ### GitHub Actions Workflow
