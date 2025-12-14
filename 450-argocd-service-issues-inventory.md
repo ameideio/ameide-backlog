@@ -74,6 +74,7 @@ Remediation approach (GitOps-aligned):
 3. Keep “first sync” deterministic by reducing race windows between **Vault bootstrap → ESO → consuming hook Jobs**.
 4. Avoid “hook-only Applications” for long-lived GitOps signals: add at least one small, non-hook tracked resource (e.g. a ConfigMap checksum) so Argo can detect drift and auto-sync can clear stale failed `operationState`.
 5. Fix local service bind defaults: several workloads were observed listening on IPv6 wildcard only (`:::PORT`) and refusing IPv4 ClusterIP traffic; smoke tests must not depend on such endpoints until they bind `0.0.0.0` (or the workloads are rebuilt to listen on IPv4).
+6. Temporal extended smoke `temporal-schema` hook can fail due to the chosen `psql` runner image; local mitigation is to use an image+script combination that reliably reaches `postgres-ameide-rw`, with a follow-up to provide a pinned, multi-arch `psql` runner image (no runtime package downloads).
 
 ---
 
