@@ -39,6 +39,7 @@ Primary outcomes:
 - **Argo drift mitigations exist** where needed:
   - CNPG drift fix for `cluster.*` key collisions applied in templates.
   - Argo CD system `resource.customizations` covers Temporal CRs and CRDs to keep health deterministic (no “Unknown” during controller/CRD ordering).
+- **Accepted exception: Argo CD kustomize load restrictions are relaxed**: `configs.cm.kustomize.buildOptions: "--load-restrictor LoadRestrictionsNone"` (in `sources/values/common/argocd.yaml`) is enabled to allow Argo CD self-management via `argocd/overlays/*`; track a follow-up to restructure kustomize bases so this can be removed.
 - **Backstage stable session secret is operator-managed**: cookie signing secret is sourced from Vault KV and synced via External Secrets Operator (no Helm randomness, no Argo diff ignores).
 - **Postgres credential Secrets are operator-managed**: CNPG user Secrets are now sourced from Vault KV and synced via External Secrets Operator (no Helm `rand*/lookup` loops, no secret payload diff ignores).
 - **Schema guardrails are expanding**: additional internal charts now validate the `global.ameide.*` contract (start with Backstage + CNPG config charts).
