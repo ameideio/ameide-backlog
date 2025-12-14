@@ -8,7 +8,7 @@ This is intentionally separate from codegen plugin changes (tracked in `backlog/
 
 The CLI can be repo-aware and environment-aware, but it does not “grow back into codegen”.
 
-The CLI is not “human-owned”: it is a first-class tool for both humans and coding agents.
+The CLI is a first-class tool for both humans and coding agents (not a manual-only tool).
 
 Hard rule (see `backlog/520-primitives-stack-v2.md` §2b):
 
@@ -103,7 +103,9 @@ Verification:
 ### 2025-12-14 — Remove “human-owned” boundary language
 
 Change:
-- Clarified that the CLI is a first-class tool for both humans and coding agents; replaced “human-owned templates” language with “repo-owned scaffold templates” to avoid implying manual ownership boundaries.
+- Replaced “human-owned” wording with clearer repo semantics:
+  - **Generated-only** outputs (Buf/plugin-owned; safe to delete/regenerate).
+  - **Implementation-owned** runtime code and checked-in scaffold templates (never overwritten by generation).
 
 Key paths:
 - `backlog/522-cli-orchestration-improvements.md`
@@ -120,11 +122,11 @@ Verification:
 Change:
 - Fixed Go workspace wiring so `go work use` happens after files are written (so `go.mod` exists), making newly scaffolded Go primitives immediately buildable in the repo workspace.
 - Orchestrated `buf generate` automatically (using the per-primitive template the CLI creates) so `internal/gen/**` exists without a manual follow-up command.
-- Added an explicit Go import-prefix normalization for relative `go_package` values so scaffolded Go code imports SDK packages consistently.
+- Added an explicit Go import-prefix normalization (`go_import_prefix`) for relative `go_package` values so scaffolded Go code imports SDK packages consistently.
 
 Key paths:
 - `packages/ameide_core_cli/internal/commands/primitive_scaffold.go`
-- `packages/ameide_core_cli/internal/commands/primitive_analysis.go`
+- `plugins/ameide_register_go/internal/generator/params.go`
 
 Verification:
 - `go test ./packages/ameide_core_cli/...`
@@ -145,6 +147,17 @@ Key paths:
 
 Verification:
 - Documentation review only (plus `go test ./...` for CLI changes).
+
+### 2025-12-14 — Fix agent smoke assertions (turnCount JSON)
+
+Change:
+- Updated the Agent v0 ArgoCD PostSync hook job to assert `turnCount` using a whitespace-tolerant regex instead of a space-sensitive string match.
+
+Key paths:
+- `gitops/ameide-gitops/sources/values/_shared/apps/agent-echo-v0-smoke.yaml`
+
+Verification:
+- Review only (cluster connectivity required to re-run the hook job).
 
 ## Follow-ups (ideas)
 

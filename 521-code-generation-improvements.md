@@ -100,15 +100,15 @@ Notes:
 
 Change:
 - Added a local TS SDK generation template so TypeScript stubs can be regenerated from the workspace proto sources (not only synced from BSR).
-- Fixed SDK TS barrel exports to include the extensions runtime service module so `createClientSet()` is stable under unit tests.
+- Fixed SDK TS barrel exports so `createClientSet()` remains stable under unit tests (kept `extensions` runtime service and added missing Commerce modules).
 
 Key paths:
-- `packages/ameide_core_proto/buf.gen.sdk-ts.yaml`
+- `packages/ameide_core_proto/buf.gen.sdk-ts.local.yaml`
 - `packages/ameide_sdk_ts/src/proto/index.ts`
 - `packages/ameide_core_proto/src/index.ts`
 
 Verification:
-- `cd packages/ameide_core_proto && buf generate --template buf.gen.sdk-ts.yaml`
+- `cd packages/ameide_core_proto && buf generate --template buf.gen.sdk-ts.local.yaml`
 - `pnpm -C packages/ameide_sdk_ts test`
 
 ### 2025-12-14 — Register-go import prefix support

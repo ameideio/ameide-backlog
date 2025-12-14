@@ -122,12 +122,15 @@ Domain scaffolds must always follow the **outbox → dispatcher** pattern from `
 
     ```go
     type EventOutbox interface {
-        Insert(ctx context.Context, tx *sql.Tx, topic string, payload []byte, payloadType string,
-            schemaVersion int32, aggregateType, aggregateID string, version int64) error
+        Insert(ctx context.Context, tx *sql.Tx, event OutboxEvent) error
     }
     ```
 
-  - No broker, Watermill, or NATS/Kafka imports; pure port. The payload is a serialized envelope (for example a protobuf message encoded via SDK helpers) so handlers do not need to depend on proto types directly for outbox persistence.
+  - No broker, Watermill, or NATS/Kafka imports; pure port. The payload is a serialized envelope (for example protobuf bytes) so handlers can keep persistence code transport-agnostic.
+  - `OutboxEvent` includes:
+    - `Topic`, `Payload`
+    - `Metadata` (`tenant_id`, `message_id`, correlation/causation, W3C trace context, `occurred_at`, `schema_version`, `payload_type`)
+    - Aggregate linkage (`aggregate_type`, `aggregate_id`, `aggregate_version`)
 
 - **Postgres outbox adapter (`internal/adapters/postgres/outbox.go`)**
   - Implements `EventOutbox` by writing JSON/bytes into an outbox table (see `496-eda-principles.md` for schema guidance).
@@ -254,11 +257,11 @@ This section tracks how much of 510 is implemented in the current CLI (`packages
 - **EDA scaffolding**
   - Outbox port:
     - `internal/ports/outbox.go` generated from `templates/domain/internal/ports/outbox_port.go.tmpl`.
-    - Uses the new signature from §3:
-      - `Insert(ctx, tx, topic, payload []byte, payloadType string, schemaVersion int32, aggregateType, aggregateID string, version int64)`.
+    - Uses the signature from §3:
+      - `Insert(ctx, tx, event OutboxEvent)`.
   - Postgres adapter:
     - `internal/adapters/postgres/outbox.go` generated from `templates/domain/internal/adapters/postgres/outbox_postgres.go.tmpl`.
-    - Implements `EventOutbox` with the `[]byte + payloadType + schemaVersion` signature.
+    - Implements `EventOutbox` with an `OutboxEvent` input (topic/payload + metadata + aggregate linkage).
     - Contains TODO comments about inserting into the outbox table and storing envelope metadata.
   - Dispatcher:
     - `internal/dispatcher/dispatcher.go` generated from `templates/domain/internal/dispatcher/dispatcher.go.tmpl`.
@@ -347,7 +350,7 @@ This section tracks how much of 510 is implemented in the current CLI (`packages
   - `cmd/main.go`:
     - gRPC server on `:PORT`, registers `ScrumQueryService`, health, reflection.
   - EDA files:
-    - `internal/ports/outbox.go` and `internal/adapters/postgres/outbox.go` with the new `[]byte + payloadType + schemaVersion` outbox signature.
+    - `internal/ports/outbox.go` and `internal/adapters/postgres/outbox.go` with the `Insert(ctx, tx, event OutboxEvent)` outbox signature.
     - `internal/dispatcher/dispatcher.go` and `cmd/dispatcher/main.go` with the polling loop/interval/batch pattern.
     - `migrations/0001_create_outbox.sql` with the canonical schema and pending index.
   - Outbound scaffolding:
@@ -361,6 +364,6 @@ This section tracks how much of 510 is implemented in the current CLI (`packages
 
 - Move remaining Domain-specific inline strings (cmd mains, SDK adapters) into templates.
 - Add a short, copy-pasteable example (template or README snippet) showing how to:
-  - Marshal a protobuf message via SDK helpers into `[]byte`, `payloadType`, `schemaVersion`.
+  - Marshal a protobuf message into `[]byte` and populate `payload_type` / `schema_version` metadata.
   - Call `EventOutbox.Insert` from a handler while keeping handlers free of direct proto dependencies for outbox persistence.
 - Consider adding a Domain-specific dev runner template (e.g., `scripts/dev_domain.sh` or a `docker-compose.yml` snippet) in a future backlog, if desired.  

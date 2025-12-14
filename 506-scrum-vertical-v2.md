@@ -659,7 +659,7 @@ When Slice A + B work end‑to‑end (intents in → facts out → process facts
    - Lock the topic names to exactly `scrum.domain.intents.v1`, `scrum.domain.facts.v1`, `scrum.process.facts.v1` and generate Go/TS/Python SDKs (no bespoke JSON at runtime).  
 
 2. **Step B – Implement the Transformation Scrum subdomain (Layer 1, Slice A+B)**  
-   - Use the Ameide CLI as an **orchestrator** to create/maintain the human-owned Transformation Domain primitive skeleton at `primitives/domain/transformation` (and optional GitOps wiring), following `510-domain-primitive-scaffolding.md` and `514-primitive-sdk-isolation.md` rather than hand‑rolling a bespoke service skeleton.  
+   - Use the Ameide CLI as an **orchestrator** to create/maintain the implementation-owned Transformation Domain primitive skeleton at `primitives/domain/transformation` (and optional GitOps wiring), following `510-domain-primitive-scaffolding.md` and `514-primitive-sdk-isolation.md` rather than hand‑rolling a bespoke service skeleton.  
    - Run `buf generate` to refresh SDKs and generated-only glue/tests for the Scrum protos; treat regen-diff + compile/tests as the canonical drift gate (the CLI may wrap these locally, but CI is authoritative).  
    - Treat `primitives/domain/transformation` as the **Scrum system-of-record endpoint** for `ScrumQueryService`, while the legacy `services/transformation` Node service either acts as a façade or is retired over time.  
    - Add Postgres schema and handlers in the Transformation domain that:  
@@ -672,7 +672,7 @@ When Slice A + B work end‑to‑end (intents in → facts out → process facts
 
 3. **Step C – Implement the Process primitive as “governance over facts” (Layer 2, Slice A)**  
    - Use the Ameide CLI as an **orchestrator** to create/maintain a Process primitive module (worker + ingress + GitOps wiring), keeping process code aligned with the shared EDA and operator patterns.  
-   - Run `buf generate` to refresh any generated-only workflow/ingress glue and structural tests/harness for the process seam; implement missing behavior in human-owned files until compilation and tests pass.  
+   - Run `buf generate` to refresh any generated-only workflow/ingress glue and structural tests/harness for the process seam; implement missing behavior in implementation-owned files until compilation and tests pass.  
    - Build a non‑deterministic ingress router that subscribes to `scrum.domain.facts.v1` and routes into Temporal via `SignalWithStart` using deterministic workflow IDs.  
    - Pin `WorkflowIDReusePolicy` explicitly in the ingress `SignalWithStart` call and test the chosen policy (do not rely on defaults).  
    - Implement the workflow hierarchy from §7 (`SprintWorkflow`, `SprintBacklogItemWorkflow` as child), keeping only derived state needed for timers and governance decisions.  

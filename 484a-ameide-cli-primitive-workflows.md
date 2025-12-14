@@ -50,7 +50,7 @@ The CLI has **three categories** of behavior:
 
 | Category | CLI Role | Agent Role |
 |----------|----------|------------|
-| **Safe to Generate** | Human-owned skeletons + external wiring (repo layout, GitOps templates, boilerplate entrypoints) | — |
+| **Safe to Generate** | Implementation-owned skeletons + external wiring (repo layout, GitOps templates, boilerplate entrypoints) | — |
 | **Verify Only** | Proto breaking, regen-diff, imports, tests, conventions | Decide how to fix issues |
 | **Never Generate** | Business logic, test assertions, SQL schemas, prompts | Full ownership |
 
@@ -60,7 +60,7 @@ These are **mechanical, repo-driven, and idempotent**:
 
 - **Directory layout** per primitive kind
 - **Entrypoints** (`cmd/main.go`, `package.json`)
-- **Human-owned handler/workflow stubs** (shape-only; any proto-driven method sets come from SDKs + generated glue produced by `buf generate`, not by CLI templating)
+- **Implementation-owned handler/workflow stubs** (shape-only; any proto-driven method sets come from SDKs + generated glue produced by `buf generate`, not by CLI templating)
 - **Test skeletons** with **failing test stubs** (RED by default)
 - **Test harness** (`run_integration_tests.sh`, `__mocks__/`, mode switching)
 - **Dockerfile**, `go.mod`/`package.json`, `README.md` stub

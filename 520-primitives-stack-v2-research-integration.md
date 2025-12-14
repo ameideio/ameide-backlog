@@ -416,7 +416,7 @@ Generate two layers:
   * bulletins for errors
   * provenance to confirm end-to-end movement
 
-### Generated vs human-owned split
+### Generated vs implementation-owned split
 
 **Generated (clobber-safe)**
 
@@ -427,7 +427,7 @@ Generate two layers:
 * `build/generated/integration/<integration>/tests/*_structural_test.*`
 * `build/generated/integration/<integration>/harness/deploy_and_assert.*`
 
-**Human-owned**
+**Implementation-owned**
 
 * `primitives/integration/<integration>/**` (mapping scripts/transforms, custom processors/NARs, and human behavior tests/golden cases)
 

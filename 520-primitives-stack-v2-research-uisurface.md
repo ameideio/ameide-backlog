@@ -62,7 +62,7 @@ UISurface follows the same trio as the other primitive kinds; what changes is th
 
 * Client SDKs under `packages/ameide_sdk_ts/src/proto/gen/ts/**` (and the equivalent SDK roots for other languages).
 * UI scaffolds/tests under `build/generated/uisurface/**`.
-* If “starter” code is desired, emit templates under generated roots and copy them into human-owned UI projects once; do not place human-owned files inside any cleaned generator `out`.
+* If “starter” code is desired, emit templates under generated roots and copy them into implementation-owned UI projects once; do not place implementation-owned files inside any cleaned generator `out`.
 
 **Operator**
 

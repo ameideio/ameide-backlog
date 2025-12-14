@@ -497,7 +497,7 @@ Remote plugins and version pinning are standard in Buf’s docs. ([Buf][1])
 
 Assume the projection is named `orders-analytics` and you generate under `build/generated/projection/orders-analytics/`.
 
-**Human-owned**
+**Implementation-owned**
 
 * `primitives/projection/orders-analytics/app/` (implementation)
 * `primitives/projection/orders-analytics/Dockerfile`
@@ -534,7 +534,7 @@ build/generated/
 
 primitives/
   projection/
-    orders-analytics/                      # HUMAN-OWNED (never cleaned)
+    orders-analytics/                      # IMPLEMENTATION-OWNED (never cleaned)
       app/
         query/handlers.go
         ingest/{reducer,mapping}.go
@@ -542,13 +542,13 @@ primitives/
       behavior_test.go
 ```
 
-### c) Generated vs human-owned split rules
+### c) Generated vs implementation-owned split rules
 
 **Rules**
 
 * Generator writes only to `build/generated/projection/**` and SDK output roots.
 * Every generated file ends with `.generated.<ext>` (or lives under a `gen/` folder) and contains a header like: “DO NOT EDIT”.
-* Human-owned code lives outside `gen/` and never gets rewritten.
+* Implementation-owned code lives outside `gen/` and never gets rewritten.
 
 **Deletion/rename strategy**
 

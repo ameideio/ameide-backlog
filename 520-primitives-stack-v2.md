@@ -26,15 +26,15 @@ This document uses direct requirement statements; treat them as non-negotiable f
 1. **Proto is the behavior schema.** Protos define APIs, messages, events/facts, tools/ports (shape + minimal intent), not environment configuration or runtime policy logic.
 2. **`buf generate` is canonical for internal generation.** Use `buf generate` and standard tooling for SDKs and deterministic, generated-only outputs. Plugins are invoked via Buf remote plugins (or an internal mirror of those remote plugins) with pinned versions/revisions; offline/restricted environments are a first-class requirement (see “Remote plugins: offline + supply chain” below).
 
-   The Ameide CLI is still valuable, but its job is orchestration and guardrails: scaffolding human-owned files, wiring GitOps, and running standard generation/verification commands. The CLI does not replace Buf plugins; it calls them.
+   The Ameide CLI is still valuable, but its job is orchestration and guardrails: scaffolding implementation-owned files, wiring GitOps, and running standard generation/verification commands. The CLI does not replace Buf plugins; it calls them.
 3. **Generation is deterministic.** Pin plugin versions (and ideally revisions), use `clean: true`, and enforce “regen-diff” in CI (run generation, fail if `git diff` is non-empty). ([Buf remote plugins][5], [Buf generate][6], [buf.gen.yaml v2][18])
-4. **Generated outputs are clobber-safe.** Generators write only to generated-only dirs/files. Human-owned code lives outside those directories. Regeneration deletes outputs. (`clean: true` makes deletion/renames correct.) ([buf.gen.yaml v2][18])
+4. **Generated outputs are clobber-safe.** Generators write only to generated-only dirs/files. Implementation-owned code lives outside those directories. Regeneration deletes outputs. (`clean: true` makes deletion/renames correct.) ([buf.gen.yaml v2][18])
 5. **Operators are operational only.** Operators reconcile Kubernetes resources and surface status/conditions; they never interpret behavior semantics or contain language/framework logic. ([Kubernetes operator pattern][1])
 6. **Runtime code imports generated SDK outputs only.** Enforce import policy so runtime code never imports the proto source tree directly (avoid “proto-in-repo” coupling).
 7. **Fail early on drift.** Regeneration causes compile failures and/or failing tests until human implementations are updated—no silent runtime rot. ([gRPC Go quickstart][4])
 8. **Custom options are allowed, but protos are not a behavior DSL.** Use protobuf custom options/extensions for intent and metadata; keep routing/policy/prompt/provider behavior in `_impl` code + tests. ([Proto guide][20], [Proto guide][21])
 9. **Secrets stay in Kubernetes.** No secret literals in protos or generated artifacts. Operators inject secrets/config at runtime (env/volumes/secret refs, or platform-specific parameter stores). ([Kubernetes secrets][12])
-10. **Human-owned surface stays tiny.** The generator creates almost everything; the human “escape hatch” is a small set of `_impl` files and behavior tests.
+10. **Implementation-owned surface stays tiny.** The generator creates almost everything; the human “escape hatch” is a small set of `_impl` files and behavior tests.
 
 ---
 
@@ -67,7 +67,7 @@ This stack explicitly does not do the following:
 - Define a new orchestration layer above Kubernetes operators (“operators interpreting behavior semantics”).
 - Encode policy logic in `.proto` (prompts, routing rules, model/provider settings, env-specific endpoints).
 - Provide a parallel “second generator pipeline” that duplicates protoc/Buƒ plugin behavior (e.g., hand-parsing protos and reimplementing descriptor resolution).
-- Allow generators to write into human-owned directories or produce non-deterministic output.
+- Allow generators to write into implementation-owned directories or produce non-deterministic output.
 - Hide drift until runtime (drift must surface as regen-diff, compile errors, or failing tests).
 
 ---
@@ -158,21 +158,21 @@ Rules:
 Hard rule:
 
 - Generated code/artifacts live in generated-only directories and are overwritten on every generation run.
-- Human-owned extension points live outside all generator outputs and are never overwritten (e.g., `*_impl.go`, `nodes_impl.py`, `policy_impl.py`). This allows safe regeneration without destroying logic.
+- Implementation-owned extension points live outside all generator outputs and are never overwritten (e.g., `*_impl.go`, `nodes_impl.py`, `policy_impl.py`). This allows safe regeneration without destroying logic.
 
-This pattern is especially important for Agent (LangGraph) scaffolds where node logic and routing policy must remain human-owned. ([LangGraph application structure][14])
+This pattern is especially important for Agent (LangGraph) scaffolds where node logic and routing policy must remain implementation-owned. ([LangGraph application structure][14])
 
 **Implication for `clean: true`:**
 
 - Any directory used as a plugin `out` is generated-only and safe to delete wholesale.
-- Therefore: do **not** rely on generators to “create human-owned files once” inside a cleaned `out` directory. Human-owned scaffolding is owned by the CLI orchestrator; Buf plugins only emit clobber-safe outputs (e.g., `primitives/**/internal/gen/**`).
+- Therefore: do **not** rely on generators to “create implementation-owned files once” inside a cleaned `out` directory. Implementation-owned scaffolding is owned by the CLI orchestrator; Buf plugins only emit clobber-safe outputs (e.g., `primitives/**/internal/gen/**`).
 
 ### 2b) Tool split (Buf vs CLI vs CI vs operators)
 
 Hard boundary:
 
 - Everything derived from protobuf descriptors is reproducible by running `buf generate` in a clean checkout.
-- Everything else (repo layout, GitOps wiring, multi-step dev loops) is CLI orchestration and/or human-owned.
+- Everything else (repo layout, GitOps wiring, multi-step dev loops) is CLI orchestration and/or implementation-owned.
 
 Responsibility matrix:
 
@@ -181,7 +181,7 @@ Responsibility matrix:
 | API/event schemas + custom options | ✅ source of truth | reads descriptors | selects targets only | ❌ |
 | SDKs (Go/TS/Py) | ❌ | ✅ generate | runs generators | ❌ |
 | Generated glue inside primitives | ❌ | ✅ generate to generated roots | runs generators | ❌ |
-| Human-owned primitive skeleton | ❌ | ❌ | ✅ create/update | ❌ |
+| Implementation-owned primitive skeleton | ❌ | ❌ | ✅ create/update | ❌ |
 | GitOps components / CR instances | ❌ | ❌ | ✅ create/update | reconciles CRs |
 | Canonical gate | CI uses proto+buf+tests | ✅ | optional wrapper | runtime only |
 
@@ -209,10 +209,10 @@ This section is the “where does this live?” contract for all implementation 
   - TypeScript/ES: `packages/ameide_sdk_ts/src/proto/gen/ts/**`
   - Python: `packages/ameide_sdk_python/gen/python/**`
   - Go: `packages/ameide_sdk_go/gen/go/**`
-- **Primitive runtime implementations** (human-owned): `primitives/**` (per-kind subtrees under `primitives/agent/**`, `primitives/domain/**`, `primitives/process/**`, etc.).
+- **Primitive runtime implementations** (implementation-owned): `primitives/**` (per-kind subtrees under `primitives/agent/**`, `primitives/domain/**`, `primitives/process/**`, etc.).
 - **Per-primitive generated glue/tests** (clobber-safe): `primitives/**/internal/gen/**`.
 - **Other generated artifacts** (clobber-safe): `build/generated/**`.
-- **Operators** (human-owned controllers + APIs): `operators/**` (e.g., `operators/domain-operator/**`, `operators/process-operator/**`).
+- **Operators** (implementation-owned controllers + APIs): `operators/**` (e.g., `operators/domain-operator/**`, `operators/process-operator/**`).
 - **CRDs/manifests/examples**: `operators/helm/**` and `gitops/**`.
 - **Codegen and CI tooling**: `build/tools/**` and `tools/**`.
 
@@ -370,7 +370,7 @@ Remote plugins are a good default for consistency and pinning, but they introduc
 
 **Guardrails (required)**
 
-- **Never generate into `.` or any human-owned directory.** With `clean: true`, Buf deletes the plugin `out` directory before writing; this is only safe when `out` is generated-only.
+- **Never generate into `.` or any implementation-owned directory.** With `clean: true`, Buf deletes the plugin `out` directory before writing; this is only safe when `out` is generated-only.
 - **CI validates generator outputs are safe to delete.** Reject any generation template executed in CI where a plugin `out` is `.` or outside approved generated roots (`packages/ameide_sdk_ts/src/proto/gen/ts/**`, `packages/ameide_sdk_python/gen/python/**`, `packages/ameide_sdk_go/gen/go/**`, `primitives/**/internal/gen/**`, `build/generated/**`).
 
 **Offline strategy: mirror + pre-warm**
@@ -457,7 +457,7 @@ Projection storage options are deliberately pluggable:
 
 - Protos live under `packages/ameide_core_proto/src/ameide_core_proto/**` and follow `backlog/509-proto-naming-conventions.md`.
 - All generators are invoked via `buf generate` with pinned versions/revisions and `clean: true` for generated roots.
-- Every plugin `out` directory is generated-only and safe to delete; no human-owned files live under any cleaned `out`.
+- Every plugin `out` directory is generated-only and safe to delete; no implementation-owned files live under any cleaned `out`.
 - CI validates `buf.gen.yaml` plugin `out` paths (reject `.` and any path outside approved generated roots).
 - CI enforces regen-diff (`git diff --exit-code` clean after generation).
 - Ameide custom options are SOURCE-retained by default; generators read options from `CodeGeneratorRequest.source_file_descriptors` (fallback to `proto_file` only when needed).

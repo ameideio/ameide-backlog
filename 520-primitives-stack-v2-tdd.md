@@ -47,7 +47,7 @@ Every vertical primitive implementation follows this sequence:
 3. Build the local generator binary (when a plugin changed).
 4. Run `buf generate` with the primitive’s generation template (internal/gen glue, static outputs).
 5. Scaffold runtime + GitOps wiring with `ameide primitive scaffold` (proto-driven for Go primitives).
-6. Implement the human-owned runtime behavior until the in-cluster probe passes.
+6. Implement the implementation-owned runtime behavior until the in-cluster probe passes.
 7. Build and publish the runtime image to a registry the cluster can pull from.
 8. Deploy via ArgoCD (GitOps components + values).
 9. Prove behavior via an in-cluster Job probe.
@@ -170,7 +170,7 @@ This appendix documents what was learned while implementing Domain v0 and transl
 ### Generator Improvements Deferred to Follow-Up Work
 
 - Generate a complete v0 runtime skeleton (server bootstrap + health + reflection) so a developer does not create `cmd/main.go` by hand.
-- Generate “create-if-missing” human-owned extension points (handlers) without overwriting human-owned files.
+- Generate “create-if-missing” implementation-owned extension points (handlers) without overwriting implementation-owned files.
 - Emit deterministic file names and stable ordering to guarantee reproducible outputs and reliable regen-diff gating.
 
 ### Repo Automation Improvements

@@ -615,7 +615,7 @@ Code generation scaffolds **technical shape**, not business meaning. The canonic
 
 1. **`buf generate` is canonical**: Generation is executed via Buf with pinned plugin versions/revisions; no bespoke generator inner loop.
 2. **Deterministic + clobber-safe**: Generators write only to generated-only roots and use `clean: true`; CI enforces a regen-diff gate.
-3. **Clear ownership boundary**: Generated outputs may be overwritten/deleted on regen; human-owned behavior lives in `_impl` code + tests outside generated roots.
+3. **Clear ownership boundary**: Generated outputs may be overwritten/deleted on regen; implementation-owned behavior lives in `_impl` code + tests outside generated roots.
 4. **Proto as single source**: Handler signatures, ports, and wiring are derived from proto contracts via Buf plugins; no second behavior DSL.
 5. **Backstage/CLI role**: Backstage bootstraps repos; the CLI/agents orchestrate standard gates (`buf lint`, `buf breaking`, `buf generate`, tests) and report drift/impact.
 

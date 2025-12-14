@@ -203,13 +203,13 @@ Why this schema works well with your trio:
 
 ---
 
-# Deliverable 2: Generated file tree for one example Domain service (and human-owned split)
+# Deliverable 2: Generated file tree for one example Domain service (and implementation-owned split)
 
 Assume repo layout:
 
 * `packages/ameide_core_proto/src/ameide_core_proto/` contains source-of-truth protos
 * `packages/ameide_sdk_go/gen/go/` contains **SDK outputs** (Go pb + grpc bindings + domain metadata code)
-* `primitives/domain/` contains runnable domain services (human-owned)
+* `primitives/domain/` contains runnable domain services (implementation-owned)
 * `build/generated/domain/` contains generated runtime skeletons/tests/harness (safe to delete/recreate)
 
 ### Example: Payments domain service
