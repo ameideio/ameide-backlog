@@ -39,6 +39,29 @@ Agent-to-agent (A2A) communication per [505-agent-developer-v2.md](505-agent-dev
 | **Command** | Request expressing business intent | `PlaceOrder`, `ApproveQuote`, `CancelSubscription` |
 | **Event** | Past-tense fact that occurred | `OrderPlaced`, `QuoteApproved`, `SubscriptionCancelled` |
 
+**Ameide terminology**: In Ameide topic-based contracts, a bus-carried **command** is a **domain intent**, and a bus-carried **event** is a **domain fact** (see `496-eda-protobuf-ameide.md` for topic/envelope rules).
+
+#### Semantics ≠ transport
+
+- **Commands/intents** MAY be delivered via RPC or via an intent topic; choose one canonical ingress per domain.
+- **Facts/events** are published (outbox → broker) and consumed via pub/sub; they are never requests.
+
+#### Classify by state ownership (not producer)
+
+- If a message requests changing **domain-owned state**, it is a **domain command/intent** whether it came from a UI, agent, integration, or process.
+- A **domain fact/event** can only be emitted by the domain that owns that aggregate state, after commit.
+- A **process fact/event** describes orchestration state (governance/timeboxes/work-available) and is emitted by the process runtime.
+
+#### UI and human work
+
+- UISurfaces are clients: they read projections and observe facts; they issue commands/intents back to the owning domain/process.
+- A process reaching a human-review step should emit a **process fact** like `HumanReviewRequested` / `ApprovalStepActivated` and wait; the human response is a command/intent back (e.g. `ApproveInvoiceRequested`, `CompleteHumanReviewRequested`).
+- UI telemetry (“ButtonClicked”) is analytics/observability and is not a domain integration contract.
+
+#### Coupling anti-pattern to avoid
+
+- Avoid “events as passive-aggressive commands”: publishing a fact while implicitly requiring a specific consumer to act. If you need one responsible handler, use a command/intent.
+
 **Implementation**:
 
 ```protobuf
@@ -109,7 +132,7 @@ import "google/protobuf/timestamp.proto";
 
 // Event metadata - required on all events
 message EventMetadata {
-  string event_id = 1;           // UUID, idempotency key
+  string event_id = 1;           // UUID, idempotency key (aka message_id)
   string tenant_id = 2;          // Required for isolation
   string correlation_id = 3;     // Links related events
   string causation_id = 4;       // What caused this event
@@ -519,7 +542,7 @@ topic:
 
 ```protobuf
 message EventMetadata {
-  string event_id = 1;           // Unique ID for deduplication
+  string event_id = 1;           // Unique ID for deduplication (aka message_id)
   string tenant_id = 2;          // Multi-tenant isolation
   string correlation_id = 3;     // Links all events in a flow
   string causation_id = 4;       // Direct parent event/command
