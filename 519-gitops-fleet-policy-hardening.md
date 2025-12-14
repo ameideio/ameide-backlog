@@ -101,6 +101,8 @@ These are intentionally deferred to later in this backlog (but now tracked expli
     - `foundation-vault-bootstrap` seeds keys on a schedule, while consuming apps (e.g., `platform-langfuse-bootstrap`) can sync immediately and temporarily observe missing Vault keys → ESO errors → Argo sync failures.
     - Smoke hooks (e.g., `helm-test-jobs`) can fail fast if backoff/timeouts are too aggressive for first-rollout readiness.
     - Fix direction: hook Jobs must wait on prerequisites; and charts must have correct `enabled` semantics so local can disable/enable behaviors intentionally.
+  - Hook-only Applications (all resources annotated as hooks) can’t rely on Argo’s `OutOfSync` detection to trigger auto-sync reruns, which can leave stale `operationState.phase=Failed` even after fixes land in Git.
+    - Fix direction: ensure smoke/bootstraps include at least one non-hook tracked resource (e.g. a ConfigMap with a deterministic checksum of test definitions) so Git changes cause OutOfSync → auto-sync → new successful operation state.
 
 **What remains misaligned (gaps)**
 - **Values schema collision risk remains repo-wide**: the worst offender (local top-level `cluster:`) is removed, but we still need to migrate remaining ambiguous root keys into the `global.ameide.*` contract and expand schema guardrails beyond a single chart.

@@ -72,6 +72,7 @@ Remediation approach (GitOps-aligned):
 1. Make bootstrap/smoke hook Jobs **wait on prerequisites** (Secrets and readiness) rather than failing fast.
 2. Ensure chart `enabled: false` toggles are **semantically correct** (no `default true` footguns that ignore explicit `false`).
 3. Keep “first sync” deterministic by reducing race windows between **Vault bootstrap → ESO → consuming hook Jobs**.
+4. Avoid “hook-only Applications” for long-lived GitOps signals: add at least one small, non-hook tracked resource (e.g. a ConfigMap checksum) so Argo can detect drift and auto-sync can clear stale failed `operationState`.
 
 ---
 
