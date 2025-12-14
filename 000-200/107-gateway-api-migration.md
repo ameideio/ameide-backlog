@@ -142,6 +142,7 @@ spec:
 
 5. **Cross-Namespace Support** ✅
    - ReferenceGrant templates for cross-namespace access
+   - **Gotcha:** for core-group resources (e.g., `Service`), `ReferenceGrant.spec.to[].group` must be the empty string (`group: ""`), and it must be quoted to avoid YAML null + CRD validation errors.
    - Selector-based namespace access with `gateway-access: allowed` label
 
 ### ✅ Phase 2: Service Migration (COMPLETE - August 11, 2025)

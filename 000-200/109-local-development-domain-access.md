@@ -15,11 +15,13 @@ When developing AMEIDE Core platform locally using DevContainer + k3d, accessing
 
 ## Recommended Solution: The Opinionated Path
 
+> **Update (2025-12-14):** The current GitOps local environment uses the `*.local.ameide.io` domain and also exposes ArgoCD via the local Gateway (`https://argocd.local.ameide.io`) in addition to the fallback `https://localhost:8443` port-forward.
+
 ### Core Design Decisions
 
 | Component | Choice | Rationale |
 |-----------|--------|-----------|
-| **Domains** | `*.dev.ameide.io` | Reserved TLD (RFC 6761), no mDNS conflicts |
+| **Domains** | `*.local.ameide.io` | Clear “this is local”, no collisions with production hostnames |
 | **DNS** | `dnsmasq` wildcard → 127.0.0.1 | No manual `/etc/hosts` maintenance |
 | **TLS** | cert-manager with self-signed issuer | Kubernetes-native cert management |
 | **Cluster** | k3d | Lightweight, fast, production-like |
@@ -53,13 +55,13 @@ When developing AMEIDE Core platform locally using DevContainer + k3d, accessing
 # 1. Install tools
 brew install k3d kubectl dnsmasq jq helm helmfile
 
-# 2. Configure wildcard DNS for *.dev.ameide.io -> 127.0.0.1
+# 2. Configure wildcard DNS for *.local.ameide.io -> 127.0.0.1
 CONF_DIR="$(brew --prefix)/etc/dnsmasq.d"
 sudo mkdir -p "$CONF_DIR"
-echo 'address=/.dev.ameide.io/127.0.0.1' | sudo tee "$CONF_DIR/ameide.conf" >/dev/null
+echo 'address=/local.ameide.io/127.0.0.1' | sudo tee "$CONF_DIR/ameide.conf" >/dev/null
 sudo brew services start dnsmasq
 sudo mkdir -p /etc/resolver
-echo 'nameserver 127.0.0.1' | sudo tee /etc/resolver/dev.ameide.io >/dev/null
+echo 'nameserver 127.0.0.1' | sudo tee /etc/resolver/local.ameide.io >/dev/null
 
 # Note: TLS certificates are now managed by cert-manager in Kubernetes
 # No need for mkcert - self-signed certificates are automatically generated
@@ -131,7 +133,7 @@ spec:
   gatewayClassName: envoy
   listeners:
     - name: http
-      hostname: "*.dev.ameide.io"
+      hostname: "*.local.ameide.io"
       port: 80
       protocol: HTTP
       allowedRoutes:
@@ -141,7 +143,7 @@ spec:
             matchLabels:
               gateway-access: allowed
     - name: https
-      hostname: "*.dev.ameide.io"
+      hostname: "*.local.ameide.io"
       port: 443
       protocol: HTTPS
       tls:
@@ -168,7 +170,7 @@ metadata:
 spec:
   parentRefs:
     - name: ameide
-  hostnames: ["auth.dev.ameide.io"]
+  hostnames: ["auth.local.ameide.io"]
   rules:
     - backendRefs:
         - name: keycloak
@@ -184,7 +186,7 @@ metadata:
 spec:
   parentRefs:
     - name: ameide
-  hostnames: ["dev.ameide.io", "www.dev.ameide.io"]
+  hostnames: ["local.ameide.io", "www.local.ameide.io"]
   rules:
     - backendRefs:
         - name: www-ameide
@@ -200,7 +202,7 @@ metadata:
 spec:
   parentRefs:
     - name: ameide
-  hostnames: ["platform.dev.ameide.io"]
+  hostnames: ["platform.local.ameide.io"]
   rules:
     - backendRefs:
         - name: www-ameide-platform
@@ -216,7 +218,7 @@ metadata:
 spec:
   parentRefs:
     - name: ameide
-  hostnames: ["metrics.dev.ameide.io"]
+  hostnames: ["metrics.local.ameide.io"]
   rules:
     - backendRefs:
         - name: observability-dashboard-grafana
@@ -232,7 +234,7 @@ extraEnvVars:
   - name: KC_PROXY
     value: "edge"  # Behind Gateway/proxy
   - name: KC_HOSTNAME
-    value: "auth.dev.ameide.io"
+    value: "auth.local.ameide.io"
   - name: KC_HOSTNAME_PORT
     value: "8443"  # HTTPS port users access
   - name: KC_HTTP_RELATIVE_PATH
@@ -246,7 +248,7 @@ extraEnvVars:
 ```bash
 # Configure realm redirect URIs
 kcadm.sh config credentials \
-  --server https://auth.dev.ameide.io \
+  --server https://auth.local.ameide.io \
   --realm master --user admin --password 'changeme'
 
 # Get client ID
@@ -255,8 +257,8 @@ CID=$(kcadm.sh get clients -r ameide --fields id,clientId \
 
 # Update redirect URIs and web origins
 kcadm.sh update clients/$CID -r ameide \
-  -s 'redirectUris=["https://dev.ameide.io/*","https://platform.dev.ameide.io/*","https://portal.dev.ameide.io/*"]' \
-  -s 'webOrigins=["https://dev.ameide.io","https://platform.dev.ameide.io","https://portal.dev.ameide.io"]'
+  -s 'redirectUris=["https://local.ameide.io/*","https://platform.local.ameide.io/*","https://portal.local.ameide.io/*"]' \
+  -s 'webOrigins=["https://local.ameide.io","https://platform.local.ameide.io","https://portal.local.ameide.io"]'
 
 # Quick iteration option: use webOrigins=["+"] then lock down later
 ```
@@ -313,7 +315,7 @@ k3d cluster create ameide \
 
 ## CORS Configuration for API
 
-The API Gateway at `api.dev.ameide.io` requires proper CORS headers for browser-based gRPC-Web clients. This is configured at the Gateway level:
+The API Gateway at `api.local.ameide.io` requires proper CORS headers for browser-based gRPC-Web clients. This is configured at the Gateway level:
 
 ```yaml
 # HTTPRoute with CORS (in gateway/templates/httproute-api.yaml)
@@ -327,7 +329,7 @@ spec:
     - name: ameide
   hostnames:
     - api.ameide.io
-    - api.dev.ameide.io
+    - api.local.ameide.io
   rules:
     - matches:
         - path:
@@ -371,11 +373,11 @@ spec:
   cors:
     allowOrigins:
       - type: Exact
-        value: "https://dev.ameide.io"
+        value: "https://local.ameide.io"
       - type: Exact
-        value: "https://platform.dev.ameide.io"
+        value: "https://platform.local.ameide.io"
       - type: Exact
-        value: "https://portal.dev.ameide.io"
+        value: "https://portal.local.ameide.io"
     allowMethods: [GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD]
     allowHeaders: [Authorization, Content-Type, X-Requested-With, X-GRPC-Web]
     exposeHeaders: [grpc-status, grpc-message, grpc-status-details-bin]
@@ -393,12 +395,12 @@ spec:
 
 ### Production-Like Access (via Gateway)
 **Preferred (HTTPS):**
-- https://dev.ameide.io - Main application
-- https://auth.dev.ameide.io - Keycloak authentication
-- https://platform.dev.ameide.io - Canvas platform
-- https://portal.dev.ameide.io - Portal application
-- https://api.dev.ameide.io - API Gateway
-- https://metrics.dev.ameide.io - Grafana dashboards
+- https://local.ameide.io - Main application
+- https://auth.local.ameide.io - Keycloak authentication
+- https://platform.local.ameide.io - Canvas platform
+- https://portal.local.ameide.io - Portal application
+- https://api.local.ameide.io - API Gateway
+- https://metrics.local.ameide.io - Grafana dashboards
 
 **Also Works (HTTP):**
 - Same hosts on port 8080
@@ -417,26 +419,26 @@ spec:
 
 ```bash
 # 1. DNS resolution
-dscacheutil -q host -a name auth.dev.ameide.io
+dscacheutil -q host -a name auth.local.ameide.io
 # Should return: 127.0.0.1
 
 # 2. Gateway routing to Keycloak
-curl -sS https://auth.dev.ameide.io/realms/master/.well-known/openid-configuration | jq .issuer
-# Should return: "https://auth.dev.ameide.io/realms/master"
+curl -sS https://auth.local.ameide.io/realms/master/.well-known/openid-configuration | jq .issuer
+# Should return: "https://auth.local.ameide.io/realms/master"
 
 # 3. Application health checks
-curl -I https://platform.dev.ameide.io/healthz
-curl -I https://dev.ameide.io/
+curl -I https://platform.local.ameide.io/healthz
+curl -I https://local.ameide.io/
 
 # 4. Test with Host header (if ports not forwarded)
-curl -sS -H "Host: auth.dev.ameide.io" https://127.0.0.1/realms/master/.well-known/openid-configuration -k | jq .issuer
+curl -sS -H "Host: auth.local.ameide.io" https://127.0.0.1/realms/master/.well-known/openid-configuration -k | jq .issuer
 ```
 
 ### Common Issues & Solutions
 
 | Issue | Cause | Solution |
 |-------|-------|----------|
-| `auth.dev.ameide.io` doesn't resolve | DNS not configured | Check dnsmasq and `/etc/resolver/dev.ameide.io` |
+| `auth.local.ameide.io` doesn't resolve | DNS not configured | Check dnsmasq and `/etc/resolver/local.ameide.io` |
 | Port 8443 connection refused | Port not forwarded | Check VS Code Ports panel, ensure forwarding active |
 | Certificate warnings | Self-signed cert | Expected for local dev, click "Advanced" → "Proceed" |
 | Keycloak redirects to wrong URL | KC_HOSTNAME misconfigured | Verify KC_HOSTNAME and KC_HOSTNAME_PORT envs |
@@ -456,8 +458,8 @@ brew install caddy
 
 # Caddyfile
 cat > Caddyfile <<EOF
-*.dev.ameide.io {
-  tls /path/to/ameide-test.crt /path/to/ameide-test.key
+*.local.ameide.io {
+  tls /path/to/ameide-local.crt /path/to/ameide-local.key
   reverse_proxy localhost:443
 }
 EOF
@@ -528,7 +530,7 @@ doctor: ## Check prerequisites
 
 clean: ## Remove all local setup
 	@k3d cluster delete ameide
-	@sudo rm -f /etc/resolver/dev.ameide.io
+	@sudo rm -f /etc/resolver/local.ameide.io
 	@sudo rm -f "$$(brew --prefix)/etc/dnsmasq.d/ameide.conf"
 	@sudo brew services restart dnsmasq
 ```
@@ -542,12 +544,12 @@ Complete cleanup if needed:
 k3d cluster delete ameide
 
 # Remove DNS configuration
-sudo rm -f /etc/resolver/dev.ameide.io
+sudo rm -f /etc/resolver/local.ameide.io
 sudo rm -f "$(brew --prefix)/etc/dnsmasq.d/ameide.conf"
 sudo brew services restart dnsmasq
 
 # Remove certificates (optional)
-rm -f ameide-test.crt ameide-test.key
+rm -f ameide-local.crt ameide-local.key
 ```
 
 ## Critical Setup Requirements

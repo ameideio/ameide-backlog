@@ -17,6 +17,12 @@ Total applications: 200
 - **OutOfSync**: 20+
 - **Progressing**: 12
 
+## Update (2025-12-14): Local GitOps health fixes (devcontainer + k3d)
+
+- Fixed `local-platform-keycloak-realm` being blocked by a failing PreSync hook: `platform-keycloak-realm-client-patcher` is now reproducible (no runtime GitHub tool downloads; Keycloak Admin REST + Kubernetes API patch for rotation ConfigMap).
+- Fixed `local-platform-gateway` sync failure on cross-namespace `ReferenceGrant` rendering: ensure core-group `group: ""` is rendered as a string (quoted), not YAML null.
+- Verified the local set converges after sync: `local-platform-gateway`, `local-inference`, `local-inference-gateway`, `local-data-pgadmin` reach `Synced/Healthy`.
+
 ---
 
 ## P0 – Blocking Issues (Root Cause Chain)

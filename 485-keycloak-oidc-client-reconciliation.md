@@ -8,15 +8,19 @@
 
 ---
 
-## Addendum (2025-12-13): Multi-arch client-patcher tooling
+## Addendum (2025-12-14): Make client-patcher reproducible (no runtime tool downloads)
 
-While exercising this flow on local `arm64`, we hit a GitOps failure mode unrelated to the reconciliation logic itself but critical for reproducibility:
+While exercising this flow on local `arm64`, we hit a GitOps failure mode unrelated to the reconciliation logic itself but critical for reproducibility/self-heal:
 
-- **Symptom:** `platform-keycloak-realm-client-patcher` hook Job failed and blocked ArgoCD sync.
-- **Root cause:** initContainer downloaded `linux/amd64` static binaries (`jq`, `curl`, `kubectl`) onto an `arm64` node.
-- **Fix shipped:** install tooling via the distro package manager in the initContainer (multi-arch) and copy into the shared `/tools` volume for the Keycloak image to use.
+- **Symptom:** `platform-keycloak-realm-client-patcher` PreSync hook Job failed (`BackoffLimitExceeded`) and blocked ArgoCD sync, leaving the realm app stuck `OutOfSync`.
+- **Root cause:** runtime-downloaded tooling made the Job non-deterministic (arch/libc mismatches + transient network/HTTP errors during tool downloads).
+- **Fix shipped:** `client-patcher` is now a single, multi-arch Job that:
+  - runs as `alpine:3.19`
+  - installs `curl`/`jq` via `apk` (no GitHub binary downloads)
+  - uses Keycloak Admin REST (no `kcadm.sh`)
+  - patches rotation metadata (`keycloak-client-secret-versions`) via the Kubernetes API (no `kubectl`).
 
-This is now part of the “fleet policy hardening” surface (519): hook Jobs must be multi-arch safe if local requires `arm64`.
+This is now part of the “fleet policy hardening” surface (519): hook Jobs must be deterministic and multi-arch safe if local requires `arm64`.
 
 ## 1. Problem Statement
 

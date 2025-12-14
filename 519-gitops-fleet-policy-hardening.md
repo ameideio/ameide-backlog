@@ -60,6 +60,7 @@ These are intentionally deferred to later in this backlog (but now tracked expli
 - **Centralize image policy**:
   - Add `global.ameide.images.policy.*` and standard translation patterns in wrappers.
   - Add a validation step for “local requires multi-arch (arm64 + amd64)” so we stop discovering arch issues at runtime.
+  - Define a standard for hook/ops Jobs that need CLI tooling (curl/jq/kubectl): prefer a pinned multi-arch image by digest (no `apk/apt` downloads at runtime).
 - **Reduce environment diffs**:
   - Collapse repeated hostname/domain wiring into `global.ameide.network.*` and service-level `httproute.hostname` only when truly needed.
   - Use consistent env/cluster value file ordering and document it once.
@@ -73,6 +74,8 @@ These are intentionally deferred to later in this backlog (but now tracked expli
   - Postgres role password drift now reconciles via a CronJob (migration/self-heal) rather than a one-shot hook.
   - Postgres URI generation now URL-encodes passwords to avoid runtime auth failures for certain passwords.
   - ClickHouse + Argo CD CRD diff/SSA panics required local-specific sync strategy (avoid SSA + allow Replace for the CHI app).
+  - Keycloak realm GitOps can be blocked by non-deterministic hook Jobs: `client-patcher` must not rely on runtime-downloaded tooling (and must be multi-arch safe for local `arm64`).
+  - Gateway API cross-namespace access is fragile when CRDs require empty-string fields: `ReferenceGrant.spec.to[].group` for core resources must render as `""` (quoted) to avoid YAML null + validation failures.
 
 **What remains misaligned (gaps)**
 - **Values schema collision risk remains repo-wide**: the worst offender (local top-level `cluster:`) is removed, but we still need to migrate remaining ambiguous root keys into the `global.ameide.*` contract and expand schema guardrails beyond a single chart.

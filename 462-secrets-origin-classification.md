@@ -265,7 +265,8 @@ spec:
 
 | Date | Decision | Rationale |
 |------|----------|-----------|
-| 2025-12-07 | Use static binaries for jq/curl in client-patcher init container | Alpine-compiled binaries fail on Keycloak UBI (glibc/musl mismatch). Static binaries from GitHub releases work across distros. |
+| 2025-12-07 | Use static binaries for jq/curl in client-patcher init container | Initial workaround for Alpine/UBI (glibc/musl mismatch) when `client-patcher` ran in a Keycloak image. Superseded by 2025-12-14. |
+| 2025-12-14 | Make `client-patcher` reproducible (single alpine Job) | Removes runtime GitHub binary downloads and libc/arch pitfalls; uses Keycloak Admin REST + Kubernetes API directly; restores ArgoCD PreSync self-heal. |
 | 2025-12-07 | Make vault-bootstrap idempotent (skip real values) | Prevents CronJob from overwriting Keycloak-generated secrets with fixture placeholders on subsequent runs. |
 | 2025-12-07 | Align secretExtraction config across all environments | Same client IDs and Vault keys in dev/staging/production ensures reproducibility. Environment-specific Vault addresses only. |
 | 2025-12-07 | Keycloak client secrets are cluster-managed, not external | Keycloak generates client secrets; there's no external source. Fixtures are only for dev bootstrapping. |

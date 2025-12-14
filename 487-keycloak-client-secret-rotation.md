@@ -125,7 +125,7 @@ metadata:
 
 ## 5. Implementation status (Dec 2025)
 
-- ✅ `platform-keycloak-realm` now owns the rotation metadata: the chart renders `keycloak-client-secret-versions`, the client-patcher Job installs kubectl, records per-client SHA-256 digests, patches Vault, and merges those digests back into the ConfigMap via RBAC-scoped permissions.
+- ✅ `platform-keycloak-realm` now owns the rotation metadata: the chart renders `keycloak-client-secret-versions`, the client-patcher Job records per-client SHA-256 digests, patches Vault, and merges those digests back into the ConfigMap via RBAC-scoped permissions (Kubernetes API; no `kubectl` dependency).
 - ✅ Dev overrides enable secret extraction + client reconciliation for every OIDC consumer (platform, argocd, k8s-dashboard, backstage, plausible, pgadmin) so Argo already emits the digests we need for downstream wiring.
 - ✅ `platform-secrets-smoke` enforces that `www-ameide-platform-auth` is non-placeholder _and_ its digest matches the ConfigMap so regressions fail fast.
 - ✅ A dedicated `platform-reloader` controller is deployed (wave 360) and `www-ameide-platform` carries the annotation, giving us automatic restarts when Secrets change.
@@ -137,7 +137,7 @@ metadata:
 
 ## 5. Open questions
 
-1. **ConfigMap writer permissions** – The client-patcher Job currently runs under `serviceAccountName: default`. We need to ensure it can `patch configmaps` in the namespace. Document RBAC update in backlog/485.
+1. **ConfigMap writer permissions** – The client-patcher Job currently runs under `serviceAccountName: default`. Ensure it can `get/create/patch` the rotation ConfigMap in the namespace (documented RBAC lives in the Keycloak realm chart; keep this drift-free).
 2. **Multiple environments** – Each environment manages its own ConfigMap; ApplicationSet must render environment-specific references.
 3. **Future realm-per-tenant** – When we introduce realm-per-tenant (333), the client-patcher will produce many digests. The ConfigMap should be structured (e.g., `platform-app@realm`).
 
