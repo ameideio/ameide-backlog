@@ -2,7 +2,7 @@
 
 **Status**: Partially Resolved (CI/CD blocking staging/prod)
 **Created**: 2025-12-04
-**Updated**: 2025-12-05
+**Updated**: 2025-12-14
 **Commit**: `6c805de fix(446): remove tolerations overrides, inherit from globals`
 **Related**: [442-environment-isolation.md](442-environment-isolation.md), [445-argocd-namespace-isolation.md](445-argocd-namespace-isolation.md), [446-namespace-isolation.md](446-namespace-isolation.md), [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md), [451-secrets-management.md](451-secrets-management.md), [456-ghcr-mirror.md](456-ghcr-mirror.md)
 
@@ -25,6 +25,27 @@ Total applications: 200
 - Fixed local “red pod noise” from provisioning/bootstrap jobs:
   - MinIO provisioning Job was stuck `ImagePullBackOff` on `ghcr.io/ameideio/mirror/bitnami-os-shell:latest` due to missing `imagePullSecrets` and a single-arch mirror tag.
   - Vault bootstrap Job had a transient failure due to runtime `kubectl` download TLS flakiness; bootstrap jobs should avoid runtime downloads (track under 519).
+
+## Update (2025-12-14): ComparisonError flapping + operator leader-election instability (local k3d)
+
+Observed “unhealthy” Argo apps even when the underlying resources were fine (or briefly fine):
+
+- **CRD apps intermittently show `Unknown`** with `ComparisonError`:
+  - Example: `cluster-crds-strimzi`, `cluster-crds-redis`.
+  - Condition message: `failed to get resource health ... context deadline exceeded`.
+  - This is controller-side health evaluation timing out against the apiserver (not a missing health script).
+- **Cluster operators intermittently CrashLoop on leader election renewal**:
+  - Example: Spotahome `redis-operator` and `cloudnative-pg` operator.
+  - Logs show lease renew/update failing with `context deadline exceeded` / `client rate limiter Wait returned an error`.
+
+Key contributing factors found:
+- **Values layering footgun**: `sources/values/cluster/globals.yaml` was setting `namespace: argocd`, leaking into third-party charts that honor `.Values.namespace`, causing controllers to be deployed in the wrong namespace and increasing contention/noise (tracked under 519; fixed by removing the key).
+- **Local cluster constraints**: k3d is CPU/memory constrained and the combination of Argo server-side diff + many apps/controllers can push apiserver latency high enough that controllers lose their leases.
+
+Remediation approach (GitOps-aligned):
+1. **Reduce Argo controller pressure on local clusters** using supported `argocd-cmd-params-cm` values (via the ArgoCD Helm install/upgrade), rather than manual refreshes.
+2. **Tune high-churn operators** (k8s client QPS/burst + concurrency) so leader election is resilient under load.
+3. **Remove Helm hook “stable secret generation”** where possible (e.g. GitLab `shared-secrets`), replacing with Vault KV → ESO → Secret so sync is idempotent and doesn’t block on long-running hook batches.
 
 ---
 

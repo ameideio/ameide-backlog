@@ -40,12 +40,24 @@ Primary outcomes:
   - CNPG drift fix for `cluster.*` key collisions applied in templates.
   - Argo CD system `resource.customizations` covers Temporal CRs and CRDs to keep health deterministic (no “Unknown” during controller/CRD ordering).
 - **Accepted exception: Argo CD kustomize load restrictions are relaxed**: `configs.cm.kustomize.buildOptions: "--load-restrictor LoadRestrictionsNone"` (in `sources/values/common/argocd.yaml`) is enabled to allow Argo CD self-management via `argocd/overlays/*`; track a follow-up to restructure kustomize bases so this can be removed.
+- **Values layering footgun removed (namespace leak)**: `sources/values/cluster/globals.yaml` previously set `namespace: argocd`, which leaked into third-party charts that honor `.Values.namespace` and caused cluster-scoped operators to deploy into the wrong namespace. This is now removed; treat `namespace` as an application concern (Release namespace / Application destination), not a fleet-global default.
 - **Backstage stable session secret is operator-managed**: cookie signing secret is sourced from Vault KV and synced via External Secrets Operator (no Helm randomness, no Argo diff ignores).
 - **Postgres credential Secrets are operator-managed**: CNPG user Secrets are now sourced from Vault KV and synced via External Secrets Operator (no Helm `rand*/lookup` loops, no secret payload diff ignores).
 - **Schema guardrails are expanding**: additional internal charts now validate the `global.ameide.*` contract (start with Backstage + CNPG config charts).
 - **Postgres password drift can be reconciled (local-only)**: a gated PostSync hook Job can reconcile existing DB role passwords from the synced Secrets using the CNPG superuser secret. This is intended as a migration/self-heal tool when switching password sources (e.g. Helm-generated → Vault KV → ESO).
 - **A proper chart toggle exists for one vendor chart fork**: Langfuse worker can be disabled (currently implemented inside the vendored chart tree).
 - **Temporal bootstrap is operator-native**: Temporal namespaces are managed via `TemporalNamespace` CRs and Temporal DB readiness is gated by an idempotent Argo hook Job (no “run this once” manual bootstrap).
+
+### Incident addendum (2025-12-14): local k3d apiserver pressure → ComparisonError + leader-election loss
+
+Symptoms:
+- Argo apps intermittently show `Unknown` with `ComparisonError: ... context deadline exceeded` during health evaluation (not actual resource failure).
+- Controllers (e.g. CNPG operator, redis-operator) intermittently lose leader election because lease renewals time out.
+
+Policy-shaped remediation direction:
+1. **Local Argo controller tuning is part of bootstrap policy**: apply `argocd-cmd-params-cm` settings via the Argo CD Helm install/upgrade inputs (bootstrap), not as ad-hoc Kustomize patches or manual `refresh=hard` loops.
+2. **Operator k8s client defaults must be explicit** (where configurable): set QPS/burst and reduce concurrency for local clusters so leader election stays stable even under degraded apiserver latency.
+3. **Reduce GitOps hook reliance for stable state**: eliminate Helm hook-based stable secret generation (e.g. GitLab shared-secrets) in favor of Vault KV → ESO → Secret so sync is deterministic and does not block on hook batches.
 
 ### Deferred TODOs (values layering contract)
 
