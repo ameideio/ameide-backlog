@@ -149,7 +149,7 @@ Domain scaffolds must always follow the **outbox → dispatcher** pattern from `
   - `internal/ports/outbound.go` defines outbound ports; `internal/adapters/sdk/clients.go` holds Ameide SDK-backed implementations.
   - Domain handlers call outbound ports; adapters use SDK clients. Handlers never import other primitives’ proto packages directly.
 
-Topic naming and envelope semantics follow `509-proto-naming-conventions.md` and the relevant domain proto (`events/v1` or `*DomainFact` packages).
+Topic naming and envelope semantics follow `509-proto-naming-conventions.md` and the relevant domain proto (stable topic families with aggregator messages like `*DomainIntent` / `*DomainFact` / `*ProcessFact`).
 
 ---
 
@@ -171,7 +171,7 @@ Scaffolded tests:
   - call the RPC with a minimal request, and
   - `t.Fatalf("scaffold test ... replace with real assertions (RED→GREEN→REFACTOR)")`.
 
-Agents/humans are expected to:
+Implementers (humans or coding agents) are expected to:
 
 1. Replace `codes.Unimplemented` with real domain logic + outbox calls.  
 2. Replace `t.Fatalf` with real assertions (including checks that `mockOutbox` saw the right topic/event).  

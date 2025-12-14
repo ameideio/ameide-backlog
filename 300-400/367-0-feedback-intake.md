@@ -1,7 +1,7 @@
 > Note: Chart and values paths are now under gitops/ameide-gitops/sources (charts/values); any infra/kubernetes/charts references below are historical.
 
 > **Contract alignment**
-> - **Canonical contract:** `transformation-scrum-*` protos under `ameide_core_proto.transformation.scrum.v1` (Scrum nouns only) plus sibling packages for other methodologies.  
+> - **Canonical contract:** `transformation_scrum_*` protos under `ameide_core_proto.transformation.scrum.v1` (Scrum nouns only) plus sibling packages for other methodologies.  
 > - **Canonical integration:** intents + facts via bus; process orchestration in Temporal; no runtime RPC coupling between Process and Transformation.  
 > - **Non-Scrum extensions:** explicitly listed (e.g., readiness checklists, impediments, board columns, acceptance workflows) and treated as optional policy/UX metadata, not Scrum artifacts.
 > - **Proto naming:** All methodology-specific proto packages referenced here (Scrum/SAFe/TOGAF) must follow the conventions in [509-proto-naming-conventions.md](../509-proto-naming-conventions.md).
@@ -18,7 +18,7 @@ Stand up the capture + triage foundations so every piece of customer or internal
 **Authority & supersession**
 
 - This backlog is **authoritative for Stage 0 intake and element wiring only**: capture channels, element creation, and methodology profile tagging.  
-- Stage 1 Scrum/other methodology profiles are defined in `300-400/367-1-scrum-transformation.md` and siblings, and the **runtime event contracts** between Transformation and Process live in `506-scrum-vertical-v2.md` and the `transformation-scrum-*` protos in `508-scrum-protos.md`.  
+- Stage 1 Scrum/other methodology profiles are defined in `300-400/367-1-scrum-transformation.md` and siblings, and the **runtime event contracts** between Transformation and Process live in `506-scrum-vertical-v2.md` and the `transformation_scrum_*` protos in `508-scrum-protos.md`.  
 - Earlier statements in this file about per‑methodology protos and the absence of a neutral `WorkItem` abstraction are superseded by the newer Scrum contract in 367‑1/506‑v2/508 and the per‑profile event surfaces described there.
 
 ## Scope
@@ -31,7 +31,7 @@ Stand up the capture + triage foundations so every piece of customer or internal
 
 ## Methodology contracts (profile binding into per-method artifacts)
 - **Profile binding at intake** – feedback is still linked to a declared methodology (e.g., Scrum/SAFe/TOGAF) via `methodology_profile_id`, but Stage 1 materializes this into the **method-specific domain contract** (for Scrum, `ameide_core_proto.transformation.scrum.v1` artifacts/messages) rather than a neutral `WorkItem`/`Timebox`/`Goal` model.  
-- **Per-profile storage, shared semantics envelope** – Transformation persists runtime state in per-profile tables/protos (e.g., `transformation-scrum-*` for Scrum) and uses the methodology profile to interpret lexicon and policies. Intake does **not** decide which proto package to store into; it provides profile hints that Stage 1 uses when writing method-native artifacts.  
+- **Per-profile storage, shared semantics envelope** – Transformation persists runtime state in per-profile tables/protos (e.g., `transformation_scrum_*` for Scrum) and uses the methodology profile to interpret lexicon and policies. Intake does **not** decide which proto package to store into; it provides profile hints that Stage 1 uses when writing method-native artifacts.  
 - **Lifecycle sources of truth** – each methodology profile still publishes its allowed transitions and guards, but enforcement happens inside the method-specific Transformation domain and the Process primitive using the event model from `506-scrum-vertical-v2.md` / `508-scrum-protos.md`.  
 - **Governance envelope** – release/policy checks continue to consume `governance.v1.SubjectRef` + `governance.v1.Attestation` so promotion logic can stay shared while business semantics are profile-specific.  
 - **Role maps & permissions** – profiles still ship `role_map` data (PO, Scrum Master, Architecture Board, etc.), but Stage 0 intake only captures *candidate owners*; Stage 1 applies the profile to materialize roles and permissions in the Transformation domain.

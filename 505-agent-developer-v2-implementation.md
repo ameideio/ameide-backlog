@@ -83,7 +83,7 @@ Legend: 🟢 complete · 🟡 in progress · 🔴 not started
 
 *Tasks*
 1. **Proto evolution**
-   - Add the `transformation-scrum-*` proto files from `508-scrum-protos.md` under `packages/ameide_core_proto/src/ameide_core_proto/transformation/scrum/v1/` and register the `ScrumDomainIntent`, `ScrumDomainFact`, and `ScrumQueryService` contracts.
+   - Add the `transformation_scrum_*` proto files from `508-scrum-protos.md` under `packages/ameide_core_proto/src/ameide_core_proto/transformation/scrum/v1/` and register the `ScrumDomainIntent`, `ScrumDomainFact`, and `ScrumQueryService` contracts.
 2. **Domain implementation**
    - Update `primitives/domain/transformation` handlers to validate commands (Definition of Done and any optional readiness/policy fields), plus the evidence set.
    - Write events into the outbox (per 496).

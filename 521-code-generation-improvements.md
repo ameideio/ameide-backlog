@@ -80,6 +80,64 @@ Key paths:
 Verification:
 - `git status` stays clean after regenerating (no generated files staged)
 
+### 2025-12-14 — Buf/BSR-native refactor (snake_case + CSR subject options)
+
+Change:
+- Migrated all tracked `.proto` filenames to `lower_snake_case.proto` and removed Buf lint compatibility shims so `STANDARD` is enforceable without exceptions.
+- Added Buf/BSR CSR subject associations to topic-aggregator messages using `buf.confluent.v1.subject` (TopicNameStrategy-style `<topic>-value`).
+
+Key paths:
+- `packages/ameide_core_proto/buf.yaml`
+- `packages/ameide_core_proto/src/ameide_core_proto/**` (renamed + imports updated)
+
+Verification:
+- `cd packages/ameide_core_proto && buf format -w && buf lint && buf build`
+
+Notes:
+- This deliberately chooses the “strict” approach: refactor legacy naming into the target state instead of keeping long-lived ignore lists.
+
+### 2025-12-14 — SDK regeneration templates (local TS + export drift fix)
+
+Change:
+- Added a local TS SDK generation template so TypeScript stubs can be regenerated from the workspace proto sources (not only synced from BSR).
+- Fixed SDK TS barrel exports to include the extensions runtime service module so `createClientSet()` is stable under unit tests.
+
+Key paths:
+- `packages/ameide_core_proto/buf.gen.sdk-ts.yaml`
+- `packages/ameide_sdk_ts/src/proto/index.ts`
+- `packages/ameide_core_proto/src/index.ts`
+
+Verification:
+- `cd packages/ameide_core_proto && buf generate --template buf.gen.sdk-ts.yaml`
+- `pnpm -C packages/ameide_sdk_ts test`
+
+### 2025-12-14 — Register-go import prefix support
+
+Change:
+- Extended `protoc-gen-ameide-register-go` to accept `go_import_prefix=...` and apply it when protos use relative `go_package` paths (Buf managed mode pattern).
+- Updated generated per-primitive Buf templates to pass the SDK Go import prefix so generated `internal/gen/*_services.generated.go` compiles without manual edits.
+
+Key paths:
+- `plugins/ameide_register_go/internal/generator/generator.go`
+- `plugins/ameide_register_go/internal/generator/params.go`
+- `packages/ameide_core_cli/internal/commands/primitive_scaffold.go`
+
+Verification:
+- `go test ./plugins/ameide_register_go/...`
+- `go test ./packages/ameide_core_cli/...`
+
+### 2025-12-14 — Trace Context fields in core message envelopes
+
+Change:
+- Added optional W3C Trace Context fields (`traceparent`, `tracestate`) to the Scrum domain and process message envelope types so async propagation is first-class and consistent with 496/509 guidance.
+
+Key paths:
+- `packages/ameide_core_proto/src/ameide_core_proto/transformation/scrum/v1/transformation_scrum_common.proto`
+- `packages/ameide_core_proto/src/ameide_core_proto/process/scrum/v1/process_scrum_facts.proto`
+
+Verification:
+- `cd packages/ameide_core_proto && buf lint && buf build`
+
 ## Follow-ups (ideas)
 
 - Add `.gitattributes` rules to mark committed generated files (e.g. `zz_generated.deepcopy.go`) as generated for diffs and GitHub linguist.

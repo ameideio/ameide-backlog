@@ -29,7 +29,7 @@ ameide primitive drift --json
 
 # PLAN: What work is needed
 ameide primitive plan --kind domain --name orders \
-  --proto-path packages/ameide_core_proto/src/ameide_core_proto/orders/v1/orders.proto --json
+  --proto-path packages/ameide_core_proto/src/ameide_core_proto/transformation/v1/transformation_service.proto --json
 
 # IMPACT: What consumers would be affected
 ameide primitive impact --proto-path <path> --json
@@ -161,7 +161,7 @@ Example output:
 | **Event emission** | Every state-mutating command emits ≥1 event | WARN |
 | **Idempotency guard** | Event handlers check for duplicates (inbox pattern) | WARN |
 | **Tenant validation** | Event handlers validate `tenant_id` context | WARN |
-| **Schema versioning** | Events in `events/v1` package follow Buf rules | WARN |
+| **Schema versioning** | Topic-family aggregator messages follow Buf lint/breaking rules | WARN |
 
 > **Note**: All EDA reliability checks are WARN severity because they enforce the core invariants from [470 §8-13](470-ameide-vision.md). Violations indicate potential data loss, duplicate processing, or security issues.
 
@@ -315,7 +315,7 @@ ameide primitive describe --json
       "name": "orders",
       "status": "EXISTS",
       "path": "primitives/domain/orders",
-      "proto": "ameide/orders/v1/orders.proto",
+      "proto": "ameide_core_proto/transformation/v1/transformation_service.proto",
       "drift": {
         "sdk_stale": true,
         "missing_tests": ["orders.cancel_order.success"],
@@ -339,7 +339,7 @@ ameide primitive drift --json
 ```json
 {
   "proto_sdk_drift": [
-    {"proto": "orders/v1/orders.proto", "sdk": "ameide-sdk-go", "status": "STALE", "action": "Run buf generate"}
+    {"proto": "ameide_core_proto/transformation/v1/transformation_service.proto", "sdk": "ameide-sdk-go", "status": "STALE", "action": "Run buf generate"}
   ],
   "test_coverage_drift": [
     {"primitive": "orders", "rpc": "CancelOrder", "tests": 0, "expected": 1}
@@ -377,7 +377,7 @@ Agent produces a plan:
 **Step 2.3: Validate Hypothesis with Dry-Run**
 
 ```bash
-ameide primitive impact --proto-path orders/v1/orders.proto --json
+ameide primitive impact --proto-path ameide_core_proto/transformation/v1/transformation_service.proto --json
 ```
 
 **Output:**
@@ -499,7 +499,7 @@ ameide primitive verify --kind domain --name orders --test orders.cancel_order.s
 After the primitive is green, verify all consumers:
 
 ```bash
-ameide primitive verify --all --proto-path orders/v1/orders.proto --json
+ameide primitive verify --all --proto-path ameide_core_proto/transformation/v1/transformation_service.proto --json
 ```
 
 ### 5.6 Phase 5: Human UAT
@@ -545,13 +545,13 @@ When an AI agent modifies an **existing** proto (not creating new), the workflow
 Before modifying a proto:
 
 ```bash
-ameide primitive impact --proto-path packages/ameide_core_proto/src/ameide_core_proto/orders/v1/orders.proto --json
+ameide primitive impact --proto-path packages/ameide_core_proto/src/ameide_core_proto/transformation/v1/transformation_service.proto --json
 ```
 
 **Output:**
 ```json
 {
-  "proto_path": "ameide_core_proto/orders/v1/orders.proto",
+  "proto_path": "ameide_core_proto/transformation/v1/transformation_service.proto",
   "consumers": [
     {"kind": "DOMAIN", "name": "orders", "path": "primitives/domain/orders", "imports": ["OrdersService", "Order"]},
     {"kind": "PROCESS", "name": "l2o", "path": "primitives/process/l2o", "imports": ["OrdersServiceClient"]},
@@ -583,7 +583,7 @@ ameide primitive verify --all --json  # Verify ALL affected primitives
 {
   "summary": "fail",
   "proto_change": {
-    "path": "ameide_core_proto/orders/v1/orders.proto",
+    "path": "ameide_core_proto/transformation/v1/transformation_service.proto",
     "breaking": false,
     "changes": ["added field Order.priority", "added rpc CancelOrder"]
   },

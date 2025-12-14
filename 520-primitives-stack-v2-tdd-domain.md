@@ -6,7 +6,7 @@ Complete all unchecked items in this document for this vertical primitive to be 
 
 ### Shape Source
 
-- [x] Keep the Domain query proto at `packages/ameide_core_proto/src/ameide_core_proto/transformation/scrum/v1/transformation-scrum-query.proto`.
+- [x] Keep the Domain query proto at `packages/ameide_core_proto/src/ameide_core_proto/transformation/scrum/v1/transformation_scrum_query.proto`.
 
 ### SDKs
 

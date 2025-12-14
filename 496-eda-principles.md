@@ -2,7 +2,7 @@
 
 **Status:** Active
 **Audience:** Platform engineering, domain teams, AI agents, architects
-**Scope:** Canonical EDA principles for all Ameide primitives (Domain, Process, Agent, UISurface)
+**Scope:** Canonical EDA principles for all Ameide primitives (Domain, Process, Projection, Integration, Agent, UISurface)
 
 > **Core Invariants**: EDA invariants §8-13 are defined in [470-ameide-vision.md](470-ameide-vision.md). This document provides the complete reference with implementation guidance.
 
@@ -24,7 +24,7 @@ This document defines the **event-driven architecture principles** that all Amei
 - Multi-tenant isolation in event flows
 - Observable, traceable event processing
 
-Agent-to-agent (A2A) communication per [505-agent-developer-v2.md](505-agent-developer-v2.md) is deliberately **out of scope** for this document; A2A is a peer-to-peer contract between AmeideSA and AmeideCoder, whereas this backlog codifies domain ↔ process ↔ agent EDA traffic.
+Agent-to-agent (A2A) communication per [505-agent-developer-v2.md](505-agent-developer-v2.md) is deliberately **out of scope** for this document; this backlog codifies broker-based EDA traffic between primitives.
 
 ---
 
@@ -43,6 +43,7 @@ Agent-to-agent (A2A) communication per [505-agent-developer-v2.md](505-agent-dev
 
 #### Semantics ≠ transport
 
+- All broker messages are “events” in the technical sense; Ameide still distinguishes **intents** (requests) from **facts** (statements) because ownership and retry/idempotency responsibilities differ.
 - **Commands/intents** MAY be delivered via RPC or via an intent topic; choose one canonical ingress per domain.
 - **Facts/events** are published (outbox → broker) and consumed via pub/sub; they are never requests.
 
@@ -112,40 +113,51 @@ packages/ameide_core_proto/
 │   └── ameide_core_proto/
 │       ├── orders/
 │       │   └── v1/
-│       │       ├── orders.proto       # Commands & queries
-│       │       └── events.proto       # Domain events
+│       │       ├── orders_service.proto   # RPC ingress (commands/queries)
+│       │       ├── orders_intents.proto   # Bus ingress (domain intents), optional
+│       │       ├── orders_facts.proto     # Bus egress (domain facts)
+│       │       └── orders_query.proto     # Query surface, optional
 │       └── sales/
 │           └── v1/
-│               ├── sales.proto
-│               └── events.proto
+│               ├── sales_service.proto
+│               ├── sales_intents.proto
+│               └── sales_facts.proto
 ```
 
 **Event proto conventions**:
 
 ```protobuf
-// packages/ameide_core_proto/src/ameide_core_proto/orders/v1/events.proto
+// packages/ameide_core_proto/src/ameide_core_proto/orders/v1/orders_facts.proto
 
 syntax = "proto3";
-package ameide_core_proto.orders.v1.events;
+package ameide_core_proto.orders.v1;
 
 import "google/protobuf/timestamp.proto";
 
-// Event metadata - required on all events
-message EventMetadata {
-  string event_id = 1;           // UUID, idempotency key (aka message_id)
+// Message metadata - required on all broker-delivered messages
+message MessageMetadata {
+  string message_id = 1;         // UUID, idempotency key
   string tenant_id = 2;          // Required for isolation
   string correlation_id = 3;     // Links related events
   string causation_id = 4;       // What caused this event
-  google.protobuf.Timestamp occurred_at = 5;
-  int32 schema_version = 6;      // For evolution
+  string traceparent = 5;        // W3C Trace Context (canonical)
+  string tracestate = 6;         // W3C Trace Context (optional)
+  google.protobuf.Timestamp occurred_at = 7;
+}
+
+// In Ameide contracts, topics are stable and typically map 1:1 to an "aggregator" message.
+message OrdersDomainFact {
+  MessageMetadata meta = 1;
+  oneof fact {
+    OrderPlaced order_placed = 10;
+  }
 }
 
 message OrderPlaced {
-  EventMetadata metadata = 1;
-  string order_id = 2;
-  string customer_id = 3;
-  repeated OrderLine lines = 4;
-  Money total = 5;
+  string order_id = 1;
+  string customer_id = 2;
+  repeated OrderLine lines = 3;
+  Money total = 4;
 }
 ```
 
@@ -197,19 +209,24 @@ func (s *Service) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*p
         return nil, err
     }
 
-    // 2. Write event to outbox (same transaction)
-    event := &events.OrderPlaced{
-        Metadata: &events.EventMetadata{
-            EventId:       uuid.New().String(),
+    // 2. Write fact to outbox (same transaction)
+    // Note: The broker destination is the topic family (not a per-event-type string).
+    fact := &orders.OrdersDomainFact{
+        Meta: &orders.MessageMetadata{
+            MessageId:     uuid.New().String(),
             TenantId:      order.TenantId,
             CorrelationId: extractCorrelationId(ctx),
+            Traceparent:   extractTraceparent(ctx),
+            Tracestate:    extractTracestate(ctx),
             OccurredAt:    timestamppb.Now(),
         },
-        OrderId:    order.Id,
-        CustomerId: order.CustomerId,
-        Total:      order.Total,
+        Fact: &orders.OrdersDomainFact_OrderPlaced{OrderPlaced: &orders.OrderPlaced{
+            OrderId:    order.Id,
+            CustomerId: order.CustomerId,
+            Total:      order.Total,
+        }},
     }
-    if err := s.outbox.Insert(ctx, tx, "orders.events.v1.OrderPlaced", event); err != nil {
+    if err := s.outbox.Insert(ctx, tx, "orders.domain.facts.v1", "OrderPlaced", proto.Marshal(fact)); err != nil {
         return nil, err
     }
 
@@ -228,10 +245,10 @@ func (s *Service) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*p
 CREATE TABLE outbox_events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,
-    aggregate_type VARCHAR(255) NOT NULL,
-    aggregate_id UUID NOT NULL,
-    event_type VARCHAR(255) NOT NULL,
-    payload JSONB NOT NULL,
+    message_id UUID NOT NULL,
+    topic TEXT NOT NULL,
+    message_type TEXT NOT NULL,
+    payload_bytes BYTEA NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     published_at TIMESTAMPTZ,
     retry_count INT DEFAULT 0,
@@ -247,15 +264,17 @@ CREATE TABLE outbox_events (
 // Dispatcher polls outbox and publishes to broker
 func (d *Dispatcher) Run(ctx context.Context) error {
     for {
-        events, err := d.outbox.FetchPending(ctx, 100)
+        // Fetch MUST be safe for horizontal scaling (leasing or row locks such as FOR UPDATE SKIP LOCKED).
+        records, err := d.outbox.FetchPending(ctx, 100)
         if err != nil { return err }
 
-        for _, e := range events {
-            if err := d.publisher.Publish(ctx, e.EventType, e.Payload); err != nil {
-                d.outbox.IncrementRetry(ctx, e.ID)
+        for _, r := range records {
+            if err := d.publisher.Publish(ctx, r.Topic, r.PayloadBytes); err != nil {
+                // Retry with backoff; after max retries, move to a DLQ with the last error reason.
+                d.outbox.IncrementRetry(ctx, r.ID)
                 continue
             }
-            d.outbox.MarkPublished(ctx, e.ID)
+            d.outbox.MarkPublished(ctx, r.ID)
         }
 
         time.Sleep(100 * time.Millisecond)
@@ -278,7 +297,7 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 ```go
 func (h *Handler) HandleOrderPlaced(ctx context.Context, event *events.OrderPlaced) error {
     // Check if we've already processed this event
-    processed, err := h.inbox.IsProcessed(ctx, event.Metadata.EventId)
+    processed, err := h.inbox.IsProcessed(ctx, "orders_projection_v1", event.Metadata.MessageId)
     if err != nil { return err }
     if processed {
         return nil // Already handled, skip
@@ -294,7 +313,7 @@ func (h *Handler) HandleOrderPlaced(ctx context.Context, event *events.OrderPlac
     }
 
     // Mark as processed (same transaction)
-    if err := h.inbox.MarkProcessed(ctx, tx, event.Metadata.EventId); err != nil {
+    if err := h.inbox.MarkProcessed(ctx, tx, "orders_projection_v1", event.Metadata.MessageId); err != nil {
         return err
     }
 
@@ -306,13 +325,15 @@ func (h *Handler) HandleOrderPlaced(ctx context.Context, event *events.OrderPlac
 
 ```sql
 CREATE TABLE inbox_events (
-    event_id UUID PRIMARY KEY,
+    consumer_name TEXT NOT NULL,
+    message_id UUID NOT NULL,
     tenant_id UUID NOT NULL,
-    event_type VARCHAR(255) NOT NULL,
+    topic TEXT NOT NULL,
+    message_type TEXT NOT NULL,
     processed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
     -- Prevent duplicates
-    UNIQUE (event_id)
+    UNIQUE (consumer_name, message_id)
 );
 ```
 
@@ -445,7 +466,9 @@ import "context"
 // EventOutbox is the contract for event persistence
 // Domain code depends on this interface, not on Watermill/NATS/Kafka
 type EventOutbox interface {
-    Insert(ctx context.Context, tx Transaction, eventType string, payload proto.Message) error
+    // Insert persists a broker-ready record as part of the domain transaction.
+    // Routing uses topic families; message_type is for observability/debugging.
+    Insert(ctx context.Context, tx Transaction, topic string, messageType string, messageId string, tenantId string, payloadBytes []byte) error
 }
 
 // The domain NEVER imports:
@@ -462,7 +485,7 @@ package postgres
 
 import (
     "context"
-    "encoding/json"
+    "database/sql"
 
     "github.com/ameideio/ameide/primitives/domain/orders/internal/ports"
 )
@@ -471,14 +494,11 @@ type PostgresEventOutbox struct {
     db *sql.DB
 }
 
-func (o *PostgresEventOutbox) Insert(ctx context.Context, tx ports.Transaction, eventType string, payload proto.Message) error {
-    data, err := protojson.Marshal(payload)
-    if err != nil { return err }
-
-    _, err = tx.ExecContext(ctx, `
-        INSERT INTO outbox_events (event_type, payload, created_at)
-        VALUES ($1, $2, NOW())
-    `, eventType, data)
+func (o *PostgresEventOutbox) Insert(ctx context.Context, tx ports.Transaction, topic string, messageType string, messageId string, tenantId string, payloadBytes []byte) error {
+    _, err := tx.ExecContext(ctx, `
+        INSERT INTO outbox_events (tenant_id, message_id, topic, message_type, payload_bytes, created_at)
+        VALUES ($1, $2, $3, $4, $5, NOW())
+    `, tenantId, messageId, topic, messageType, payloadBytes)
     return err
 }
 ```
@@ -516,7 +536,7 @@ func (o *PostgresEventOutbox) Insert(ctx context.Context, tx ports.Transaction, 
 # NATS JetStream - Domain events
 stream:
   name: domain-events-orders
-  subjects: ["events.orders.>"]
+  subjects: ["orders.domain.facts.v1"]
   retention: limits
   max_age: 604800s           # 7-day rolling window
   storage: file
@@ -538,16 +558,16 @@ topic:
 
 **Rule**: Every event must be traceable from command to final consumer state change.
 
-**Required event metadata**:
+**Required message metadata**:
 
 ```protobuf
-message EventMetadata {
-  string event_id = 1;           // Unique ID for deduplication (aka message_id)
+message MessageMetadata {
+  string message_id = 1;         // Unique ID for deduplication
   string tenant_id = 2;          // Multi-tenant isolation
   string correlation_id = 3;     // Links all events in a flow
   string causation_id = 4;       // Direct parent event/command
-  string trace_id = 5;           // OpenTelemetry trace
-  string span_id = 6;            // OpenTelemetry span
+  string traceparent = 5;        // W3C Trace Context (canonical)
+  string tracestate = 6;         // W3C Trace Context (optional)
   google.protobuf.Timestamp occurred_at = 7;
 }
 ```
@@ -561,7 +581,7 @@ var (
             Name: "events_published_total",
             Help: "Total events published to outbox",
         },
-        []string{"domain", "event_type", "tenant_id"},
+        []string{"domain", "topic", "message_type", "tenant_id"},
     )
 
     eventsProcessed = prometheus.NewCounterVec(
@@ -569,7 +589,7 @@ var (
             Name: "events_processed_total",
             Help: "Total events processed by consumers",
         },
-        []string{"domain", "event_type", "outcome"}, // outcome: success, failure, duplicate
+        []string{"domain", "topic", "message_type", "outcome"}, // outcome: success, failure, duplicate
     )
 
     eventProcessingLatency = prometheus.NewHistogramVec(
@@ -578,7 +598,7 @@ var (
             Help:    "Event processing latency",
             Buckets: prometheus.DefBuckets,
         },
-        []string{"domain", "event_type"},
+        []string{"domain", "topic", "message_type"},
     )
 
     consumerLag = prometheus.NewGaugeVec(
@@ -603,11 +623,12 @@ var (
 
 ```go
 log.Info("event processed",
-    "event_id", event.Metadata.EventId,
-    "event_type", "OrderPlaced",
+    "message_id", event.Metadata.MessageId,
+    "message_type", "OrderPlaced",
+    "topic", "orders.domain.facts.v1",
     "tenant_id", event.Metadata.TenantId,
     "correlation_id", event.Metadata.CorrelationId,
-    "trace_id", event.Metadata.TraceId,
+    "traceparent", event.Metadata.Traceparent,
     "processing_time_ms", duration.Milliseconds(),
     "outcome", "success",
 )
@@ -625,8 +646,8 @@ func (h *Handler) HandleOrderPlaced(ctx context.Context, event *events.OrderPlac
     ctx, span := tracer.Start(ctx, "HandleOrderPlaced",
         trace.WithLinks(trace.Link{SpanContext: producerSpanCtx}),
         trace.WithAttributes(
-            attribute.String("event.id", event.Metadata.EventId),
-            attribute.String("event.type", "OrderPlaced"),
+            attribute.String("message.id", event.Metadata.MessageId),
+            attribute.String("message.type", "OrderPlaced"),
             attribute.String("tenant.id", event.Metadata.TenantId),
         ),
     )
@@ -657,7 +678,7 @@ func (h *Handler) HandleOrderPlaced(ctx context.Context, event *events.OrderPlac
 
 ## 11. Process primitive event catalog (per 505/506-v2/508)
 
-Process primitives own the sprint/ADM lifecycle defined in [505-agent-developer-v2.md](505-agent-developer-v2.md) and follow the **Scrum intent/fact split** described in [506-scrum-vertical-v2.md](506-scrum-vertical-v2.md) and the `transformation-scrum-*` protos in [508-scrum-protos.md](508-scrum-protos.md):
+Process primitives own the sprint/ADM lifecycle defined in [505-agent-developer-v2.md](505-agent-developer-v2.md) and follow the **Scrum intent/fact split** described in [506-scrum-vertical-v2.md](506-scrum-vertical-v2.md) and the `transformation_scrum_*` protos in [508-scrum-protos.md](508-scrum-protos.md):
 
 - **Scrum domain facts** (e.g., `SprintCreated`, `SprintStarted`, `SprintBacklogCommitted`, `ProductBacklogItemDoneRecorded`, `IncrementUpdated`) are emitted by the Transformation domain on `scrum.domain.facts.v1`.  
 - **Scrum domain intents** (e.g., `StartSprintRequested`, `EndSprintRequested`, `CommitSprintBacklogRequested`, `RecordProductBacklogItemDoneRequested`, `RecordIncrementRequested`) are emitted by Process or agents on `scrum.domain.intents.v1`.  
@@ -706,13 +727,13 @@ type OrderHandler struct {
 
 ### Principle 10: Multi-Tenant Event Isolation
 
-**Rule**: Every event MUST carry `tenant_id`. Consumers MUST validate tenant context before processing.
+**Rule**: Every message MUST carry `tenant_id`. Consumers MUST establish tenant execution context from the message and enforce data isolation.
 
 **Event structure**:
 
 ```protobuf
 message OrderPlaced {
-  EventMetadata metadata = 1;  // Contains tenant_id
+  MessageMetadata metadata = 1;  // Contains tenant_id
   string order_id = 2;
   // ...
 }
@@ -722,13 +743,14 @@ message OrderPlaced {
 
 ```go
 func (h *Handler) HandleOrderPlaced(ctx context.Context, event *events.OrderPlaced) error {
-    // Extract tenant from execution context (e.g., JWT, middleware)
-    ctxTenantId := tenant.FromContext(ctx)
+    // Async consumers often do not have a request-scoped tenant context.
+    // Set tenant context from the message before touching tenant-scoped state.
+    ctx = tenant.WithContext(ctx, event.Metadata.TenantId)
 
-    // Validate event tenant matches context
-    if event.Metadata.TenantId != ctxTenantId {
-        return fmt.Errorf("tenant mismatch: event=%s context=%s",
-            event.Metadata.TenantId, ctxTenantId)
+    // Optional stricter mode: consumer instance is configured for a single tenant.
+    if h.config.TenantId != "" && event.Metadata.TenantId != h.config.TenantId {
+        return fmt.Errorf("tenant mismatch: message=%s configured=%s",
+            event.Metadata.TenantId, h.config.TenantId)
     }
 
     // Safe to process
@@ -739,11 +761,11 @@ func (h *Handler) HandleOrderPlaced(ctx context.Context, event *events.OrderPlac
 **Stream partitioning**:
 
 ```go
-// NATS subjects include tenant
-subject := fmt.Sprintf("events.%s.orders.OrderPlaced", tenantId)
+// Topic family is stable (routing); tenant is for isolation and partitioning.
+topic := "orders.domain.facts.v1"
 
-// Kafka partitions by tenant
-partition := hash(tenantId) % numPartitions
+// Kafka partitions by (tenant_id, aggregate_id) for per-aggregate ordering.
+partitionKey := fmt.Sprintf("%s:%s", tenantId, aggregateId)
 ```
 
 **Database isolation**:
@@ -802,12 +824,12 @@ For every Domain primitive:
 
 - [ ] **Commands use business verbs**, not CRUD (`PlaceOrder` not `UpdateOrder`)
 - [ ] **Events are past-tense facts** (`OrderPlaced` not `OrderPlacing`)
-- [ ] **All events defined in proto** (`events/v1/*.proto`)
+- [ ] **All intents/facts defined in proto** (stable topic families with aggregator messages; no ad-hoc `events/v1` side packages)
 - [ ] **Outbox pattern for publishing** (no direct `publisher.Publish()`)
 - [ ] **Consumers are idempotent** (inbox pattern or natural key upsert)
 - [ ] **No broker imports in domain** (only in adapters)
 - [ ] **Events carry `tenant_id`** (validated by consumers)
-- [ ] **Correlation IDs for tracing** (`correlation_id`, `trace_id`)
+- [ ] **Trace propagation** (`correlation_id` plus W3C Trace Context: `traceparent` / `tracestate`; derive `trace_id`/`span_id` for logs)
 - [ ] **Metrics per event type** (`events_processed_total`, `consumer_lag`)
 - [ ] **DLQ for failed events** (with alerting)
 

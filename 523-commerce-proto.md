@@ -12,6 +12,7 @@ It complements:
 - `496-eda-principles.md` (EDA invariants)
 - `509-proto-naming-conventions.md` (package/topic conventions)
 - `523-commerce*.md` (commerce decomposition)
+- `525-it4it-value-stream-mapping.md` (IT4IT value-stream lens)
 
 Phase 1 focus (v1): **public storefront domains + BYOD onboarding**.
 
@@ -39,7 +40,7 @@ Commerce should be able to bridge cleanly across brokers and HTTP without bespok
 Every intent/fact MUST carry:
 
 - tenant isolation: `tenant_id` (required)
-- traceability: `message_id`/`event_id`, `correlation_id`, `causation_id`, and timestamps (see `496-eda-principles.md` Principle 8)
+- traceability: `message_id`, `correlation_id`, `causation_id`, and timestamps (see `496-eda-principles.md` Principle 8)
 - commerce scope: `site_id`, `sales_channel_id`, `stock_location_id`, `store_site_id` when applicable
 - event metadata that can map to CloudEvents + W3C trace context
 
@@ -65,16 +66,16 @@ message CommerceMessageMeta {
   string causation_id = 3;              // prior message that caused this
   google.protobuf.Timestamp occurred_at = 4;
   string producer = 5;                  // workload identity
-  int32 schema_version = 6;
+  string schema_version = 6;            // semantic marker (e.g. "1.0.0")
 
-  // CloudEvents alignment (on-the-wire mapping target)
-  string event_type = 20;     // CloudEvents "type"
-  string event_source = 21;   // CloudEvents "source" (service/tenant URN)
-  string event_subject = 22;  // CloudEvents "subject" (order_id, hostname, etc.)
+  // CloudEvents alignment (lossless mapping target for cross-broker/HTTP).
+  string event_type = 22;     // CloudEvents "type"
+  string event_source = 23;   // CloudEvents "source" (service/tenant URN)
+  string event_subject = 24;  // CloudEvents "subject" (order_id, hostname, etc.)
 
-  // W3C Trace Context (propagate across HTTP/brokers)
-  string traceparent = 23;
-  string tracestate = 24;
+  // W3C Trace Context (propagate across HTTP/brokers).
+  string traceparent = 20;
+  string tracestate = 21;
 }
 ```
 

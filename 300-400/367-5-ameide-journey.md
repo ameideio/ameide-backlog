@@ -3,7 +3,7 @@
 **Parent backlog:** [backlog/367-elements-transformation-automation.md](./367-elements-transformation-automation.md)  
 **Related:** [backlog/367-3-ameide-on-ameide.md](./367-3-ameide-on-ameide.md)
 
-This document walks through the end-to-end experience inside the Ameide-on-Ameide tenant, showing how the per-method protobuf packages (Scrum/SAFe/TOGAF), governance envelope, automation, and release governance feel to a user. The journey highlights forks for Scrum (default squad experience), SAFe (program initiatives), and TOGAF (architecture governance) without relying on a shared business layer. For Scrum, the canonical contract is the `transformation-scrum-*` profile under `ameide_core_proto.transformation.scrum.v1` and the event seams in `506-scrum-vertical-v2.md` / `508-scrum-protos.md` (with proto naming conventions from `509-proto-naming-conventions.md`); any “DoR” or sign-off flows described here are optional extensions, not Scrum artifacts.
+This document walks through the end-to-end experience inside the Ameide-on-Ameide tenant, showing how the per-method protobuf packages (Scrum/SAFe/TOGAF), governance envelope, automation, and release governance feel to a user. The journey highlights forks for Scrum (default squad experience), SAFe (program initiatives), and TOGAF (architecture governance) without relying on a shared business layer. For Scrum, the canonical contract is the `transformation_scrum_*` profile under `ameide_core_proto.transformation.scrum.v1` and the event seams in `506-scrum-vertical-v2.md` / `508-scrum-protos.md` (with proto naming conventions from `509-proto-naming-conventions.md`); any “DoR” or sign-off flows described here are optional extensions, not Scrum artifacts.
 
 ---
 

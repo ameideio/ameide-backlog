@@ -13,9 +13,10 @@ The Scrum wording used below follows the **official Scrum Guide**: Scrum Team ac
 ## Grounding & cross-references
 
 - **Role in architecture:** Canonical Scrum runtime seam between Transformation (Scrum domain) and Process primitives; defines envelopes, topics, and Temporal workflow structure.  
-- **Domain side:** Builds on `300-400/367-1-scrum-transformation.md` and the `transformation-scrum-*` protos in `508-scrum-protos.md`; Transformation persists Scrum artifacts and emits the domain facts referenced here.  
+- **Domain side:** Builds on `300-400/367-1-scrum-transformation.md` and the `transformation_scrum_*` protos in `508-scrum-protos.md`; Transformation persists Scrum artifacts and emits the domain facts referenced here.  
 - **Process side:** Consumed by Process primitives described in `499-process-operator.md` and positioned in the primitive stack by `477-primitive-stack.md`; Temporal workflows must obey the intent/fact separation and idempotency rules in this backlog and the EDA rules in `496-eda-principles.md`.  
 - **Agents & tooling:** `505-agent-developer-v2.md` and `505-agent-developer-v2-implementation.md` describe how AmeidePO/AmeideSA/AmeideCoder react to process/domain facts from this seam; `495-ameide-operators.md` and `502-domain-vertical-slice.md` provide shared operator/condition vocabulary; `507-scrum-agent-map.md` locates this contract at Stage 2 in the Scrum stack.
+- **IT4IT mapping lens:** How this seam fits “requirement → running” streams (R2D/R2F/D2C): `525-it4it-value-stream-mapping.md`
 
 ---
 
@@ -564,12 +565,12 @@ This section sketches a **bottom‑up path** to implementing the contract above 
 ### 11.1 Dependency ladder
 
 1. **Layer 0 – Contract & codegen (blocks everything else)**  
-   - Protos: `transformation-scrum-*` under `ameide_core_proto.transformation.scrum.v1` (see `508-scrum-protos.md`) plus a `scrum.process.facts.v1` package.  
+   - Protos: `transformation_scrum_*` under `ameide_core_proto.transformation.scrum.v1` (see `508-scrum-protos.md`) plus a `scrum.process.facts.v1` package.  
    - Message classes and topics: this file defines the three classes (domain intents, domain facts, process facts), required envelope (`ScrumMessageMeta` equivalent), `ScrumAggregateRef`/`aggregate_version`, and topics: `scrum.domain.intents.v1`, `scrum.domain.facts.v1`, `scrum.process.facts.v1`.  
    - Codegen: SDKs for Go/TS/Python used by Transformation, Process workers, and agents/portal. No bespoke JSON at runtime.  
    _Implementation checklist (Layer 0):_  
-   - [x] `transformation-scrum-*` proto files live under `packages/ameide_core_proto/src/ameide_core_proto/transformation/scrum/v1/` (see `transformation-scrum-common.proto`, `-artifacts.proto`, `-intents.proto`, `-facts.proto`, `-query.proto`).  
-   - [x] `process-scrum-facts.proto` lives under `packages/ameide_core_proto/src/ameide_core_proto/process/scrum/v1/` and defines `ScrumProcessFact`.  
+   - [x] `transformation_scrum_*` proto files live under `packages/ameide_core_proto/src/ameide_core_proto/transformation/scrum/v1/` (see `transformation_scrum_common.proto`, `-artifacts.proto`, `-intents.proto`, `-facts.proto`, `-query.proto`).  
+   - [x] `process_scrum_facts.proto` lives under `packages/ameide_core_proto/src/ameide_core_proto/process/scrum/v1/` and defines `ScrumProcessFact`.  
    - [x] `pnpm -F @ameide/core-proto build` (using `buf.gen.yaml` / `buf.gen.sdk-go.yaml` / `buf.gen.sdk-python.yaml`) generates and commits Go/TS/Python stubs for these packages into `packages/ameide_core_proto/gen`, `packages/ameide_sdk_go/gen`, and `packages/ameide_sdk_python/src`.  
    - [x] Language SDKs expose Scrum types via their public proto surfaces (TS: `packages/ameide_core_proto/src/index.ts` and `packages/ameide_sdk_ts/src/proto/index.ts` → `@ameide/core-proto` / `@ameideio/ameide-sdk-ts/proto.js`; Go: `github.com/ameideio/ameide-sdk-go/gen/go/ameide_core_proto/transformation/scrum/v1`; Python: `ameide_core_proto.transformation.scrum.v1` and `ameide_core_proto.process.scrum.v1` modules under `packages/ameide_sdk_python/src`).  
    - [ ] Runtime primitives that consume this Scrum contract (Domain, Process, Agent, UISurface) call it **only via SDKs**, never by importing `@ameide/core-proto` or `packages/ameide_core_proto` directly in their runtime code (see `393-ameide-sdk-import-policy.md` and `514-primitive-sdk-isolation.md`).  
@@ -582,7 +583,7 @@ This section sketches a **bottom‑up path** to implementing the contract above 
    - [ ] Transformation DB schema extended with Scrum tables and outbox aligned to `ameide_core_proto.transformation.scrum.v1` (e.g. `db/flyway/sql/transformation/V3__scrum_domain.sql` defining `transformation.scrum_*` tables and `transformation.scrum_domain_outbox`).  
    - [ ] Intent handlers in the Transformation domain primitive (`primitives/domain/transformation`) persist aggregates and write `ScrumDomainFact` rows with monotonic `aggregate_version` using `ScrumAggregateRef` and `ScrumDomainFactSchema`.  
    - [ ] An outbox dispatcher (following `496-eda-principles.md` and the Graph outbox pattern in `services/graph/src/graph/events/outbox.ts`) publishes serialized `ScrumDomainFact` envelopes to `scrum.domain.facts.v1`.  
-   - [ ] `ScrumQueryService` RPC handlers are implemented in the Transformation domain primitive (`primitives/domain/transformation`) and exposed via the platform gateway (see `transformation-scrum-query.proto` and `367-1-scrum-transformation.md` for routing expectations).  
+   - [ ] `ScrumQueryService` RPC handlers are implemented in the Transformation domain primitive (`primitives/domain/transformation`) and exposed via the platform gateway (see `transformation_scrum_query.proto` and `367-1-scrum-transformation.md` for routing expectations).  
 
 3. **Layer 2 – Process primitive(s) (Temporal governor)**  
    - Ingress router subscribes to `scrum.domain.facts.v1` and signals workflows via `SignalWithStart` using deterministic workflow IDs.  
@@ -653,8 +654,8 @@ When Slice A + B work end‑to‑end (intents in → facts out → process facts
 ### 11.3 Recommended implementation order
 
 1. **Step A – Freeze the contracts (Proto‑first, Layer 0)**  
-   - Land the Scrum Transformation proto files (`transformation-scrum-*`) under `ameide_core_proto.transformation.scrum.v1` as in `508-scrum-protos.md`.  
-   - Add the *process* side proto: `process-scrum-facts.proto` under `ameide_core_proto.process.scrum.v1` so that process facts are first‑class and code‑generated.  
+   - Land the Scrum Transformation proto files (`transformation_scrum_*`) under `ameide_core_proto.transformation.scrum.v1` as in `508-scrum-protos.md`.  
+   - Add the *process* side proto: `process_scrum_facts.proto` under `ameide_core_proto.process.scrum.v1` so that process facts are first‑class and code‑generated.  
    - Lock the topic names to exactly `scrum.domain.intents.v1`, `scrum.domain.facts.v1`, `scrum.process.facts.v1` and generate Go/TS/Python SDKs (no bespoke JSON at runtime).  
 
 2. **Step B – Implement the Transformation Scrum subdomain (Layer 1, Slice A+B)**  

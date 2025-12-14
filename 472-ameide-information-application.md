@@ -331,15 +331,15 @@ Backstage ingests these descriptors so humans and agents can answer “which pro
 
 ---
 
-### 2.8 Proto Semantic Layers (Entities / Interfaces / Events)
+### 2.8 Proto Semantic Layers (Entities / Interfaces / Messages)
 
 Proto serves as Ameide's single schema language, but carries **three distinct semantics**:
 
-| Semantic | Purpose | Proto construct | Package convention |
-|----------|---------|-----------------|-------------------|
-| **Entity** | Data that lives in the DB | `message` | `ameide.{domain}.v1` |
-| **Interface** | Operations callers invoke | `service` | `ameide.{domain}.v1` |
-| **Event** | Facts that happened | `message` | `ameide.{domain}.events.v1` |
+| Semantic | Purpose | Proto construct | Convention |
+|----------|---------|-----------------|-----------|
+| **Entity** | Data that lives in the DB | `message` | Bounded-context package (e.g., `ameide.sales.v1`) |
+| **Interface** | Operations callers invoke | `service` | Same bounded-context package |
+| **Message** | Async contracts on brokers | `message` | Stable topic families with aggregator envelopes: `<domain>.domain.intents.v1`, `<domain>.domain.facts.v1`, `<domain>.process.facts.v1` |
 
 These are differentiated via **conventions + lightweight options**, not a separate metadata system. This keeps us aligned with the "code-first, thin metadata" stance (470 §5).
 
@@ -401,18 +401,31 @@ service SalesIntegrationService {
 }
 ```
 
-#### 2.8.3 Events
+#### 2.8.3 Messages (Domain intents, Domain facts, Process facts)
 
-Events are messages representing facts that already happened. They live in a separate `events` package and are tagged by kind:
+Ameide standardizes on stable **topic families** with **aggregator envelopes** so routing stays stable while payload variants evolve.
 
-* `BUSINESS` – external integration events (stable contracts)
-* `DOMAIN_INTERNAL` – internal domain events (implementation detail)
+Conceptually:
+
+* **Domain intents** (requests): `<domain>.domain.intents.v1` (payload: `<Domain>DomainIntent`)
+* **Domain facts** (statements): `<domain>.domain.facts.v1` (payload: `<Domain>DomainFact`)
+* **Process facts** (governance/timebox): `<domain>.process.facts.v1` (payload: `<Domain>ProcessFact`)
+
+For external integrations, treat the Integration primitive as the boundary and publish integration-facing facts there (rather than inventing parallel “events.v1” packages).
 
 ```proto
-package ameide.sales.events.v1;
+package ameide.sales.v1;
+
+message SalesDomainFact {
+  SalesMessageMeta meta = 1;
+  SalesAggregateRef aggregate = 2;
+  oneof fact {
+    OpportunityWon opportunity_won = 10;
+    OpportunityStageChanged opportunity_stage_changed = 11;
+  }
+}
 
 message OpportunityWon {
-  option (ameide.event_kind) = BUSINESS;
   string id = 1;
   string tenant_id = 2;
   string customer_id = 3;
@@ -422,14 +435,13 @@ message OpportunityWon {
 }
 
 message OpportunityStageChanged {
-  option (ameide.event_kind) = DOMAIN_INTERNAL;
   string id = 1;
   string from_stage = 2;
   string to_stage = 3;
 }
 ```
 
-Events are published by Domain/Process primitives via Watermill (§3.3.1) and consumed by other domains or projections.
+Messages are published by Domain/Process primitives via the outbox (§3.3.1.1) and consumed by other primitives (projections, integrations, processes).
 
 #### 2.8.4 Typical Domain Layout
 
@@ -440,9 +452,9 @@ ameide/
       sales_entities.proto      # Opportunity, Customer, Quote, ...
       sales_service.proto       # SalesDomainService
       sales_integration.proto   # SalesIntegrationService (optional)
-    events/
-      v1/
-        sales_events.proto      # OpportunityWon, InvoicePosted, ...
+      sales_domain_intents.proto # SalesDomainIntent aggregator + intent variants
+      sales_domain_facts.proto   # SalesDomainFact aggregator + fact variants
+      sales_process_facts.proto  # SalesProcessFact aggregator + governance facts (optional)
 ```
 
 #### 2.8.5 Design Heuristic
@@ -451,7 +463,7 @@ When deciding where something belongs:
 
 > * *Do I need to store this as domain state?* → **Entity** (`message` in domain package)
 > * *Is this an operation a caller invokes?* → **Interface** (`service`)
-> * *Is this a fact that already happened?* → **Event** (`message` in `events/v1`)
+> * *Is this a request or a fact?* → **Intent/Fact** (aggregator message variant published on a stable topic family)
 
 For mappings to D365 and SAP concepts, see [470a-ameide-vision-vs-d365.md §7.7](470a-ameide-vision-vs-d365.md) and [470b-ameide-vision-vs-saps4.md §6.7](470b-ameide-vision-vs-saps4.md).
 
@@ -542,14 +554,22 @@ func (s *OpportunityService) WinOpportunity(ctx context.Context, req *pb.WinOppo
     if err := s.repo.Save(ctx, tx, opp); err != nil { return nil, err }
 
     // 3. Write event to outbox (same transaction - NO dual write!)
-    event := &events.OpportunityWon{
-        Id:         opp.Id,
-        TenantId:   opp.TenantId,
-        CustomerId: opp.CustomerId,
-        Amount:     opp.Amount,
-        WonAt:      opp.WonAt,
+    fact := &salespb.SalesDomainFact{
+        Meta: meta,
+        Aggregate: aggregate,
+        Fact: &salespb.SalesDomainFact_OpportunityWon{
+            OpportunityWon: &salespb.OpportunityWon{
+                Id:         opp.Id,
+                TenantId:   opp.TenantId,
+                CustomerId: opp.CustomerId,
+                Amount:     opp.Amount,
+                WonAt:      opp.WonAt,
+            },
+        },
     }
-    if err := s.outbox.Insert(ctx, tx, "sales.events.v1.OpportunityWon", event); err != nil {
+    payload, err := proto.Marshal(fact)
+    if err != nil { return nil, err }
+    if err := s.outbox.Insert(ctx, tx, "sales.domain.facts.v1", "OpportunityWon", payload); err != nil {
         return nil, err
     }
 
@@ -717,13 +737,20 @@ func (s *OrdersService) CancelOrder(ctx context.Context, req *pb.CancelOrderRequ
     order.CancelledAt = time.Now()
     s.repo.Save(ctx, tx, order)
 
-    // 2. Write event to outbox (same transaction)
-    event := &events.OrderCancelled{
-        Id:       order.Id,
-        TenantId: order.TenantId,
-        Reason:   req.Reason,
+    // 2. Write domain fact to outbox (same transaction)
+    fact := &orderspb.OrdersDomainFact{
+        Meta: meta,
+        Aggregate: aggregate,
+        Fact: &orderspb.OrdersDomainFact_OrderCancelled{
+            OrderCancelled: &orderspb.OrderCancelled{
+                Id:       order.Id,
+                TenantId: order.TenantId,
+                Reason:   req.Reason,
+            },
+        },
     }
-    s.outbox.Insert(ctx, tx, "orders.events.v1.OrderCancelled", event)
+    payload, _ := proto.Marshal(fact)
+    s.outbox.Insert(ctx, tx, "orders.domain.facts.v1", "OrderCancelled", payload)
 
     tx.Commit()
     return order, nil
@@ -746,9 +773,9 @@ Most brokers + outbox give **at-least-once** delivery. Consumers **must** be ide
 **Inbox Pattern**: Track processed event IDs to guarantee exactly-once processing per aggregate:
 
 ```go
-func (h *OrderEventHandler) HandleOrderCreated(ctx context.Context, event *events.OrderCreated) error {
+func (h *OrderEventHandler) HandleOrderCreated(ctx context.Context, fact *orderspb.OrdersDomainFact) error {
     // 1. Check inbox - already processed?
-    if h.inbox.Exists(ctx, event.EventId) {
+    if h.inbox.Exists(ctx, fact.Meta.MessageId) {
         return nil // Idempotent: skip duplicate
     }
 
@@ -756,8 +783,8 @@ func (h *OrderEventHandler) HandleOrderCreated(ctx context.Context, event *event
     tx, _ := h.db.BeginTx(ctx, nil)
     defer tx.Rollback()
 
-    h.projection.UpdateFromOrder(ctx, tx, event)
-    h.inbox.Insert(ctx, tx, event.EventId)
+    h.projection.UpdateFromOrder(ctx, tx, fact.GetOrderCreated())
+    h.inbox.Insert(ctx, tx, fact.Meta.MessageId)
 
     tx.Commit()
     return nil
@@ -834,16 +861,16 @@ CLI `verify` enforces principles 1, 3, 4, 5 via static analysis; principles 7-9 
 
 ### 3.3.5 Event Schema Versioning
 
-**Principle**: Event schemas evolve over time. Use Buf proto conventions for backwards compatibility:
+**Principle**: Message schemas evolve over time. Use Buf conventions and compatibility checks for backwards compatibility:
 
 | Rule | Description |
 |------|-------------|
 | **Additive only** | Add new optional fields; never remove or rename existing fields |
 | **Reserved fields** | Use `reserved` for deprecated field numbers to prevent reuse |
-| **Package versioning** | Breaking changes require a new package (`events.v2`) |
+| **Major versioning** | Breaking changes require a new major package version (`...v2`) and a new topic family (`<domain>.<class>.<kind>.v2`) |
 
 ```proto
-package ameide.sales.events.v1;
+package ameide.sales.v1;
 
 message OpportunityWon {
     string id = 1;
@@ -861,7 +888,7 @@ message OpportunityWon {
 **Consumer compatibility rules**:
 - Handle missing optional fields gracefully (use proto3 defaults or explicit presence checks)
 - Never fail on unknown fields (proto3 default behavior)
-- When breaking changes are unavoidable, publish to `events.v2` and run parallel consumers during migration
+- When breaking changes are unavoidable, publish to the `...v2` topic family and run parallel consumers during migration
 
 **CLI enforcement**: `verify` warns when event messages violate Buf breaking change rules.
 
@@ -879,7 +906,7 @@ Events that repeatedly fail processing should be routed to a dead-letter queue (
 
 | Metric | Purpose |
 |--------|---------|
-| `events_processed_total{domain, event_type, outcome}` | Track success/failure/dlq rates |
+| `events_processed_total{domain, message_type, outcome}` | Track success/failure/dlq rates |
 | `consumer_lag_seconds{domain, consumer_group}` | Monitor processing delays |
 | `dlq_depth{domain}` | Alert on accumulating failures |
 

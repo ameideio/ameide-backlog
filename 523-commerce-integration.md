@@ -51,6 +51,11 @@ Key integrations:
 - cert-manager (ACME issuance into `Secret`s; renewals)
 - DNS (manual CNAME + TXT verification; ExternalDNS only for zones you control)
 
+ExternalDNS reality checks (if you automate DNS):
+
+- Prefer the TXT registry and set a stable `--txt-owner-id` per cluster; clusters sharing a zone MUST use different owner IDs to avoid conflicts.
+- Changing `--txt-owner-id` later can be a painful migration (records appear “unowned”).
+
 Control plane resources (platform-owned; names placeholders):
 
 - `UISurfaceDomainClaim`: reserves hostname + tracks verification token/status (exact hostname only in v1)
@@ -65,6 +70,7 @@ Recommended routing start:
 Gateway/TLS reality checks (implementation-dependent):
 
 - Gateway API cross-namespace secret refs require `ReferenceGrant`; without it, per-tenant secret isolation won’t work.
+- cert-manager Gateway API ("gateway-shim") requires the referenced TLS `Secret` to live in the same namespace as the `Gateway` (no cross-namespace `certificateRefs`).
 - cert-manager’s Gateway “shim” behavior is namespace-sensitive; if you need cert `Secret`s outside the Gateway namespace, prefer explicit `Certificate` resources per domain and wire them deliberately.
 - Multiple certificates per listener and SNI selection behavior varies by Gateway implementation; some implementations may honor only the first certificate ref.
 

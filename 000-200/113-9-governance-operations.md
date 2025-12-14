@@ -54,13 +54,19 @@ grep -r "kind:" . --include="*.proto" --include="*.py" | \
 ```python
 # Event envelope with version
 class EventEnvelope:
-    schema_version: int = 1  # Increment on breaking changes
-    event_type: str
+    # For Protobuf contracts, breaking changes use a new major package/topic family (`...v2`)
+    # and are guarded by `buf breaking`; this numeric major is only for consumer-side upcasting.
+    schema_major: int = 1
+
+    # Optional semantic marker (string, e.g. "1.0.0"); not used as the compatibility gate.
+    schema_version: str = "1.0.0"
+
+    message_type: str
     payload: dict
     
     def upcast(self) -> dict:
         """Upgrade old events to current schema."""
-        if self.schema_version == 1 and self.event_type == "ArtifactCreated":
+        if self.schema_major == 1 and self.message_type == "ArtifactCreated":
             # v1 -> v2: Add graph_id if missing
             if 'graph_id' not in self.payload:
                 self.payload['graph_id'] = extract_from_stream(self.stream_id)
@@ -78,10 +84,10 @@ class ProjectorWithUpcasting:
     
     async def process_event(self, event: dict):
         # Apply upcasters in sequence
-        current_version = event.get('schema_version', 1)
-        while current_version < CURRENT_SCHEMA_VERSION:
-            event = self.upcasters[current_version].upcast(event)
-            current_version += 1
+        current_major = event.get('schema_major', 1)
+        while current_major < CURRENT_SCHEMA_MAJOR:
+            event = self.upcasters[current_major].upcast(event)
+            current_major += 1
         
         # Process with current schema
         await self.apply_projection(event)

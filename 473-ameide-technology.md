@@ -170,10 +170,10 @@ Event-driven architectures require intentional broker selection. Ameide uses dif
 **Stream configuration patterns:**
 
 ```yaml
-# NATS JetStream - Domain events
+# NATS JetStream - Domain facts (topic families)
 stream:
-  name: domain-events-{domain}
-  subjects: ["events.{domain}.>"]
+  name: domain-facts-{domain}
+  subjects: ["{domain}.domain.facts.>"]
   retention: limits          # 7-day rolling window
   max_age: 604800s
   storage: file              # Durable
@@ -190,7 +190,8 @@ topic:
 **Multi-tenant stream isolation:**
 
 * Events always carry `tenant_id` in the payload
-* NATS subjects include tenant prefix: `events.{tenant_id}.{domain}.{event_type}`
+* NATS subjects (or Kafka topics) are stable logical destinations; **do not** include tenant identifiers in routing by default
+  * Optional: use tenant-prefixed subjects only when you intentionally provision per-tenant streams for isolation/retention policy
 * Kafka partitions by `tenant_id` to ensure tenant-local ordering
 * Consumers validate `tenant_id` against execution context (see [472 §3.3.7](472-ameide-information-application.md))
 

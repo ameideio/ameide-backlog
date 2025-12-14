@@ -1,10 +1,10 @@
 # 512 – Agent Primitive Scaffolding (Python, opinionated)
 
-> **Deprecation notice (520):** This backlog specifies an Agent scaffold generated via `ameide primitive scaffold`. That approach is deprecated. Canonical v2 uses **`buf generate`** (pinned plugins, deterministic outputs, generated-only roots, regen-diff CI gate). See `backlog/520-primitives-stack-v2.md`.
+> **Status update (520/521/522):** This backlog specifies the Agent scaffold produced by the Ameide CLI (`ameide primitive scaffold`). The consolidated approach is a split: the CLI orchestrates scaffolding + external wiring (repo layout, GitOps), and `buf generate` + plugins handle internal deterministic generation (SDKs, generated-only glue). See `backlog/520-primitives-stack-v2.md`, `backlog/521-code-generation-improvements.md`, and `backlog/522-cli-orchestration-improvements.md`.
 
-**Status:** Deprecated (superseded by 520)  
+**Status:** Active reference (aligned with 520/521/522)  
 **Audience:** AI agents, Python developers, CLI implementers  
-**Scope:** Exact scaffold shape and patterns for **Agent** primitives, extracted from 484f. One opinionated Python pattern, aligned with `514-primitive-sdk-isolation.md` (SDK-only, self-contained primitives, CLI treated as out-of-band). No additional Agent-specific CLI parameters beyond the canonical `ameide primitive scaffold` flags.
+**Scope:** Exact scaffold shape and patterns for **Agent** primitives. One opinionated Python pattern, aligned with `514-primitive-sdk-isolation.md` (SDK-only, self-contained primitives). No additional Agent-specific CLI parameters beyond the canonical `ameide primitive scaffold` flags.
 
 ---
 
@@ -102,7 +102,7 @@ Scaffolded Agent primitives assume:
 
 - Integration with the Ameide system:
   - Agent uses SDK clients to talk to Domain/Process primitives (never imports proto packages directly for outbound calls).  
-  - Agent runtime **does not** invoke `ameide` CLI commands or depend on devcontainer tooling during normal request handling; CLI guardrail workflows remain the responsibility of AmeideCoder and related A2A dev agents described in `504-agent-vertical-slice.md` / `505-agent-developer-v2*.md`.
+  - Agent runtime **does not** invoke `ameide` CLI commands or depend on devcontainer tooling during normal request handling; the CLI remains an out-of-band orchestrator used by humans and coding agents.
 
 ---
 
@@ -116,7 +116,7 @@ Scaffolded tests:
   - call a minimal `invoke` path,
   - assert `NotImplementedError` or a TODO response.
 
-Agents/humans are expected to:
+Implementers (humans or coding agents) are expected to:
 
 1. Implement the AgentPrimitive’s behavior in `src/agent.py` (tools, prompts, orchestration).  
 2. Wire external secrets, models, and SDK clients in `Dockerfile.*` and GitOps.  
@@ -133,7 +133,7 @@ Agents/humans are expected to:
 - GitOps manifests for the agent are valid (if generated).  
 - Linting / packaging checks for `pyproject.toml`.
 
-Behavioral details (e.g., how AmeideCoder delegates work) remain in `504-agent-vertical-slice.md` and `505-agent-developer-v2*.md`. This backlog only constrains the **scaffold shape** for Agent primitives.
+Behavioral details (delegation, workflows, prompts, and tool semantics) remain in vertical slices such as `504-agent-vertical-slice.md` / `505-agent-developer-v2*.md`. This backlog only constrains the **scaffold shape** for Agent primitives.
 
 ---
 

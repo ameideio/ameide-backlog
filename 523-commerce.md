@@ -5,6 +5,7 @@ This backlog defines “commerce” as a proto-first, primitive-first system ali
 - `520-primitives-stack-v2.md` (normative primitives stack)
 - `509-proto-naming-conventions.md` (proto package + topic conventions)
 - `496-eda-principles.md` (commands vs facts, outbox, idempotent consumers, tenant isolation)
+- `524-transformation-capability-decomposition.md` (repeatable method: capability → EDA contracts → primitives)
 
 It is also informed by convergent industry patterns (D365 / SAP Commerce / Shopify + OSS commerce):
 

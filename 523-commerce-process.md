@@ -28,6 +28,8 @@ Processes implement sagas and cross-domain invariants under eventual consistency
 
 See `523-commerce-proto.md` for the proposed process fact envelope and topic family.
 
+For an IT4IT value-stream lens (R2D/R2F/D2C) over the same primitives/process model, see `525-it4it-value-stream-mapping.md`.
+
 ## Real-time required surface (v1)
 
 Default is async replication. The system MUST label and handle “real-time required” operations explicitly:

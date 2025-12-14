@@ -358,7 +358,7 @@ Proto carries three semantics in Ameide (see [472 §2.8](472-ameide-information-
 | `CustTable` (table) | `Customer` message in `ameide.sales.v1` |
 | `CustTableEntity` (data entity) | `CustomerProjection` message with `PROJECTION` tag |
 | `SalesOrderService` (X++ service) | `SalesDomainService` proto service |
-| `SalesOrderCreated` (business event) | `SalesOrderCreated` message in `ameide.sales.events.v1` |
+| `SalesOrderCreated` (domain fact) | `SalesDomainFact` (variant `sales_order_created`) on topic `sales.domain.facts.v1` |
 
 #### CQRS Recipe for D365 Architects
 
@@ -368,7 +368,7 @@ For architects migrating from D365, here's how the CQRS pattern (see [472 §2.8.
 |--------------|----------------|-------|
 | X++ `insert()`, `update()`, `delete()` | Command RPCs (`CreateFoo`, `UpdateFoo`, `DeleteFoo`) | Explicit operations vs implicit table methods |
 | X++ `select` / Query framework | Query RPCs (`GetFoo`, `ListFoos`) | Proto request/response vs X++ query |
-| Business Events (`BusinessEventsContract`) | Event messages in `events/v1` | Published via Watermill vs D365 event framework |
+| Business Events (`BusinessEventsContract`) | Domain facts (`<domain>.domain.facts.v1`) | Published via outbox; consumed by projections/integrations |
 | Data Entity OData `POST/PATCH/DELETE` | Command RPCs via SDK | Unified gRPC/REST gateway vs separate OData surface |
 | Data Entity OData `GET` | Query RPCs via SDK | Same SDK for queries and commands |
 

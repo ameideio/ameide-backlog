@@ -163,7 +163,7 @@ Scaffolded tests (target shape):
   - assert TODO behavior,
   - provide comments pointing to `506-scrum-vertical-v2.md` / `496-eda-principles.md` for the expected behavior and Temporal’s determinism/idempotency constraints.
 
-Agents/humans are expected to:
+Implementers (humans or coding agents) are expected to:
 
 1. Fill in workflow logic (timers, derived state, process fact emissions) in a way that respects Temporal determinism and idempotent Activities.  
 2. Wire ingress router to call workflow signals based on domain facts using a Temporal client and deterministic workflow IDs.  

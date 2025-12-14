@@ -376,7 +376,7 @@ Proto carries three semantics in Ameide (see [472 §2.8](472-ameide-information-
 | `I_SalesOrder` (CDS interface view) | Part of `SalesOrder` aggregate |
 | `BAPI_SALESORDER_CREATEFROMDAT2` | `CreateSalesOrder` rpc in `SalesDomainService` |
 | `A_SalesOrder` (released OData) | `SalesIntegrationService` proto service |
-| `SalesOrder.Created.v1` (business event) | `SalesOrderCreated` message in `ameide.sales.events.v1` |
+| `SalesOrder.Created.v1` (domain fact) | `SalesDomainFact` (variant `sales_order_created`) on topic `sales.domain.facts.v1` |
 | `ORDERS05` (IDoc) | `SalesOrderCreated` with `BUSINESS` event kind |
 
 #### CQRS Recipe for SAP Architects
@@ -387,7 +387,7 @@ For architects migrating from S/4HANA, here's how the CQRS pattern (see [472 §2
 |-------------|----------------|-------|
 | BAPIs with `COMMIT WORK` | Command RPCs (`CreateFoo`, `UpdateFoo`) | Explicit operations vs BAPI conventions |
 | SELECT on DDIC tables / CDS views | Query RPCs (`GetFoo`, `ListFoos`) | Proto request/response vs ABAP OpenSQL |
-| RAP Business Events | Event messages in `events/v1` | Published via Watermill vs RAP event framework |
+| RAP Business Events | Domain facts (`<domain>.domain.facts.v1`) | Published via outbox; consumed by projections/integrations |
 | OData `POST/PATCH/DELETE` on A_* services | Command RPCs via SDK | Unified SDK vs separate OData layer |
 | OData `GET` / `$filter` / `$expand` | Query RPCs via SDK | Same SDK; filter params in request message |
 | IDocs (outbound) | Event messages with `BUSINESS` kind | Async integration; proto replaces IDoc segments |

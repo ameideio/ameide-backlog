@@ -58,8 +58,8 @@ Use 3 packages (separate files/modules to avoid mixing concerns):
   Agent service, state messages, agent API envelopes.
 * `acme.tools.v1`
   Tool RPC contracts (request/response per tool).
-* `acme.events.v1`
-  Events/facts schemas that your runtime can emit/consume (for shared event/fact metadata, reuse `ameide_core_proto.common.v1.event_fact` from `packages/ameide_core_proto/src/ameide_core_proto/common/v1/eventing.proto`).
+* `acme.domain.facts.v1` / `acme.process.facts.v1` / `acme.domain.intents.v1`
+  Async contracts your runtime can emit/consume. Avoid `acme.events.v1` synonyms; publish facts/intents on stable topic families instead (for shared message metadata, reuse `ameide_core_proto.common.v1.event_fact` from `packages/ameide_core_proto/src/ameide_core_proto/common/v1/eventing.proto`).
 
 And one shared annotations file:
 

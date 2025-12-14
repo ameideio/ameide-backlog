@@ -198,7 +198,7 @@ gitops/primitives/{kind}/{name}/
 ameide primitive scaffold \
   --kind domain \
   --name orders \
-  --proto-path packages/ameide_core_proto/src/ameide/orders/v1/orders.proto \
+  --proto-path packages/ameide_core_proto/src/ameide_core_proto/transformation/v1/transformation_service.proto \
   --lang go \
   --dry-run \
   --json
@@ -210,7 +210,7 @@ ameide primitive scaffold \
 ameide primitive scaffold \
   --kind domain \
   --name orders \
-  --proto-path packages/ameide_core_proto/src/ameide/orders/v1/orders.proto \
+  --proto-path packages/ameide_core_proto/src/ameide_core_proto/transformation/v1/transformation_service.proto \
   --lang go \
   --include-gitops \
   --json

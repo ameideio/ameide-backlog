@@ -1,6 +1,6 @@
 
 > **Contract alignment**
-> - **Canonical contract:** Scrum data and events follow `transformation-scrum-*` protos (`ameide_core_proto.transformation.scrum.v1`) and the event seams in `506-scrum-vertical-v2.md` / `508-scrum-protos.md`; this file’s Requirement-centric event names are legacy only.  
+> - **Canonical contract:** Scrum data and events follow `transformation_scrum_*` protos (`ameide_core_proto.transformation.scrum.v1`) and the event seams in `506-scrum-vertical-v2.md` / `508-scrum-protos.md`; this file’s Requirement-centric event names are legacy only.  
 > - **Canonical integration:** Process primitives interact with Transformation only via intents/facts on the bus; any direct RPC coupling or agent↔domain shortcuts described here are historical and superseded by 505-v2/506-v2/367-1.  
 > - **Non-Scrum extensions:** any acceptance workflows, impediment models, or board columns in this file must be treated as optional extensions or migration notes, not canonical Scrum artifacts.
 

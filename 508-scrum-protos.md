@@ -8,15 +8,15 @@
 
 Scrum domain (Transformation) protos live under:
 
-- `packages/ameide_core_proto/src/ameide_core_proto/transformation/scrum/v1/transformation-scrum-common.proto`
-- `packages/ameide_core_proto/src/ameide_core_proto/transformation/scrum/v1/transformation-scrum-artifacts.proto`
-- `packages/ameide_core_proto/src/ameide_core_proto/transformation/scrum/v1/transformation-scrum-intents.proto`
-- `packages/ameide_core_proto/src/ameide_core_proto/transformation/scrum/v1/transformation-scrum-facts.proto`
-- `packages/ameide_core_proto/src/ameide_core_proto/transformation/scrum/v1/transformation-scrum-query.proto`
+- `packages/ameide_core_proto/src/ameide_core_proto/transformation/scrum/v1/transformation_scrum_common.proto`
+- `packages/ameide_core_proto/src/ameide_core_proto/transformation/scrum/v1/transformation_scrum_artifacts.proto`
+- `packages/ameide_core_proto/src/ameide_core_proto/transformation/scrum/v1/transformation_scrum_intents.proto`
+- `packages/ameide_core_proto/src/ameide_core_proto/transformation/scrum/v1/transformation_scrum_facts.proto`
+- `packages/ameide_core_proto/src/ameide_core_proto/transformation/scrum/v1/transformation_scrum_query.proto`
 
 Scrum process facts (Process/Temporal) protos live under:
 
-- `packages/ameide_core_proto/src/ameide_core_proto/process/scrum/v1/process-scrum-facts.proto`
+- `packages/ameide_core_proto/src/ameide_core_proto/process/scrum/v1/process_scrum_facts.proto`
 
 If this backlog’s text contradicts those files, the `.proto` sources win.
 
@@ -37,7 +37,7 @@ The canonical Scrum runtime seam is defined in `backlog/506-scrum-vertical-v2.md
 
 ## Key envelope invariants (summary)
 
-- Messages carry the required envelope fields (see `ScrumMessageMeta` in `transformation-scrum-common.proto`).
+- Messages carry the required envelope fields (see `ScrumMessageMeta` in `transformation_scrum_common.proto`).
 - Domain facts carry a monotonic per-aggregate version (`ScrumAggregateRef.version`) for idempotent downstream consumption (Temporal/workflows).
 - The seam has exactly three message classes (domain intents, domain facts, process facts); do not introduce additional “extra” topics that duplicate Scrum state.
 

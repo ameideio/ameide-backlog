@@ -10,6 +10,7 @@
 * `508-scrum-protos.md` 
 * `509-proto-naming-conventions.md` 
 * `523-commerce-proto.md` 
+* `525-it4it-value-stream-mapping.md`
 
 This document is written in a “contract standard” style, with **MUST/SHOULD/MAY** language.
 
@@ -38,6 +39,25 @@ This document is written in a “contract standard” style, with **MUST/SHOULD/
 
 * **Buf MUST be used** for generation and compatibility enforcement (your docs already assume “enforced by Buf”). 
 * **Breaking-change detection MUST run in CI** on every change to public protos. Buf’s breaking checker provides multiple strictness categories; **WIRE_JSON is the recommended minimum** because it checks both wire (binary) and JSON encoding compatibility. ([Buf][1])
+* **Buf modules are the unit of publication.** A module is a versioned set of `.proto` files pushed together (BSR). A workspace can group multiple modules, but the module remains the compatibility boundary.
+* **Layout MUST be Buf-friendly:**
+  * directories SHOULD mirror package names;
+  * the last package component MUST be a major version (`...v1`);
+  * filenames MUST be `lower_snake_case.proto` (Buf STANDARD style expectations).
+
+### 2.4 BSR / Confluent Schema Registry (CSR) compatibility (optional, but supported)
+
+Buf/BSR does not define Ameide’s domain semantics (intent vs fact vs process), but it *does* provide authoritative guidance for schema hygiene and (on Enterprise) a CSR-compatible API.
+
+When using BSR as a CSR-compatible registry:
+
+* The CSR API is **read-only**; producers/serializers MUST NOT rely on auto-registration.
+* Schema publication MUST happen via CI (e.g., `buf push`) and compatibility must be enforced there (`buf breaking`).
+* Topic naming MUST be paired with a clear **CSR subject strategy**:
+  * With Confluent’s default TopicNameStrategy, the subject is typically `<topic>-value`.
+  * Ameide’s “one topic family ↔ one aggregator message” pattern maps cleanly to this.
+* For schema-managed topics, the aggregator message SHOULD declare a CSR subject association via Buf’s Confluent extension option:
+  * `option (buf.confluent.v1.subject) = { instance_name: "...", name: "<topic>-value" };`
 
 ---
 
@@ -93,6 +113,13 @@ Scrum’s canonical source list is authoritative and non-negotiable.
 
 ## 5. Topic naming and “runtime seam” mapping
 
+### 5.0 Topic vs subject (Kafka/CSR precision)
+
+In Kafka + CSR environments, distinguish:
+
+* **Kafka topic**: the broker destination, e.g. `scrum.domain.facts.v1`
+* **CSR subject**: the registry key for schema history, commonly `scrum.domain.facts.v1-value` under the default TopicNameStrategy
+
 ### 5.1 Topic naming pattern
 
 Topic names (or stream/subject names) MUST encode:
@@ -144,6 +171,10 @@ Example pattern (Scrum):
 
 Commerce adopts the same pattern. 
 
+### 6.3 Buf/BSR CSR subject association (if applicable)
+
+If the platform treats a topic family as “schema-managed” via a CSR-compatible API, the corresponding aggregator message SHOULD declare its subject explicitly using the Buf Confluent extension option so the topic/subject↔message contract is unambiguous.
+
 ### 6.2 Naming suffix rules
 
 * **Domain intents:** `…Requested` 
@@ -172,8 +203,7 @@ Required envelope concepts across contexts:
   * `subject` (routing keys) 
   * `actor` (who caused the change) 
 
-> Note on existing inconsistency: `496` uses `event_id` in `EventMetadata`  while `509/523` use `message_id`. 
-> **Standardization rule:** treat `event_id` (496-style) and `message_id` (509-style) as the same semantic concept: **the idempotency key for the message**. For new work, prefer `message_id` for cross-context consistency.
+`message_id` is the canonical idempotency key name across Ameide contracts.
 
 ### 7.2 Aggregate identity and ordering
 
@@ -210,9 +240,9 @@ CloudEvents Protobuf representations (as used by Google Eventarc, for example) i
 **Recommended mapping (internal → CloudEvents):**
 
 * `meta.message_id` → `ce-id`
-* `meta.event_source` (or derived producer URI) → `ce-source`
-* `meta.event_type` → `ce-type`
-* `meta.event_subject` or `subject.*` → `ce-subject`
+* `meta.producer` (or derived producer URI) → `ce-source`
+* `ce-type` derived from the concrete payload variant (e.g., oneof case / fully-qualified message name)
+* `meta.subject.*` (or aggregate identity) → `ce-subject`
 * `meta.occurred_at` → `ce-time`
 
 Commerce already proposes these mapping targets explicitly. 
@@ -256,6 +286,14 @@ Breaking changes MUST be handled by:
 ### 9.3 Buf breaking policy
 
 * CI SHOULD run `buf breaking` with at least `WIRE_JSON`. Buf documents that `WIRE_JSON` checks breakage in both wire and JSON encoding and is “recommended minimum”. ([Buf][1])
+
+### 9.4 Version vocabulary (avoid ambiguity)
+
+To avoid “version” meaning three different things, use this vocabulary:
+
+* **Package version**: the `v1` suffix in `package ...v1;` (semantic breaking boundary).
+* **Module version**: the BSR module commit/label for the pushed module (distribution boundary).
+* **Subject version**: the CSR subject’s version number/history (registry boundary).
 
 **Example (`buf.yaml`)** (illustrative — adopt to your repo conventions):
 
@@ -382,7 +420,7 @@ Commerce proposes:
 **Envelope**
 
 * [ ] `tenant_id` present and required. 
-* [ ] `message_id` (or legacy `event_id`) is globally unique and used for idempotency. 
+* [ ] `message_id` is globally unique and used for idempotency. 
 * [ ] `correlation_id` / `causation_id` semantics are correctly set. 
 * [ ] Facts include aggregate ref with monotonic version. 
 * [ ] If trace context is propagated, it follows W3C and contains no PII. ([W3C][4])

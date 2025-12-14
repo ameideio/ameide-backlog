@@ -1,5 +1,5 @@
 > **Contract alignment**
-> - **Canonical contract:** `transformation-scrum-*` protos and event contracts defined in `506-scrum-vertical-v2.md` and `508-scrum-protos.md` (Scrum nouns only; no neutral `WorkItem`/`Timebox`/`Goal` wire model).  
+> - **Canonical contract:** `transformation_scrum_*` protos and event contracts defined in `506-scrum-vertical-v2.md` and `508-scrum-protos.md` (Scrum nouns only; no neutral `WorkItem`/`Timebox`/`Goal` wire model).  
 > - **Canonical integration:** intents + facts via bus; Process (Temporal) owns timeboxes and process facts; Transformation (Scrum domain) is reactive and never called synchronously at runtime.  
 > - **Non-Scrum extensions / legacy design:** the Requirement-centric aggregates, DoR gates, and `ItemReadyForDev`/`PhaseGateReached` process facts below are historical and retained only as migration background. All new work must follow `506-scrum-vertical-v2.md` and `508-scrum-protos.md`.
 

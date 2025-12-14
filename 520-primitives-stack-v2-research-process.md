@@ -244,7 +244,7 @@ message OrderKey {
 
 message EventMeta {
   // Required: de-dupe key for at-least-once ingress.
-  string idempotency_key = 1 [(process.v1.markers) = { idempotency_key: true }];
+  string message_id = 1 [(process.v1.markers) = { idempotency_key: true }];
 
   google.protobuf.Timestamp observed_at = 2;
   string source = 3;
@@ -252,8 +252,8 @@ message EventMeta {
   // Required: stable key used to derive workflow ID.
   OrderKey key = 4;
 
-  // Required: schema version for envelope/payload evolution.
-  uint32 schema_version = 5 [(process.v1.markers) = { schema_version: true }];
+  // Required: semantic marker for envelope/payload evolution (string, e.g. "1.0.0").
+  string schema_version = 5 [(process.v1.markers) = { schema_version: true }];
 }
 
 // --- The envelope that ingress routes into the workflow ---

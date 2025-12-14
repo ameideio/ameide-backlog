@@ -7,7 +7,7 @@
 **Authority & supersession**
 
 - This backlog is **authoritative for navigation only**: it maps which backlogs own which parts of the Scrum → Process → Agent stack.  
-- **Scrum event/intent envelopes and runtime seams** are owned by `506-scrum-vertical-v2.md` (plus the `transformation-scrum-*` protos in `508-scrum-protos.md`).  
+- **Scrum event/intent envelopes and runtime seams** are owned by `506-scrum-vertical-v2.md` (plus the `transformation_scrum_*` protos in `508-scrum-protos.md`).  
 - **PO/SA/Coder roles, A2A contracts, and artifacts** are owned by `505-agent-developer-v2.md` and `505-agent-developer-v2-implementation.md`.  
 - **Scrum data model and profiles** are owned by `300-400/367-1-scrum-transformation.md`.  
 - If this file contradicts any of those, **prefer 506-v2/508/505/367-1**. Older docs (`300-400/367-0-feedback-intake.md`, `505-agent-developer.md`, `506-scrum-vertical.md`) are historical and must not override the newer contracts.
@@ -22,7 +22,7 @@
 ## Grounding & cross-references
 
 - **Architecture grounding:** Builds on the primitive/EDA foundations in `470-ameide-vision.md`, `471-ameide-business-architecture.md`, `472-ameide-information-application.md`, `473-ameide-technology.md`, `475-ameide-domains.md`, `477-primitive-stack.md`, and `496-eda-principles.md`.  
-- **Stage 1 (Transformation Scrum profile):** Anchors to `300-400/367-1-scrum-transformation.md` and the `transformation-scrum-*` protos in `508-scrum-protos.md` as the Scrum system-of-record.  
+- **Stage 1 (Transformation Scrum profile):** Anchors to `300-400/367-1-scrum-transformation.md` and the `transformation_scrum_*` protos in `508-scrum-protos.md` as the Scrum system-of-record.  
 - **Stage 2 (Process primitives):** Uses the runtime seam in `506-scrum-vertical-v2.md` and Process operator semantics from `499-process-operator.md` to place Temporal workflows in the stack.  
 - **Stage 3 (Agents & tooling):** Maps AmeidePO/AmeideSA/AmeideCoder architecture in `505-agent-developer-v2.md` and implementation plan in `505-agent-developer-v2-implementation.md` onto the primitive/operator/CLI patterns in `500-agent-operator.md`, `504-agent-vertical-slice.md`, and the 484a–484f CLI backlogs.
 
@@ -33,7 +33,7 @@
 | Layer | Responsibility | Authoritative backlog(s) | Key artifacts |
 |-------|----------------|--------------------------|---------------|
 | **Stage 0 – Intake** | Capture requests, tag methodology profile | `367-0-feedback-intake.md`, `367-1-safe-transformation.md` (for other profiles) | Feedback nodes, profile assignment, `methodology_profile_id` resolution |
-| **Stage 1 – Transformation (Scrum profile)** | Store Scrum data (Product Backlog, Product Backlog Items, Sprints, Increments) and UI/policy | `367-1-scrum-transformation.md`, `508-scrum-protos.md` | Methodology YAML, `transformation-scrum-*` protos/schema updates, portal workflows |
+| **Stage 1 – Transformation (Scrum profile)** | Store Scrum data (Product Backlog, Product Backlog Items, Sprints, Increments) and UI/policy | `367-1-scrum-transformation.md`, `508-scrum-protos.md` | Methodology YAML, `transformation_scrum_*` protos/schema updates, portal workflows |
 | **Stage 2 – Process primitive(s)** | Temporal workflows for timeboxes, process fact emission | `506-scrum-vertical-v2.md`, `499-process-operator.md` | Process CRDs, Temporal workers, event contracts |
 | **Stage 3 – Agent execution** | AmeidePO/AmeideSA/AmeideCoder roles, devcontainer runtime | `505-agent-developer-v2.md`, `505-agent-developer-v2-implementation.md`, `500/504` | Agent Definitions, A2A server, CLI guardrails |
 | **Support – Primitive placement & EDA** | Ensure consistent boundaries/application layout | `477-primitive-stack.md`, `496-eda-principles.md` | Placement diagrams, event invariants |

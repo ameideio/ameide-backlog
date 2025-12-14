@@ -42,7 +42,7 @@ The CLI commands map to proto messages in `ameide_core_proto.primitive.v1`. This
 │  CLI does work on filesystem                                    │
 │       │                                                         │
 │       ▼                                                         │
-│  CLI emits ScaffoldResult as JSON to stdout                     │
+│  CLI emits ScaffoldResponse as JSON to stdout                     │
 │       │                                                         │
 │       ▼                                                         │
 │  Agent parses JSON (matches proto shape)                        │
@@ -70,7 +70,7 @@ The CLI commands map to proto messages in `ameide_core_proto.primitive.v1`. This
 │  Service does work (remote builds, central codegen)             │
 │       │                                                         │
 │       ▼                                                         │
-│  Returns ScaffoldResult                                         │
+│  Returns ScaffoldResponse                                         │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -114,7 +114,7 @@ message PlanRequest {
   string repo_root = 4;  // Optional: repo root path (default: cwd)
 }
 
-message PlanResult {
+message PlanResponse {
   string summary = 1;
   repeated SuggestedScaffold suggested_scaffolds = 2;
   repeated TestToCreate tests_to_create = 3;
@@ -147,7 +147,7 @@ message ScaffoldRequest {
   bool include_test_harness = 8;  // If true, include test infrastructure
 }
 
-message ScaffoldResult {
+message ScaffoldResponse {
   string summary = 1;
   repeated string files_created = 2;
   repeated string tests_created = 3;
@@ -293,7 +293,7 @@ message DriftRequest {
   string repo_root = 3;
 }
 
-message DriftResult {
+message DriftResponse {
   repeated ProtoSdkDrift proto_sdk_drift = 1;
   repeated TestCoverageDrift test_coverage_drift = 2;
   repeated ConventionDrift convention_drift = 3;
@@ -328,7 +328,7 @@ message ImpactRequest {
   string repo_root = 2;
 }
 
-message ImpactResult {
+message ImpactResponse {
   string proto_path = 1;
   repeated Consumer consumers = 2;
   repeated string sdks_affected = 3;
@@ -471,11 +471,11 @@ message ConsumerResult {
 
 `checks` contains every guardrail invoked (naming, security scans, repo tests, etc.). `buf` surfaces Buf lint/breaking summaries so agents can react without scraping `checks`. `cascade` lists each downstream consumer with its primitive kind, repo path, detected language (Go, npm, pytest, workflow), and PASS/FAIL/SKIP state so agents immediately know which test runner or workflow script must go green again. Workflow consumers stuff their script metadata into `Consumer.metadata` so agents can rerun the exact command outside of the CLI if needed.
 
-### 5.2 ImpactResult
+### 5.2 ImpactResponse
 
 ```json
 {
-  "proto_path": "ameide_core_proto/orders/v1/orders.proto",
+  "proto_path": "ameide_core_proto/transformation/v1/transformation_service.proto",
   "consumers": [
     {"kind": "DOMAIN", "name": "orders", "path": "primitives/domain/orders", "imports": ["OrdersService", "Order"]},
     {"kind": "PROCESS", "name": "l2o", "path": "primitives/process/l2o", "imports": ["OrdersServiceClient"]},

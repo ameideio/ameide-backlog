@@ -645,7 +645,7 @@ Dynamic client implementation in `packages/ameide_core_cli/internal/k8s/client.g
 Implementation: `packages/ameide_core_cli/internal/commands/primitive_scaffold.go`
 
 Highlights:
-- **Proto-driven**: Parses RPC signatures from the provided proto (via `parseRPCDefinitions`) and emits handler stubs + failing tests per RPC. Output JSON matches the new `ScaffoldRequest/ScaffoldResult` messages in `primitive_service.proto`.
+- **Proto-driven**: Parses RPC signatures from the provided proto (via `parseRPCDefinitions`) and emits handler stubs + failing tests per RPC. Output JSON matches the new `ScaffoldRequest/ScaffoldResponse` messages in `primitive_service.proto`.
 - **One-shot**: Refuses to scaffold if `primitives/{kind}/{name}` already exists (dry-run still validates conflicts). Supports `--dry-run` to list files without writing.
 - **Shape only**:
   - `cmd/main.go` placeholder
@@ -661,7 +661,7 @@ Usage example:
 ameide primitive scaffold \
   --kind domain \
   --name orders \
-  --proto-path packages/ameide_core_proto/src/ameide/orders/v1/orders.proto \
+  --proto-path packages/ameide_core_proto/src/ameide_core_proto/transformation/v1/transformation_service.proto \
   --lang go \
   --include-gitops \
   --include-test-harness \

@@ -95,7 +95,7 @@ The gRPC smoke jobs run shell scripts via `/bin/sh -c`. Use the grpcurl runner i
 
    - `REPO_ROOT="$(git rev-parse --show-toplevel)"`
    - `cd "$REPO_ROOT/packages/ameide_core_proto"`
-   - `PATH="$REPO_ROOT/bin:$PATH" buf generate --template buf.gen.domain-transformation.local.yaml --path src/ameide_core_proto/transformation/scrum/v1/transformation-scrum-query.proto`
+   - `PATH="$REPO_ROOT/bin:$PATH" buf generate --template buf.gen.domain-transformation.local.yaml --path src/ameide_core_proto/transformation/scrum/v1/transformation_scrum_query.proto`
 
 The Domain runtime imports the generated registration glue from:
 

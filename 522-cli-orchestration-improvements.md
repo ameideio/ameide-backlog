@@ -8,14 +8,16 @@ This is intentionally separate from codegen plugin changes (tracked in `backlog/
 
 The CLI can be repo-aware and environment-aware, but it does not “grow back into codegen”.
 
+The CLI is not “human-owned”: it is a first-class tool for both humans and coding agents.
+
 Hard rule (see `backlog/520-primitives-stack-v2.md` §2b):
 
 - Everything derived from protobuf descriptors is reproducible by running `buf generate` in a clean checkout.
-- Everything else is CLI orchestration and/or human-owned templates.
+- Everything else is CLI orchestration and checked-in scaffold templates (repo-authored files).
 
 ### Allowed / expected (CLI orchestrator)
 
-- Create and maintain **human-owned** project skeletons (module dirs, `go.mod`/`pyproject.toml`, Dockerfiles, `cmd/` entrypoints, READMEs/checklists).
+- Create and maintain repo-owned project skeletons (module dirs, `go.mod`/`pyproject.toml`, Dockerfiles, `cmd/` entrypoints, READMEs/checklists).
 - Drive multi-step workflows: run `buf lint`/`buf breaking`/`buf generate`, run tests, build images, wire GitOps manifests/CR templates, and open PRs.
 - Provide convenience wrappers (e.g., `ameide dev check`) that run the same checks CI runs, without becoming the canonical gate.
 
@@ -23,7 +25,7 @@ Hard rule (see `backlog/520-primitives-stack-v2.md` §2b):
 
 - Re-implement proto parsing/templating that Buf plugins already provide (no bespoke “generator pipeline” in the CLI).
 - “Sync” generated code by patching files itself; regeneration is `buf generate` + regen-diff in CI.
-- Write generated artifacts into human-owned roots (keep `clean: true` safe).
+- Write generated artifacts into repo-owned roots (keep `clean: true` safe).
 
 ### Canonical gate
 
@@ -33,7 +35,7 @@ Hard rule (see `backlog/520-primitives-stack-v2.md` §2b):
 
 Included:
 - `packages/ameide_core_cli/**` command behavior and templates
-- Repo layout conventions created/updated by the CLI (human-owned files)
+- Repo layout conventions created/updated by the CLI (checked-in files)
 - GitOps wiring automation (writing to `gitops/ameide-gitops/**` and bumping submodule pointers)
 - “One-command” developer loops that call `buf generate`, tests, builds, and probes
 
@@ -97,6 +99,52 @@ Key paths:
 
 Verification:
 - `cd packages/ameide_core_cli && go test ./...`
+
+### 2025-12-14 — Remove “human-owned” boundary language
+
+Change:
+- Clarified that the CLI is a first-class tool for both humans and coding agents; replaced “human-owned templates” language with “repo-owned scaffold templates” to avoid implying manual ownership boundaries.
+
+Key paths:
+- `backlog/522-cli-orchestration-improvements.md`
+- `backlog/510-domain-primitive-scaffolding.md`
+- `backlog/511-process-primitive-scaffolding.md`
+- `backlog/512-agent-primitive-scaffolding.md`
+- `backlog/513-uisurface-primitive-scaffolding.md`
+
+Verification:
+- Documentation review only.
+
+### 2025-12-14 — Reduce scaffold manual steps (auto go.work + auto buf generate)
+
+Change:
+- Fixed Go workspace wiring so `go work use` happens after files are written (so `go.mod` exists), making newly scaffolded Go primitives immediately buildable in the repo workspace.
+- Orchestrated `buf generate` automatically (using the per-primitive template the CLI creates) so `internal/gen/**` exists without a manual follow-up command.
+- Added an explicit Go import-prefix normalization for relative `go_package` values so scaffolded Go code imports SDK packages consistently.
+
+Key paths:
+- `packages/ameide_core_cli/internal/commands/primitive_scaffold.go`
+- `packages/ameide_core_cli/internal/commands/primitive_analysis.go`
+
+Verification:
+- `go test ./packages/ameide_core_cli/...`
+
+### 2025-12-14 — Doc + template alignment cleanups
+
+Change:
+- Updated CLI-facing docs/backlogs to use real, repo-valid proto paths (and removed the obsolete `484-ameide-cli-ORIGINAL-BACKUP.md` copy) so examples are runnable and don’t teach legacy layouts.
+- Updated process scaffold README language to reference W3C Trace Context (`traceparent` / `tracestate`) rather than `trace_id` as an envelope field.
+- Fixed `ameide primitive impact --proto-path` help text to reflect that `--proto-path` is always required for impact analysis.
+
+Key paths:
+- `packages/ameide_core_cli/README.md`
+- `packages/ameide_core_cli/internal/commands/templates/process/readme.md.tmpl`
+- `packages/ameide_core_cli/internal/commands/primitive_commands.go`
+- `backlog/472-ameide-information-application.md`
+- `backlog/473-ameide-technology.md`
+
+Verification:
+- Documentation review only (plus `go test ./...` for CLI changes).
 
 ## Follow-ups (ideas)
 

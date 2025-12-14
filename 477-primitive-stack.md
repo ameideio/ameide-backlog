@@ -11,6 +11,8 @@
 > * Tech stack & operators: 473
 > * Refactoring to primitives + CRDs: 474
 > * CLI & scaffolding: 484
+> * Vendor transformation methodology contrast: `526-transformation-vendor-methodology-comparison.md`
+> * IT4IT value-stream mapping (R2D/R2F/D2C lens): `525-it4it-value-stream-mapping.md`
 
 ---
 

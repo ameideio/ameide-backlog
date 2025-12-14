@@ -64,20 +64,20 @@ Under `packages/ameide_core_proto/src/ameide_core_proto/...`, files are grouped 
 
 ```text
 packages/ameide_core_proto/src/ameide_core_proto/transformation/scrum/v1/
-  transformation-scrum-common.proto      # envelope/meta/identity
-  transformation-scrum-artifacts.proto   # aggregates (ProductBacklog, Sprint, Increment, …)
-  transformation-scrum-intents.proto     # ScrumDomainIntent + per-intent payloads
-  transformation-scrum-facts.proto       # ScrumDomainFact + per-fact payloads
-  transformation-scrum-query.proto       # ScrumQueryService + request/response
+  transformation_scrum_common.proto      # envelope/meta/identity
+  transformation_scrum_artifacts.proto   # aggregates (ProductBacklog, Sprint, Increment, …)
+  transformation_scrum_intents.proto     # ScrumDomainIntent + per-intent payloads
+  transformation_scrum_facts.proto       # ScrumDomainFact + per-fact payloads
+  transformation_scrum_query.proto       # ScrumQueryService + request/response
 
 packages/ameide_core_proto/src/ameide_core_proto/process/scrum/v1/
-  process-scrum-facts.proto              # ScrumProcessFact + process facts
+  process_scrum_facts.proto              # ScrumProcessFact + process facts
 ```
 
 Conventions:
 
 - All files in a directory share the same `package` and language‑specific options (`go_package`, TS/JS options, etc.).  
-- Use hyphenated file names scoped by context (`transformation-scrum-*`, `process-scrum-*`, `primitive-*`) instead of generic names like `messages.proto` or `events.proto`.
+- Use `lower_snake_case.proto` file names scoped by context (`transformation_scrum_*`, `process_scrum_*`, `primitive_service.proto`) instead of generic names like `messages.proto` or `events.proto`.
 
 ---
 
@@ -156,7 +156,7 @@ To keep EDA semantics consistent (per `496-eda-principles.md`), all event‑carr
 Envelope fields:
 
 - `message_id` – globally unique idempotency key.  
-- `schema_version` – semantic version of payload + envelope.  
+- `schema_version` – semantic version marker of payload + envelope (string, e.g. `1.0.0`; distinct from package major `v1` and BSR module versions).  
 - `occurred_at` – producer‑asserted timestamp.  
 - `producer` – service/workload identity.  
 - `tenant_id` – multi‑tenant routing + isolation.  

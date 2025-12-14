@@ -5,7 +5,7 @@
 **Parent backlog:** [backlog/367-elements-transformation-automation.md](./367-elements-transformation-automation.md)
 
 > **Contract alignment**
-> - **Canonical contract:** `transformation-scrum-*` protos under `ameide_core_proto.transformation.scrum.v1` (Scrum nouns only: Product Backlog, Product Backlog Item, Sprint, Sprint Backlog, Increment, Product Goal, Sprint Goal, Definition of Done).  
+> - **Canonical contract:** `transformation_scrum_*` protos under `ameide_core_proto.transformation.scrum.v1` (Scrum nouns only: Product Backlog, Product Backlog Item, Sprint, Sprint Backlog, Increment, Product Goal, Sprint Goal, Definition of Done).  
 > - **Canonical integration:** intents + facts via bus; Process (Temporal) orchestrates timeboxes and governance; no runtime RPC coupling between Process and the Scrum domain.  
 > - **Non-Scrum extensions:** explicitly listed (e.g., impediments, readiness checklists, board columns, sign-off workflows) and treated as optional policy/UX metadata, not Scrum artifacts.
 > - **Proto naming:** This profile’s `ameide_core_proto.transformation.scrum.v1` package and any sister methodology packages must follow the conventions in [509-proto-naming-conventions.md](../509-proto-naming-conventions.md).
