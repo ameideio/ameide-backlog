@@ -6,6 +6,13 @@
 
 This backlog is the *capability definition* counterpart to the *method* in `524-transformation-capability-decomposition.md`.
 
+## Layer header (Strategy → Application realization)
+
+- **Primary ArchiMate layer(s):** Strategy (Capability) and Application (realization via Application Components + Services/Interfaces/Events).
+- **Secondary layers referenced:** Business, Technology, Implementation & Migration.
+- **Primary element types used:** Capability, Value Stream, Business Process, Application Component, Application Service/Interface/Event, Technology Service, Work Package/Gap.
+- **Prohibited unless qualified:** process, service, domain, event (qualify per `529-archimate-alignment-470plus.md`).
+
 ## 0) Problem
 
 Today “Transformation” exists as:
@@ -30,8 +37,8 @@ Transformation is the platform’s **change-the-business capability**: it captur
 
 It is not “a modeling UI” and not “a Temporal service”; it is a capability whose primitives provide:
 
-- the **system of record** for transformation initiatives and methodology artifacts,
-- the **definition registry** for design-time artifacts (process/agent/extension definitions and architecture artifacts),
+- the **Enterprise Repository** (system of record) for transformation initiatives and design-time architecture/process artifacts,
+- the **definition registry** for design-time definitions (process/agent/extension) as first-class domain data,
 - the **EDA-native contracts** that Process primitives and Agents can consume to execute work deterministically.
 
 ## 2) Core invariants (non-negotiable)
@@ -46,15 +53,22 @@ It is not “a modeling UI” and not “a Temporal service”; it is a capabili
    - Runtime Process workflows MUST NOT call Transformation synchronously to mutate/read domain state; they must use bus intents/facts.
    - Synchronous reads of definitions by operators are *control-plane only*.
 5. **Tenant isolation and traceability metadata** on all messages.
+6. **Typed design-time store.**
+   - ArchiMate is stored as a typed model (elements/relationships/views as first-class tables).
+   - “Files” exist only as attachments/export formats (imports/exports), not the canonical writer surface.
+7. **Multi-methodology by profile.**
+   - Transformation supports multiple methodology profiles; TOGAF is a profile, Scrum is a profile, others can be added.
 
 ## 3) Capability boundaries and nouns
 
 Transformation capability owns (at minimum):
 
 - **Transformation initiative** (portfolio/program object; “what we are doing and why”)
-- **Workspace tree** (nodes/folders/scopes for artifacts)
-- **Artifact registry** (elements, attachments, revisions/promotions)
-- **Methodology profiles** (e.g., Scrum), implemented as bounded contexts
+- **Enterprise Repository workspace tree** (nodes/folders/scopes for artifacts)
+- **Artifact registry** (typed objects, attachments, revisions/promotions)
+- **Typed ArchiMate model** (elements/relationships/properties) and **views** (view definitions)
+- **Typed BPMN process models** (ProcessDefinitions as first-class design-time artifacts)
+- **Methodology profiles** (TOGAF, Scrum, etc.), implemented as bounded contexts
 - **Definitions** used by the platform (ProcessDefinition, AgentDefinition, ExtensionDefinition, etc.)
 
 Rules:
@@ -63,6 +77,17 @@ Rules:
 - Other capabilities may reference Transformation artifacts by stable IDs; they do not become writers of those artifacts.
 
 ## 4) Application realization (primitive decomposition)
+
+### 4.0 Enterprise Repository (design-time system of record)
+
+Transformation’s Domain primitive owns an Enterprise Repository schema aligned with TOGAF-style organization, but implemented as a multi-methodology store:
+
+- **Repository hierarchy:** folders/nodes/scopes for initiatives, work packages, architecture artifacts, process models, and supporting documentation.
+- **Typed architecture model (ArchiMate):** elements, relationships, properties/tags, stable identifiers; views are first-class objects.
+- **Typed process models (BPMN):** ProcessDefinitions are versioned/promotable first-class objects.
+- **Generic artifacts:** Markdown/ADRs/diagrams/attachments and import/export bundles exist as attachments (not canonical state).
+
+Canonical writer rule: the Enterprise Repository is the writer for the typed model; external file formats are import/export attachments that can be re-derived.
 
 ### 4.1 Domain primitives (system-of-record)
 
@@ -74,6 +99,7 @@ Responsibilities:
   - transformations (initiative records),
   - workspace nodes,
   - milestones/metrics/alerts,
+  - Enterprise Repository typed artifacts (ArchiMate model + views, BPMN ProcessDefinitions, generic artifacts),
   - design-time definition storage (see §6).
 - Emit domain facts for significant state changes (see §5).
 
@@ -86,11 +112,19 @@ Responsibilities:
 - Emit `ScrumDomainFact` via transactional outbox (bus).
 - Provide `ScrumQueryService` as read-only RPC.
 
-### 4.2 Process primitives (Temporal governance)
+**C) `transformation-togaf-domain` (methodology bounded context, profile)**
 
 Responsibilities:
 
-- Timeboxes, governance, approvals, and orchestration:
+- Own TOGAF/ADM profile configuration as domain data bound to a transformation initiative (phases, deliverables, gates, policies).
+- Emit domain facts for profile configuration changes.
+
+### 4.2 Process primitives (governance flows executed by Process primitives)
+
+Responsibilities:
+
+- Timeboxes, governance, approvals, and orchestration driven by design-time ProcessDefinitions:
+  - TOGAF ADM governance flows (phase progression, required deliverables, review/approval gates).
   - Scrum timebox governance (Sprint start/end windows, reminders, readiness cues) per `506-scrum-vertical-v2.md`
   - “requirement → running” orchestration (scaffold, verify, promote) for primitives and definitions
 - Emit process facts (governance cues) distinct from domain facts.
@@ -114,17 +148,18 @@ Responsibilities:
 - Transformation portal / design tooling UIs:
   - initiative views,
   - workspace browser,
-  - modeling editors (BPMN, ArchiMate diagrams, Markdown),
+  - modeling editors (typed ArchiMate views, BPMN, Markdown),
   - definition management and promotion flows.
 - UISurfaces are thin: they query projections and emit commands/intents.
 
-### 4.5 Agent primitives (governed assistants)
+### 4.5 Agent primitives (assistants invoked by UISurface or Process)
 
 Responsibilities:
 
-- Read transformation context and propose changes.
+- Agents are primitives: invoked interactively (chat in UISurface) or non-interactively (by Process workflows).
+- Read transformation context and propose/prepare changes.
 - Emit commands/intents only through governed seams.
-- Tooling grants and risk-tier enforcement are stored as definitions (AgentDefinitions).
+- Tooling grants and risk-tier enforcement are stored as definitions (AgentDefinitions), typically one per role (SA/TA/PM/etc.).
 
 ### 4.6 Integration primitives (external boundaries)
 
@@ -147,7 +182,10 @@ Concrete topic families already exist for the Scrum bounded context:
 - `scrum.domain.facts.v1` → `ameide_core_proto.transformation.scrum.v1.ScrumDomainFact`
 - `scrum.process.facts.v1` → `ameide_core_proto.process.scrum.v1.ScrumProcessFact`
 
-Action for this backlog: define the equivalent topic families for core Transformation domain changes (initiative/workspace/definition changes), using the same “aggregator envelope” pattern.
+Action for this backlog:
+
+- Define core Transformation topic families for initiative/repository/definition lifecycle changes, using the same “aggregator envelope” pattern as Scrum.
+- Define TOGAF/ADM profile topic families (domain intents/facts + process facts) following the same contract shape, so “multi-methodology by profile” is real and executable.
 
 ## 6) Definition Registry (design-time artifacts) inside Transformation
 
