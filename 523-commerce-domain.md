@@ -1,5 +1,11 @@
 # 523 Commerce — Domain component
 
+## Layer header (Application)
+
+- **Primary ArchiMate layer(s):** Application.
+- **Primary element types used:** Application Component (Domain primitives), Application Services/Interfaces (RPC + topic families), Application Events (facts), Data Objects (proto messages).
+- **Out-of-scope layers:** Strategy/Business catalogs (see `523-commerce.md`); Technology/runtime wiring (see `473-ameide-technology.md`).
+
 ## Intent
 
 Define the headless commerce engine as a bounded context: stable APIs + facts/intents; UIs remain thin.
@@ -48,7 +54,7 @@ Rule of thumb:
 
 ## EDA responsibilities (496-native)
 
-Domains are the single-writer for their aggregates and the authoritative producers of domain facts:
+Domains are the single-writer for their aggregates and the authoritative producers of **domain facts (Application Events)**:
 
 - Commands/intents use business verbs (avoid CRUD) per `496-eda-principles.md` Principle 1.
 - State change and fact emission is atomic via transactional outbox per Principle 3.
@@ -129,4 +135,4 @@ Customer/loyalty (optional):
 - `ShiftOpened`, `ShiftClosed`, `ReceiptIssued`
 - `CustomerCreated`, `LoyaltyRedeemed` (if owned)
 
-These facts feed projections and replication; prefer outbox discipline per v2.
+These facts feed projections and replication; prefer transactional outbox discipline per v2.

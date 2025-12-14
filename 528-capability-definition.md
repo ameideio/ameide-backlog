@@ -2,19 +2,32 @@
 
 **Status:** Draft (normative once accepted)  
 **Audience:** Architecture, Transformation, platform engineering, operators/CLI, agents  
-**Scope:** Define what a **Capability** is in Ameide, and how it is expressed as **EDA contracts** and decomposed into **primitives**.
+**Scope:** Define what a **Capability** is in Ameide, and how it is expressed as **EDA contracts** (application services/interfaces/events) realized by **primitives** (application components).
 
 This backlog defines the **concept**. A concrete example is `527-transformation-capability.md` (Transformation capability) and `523-commerce*.md` (Commerce capability).
 
+Language note: this doc follows the ArchiMate alignment anchor in `470-ameide-vision.md` §0.2 and the alignment rules in `529-archimate-alignment-470plus.md`.
+
+Practical note: use `530-ameide-capability-design-worksheet.md` as the copy/paste worksheet when drafting a new capability backlog.
+
+## Layer header (Strategy/Business)
+
+- **Primary ArchiMate layer(s):** Strategy (Capability, Value Stream).
+- **Secondary layers referenced:** Business (business processes, outcomes, ownership); Application (contracts + realization); Technology (topology constraints only); Implementation & Migration (work packages/deliverables/phases).
+- **Primary element types used:** Capability, Value Stream, Business Process, plus Application Services/Interfaces/Events realized by Application Components; Work Package/Deliverable terms for Implementation & Migration.
+- **Out-of-scope layers:** none (this doc is a template and touches multiple layers, but keeps them separated).
+- **Allowed nouns:** capability, value stream, business process, outcome/value, policy, identity axis, contract surface.
+- **Prohibited unless qualified:** process, service, domain, event (must be qualified per `470-ameide-vision.md` §0.2).
+
 ## 0) Definition: what a Capability is (in Ameide)
 
-A **Capability** is a *business-level unit of intent and ownership*:
+A **Capability** is a Strategy-layer “ability” the organization possesses. In Ameide terms, it is the *business-level unit of intent and ownership* that serves value delivery:
 
-- a coherent set of **value streams** (business processes),
+- a coherent set of **value streams** (and the business processes that realize them),
 - a coherent set of **nouns** (bounded concepts/identity axes),
 - a coherent set of **invariants** (what must always be true),
-- a coherent set of **EDA contracts** (intents/facts/queries/integration seams),
-- implemented as a set of **technology primitives** (Domain/Process/Projection/Integration/UISurface/Agent).
+- a coherent set of **EDA contracts** (intents/facts/queries/integration seams) as application services/interfaces/events,
+- realized by **Application Components** (Ameide primitives: Domain/Process/Projection/Integration/UISurface/Agent) that expose the contract surface and run on platform **Technology Services**.
 
 Capabilities are what the platform is “selling” and what transformation work is “building”.
 
@@ -35,7 +48,7 @@ Primitives are a technology taxonomy. Capabilities prevent architecture drift by
 
 Rule of thumb:
 
-- Capability decomposition should start with **value streams and nouns**, then derive bounded contexts (Domains), then Processes/Projections/Integrations/Surfaces.
+- Capability design should start with **value streams and nouns**, then derive bounded contexts (Domains), then define application services (EDA contracts) mapped to primitives (Processes/Projections/Integrations/Surfaces).
 
 ## 3) Capability vs “Service”
 
@@ -51,29 +64,23 @@ Service naming is implementation detail; capability naming is the stable product
 
 For a capability to be considered “architected” (not just brainstormed), it must define:
 
-1. **Capability brief**
-   - goal and non-goals,
-   - glossary / canonical nouns,
-   - topology modes (cloud/edge/offline).
-2. **Process/value-stream map**
-   - Level 0/1 value streams and 5–7 “first-class processes”,
-   - at least one “golden path” scenario per process.
-3. **Identity & scope model**
-   - required scope axes used across intents/facts/queries (e.g., tenant/site/channel/location).
-4. **EDA contract (496-native)**
-   - topic families (domain intents, domain facts, process facts),
-   - required envelopes/metadata (tenant isolation, traceability),
-   - idempotency strategy and delivery expectations,
-   - query surfaces and read models.
-5. **Primitive decomposition**
-   - inventory of primitives and responsibilities:
-     - owned commands/intents,
-     - emitted facts,
-     - consumed facts,
-     - storage and outbox/inbox,
-     - topology placement (cloud/edge).
-6. **Acceptance slices**
-   - one end-to-end slice proving the seam between primitives and the contracts.
+1. **Strategy/Business**
+   - capability brief (goal/non-goals),
+   - outcomes/value propositions,
+   - value streams and the business processes that realize them,
+   - canonical nouns + policies/invariants.
+2. **Application**
+   - application services/interfaces/events (EDA contracts),
+   - identity & scope model (axes used across intents/facts/queries),
+   - data objects and read models (projections + query surfaces),
+   - integration ports (external seams).
+3. **Technology**
+   - topology modes (cloud/edge/offline) and platform constraints (brokers/DB/workflow engine/gateways),
+   - placement assumptions and degraded-mode expectations.
+4. **Implementation & Migration**
+   - phases/plateaus, work packages/deliverables, and explicit gaps.
+5. **Acceptance slices**
+   - at least one end-to-end slice proving the seams between primitives and the contracts.
 
 `524-transformation-capability-decomposition.md` is the repeatable method for producing these deliverables.
 
@@ -143,6 +150,12 @@ A capability should standardize:
   - `<cap>.process.facts.v1` → `<Cap>ProcessFact`
 - **Required envelope metadata** per `496-eda-principles.md` (tenant isolation + traceability).
 
+Mapping note:
+
+- facts are **Application Events**,
+- intents/commands are requests to invoke **Application Services** (often asynchronously),
+- queries are read-only **Application Services** (often realized by Projections).
+
 A capability may also standardize:
 
 - query services (read-only),
@@ -153,7 +166,7 @@ A capability may also standardize:
 
 Target positioning:
 
-- The **Capability definition** (brief/process map/EDA contract/decomposition) is stored as **Transformation-domain artifacts** (versioned, promotable).
+- The **Capability definition** (brief/process map/EDA contract/decomposition) is stored as **Transformation-domain artifacts** (versioned, promotable), expressed in official design-time languages (ArchiMate models/views, BPMN where relevant, plus Markdown narrative).
 - The **Graph** can project capability elements (e.g., `archimate::capability`) for cross-domain impact analysis, but it is not the canonical writer for capability definitions.
 
 This aligns with “Transformation is the change-the-business capability” described in `527-transformation-capability.md`.
@@ -163,4 +176,3 @@ This aligns with “Transformation is the change-the-business capability” desc
 1. “Capability” is a stable concept across backlogs: business intent → EDA contracts → primitives.
 2. New capability backlogs follow the deliverables in §4 and the method in `524-transformation-capability-decomposition.md`.
 3. We do not introduce a new primitive kind called “Capability”; capability is a business-level grouping whose implementation is primitives + contracts.
-

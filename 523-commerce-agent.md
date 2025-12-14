@@ -1,5 +1,11 @@
 # 523 Commerce — Agent component (optional)
 
+## Layer header (Application: governed assistants)
+
+- **Primary ArchiMate layer(s):** Application.
+- **Primary element types used:** Application Component (Agent primitives), Application Services (tool calls/requests), Application Events (facts consumed for diagnostics), Data Objects.
+- **Out-of-scope layers:** Strategy/Business definition (capability/value streams); Technology/runtime model hosting (see `473-ameide-technology.md`).
+
 ## Intent
 
 Use agents as support accelerators for commerce setup and operations (read-only diagnostics + guided steps), not as mutation engines.

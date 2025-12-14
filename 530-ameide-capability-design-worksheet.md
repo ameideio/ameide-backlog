@@ -4,6 +4,7 @@
 **Audience:** Architecture, Transformation, domain/solution architects, platform engineering, agents  
 **Purpose:** Provide a repeatable, ArchiMate-consistent worksheet for defining a new **Capability** (Strategy layer) and its realization via Ameide’s contract-first primitives pipeline (Application/Technology layers).
 
+**Design-time language note:** ArchiMate 3.2 notation is Ameide’s official design-time language for capability/architecture models, and those models live inside the **Transformation capability** (persisted by the Transformation Domain, edited via Transformation design tooling). BPMN-compliant ProcessDefinitions and Markdown specs are companion design-time artifacts in the same store.
 **Use with:**
 - Capability definition: `backlog/528-capability-definition.md`
 - ArchiMate vocabulary/verbs: `backlog/529-archimate-alignment-470plus.md`

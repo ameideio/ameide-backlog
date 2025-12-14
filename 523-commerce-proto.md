@@ -1,6 +1,6 @@
 # 523 Commerce — Proto proposal (communication between primitives)
 
-This document proposes a proto shape for commerce that makes the communication topology explicit and 496-native:
+This document proposes a proto shape for commerce that makes the communication topology explicit, 496-native, and ArchiMate-aligned (Application Services/Interfaces/Events realized by Ameide primitives as Application Components).
 
 - commands/intents vs facts,
 - domain facts vs process facts,
@@ -15,6 +15,22 @@ It complements:
 - `525-it4it-value-stream-mapping.md` (IT4IT value-stream lens)
 
 Phase 1 focus (v1): **public storefront domains + BYOD onboarding**.
+
+Implementation status:
+
+- Implemented in `packages/ameide_core_proto/src/ameide_core_proto/commerce/v1/` and `packages/ameide_core_proto/src/ameide_core_proto/commerce/integration/v1/` plus `packages/ameide_core_proto/src/ameide_core_proto/process/commerce/v1/`.
+
+## Layer header (Application contracts)
+
+- **Primary ArchiMate layer(s):** Application.
+- **Primary element types used:** Application Service (RPC/query), Application Interface (topic families/subjects), Application Event (facts), Data Object (proto messages/envelopes).
+- **Out-of-scope layers:** Business/Strategy definitions (see `523-commerce.md`); Technology runtime selection (see `473-ameide-technology.md`).
+
+EDA mapping note (per `470-ameide-vision.md` §0.2):
+
+- facts (domain facts + process facts) → Application Events (state changes)
+- intents/commands → requests to invoke Application Services (carried via RPC and/or an intent topic family)
+- queries → read-only Application Services (often realized by Projection primitives)
 
 ## 1) Message families and topics
 
@@ -94,10 +110,10 @@ message CommerceDomainIntent {
   CommerceMessageMeta meta = 1;
   CommerceScope scope = 2;
   oneof intent {
-    CheckoutRequested checkout_requested = 10;
-    CapturePaymentRequested capture_payment_requested = 11;
-    ReturnOrderRequested return_order_requested = 12;
-    // ...
+    RequestStorefrontHostnameClaim request_storefront_hostname_claim = 10;
+    RequestStorefrontHostnameMapping request_storefront_hostname_mapping = 11;
+    RevokeStorefrontHostnameClaim revoke_storefront_hostname_claim = 12;
+    RevokeStorefrontHostnameMapping revoke_storefront_hostname_mapping = 13;
   }
 }
 
@@ -106,10 +122,10 @@ message CommerceDomainFact {
   CommerceScope scope = 2;
   CommerceAggregateRef aggregate = 3;
   oneof fact {
-    OrderCreated order_created = 10;
-    PaymentAuthorized payment_authorized = 11;
-    ShiftOpened shift_opened = 12;
-    // ...
+    StorefrontHostnameClaimCreated storefront_hostname_claim_created = 10;
+    StorefrontHostnameClaimUpdated storefront_hostname_claim_updated = 11;
+    StorefrontHostnameMappingCreated storefront_hostname_mapping_created = 12;
+    StorefrontHostnameMappingUpdated storefront_hostname_mapping_updated = 13;
   }
 }
 
@@ -137,10 +153,7 @@ message CommerceProcessFact {
   ameide_core_proto.commerce.v1.CommerceMessageMeta meta = 1;
   ameide_core_proto.commerce.v1.CommerceScope scope = 2;
   oneof fact {
-    DomainMappingVerified domain_mapping_verified = 10;
-    CheckoutSagaCompleted checkout_saga_completed = 11;
-    StoreSiteProvisioned store_site_provisioned = 12;
-    // ...
+    DomainMappingStatusChanged domain_mapping_status_changed = 10;
   }
 }
 ```
@@ -197,22 +210,22 @@ message DomainVerificationInstructions {
 }
 
 enum DomainOnboardingErrorCode {
-  DOMAIN_ONBOARDING_ERROR_UNSPECIFIED = 0;
+  DOMAIN_ONBOARDING_ERROR_CODE_UNSPECIFIED = 0;
 
   // DNS/verification
-  DOMAIN_ONBOARDING_ERROR_DNS_TARGET_INCORRECT = 1;
-  DOMAIN_ONBOARDING_ERROR_TXT_MISSING = 2;
-  DOMAIN_ONBOARDING_ERROR_TXT_MISMATCH = 3;
-  DOMAIN_ONBOARDING_ERROR_PROPAGATION_PENDING = 4;
+  DOMAIN_ONBOARDING_ERROR_CODE_DNS_TARGET_INCORRECT = 1;
+  DOMAIN_ONBOARDING_ERROR_CODE_TXT_MISSING = 2;
+  DOMAIN_ONBOARDING_ERROR_CODE_TXT_MISMATCH = 3;
+  DOMAIN_ONBOARDING_ERROR_CODE_PROPAGATION_PENDING = 4;
 
   // TLS/certs
-  DOMAIN_ONBOARDING_ERROR_CAA_BLOCKED = 10;
-  DOMAIN_ONBOARDING_ERROR_CERT_ISSUE_RATE_LIMIT = 11;
-  DOMAIN_ONBOARDING_ERROR_CERT_ISSUE_FAILED = 12;
+  DOMAIN_ONBOARDING_ERROR_CODE_CAA_BLOCKED = 10;
+  DOMAIN_ONBOARDING_ERROR_CODE_CERT_ISSUE_RATE_LIMIT = 11;
+  DOMAIN_ONBOARDING_ERROR_CODE_CERT_ISSUE_FAILED = 12;
 
   // Platform constraints / common “battle scars”
-  DOMAIN_ONBOARDING_ERROR_HOSTNAME_ALREADY_CLAIMED = 20;
-  DOMAIN_ONBOARDING_ERROR_CDN_INTERFERENCE = 21; // proxy/CDN obscures validation
+  DOMAIN_ONBOARDING_ERROR_CODE_HOSTNAME_ALREADY_CLAIMED = 20;
+  DOMAIN_ONBOARDING_ERROR_CODE_CDN_INTERFERENCE = 21; // proxy/CDN obscures validation
 }
 
 message DomainOnboardingError {
@@ -291,10 +304,8 @@ Queries should be explicit read services (Projection or Domain query surface) an
 ```proto
 service CommerceQueryService {
   rpc ResolveHostname(ResolveHostnameRequest) returns (ResolveHostnameResponse);
-  rpc GetHostnameClaim(GetHostnameClaimRequest) returns (StorefrontHostnameClaim);
-  rpc GetHostnameMapping(GetHostnameMappingRequest) returns (StorefrontHostnameMapping);
-  rpc SearchProducts(SearchProductsRequest) returns (SearchProductsResponse);
-  rpc GetAvailability(GetAvailabilityRequest) returns (GetAvailabilityResponse);
+  rpc GetHostnameClaim(GetHostnameClaimRequest) returns (GetHostnameClaimResponse);
+  rpc GetHostnameMapping(GetHostnameMappingRequest) returns (GetHostnameMappingResponse);
 }
 
 message ResolveHostnameRequest { string hostname = 1; }
@@ -314,6 +325,11 @@ message GetHostnameMappingRequest {
   CommerceScope scope = 1; // tenant_id + site_id
   string hostname = 2;
 }
+
+message GetHostnameClaimResponse { StorefrontHostnameClaim claim = 1; }
+message GetHostnameMappingResponse { StorefrontHostnameMapping mapping = 1; }
+
+// Future query APIs (Phase 2+): SearchProducts, GetAvailability, OrderHistory, etc.
 ```
 
 ## 7) Integration ports (external seams)
@@ -350,12 +366,12 @@ message PaymentNextAction {
 }
 
 service CommercePaymentsIntegrationService {
-  rpc Authorize(AuthorizePaymentRequest) returns (AuthorizePaymentResponse);
-  rpc Capture(CapturePaymentRequest) returns (CapturePaymentResponse);
-  rpc Refund(RefundPaymentRequest) returns (RefundPaymentResponse);
+  rpc Authorize(AuthorizeRequest) returns (AuthorizeResponse);
+  rpc Capture(CaptureRequest) returns (CaptureResponse);
+  rpc Refund(RefundRequest) returns (RefundResponse);
 }
 
-message AuthorizePaymentRequest {
+message AuthorizeRequest {
   ameide_core_proto.commerce.v1.CommerceScope scope = 1;
   string idempotency_key = 2; // REQUIRED
   string order_id = 3;
@@ -364,33 +380,33 @@ message AuthorizePaymentRequest {
   bool capture_immediately = 6;     // allow auth-only flows
 }
 
-message AuthorizePaymentResponse {
+message AuthorizeResponse {
   PaymentIntentStatus status = 1;
   string provider_intent_id = 2;
   PaymentNextAction next_action = 3;
   string decline_code = 4;
 }
 
-message CapturePaymentRequest {
+message CaptureRequest {
   ameide_core_proto.commerce.v1.CommerceScope scope = 1;
   string idempotency_key = 2; // REQUIRED
   string provider_intent_id = 3;
   Money amount_to_capture = 4; // allow partial capture
 }
 
-message CapturePaymentResponse {
+message CaptureResponse {
   PaymentIntentStatus status = 1;
   string provider_charge_id = 2;
 }
 
-message RefundPaymentRequest {
+message RefundRequest {
   ameide_core_proto.commerce.v1.CommerceScope scope = 1;
   string idempotency_key = 2; // REQUIRED
   string provider_charge_id = 3;
   Money amount_to_refund = 4; // allow partial refund
 }
 
-message RefundPaymentResponse {
+message RefundResponse {
   PaymentIntentStatus status = 1;
   string provider_refund_id = 2;
 }
@@ -440,8 +456,10 @@ message RegisterDeviceRef {
   string device_id = 3;
 }
 
+message PingHardwareStationRequest { RegisterDeviceRef device = 1; }
+
 service CommerceHardwareIntegrationService {
-  rpc PingHardwareStation(RegisterDeviceRef) returns (google.protobuf.Empty);
+  rpc PingHardwareStation(PingHardwareStationRequest) returns (google.protobuf.Empty);
 }
 ```
 

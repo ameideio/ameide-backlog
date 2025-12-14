@@ -1,5 +1,13 @@
 # 523 Commerce — Process component
 
+## Layer header (Application, with Business Process alignment)
+
+- **Primary ArchiMate layer(s):** Application.
+- **Primary element types used:** Application Component (Process primitives), Application Events (domain facts + process facts), Application Services (commands/requests), Data Objects.
+- **Out-of-scope layers:** Strategy/Business definitions (Capability/Value Streams/Business Processes live in `523-commerce.md`), except where referenced for traceability.
+
+Disambiguation: “Business Process” (Business layer) ≠ “Process primitive” (Application Component). This doc specifies Process primitives that orchestrate commerce workflows.
+
 ## Intent
 
 Define the deterministic workflows (Temporal) that make commerce operable at fleet scale:
@@ -41,7 +49,7 @@ Default is async replication. The system MUST label and handle “real-time requ
 - inventory adjustments that affect other sites
 - fraud checks / risk holds (provider-dependent)
 
-## First-class business processes (v1)
+## Business processes (Business layer) → workflow families (Application layer)
 
 These are the “truth tests” the platform must answer end-to-end; each maps to workflows below:
 
@@ -53,7 +61,27 @@ These are the “truth tests” the platform must answer end-to-end; each maps t
 6. Store selling (POS: shift/register/cash)
 7. Catalog/price/promo distribution (HQ → channels/sites/stores)
 
-## Retail value streams (Level 0/1)
+## Business: roles and business objects (v1 anchor)
+
+Roles/actors (examples):
+
+- Customer / shopper
+- Store associate / cashier
+- Store manager
+- Merchandiser / category manager
+- Pricing/promo manager
+- Fulfillment / warehouse operator
+- Customer support / CSR
+
+Business objects (examples):
+
+- Product, assortment, price book, promotion
+- Cart, order, return, refund
+- Payment intent, tender, receipt
+- Inventory item, stock location, transfer, adjustment
+- Register, device, shift
+
+## Value streams (Strategy layer) → workflow sets (Application layer)
 
 This section anchors Process design in retailer day-to-day operations (value streams), not just onboarding/infra.
 
@@ -90,7 +118,7 @@ Integrations:
 
 - Gateway API + cert-manager + DNS verification
 
-Facts/events:
+Facts (Application Events):
 
 - `commerce.process.facts.v1`: `TenantProvisioned`, `SalesChannelProvisioned`, `DomainMappingReady`, `StoreSiteReady`
 

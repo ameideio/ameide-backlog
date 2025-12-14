@@ -1,15 +1,35 @@
-Here's a first cut of the **Application & Information Architecture** doc, aligned with the vision + business docs we already sketched and wired to vendor concepts (Backstage, BPMN-compliant definitions via custom React Flow modeller, Temporal, K8s, Buf, etc.).
+# 472 — Application & Information Architecture
 
----
-
-# 3 – Application & Information Architecture (Draft)
-
-**Audience:** Platform & domain engineers, solution architects, "platform-facing" agents
-**Scope:** How Ameide is structured as software (domains, processes, agents, UI) and how information flows and is stored across the platform.
+**Status:** Draft  
+**Audience:** Platform & domain engineers, solution architects, platform-facing agents  
+**Scope:** Application-layer structure (primitives, contracts, data objects) and how information flows and is stored across the platform.
 
 > **Core Invariants**: See [470-ameide-vision.md §0 "Ameide Core Invariants"](470-ameide-vision.md) for the canonical list (six primitives: Domain/Process/Agent/UISurface/Projection/Integration, Graph read-only, Transformation as domain, proto chain, tenant isolation, Backstage internal).
 >
 > **Proto naming:** All proto packages and modules discussed in this document are expected to follow the conventions in [509-proto-naming-conventions.md](509-proto-naming-conventions.md).
+
+## Layer header (Application)
+
+- **Primary ArchiMate layer(s):** Application (and Information viewpoint via data objects/read models).
+- **Primary element types used:** Application Component, Application Service, Application Interface, Application Event, Data Object.
+- **Out-of-scope layers:** Technology (runtime implementation details), Strategy/Business (capability/value-stream catalogs).
+- **Secondary layers referenced:** Business/Strategy (capabilities/value streams for context); Technology (only for “uses” relationships).
+- **Allowed nouns:** application component/service/interface/event, contract, message, data object, bounded context, projection/read model, integration port.
+- **Prohibited unless qualified:** process, service, domain, event (must be qualified per `470-ameide-vision.md` §0.2).
+
+## ArchiMate mapping used in this doc
+
+- **Application Components:** Ameide primitives (Domain / Process / Projection / Integration / UISurface / Agent).
+- **Application Services:** proto RPC services and read-only query services.
+- **Application Interfaces:** gRPC/HTTP endpoints and topic families/subjects.
+- **Application Events:** facts (domain facts and process facts), representing state changes.
+- **Data Objects:** proto messages (envelopes + payloads) and persisted read models.
+
+### EDA taxonomy mapping (intent/fact/query)
+
+- **Fact** → Application Event (state change).
+- **Intent/command** → request to invoke an Application Service (often carried asynchronously).
+- **Query** → read-only Application Service (often realized by a Projection primitive).
 
 ## Grounding & contract alignment
 
@@ -58,8 +78,8 @@ We carry forward the earlier principles and make them concrete here:
 2. **Universal DDD**
    *All behavior lives in bounded contexts (domains), each with its own model, storage and APIs.*
 
-3. **Transformation as a domain**
-   *Transformation (requirements, Transformation design tooling artifacts, governance) is modeled like O2C: domain + processes + agents, not a side-console.*
+3. **Transformation as a bounded context**
+   *Transformation (requirements, design artifacts, governance) is modeled as a bounded context with Domain/Process/Agent primitives, not a side-console.*
 
 4. **Agentic from any angle**
    *Agents can read from knowledge, call domains, and be invoked from processes in a controlled, typed way.*
@@ -74,7 +94,7 @@ We carry forward the earlier principles and make them concrete here:
 
 ## 2. Core Application Building Blocks
 
-### 2.1 Domain primitives (Domain layer)
+### 2.1 Domain primitives (Application layer)
 
 **Responsibility:** Encapsulate business concepts, invariants and persistence for a single bounded context.
 
@@ -95,9 +115,9 @@ We carry forward the earlier principles and make them concrete here:
 * **Expose proto-based APIs**
 
   * CRUD + business methods encoded in `ameide.<domain>.v1` protos, versioned by Buf.
-* **Emit domain events**
+* **Emit domain facts (Application Events)**
 
-  * Changes are published to a streaming layer (K8s events or Kafka, detail in tech doc).
+  * Changes are emitted as facts via transactional outbox; publishing is handled by an outbox dispatcher (details in `473-ameide-technology.md`).
 
 **Information model**
 
@@ -106,7 +126,7 @@ We carry forward the earlier principles and make them concrete here:
 * **Projectable** – each domain can opt-in to project parts of its model into the cross-domain Graph for analysis and agent reasoning (see §3.4).
 * **Runtime representation** – each Domain primitive exists as a `Domain` CRD. The Domain operator reconciles the CRD into Deployments, Services, HPAs, DB schemas, and ServiceMonitors, enforcing standard Ameide policies.
 
-### 2.2 Process primitives (Process layer)
+### 2.2 Process primitives (Application layer)
 
 **Responsibility:** Orchestrate **cross-domain** flows such as L2O, O2C, Procure-to-Pay, or Transformation workflows (Scrum/Togaf ADM).
 
@@ -708,8 +728,8 @@ We will:
 
 Many Process primitives (especially those written in Go) are implemented with Watermill’s CQRS component so they can emit and consume commands/events as plain Go structs while relying on Watermill for serialization, routing, and pub/sub plumbing.
 
-* **Commands** – intent to change state (e.g. `RegisterUser`, `CreateInvoice`). Process primitives send commands via `CommandBus`, which Watermill serializes and routes through the configured pub/sub backend (Kafka, RabbitMQ, Postgres, etc.). Command handlers mutate the write model and/or emit domain events.
-* **Events** – facts that happened (e.g. `UserRegistered`). Domain primitives publish events through `EventBus`; read models and integrations subscribe via `EventProcessor` handlers to update projections or trigger side effects.
+* **Commands** – intent to change state (e.g. `RegisterUser`, `CreateInvoice`). Process primitives send commands via `CommandBus`, which Watermill serializes and routes through the configured pub/sub backend (Kafka, RabbitMQ, Postgres, etc.). Command handlers mutate the write model and/or emit domain facts (Application Events).
+* **Facts (events)** – facts that happened (e.g. `UserRegistered`). Domain primitives publish facts through `EventBus`; read models and integrations subscribe via `EventProcessor` handlers to update projections or trigger side effects.
 * **Queries** – read models (Postgres, Elastic, etc.) stay optimized for queries and are updated by event handlers.
 
 Watermill’s CQRS layer gives us:
@@ -956,13 +976,13 @@ This is *not* an authoritative store:
 * Write path: Domain/Process primitives project to graph as part of their post-commit flow.
 * Read path: agents and analytics use it to understand topology and behavior (e.g. "show me all L2O paths where margin < 10%").
 
-**Design artifacts** (BPMN, architecture diagrams, Markdown) are persisted by the **Transformation Domain**, using an artifact + revision pattern. Graph can project these artifacts or references to them for cross-domain queries, but the canonical records remain in the Transformation Domain.
+**Design artifacts** (BPMN, ArchiMate models/views, Markdown) are persisted by the **Transformation Domain**, using an artifact + revision pattern. Graph can project these artifacts or references to them for cross-domain queries, but the canonical records remain in the Transformation Domain.
 
 ### 3.5 Transformation / Transformation design tooling Data
 
 > **Core Definitions** (see [470-ameide-vision.md §0](470-ameide-vision.md)):
-> - **Transformation Domain** owns all design-time artifacts (ProcessDefinitions, AgentDefinitions, BPMN, diagrams, Markdown).
-> - **Transformation design tooling** is the set of modelling UIs (BPMN editor, diagram editor, Markdown editor) that call Transformation Domain APIs—Transformation design tooling has no independent storage.
+> - **Transformation Domain** owns all design-time artifacts (ProcessDefinitions, AgentDefinitions, BPMN, ArchiMate models/views, diagrams, Markdown).
+> - **Transformation design tooling** is the set of modelling UIs (BPMN editor, ArchiMate/diagram editor, Markdown editor) that call Transformation Domain APIs—Transformation design tooling has no independent storage.
 
 Transformation is a **Domain primitive like any other**, owning:
 
@@ -1049,7 +1069,7 @@ We provide **four base templates** (each parameterized per tenant):
 
      * Proto definitions & service skeletons (aligned with proto-based API guidelines).
      * Base repository & migrations.
-     * Domain events schema.
+     * Domain facts schema (transactional outbox).
      * Backstage `Component` + `Domain` entities.
    * Vendor-aligned with Backstage’s Software Templates “skeleton + publish” model.
 

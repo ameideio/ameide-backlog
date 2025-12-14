@@ -1,5 +1,11 @@
 # 523 Commerce — Integration component
 
+## Layer header (Application boundary / external seams)
+
+- **Primary ArchiMate layer(s):** Application (Integration primitives are Application Components at the boundary).
+- **Primary element types used:** Application Component (Integration primitives), Application Services (integration ports), Application Events (outcomes/facts), Data Objects (schemas).
+- **Out-of-scope layers:** Technology implementation choices (Gateway controller, cert-manager specifics) beyond constraints; see `473-ameide-technology.md` for tech cataloging.
+
 ## Intent
 
 Define the external seams that make commerce work across channels and topologies:

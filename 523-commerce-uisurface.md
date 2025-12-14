@@ -1,5 +1,11 @@
 # 523 Commerce — UISurface component
 
+## Layer header (Application: experiences)
+
+- **Primary ArchiMate layer(s):** Application (UISurfaces are Application Components that present experiences).
+- **Primary element types used:** Application Component (UISurface primitives), Application Services (commands/queries), Application Events (facts that drive correctness), Data Objects (view models).
+- **Out-of-scope layers:** Strategy/Business definitions (see `523-commerce.md`); Technology routing/TLS implementation (Integration/Process responsibility + `473-ameide-technology.md`).
+
 ## Intent
 
 Define the starting set of commerce experiences and keep them thin.

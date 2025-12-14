@@ -4,6 +4,15 @@
 **Owner:** Architecture / Product
 **Intended audience:** Founders, product, principal engineers, domain/solution architects
 
+## Layer header (cross-layer anchor)
+
+- **Primary ArchiMate layer(s):** Cross-layer vocabulary + invariants (Motivation/Strategy/Business/Application/Technology/Implementation & Migration).
+- **Primary element types used:** Capability, Value Stream, Business Process, Application Service/Interface/Event, Application Component, Technology Service/Node/System Software, Work Package/Deliverable/Plateau/Gap.
+- **Out-of-scope layers:** none (this doc is the root anchor).
+- **Secondary layers referenced:** all (this doc is the root anchor).
+- **Allowed nouns:** capability/value stream/business process; application component/service/interface/event; technology service/node; work package/deliverable.
+- **Prohibited unless qualified:** process, service, domain, event (must be qualified per §0.2).
+
 > **Cross-References (Vision Suite)**:
 >
 > | Document | Purpose |
@@ -62,7 +71,7 @@
 >
 > **Domain / Process / Agent / UISurface / Projection / Integration CRDs** are the application-level CRDs. Each declares *how* the corresponding primitive is run (image, config, bindings, risk tier) so GitOps + operators can reconcile code into deployments. These CRDs remain a **thin operational metadata layer**: they do not encode business semantics, policy logic, prompts, or provider decisions.
 >
-> **Transformation design tooling** is the modelling UX (BPMN editor, diagram editor, Markdown/agent specs) that reads/writes artifacts in the Transformation Domain; it has no independent persistence.
+> **Transformation design tooling** is the modelling UX (BPMN editor, ArchiMate/diagram editor, Markdown/agent specs) that reads/writes artifacts in the Transformation Domain; it has no independent persistence.
 >
 > **Graph** is a read-only knowledge layer that projects selected data from any primitive into a graph database so we can traverse relationships without heavy cross-domain joins. All writes go through primitives; Graph is never a source of truth.
 
@@ -86,8 +95,68 @@
 | **UISurface CRD** | Declarative runtime config for one UISurface primitive (image, routing, auth scopes, feature flags). |
 | **Projection CRD** | Declarative runtime config for one Projection primitive (image, storage bindings, refresh policies, query exposure). |
 | **Integration CRD** | Declarative runtime config for one Integration primitive (image/runtime type, flow sync refs, endpoint bindings, schedules). |
-| **Transformation design tooling** | Ameide’s modelling UX (BPMN editor, diagram editor, Markdown/agent specs) that stores artifacts in the Transformation Domain; the tooling itself is stateless. |
+| **Transformation design tooling** | Ameide’s modelling UX (BPMN editor, ArchiMate/diagram editor, Markdown/agent specs) that stores artifacts in the Transformation Domain; the tooling itself is stateless. |
 | **Graph** | Read-only knowledge projection that ingests selected data from primitives into a graph database for traversal; never a source of truth. |
+
+## 0.2 ArchiMate alignment (language + layering + relationships)
+
+This section is the canonical language anchor for `470+` docs (see also `529-archimate-alignment-470plus.md`). Ameide uses **ArchiMate 3.2** vocabulary to keep “business vs application vs technology” unambiguous.
+
+ArchiMate is not just prose discipline: **ArchiMate 3.2 notation is Ameide’s official design-time language for architecture and capability models**, produced/edited via Transformation design tooling and persisted as Transformation-domain artifacts (see `471-ameide-business-architecture.md`, `472-ameide-information-application.md`, and the capability worksheet `530-ameide-capability-design-worksheet.md`).
+
+Design-time language rule of thumb:
+
+- **ArchiMate (3.2)**: capability/value-stream/application/technology models and views (design-time architecture artifacts).
+- **BPMN (2.0, BPMN-compliant)**: ProcessDefinitions (design-time orchestration intent).
+- **Markdown**: narrative specs/decision records that glue together the above.
+- **Protobuf (Buf modules)**: the application boundary for runtime contracts (services/messages/envelopes).
+
+### Layer model (what belongs where)
+
+- **Motivation (optional):** principles, drivers, constraints.
+- **Strategy:** capabilities, value streams, courses of action, resources.
+- **Business:** business processes, policies, roles.
+- **Application layer:** application services/interfaces/events, data objects, application components.
+- **Technology layer:** runtime topology (Kubernetes/operators/brokers/DBs/gateways), nodes, technology services.
+- **Implementation & Migration:** work packages, deliverables, rollout phases, fit/gap.
+
+### Crosswalk (ArchiMate → Ameide)
+
+| ArchiMate concept | Ameide concept |
+|---|---|
+| Capability (Strategy) | Capability docs (e.g., `523`, `527`, `528`) |
+| Value Stream (Strategy) | capability “golden paths” + process/value-stream maps |
+| Business Process (Business) | business process narratives; realized in runtime by Process primitives |
+| Application Component (Application) | primitives: Domain / Process / Projection / Integration / UISurface / Agent |
+| Application Service (Application) | proto RPC/query services (behavior exposed) |
+| Application Interface (Application) | gRPC/HTTP endpoints + topic families/subjects |
+| Application Event (Application) | facts (domain facts and process facts; state change) |
+| Technology Service / Node / System Software (Technology) | K8s, gateways, brokers, DBs, workflow engines, operators |
+| Work Package / Deliverable (Implementation & Migration) | phased rollout plans, migrations, templates |
+
+### Canonical relationship chain (required verbs)
+
+1. Capability **serves** Value Stream.
+2. Value Stream **is realized by** Business Processes.
+3. Business Processes **use (are served by)** Application Services.
+4. Application Services **are realized by** Application Components (primitives).
+5. Application Components **use** Technology Services.
+6. Implementation & Migration elements describe *change work* and trace to the above; they are not runtime architecture elements.
+
+### EDA taxonomy mapping (intent/fact/query)
+
+- Fact (domain fact / process fact) → **Application Event** (state change; name as facts).
+- Intent / command → request to invoke an **Application Service** (often asynchronously over an Application Interface).
+- Query → read-only **Application Service** (often realized by a Projection primitive).
+
+### Disambiguation rules (overloaded terms)
+
+| Overloaded word | Required form |
+|---|---|
+| process | Business Process / Process primitive |
+| service | Business Service / Application Service / Technology Service |
+| domain | business domain / bounded context / Domain primitive |
+| event | Application Event (fact) / message (transport) |
 
 > **Ameide Core Invariants (Canonical Reference)**
 >
@@ -113,7 +182,7 @@
 >
 > 8. **Commands express business intent, not CRUD.** APIs use business verbs (`PlaceOrder`, `ApproveQuote`) not generic operations (`UpdateOrder`, `SetStatus`). See [472 §2.8.6](472-ameide-information-application.md).
 >
-> 9. **Events are immutable facts.** Every state-changing command emits at least one domain event as a past-tense fact (`OrderPlaced`, `QuoteApproved`). Events are the primary integration mechanism.
+> 9. **Events are immutable facts.** Every state-changing command emits at least one domain fact as a past-tense fact (`OrderPlaced`, `QuoteApproved`). This aligns with ArchiMate’s Application Event meaning: a state change represented as a fact.
 >
 > 10. **Transactional outbox required.** Domain primitives MUST write events to an outbox table in the same transaction as the aggregate update. Never call `publisher.Publish()` directly from domain code. See [472 §3.3.1.1](472-ameide-information-application.md).
 >
@@ -310,7 +379,7 @@ Backstage is the **factory** that turns Transformation Domain decisions into run
   * Scaffold new primitives using standard Ameide patterns (proto, SDK, GitOps/operators) and emit the corresponding CRDs (Domain/Process/Agent/UISurface/Projection/Integration) that GitOps/Argo will apply.
 * **Bridge**:
 
-  * Listens to Transformation domain events and runs templates with specific parameters (e.g. "create L2O Process primitive variant for tenant X").
+  * Listens to Transformation domain facts (Application Events) and runs templates with specific parameters (e.g. "create L2O Process primitive variant for tenant X").
 
 > **Extension Model**: For tenant-specific primitives and custom code isolation, see [478-ameide-extensions.md](478-ameide-extensions.md) which defines the namespace strategy by SKU and the E2E flow for primitive creation.
 
@@ -327,7 +396,7 @@ This keeps “proto → SDK → deployment” consistent across every primitive 
 
 ### 4.5 Event-driven orchestration (Watermill CQRS)
 
-Where Process/Domain primitives run inside Go services, we rely on Watermill’s CQRS component to implement command and event handlers with minimal boilerplate. Process primitives send commands (`CommandBus`) and publish events (`EventBus`) as plain Go structs; Watermill handles serialization, topic selection, and pub/sub integration (Kafka, RabbitMQ, Postgres, JetStream, etc.). Downstream read models subscribe via `EventProcessor` handlers. See [472 §3.3.1](472-ameide-information-application.md#331-event-driven-cqrs-runtime-watermill) for details and references. Other languages follow the same CQRS semantics even when they don’t use Watermill directly.
+Where Process/Domain primitives run inside Go services, we rely on Watermill’s CQRS component to implement command and fact/event handlers with minimal boilerplate. Process primitives send commands (`CommandBus`) and publish facts (`EventBus`) as plain Go structs; Watermill handles serialization, topic selection, and pub/sub integration (Kafka, RabbitMQ, Postgres, JetStream, etc.). Downstream read models subscribe via `EventProcessor` handlers. See [472 §3.3.1](472-ameide-information-application.md#331-event-driven-cqrs-runtime-watermill) for details and references. Other languages follow the same CQRS semantics even when they don’t use Watermill directly.
 
 ---
 

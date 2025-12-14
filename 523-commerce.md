@@ -1,17 +1,67 @@
 # 523 Commerce — Storefront + POS + Edge (research-aligned)
 
-This backlog defines “commerce” as a proto-first, primitive-first system aligned with:
+This backlog defines Commerce using the `470`/`529` ArchiMate language anchor, while staying precise about Ameide’s primitives + EDA + operators.
+
+## Layer header (Strategy + Business, with Application realization)
+
+- **Primary ArchiMate layer(s):** Strategy + Business (Capability, Value Streams, Business Processes).
+- **Primary element types used:** Capability, Value Stream, Business Process (plus Application Services/Interfaces/Events realized by Application Components).
+- **Out-of-scope layers:** Technology details (see `473-ameide-technology.md`), except for topology constraints called out explicitly.
+
+Language note: “facts = Application Events” and “intents/commands = requests to invoke Application Services” per `470-ameide-vision.md` §0.2 and `529-archimate-alignment-470plus.md`.
+
+This backlog defines Commerce as a proto-first, primitive-first system aligned with:
 
 - `520-primitives-stack-v2.md` (normative primitives stack)
 - `509-proto-naming-conventions.md` (proto package + topic conventions)
 - `496-eda-principles.md` (commands vs facts, outbox, idempotent consumers, tenant isolation)
-- `524-transformation-capability-decomposition.md` (repeatable method: capability → EDA contracts → primitives)
+- `524-transformation-capability-decomposition.md` (repeatable method: capability/value streams → application contracts → primitives)
+- `530-ameide-capability-design-worksheet.md` (layered worksheet: Motivation → Strategy → Business → Application → Technology → Implementation & Migration)
 
 It is also informed by convergent industry patterns (D365 / SAP Commerce / Shopify + OSS commerce):
 
 - one headless engine serving many surfaces,
 - `Site` / `SalesChannel` / `StockLocation` as first-class axes (not just tenant),
 - edge/offline as topology + sync product, not a toggle.
+
+## Motivation: constraints (non-negotiables)
+
+- Tenant isolation and traceability metadata on all intents/facts/queries (see `470-ameide-vision.md` §0.2 and `496-eda-principles.md`).
+- Single-writer Domain primitives emit domain facts (Application Events) via transactional outbox; reads come from projections/read models.
+- BYOD hostnames are globally unique and must be explicitly claimed/verified/revoked (fail closed on uncertainty).
+- Edge/offline is an explicit topology mode with explicit replication + degraded-mode UX (not a toggle).
+
+## Strategy: Commerce capability and value streams
+
+**Commerce** is a Strategy-layer **Capability**: the ability for a tenant to sell across channels (storefront + POS) and operate reliably across topologies (cloud/edge/offline).
+
+Value streams (Level 0/1, non-exhaustive):
+
+- **Storefront go-live**: configure site/channel → connect domains → verify → activate → monitor/revoke.
+- **Order-to-cash (O2C)**: browse → cart → checkout → pay → fulfill → returns/refunds.
+- **Inventory-to-deliver**: publish availability → allocate/sourcing → fulfill → adjust.
+- **Store operations**: register/shift → sell → reconcile → close.
+- **Edge operations**: downsync masterdata → operate → upsync transactions → recover/backfill.
+
+## Business: roles and business objects (v1 anchor)
+
+Roles/actors (examples):
+
+- Customer / shopper
+- Store associate / cashier
+- Store manager
+- Merchandiser / category manager
+- Pricing/promo manager
+- Fulfillment / warehouse operator
+- Customer support / CSR
+
+Business objects (examples):
+
+- Product, assortment, price book, promotion
+- Cart, order, return, refund
+- Payment intent, tender, receipt
+- Inventory item, stock location, transfer, adjustment
+- Register, device, shift
 
 ## External convergence patterns (vendors + OSS)
 
@@ -65,13 +115,23 @@ Mapping:
 
 Edge is treated as topology + sync, not a new primitive kind.
 
-## Decomposition (six primitives)
+## Technology: required services (sketch)
+
+Commerce Application Components (primitives) rely on Technology Services such as:
+
+- Kubernetes + GitOps + operators
+- Gateway API (public routing), plus cert-manager (ACME issuance) for BYOD domains
+- Postgres/CNPG for Domain state + outbox
+- Broker (NATS/Kafka) for facts topic families
+- Temporal for Process primitive orchestration
+
+## Application realization (six primitives)
 
 - `523-commerce-domain.md` — headless commerce bounded context + facts/intents + identity model (`site/channel/location`)
 - `523-commerce-uisurface.md` — `commerce-admin`, `commerce-pos`, `commerce-storefront` (thin UIs)
 - `523-commerce-projection.md` — search/availability/order-history + hostname resolution + edge caches/read models (read-only)
 - `523-commerce-integration.md` — payments/EFT, taxes/shipping, hardware gateway, replication flows, BYOD domains plumbing
-- `523-commerce-process.md` — retail value streams + workflows (BYOD, order-to-cash, inventory-to-deliver, store ops), plus rollouts/recovery
+- `523-commerce-process.md` — application-layer orchestration workflows that implement business processes/value streams under eventual consistency
 - `523-commerce-agent.md` — optional setup/support assistants (read-only diagnostics + guided steps)
 - `523-commerce-proto.md` — proto proposal for primitive-to-primitive communication
 
@@ -86,7 +146,7 @@ Default is async replication. These operations are explicitly not safe to rely o
 - inventory adjustments that affect other sites
 - fraud checks / risk holds (provider-dependent)
 
-## Phased delivery (suggested)
+## Implementation & Migration: phased delivery (suggested)
 
 1. Storefront public domains (platform default + BYOD) with Shopify-grade onboarding UX.
 2. Cloud-only commerce Domain + Projections (admin + storefront + POS).

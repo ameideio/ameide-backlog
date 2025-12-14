@@ -1,4 +1,4 @@
-# 527 — Transformation Capability (Define the capability, then decompose into primitives)
+# 527 — Transformation Capability (Define the capability, then realize it via primitives)
 
 **Status:** Draft (authoritative once accepted)  
 **Audience:** Architecture, platform engineering, operators/CLI, agent/runtime teams  
@@ -36,7 +36,7 @@ It is not “a modeling UI” and not “a Temporal service”; it is a capabili
 
 ## 2) Core invariants (non-negotiable)
 
-1. **Capability decomposes into primitives.** Transformation is not a monolith; it is implemented via Domain/Process/Projection/Integration/UISurface/Agent primitives.
+1. **Capability is realized by primitives.** Transformation is not a monolith; it is realized via Domain/Process/Projection/Integration/UISurface/Agent application components.
 2. **Design-time vs runtime separation.**
    - Design-time artifacts are stored in Transformation (as domain data).
    - Runtime workflows execute in Process primitives.
@@ -114,7 +114,7 @@ Responsibilities:
 - Transformation portal / design tooling UIs:
   - initiative views,
   - workspace browser,
-  - modeling editors (BPMN-like, diagramming, markdown),
+  - modeling editors (BPMN, ArchiMate diagrams, Markdown),
   - definition management and promotion flows.
 - UISurfaces are thin: they query projections and emit commands/intents.
 
@@ -156,7 +156,7 @@ Target: Transformation becomes the canonical store for design-time artifacts:
 - `ProcessDefinition` (design-time; referenced by Process CRs; fetched by Process operator as control-plane config)
 - `AgentDefinition` (design-time; fetched by Agent operator; governs agent runtime)
 - `ExtensionDefinition` / `PrimitiveImplementationDraft` (design-time; drives scaffolding/promotion processes)
-- Capability architecture artifacts (Markdown/diagrams/proto proposals), as transformation workspace elements
+- Capability architecture artifacts (ArchiMate models/views, Markdown, proto proposals), as transformation workspace elements
 
 This implies a schema-backed model, not just markdown docs:
 
@@ -208,9 +208,8 @@ Role in target:
 
 ## 9) Acceptance criteria
 
-1. Transformation is described and operated as a **capability decomposed into primitives**, not as a single service.
+1. Transformation is described and operated as a **capability realized via primitives**, not as a single service.
 2. There is an explicit **core Transformation EDA contract** (topic families + envelopes) mirroring the Scrum pattern.
 3. There is a clear **migration stance**: what becomes canonical writer and what becomes projection/facade.
 4. One end-to-end slice exists that proves the seam (example):
    - `ScrumDomainIntent` → domain persistence → outbox → `ScrumDomainFact` → Process reacts → emits `ScrumProcessFact` → UISurface reads via `ScrumQueryService` / projections.
-

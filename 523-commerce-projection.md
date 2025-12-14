@@ -1,5 +1,11 @@
 # 523 Commerce — Projection component
 
+## Layer header (Application)
+
+- **Primary ArchiMate layer(s):** Application.
+- **Primary element types used:** Application Component (Projection primitives), Application Services (query services), Application Events (facts inputs), Data Objects (read models).
+- **Out-of-scope layers:** Strategy/Business catalogs (see `523-commerce.md`); Technology storage/broker details (see `473-ameide-technology.md`).
+
 ## Intent
 
 Provide read-optimized views for commerce across channels and topologies.
@@ -55,7 +61,7 @@ In edge mode, keep Projections as derived/read-only datasets that support an edg
 
 ## Inputs
 
-Prefer facts/events ingestion per v2 Projection guidance (`520-primitives-stack-v2-research-projection.md`):
+Prefer facts (Application Events) ingestion per v2 Projection guidance (`520-primitives-stack-v2-research-projection.md`):
 
 - consume `commerce.domain.facts.v1` (and `commerce.process.facts.v1` where needed)
 
@@ -73,7 +79,7 @@ Fallback/bridge:
 
 ## Stack alignment (proto / generation / operator)
 
-- Proto: query APIs + projected schema declarations (read-only); input bindings declared as facts/events or CDC.
+- Proto: query APIs + projected schema declarations (read-only); input bindings declared as facts (Application Events) or CDC.
 - Generation: SDKs + ingestion stubs + schema/migrations + structural tests (determinism/idempotency).
 - Operator: owns projection workloads, stores/references, migrations/backfills, HTTPRoute exposure, and health/lag conditions.
 

@@ -1,4 +1,4 @@
-Here we go — Business Architecture time 🔧🏗️
+# 471 — Ameide Business Architecture
 
 > **Cross-References (Vision Suite)**:
 >
@@ -29,14 +29,21 @@ Here we go — Business Architecture time 🔧🏗️
 
 ---
 
-# 4xy – Ameide Business Architecture
-
 **Status:** Draft v1
 **Audience:** Product, domain architects, transformation leads, principal engineers
 
 This doc describes **how Ameide is used as a business platform**: how tenants, orgs, processes, agents and workspaces fit together, and how "run the business" and "change the business" are modelled.
 
 It assumes the high‑level vision/principles are accepted and stops short of implementation details (those go into App/Info and Tech Architecture).
+
+## Layer header (Business/Strategy)
+
+- **Primary ArchiMate layer(s):** Strategy + Business (capabilities, value streams, business processes, roles, outcomes).
+- **Primary element types used:** Capability, Value Stream, Business Process, Business Actor/Role, Work Package (Implementation & Migration terminology only).
+- **Out-of-scope layers:** Application and Technology (except short “realization notes” that point to `472`/`473`).
+- **Secondary layers referenced:** Application (only in clearly marked realization notes); Implementation & Migration (work packages/initiatives).
+- **Allowed nouns:** capability, value stream, business process, role/actor, outcome/value, policy, initiative/work package.
+- **Prohibited unless qualified:** process, service, domain, event (must be qualified per `470-ameide-vision.md` §0.2).
 
 ## Implementation Status (2025-02-14)
 
@@ -159,6 +166,7 @@ Instead of treating "implementation" as something done off‑platform, **Transfo
 * Entities:
 
   * **Initiatives, Epics, Work Packages** – high‑level change containers.
+    * Language note: “Work Package” here aligns to ArchiMate Implementation & Migration “Work Package” (a time/resource constrained series of actions).
   * **Backlog Items** – concrete change requests (e.g. "Add approvals to L2O stage 3").
   * **ProcessDefinitions** – BPMN-compliant process models (L2O variants, custom workflows).
   * **AgentDefinitions** – Agent specs with tools, policies, risk tiers.
@@ -188,7 +196,7 @@ Transformation design tooling provides a structured modelling experience for des
 
 * **ProcessDefinitions** – BPMN-compliant process models (the single source of truth for process logic).
 * **AgentDefinitions** – Agent specs with tools, orchestration graphs, policies.
-* ArchiMate models of application/business/technology architecture.
+* ArchiMate 3.2 models/views of business/application/technology architecture.
 * Markdown specs / decision records.
 
 All artifacts are **stored by the Transformation Domain** (optionally event-sourced internally):
@@ -226,11 +234,13 @@ Methodology profiles are tenant‑configurable, allowing organizations to:
 
 > **Important:** Backstage is an **internal factory** for Ameide engineers and transformation agents; **tenants never see Backstage**. Tenant-facing UX is delivered through UISurface primitives (Next.js apps), not through Backstage.
 
-Backstage isn't just an engineer portal; in this architecture it's the **factory for business capabilities**.
+Backstage isn't a “capability factory”; it is an internal **platform factory** that accelerates delivery of application components (primitives) and their contracts, which in turn realize application services that support capabilities (see `470-ameide-vision.md` §0.2).
 
 From a business angle:
 
-* Each **Backstage template** corresponds to a *type of capability*:
+> **Application realization note:** capabilities serve value streams realized by business processes; business processes use application services realized by primitives. This section describes the factory that scaffolds primitives and their contracts (not capabilities themselves).
+
+* Each **Backstage template** scaffolds an **application component type** (primitive kind):
 
   * `Domain primitive template` – create a new DDD domain with proto APIs.
   * `Process primitive template` – create a runtime skeleton for Process primitives whose workflow code is derived from ProcessDefinitions in Transformation design tooling (via CLI/agents), but that does **not** load or interpret those definitions at runtime.

@@ -1,12 +1,23 @@
-Here’s **Document 4/6 – Technology Architecture**.
-
----
-
-# 4 – Technology Architecture (Ameide Platform)
+# 473 — Technology Architecture (Ameide Platform)
 
 **Status:** Draft
 **Audience:** Platform / Domain & Process Teams / DevEx / SRE
 **Scope:** How Ameide is built and operated: runtimes, infra, integration points, and the technical guardrails that make the Ameide primitive kinds (Domain / Process / Agent / UISurface / Projection / Integration) real.
+
+## Layer header (Technology)
+
+- **Primary ArchiMate layer(s):** Technology (nodes, system software, technology services, runtime topology).
+- **Primary element types used:** Technology Service, Node, System Software, Artifact, Communication Path.
+- **Out-of-scope layers:** Strategy/Business/Application (except for “application components use technology services” mapping).
+- **Secondary layers referenced:** Application (only to state “application components use technology services”).
+- **Allowed nouns:** node, system software, technology service, runtime, cluster, broker, database, workflow engine, gateway, operator/controller.
+- **Prohibited unless qualified:** service, process, domain, event (must be qualified per `470-ameide-vision.md` §0.2).
+
+## ArchiMate Technology layer mapping used in this doc
+
+- Kubernetes clusters/nodes, namespaces, controllers/operators → **Node / System Software**
+- Postgres (CNPG), NATS JetStream, Kafka/Redpanda, Temporal, gateways → **Technology Services**
+- Ameide primitives (Domain/Process/Projection/Integration/UISurface/Agent) are **Application Components** that **use** these Technology Services.
 
 > **Core Invariants**: See [470-ameide-vision.md §0 "Ameide Core Invariants"](470-ameide-vision.md) for the canonical list (six primitives: Domain/Process/Agent/UISurface/Projection/Integration, Graph read-only, Transformation as domain, proto chain, tenant isolation, Backstage internal).
 >
@@ -67,7 +78,7 @@ The goal is to give implementers a **vendor-aligned blueprint** that can be exec
 
 4. **Temporal for process orchestration; BPMN-compliant ProcessDefinitions for process intent**
 
-   * The *runtime* for processes is Temporal (code‑first workflows). ([Temporal][3])
+   * Process primitives use the Temporal **technology service** as the runtime for orchestration (code‑first workflows). ([Temporal][3])
    * **ProcessDefinitions** are BPMN-compliant artifacts produced by a **custom React Flow modeller** (NOT Camunda/bpmn-js) and stored in the **Transformation Domain** (modelled via Transformation design tooling UIs). Mapping ProcessDefinitions to Temporal is handled by the Transformation pipeline.
    * Process primitives execute ProcessDefinitions at runtime, backed by Temporal workflows.
 
@@ -145,7 +156,7 @@ The goal is to give implementers a **vendor-aligned blueprint** that can be exec
 
 **Background jobs & messaging**
 
-* For most orchestration, **Temporal replaces bespoke message buses** (sagas, retries, compensation all live in workflows). ([Temporal][3])
+* For most orchestration, Process primitives use the Temporal technology service (sagas, retries, compensation live in workflows). ([Temporal][3])
 * Lightweight, event-style notifications (e.g. for UI refresh) can use NATS/Kafka, but they are not a source of truth.
 
 ### 3.2.1 Broker Selection & Delivery Guarantees
@@ -154,7 +165,7 @@ Event-driven architectures require intentional broker selection. Ameide uses dif
 
 | Use Case | Technology | Delivery Guarantee | Rationale |
 |----------|------------|-------------------|-----------|
-| **Domain events (outbox relay)** | Postgres + Watermill | At-least-once, ordered per aggregate | Transactional outbox ensures no dual writes; ordering by aggregate ID is sufficient |
+| **Domain facts (outbox relay)** | Postgres + Watermill | At-least-once, ordered per aggregate | Transactional outbox ensures no dual writes; ordering by aggregate ID is sufficient |
 | **Cross-domain integration** | NATS JetStream | At-least-once, durable | Low-latency, persistent streams; per-tenant subject partitioning |
 | **Analytics & replay** | Kafka (or Redpanda) | At-least-once, replayable | High-throughput, long retention for graph projections and analytics |
 | **UI real-time updates** | NATS (non-persistent) | Best-effort | Fire-and-forget for UI refresh; not source of truth |
@@ -189,21 +200,23 @@ topic:
 
 **Multi-tenant stream isolation:**
 
-* Events always carry `tenant_id` in the payload
+* Facts always carry `tenant_id` in the payload
 * NATS subjects (or Kafka topics) are stable logical destinations; **do not** include tenant identifiers in routing by default
   * Optional: use tenant-prefixed subjects only when you intentionally provision per-tenant streams for isolation/retention policy
 * Kafka partitions by `tenant_id` to ensure tenant-local ordering
 * Consumers validate `tenant_id` against execution context (see [472 §3.3.7](472-ameide-information-application.md))
 
-> **Invariant**: Domain primitives MUST NOT import broker clients directly. All event publishing goes through the outbox interface; the outbox dispatcher handles broker-specific publishing.
+Topic families/subjects are **Application Interfaces**; NATS/Kafka are **Technology Services** that implement those interfaces.
+
+> **Invariant**: Domain primitives MUST NOT import broker clients directly. All fact publishing goes through the outbox interface; the outbox dispatcher handles broker-specific publishing.
 
 ---
 
-### 3.3 Service Layer: Domains, Processes, Agents, Transformation
+### 3.3 Application runtime realization (Application Components → Technology)
 
 In addition to the Domain/Process/Agent primitives described below, the platform runs a shared `extensions-runtime` service in `ameide-{env}` for Tier 1 WASM extensions (see §3.3.6 and 479/480). This runtime executes tenant-authored modules as data inside a platform-owned service, preserving the namespace invariants from 478.
 
-**3.3.1 Domain primitives (domains)**
+**3.3.1 Domain primitives (application components)**
 
 * Implemented as **stateless microservices** (Go or Python/TS) exposing gRPC/Connect services defined in the shared proto repo.
 * Each Domain primitive has:
@@ -215,7 +228,7 @@ In addition to the Domain/Process/Agent primitives described below, the platform
 
 > **Event reliability**: Go-based Domain primitives must follow the EDA patterns in [472 §3.3](472-ameide-information-application.md): transactional outbox (§3.3.1.1), idempotent consumers (§3.3.2), schema versioning (§3.3.5), and multi-tenant isolation (§3.3.7).
 
-**3.3.2 Process primitives (processes)**
+**3.3.2 Process primitives (application components)**
 
 * Each Process primitive executes a **ProcessDefinition** (design-time artifact) at runtime:
 
@@ -228,7 +241,7 @@ In addition to the Domain/Process/Agent primitives described below, the platform
   * Transformation Domain compiles ProcessDefinitions into Temporal workflow code or config.
   * Temporal workers execute the compiled workflows; Process primitives expose gRPC endpoints to start or query process instances.
 
-**3.3.3 Agent primitives (agents)**
+**3.3.3 Agent primitives (application components)**
 
 * Each Agent primitive executes an **AgentDefinition** (design-time artifact) at runtime:
 
