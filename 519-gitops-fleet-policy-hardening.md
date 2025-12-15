@@ -227,6 +227,7 @@ Local k3d clusters are capacity-constrained and can exhibit apiserver write late
 - **Disable leader election when `replicas=1`** for controllers/operators that exit on `leader election lost` (e.g., Strimzi, NiFiKop, Envoy Gateway). Leader election becomes a failure mode under local latency and provides no benefit at single replica.
 - **No runtime downloads / no dev servers in Argo baseline**:
   - Argo-managed “baseline” workloads must start deterministically from the published image (no Corepack/pnpm downloads, no runtime codegen, no writes to the image filesystem).
+  - Baseline images must be **runtime-capable** (e.g., Next.js images must include a production `.next` build if we run `next start`).
   - The inner loop (dev servers, live reload) belongs in Tilt/Telepresence “*-tilt” releases, not the Argo baseline.
 - **Charts must honor auth toggles**: if a chart exposes `auth.enabled`, templates must not unconditionally enable auth (especially in local fallbacks like standalone Redis).
 
