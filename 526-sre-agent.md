@@ -74,7 +74,7 @@ description: |
   patterns match, what remediation to propose. Delegates execution to SRECoder.
 version: v1
 runtime_role: sre_operator
-risk_tier: 2  # Can query; writes require approval or delegation to SRECoder
+risk_tier: 2  # Medium: read + low-risk writes; high-risk writes delegated with approval
 ```
 
 ### 3.2 SRECoder
@@ -91,36 +91,49 @@ runtime_role: a2a_server
 risk_tier: 3  # High: cluster write access, repo write access
 ```
 
+### 3.3 Risk tier definitions
+
+| Tier | Name | Capabilities | Examples |
+|------|------|--------------|----------|
+| 1 | Low | Read-only queries | Dashboard queries, status checks |
+| 2 | Medium | Read + bounded writes (incident records, notes) | SREAgent: can create incidents, add notes |
+| 3 | High | Infrastructure writes (cluster, repos) | SRECoder: kubectl, git push |
+
+**SREAgent (tier 2) rationale:**
+- Creating incidents and adding timeline notes are *observational records*, not infrastructure changes
+- These writes are bounded, audited, and reversible
+- High-risk operations (restart pods, commit to repos) require delegation to SRECoder with approval gates
+
 ---
 
 ## 4) Tool grants
 
 ### 4.1 SREAgent tools (query + delegate)
 
-**Read-only (no approval)**
+**Read-only (projection queries)**
 
 | Tool | Purpose |
 |------|---------|
-| `sre.query.fleet_state` | Get fleet health |
-| `sre.query.incidents` | Search incidents |
-| `sre.query.alerts` | List alerts |
-| `sre.query.runbooks` | Search runbooks |
-| `sre.query.slos` | Get SLO status |
-| `transformation.query.backlog_search` | Search backlog for patterns |
+| `sre.query.fleet_state` | Get fleet health (projection) |
+| `sre.query.incidents` | Search incidents (projection) |
+| `sre.query.alerts` | List alerts (projection) |
+| `sre.query.runbooks` | Search runbooks (projection) |
+| `sre.query.slos` | Get SLO status (projection) |
+| `sre.query.knowledge_index` | Semantic pattern search (projection) |
 
-**Write (approval required)**
+**Low-risk writes (tier 2 allowed)**
 
-| Tool | Purpose |
-|------|---------|
-| `sre.command.create_incident` | Create incident (auto-approve) |
-| `sre.command.add_timeline_entry` | Add notes (no approval) |
-| `sre.command.update_incident_status` | Update status (no approval) |
+| Tool | Purpose | Approval |
+|------|---------|----------|
+| `sre.command.create_incident` | Create incident record | None (observational) |
+| `sre.command.add_timeline_entry` | Add timeline notes | None (observational) |
+| `sre.command.update_incident_status` | Update incident status | None (workflow state) |
 
-**Delegation (via A2A to SRECoder)**
+**High-risk delegation (via A2A to SRECoder, approval required)**
 
 | Skill | Purpose | Approval |
 |-------|---------|----------|
-| `investigate_cluster_resource` | Run kubectl describe/logs | Auto |
+| `investigate_cluster_resource` | Run kubectl describe/logs | None (read-only) |
 | `execute_runbook` | Run documented procedure | Required |
 | `update_backlog_documentation` | Commit backlog changes | Required |
 | `apply_gitops_remediation` | Commit manifest changes | Required |

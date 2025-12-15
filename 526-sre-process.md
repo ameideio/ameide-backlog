@@ -35,15 +35,19 @@ Formalizes [525-backlog-first-triage-workflow.md](525-backlog-first-triage-workf
 START → BACKLOG_LOOKUP → TRIAGE → REMEDIATION → VERIFICATION → DOCUMENTATION → END
 ```
 
-### Phase 1: BACKLOG_LOOKUP
+### Phase 1: PATTERN_LOOKUP
 
-Search existing backlog guidance BEFORE deep cluster triage (per 525 non-negotiable).
+Search existing patterns BEFORE deep cluster triage (per 525 non-negotiable).
 
-- Query Transformation domain for matching backlog items
-- Query SRE domain for similar past incidents
-- Query runbook registry for applicable procedures
+> **Critical:** Query projection-backed services only, never Transformation domain directly.
 
-**Process fact:** `BacklogLookupCompleted`
+- Query `KnowledgeIndexQueryService` for matching patterns (backlog items, past incidents)
+- Query `IncidentQueryService` for similar past incidents
+- Query `RunbookQueryService` for applicable procedures
+
+All queries go through **projection services**, not domain internals.
+
+**Process fact:** `PatternLookupCompleted`
 
 ### Phase 2: TRIAGE
 
@@ -142,3 +146,4 @@ All activities respect 5-minute timeout constraint per 525.
 3. Human approval gates work via Temporal signals
 4. Timeouts respect 525 constraints
 5. Process never writes domain state directly
+6. **Pattern lookup queries projection services** (never Transformation domain)

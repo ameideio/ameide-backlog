@@ -5,28 +5,32 @@
 
 This document specifies the **proto contracts** for the SRE capability following `496-eda-principles.md` and `509-proto-naming-conventions.md`.
 
+> **No embedded proto text.** Following the lesson from 508 (Scrum protos), this document is a **file index + invariants** specification. Full proto definitions live in the canonical file locations and are the source of truth. Embedding proto text in backlog docs causes drift.
+
 ---
 
-## 1) Package structure
+## 1) Package structure (canonical path per 496/509)
 
 ```
-packages/ameide_core_proto/
+packages/ameide_core_proto/src/ameide_core_proto/
 └── sre/
     ├── core/
     │   └── v1/
-    │       ├── sre.proto           # Common types
-    │       ├── incident.proto      # Incident aggregate
-    │       ├── alert.proto         # Alert aggregate
-    │       ├── runbook.proto       # Runbook aggregate
-    │       ├── slo.proto           # SLO/SLI aggregates
-    │       ├── health.proto        # HealthCheck, FleetState
+    │       ├── sre.proto           # Common types (enums, ResourceRef)
+    │       ├── incident.proto      # Incident aggregate messages
+    │       ├── alert.proto         # Alert aggregate messages
+    │       ├── runbook.proto       # Runbook aggregate messages
+    │       ├── slo.proto           # SLO/SLI aggregate messages
+    │       ├── health.proto        # HealthCheck, FleetState messages
     │       ├── intents.proto       # SreDomainIntent envelope
     │       ├── facts.proto         # SreDomainFact envelope
-    │       └── query.proto         # Query services
+    │       └── query.proto         # Query service definitions
     └── process/
         └── v1/
             └── process_facts.proto # SreProcessFact envelope
 ```
+
+**Note:** Path follows `packages/ameide_core_proto/src/ameide_core_proto/**` as required by 496.
 
 ---
 
@@ -40,182 +44,150 @@ packages/ameide_core_proto/
 
 ---
 
-## 3) Common types (sre.proto)
+## 3) Envelope metadata requirements (per 496)
 
-```protobuf
-syntax = "proto3";
-package ameide_core_proto.sre.core.v1;
+All SRE envelopes (`SreDomainIntent`, `SreDomainFact`, `SreProcessFact`) must include:
 
-enum Severity {
-  SEVERITY_UNSPECIFIED = 0;
-  SEVERITY_CRITICAL = 1;
-  SEVERITY_HIGH = 2;
-  SEVERITY_MEDIUM = 3;
-  SEVERITY_LOW = 4;
-}
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `message_id` | string | Yes | Unique message identifier |
+| `schema_version` | string | Yes | Proto schema version (e.g., "v1.0.0") |
+| `tenant_id` | string | Yes | Tenant isolation boundary |
+| `occurred_at` | Timestamp | Yes | When the event occurred |
+| `producer` | string | Yes | Producing service/component |
+| `correlation_id` | string | Yes | Request trace correlation |
+| `causation_id` | string | No | ID of the causing message |
 
-enum IncidentStatus {
-  INCIDENT_STATUS_UNSPECIFIED = 0;
-  INCIDENT_STATUS_OPEN = 1;
-  INCIDENT_STATUS_ACKNOWLEDGED = 2;
-  INCIDENT_STATUS_INVESTIGATING = 3;
-  INCIDENT_STATUS_MITIGATING = 4;
-  INCIDENT_STATUS_RESOLVED = 5;
-  INCIDENT_STATUS_CLOSED = 6;
-}
-
-enum AlertStatus {
-  ALERT_STATUS_UNSPECIFIED = 0;
-  ALERT_STATUS_FIRING = 1;
-  ALERT_STATUS_RESOLVED = 2;
-  ALERT_STATUS_SILENCED = 3;
-  ALERT_STATUS_ACKNOWLEDGED = 4;
-}
-
-enum HealthStatus {
-  HEALTH_STATUS_UNSPECIFIED = 0;
-  HEALTH_STATUS_HEALTHY = 1;
-  HEALTH_STATUS_DEGRADED = 2;
-  HEALTH_STATUS_UNHEALTHY = 3;
-  HEALTH_STATUS_UNKNOWN = 4;
-}
-
-message ResourceRef {
-  string type = 1;
-  string id = 2;
-  string namespace = 3;
-  string cluster = 4;
-  string environment = 5;
-}
-
-message SreMessageMeta {
-  string message_id = 1;
-  string tenant_id = 2;
-  google.protobuf.Timestamp occurred_at = 3;
-  string producer = 4;
-  string correlation_id = 5;
-  string causation_id = 6;
-}
-
-message SreSubject {
-  string aggregate_type = 1;
-  string aggregate_id = 2;
-  int64 aggregate_version = 3;
-}
-```
+**Critical:** `schema_version` is required per 496 for envelope compatibility and tooling.
 
 ---
 
-## 4) Domain intents (intents.proto)
+## 4) Subject fields
 
-```protobuf
-message SreDomainIntent {
-  SreMessageMeta meta = 1;
-  SreSubject subject = 2;
+Domain intents/facts include `SreSubject`:
 
-  oneof intent {
-    // Incident
-    CreateIncidentRequested create_incident = 10;
-    UpdateIncidentSeverityRequested update_incident_severity = 11;
-    AssignIncidentRequested assign_incident = 12;
-    AddIncidentTimelineEntryRequested add_timeline_entry = 13;
-    ResolveIncidentRequested resolve_incident = 14;
-    CloseIncidentRequested close_incident = 15;
+| Field | Type | Description |
+|-------|------|-------------|
+| `aggregate_type` | string | e.g., "Incident", "Alert", "Runbook" |
+| `aggregate_id` | string | Aggregate instance ID |
+| `aggregate_version` | int64 | Version for idempotent consumption |
 
-    // Alert
-    IngestAlertRequested ingest_alert = 20;
-    AcknowledgeAlertRequested acknowledge_alert = 21;
-    CorrelateAlertsToIncidentRequested correlate_alerts = 22;
+Process facts include `SreProcessSubject`:
 
-    // Runbook
-    CreateRunbookRequested create_runbook = 30;
-    ExecuteRunbookRequested execute_runbook = 31;
-
-    // SLO
-    CreateSLORequested create_slo = 40;
-    RecordSLIMeasurementRequested record_sli_measurement = 41;
-
-    // Health
-    RecordHealthCheckRequested record_health_check = 50;
-    RecordFleetStateRequested record_fleet_state = 51;
-  }
-}
-```
+| Field | Type | Description |
+|-------|------|-------------|
+| `workflow_type` | string | e.g., "IncidentTriage" |
+| `workflow_id` | string | Workflow instance ID |
+| `incident_id` | string | Associated incident |
 
 ---
 
-## 5) Domain facts (facts.proto)
+## 5) File index: common types (sre.proto)
 
-```protobuf
-message SreDomainFact {
-  SreMessageMeta meta = 1;
-  SreSubject subject = 2;
+**Enums:**
+- `Severity` — CRITICAL, HIGH, MEDIUM, LOW
+- `IncidentStatus` — OPEN, ACKNOWLEDGED, INVESTIGATING, MITIGATING, RESOLVED, CLOSED
+- `AlertStatus` — FIRING, RESOLVED, SILENCED, ACKNOWLEDGED
+- `HealthStatus` — HEALTHY, DEGRADED, UNHEALTHY, UNKNOWN
 
-  oneof fact {
-    // Incident
-    IncidentCreated incident_created = 10;
-    IncidentSeverityChanged incident_severity_changed = 11;
-    IncidentAssigned incident_assigned = 12;
-    IncidentTimelineEntryAdded incident_timeline_entry_added = 13;
-    IncidentResolved incident_resolved = 14;
-    IncidentClosed incident_closed = 15;
-
-    // Alert
-    AlertIngested alert_ingested = 20;
-    AlertAcknowledged alert_acknowledged = 21;
-    AlertsCorrelatedToIncident alerts_correlated = 22;
-
-    // Runbook
-    RunbookCreated runbook_created = 30;
-    RunbookExecutionCompleted runbook_execution_completed = 31;
-
-    // SLO
-    SLOCreated slo_created = 40;
-    SLIMeasurementRecorded sli_measurement_recorded = 41;
-    SLOBudgetExhausted slo_budget_exhausted = 42;
-
-    // Health
-    HealthCheckRecorded health_check_recorded = 50;
-    FleetStateRecorded fleet_state_recorded = 51;
-  }
-}
-```
+**Messages:**
+- `ResourceRef` — type, id, namespace, cluster, environment
+- `SreMessageMeta` — envelope metadata (with `schema_version`)
+- `SreSubject` — aggregate identity + version
 
 ---
 
-## 6) Process facts (process_facts.proto)
+## 6) File index: domain intents (intents.proto)
 
-```protobuf
-message SreProcessFact {
-  SreMessageMeta meta = 1;
-  SreProcessSubject subject = 2;
+**Envelope:** `SreDomainIntent` with `meta`, `subject`, and `oneof intent`
 
-  oneof fact {
-    IncidentTriageStarted incident_triage_started = 10;
-    BacklogLookupCompleted backlog_lookup_completed = 11;
-    TriagePhaseCompleted triage_phase_completed = 12;
-    RemediationProposed remediation_proposed = 13;
-    RemediationApplied remediation_applied = 14;
-    VerificationStarted verification_started = 15;
-    VerificationCompleted verification_completed = 16;
-    DocumentationRequested documentation_requested = 17;
-    IncidentTriageCompleted incident_triage_completed = 18;
-  }
-}
+**Intent catalog:**
 
-message SreProcessSubject {
-  string workflow_type = 1;
-  string workflow_id = 2;
-  string incident_id = 3;
-}
-```
+| Intent | Field # | Aggregate |
+|--------|---------|-----------|
+| `CreateIncidentRequested` | 10 | Incident |
+| `UpdateIncidentSeverityRequested` | 11 | Incident |
+| `AssignIncidentRequested` | 12 | Incident |
+| `AddIncidentTimelineEntryRequested` | 13 | Incident |
+| `ResolveIncidentRequested` | 14 | Incident |
+| `CloseIncidentRequested` | 15 | Incident |
+| `IngestAlertRequested` | 20 | Alert |
+| `AcknowledgeAlertRequested` | 21 | Alert |
+| `CorrelateAlertsToIncidentRequested` | 22 | Alert |
+| `CreateRunbookRequested` | 30 | Runbook |
+| `ExecuteRunbookRequested` | 31 | Runbook |
+| `CreateSLORequested` | 40 | SLO |
+| `RecordSLIWindowRequested` | 41 | SLO (aggregated windows) |
+| `RecordHealthCheckRequested` | 50 | HealthCheck |
+| `RecordFleetStateRequested` | 51 | FleetState |
 
 ---
 
-## 7) Acceptance criteria
+## 7) File index: domain facts (facts.proto)
+
+**Envelope:** `SreDomainFact` with `meta`, `subject`, and `oneof fact`
+
+**Fact catalog:**
+
+| Fact | Field # | Aggregate |
+|------|---------|-----------|
+| `IncidentCreated` | 10 | Incident |
+| `IncidentSeverityChanged` | 11 | Incident |
+| `IncidentAssigned` | 12 | Incident |
+| `IncidentTimelineEntryAdded` | 13 | Incident |
+| `IncidentResolved` | 14 | Incident |
+| `IncidentClosed` | 15 | Incident |
+| `AlertIngested` | 20 | Alert |
+| `AlertAcknowledged` | 21 | Alert |
+| `AlertsCorrelatedToIncident` | 22 | Alert |
+| `RunbookCreated` | 30 | Runbook |
+| `RunbookExecutionCompleted` | 31 | Runbook |
+| `SLOCreated` | 40 | SLO |
+| `SLIWindowRecorded` | 41 | SLO |
+| `SLOBudgetExhausted` | 42 | SLO |
+| `HealthCheckRecorded` | 50 | HealthCheck |
+| `FleetStateRecorded` | 51 | FleetState |
+
+---
+
+## 8) File index: process facts (process_facts.proto)
+
+**Envelope:** `SreProcessFact` with `meta`, `subject`, and `oneof fact`
+
+**Process fact catalog:**
+
+| Fact | Field # | Workflow |
+|------|---------|----------|
+| `IncidentTriageStarted` | 10 | IncidentTriage |
+| `PatternLookupCompleted` | 11 | IncidentTriage |
+| `TriagePhaseCompleted` | 12 | IncidentTriage |
+| `RemediationProposed` | 13 | IncidentTriage |
+| `RemediationApplied` | 14 | IncidentTriage |
+| `VerificationStarted` | 15 | IncidentTriage |
+| `VerificationCompleted` | 16 | IncidentTriage |
+| `DocumentationRequested` | 17 | IncidentTriage |
+| `IncidentTriageCompleted` | 18 | IncidentTriage |
+
+---
+
+## 9) Invariants
+
+1. **All envelopes must include `schema_version`** — required for tooling and compatibility
+2. **Naming convention:** Intents use `...Requested` suffix; facts use past tense
+3. **Field numbers are stable** — never reuse or renumber once published
+4. **Aggregate version required** — enables idempotent downstream consumption
+5. **Tenant isolation** — `tenant_id` required on all messages
+6. **Proto path structure** — files under `packages/ameide_core_proto/src/ameide_core_proto/sre/`
+
+---
+
+## 10) Acceptance criteria
 
 1. All proto files pass `buf lint` with STANDARD profile
-2. All messages have required validation constraints
-3. Topic families follow 496 naming conventions
-4. Envelope metadata includes all required fields
-5. Aggregate version included for idempotent consumption
+2. All envelopes include `schema_version` in metadata
+3. Proto files located at canonical path per 496/509
+4. Topic families follow 496 naming conventions
+5. Intent names use `...Requested` suffix consistently
+6. Fact names use past tense consistently
+7. Aggregate version included for idempotent consumption
+8. No embedded proto text in backlog docs (file index only)

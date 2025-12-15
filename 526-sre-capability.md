@@ -2,7 +2,7 @@
 
 **Status:** Draft (normative once accepted)
 **Audience:** Architecture, Platform SRE, platform engineering, operators/CLI, agent/runtime teams
-**Scope:** Define **SRE** as a *business capability* implemented as Ameide primitives (Domain/Process/Projection/Integration/UISurface/Agent), with 496-native EDA contracts.
+**Scope:** Define **SRE** as a *business capability* with value streams and business processes, supported by Application Services, which are realized by Ameide primitives (Domain/Process/Projection/Integration/UISurface/Agent).
 
 This backlog formalizes the operational workflows described in `525-backlog-first-triage-workflow.md` as a first-class Ameide capability.
 
@@ -33,7 +33,7 @@ Today "SRE" exists as:
 
 ...but we lack a single authoritative backlog that says:
 
-> "SRE is a capability. These are its domains/processes/surfaces/integrations, and these are its EDA contracts."
+> "SRE is a capability. These are its value streams/business processes, the Application Services that support them, and the primitives that realize those services."
 
 ---
 
@@ -63,28 +63,88 @@ Primary outcomes (future state):
 Value streams:
 
 - **Detect → Alert**: Monitoring systems detect anomalies → create alerts → correlate into potential incidents.
-- **Triage → Investigate**: Alert triggers incident → backlog lookup (per 525) → targeted investigation → root cause identification.
+- **Triage → Investigate**: Alert triggers incident → pattern lookup (via projection) → targeted investigation → root cause identification.
 - **Remediate → Verify**: Apply fix (GitOps commit) → verify health restored → confirm ArgoCD sync.
 - **Document → Learn**: Update backlog/runbook → close incident → feed knowledge base.
 - **Define → Measure**: Define SLOs → track SLIs → alert on burn rate → report on reliability.
 
 ---
 
+## 1.2) ArchiMate realization chain
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│ STRATEGY LAYER                                                          │
+│                                                                         │
+│  ┌───────────────────┐                                                  │
+│  │   SRE Capability  │                                                  │
+│  └─────────┬─────────┘                                                  │
+│            │ realized by                                                │
+│            ▼                                                            │
+│  ┌───────────────────────────────────────────────────────────────────┐  │
+│  │              Value Streams (Detect→Alert, Triage→Investigate,     │  │
+│  │              Remediate→Verify, Document→Learn, Define→Measure)    │  │
+│  └─────────────────────────────────┬─────────────────────────────────┘  │
+└────────────────────────────────────┼────────────────────────────────────┘
+                                     │ realized by
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│ BUSINESS LAYER                                                          │
+│                                                                         │
+│  ┌───────────────────────────────────────────────────────────────────┐  │
+│  │                     Business Processes                            │  │
+│  │  (IncidentTriageProcess, ChangeVerificationProcess,               │  │
+│  │   SLOBurnAlertProcess, RunbookExecutionProcess)                   │  │
+│  └─────────────────────────────────┬─────────────────────────────────┘  │
+└────────────────────────────────────┼────────────────────────────────────┘
+                                     │ supported by
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│ APPLICATION LAYER                                                       │
+│                                                                         │
+│  ┌───────────────────────────────────────────────────────────────────┐  │
+│  │              Application Services / Interfaces / Events           │  │
+│  │  (IncidentService, AlertService, RunbookService, SLOService,      │  │
+│  │   FleetHealthQueryService, KnowledgeIndexQueryService,            │  │
+│  │   SreDomainIntents, SreDomainFacts, SreProcessFacts)              │  │
+│  └─────────────────────────────────┬─────────────────────────────────┘  │
+│                                    │ realized by                        │
+│                                    ▼                                    │
+│  ┌───────────────────────────────────────────────────────────────────┐  │
+│  │              Application Components (Primitives)                  │  │
+│  │  (sre-domain, sre-process, sre-projection, sre-integration,       │  │
+│  │   SREAgent, SRECoder, operations-console UISurface)               │  │
+│  └───────────────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+**Key ArchiMate relationships:**
+- Capability **is realized by** Value Streams
+- Value Streams **are realized by** Business Processes
+- Business Processes **are supported by** Application Services/Interfaces/Events
+- Application Services **are realized by** Application Components (primitives)
+
+---
+
 ## 2) Core invariants (non-negotiable)
 
-1. **Capability is realized by primitives.** SRE is not a monolith; it is realized via Domain/Process/Projection/Integration/UISurface/Agent application components.
+1. **ArchiMate realization chain.** Capability → Value Streams → Business Processes → Application Services → Primitives. Primitives are Application Component realizations, not direct capability decomposition.
 
-2. **Backlog-first triage (per 525).** Search existing backlog guidance BEFORE deep cluster triage.
+2. **Backlog-first triage (per 525).** Search existing knowledge patterns BEFORE deep cluster triage.
 
-3. **No band-aids by default.** Prefer root-cause fixes that improve reproducibility and idempotency.
+3. **No runtime Transformation domain coupling.** Runtime processes/agents query projection-backed knowledge index, never the Transformation domain directly.
 
-4. **Time-bounded operations.** No command timeout higher than 5 minutes.
+4. **Domain is single-writer for facts.** Integrations emit intents/commands; only Domain emits facts via transactional outbox.
 
-5. **GitOps discipline.** Changes land as commits (backlog + gitops repo), then Argo reconciles.
+5. **No band-aids by default.** Prefer root-cause fixes that improve reproducibility and idempotency.
 
-6. **496-native EDA.** Commands/intents vs facts, outbox for writers, idempotent consumers.
+6. **Time-bounded operations.** No command timeout higher than 5 minutes.
 
-7. **Tenant isolation and traceability metadata** on all messages.
+7. **GitOps discipline.** Changes land as commits (backlog + gitops repo), then Argo reconciles.
+
+8. **496-native EDA.** Commands/intents vs facts, outbox for writers, idempotent consumers, schema_version in envelopes.
+
+9. **Tenant isolation and traceability metadata** on all messages.
 
 ---
 
@@ -96,7 +156,7 @@ SRE capability owns:
 - **Alert** — monitoring signal that may trigger an incident
 - **Runbook** — documented procedure for operational tasks
 - **SLO** — Service Level Objective definition
-- **SLI** — Service Level Indicator measurement
+- **SLI** — Service Level Indicator (aggregated measurements, not raw telemetry)
 - **HealthCheck** — resource health assessment
 - **FleetState** — aggregate GitOps/cluster state
 
@@ -107,69 +167,109 @@ SRE capability owns:
 
 ---
 
-## 4) Application realization (primitive decomposition)
+## 4) Application Services (supported by primitives)
 
-### 4.1 Domain primitives
+### 4.1 Domain Services (strongly consistent, minimal query surface)
 
-**`sre-domain`**: Own incidents, alerts, runbooks, SLOs/SLIs, health checks, fleet state. Emit domain facts via transactional outbox.
+| Service | Operations | Notes |
+|---------|------------|-------|
+| `IncidentService` | CreateIncident, UpdateSeverity, Assign, Resolve, Close, GetIncident, ListOpenIncidents | Bounded list queries only |
+| `AlertService` | IngestAlert, Acknowledge, CorrelateToIncident, GetAlert | No search (projection) |
+| `RunbookService` | CreateRunbook, UpdateRunbook, GetRunbook | No search (projection) |
+| `SLOService` | CreateSLO, UpdateSLO, GetSLO, ListSLOs | Budget state only |
+| `HealthService` | RecordHealthCheck, RecordFleetState, GetCurrentFleetState | Current state only |
+
+### 4.2 Projection Query Services (read-optimized, searchable)
+
+| Service | Operations | Notes |
+|---------|------------|-------|
+| `FleetHealthQueryService` | GetFleetHealth, ListEnvironmentHealth, GetApplicationHealth | Dashboard reads |
+| `IncidentQueryService` | SearchIncidents, GetIncidentTimeline, GetMTTRMetrics | Full search + history |
+| `AlertQueryService` | ListActiveAlerts, ListAlertGroups, SearchAlerts | Correlation + search |
+| `SLOQueryService` | GetSLOBurndown, GetSLITimeSeries | Time-series charts |
+| `RunbookQueryService` | SearchRunbooks, ListRunbooksByTag | Full-text search |
+| `KnowledgeIndexQueryService` | SearchPatterns, GetSimilarIncidents, SearchRunbooksBySemantic | Vector-backed semantic search |
+
+### 4.3 Event Contracts
+
+| Topic | Message Type | Purpose |
+|-------|--------------|---------|
+| `sre.domain.intents.v1` | `SreDomainIntent` | Commands requesting state changes |
+| `sre.domain.facts.v1` | `SreDomainFact` | Immutable events after persistence |
+| `sre.process.facts.v1` | `SreProcessFact` | Workflow state transition events |
+
+---
+
+## 5) Application Component realization (primitives)
+
+### 5.1 Domain primitive
+
+**`sre-domain`**: Single-writer bounded context for incidents, alerts, runbooks, SLOs, health checks, fleet state. Emits domain facts via transactional outbox. Exposes minimal query APIs (get-by-id, list-by-parent, current state).
 
 See: [526-sre-domain.md](526-sre-domain.md)
 
-### 4.2 Process primitives
+### 5.2 Process primitives
 
-- **IncidentTriageProcess**: Implements 525 workflow (Detect → BacklogLookup → Triage → Remediate → Verify → Document)
+- **IncidentTriageProcess**: Implements 525 workflow (Detect → PatternLookup → Triage → Remediate → Verify → Document)
 - **ChangeVerificationProcess**: Post-deployment health verification
 - **SLOBurnAlertProcess**: Error budget monitoring and escalation
 
 See: [526-sre-process.md](526-sre-process.md)
 
-### 4.3 Projection primitives
+### 5.3 Projection primitives
 
-- Fleet health dashboard, incident timeline, SLO burn-down, alert correlation, runbook catalog
+- **FleetHealthProjection**: Real-time fleet status for dashboards
+- **IncidentTimelineProjection**: Historical incident data, MTTR metrics, searchable
+- **SLOBurndownProjection**: Error budget tracking, SLI time-series
+- **AlertCorrelationProjection**: Grouped alerts, correlation keys
+- **RunbookCatalogProjection**: Searchable runbook catalog
+- **KnowledgeIndexProjection**: Vector-backed semantic search for patterns, incidents, runbooks
 
 See: [526-sre-projection.md](526-sre-projection.md)
 
-### 4.4 Integration primitives
+### 5.4 Integration primitives
 
-- ArgoCD adapter, Prometheus/AlertManager adapter, ticketing (Jira), paging (PagerDuty), backlog adapter
+- **ArgoCDIntegration**: Polls ArgoCD, emits `RecordFleetStateRequested` intents
+- **AlertManagerIntegration**: Webhook receiver, emits `IngestAlertRequested` intents
+- **TicketingIntegration**: Creates tickets in Jira/GitHub on incident
+- **PagingIntegration**: Escalates to PagerDuty/OpsGenie
 
 See: [526-sre-integration.md](526-sre-integration.md)
 
-### 4.5 Agent primitives
+### 5.5 Agent primitives
 
-**SREAgent**: Implements 525 backlog-first triage workflow with human approval gates.
+- **SREAgent**: Decision agent implementing 525 backlog-first triage. Queries projection services (never domain). Delegates execution to SRECoder.
+- **SRECoder**: Execution agent (A2A Server) for kubectl, argocd, git operations.
 
 See: [526-sre-agent.md](526-sre-agent.md)
 
+### 5.6 UISurface primitives
+
+- **OperationsConsole**: Fleet health dashboard, incident management UI, runbook browser
+
 ---
 
-## 5) EDA contracts
+## 6) EDA contracts summary
 
-### Topic families
-
-- `sre.domain.intents.v1` → `SreDomainIntent`
-- `sre.domain.facts.v1` → `SreDomainFact`
-- `sre.process.facts.v1` → `SreProcessFact`
-
-### Domain intents
+### Domain intents (commands)
 
 - Incident: `CreateIncidentRequested`, `UpdateIncidentSeverityRequested`, `AssignIncidentRequested`, `ResolveIncidentRequested`, `CloseIncidentRequested`
 - Alert: `IngestAlertRequested`, `AcknowledgeAlertRequested`, `CorrelateAlertsToIncidentRequested`
 - Runbook: `CreateRunbookRequested`, `ExecuteRunbookRequested`
-- SLO: `CreateSLORequested`, `RecordSLIMeasurementRequested`
+- SLO: `CreateSLORequested`, `RecordSLIWindowRequested` (aggregated windows, not raw)
 - Health: `RecordHealthCheckRequested`, `RecordFleetStateRequested`
 
-### Domain facts
+### Domain facts (emitted by domain only)
 
-- Incident: `IncidentCreated`, `IncidentResolved`, `IncidentClosed`
+- Incident: `IncidentCreated`, `IncidentSeverityChanged`, `IncidentAssigned`, `IncidentResolved`, `IncidentClosed`
 - Alert: `AlertIngested`, `AlertAcknowledged`, `AlertsCorrelatedToIncident`
 - Runbook: `RunbookCreated`, `RunbookExecutionCompleted`
-- SLO: `SLOCreated`, `SLIMeasurementRecorded`, `SLOBudgetExhausted`
+- SLO: `SLOCreated`, `SLIWindowRecorded`, `SLOBudgetExhausted`
 - Health: `HealthCheckRecorded`, `FleetStateRecorded`
 
 ### Process facts
 
-- `IncidentTriageStarted`, `BacklogLookupCompleted`, `TriagePhaseCompleted`
+- `IncidentTriageStarted`, `PatternLookupCompleted`, `TriagePhaseCompleted`
 - `RemediationProposed`, `RemediationApplied`, `VerificationCompleted`
 - `IncidentTriageCompleted`
 
@@ -177,10 +277,11 @@ See: [526-sre-proto.md](526-sre-proto.md)
 
 ---
 
-## 6) Technology requirements
+## 7) Technology requirements
 
 - Kubernetes + GitOps + operators
 - Postgres/CNPG — Domain state + outbox
+- Postgres/CNPG + pgvector — Projection DBs (including semantic index)
 - Broker (NATS/Kafka) — facts topic families
 - Temporal — Process primitive orchestration
 - Prometheus + AlertManager — integration source
@@ -188,33 +289,39 @@ See: [526-sre-proto.md](526-sre-proto.md)
 
 ---
 
-## 7) Implementation phases
+## 8) Implementation phases
 
-1. **Contract foundation** — Define proto surfaces, scaffold primitives
-2. **Domain implementation** — Implement sre-domain with aggregates
-3. **Integration adapters** — ArgoCD, AlertManager, backlog adapters
-4. **Process workflows** — IncidentTriageProcess (formalizes 525)
-5. **Agent + UISurface** — SREAgent, operations console
-6. **Hardening** — Multi-environment, SLO reporting
+1. **Contract foundation** — Define proto surfaces (file index + invariants), scaffold primitives
+2. **Domain implementation** — Implement sre-domain with aggregates, outbox, minimal query APIs
+3. **Projection implementation** — Fleet health, incident timeline, knowledge index (with vector support)
+4. **Integration adapters** — ArgoCD, AlertManager (emitting intents, not facts)
+5. **Process workflows** — IncidentTriageProcess (queries projections, not domain)
+6. **Agent + UISurface** — SREAgent (queries projections), SRECoder, operations console
+7. **Hardening** — Multi-environment, SLO reporting, semantic search tuning
 
 ---
 
-## 8) Cross-references
+## 9) Cross-references
 
 | Document | Relationship |
 |----------|--------------|
 | [525-backlog-first-triage-workflow.md](525-backlog-first-triage-workflow.md) | Source workflow formalized by this capability |
 | [450-argocd-service-issues-inventory.md](450-argocd-service-issues-inventory.md) | Current incident tracking (to be migrated) |
 | [519-gitops-fleet-policy-hardening.md](519-gitops-fleet-policy-hardening.md) | Fleet policy constraints |
-| [475-ameide-domains.md](475-ameide-domains.md) | Domain portfolio (to add SRE cluster) |
+| [475-ameide-domains.md](475-ameide-domains.md) | Domain portfolio (includes SRE cluster) |
 | [528-capability-definition.md](528-capability-definition.md) | Capability framework |
+| [496-eda-principles.md](496-eda-principles.md) | EDA contract rules |
+| [527-transformation-capability.md](527-transformation-capability.md) | Transformation capability (no runtime coupling) |
 
 ---
 
-## 9) Acceptance criteria
+## 10) Acceptance criteria
 
-1. SRE is described as a **capability realized via primitives**
-2. Explicit **SRE EDA contract** (topic families + envelopes) following 496 pattern
-3. 525 triage workflow formalized as **Process primitive**
-4. End-to-end slice: Alert → Incident → Backlog lookup → Triage → Remediation → Verification → Documentation
-5. Domain portfolio (475) includes SRE as a first-class domain cluster
+1. SRE described with correct **ArchiMate realization chain** (Capability → Value Streams → Business Processes → Application Services → Primitives)
+2. **No runtime Transformation domain coupling**: processes/agents query projection-backed knowledge index
+3. **Integrations emit intents only**: domain is single-writer for facts
+4. Explicit **SRE EDA contract** (topic families + envelopes) following 496 pattern with `schema_version`
+5. 525 triage workflow formalized as **Process primitive** that queries projections
+6. **Domain query APIs are minimal** (get-by-id, current state); **search is projection-backed**
+7. **KnowledgeIndexProjection** provides vector-backed semantic search for patterns
+8. End-to-end slice: Alert → Incident → Pattern lookup (projection) → Triage → Remediation → Verification → Documentation
