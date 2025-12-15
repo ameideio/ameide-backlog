@@ -59,6 +59,7 @@ Policy-shaped remediation direction:
 2. **Operator k8s client defaults must be explicit** (where configurable): set QPS/burst and reduce concurrency for local clusters so leader election stays stable even under degraded apiserver latency.
 3. **Reduce GitOps hook reliance for stable state**: eliminate Helm hook-based stable secret generation (e.g. GitLab shared-secrets) in favor of Vault KV → ESO → Secret so sync is deterministic and does not block on hook batches.
 4. **Single-replica local controllers should not require leader election**: when we run `replicas: 1` for local, disable leader election (or expose a chart knob in a wrapper) so apiserver lease-write latency cannot crash the controller and cascade into `Progressing` Apps.
+5. **Verify “policy knobs” are real in rendered manifests**: some vendor charts merge “base + user” config in a way that can prevent overrides (e.g. `provider.kubernetes.*`) from taking effect; treat this as a wrapper responsibility (or an explicit, tracked vendored patch) so local-hardening values are not silently ignored.
 
 ### Deferred TODOs (values layering contract)
 

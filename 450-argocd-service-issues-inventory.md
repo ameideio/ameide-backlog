@@ -91,6 +91,7 @@ Remediation approach (GitOps-aligned, no band-aids):
 3. **Envoy Gateway stability (local-only):** stop depending on leader election leases for a single-replica local controller.
    - Preferred: disable leader election for Envoy Gateway when `replicas=1` (the process currently exits cleanly on `leader election lost`, causing probe failures and CrashLoopBackOff even though config is otherwise valid).
    - If leader election must remain enabled, bypass the `kubernetes.default.svc` ClusterIP path for apiserver calls by pointing the controller at the apiserver endpoint directly (`KUBERNETES_SERVICE_HOST/PORT`), or increase local apiserver resources/timeouts so lease updates do not exceed the controller’s `timeout=5s` window.
+   - Implementation note: `gateway-helm` v1.3.0 renders the controller config from a merged “base + user” map; ensure user overrides actually win for `provider.kubernetes.*` (otherwise `leaderElection.disable` can be silently dropped during templating).
 
 ## Update (2025-12-14): ComparisonError flapping + operator leader-election instability (local k3d)
 
