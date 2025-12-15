@@ -49,6 +49,10 @@ Follow-up (local):
 - If `redis-operator` continues to lose its lease due to apiserver latency, pin it to the k3d control-plane node and run it at `system-cluster-critical` priority to reduce scheduling/CPU jitter during lease renewals.
 - If the published operator tag is missing (Spotahome does not publish `v1.3.0` on quay.io), prefer a known-good tag (e.g. `v1.2.4`) or a vetted RC (`v1.3.0-rc1`) for local until a stable release is available.
 - If lease updates still time out, bypass the `kubernetes` ClusterIP path for in-cluster clients by pointing controllers at the apiserver endpoint directly (set `KUBERNETES_SERVICE_HOST/PORT` to the `default/kubernetes` endpoint host/port in k3d).
+- If leader-election renewals remain fragile under local apiserver write latency, stop depending on the operator for local:
+  - Run `data-redis-failover` in a local `standalone` mode (no `RedisFailover` CR).
+  - Scale the `cluster-redis-operator` Deployment to `replicas: 0` for local.
+  - Override local consumers (e.g. `www-ameide-platform`) to use `redis://redis-master:6379/0` (no Sentinel) explicitly.
 
 ## Update (2025-12-14): ComparisonError flapping + operator leader-election instability (local k3d)
 
