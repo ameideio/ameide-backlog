@@ -179,6 +179,24 @@ O2C is one example process orchestrating these domains.
 
 > **Note on Agents**: AgentDefinitions are design-time artifacts owned by the **Transformation Domain primitive** (§3.2), modelled via Transformation design tooling UIs. Agent primitives are runtime components that execute AgentDefinitions. There is no separate "Agent Domain" – definitions are stored in Transformation, and Agent primitives are cross-cutting runtimes.
 
+### 3.9 Platform Operations / SRE Domain Cluster
+
+* **Incident Management** (incidents, alerts, on-call escalation, timelines)
+* **Runbook Registry** (documented procedures, automation playbooks)
+* **SLO/SLI Framework** (service level objectives, error budgets, burn rates)
+* **Fleet Health** (GitOps state, cluster health, application status)
+* **Change Verification** (deployment health, sync status, smoke tests)
+
+This domain cluster provides the **operate-the-platform capability** — ensuring reliability, observability, and operational excellence. It is distinct from Transformation (which owns design-time artifacts and governance) and Platform & Identity (which owns tenancy and access).
+
+Key responsibilities:
+* System-of-record for operational events (incidents, alerts, health checks)
+* Formalization of operational workflows (e.g., backlog-first triage per `525-backlog-first-triage-workflow.md`)
+* Integration with external systems (ArgoCD, Prometheus/AlertManager, PagerDuty)
+* SRE agent assistance for incident investigation and remediation
+
+See [526-sre-capability.md](526-sre-capability.md) for the full capability definition.
+
 ---
 
 ## 4. Primitive Types per Domain
@@ -313,6 +331,37 @@ When tenants require custom primitives beyond the standard product, Backstage te
 * Code lives in `tenant-{id}-primitives` repos, manifests in `tenant-{id}-gitops` repos
 
 > **See [478-ameide-extensions.md](478-ameide-extensions.md)** for the complete tenant extension model, namespace strategy by SKU, and the E2E flow from requirement to running primitives.
+
+### 4.8 Platform Operations / SRE Primitives
+
+**Domain primitives**
+
+* `SREDomain` (incidents, alerts, runbooks, SLOs/SLIs, health checks, fleet state)
+
+**Process primitives**
+
+* `IncidentTriageProcess` — formalizes the 525 backlog-first triage workflow
+* `ChangeVerificationProcess` — post-deployment health verification
+* `SLOBurnAlertProcess` — error budget monitoring and escalation
+
+**Projection primitives**
+
+* `FleetHealthProjection` — real-time fleet status dashboard
+* `IncidentTimelineProjection` — historical incident data and MTTR metrics
+* `SLOBurndownProjection` — error budget tracking and trends
+
+**Integration primitives**
+
+* `ArgoCDIntegration` — sync ArgoCD application state
+* `AlertManagerIntegration` — receive alerts from Prometheus
+* `TicketingIntegration` — create tickets in Jira/GitHub
+* `PagingIntegration` — escalate to PagerDuty/OpsGenie
+
+**Agent primitives**
+
+* `SREAgent` — implements 525 backlog-first triage workflow, assists with incident investigation and remediation
+
+See [526-sre-capability.md](526-sre-capability.md) for the full capability definition.
 
 ---
 

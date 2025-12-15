@@ -1,5 +1,13 @@
 # Backlog 525 — Backlog-First Triage Workflow (Way of Working)
 
+> **Capability formalization:** This workflow is formalized as a first-class capability in [526-sre-capability.md](526-sre-capability.md). The SRE capability provides:
+> - Domain primitives for incidents, alerts, runbooks, SLOs
+> - Process primitives that implement this workflow (IncidentTriageProcess)
+> - Agent primitives (SREAgent) that automate backlog-first triage
+> - Integration primitives for ArgoCD, AlertManager, and ticketing systems
+>
+> This document remains the authoritative "way of working" specification; 526 provides the system-of-record and automation layer.
+
 ## Goal
 
 When an issue is spotted (ArgoCD unhealthy, sync failure, CrashLoop, policy drift), we should **avoid re-learning** problems we already solved. The backlog is the source of truth for incident patterns, runbooks, and accepted tradeoffs.
