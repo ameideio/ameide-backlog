@@ -181,11 +181,14 @@ Remediation approach (GitOps-aligned):
 
 - **Resource:** `Gateway/ameide-local/ameide`
 - **Symptom:** `ADDRESS` is empty and `Programmed=False`.
-- **Root cause:** the Envoy Service for the local Gateway is `type: LoadBalancer` but has `EXTERNAL-IP: <pending>` in k3d/k3s, so the Gateway cannot be assigned an address.
+- **Root cause chain:**
+  1. The Envoy Service for the local Gateway is `type: LoadBalancer` but has `EXTERNAL-IP: <pending>` in k3d/k3s, so the Gateway cannot be assigned an address.
+  2. The Envoy Service also had **no Endpoints** because the Envoy proxy pods were not Ready (xDS instability while the controller was flapping), preventing steady-state convergence.
 
 Remediation approach (reproducible local):
 1. Make “LoadBalancer provider” an explicit local capability: deploy MetalLB (or re-enable k3s `servicelb`) via GitOps so `LoadBalancer` services are assigned addresses deterministically.
 2. Keep local Gateway health tied to real address assignment; do not mask with Argo health overrides.
+3. Stabilize Envoy Gateway (controller) so data-plane proxies become Ready and populate Service Endpoints; without endpoints, LoadBalancer provisioning and Gateway status can stall.
 
 ## Update (2025-12-14): Local GitLab OutOfSync noise (Argo diff + orphaned Helm hook)
 
