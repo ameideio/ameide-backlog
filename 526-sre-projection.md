@@ -16,6 +16,8 @@ The `sre-projection` primitive builds **read-optimized views**:
 - **SLO burn-down displays** — error budget tracking and SLI time-series
 - **Alert correlation views** — grouped alerts and potential incidents
 - **Runbook catalog** — searchable operational procedures
+- **Service catalog views** — ownership, on-call routing, dependency graphs
+- **Postmortem search** — indexed learning artifacts for pattern matching
 - **Knowledge index** — vector-backed semantic search for pattern matching (backlog-first triage)
 
 Projection primitives:
@@ -108,12 +110,53 @@ Projection primitives:
 - `ListRunbooksByTag(tags)` — filtered by tags
 - `GetRunbookUsageStats(runbook_id)` — execution history
 
-### 2.6 KnowledgeIndexProjection (Vector-backed semantic search)
+### 2.6 ServiceCatalogProjection
+
+**Purpose:** Service ownership lookup, on-call routing, and dependency visualization.
+
+**Consumed facts:** `ServiceCreated`, `ServiceUpdated`, `ServiceDeleted`
+
+**Views:**
+- Service catalog with ownership and on-call information
+- Service dependency graph (who depends on whom)
+- Resource-to-service mapping (K8s resources → owning service)
+
+**Query operations:**
+- `SearchServicesByOwner(owner_team)` — services owned by a team
+- `GetServiceDependencyGraph(service_id)` — upstream/downstream dependencies
+- `GetOnCallForResource(resource_ref)` — resolves resource → service → on-call schedule
+- `SearchServices(query)` — full-text search over service catalog
+- `GetServicesForRunbook(runbook_id)` — services using a runbook
+
+**Critical for incident routing:**
+> When an alert fires for a resource, `GetOnCallForResource` answers "who do we page?" by mapping resource → service → on-call.
+
+### 2.7 PostmortemSearchProjection
+
+**Purpose:** Searchable postmortem archive for learning loop and pattern matching.
+
+**Consumed facts:** `PostmortemCreated`, `PostmortemUpdated`, `PostmortemPublished`
+
+**Views:**
+- Published postmortems with full-text search
+- Postmortem summary with action item status
+- Root cause categorization statistics
+
+**Query operations:**
+- `SearchPostmortems(query)` — full-text search
+- `ListPostmortemsByRootCause(category)` — grouped by root cause type
+- `GetPostmortemActionItems(postmortem_id)` — action items with completion status
+- `GetPostmortemsByService(service_id)` — postmortems affecting a service
+
+**Integration with KnowledgeIndex:**
+> Published postmortems are also indexed in KnowledgeIndexProjection for semantic similarity search. PostmortemSearchProjection provides structured queries; KnowledgeIndexProjection provides vector similarity.
+
+### 2.8 KnowledgeIndexProjection (Vector-backed semantic search)
 
 **Purpose:** Semantic search for the 525 backlog-first triage workflow. Provides pattern matching without runtime Transformation domain coupling.
 
 **Consumed facts:**
-- SRE domain: `IncidentCreated`, `IncidentResolved`, `RunbookCreated`, `RunbookUpdated`
+- SRE domain: `IncidentCreated`, `IncidentResolved`, `RunbookCreated`, `RunbookUpdated`, `PostmortemPublished`
 - Transformation domain (via CDC/facts): Backlog item changes (title, description, symptoms, tags)
 
 **Technology:** PostgreSQL + pgvector (CNPG)
@@ -121,11 +164,13 @@ Projection primitives:
 **Views:**
 - Incident pattern embeddings (title + description + symptoms + resolution)
 - Runbook content embeddings (title + steps + trigger conditions)
+- Postmortem embeddings (root cause + lessons learned + action items)
 - Backlog pattern embeddings (consumed from Transformation facts)
 
 **Query operations:**
 - `SearchPatterns(symptoms, tags)` — scored matches with backlog item IDs
 - `GetSimilarIncidents(incident_description)` — vector similarity search
+- `GetSimilarPostmortems(description)` — find postmortems with similar root causes
 - `SearchRunbooksBySemantic(query)` — semantic search over runbooks
 
 **Critical architectural role:**
@@ -147,7 +192,9 @@ Projection primitives:
 | `SLOQueryService` | SLOBurndownProjection | GetSLOBurndown, GetSLITimeSeries |
 | `AlertQueryService` | AlertCorrelationProjection | ListActiveAlerts, ListAlertGroups, SearchAlerts |
 | `RunbookQueryService` | RunbookCatalogProjection | SearchRunbooks, ListRunbooksByTag, GetRunbookUsageStats |
-| `KnowledgeIndexQueryService` | KnowledgeIndexProjection | SearchPatterns, GetSimilarIncidents, SearchRunbooksBySemantic |
+| `ServiceCatalogQueryService` | ServiceCatalogProjection | SearchServices, GetServiceDependencyGraph, GetOnCallForResource |
+| `PostmortemQueryService` | PostmortemSearchProjection | SearchPostmortems, ListPostmortemsByRootCause, GetPostmortemsByService |
+| `KnowledgeIndexQueryService` | KnowledgeIndexProjection | SearchPatterns, GetSimilarIncidents, GetSimilarPostmortems, SearchRunbooksBySemantic |
 
 ---
 
@@ -193,10 +240,12 @@ knowledge_index:
 
 1. All projections consume facts idempotently
 2. Fleet health updates within seconds of fact publication
-3. **Full-text search available** for incidents, alerts, runbooks
+3. **Full-text search available** for incidents, alerts, runbooks, services, postmortems
 4. **Semantic search available** via KnowledgeIndexProjection
 5. MTTR metrics aggregate correctly
 6. SLI time-series supports multiple granularities
 7. Query APIs support pagination and filtering
 8. **SRE agents query KnowledgeIndexQueryService** (not Transformation domain)
 9. Vector embeddings computed by projection (not domain)
+10. **Service catalog provides on-call routing** via `GetOnCallForResource`
+11. **Postmortems indexed** for pattern matching (both full-text and vector search)

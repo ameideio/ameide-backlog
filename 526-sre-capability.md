@@ -159,11 +159,13 @@ SRE capability owns:
 - **SLI** — Service Level Indicator (aggregated measurements, not raw telemetry)
 - **HealthCheck** — resource health assessment
 - **FleetState** — aggregate GitOps/cluster state
+- **Service** — service catalog entry with ownership, on-call schedule, dependencies
+- **Postmortem** — structured learning artifact (timeline, root cause, action items)
 
 ### Identity axes
 
 - `tenant_id`, `environment_id`, `cluster_id`, `namespace_id`
-- `application_id`, `incident_id`, `alert_id`, `runbook_id`
+- `application_id`, `incident_id`, `alert_id`, `runbook_id`, `service_id`, `postmortem_id`
 
 ---
 
@@ -178,6 +180,8 @@ SRE capability owns:
 | `RunbookService` | CreateRunbook, UpdateRunbook, GetRunbook | No search (projection) |
 | `SLOService` | CreateSLO, UpdateSLO, GetSLO, ListSLOs | Budget state only |
 | `HealthService` | RecordHealthCheck, RecordFleetState, GetCurrentFleetState | Current state only |
+| `ServiceCatalogService` | CreateService, UpdateService, DeleteService, GetService | Service ownership |
+| `PostmortemService` | CreatePostmortem, UpdatePostmortem, PublishPostmortem, GetPostmortem | Learning artifacts |
 
 ### 4.2 Projection Query Services (read-optimized, searchable)
 
@@ -188,7 +192,9 @@ SRE capability owns:
 | `AlertQueryService` | ListActiveAlerts, ListAlertGroups, SearchAlerts | Correlation + search |
 | `SLOQueryService` | GetSLOBurndown, GetSLITimeSeries | Time-series charts |
 | `RunbookQueryService` | SearchRunbooks, ListRunbooksByTag | Full-text search |
-| `KnowledgeIndexQueryService` | SearchPatterns, GetSimilarIncidents, SearchRunbooksBySemantic | Vector-backed semantic search |
+| `ServiceCatalogQueryService` | SearchServices, GetServiceDependencyGraph, GetOnCallForResource | On-call routing |
+| `PostmortemQueryService` | SearchPostmortems, ListPostmortemsByRootCause, GetPostmortemsByService | Learning search |
+| `KnowledgeIndexQueryService` | SearchPatterns, GetSimilarIncidents, GetSimilarPostmortems, SearchRunbooksBySemantic | Vector-backed semantic search |
 
 ### 4.3 Event Contracts
 
@@ -204,7 +210,7 @@ SRE capability owns:
 
 ### 5.1 Domain primitive
 
-**`sre-domain`**: Single-writer bounded context for incidents, alerts, runbooks, SLOs, health checks, fleet state. Emits domain facts via transactional outbox. Exposes minimal query APIs (get-by-id, list-by-parent, current state).
+**`sre-domain`**: Single-writer bounded context for incidents, alerts, runbooks, SLOs, health checks, fleet state, services, and postmortems. Emits domain facts via transactional outbox. Exposes minimal query APIs (get-by-id, list-by-parent, current state).
 
 See: [526-sre-domain.md](526-sre-domain.md)
 
@@ -223,14 +229,17 @@ See: [526-sre-process.md](526-sre-process.md)
 - **SLOBurndownProjection**: Error budget tracking, SLI time-series
 - **AlertCorrelationProjection**: Grouped alerts, correlation keys
 - **RunbookCatalogProjection**: Searchable runbook catalog
-- **KnowledgeIndexProjection**: Vector-backed semantic search for patterns, incidents, runbooks
+- **ServiceCatalogProjection**: Service ownership, on-call routing, dependency graph
+- **PostmortemSearchProjection**: Searchable postmortem archive
+- **KnowledgeIndexProjection**: Vector-backed semantic search for patterns, incidents, runbooks, postmortems
 
 See: [526-sre-projection.md](526-sre-projection.md)
 
 ### 5.4 Integration primitives
 
+- **KubernetesIntegration**: Direct K8s API access for resource state, events, logs (multi-cluster)
 - **ArgoCDIntegration**: Polls ArgoCD, emits `RecordFleetStateRequested` intents
-- **AlertManagerIntegration**: Webhook receiver, emits `IngestAlertRequested` intents
+- **ObservabilityIntegration**: Unified OTel/Prometheus/AlertManager/Grafana/Loki/Tempo access
 - **TicketingIntegration**: Creates tickets in Jira/GitHub on incident
 - **PagingIntegration**: Escalates to PagerDuty/OpsGenie
 
@@ -258,6 +267,8 @@ See: [526-sre-agent.md](526-sre-agent.md)
 - Runbook: `CreateRunbookRequested`, `ExecuteRunbookRequested`
 - SLO: `CreateSLORequested`, `RecordSLIWindowRequested` (aggregated windows, not raw)
 - Health: `RecordHealthCheckRequested`, `RecordFleetStateRequested`
+- Service: `CreateServiceRequested`, `UpdateServiceRequested`, `DeleteServiceRequested`
+- Postmortem: `CreatePostmortemRequested`, `UpdatePostmortemRequested`, `PublishPostmortemRequested`
 
 ### Domain facts (emitted by domain only)
 
@@ -266,6 +277,8 @@ See: [526-sre-agent.md](526-sre-agent.md)
 - Runbook: `RunbookCreated`, `RunbookExecutionCompleted`
 - SLO: `SLOCreated`, `SLIWindowRecorded`, `SLOBudgetExhausted`
 - Health: `HealthCheckRecorded`, `FleetStateRecorded`
+- Service: `ServiceCreated`, `ServiceUpdated`, `ServiceDeleted`
+- Postmortem: `PostmortemCreated`, `PostmortemUpdated`, `PostmortemPublished`
 
 ### Process facts
 
@@ -279,12 +292,12 @@ See: [526-sre-proto.md](526-sre-proto.md)
 
 ## 7) Technology requirements
 
-- Kubernetes + GitOps + operators
+- Kubernetes + GitOps + operators — multi-cluster access via KubernetesIntegration
 - Postgres/CNPG — Domain state + outbox
 - Postgres/CNPG + pgvector — Projection DBs (including semantic index)
 - Broker (NATS/Kafka) — facts topic families
 - Temporal — Process primitive orchestration
-- Prometheus + AlertManager — integration source
+- Prometheus + AlertManager + Loki + Tempo + Grafana — ObservabilityIntegration sources
 - ArgoCD — integration source
 
 ---
@@ -323,5 +336,8 @@ See: [526-sre-proto.md](526-sre-proto.md)
 4. Explicit **SRE EDA contract** (topic families + envelopes) following 496 pattern with `schema_version`
 5. 525 triage workflow formalized as **Process primitive** that queries projections
 6. **Domain query APIs are minimal** (get-by-id, current state); **search is projection-backed**
-7. **KnowledgeIndexProjection** provides vector-backed semantic search for patterns
-8. End-to-end slice: Alert → Incident → Pattern lookup (projection) → Triage → Remediation → Verification → Documentation
+7. **KnowledgeIndexProjection** provides vector-backed semantic search for patterns, postmortems
+8. **Service catalog owned by SRE**: supports on-call routing via `GetOnCallForResource`
+9. **Postmortem as governed artifact**: structured learning loop indexed for pattern matching
+10. **Kubernetes + Observability integrations**: direct access to K8s API, Prometheus, Loki, Tempo, Grafana
+11. End-to-end slice: Alert → Incident → Pattern lookup (projection) → Triage → Remediation → Verification → Documentation → Postmortem

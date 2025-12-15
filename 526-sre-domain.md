@@ -3,7 +3,7 @@
 **Status:** Draft
 **Parent:** [526-sre-capability.md](526-sre-capability.md)
 
-This document specifies the **sre-domain** primitive — the system-of-record for incidents, alerts, runbooks, SLOs, and health assessments.
+This document specifies the **sre-domain** primitive — the system-of-record for incidents, alerts, runbooks, SLOs, health assessments, service ownership, and postmortems.
 
 ---
 
@@ -17,6 +17,8 @@ The `sre-domain` primitive is the **single-writer** for SRE aggregates:
 - **SLO** — Service Level Objective definitions (budget state, not raw measurements)
 - **HealthCheck** — resource health assessments
 - **FleetState** — aggregate GitOps/cluster state snapshots
+- **Service** — service catalog entries with ownership, on-call, dependencies
+- **Postmortem** — structured learning artifacts tied to incidents
 
 It must:
 
@@ -111,6 +113,51 @@ open → acknowledged → investigating → mitigating → resolved → closed
 - `total_applications`, `healthy_count`, `degraded_count`
 - `progressing_count`, `unknown_count`, `out_of_sync_count`
 
+### 2.7 Service (Service Catalog)
+
+**Identity:** `service_id` (UUID or slug, e.g., `www-ameide-platform`)
+
+**Attributes:**
+- `name`, `description`
+- `tier` — critical | standard | non-critical (for SLO defaults and escalation)
+- `owner_team` — team responsible for the service
+- `on_call_schedule` — reference to on-call rotation
+- `dependencies` — list of service_ids this service depends on
+- `dependents` — list of service_ids that depend on this service
+- `runbook_ids` — list of associated runbooks
+- `slo_ids` — list of associated SLOs
+- `resource_selectors` — K8s label selectors for matching resources to this service
+- `metadata` — tags, links (repo, docs, dashboard URLs)
+
+**Purpose:** Answers "who owns this?", "who is on-call?", "which runbooks apply?", "what depends on this?"
+
+**Note:** This is the SRE-owned service catalog. No external Backstage dependency.
+
+### 2.8 Postmortem
+
+**Identity:** `postmortem_id` (UUID)
+
+**Attributes:**
+- `incident_id` — linked incident (required)
+- `title`, `summary`
+- `status` — draft | in_review | published
+- `timeline` — ordered list of incident events with timestamps
+- `impact` — user impact, duration, scope
+- `root_cause` — structured root cause analysis
+- `contributing_factors` — list of contributing factors
+- `action_items` — list of follow-up tasks with owners and due dates
+- `lessons_learned` — key takeaways for pattern matching
+- `tags` — for categorization and search
+- `authors`, `reviewers`
+- `created_at`, `published_at`
+
+**State machine:**
+```
+draft → in_review → published
+```
+
+**Purpose:** Structured blameless learning artifact. Indexed by KnowledgeIndexProjection for pattern matching.
+
 ---
 
 ## 3) Domain query APIs (minimal, strongly consistent)
@@ -124,12 +171,16 @@ Domain exposes **minimal** query APIs for get-by-id and bounded lists:
 | `SreRunbookQueryService` | GetRunbook, ListRunbooks | No search |
 | `SreSLOQueryService` | GetSLO, ListSLOs | Budget state only |
 | `SreHealthQueryService` | GetCurrentFleetState | Current state only |
+| `SreServiceQueryService` | GetService, ListServices | Service catalog |
+| `SrePostmortemQueryService` | GetPostmortem, ListPostmortemsByIncident | No search |
 
 **What domain query APIs do NOT provide:**
-- `SearchIncidents`, `SearchRunbooks` → projection responsibility
+- `SearchIncidents`, `SearchRunbooks`, `SearchPostmortems` → projection responsibility
 - `GetIncidentHistory`, `GetMTTRMetrics` → projection responsibility
 - `GetSLITimeSeries`, `GetBurndownChart` → projection responsibility
 - `SearchAlertsByLabel`, `GetAlertCorrelations` → projection responsibility
+- `SearchServicesByOwner`, `GetServiceDependencyGraph` → projection responsibility
+- `GetOnCallForResource` → projection responsibility (resolves resource → service → on-call)
 
 All search, dashboards, history, and time-series queries must go through **projection query services**.
 
@@ -168,3 +219,5 @@ Domain accepts `RecordSLIWindowRequested` with pre-aggregated measurements (per-
 5. Aggregate versions enable idempotent downstream consumption
 6. Tenant isolation enforced on all queries and commands
 7. SLI measurements are aggregated windows, not raw telemetry
+8. **Service catalog owned by SRE** (no external Backstage dependency)
+9. **Postmortems are structured artifacts** with lifecycle (draft → in_review → published)

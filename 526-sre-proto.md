@@ -22,6 +22,8 @@ packages/ameide_core_proto/src/ameide_core_proto/
     │       ├── runbook.proto       # Runbook aggregate messages
     │       ├── slo.proto           # SLO/SLI aggregate messages
     │       ├── health.proto        # HealthCheck, FleetState messages
+    │       ├── service.proto       # Service catalog messages
+    │       ├── postmortem.proto    # Postmortem aggregate messages
     │       ├── intents.proto       # SreDomainIntent envelope
     │       ├── facts.proto         # SreDomainFact envelope
     │       └── query.proto         # Query service definitions
@@ -89,6 +91,8 @@ Process facts include `SreProcessSubject`:
 - `IncidentStatus` — OPEN, ACKNOWLEDGED, INVESTIGATING, MITIGATING, RESOLVED, CLOSED
 - `AlertStatus` — FIRING, RESOLVED, SILENCED, ACKNOWLEDGED
 - `HealthStatus` — HEALTHY, DEGRADED, UNHEALTHY, UNKNOWN
+- `ServiceTier` — CRITICAL, STANDARD, NON_CRITICAL
+- `PostmortemStatus` — DRAFT, IN_REVIEW, PUBLISHED
 
 **Messages:**
 - `ResourceRef` — type, id, namespace, cluster, environment
@@ -120,6 +124,12 @@ Process facts include `SreProcessSubject`:
 | `RecordSLIWindowRequested` | 41 | SLO (aggregated windows) |
 | `RecordHealthCheckRequested` | 50 | HealthCheck |
 | `RecordFleetStateRequested` | 51 | FleetState |
+| `CreateServiceRequested` | 60 | Service |
+| `UpdateServiceRequested` | 61 | Service |
+| `DeleteServiceRequested` | 62 | Service |
+| `CreatePostmortemRequested` | 70 | Postmortem |
+| `UpdatePostmortemRequested` | 71 | Postmortem |
+| `PublishPostmortemRequested` | 72 | Postmortem |
 
 ---
 
@@ -147,6 +157,12 @@ Process facts include `SreProcessSubject`:
 | `SLOBudgetExhausted` | 42 | SLO |
 | `HealthCheckRecorded` | 50 | HealthCheck |
 | `FleetStateRecorded` | 51 | FleetState |
+| `ServiceCreated` | 60 | Service |
+| `ServiceUpdated` | 61 | Service |
+| `ServiceDeleted` | 62 | Service |
+| `PostmortemCreated` | 70 | Postmortem |
+| `PostmortemUpdated` | 71 | Postmortem |
+| `PostmortemPublished` | 72 | Postmortem |
 
 ---
 
