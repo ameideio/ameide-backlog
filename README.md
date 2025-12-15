@@ -2,6 +2,10 @@
 
 This directory contains technical design documents and architecture decision records for the AMEIDE platform.
 
+## Way of Working
+
+- `backlog/525-backlog-first-triage-workflow.md` — required backlog-first process for spotting issues, verifying prior work, triage, remediation, and verification.
+
 ## Recently Completed Items (2025)
 
 ### Q1 2025
