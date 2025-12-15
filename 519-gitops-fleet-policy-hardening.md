@@ -122,6 +122,8 @@ These are intentionally deferred to later in this backlog (but now tracked expli
 - **Third-party chart defaults are not validated**: published image tags referenced in vendored charts/values may not exist (e.g., Spotahome `redis-operator:v1.3.0` is not available on `quay.io`, while `v1.3.0-rc1` is), so image tags must be pinned to known-good/pulled-by-CI values.
 - **Image policy is not centralized**: multi-arch requirements and “mirror vs upstream” decisions are handled ad-hoc per chart.
 - **Bootstrap Jobs are not standardized**: job immutability, wait/retry patterns, and cleanup semantics vary per bootstrap chart.
+- **Cluster-wide RBAC for per-environment smoke Jobs is collision-prone**: multiple env Applications using `helm-test-jobs` with `rbac.clusterWide: true` can collide on `ClusterRole/ClusterRoleBinding` names (derived from a shared Helm `releaseName`), breaking determinism in multi-env clusters.
+  - Fix direction: make cluster-scoped RBAC names namespace-unique (or centralize cluster-wide roles as cluster-scoped components); also remove unnecessary `clusterWide` where namespace-scoped RBAC is sufficient.
 
 ---
 
