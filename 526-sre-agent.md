@@ -27,7 +27,7 @@ This document specifies the **SRE agent primitives** — the LangGraph-based age
 │  Temporal workflow  │
 └─────────┬───────────┘
           │ Process facts (sre.process.facts.v1)
-          │ IncidentTriageStarted / BacklogLookupCompleted / RemediationProposed
+          │ IncidentTriageStarted / PatternLookupCompleted / RemediationProposed
           ▼
 ┌─────────────────────┐   A2A (standard)   ┌─────────────────────────┐
 │      SREAgent       │ ──────────────────▶│       SRECoder          │
@@ -306,16 +306,16 @@ RESPOND
 ```
 TRIAGE_START
   ↓
-BACKLOG_SEARCH → [match found?]
-  ↓                    ↓
-[yes]               [no]
-  ↓                    ↓
-VERIFY_PATTERN    DELEGATE_INVESTIGATION (A2A → SRECoder)
-  ↓                    ↓
-APPLY_KNOWN_FIX   ANALYZE_DIAGNOSTICS
-  ↓                    ↓
-  └──────────┬─────────┘
-             ↓
+PATTERN_SEARCH (via KnowledgeIndexQueryService) → [match found?]
+  ↓                                                     ↓
+[yes]                                                [no]
+  ↓                                                     ↓
+VERIFY_PATTERN                              DELEGATE_INVESTIGATION (A2A → SRECoder)
+  ↓                                                     ↓
+APPLY_KNOWN_FIX                             ANALYZE_DIAGNOSTICS
+  ↓                                                     ↓
+  └──────────────────────┬──────────────────────────────┘
+                         ↓
 PROPOSE_REMEDIATION → AWAIT_APPROVAL
   ↓
 DELEGATE_REMEDIATION (A2A → SRECoder)
@@ -337,19 +337,19 @@ COMPLETE
 You are an SRE Agent for the Ameide platform. Your primary role is to assist
 operators with incident investigation, remediation, and documentation.
 
-## Core Principle: Backlog-First Triage (525)
+## Core Principle: Pattern-First Triage (525)
 
-ALWAYS search the backlog for known patterns BEFORE deep cluster investigation.
-The backlog is the source of truth for incident patterns, runbooks, and accepted
-tradeoffs.
+ALWAYS search for known patterns BEFORE deep cluster investigation.
+Query the KnowledgeIndexQueryService (projection) for incident patterns, runbooks,
+and accepted tradeoffs. Never query Transformation domain directly.
 
 ## Your Responsibilities
 
 1. **Understand symptoms** from alerts, user reports, or health checks
-2. **Search backlog** for matching patterns (ALWAYS first)
+2. **Search patterns** via KnowledgeIndexQueryService (ALWAYS first)
 3. **Propose investigation** if no pattern matches
 4. **Propose remediation** based on findings
-5. **Request documentation** updates for new patterns
+5. **Request documentation** updates for new patterns (delegate to SRECoder)
 
 ## What You DO NOT Do
 
@@ -360,12 +360,12 @@ tradeoffs.
 ## Workflow
 
 1. **Spot**: Understand the symptom/alert
-2. **Search Backlog**: Look for known patterns FIRST
+2. **Pattern Search**: Query KnowledgeIndexQueryService for known patterns FIRST
 3. **Verify**: Check if the pattern matches current symptoms
 4. **Triage**: If no match, delegate investigation to SRECoder
 5. **Fix**: Propose remediation (requires approval for writes)
 6. **Verify**: Confirm health restored (delegate to SRECoder)
-7. **Document**: Request backlog update (delegate to SRECoder)
+7. **Document**: Request documentation update (delegate to SRECoder)
 
 ## Constraints
 
@@ -425,7 +425,7 @@ spec:
     name: claude-sonnet-4-20250514
     secretRef: platform/anthropic-api-key
   tools:
-    domains: [sre, transformation]
+    domains: [sre]  # No transformation - runtime queries go through projection
     processes: [incident-triage]
     custom:
       - name: investigate_cluster_resource
@@ -505,10 +505,11 @@ ameide primitive scaffold --kind agent --name sre-coder --runtime-role a2a_serve
 
 ## 10) Acceptance criteria
 
-1. SREAgent implements full 525 backlog-first workflow
+1. SREAgent implements full 525 pattern-first workflow
 2. SREAgent NEVER executes kubectl/argocd/git directly
-3. SRECoder exposes A2A endpoint with documented skills
-4. All write operations flow through approval gates
-5. All actions logged to incident timeline
-6. Timeout constraints enforced (max 5 minutes)
-7. PRs created for all repo changes (never direct push)
+3. **SREAgent queries projection services only** (never Transformation domain)
+4. SRECoder exposes A2A endpoint with documented skills
+5. All write operations flow through approval gates
+6. All actions logged to incident timeline
+7. Timeout constraints enforced (max 5 minutes)
+8. PRs created for all repo changes (never direct push)

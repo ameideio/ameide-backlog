@@ -32,7 +32,7 @@ Formalizes [525-backlog-first-triage-workflow.md](525-backlog-first-triage-workf
 ### Workflow phases
 
 ```
-START → BACKLOG_LOOKUP → TRIAGE → REMEDIATION → VERIFICATION → DOCUMENTATION → END
+START → PATTERN_LOOKUP → TRIAGE → REMEDIATION → VERIFICATION → DOCUMENTATION → END
 ```
 
 ### Phase 1: PATTERN_LOOKUP
