@@ -115,6 +115,15 @@ Reference implementation: [497 §10.3](497-operator-implementation-patterns.md#1
 | **Migration version tracking** | Extract version from Job logs/output | ⏳ Deferred (requires Job log parsing) |
 | **Schema cleanup on delete** | Optional: drop schema on Domain deletion | ⏳ Deferred (configurable per-environment) |
 
+#### Migration job contract (Flyway)
+
+- `spec.db.migrationJobImage` is expected to be a Flyway-compatible image that contains the domain’s migrations under `/flyway/sql`.
+- The operator runs migrations by executing `flyway migrate` with env vars:
+  - `FLYWAY_URL` from CNPG secret `jdbc-uri`
+  - `FLYWAY_USER` / `FLYWAY_PASSWORD` from CNPG secret
+  - `FLYWAY_LOCATIONS=filesystem:/flyway/sql`
+  - `FLYWAY_SCHEMAS` and `FLYWAY_DEFAULT_SCHEMA` set from `spec.db.schema`
+
 ### Phase 3: Production Readiness
 
 | Task | Description | Acceptance Criteria |

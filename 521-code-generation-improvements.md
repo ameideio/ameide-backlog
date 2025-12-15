@@ -138,6 +138,24 @@ Key paths:
 Verification:
 - `cd packages/ameide_core_proto && buf lint && buf build`
 
+### 2025-12-15 — Domain-owned Flyway migrations + migration image contract
+
+Change:
+- Switched Domain scaffolding from an ad-hoc `migrations/0001_create_outbox.sql` file to a Flyway-compatible, domain-owned migrations set (starting at `migrations/V1__domain_outbox.sql`).
+- Added per-domain migration image Dockerfiles under `migrations/` so the Domain operator can run migrations automatically via `spec.db.migrationJobImage`.
+- Updated Domain verify/guardrails so domains must ship migrations + migration image (no central migration bundle for domain DB schemas).
+
+Key paths:
+- `packages/ameide_core_cli/internal/commands/primitive_scaffold.go`
+- `packages/ameide_core_cli/internal/commands/templates/domain/readme.md.tmpl`
+- `packages/ameide_core_cli/internal/commands/primitive.go`
+- `backlog/498-domain-operator.md`
+- `backlog/510-domain-primitive-scaffolding.md`
+
+Verification:
+- `go test ./packages/ameide_core_cli/...`
+- `go test ./operators/domain-operator/...`
+
 ## Follow-ups (ideas)
 
 - Add `.gitattributes` rules to mark committed generated files (e.g. `zz_generated.deepcopy.go`) as generated for diffs and GitHub linguist.
