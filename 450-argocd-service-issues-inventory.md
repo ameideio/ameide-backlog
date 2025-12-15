@@ -72,6 +72,22 @@ Remediation approach (GitOps-aligned, no band-aids):
 Backlog linkage:
 - Reinforces [382-argocd-dependency-hardening.md](300-400/382-argocd-dependency-hardening.md): readiness gates must be accurate and properly ordered, otherwise they produce stale failed operations that hide the real state.
 
+## Update (2025-12-15): Local cluster controllers CrashLooping (Envoy Gateway leader election + kube-state-metrics RBAC mismatch)
+
+Observed cluster-scoped and per-env controllers stuck `Progressing` because their Deployments were CrashLooping:
+
+- **App:** `cluster-gateway`
+  - **Pod:** `argocd/envoy-gateway-*` CrashLoopBackOff
+  - **Symptom:** leader election lease reads failed with `context deadline exceeded` against the in-cluster apiserver service (`https://10.43.0.1:443/.../leases/...`), then the controller exits (`leader election lost`).
+- **App:** `local-platform-prometheus`
+  - **Pod:** `ameide-local/platform-prometheus-kube-state-metrics-*` CrashLoopBackOff
+  - **Symptom:** RBAC forbids listing cluster-scoped resources (`nodes`, `namespaces`, `storageclasses`, `persistentvolumes`, `volumeattachments`, webhook configs, CSRs), but the container is configured with `--resources=...` that includes those cluster-scoped collectors.
+
+Remediation approach (GitOps-aligned, no band-aids):
+1. **Local controller stability:** for controllers where we own the chart (e.g. `cluster-ameide-operators`), disable leader election in local when running single replicas (avoid fragile lease renewals under local apiserver latency).
+2. **Namespace-isolated kube-state-metrics:** configure `kube-state-metrics` collectors to namespaced-only resources and set `rbac.useClusterRole=false` so RBAC matches the intended per-namespace observability model.
+3. **Gateway controller locality/priority (local-only):** if Envoy Gateway remains sensitive to the ClusterIP apiserver path, prefer policy-shaped placement (pin to the control-plane node + higher priority) over manual restarts.
+
 ## Update (2025-12-14): ComparisonError flapping + operator leader-election instability (local k3d)
 
 Observed “unhealthy” Argo apps even when the underlying resources were fine (or briefly fine):
