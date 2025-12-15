@@ -2,7 +2,7 @@
 
 **Status**: Partially Resolved (CI/CD blocking staging/prod)
 **Created**: 2025-12-04
-**Updated**: 2025-12-14
+**Updated**: 2025-12-15
 **Commit**: `6c805de fix(446): remove tolerations overrides, inherit from globals`
 **Related**: [442-environment-isolation.md](442-environment-isolation.md), [445-argocd-namespace-isolation.md](445-argocd-namespace-isolation.md), [446-namespace-isolation.md](446-namespace-isolation.md), [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md), [451-secrets-management.md](451-secrets-management.md), [456-ghcr-mirror.md](456-ghcr-mirror.md)
 
@@ -53,6 +53,24 @@ Follow-up (local):
   - Run `data-redis-failover` in a local `standalone` mode (no `RedisFailover` CR).
   - Scale the `cluster-redis-operator` Deployment to `replicas: 0` for local.
   - Override local consumers (e.g. `www-ameide-platform`) to use `redis://redis-master:6379/0` (no Sentinel) explicitly.
+
+## Update (2025-12-15): `local-foundation-external-secrets-ready` “Last Sync Failed” (readiness gate drift)
+
+Observed an Argo app that was `Synced/Healthy` but still showed **`operationState.phase=Failed`** due to a Sync hook Job hitting its backoff limit.
+
+- **App:** `local-foundation-external-secrets-ready`
+  - **Failing hook:** `foundation-external-secrets-ready-helm-test-jobs-*`
+
+Root cause (configuration drift):
+- The “ready” hook script was checking legacy resource names (`deployment/foundation-external-secrets*`) that do not exist with the current `external-secrets` Helm chart install (`deployment/external-secrets`, `deployment/external-secrets-webhook`, `deployment/external-secrets-cert-controller`).
+- The ready hook runs in the environment namespace but checks resources in `external-secrets`, so it also requires cluster-wide RBAC (otherwise `kubectl -n external-secrets ...` is forbidden).
+
+Remediation approach (GitOps-aligned, no band-aids):
+1. Update the ready check to validate the *actual* external-secrets deployment names and webhook Service/Endpoints created by the current chart.
+2. Set the ready check’s `helm-test-jobs` RBAC to `clusterWide: true` (or move the check into `external-secrets`; prefer explicit RBAC so the check remains per-env but can validate cluster-scoped substrate).
+
+Backlog linkage:
+- Reinforces [382-argocd-dependency-hardening.md](300-400/382-argocd-dependency-hardening.md): readiness gates must be accurate and properly ordered, otherwise they produce stale failed operations that hide the real state.
 
 ## Update (2025-12-14): ComparisonError flapping + operator leader-election instability (local k3d)
 
