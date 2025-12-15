@@ -231,6 +231,9 @@ Local k3d clusters are capacity-constrained and can exhibit apiserver write late
   - Baseline images must be **multi-arch** when the cluster type requires it (local k3d on arm64). Treat `amd64`-only `main` tags as a fleet policy violation (track under 456).
   - The inner loop (dev servers, live reload) belongs in Tilt/Telepresence “*-tilt” releases, not the Argo baseline.
 - **Charts must honor auth toggles**: if a chart exposes `auth.enabled`, templates must not unconditionally enable auth (especially in local fallbacks like standalone Redis).
+- **Gateway addressability must be a declared capability**:
+  - If a local environment expects `Service.type=LoadBalancer` (e.g., Envoy Gateway data-plane Services), the cluster must include a load-balancer implementation (k3s `servicelb` or MetalLB) so Gateways get addresses deterministically.
+  - Do not “green” Gateways by relaxing health checks; treat missing Gateway addresses as a real capability gap that must be solved in GitOps.
 
 **Tracking note:** if any local-only knob is required (leader election disable, reduced concurrency, reduced replicas), record it explicitly as a local capability decision and keep it out of shared defaults unless it is safe for real clusters.
 

@@ -51,6 +51,17 @@ Recent local `arm64` debugging showed two failure modes that this doc should exp
 - `.github/workflows/mirror-images.yaml`
 - `infra/scripts/mirror-images-to-ghcr.sh`
 
+## Addendum (2025-12-15): OTEL Collector mirror still breaks local arm64
+
+**Incident:** `ameide-local` OTEL collector (`local-platform-otel-collector`) CrashLooped on `ghcr.io/ameideio/mirror/otel-collector-contrib:0.91.0` with a Go runtime crash referencing `runtime/asm_amd64.s`, consistent with a bad/unsupported `arm64` artifact (single-arch mirror tag or broken emulation path).
+
+**Meaning:** it is not enough to document multi-arch requirements; we must also **re-publish** existing tags as proper manifest lists and reject new mirrors that do not include `linux/amd64` + `linux/arm64`.
+
+**Action items:**
+- Re-run the mirroring workflow for `otel-collector-contrib:0.91.0` after the “preserve manifest list” fix so GHCR contains the full multi-arch manifest list.
+- Add validation (pipeline) to fail the mirror job when a tag does not include the expected platforms.
+- Keep an environment-scoped fallback mechanism (local can temporarily use upstream multi-arch images when a mirror tag is missing the required platforms), but treat this as a tracked exception until the mirror is repaired.
+
 ## Infrastructure
 
 ### GitHub Actions Workflow

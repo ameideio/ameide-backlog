@@ -159,6 +159,34 @@ Remediation approach (GitOps-aligned, no band-aids):
 1. Treat Argo-managed local baseline as production-like: run a deterministic server entrypoint (no runtime package-manager downloads, no dev server).
 2. Fix the local Redis standalone chart behavior so `auth.enabled=false` truly runs Redis without `requirepass` (and keep `auth.enabled=true` for environments that need it).
 
+## Update (2025-12-15): Local observability + Gateway Progressing (OTEL collector arch + local LoadBalancer)
+
+Observed Argo apps stuck `Progressing`:
+- `local-platform-otel-collector`
+- `cluster-gateway`
+- `local-platform-gateway`
+
+### `local-platform-otel-collector`: CrashLoopBackOff (arm64)
+
+- **Pod:** `ameide-local/otel-collector-*`
+- **Symptom:** container exits `2` and CrashLoops; logs show a Go runtime dump with `runtime/asm_amd64.s` frames.
+- **Root cause:** the configured mirror tag `ghcr.io/ameideio/mirror/otel-collector-contrib:0.91.0` is not usable on local `arm64` (either `amd64`-only or effectively broken under emulation).
+- **Impact:** OTLP exporters fail across apps and add red-noise.
+
+Remediation approach (GitOps-aligned):
+1. Add a local override to use a known multi-arch collector image (or pin a digest) until the mirror is republished as a proper manifest list (track under 456).
+2. Keep mirror validation so tags must include `linux/amd64` + `linux/arm64` before being accepted as “fleet standard”.
+
+### `local-platform-gateway`: “No addresses assigned” (no local LB)
+
+- **Resource:** `Gateway/ameide-local/ameide`
+- **Symptom:** `ADDRESS` is empty and `Programmed=False`.
+- **Root cause:** the Envoy Service for the local Gateway is `type: LoadBalancer` but has `EXTERNAL-IP: <pending>` in k3d/k3s, so the Gateway cannot be assigned an address.
+
+Remediation approach (reproducible local):
+1. Make “LoadBalancer provider” an explicit local capability: deploy MetalLB (or re-enable k3s `servicelb`) via GitOps so `LoadBalancer` services are assigned addresses deterministically.
+2. Keep local Gateway health tied to real address assignment; do not mask with Argo health overrides.
+
 ## Update (2025-12-14): Local GitLab OutOfSync noise (Argo diff + orphaned Helm hook)
 
 Observed `local-platform-gitlab` reporting `OutOfSync` while workloads remained `Healthy`.
