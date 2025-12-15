@@ -116,6 +116,7 @@ These are intentionally deferred to later in this backlog (but now tracked expli
 - **Non-deterministic runtime secrets still exist** in some charts and are currently masked via Argo diff ignores (migrate them to Vault KV → ESO → Secret, and remove ignores).
 - **Vendor chart modifications exist in-tree** (e.g., Langfuse changes landed under `sources/charts/third_party/...`), which will complicate upstream upgrades.
 - **Operator runtime stability is not policy-shaped**: some cluster-scoped controllers can CrashLoop under local k3d load due to leader-election lease renewal failures (e.g., Spotahome `redis-operator` exiting on `client rate limiter Wait ... context deadline exceeded`), leaving CR reconciliation incomplete and causing downstream smoke hooks to fail.
+- **Local scheduling policy for controllers is not standardized**: critical controllers may need local-only node placement/priority (e.g., prefer the control-plane node + `system-cluster-critical`) to keep leader-election lease renewals reliable under constrained k3d resources.
 - **Third-party chart defaults are not validated**: published image tags referenced in vendored charts/values may not exist (e.g., Spotahome `redis-operator:v1.3.0` is not available on `quay.io`), so image tags must be pinned to known-good/pulled-by-CI values.
 - **Image policy is not centralized**: multi-arch requirements and “mirror vs upstream” decisions are handled ad-hoc per chart.
 - **Bootstrap Jobs are not standardized**: job immutability, wait/retry patterns, and cleanup semantics vary per bootstrap chart.

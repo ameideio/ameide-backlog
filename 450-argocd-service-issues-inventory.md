@@ -45,6 +45,9 @@ Remediation approach (GitOps-aligned, no band-aids):
 2. Stabilize `redis-operator` so it stays Running and can reconcile RedisFailover deterministically (avoid lease-renewal crashes under k3d load).
 3. Ensure smoke apps always have at least one tracked non-hook manifest so Argo auto-sync can clear stale failed operations (already applied for `helm-test-jobs`).
 
+Follow-up (local):
+- If `redis-operator` continues to lose its lease due to apiserver latency, pin it to the k3d control-plane node and run it at `system-cluster-critical` priority to reduce scheduling/CPU jitter during lease renewals.
+
 ## Update (2025-12-14): ComparisonError flapping + operator leader-election instability (local k3d)
 
 Observed “unhealthy” Argo apps even when the underlying resources were fine (or briefly fine):
