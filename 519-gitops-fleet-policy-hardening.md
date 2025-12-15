@@ -219,6 +219,19 @@ Implementation note (Option A execution):
 - Keep cert-manager CRDs in `cluster-crds-cert-manager`.
 - Retain `platform-cert-manager-config` as the place where Issuers/Certificates are declared (namespaced) for applications/operators.
 
+### 4.6 Local stability guardrails (controllers + runtime determinism)
+
+Local k3d clusters are capacity-constrained and can exhibit apiserver write latency that breaks leader-election renewals and long-running health checks. Local should stay **reproducible and self-healing**, but it can legitimately diverge in *operational toggles* that make single-replica controllers stable.
+
+**Policy (local-only, capability-shaped):**
+- **Disable leader election when `replicas=1`** for controllers/operators that exit on `leader election lost` (e.g., Strimzi, NiFiKop, Envoy Gateway). Leader election becomes a failure mode under local latency and provides no benefit at single replica.
+- **No runtime downloads / no dev servers in Argo baseline**:
+  - Argo-managed “baseline” workloads must start deterministically from the published image (no Corepack/pnpm downloads, no runtime codegen, no writes to the image filesystem).
+  - The inner loop (dev servers, live reload) belongs in Tilt/Telepresence “*-tilt” releases, not the Argo baseline.
+- **Charts must honor auth toggles**: if a chart exposes `auth.enabled`, templates must not unconditionally enable auth (especially in local fallbacks like standalone Redis).
+
+**Tracking note:** if any local-only knob is required (leader election disable, reduced concurrency, reduced replicas), record it explicitly as a local capability decision and keep it out of shared defaults unless it is safe for real clusters.
+
 ### 4.3 Wrappers for vendor charts
 
 Example wrapper conventions:

@@ -125,6 +125,38 @@ Remediation approach (GitOps-aligned):
 1. Treat this as an application portability bug: the agent must listen on `0.0.0.0:50051` (or dual-stack with IPv4 enabled) for IPv4-only clusters like k3d/k3s.
 2. Until the image is fixed, exclude `agent-echo-v0` and its smoke app from the local component allowlist (prefer “do not generate the Application” over “install + fail”).
 
+## Update (2025-12-15): Local operator lease renewals causing Argo `Progressing` (NiFiKop + Strimzi)
+
+Observed cluster-scoped operator Deployments stuck `Progressing` because the controller process **exits on leader election loss** under local apiserver latency.
+
+- **App:** `cluster-nifikop`
+  - **Resource:** `Deployment/argocd/nifikop`
+  - **Symptom:** `Waiting for rollout to finish: 0 of 1 updated replicas are available...`
+  - **Operator logs:** lease renewals fail with `context deadline exceeded` / `client rate limiter Wait returned an error`, followed by `unable to start manager: leader election lost`.
+- **App:** `cluster-strimzi-operator`
+  - **Resource:** `Deployment/strimzi-system/strimzi-cluster-operator`
+  - **Symptom:** `Waiting for rollout to finish: 0 of 1 updated replicas are available...`
+  - **Operator logs:** Kubernetes client requests get interrupted during reconciliation after leadership loss, and the process exits (CrashLoopBackOff).
+
+Remediation approach (GitOps-aligned, local-only):
+1. Prefer disabling leader election when `replicas=1` for local clusters (avoid “lease renew = liveness gate”).
+   - Strimzi: set the chart’s `leaderElection.enable=false` in local cluster values.
+   - NiFiKop: add a chart value to conditionally omit `-leader-elect`, then set it off in local cluster values.
+2. Keep the default topology for real clusters (where multiple replicas or higher apiserver capacity makes leader election meaningful).
+
+## Update (2025-12-15): `local-www-ameide-platform` not Ready (dev-server startup + Redis auth mismatch)
+
+- **App:** `local-www-ameide-platform`
+  - **Resource:** `Deployment/ameide-local/www-ameide-platform`
+  - **Symptom:** rollout stuck with probes timing out; container frequently exits `1`.
+  - **Observed root causes:**
+    1. **Non-deterministic startup**: `pnpm run dev` runs via Corepack and may download `pnpm` at runtime; Next dev also attempts to mutate `tsconfig.json` and can fail inside an immutable image.
+    2. **Redis auth mismatch**: local `redis-failover` runs in `standalone` mode and always enforces `--requirepass` from `redis-auth` even when `auth.enabled=false`. The app connects via `REDIS_URL` and does not successfully authenticate, causing `NOAUTH Authentication required` loops.
+
+Remediation approach (GitOps-aligned, no band-aids):
+1. Treat Argo-managed local baseline as production-like: run a deterministic server entrypoint (no runtime package-manager downloads, no dev server).
+2. Fix the local Redis standalone chart behavior so `auth.enabled=false` truly runs Redis without `requirepass` (and keep `auth.enabled=true` for environments that need it).
+
 ## Update (2025-12-14): Local GitLab OutOfSync noise (Argo diff + orphaned Helm hook)
 
 Observed `local-platform-gitlab` reporting `OutOfSync` while workloads remained `Healthy`.
