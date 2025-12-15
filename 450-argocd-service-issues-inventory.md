@@ -47,6 +47,7 @@ Remediation approach (GitOps-aligned, no band-aids):
 
 Follow-up (local):
 - If `redis-operator` continues to lose its lease due to apiserver latency, pin it to the k3d control-plane node and run it at `system-cluster-critical` priority to reduce scheduling/CPU jitter during lease renewals.
+- If the published operator tag is missing (Spotahome does not publish `v1.3.0` on quay.io), prefer a known-good tag (e.g. `v1.2.4`) or a vetted RC (`v1.3.0-rc1`) for local until a stable release is available.
 
 ## Update (2025-12-14): ComparisonError flapping + operator leader-election instability (local k3d)
 
