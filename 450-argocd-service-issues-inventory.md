@@ -75,6 +75,17 @@ Remediation approach (GitOps-aligned):
 2. **Tune high-churn operators** (k8s client QPS/burst + concurrency) so leader election is resilient under load.
 3. **Remove Helm hook “stable secret generation”** where possible (e.g. GitLab `shared-secrets`), replacing with Vault KV → ESO → Secret so sync is idempotent and doesn’t block on long-running hook batches.
 
+## Update (2025-12-15): Local primitive smoke failure (agent-echo-v0)
+
+- **App:** `local-agent-echo-v0-smoke`
+  - **Failing hook:** `agent-echo-v0-smoke-helm-test-jobs-agent-echo-v0` (gRPC `grpcurl` connect refused)
+  - **Observed:** the `echo-v0-agent` pod listens on an IPv6 socket and refuses IPv4 pod/service traffic (`dial tcp <podIP>:50051: connect: connection refused`).
+  - **Constraint:** Agent image/config is owned outside this repo; no reliable in-repo toggle was found to force an IPv4 listener.
+
+Remediation approach (GitOps-aligned):
+1. Treat this as an application portability bug: the agent must listen on `0.0.0.0:50051` (or dual-stack with IPv4 enabled) for IPv4-only clusters like k3d/k3s.
+2. Until the image is fixed, exclude `agent-echo-v0` and its smoke app from the local component allowlist (prefer “do not generate the Application” over “install + fail”).
+
 ## Update (2025-12-14): Local GitLab OutOfSync noise (Argo diff + orphaned Helm hook)
 
 Observed `local-platform-gitlab` reporting `OutOfSync` while workloads remained `Healthy`.
