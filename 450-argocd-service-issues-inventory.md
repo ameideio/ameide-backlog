@@ -303,6 +303,9 @@ See [451-secrets-management.md](451-secrets-management.md) for complete secrets 
 | `argocd-cert-manager` | ArgoCD-managed cert-manager |
 | `cluster-cert-manager` | Cluster cert-manager operator |
 
+Note:
+- Running more than one cert-manager controller set in a shared cluster is a risk area (contention + cluster-scoped side effects). Fleet policy target is **one cert-manager install per cluster**, with multi-tenancy handled via RBAC/policy + namespaced Issuers (track under 519).
+
 ---
 
 ## P3 – Progressing Applications

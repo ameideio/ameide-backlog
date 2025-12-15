@@ -112,6 +112,7 @@ These are intentionally deferred to later in this backlog (but now tracked expli
 
 **What remains misaligned (gaps)**
 - **Values schema collision risk remains repo-wide**: the worst offender (local top-level `cluster:`) is removed, but we still need to migrate remaining ambiguous root keys into the `global.ameide.*` contract and expand schema guardrails beyond a single chart.
+- **cert-manager topology is not policy-shaped**: the repo currently encodes multiple cert-manager installs in some cluster types; vendor-supported topology is a single controller set per cluster, with multi-tenancy handled via RBAC/policy and Issuer/Certificate scoping (see 4.5).
 - **Local disable semantics are inconsistent**:
   - Some components are disabled by “empty manifests” / pruning behavior instead of a first-class `enabled` contract.
   - Some components should not exist at all on local and should be excluded via the ApplicationSet generator rather than installed then pruned.
@@ -192,6 +193,26 @@ global:
 - Azure hosted clusters use `environments/_shared/components/**/component.yaml` as the canonical full set.
 - `environments/local/components/**/component.yaml` is the curated subset for local k3d; either omits unsupported components or points to wrappers with `enabled=false`.
 - If/when Azure needs to diverge from `_shared`, introduce a real `environments/azure/components/**` tree (not a symlink mirror) and document the divergence.
+
+### 4.5 cert-manager topology (single install per cluster)
+
+Policy goal: a **single cert-manager controller set** per cluster (vendor-supported), with isolation achieved through **RBAC + admission policy + namespaced Issuers** rather than by installing multiple cert-managers.
+
+Recommended default (shared cluster):
+- **One** cert-manager install (controller + webhook + cainjector) in a dedicated namespace (prefer `cert-manager`).
+- CRDs remain managed by the CRD Application (`cluster-crds-cert-manager`), not by Helm `crds.enabled=true`.
+- Use **namespaced `Issuer`** resources per environment namespace (`ameide-dev`, `ameide-staging`, `ameide-prod`, `ameide-local`) for env-scoped certificate authority choices.
+- Use `ClusterIssuer` only when explicitly permitted by policy (e.g., cluster-wide ingress/gateway TLS managed by platform).
+- Enforce multi-tenancy with:
+  - RBAC: only platform admins can create/modify `ClusterIssuer` and cluster-scoped CertificateRequests; app namespaces can only create `Issuer` + `Certificate` in their namespace.
+  - Admission policy: disallow privileged issuer references (e.g., prevent app namespaces from referencing a platform `ClusterIssuer` unless allowed).
+
+Operator webhook TLS + CA injection (e.g., Temporal operator in `ameide-system`):
+- Keep operator workloads cluster-scoped in `ameide-system`, but use the single cert-manager to issue webhook server certs and inject CA bundles.
+- Prefer explicit `Certificate` resources in the operator namespace and annotate webhook configurations with `cert-manager.io/inject-ca-from: ameide-system/<certificateName>` so CA bundles are reconciled deterministically by cainjector.
+
+Local-only deviation (developer cluster):
+- If local clusters are extremely resource constrained, we may choose to restrict cert-manager watch scope or capabilities, but we should not model this as “multiple cert-managers”; instead capability-gate non-essential certificate consumers (or use per-component certgen jobs where vendor-supported).
 
 ### 4.3 Wrappers for vendor charts
 
