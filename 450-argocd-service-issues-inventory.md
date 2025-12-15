@@ -26,6 +26,25 @@ Total applications: 200
   - MinIO provisioning Job was stuck `ImagePullBackOff` on `ghcr.io/ameideio/mirror/bitnami-os-shell:latest` due to missing `imagePullSecrets` and a single-arch mirror tag.
   - Vault bootstrap Job had a transient failure due to runtime `kubectl` download TLS flakiness; bootstrap jobs should avoid runtime downloads (track under 519).
 
+## Update (2025-12-15): Local data-plane smoke “Last Sync Failed” (ClickHouse name + Redis operator crashloop)
+
+Observed Argo apps that were `Synced/Healthy` but still had a stale **`operationState.phase=Failed`** due to PostSync hook Jobs reaching backoff limits.
+
+- **App:** `local-data-data-plane-smoke`
+  - **Failing hooks:** `data-data-plane-smoke-helm-test-jobs-clickhouse`, `data-data-plane-smoke-helm-test-jobs-redis-cache`
+- **ClickHouse smoke failure:** the test script hardcoded `ClickHouseInstallation` name `clickhouse`, but the installed CHI is `data-clickhouse`.
+  - Symptom: `ClickHouseInstallation 'clickhouse' not found in namespace ameide-local`
+  - Root cause: test assumed a fixed name rather than discovering from labels or values.
+- **Redis smoke failure:** `RedisFailover/redis` existed, but the Redis pods never became Ready because the Spotahome `redis-operator` was CrashLooping.
+  - Symptom: `kubectl wait ... --selector app.kubernetes.io/part-of=redis-failover --timeout=600s` timed out.
+  - Operator logs: leader election lease renewal failed with `client rate limiter Wait returned an error: context deadline exceeded`, causing the operator to exit repeatedly.
+  - Resulting state: RedisFailover reconciliation was incomplete (no master created; replica config `slaveof 127.0.0.1 6379`).
+
+Remediation approach (GitOps-aligned, no band-aids):
+1. Make ClickHouse smoke discover the installation name (or take it from values) instead of hardcoding `clickhouse`.
+2. Stabilize `redis-operator` so it stays Running and can reconcile RedisFailover deterministically (avoid lease-renewal crashes under k3d load).
+3. Ensure smoke apps always have at least one tracked non-hook manifest so Argo auto-sync can clear stale failed operations (already applied for `helm-test-jobs`).
+
 ## Update (2025-12-14): ComparisonError flapping + operator leader-election instability (local k3d)
 
 Observed “unhealthy” Argo apps even when the underlying resources were fine (or briefly fine):
