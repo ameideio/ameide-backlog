@@ -214,6 +214,11 @@ Operator webhook TLS + CA injection (e.g., Temporal operator in `ameide-system`)
 Local-only deviation (developer cluster):
 - If local clusters are extremely resource constrained, we may choose to restrict cert-manager watch scope or capabilities, but we should not model this as “multiple cert-managers”; instead capability-gate non-essential certificate consumers (or use per-component certgen jobs where vendor-supported).
 
+Implementation note (Option A execution):
+- Replace all per-environment and per-namespace cert-manager installs (`foundation-cert-manager`, `argocd-cert-manager`, `operators-cert-manager`) with a single cluster-scoped `cluster-cert-manager` Application targeting the `cert-manager` namespace.
+- Keep cert-manager CRDs in `cluster-crds-cert-manager`.
+- Retain `platform-cert-manager-config` as the place where Issuers/Certificates are declared (namespaced) for applications/operators.
+
 ### 4.3 Wrappers for vendor charts
 
 Example wrapper conventions:

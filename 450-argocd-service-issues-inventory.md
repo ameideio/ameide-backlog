@@ -305,6 +305,7 @@ See [451-secrets-management.md](451-secrets-management.md) for complete secrets 
 
 Note:
 - Running more than one cert-manager controller set in a shared cluster is a risk area (contention + cluster-scoped side effects). Fleet policy target is **one cert-manager install per cluster**, with multi-tenancy handled via RBAC/policy + namespaced Issuers (track under 519).
+- Option A execution: converge on `cluster-cert-manager` only (namespace `cert-manager`) and delete `argocd-cert-manager` plus any per-environment `foundation-cert-manager*` installs.
 
 ---
 
