@@ -88,7 +88,9 @@ Remediation approach (GitOps-aligned, no band-aids):
 1. **Local controller stability:** for controllers where we own the chart (e.g. `cluster-ameide-operators`), disable leader election in local when running single replicas (avoid fragile lease renewals under local apiserver latency).
 2. **Namespace-isolated kube-state-metrics:** configure `kube-state-metrics` collectors to namespaced-only resources and set `rbac.useClusterRole=false` so RBAC matches the intended per-namespace observability model.
    - Local: enable a `startupProbe` and relax liveness/readiness thresholds to avoid self-inflicted CrashLoopBackOff while caches sync.
-3. **Gateway controller locality/priority (local-only):** if Envoy Gateway remains sensitive to the ClusterIP apiserver path, prefer policy-shaped placement (pin to the control-plane node + higher priority) over manual restarts.
+3. **Envoy Gateway stability (local-only):** stop depending on leader election leases for a single-replica local controller.
+   - Preferred: disable leader election for Envoy Gateway when `replicas=1` (the process currently exits cleanly on `leader election lost`, causing probe failures and CrashLoopBackOff even though config is otherwise valid).
+   - If leader election must remain enabled, bypass the `kubernetes.default.svc` ClusterIP path for apiserver calls by pointing the controller at the apiserver endpoint directly (`KUBERNETES_SERVICE_HOST/PORT`), or increase local apiserver resources/timeouts so lease updates do not exceed the controller’s `timeout=5s` window.
 
 ## Update (2025-12-14): ComparisonError flapping + operator leader-election instability (local k3d)
 

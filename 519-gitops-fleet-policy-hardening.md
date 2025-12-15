@@ -52,12 +52,13 @@ Primary outcomes:
 
 Symptoms:
 - Argo apps intermittently show `Unknown` with `ComparisonError: ... context deadline exceeded` during health evaluation (not actual resource failure).
-- Controllers (e.g. CNPG operator, redis-operator) intermittently lose leader election because lease renewals time out.
+- Controllers (e.g. CNPG operator, redis-operator, Envoy Gateway) intermittently lose leader election because lease renewals time out (notably against the in-cluster `kubernetes.default.svc` ClusterIP path in k3d/k3s).
 
 Policy-shaped remediation direction:
 1. **Local Argo controller tuning is part of bootstrap policy**: apply `argocd-cmd-params-cm` settings via the Argo CD Helm install/upgrade inputs (bootstrap), not as ad-hoc Kustomize patches or manual `refresh=hard` loops.
 2. **Operator k8s client defaults must be explicit** (where configurable): set QPS/burst and reduce concurrency for local clusters so leader election stays stable even under degraded apiserver latency.
 3. **Reduce GitOps hook reliance for stable state**: eliminate Helm hook-based stable secret generation (e.g. GitLab shared-secrets) in favor of Vault KV → ESO → Secret so sync is deterministic and does not block on hook batches.
+4. **Single-replica local controllers should not require leader election**: when we run `replicas: 1` for local, disable leader election (or expose a chart knob in a wrapper) so apiserver lease-write latency cannot crash the controller and cascade into `Progressing` Apps.
 
 ### Deferred TODOs (values layering contract)
 
