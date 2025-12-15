@@ -153,6 +153,7 @@ Remediation approach (GitOps-aligned, local-only):
     1. **Non-deterministic startup**: `pnpm run dev` runs via Corepack and may download `pnpm` at runtime; Next dev also attempts to mutate `tsconfig.json` and can fail inside an immutable image.
     2. **Redis auth mismatch**: local `redis-failover` runs in `standalone` mode and always enforces `--requirepass` from `redis-auth` even when `auth.enabled=false`. The app connects via `REDIS_URL` and does not successfully authenticate, causing `NOAUTH Authentication required` loops.
     3. **Image/tag mismatch**: the `dev` image tag does not include a production `.next` build, so `next start` fails with `production-start-no-build-id`. The Argo baseline must use a production-built tag (e.g. `main`) or a dedicated runtime tag that includes the build output.
+    4. **Multi-arch gap**: the `main` image tag is `amd64`-only (local arm64 pulls fail with `no match for platform in manifest`). If we expect local to run a production-like entrypoint, the runtime tag must be multi-arch (or local must use an arm64-capable tag/registry).
 
 Remediation approach (GitOps-aligned, no band-aids):
 1. Treat Argo-managed local baseline as production-like: run a deterministic server entrypoint (no runtime package-manager downloads, no dev server).

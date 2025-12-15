@@ -228,6 +228,7 @@ Local k3d clusters are capacity-constrained and can exhibit apiserver write late
 - **No runtime downloads / no dev servers in Argo baseline**:
   - Argo-managed “baseline” workloads must start deterministically from the published image (no Corepack/pnpm downloads, no runtime codegen, no writes to the image filesystem).
   - Baseline images must be **runtime-capable** (e.g., Next.js images must include a production `.next` build if we run `next start`).
+  - Baseline images must be **multi-arch** when the cluster type requires it (local k3d on arm64). Treat `amd64`-only `main` tags as a fleet policy violation (track under 456).
   - The inner loop (dev servers, live reload) belongs in Tilt/Telepresence “*-tilt” releases, not the Argo baseline.
 - **Charts must honor auth toggles**: if a chart exposes `auth.enabled`, templates must not unconditionally enable auth (especially in local fallbacks like standalone Redis).
 
