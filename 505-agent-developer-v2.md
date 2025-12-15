@@ -78,6 +78,7 @@ We standardize Ameide's "agentic coding" into a **Process primitive + Agent** sy
 - **Dev Brief**: A normalized execution-ready description produced by AmeidePO (what/why/done, constraints).
 - **A2A Task**: A stateful unit of work created/owned by the A2A server (AmeideCoder).
 - **Artifacts**: PR URL, logs, test outputs, summaries, diffs — returned by AmeideCoder through A2A.
+- **`thread_id` (agent persisted identity)**: Required identity for any Agent that enables persistence/checkpointing; mapped to LangGraph `configurable.thread_id`. Recommended scheme: `<tenant>/<capability>/<work_item_id>`, with a separate `run_id` for concurrent executions under the same business identity. Agent state stores “resume essentials” and keeps large outputs as out-of-band artifact references.
 
 ---
 

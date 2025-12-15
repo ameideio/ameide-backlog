@@ -182,6 +182,14 @@ Structure:
 3. **Documentation references** – Inline summary (no dependency on backlog files)
 4. **Output expectations** – e.g., “Provide RED→GREEN→REFACTOR updates; cite CLI results”
 
+### 4.0 Role-based profiles (v2 alignment)
+
+Prompt profiles should be explicitly role-scoped (per `505-agent-developer-v2.md`) so the “who can run what” boundary is enforceable:
+
+- `product_owner`: reads facts/projections, proposes intents; does not run CLI or repo tools
+- `solution_architect`: plans/decomposes, delegates via A2A; does not run CLI or repo tools
+- `a2a_server` (AmeideCoder): runs repo execution + `ameide` CLI, returns evidence/artifacts
+
 CLI wiring: `ameide primitive prompt --profile default [--requirement ...]` reads the template and prints it. The workflow now references `ameide primitive verify --mode all --repo-root … --gitops-root …` so both repo and cluster guardrails stay green.
 
 Future: integrate with transformation domain to fetch dynamic requirements.

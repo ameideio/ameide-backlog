@@ -41,6 +41,23 @@ The Agent operator manages the lifecycle of **Agent primitives** – LLM-powered
 
 **Key insight**: The operator wires secrets + policy; the Agent image implements prompt orchestration and tool execution.
 
+### 1.1 Condition semantics: “Ready means ready”
+
+Target behavior is that `Ready` must be **impossible** unless all required runtime artifacts exist and are policy-compliant:
+
+- `DefinitionResolved` (AgentDefinition fetched and mounted)
+- `SecretsReady` (all required ExternalSecrets synced; mountable)
+- `ToolingReady` / `DependenciesReady` (tool grants + prompt/profile/config are reconciled and available to the workload)
+- `PolicyCompliant` (runtimeRole/riskTier/model/tools validated)
+- `WorkloadReady` (Deployment available)
+- `RouteReady` (if the Agent exposes an ingress surface)
+
+Rule:
+
+- `Ready = AND(DefinitionResolved, SecretsReady, ToolingReady, PolicyCompliant, WorkloadReady, RouteReady*)`
+
+`RouteReady` is optional only when the agent is not meant to be reachable (e.g., outbound-only agents).
+
 > **505 alignment:** The Process + AmeidePO + AmeideSA + AmeideCoder architecture in [505-agent-developer-v2.md](505-agent-developer-v2.md) introduces an explicit split between A2A clients (PO/SA) and an A2A server (Coder). This backlog now tracks the operator work required to host all three Agent primitives plus the devcontainer runtime surfaces they depend on.
 
 ---

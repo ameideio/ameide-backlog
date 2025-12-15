@@ -256,6 +256,13 @@ Agent reasoning:
 - **Documentation-driven**: Agents learn patterns from backlog references
 - **Reduced review burden**: Human reviewers focus on business logic, not boilerplate patterns
 
+### 4.5 DAG-aware outputs (533)
+
+When used as part of a capability delivery workflow (`backlog/533-capability-implementation-playbook.md`), CLI outputs should be consumable as “gate checks”:
+
+- `ameide primitive verify --json` should include a clear, machine-readable “gate ready” summary (e.g., “Gate B failed: buf lint/build errors”).
+- `ameide primitive prompt` should support emitting a per-kind checklist aligned to playbook nodes (Domain/Process/Projection/Integration/UISurface/Agent), rather than only a generic onboarding prompt.
+
 ---
 
 ## 5. Intelligent Agent Sequence
