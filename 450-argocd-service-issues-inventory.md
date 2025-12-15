@@ -82,10 +82,12 @@ Observed cluster-scoped and per-env controllers stuck `Progressing` because thei
 - **App:** `local-platform-prometheus`
   - **Pod:** `ameide-local/platform-prometheus-kube-state-metrics-*` CrashLoopBackOff
   - **Symptom:** RBAC forbids listing cluster-scoped resources (`nodes`, `namespaces`, `storageclasses`, `persistentvolumes`, `volumeattachments`, webhook configs, CSRs), but the container is configured with `--resources=...` that includes those cluster-scoped collectors.
+  - **Also observed:** liveness probe flapping (`/livez` timeouts / HTTP 503) during informer cache warmup under local apiserver latency, causing repeated restarts even when RBAC is correct.
 
 Remediation approach (GitOps-aligned, no band-aids):
 1. **Local controller stability:** for controllers where we own the chart (e.g. `cluster-ameide-operators`), disable leader election in local when running single replicas (avoid fragile lease renewals under local apiserver latency).
 2. **Namespace-isolated kube-state-metrics:** configure `kube-state-metrics` collectors to namespaced-only resources and set `rbac.useClusterRole=false` so RBAC matches the intended per-namespace observability model.
+   - Local: enable a `startupProbe` and relax liveness/readiness thresholds to avoid self-inflicted CrashLoopBackOff while caches sync.
 3. **Gateway controller locality/priority (local-only):** if Envoy Gateway remains sensitive to the ClusterIP apiserver path, prefer policy-shaped placement (pin to the control-plane node + higher priority) over manual restarts.
 
 ## Update (2025-12-14): ComparisonError flapping + operator leader-election instability (local k3d)
