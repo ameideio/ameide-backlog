@@ -2,6 +2,10 @@
 
 **Updated**: 2025-12-05
 
+**Update (2025-12-15)**:
+- Repo policy moved to **one cert-manager per cluster** (Option A). `argocd-cert-manager` and per-environment `foundation-cert-manager*` installs are deprecated/removed; `cluster-cert-manager` processes both `ClusterIssuer` and namespaced `Issuer` resources.
+- Treat the “multi-identity per-environment” sections below as legacy unless/until we re-introduce identity isolation at the Issuer credential level.
+
 > **Scope:** Applies to dev/staging/prod AKS clusters where Azure DNS + ACME DNS-01 is enabled. Local/offline clusters intentionally disable DNS-01 and rely on self-signed Issuer/CA chains (see [444-terraform.md](444-terraform.md#local-target-safeguards) and the local note in [448-cert-manager-workload-identity.md](448-cert-manager-workload-identity.md#local-offline-environments)).
 
 > **Related backlogs:**
@@ -28,9 +32,9 @@ Per [434](434-unified-environment-naming.md#appendix-certificate--gateway-archit
 
 **Key decisions:**
 - Production uses apex domain (`ameide.io`) directly — there is NO `prod.ameide.io`
-- ArgoCD uses ClusterIssuer for `argocd.ameide.io` (cluster-level, processed by argocd-cert-manager)
-- **Environment issuers use namespaced Issuer** (not ClusterIssuer) for multi-identity architecture
-- Each environment has its own cert-manager instance with isolated Workload Identity (see [448](448-cert-manager-workload-identity.md))
+- ArgoCD uses ClusterIssuer for `argocd.ameide.io` (cluster-level, processed by `cluster-cert-manager`)
+- **Environment issuers use namespaced Issuer** (not ClusterIssuer) for multi-tenancy
+- Cert-manager controller is a single install per cluster; identity isolation is enforced via policy/RBAC (and can optionally be re-introduced via per-Issuer credentials later)
 
 ## Architecture
 

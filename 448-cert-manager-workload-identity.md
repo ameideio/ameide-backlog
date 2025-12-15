@@ -1,8 +1,13 @@
 # 448: Cert-Manager Workload Identity Architecture
 
-## Status: Implemented
+## Status: Superseded (Option A: single cert-manager per cluster)
 
-> **Cloud vs local:** This document is the active reference for cloud environments (dev/staging/prod). Local/offline clusters still install cert-manager, but Terraform now disables the Workload Identity helper (`foundation-cert-manager-wi`) and binds the webhook to the node network (`hostNetwork: true`, `securePort: 10260`) per [444-terraform.md](444-terraform.md#local-target-safeguards). Treat the sections below as mandatory for Azure-backed clusters and follow the _Local (offline) environments_ note for k3d.
+**Update (2025-12-15)**:
+- Cert-manager is now deployed once per cluster as `cluster-cert-manager` in the `cert-manager` namespace (see `backlog/519-gitops-fleet-policy-hardening.md` section **4.5**).
+- The per-environment `foundation-cert-manager` + `foundation-cert-manager-wi` (“multi-identity per env”) topology is deprecated and removed from the GitOps component set.
+- Azure Workload Identity for DNS-01 is now configured on the single cert-manager install (cluster-scoped), rather than via per-environment helper charts.
+
+The remainder of this document is retained for historical context, but should not be treated as the current reference topology.
 
 ## Problem
 
