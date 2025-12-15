@@ -31,6 +31,7 @@
 - **CLI overview & scaffold:** `484-ameide-cli-overview.md`, `484a-ameide-cli-primitive-workflows.md`, `484f-ameide-cli-scaffold-implementation.md`.  
 - **Primitive/operator contract:** `495-ameide-operators.md`, `497-operator-implementation-patterns.md`.  
 - **UISurface operator:** `501-uisurface-operator.md`.  
+- **Capability implementation DAG:** `backlog/533-capability-implementation-playbook.md` (UISurface scaffold + implementation nodes).
 
 ---
 

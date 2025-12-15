@@ -32,6 +32,7 @@
 - **CLI workflows & verification:** `484-ameide-cli-overview.md`, `484a-ameide-cli-primitive-workflows.md`, `484b-ameide-cli-proto-contract.md`, `484f-ameide-cli-scaffold-implementation.md`.  
 - **Domain operator / vertical slice:** `498-domain-operator.md`, `502-domain-vertical-slice.md`.  
 - **Scrum example:** `506-scrum-vertical-v2.md`, `508-scrum-protos.md` (Transformation Scrum domain).
+- **Capability implementation DAG:** `backlog/533-capability-implementation-playbook.md` (Domain scaffold + implementation nodes).
 
 ---
 

@@ -19,6 +19,23 @@ I’m grounding the LangGraph / LangChain / Buf / Kubernetes pieces in official 
 
 ---
 
+## 0) LangGraph v1.0 GA alignment (memory + durability for DAGs)
+
+This research note assumes the LangGraph “state is memory” model; for Ameide we make the following points explicit so baseline agents and scaffolding remain aligned:
+
+- **State is the memory:** nodes return state updates; avoid in-place mutation.
+- **Parallelism requires reducers:** any state field written by multiple nodes in a superstep must define a reducer (append/merge/replace).
+- **Superstep semantics:** parallel node updates apply together at the end of a superstep, so deterministic merges matter.
+- **Durability boundary:** if persistence is enabled, `thread_id` is required; replay/continue may use `checkpoint_id`.
+- **Interrupt safety:** on resume, nodes can be re-run from the beginning; side-effects must be idempotent or pushed behind stable boundaries.
+- **Short-term vs long-term memory:** per-thread checkpoints are short-term; any shared store is long-term and must remain non-authoritative for business truth.
+
+In Ameide terms:
+
+- Graph state/checkpoints are workflow memory only.
+- Domain/Process remain canonical truth (facts/intents/process facts) and the only writers of durable truth.
+- Blob artifacts are out-of-band; state stores only references.
+
 ## 1) Proto shape
 
 ### Goals
@@ -49,6 +66,48 @@ LangGraph persistence keys checkpoint history by `thread_id` (passed via `config
 * **Persisted state stays small.** Persist IDs, cursors, keys, and compact summaries; do not store large blobs (documents, images, long transcripts) directly in state.
 * **Large artifacts are out-of-band.** Generated code MUST include blob-store hooks (interface + stub implementation) and state MUST store only references (URI/object key + checksum + size + content-type).
 * **Checkpoint scope is explicit.** If you generate field-level “checkpoint” markers (e.g., `(state_field).checkpoint`), default to checkpointing only the minimal subset required for replay/resume.
+
+Additions that keep the system safe under durable execution:
+
+* **Replay is first-class (optional):** if supported, accept an optional `checkpoint_id` in the API envelope/config so callers can replay/continue at a known checkpoint.
+* **Interrupts re-run nodes:** treat any node that can be replayed as (a) pure or (b) idempotent, or (c) emitting a stable intent to a domain/process boundary rather than performing the side-effect in-process.
+
+### Fan-out/fan-in discipline (Send + reducers)
+
+If you want real DAG parallelism:
+
+* Use LangGraph `Send` for map-reduce style fan-out, not “LLM decides to parallelize”.
+* Write fan-out results into reducer-backed state fields (append/merge), then join with a deterministic gate node.
+
+### Durable side effects (Ameide boundaries)
+
+Treat these as **side-effects** (must be idempotent under replay/interrupt):
+
+* A2A “create task” / “send message”
+* emitting a Domain intent (command over the bus)
+* calling an Integration seam
+
+Use stable dedupe keys such as:
+
+* A2A: `{thread_id, node_id, logical_task_key}`
+* Domain intent: `{aggregate_id, intent_type, causation_id}` (plus tenant axis)
+
+### Long-term memory (LangGraph store) usage in Ameide
+
+If you introduce LangGraph “store” (cross-thread memory), constrain it to:
+
+* agent-private preferences/cached summaries
+* non-authoritative hints and retrieval aids
+
+Do not store canonical business truth there; persist truth in Domain/Process and reference it by stable IDs.
+
+### Streaming standardization
+
+For operator-facing agents, standardize on:
+
+* machine-readable progress: `stream_mode="updates"`
+* token/message streaming: opt-in only when needed
+* a single custom channel for Ameide-native status fields (`phase`, `reason`, `artifact_ref`, `correlation_id`)
 
 ### Recommended proto organization
 

@@ -17,6 +17,7 @@ The Scrum wording used below follows the **official Scrum Guide**: Scrum Team ac
 - **Process side:** Consumed by Process primitives described in `499-process-operator.md` and positioned in the primitive stack by `477-primitive-stack.md`; Temporal workflows must obey the intent/fact separation and idempotency rules in this backlog and the EDA rules in `496-eda-principles.md`.  
 - **Agents & tooling:** `505-agent-developer-v2.md` and `505-agent-developer-v2-implementation.md` describe how AmeidePO/AmeideSA/AmeideCoder react to process/domain facts from this seam; `495-ameide-operators.md` and `502-domain-vertical-slice.md` provide shared operator/condition vocabulary; `507-scrum-agent-map.md` locates this contract at Stage 2 in the Scrum stack.
 - **IT4IT mapping lens:** How this seam fits “requirement → running” streams (R2D/R2F/D2C): `525-it4it-value-stream-mapping.md`
+- **Capability implementation DAG:** `backlog/533-capability-implementation-playbook.md` (generic DAG; 506 is a concrete instantiation of the end-to-end seam proof).
 
 ---
 

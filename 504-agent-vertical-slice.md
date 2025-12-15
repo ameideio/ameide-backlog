@@ -24,6 +24,7 @@
 - **Runtime relationships:** Assumes Agent CRDs and operator behavior from `500-agent-operator.md` and Helm/GitOps deployment via `503-operators-helm-chart.md`; UISurface integration patterns (for any frontends that drive agents) follow `501-uisurface-operator.md`.  
 - **Scrum stack alignment:** Provides the tooling slice that AmeideCoder (runtime_role=`a2a_server`) uses inside the Scrum/Process stack defined in `505-agent-developer-v2.md`, `505-agent-developer-v2-implementation.md`, `506-scrum-vertical-v2.md`, and `508-scrum-protos.md`, as mapped in `507-scrum-agent-map.md`.  
 - **CLI & A2A dependencies:** Depends on CLI contract backlogs `484a-ameide-cli-primitive-workflows.md` … `484f` and the A2A binding described in `505-agent-developer-v2.md`; agents treat the CLI workflows here as internal tools, not customer-facing UIs.
+- **Capability implementation DAG:** `backlog/533-capability-implementation-playbook.md` (generic playbook this vertical slice instantiates).
 
 > **Related**
 > - [495-ameide-operators.md](495-ameide-operators.md) – shared CRD principles

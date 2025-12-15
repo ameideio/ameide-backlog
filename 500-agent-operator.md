@@ -23,6 +23,7 @@
 - **Operator ecosystem:** Works alongside the Domain, Process, and UISurface operators tracked in `498-domain-operator.md`, `499-process-operator.md`, and `501-uisurface-operator.md`, and is packaged via the unified Helm chart in `503-operators-helm-chart.md`; all share the condition vocabulary and vertical-slice expectations set by `502-domain-vertical-slice.md`.  
 - **Scrum stack alignment:** Hosts the AmeidePO/AmeideSA/AmeideCoder Agent primitives defined in `505-agent-developer-v2.md` and implemented via `505-agent-developer-v2-implementation.md`, wiring them into the Scrum stack that uses `506-scrum-vertical-v2.md` and `508-scrum-protos.md` as canonical domain/process contracts (see `507-scrum-agent-map.md`).  
 - **CLI & A2A dependencies:** Exposes runtimes that consume the CLI/tooling slice from `504-agent-vertical-slice.md` and the A2A REST binding defined in the 505-v2/A2A backlogs; `ameide primitive` commands from the 484a–484f series are used inside Coder runtimes, not embedded into this operator.
+- **Capability implementation DAG:** `backlog/533-capability-implementation-playbook.md` (context for end-to-end delivery workflows; this operator provides readiness conditions for agent nodes).
 
 > **Related**:
 > - [495-ameide-operators.md](495-ameide-operators.md) – CRD shapes & responsibilities

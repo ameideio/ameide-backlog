@@ -9,6 +9,7 @@ This backlog defines the **concept**. A concrete example is `527-transformation-
 Language note: this doc follows the ArchiMate alignment anchor in `470-ameide-vision.md` §0.2 and the alignment rules in `529-archimate-alignment-470plus.md`.
 
 Practical note: use `530-ameide-capability-design-worksheet.md` as the copy/paste worksheet when drafting a new capability backlog.
+Implementation note: use `backlog/533-capability-implementation-playbook.md` as the end-to-end, parallelizable implementation DAG once the capability spec exists.
 
 ## Layer header (Strategy/Business)
 

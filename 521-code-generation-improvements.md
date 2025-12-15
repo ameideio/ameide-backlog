@@ -4,6 +4,8 @@ This document tracks changes to code generation across the repo: Buf templates, 
 
 It exists to make generator evolution auditable and reduce “tribal knowledge” when people touch scaffolding.
 
+See also: `backlog/533-capability-implementation-playbook.md` (uses 521 as node context for capability implementation).
+
 ## Scope
 
 Included:

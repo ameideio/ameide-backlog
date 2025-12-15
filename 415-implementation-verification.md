@@ -5,6 +5,8 @@
 
 > ⚠️ **Legacy scope:** This report verifies the old k3d-based dev registry workflow. Remote-first development now targets the shared AKS cluster (see [435-remote-first-development.md](435-remote-first-development.md)), so treat the findings below as historical documentation rather than the current dev path. The bootstrap CLI referenced here as `tools/bootstrap/bootstrap-v2.sh` now lives in the `ameide-gitops` repository (`bootstrap/bootstrap.sh`); retain the original paths below only for provenance.
 
+Implementation playbook note: `backlog/533-capability-implementation-playbook.md` references this report as verification context for capability implementation workflows.
+
 ## Executive Summary
 
 The k3d dev registry end-to-end flow has been successfully implemented with most critical components in place. The registry is operational, images are being built and pushed, and the GitOps values are correctly configured. A few minor gaps remain in the bootstrap configuration.

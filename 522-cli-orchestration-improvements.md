@@ -4,6 +4,8 @@ This document defines the **boundary** for the Ameide CLI when it acts as an orc
 
 This is intentionally separate from codegen plugin changes (tracked in `backlog/521-code-generation-improvements.md`).
 
+See also: `backlog/533-capability-implementation-playbook.md` (uses 522 as node context for capability implementation).
+
 ## Boundary
 
 The CLI can be repo-aware and environment-aware, but it does not “grow back into codegen”.

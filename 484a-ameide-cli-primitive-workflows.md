@@ -12,6 +12,7 @@
 
 - **Primitive CLI surface:** Defines the `ameide primitive` workflows for the Ameide primitives (Domain/Process/Agent/UISurface/Projection/Integration) introduced in `470-ameide-vision.md` and `472-ameide-information-application.md`. This 484a document focuses on the currently implemented CLI/operator surface (Domain/Process/Agent/UISurface) and uses the shared status/condition semantics from `502-domain-vertical-slice.md` and `495-ameide-operators.md`.  
 - **Scrum/agent usage:** Provides the guardrail and verification flows that AmeideCoder uses internally in the agent stack (`504-agent-vertical-slice.md`, `505-agent-developer-v2*.md`) when operating on primitives, including the Scrum-related ones built on `300-400/367-1-scrum-transformation.md`, `506-scrum-vertical-v2.md`, and `508-scrum-protos.md`.
+- **Capability implementation DAG:** `backlog/533-capability-implementation-playbook.md` (agent-oriented plan of activities; this doc provides the CLI actions used by multiple DAG nodes).
 
 ---
 

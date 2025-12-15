@@ -5,6 +5,8 @@
 **Updated**: 2025-12-05
 **Related**: [445-argocd-namespace-isolation.md](445-argocd-namespace-isolation.md), [446-namespace-isolation.md](446-namespace-isolation.md), [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md), [449-per-environment-infrastructure.md](449-per-environment-infrastructure.md)
 
+Implementation playbook note: `backlog/533-capability-implementation-playbook.md` references this as environment verification context for end-to-end capability delivery.
+
 ---
 
 ## Problem Statement

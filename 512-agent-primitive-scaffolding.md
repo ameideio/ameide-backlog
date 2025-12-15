@@ -31,6 +31,7 @@
 - **CLI overview & scaffold:** `484-ameide-cli-overview.md`, `484a-ameide-cli-primitive-workflows.md`, `484f-ameide-cli-scaffold-implementation.md`.  
 - **Primitive/operator contract:** `495-ameide-operators.md`, `497-operator-implementation-patterns.md`.  
 - **Agent operator:** `500-agent-operator.md`.  
+- **Capability implementation DAG:** `backlog/533-capability-implementation-playbook.md` (Agent scaffold + implementation nodes).
 
 ---
 
@@ -103,6 +104,16 @@ Scaffolded Agent primitives assume:
 - Integration with the Ameide system:
   - Agent uses SDK clients to talk to Domain/Process primitives (never imports proto packages directly for outbound calls).  
   - Agent runtime **does not** invoke `ameide` CLI commands or depend on devcontainer tooling during normal request handling; the CLI remains an out-of-band orchestrator used by humans and coding agents.
+
+### 3.4 LangGraph-native DAG discipline (if using LangGraph)
+
+If the Agent is implemented as a LangGraph DAG:
+
+- **State updates only:** nodes compute state updates; avoid in-place mutation.
+- **Reducers required:** every state field must have an explicit reducer (default `REPLACE`), and any field written by parallel branches must have a merge/append reducer.
+- **Fan-out is explicit:** use `Send` for map-reduce style fan-out/fan-in; do not rely on “LLM decides to parallelize”.
+- **Interrupt safety:** nodes may be re-run after interrupts; treat side-effects (A2A calls, domain intents, integrations) as idempotent operations with dedupe keys derived from `{thread_id, node_id, logical_task_key}`.
+- **Streaming:** prefer `stream_mode="updates"` for machine-readable progress; keep token/message streaming opt-in.
 
 ---
 

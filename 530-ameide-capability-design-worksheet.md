@@ -9,6 +9,7 @@
 - Capability definition: `backlog/528-capability-definition.md`
 - ArchiMate vocabulary/verbs: `backlog/529-archimate-alignment-470plus.md`
 - Capability method: `backlog/524-transformation-capability-decomposition.md`
+- Capability implementation DAG: `backlog/533-capability-implementation-playbook.md`
 - EDA contract rules: `backlog/496-eda-principles.md`, `backlog/496-eda-protobuf-ameide.md`
 - Primitives pipeline: `backlog/470-ameide-vision.md`, `backlog/477-primitive-stack.md`, `backlog/520-primitives-stack-v2.md`
 

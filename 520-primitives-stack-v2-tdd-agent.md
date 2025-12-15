@@ -9,6 +9,11 @@ Complete all unchecked items in this document for this vertical primitive to be 
 - [x] Keep the Agent v0 proto at `packages/ameide_core_proto/src/ameide_core_proto/agent/v1/echo_agent.proto`.
 - [x] Keep `thread_id` in the request contract for persisted identity.
 - [ ] If persistence/checkpointing is enabled, require `thread_id` (hard reject if missing) and map it to LangGraph `configurable.thread_id`.
+- [ ] If replay/continue is supported, accept `checkpoint_id` in config and document the behavior.
+- [ ] Ensure all persisted state fields have explicit reducers (default `REPLACE`).
+- [ ] For DAG parallelism, use `Send` fan-out and reducer merges (no implicit “LLM parallelization”).
+- [ ] Keep large outputs out-of-band (artifact refs only in state).
+- [ ] If persistence/checkpointing is enabled, require `thread_id` (hard reject if missing) and map it to LangGraph `configurable.thread_id`.
 - [ ] Document a canonical `thread_id` scheme (recommended: `<tenant>/<capability>/<work_item_id>`; keep a separate `run_id` for concurrency).
 
 ### SDKs
@@ -26,6 +31,8 @@ Complete all unchecked items in this document for this vertical primitive to be 
 - [x] Keep the Agent runtime at `primitives/agent/echo/`.
 - [x] Implement deterministic v0 behavior with no external LLM dependencies.
 - [x] Persist minimal state keyed by `thread_id` (turn counter).
+- [ ] Interrupt safety: nodes may be re-run; side-effects must be idempotent (dedupe keys derived from `{thread_id, node_id, logical_task_key}`).
+- [ ] Streaming: prefer machine-readable progress updates; keep token/message streaming opt-in.
 - [ ] Keep agent state “resume essentials” only; store large outputs as out-of-band artifact references (`uri`, `checksum`, `size`, `content_type`).
 - [ ] Emit at least one artifact reference per turn (even for Echo v0) to validate the pattern end-to-end.
 - [ ] Add replay/conformance tests:

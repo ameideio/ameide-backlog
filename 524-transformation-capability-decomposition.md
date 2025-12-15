@@ -9,6 +9,7 @@ This document generalizes the methodology used for `523-commerce*` into a repeat
 The output is a set of artifacts that can be stored as Transformation workspace nodes (ArchiMate models/views, Markdown, BPMN) and then used by agents/CLI/operators to scaffold and deploy the runtime.
 
 For an explicit IT4IT value-stream lens (R2D/R2F/D2C) over this same pipeline, see `525-it4it-value-stream-mapping.md`.
+For the agent-oriented, parallelizable implementation plan once these artifacts exist, see `backlog/533-capability-implementation-playbook.md`.
 
 ## Why this exists
 

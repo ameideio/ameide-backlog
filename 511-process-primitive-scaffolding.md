@@ -31,6 +31,7 @@
 - **CLI workflows:** `484-ameide-cli-overview.md`, `484a-ameide-cli-primitive-workflows.md`, `484f-ameide-cli-scaffold-implementation.md`.  
 - **Primitive/operator contract:** `495-ameide-operators.md`, `497-operator-implementation-patterns.md`.  
 - **Process operator / vertical slice:** `499-process-operator.md`, `506-scrum-vertical-v2.md`.  
+- **Capability implementation DAG:** `backlog/533-capability-implementation-playbook.md` (Process scaffold + implementation nodes).
 
 ---
 

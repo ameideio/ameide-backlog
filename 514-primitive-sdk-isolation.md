@@ -25,6 +25,7 @@
 - **Front-end SDK usage:** `services/www_ameide_platform/backlog/SDK_USAGE.md`.  
 - **Scaffolding backlogs:** `510-domain-primitive-scaffolding.md`, `511-process-primitive-scaffolding.md`, `512-agent-primitive-scaffolding.md`, `513-uisurface-primitive-scaffolding.md`.  
 - **Agent architecture:** `400-agentic-development.md`, `504-agent-vertical-slice.md`, `505-agent-developer-v2*.md`.  
+- **Capability implementation playbook:** `backlog/533-capability-implementation-playbook.md` (end-to-end activity DAG; 514 is one of the guardrails inputs).
 
 This backlog is **normative** for new primitives and for CLI/scaffold behavior. Where older docs conflict, 514 takes precedence.
 

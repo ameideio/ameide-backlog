@@ -49,6 +49,7 @@ This document uses direct requirement statements; treat them as non-negotiable f
 
 - If you are implementing or reviewing the platform: read **Principles**, then **Shared contracts**, then **Conformance checklists**.
 - If you are building a new primitive implementation: read the **Primitive kind** section for your kind, then follow the **CI gate checklist** and **Operator↔runtime contract**.
+- If you are implementing a new capability end-to-end: use `backlog/533-capability-implementation-playbook.md` as the parallelizable activity DAG (capability-agnostic).
 - The `backlog/520-primitives-stack-v2-research-*.md` files are supporting background; this document is the normative spec.
 
 ---
