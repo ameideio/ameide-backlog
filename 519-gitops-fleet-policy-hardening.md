@@ -305,6 +305,12 @@ Example wrapper conventions:
 **Exit criteria**
 - Local bootstrap completes with no recurring probe-driven restarts for core operators (e.g., Strimzi) and observability (Loki/Alloy).
 
+### Phase C.2 — Repo access is deterministic (no broken credentials)
+
+1. Treat ArgoCD Git repo access as a first-class bootstrap invariant: repo-server must be able to fetch new commits deterministically.
+2. Do not force credentials for public repos (omit `username/password`); for private repos, source tokens from a secure store and avoid persisting raw tokens in Terraform state.
+3. Prefer “anonymous-first, token-if-required” logic in bootstrap tooling so stale tokens don’t break sync.
+
 ### Phase D — Secrets: remove Helm-generated stable secrets
 
 1. Move Backstage session secret generation to Vault KV and sync via ESO.

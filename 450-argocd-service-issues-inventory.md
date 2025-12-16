@@ -193,6 +193,18 @@ Remediation approach (vendor-aligned, GitOps-idempotent):
 2. For charts that do **not** expose probe timeout/failure threshold, patch the vendored chart minimally to add those fields with defaults matching upstream behavior, then override locally.
 3. Add explicit resource requests for observability components so they are not starved under contention.
 
+## Update (2025-12-16): ArgoCD repo credentials can block Git sync (invalid GitHub token forces auth)
+
+- **Env:** `local` (k3d) and any bootstrap path that creates `repo-creds-ameide-gitops`.
+- **Symptom:** ArgoCD stays pinned to an older revision (apps remain `Synced` but do not advance to new `main` commits), or repo-server shows git auth errors.
+- **Observed evidence:** running `git ls-remote https://github.com/ameideio/ameide-gitops.git refs/heads/main` from the repo-server pod fails when a `repository` Secret provides an invalid/expired GitHub token (`Password authentication is not supported` / `Invalid username or token`).
+- **Root cause:** For public Git repos, creating a repository Secret with an invalid token forces BasicAuth and breaks fetches (GitHub does not “fallback” to anonymous).
+
+Remediation approach (vendor-aligned, reproducible):
+1. For **public** repos, do not set `username`/`password` repo credentials at all (omit the Secret or create it with only `type` + `url`).
+2. For **private** repos, use a valid PAT (or GitHub App) and ensure bootstrap automation does not store raw tokens in Terraform state.
+3. In bootstrap tooling (Terraform/Bicep/scripts), prefer “try anonymous first, then use token only if required”.
+
 ## Update (2025-12-15): Local observability + Gateway Progressing (OTEL collector arch + local LoadBalancer)
 
 Observed Argo apps stuck `Progressing`:
