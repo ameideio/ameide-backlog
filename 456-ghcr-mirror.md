@@ -66,6 +66,8 @@ Recent local `arm64` debugging showed two failure modes that this doc should exp
 
 **Incident:** `ameide-local` Loki (`local-platform-loki`) CrashLooped on `ghcr.io/ameideio/mirror/loki:3.5.7` with stack traces referencing `runtime/asm_amd64.s`, consistent with an `amd64` artifact being selected on an `arm64` node.
 
+**Incident:** `ameide-local` Alloy logs (`local-platform-alloy-logs`) rolled out a new pod that CrashLooped on `ghcr.io/ameideio/mirror/alloy:v1.11.3` with `SIGSEGV` and frames referencing `runtime/asm_amd64.s`, consistent with an `amd64` artifact (or broken emulation path) on local `arm64`.
+
 **Meaning:** even “commonly multi-arch” upstream images can regress if the mirror tag is flattened to a single platform or republished incorrectly.
 
 **Action items:**

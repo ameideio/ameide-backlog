@@ -205,6 +205,18 @@ Remediation approach (vendor-aligned, reproducible):
 2. For **private** repos, use a valid PAT (or GitHub App) and ensure bootstrap automation does not store raw tokens in Terraform state.
 3. In bootstrap tooling (Terraform/Bicep/scripts), prefer “try anonymous first, then use token only if required”.
 
+## Update (2025-12-16): `local-platform-alloy-logs` rollout stuck `Progressing` (arm64 + mirror image CrashLoop)
+
+- **App:** `local-platform-alloy-logs`
+  - **Resource:** `Deployment/ameide-local/alloy-logs`
+  - **Symptom:** app stuck `Progressing` with `Waiting for rollout to finish: 1 old replicas are pending termination...`
+  - **Pod logs:** new ReplicaSet’s `alloy` container CrashLoops with `SIGSEGV` and stack traces referencing `runtime/asm_amd64.s`, consistent with an `amd64` artifact running on local `arm64` (or a broken emulation path).
+  - **Root cause:** local uses `ghcr.io/ameideio/mirror/alloy:v1.11.3`; the mirror tag is not reliably multi-arch for local `arm64`.
+
+Remediation approach (GitOps-aligned):
+1. Add a **local-only** override to use the upstream multi-arch `grafana/alloy:v1.11.3` image until the GHCR mirror is republished as a proper multi-arch manifest list (track under 456).
+2. Keep the shared defaults on the mirror for real clusters once multi-arch is verified.
+
 ## Update (2025-12-15): Local observability + Gateway Progressing (OTEL collector arch + local LoadBalancer)
 
 Observed Argo apps stuck `Progressing`:
