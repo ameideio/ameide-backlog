@@ -406,6 +406,29 @@ Remediation approach (GitOps-aligned):
 5. Fix local service bind defaults: several workloads were observed listening on IPv6 wildcard only (`:::PORT`) and refusing IPv4 ClusterIP traffic; smoke tests must not depend on such endpoints until they bind `0.0.0.0` (or the workloads are rebuilt to listen on IPv4).
 6. Temporal extended smoke `temporal-schema` hook can fail due to the chosen `psql` runner image; local mitigation is to use an image+script combination that reliably reaches `postgres-ameide-rw`, with a follow-up to provide a pinned, multi-arch `psql` runner image (no runtime package downloads).
 
+## Update (2025-12-16): `local-data-temporal` stuck `Missing` (PreSync DB preflight deadlocks schema ownership)
+
+- **App:** `local-data-temporal`
+  - **Symptom:** Application stays `OutOfSync/Missing`; `TemporalCluster`/`TemporalNamespace` never created.
+  - **Observed failure:** PreSync hook Job `temporal-db-preflight` fails with `relation "namespace_metadata" does not exist`, because the Temporal schema has not been installed yet.
+  - **Root cause:** the preflight hook runs **before** the Temporal operator ever sees a `TemporalCluster` to reconcile, but it assumes Temporal schema tables exist (schema ownership is Temporal, not Flyway).
+
+Remediation approach (vendor-aligned, GitOps-idempotent):
+1. Add a deterministic Temporal schema Job (use `temporal-sql-tool setup-schema` + `update-schema`) that runs **before** the metadata preflight, following the Temporal Helm chart pattern and backlog/425.
+2. Keep the metadata preflight, but run it only after schema exists (either by ordering it after schema setup, or by guarding on table existence so it never blocks `TemporalCluster` creation).
+3. Pin schema tooling images/tags (avoid `:latest`) so local arm64 and CI behave consistently.
+
+## Update (2025-12-16): `local-platform-keycloak-realm` stuck `Missing` (realm import modeled as Argo PreSync hook)
+
+- **App:** `local-platform-keycloak-realm`
+  - **Symptom:** Application stays `OutOfSync/Missing` with `SyncError` even after `local-platform-keycloak` becomes Healthy.
+  - **Observed failure:** `KeycloakRealmImport/*` resources are rendered with `argocd.argoproj.io/hook: PreSync` and repeatedly fail with `Deployment not yet ready`, exhausting Argo retries and preventing the CRs (and supporting ConfigMaps/ExternalSecrets) from ever being applied.
+  - **Root cause:** realm import is a **declarative operator CR**; modeling it as an Argo hook turns “operator retries” into “Argo hard failure”, and breaks self-heal after transient Keycloak startup delays.
+
+Remediation approach (vendor-aligned, Argo-standard):
+1. Render `KeycloakRealmImport` CRs as normal tracked resources (use `sync-wave` ordering only), letting the Keycloak operator reconcile when the Keycloak instance is Ready.
+2. Keep any imperative “client secret extraction” as a bounded Job (ideally PostSync or periodic), but do not gate CR creation on hook success.
+
 ---
 
 ## P0 – Blocking Issues (Root Cause Chain)
