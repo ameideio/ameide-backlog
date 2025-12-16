@@ -197,6 +197,7 @@ Remediation approach (vendor-aligned, GitOps-idempotent):
 2. For charts that do **not** expose probe timeout/failure threshold, patch the vendored chart minimally to add those fields with defaults matching upstream behavior, then override locally.
 3. Add explicit resource requests for observability components so they are not starved under contention.
 4. Reduce local apiserver stalls at the source by **reserving the k3d control-plane node** (taint `k3d-ameide-server-0` `NoSchedule` when agents exist) so heavy data-plane workloads don’t compete with the control-plane on the same node.
+5. Keycloak operator nuance: `Keycloak.spec.{livenessProbe,readinessProbe}` only supports a small subset of fields (no `timeoutSeconds`/`httpGet`), so full probe tuning must be expressed via `Keycloak.spec.unsupported.podTemplate` (container `livenessProbe/readinessProbe/startupProbe`) instead.
 
 ## Update (2025-12-16): ArgoCD repo credentials can block Git sync (invalid GitHub token forces auth)
 

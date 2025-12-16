@@ -302,6 +302,7 @@ Example wrapper conventions:
 2. Prefer vendor-supported values knobs for `timeoutSeconds`/`failureThreshold`; when a vendored chart does not expose them, apply a minimal patch that adds the knobs with defaults matching upstream behavior.
 3. Set explicit resource requests for local observability components so scheduling/cpu starvation doesn’t translate into false probe failures.
 4. Reserve the local k3d control-plane node for control-plane work (taint `NoSchedule` when agents exist) so data-plane pods don’t starve the apiserver and trigger probe/leader-election churn.
+5. When an operator CRD only exposes partial probe settings (e.g., Keycloak’s top-level probe fields), use the operator-supported pod template override mechanism (e.g., `spec.unsupported.podTemplate`) to set full probe objects deterministically.
 
 **Exit criteria**
 - Local bootstrap completes with no recurring probe-driven restarts for core operators (e.g., Strimzi) and observability (Loki/Alloy).
