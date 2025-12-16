@@ -296,6 +296,15 @@ Example wrapper conventions:
 **Exit criteria**
 - Local disable decisions are expressed either by omission or `enabled=false`, never by “empty manifests + prune”.
 
+### Phase C.1 — Probe budgets and resource baselines (local stability)
+
+1. For local clusters, ensure critical controllers and observability components do not use overly strict HTTP probe defaults (e.g., `timeoutSeconds: 1`) that cause restarts/flapping under transient apiserver stalls.
+2. Prefer vendor-supported values knobs for `timeoutSeconds`/`failureThreshold`; when a vendored chart does not expose them, apply a minimal patch that adds the knobs with defaults matching upstream behavior.
+3. Set explicit resource requests for local observability components so scheduling/cpu starvation doesn’t translate into false probe failures.
+
+**Exit criteria**
+- Local bootstrap completes with no recurring probe-driven restarts for core operators (e.g., Strimzi) and observability (Loki/Alloy).
+
 ### Phase D — Secrets: remove Helm-generated stable secrets
 
 1. Move Backstage session secret generation to Vault KV and sync via ESO.
