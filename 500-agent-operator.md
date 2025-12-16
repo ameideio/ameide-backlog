@@ -16,6 +16,7 @@
 - A2A REST binding (`/.well-known/agent-card.json`, `/v1/message:send`, `/v1/message:stream`, `/v1/tasks/*`) and Agent Card schema are defined in the A2A proto/backlog and 505-v2.  
 - Runtime roles (`product_owner`, `solution_architect`, `a2a_server`) are defined in 505-v2 and 477-primitive-stack; this operator enforces them via spec validation and, over time, explicit CRD fields such as `spec.runtimeRole` and `spec.a2a` so GitOps manifests can declare the intended role and A2A surface declaratively.  
 - Shared operator condition types and vocabulary are defined in `operators/shared/api/v1/conditions.go` and described in 495/498/502.
+- Capability tool identifiers (MCP-compatible): capabilities expose tools/resources under stable identifiers like `<capability>.<operation>` (e.g., `transformation.listElements`) and (optionally) bind them to MCP via Integration primitives; the tool catalog is proto-first and default-deny. See `backlog/534-mcp-protocol-adapter.md`.
 
 ## Grounding & cross-references
 
@@ -79,10 +80,14 @@ spec:
     provider: openai
     name: gpt-5.1-pro
   tools:
-    allowed:
-      - domain: transformation
-      - process: l2o
-      - primitive: primitive-cli
+    allow:
+      - transformation.listElements
+      - transformation.getView
+      - transformation.submitScrumIntent
+      - transformation.submitArchitectureIntent
+      - ameide.develop_in_container
+    deny:
+      - transformation.submit* # example: read-only policy (not for coder)
   riskTier: high
   concurrency:
     maxParallelSessions: 20
@@ -98,6 +103,19 @@ status:
     - type: PolicyCompliant
   observedGeneration: 3
 ```
+
+### 2.1 Tool identifiers (proto-first, MCP-compatible)
+
+This operator treats “tools” as **globally namespaced identifiers**:
+
+- Capability tools: `<capability>.<operation>` (e.g., `transformation.listElements`, `sre.searchIncidents`)
+- Platform/internal tools: `ameide.<operation>` (e.g., `ameide.develop_in_container`)
+
+`spec.tools.allow`/`spec.tools.deny`:
+
+- Support exact matches and glob patterns (e.g., `transformation.submit*`).
+- Are validated against the **proto-exposed tool catalog** (default deny; only explicitly exposed tools exist), not against ad-hoc operator-defined semantics.
+- Produce an effective allowlist for the agent runtime (written to the tool grants ConfigMap), optionally intersected with the resolved AgentDefinition allowlist.
 
 ---
 
@@ -154,13 +172,8 @@ type AgentModelConfig struct {
 }
 
 type AgentToolsConfig struct {
-    Allowed []ToolGrant `json:"allowed,omitempty"`
-}
-
-type ToolGrant struct {
-    Domain    string `json:"domain,omitempty"`
-    Process   string `json:"process,omitempty"`
-    Primitive string `json:"primitive,omitempty"` // special tools like CLI
+    Allow []string `json:"allow,omitempty"`
+    Deny  []string `json:"deny,omitempty"`
 }
 
 type AgentStatus struct {
@@ -246,8 +259,8 @@ Agent CR with model.provider=openai, riskTier=high
         ↓
 reconcileSecrets() creates ExternalSecrets:
   - openai-api-key (from vault path per provider)
-  - github-token (if tools.allowed includes github)
-  - jira-token (if tools.allowed includes jira)
+  - github-token (if `spec.tools.allow` includes `github.*` tool identifiers)
+  - jira-token (if `spec.tools.allow` includes `jira.*` tool identifiers)
         ↓
 External Secrets Operator syncs actual Secrets
         ↓

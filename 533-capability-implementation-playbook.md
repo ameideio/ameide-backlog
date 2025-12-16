@@ -89,6 +89,7 @@ Note: Node 3F (Scaffold Integration) and Node 7C (Implement Integration) follow 
 - **Agent memory/DAG alignment:** `backlog/520-primitives-stack-v2-research-agent.md`, `backlog/512-agent-primitive-scaffolding.md`
 - **Primitive scaffolding specs (shape per kind):** `backlog/510-domain-primitive-scaffolding.md`, `backlog/511-process-primitive-scaffolding.md`, `backlog/512-agent-primitive-scaffolding.md`, `backlog/513-uisurface-primitive-scaffolding.md`
 - **Verification discipline:** `backlog/415-implementation-verification.md`, `backlog/448-per-environment-service-verification.md`
+- **Testing discipline:** `backlog/537-primitive-testing-discipline.md` (RED→GREEN TDD, per-primitive invariants, CI enforcement)
 - **Operators (control-plane responsibilities):** `backlog/498-domain-operator.md`, `backlog/499-process-operator.md`, `backlog/500-agent-operator.md`, `backlog/501-uisurface-operator.md`
 - **Scaffolding/codegen change logs:** `backlog/521-code-generation-improvements.md`, `backlog/522-cli-orchestration-improvements.md`
 
@@ -165,3 +166,33 @@ Note: Node 3F (Scaffold Integration) and Node 7C (Implement Integration) follow 
 **Exit criteria**
 - Agent conformance checks pass (thread_id discipline, replay safety, artifact refs, proposal-only posture).
 
+## Node 8 — Verify & Package
+
+**Context (read only)**
+- `backlog/537-primitive-testing-discipline.md` (testing requirements, RED→GREEN enforcement, per-primitive invariants)
+- `backlog/520-primitives-stack-v2.md` (§7 CI gate checklist, §Conformance Checklists)
+- `backlog/415-implementation-verification.md`, `backlog/448-per-environment-service-verification.md` (verification context)
+
+**Actions**
+- Run `ameide primitive verify` for each implemented primitive:
+  - Domain: `--checks naming,eda,imports,tests`
+  - Process: `--checks naming,shape,tests`
+  - Projection: `--checks naming,imports,tests`
+  - Integration: `--checks naming,imports,tests`
+  - UISurface: `--checks naming,tests`
+  - Agent: `--checks naming,imports,tests`
+- Confirm no RED scaffold tests remain (any `AMEIDE_SCAFFOLD` markers cause `ameide primitive verify` to fail).
+- Run `buf lint` and `buf breaking` on proto changes.
+- Run regen-diff to ensure generated outputs are committed.
+- Validate GitOps manifests (if `--include-gitops` was used).
+
+**Outputs**
+- All primitives pass verification checks.
+- All tests pass (GREEN state).
+- Proto contracts are lint-clean and backward-compatible.
+- GitOps manifests are valid and deployable.
+
+**Exit criteria**
+- `ameide primitive verify` passes for all primitives in the capability.
+- CI gates pass (tests, lint, breaking, regen-diff).
+- Capability is ready for deployment to target environment.

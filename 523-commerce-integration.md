@@ -24,6 +24,13 @@ Per v2 rules, proto declares ports/contracts; endpoints and secrets are runtime-
 - Generation: flow artifacts + parameter templates + schema descriptors + harness/tests (NiFi-default).
 - Operator: reconciles Integration CRDs into NiFiKop/NiFi resources, manages Parameter Contexts, and surfaces conditions (backpressure/bulletins/ready).
 
+## Protocol adapters (MCP)
+
+If Commerce publishes an MCP surface for agentic access, it is implemented as a protocol adapter Integration primitive:
+
+- `commerce-mcp-adapter` exposes MCP tools/resources and translates to proto-first Application Services (CQRS: commands → Domain, queries/resources → Projection).
+- Tool schemas/manifests are derived from proto annotations (default deny; explicit allowlist). See `backlog/534-mcp-protocol-adapter.md`.
+
 ## Integration buckets (keep them separate)
 
 ## EDA responsibilities (496-native)

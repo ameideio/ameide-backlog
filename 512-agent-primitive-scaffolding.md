@@ -22,6 +22,12 @@
 - All Agent scaffold instructions must be authored in **template files** (README/templates, comment templates), not hard‑coded as inline strings in the CLI implementation.  
 - Scaffolded README and code comments must be **fully self‑contained** and **must not reference backlog IDs**; this backlog informs design, but generated projects must stand alone.  
 
+MCP posture (for Agent scaffolds):
+
+- Do not scaffold MCP servers inside Agent primitives. MCP is a capability-owned Application Interface implemented as an **Integration primitive** (protocol adapter).
+- Agent primitives should prefer **Ameide SDK clients** (typed, stable) for internal calls; MCP exists as a compatibility layer for external ecosystems and developer tooling.
+- If an agent must run outside the cluster (or be exercised from external tooling), prefer consuming the capability’s MCP adapter rather than embedding bespoke HTTP/JSON clients.
+
 ---
 
 ## Grounding & cross‑references
@@ -30,7 +36,8 @@
 - **Agent vertical slice:** `504-agent-vertical-slice.md`.  
 - **CLI overview & scaffold:** `484-ameide-cli-overview.md`, `484a-ameide-cli-primitive-workflows.md`, `484f-ameide-cli-scaffold-implementation.md`.  
 - **Primitive/operator contract:** `495-ameide-operators.md`, `497-operator-implementation-patterns.md`.  
-- **Agent operator:** `500-agent-operator.md`.  
+- **Agent operator:** `500-agent-operator.md`.
+- **Testing discipline:** `537-primitive-testing-discipline.md` (RED→GREEN TDD pattern, LangGraph invariants, CI enforcement).
 - **Capability implementation DAG:** `backlog/533-capability-implementation-playbook.md` (Agent scaffold + implementation nodes).
 
 ---

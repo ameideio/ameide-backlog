@@ -165,3 +165,5 @@ Verification:
 
 - Add a dedicated CLI command that runs a full vertical loop (generate → build → push → GitOps sync → smoke), with clear separation between “repo actions” and “cluster actions”.
 - Ensure CLI-generated projects default to the same naming conventions used by the v0 samples.
+- Add an official MCP adapter scaffold path (wrapper over primitive scaffolding) like `ameide scaffold integration mcp-adapter --capability <cap>` that generates stdio + Streamable HTTP wiring, policy hooks, Origin validation, tool allowlists, and transport compliance golden tests.
+- Add a proto-driven MCP schema generator plugin (e.g., `protoc-gen-ameide-mcp-schema`) so MCP tool schemas/manifests are derived from proto annotations and cannot drift; track the actual implementation in `backlog/521-code-generation-improvements.md` once it lands.

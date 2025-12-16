@@ -159,6 +159,38 @@ Record the rules for this capability:
 - What Buf breaking category is enforced in CI?
 - What CSR compatibility mode is expected by consumers (if applicable)?
 
+#### F.5 Application Interfaces for Agents (MCP) (worksheet)
+
+If the capability is intended to be used by agents (platform agents, browser chat, external tools like Claude Code), record the MCP surface explicitly:
+
+- Pattern: `backlog/534-mcp-protocol-adapter.md`
+- Read optimizations: `backlog/535-mcp-read-optimizations.md`
+- Write optimizations: `backlog/536-mcp-write-optimizations.md`
+
+**Declare what the capability publishes**
+
+- MCP tools: yes/no (list)
+- MCP resources: yes/no (list)
+- MCP prompts: optional; only if versioned/owned properly (list)
+
+**Tools**
+
+| Tool | Kind | Application Service (canonical) | Primitive | Scopes / risk tier | Approval | Latency (P95) | Failure modes | Evidence / audit |
+|------|------|----------------------------------|----------|--------------------|----------|---------------|---------------|------------------|
+| `<cap>.<op>` | query/command | `<Service>.<Method>` | Domain/Projection | `<scopes> (tier N)` | yes/no | `<ms/s>` | `<codes>` | `<facts/logs>` |
+
+**Resources**
+
+| Resource URI pattern | Backing query service | Primitive | Latency (P95) | Notes |
+|----------------------|-----------------------|----------|---------------|------|
+| `<cap>://<type>/{id}` | `<Service>.<Method>` | Projection | `<ms/s>` | `<size/caching>` |
+
+**Edge constraints**
+
+- Which tools require human approval?
+- What evidence/audit is produced (facts, promotions, audit timeline)?
+- Default-deny tool exposure; explicit allowlist; Origin validation for Streamable HTTP.
+
 ---
 
 ## Technology (Technology layer)

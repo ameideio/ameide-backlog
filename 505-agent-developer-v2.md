@@ -19,6 +19,12 @@
 - **Process facts** on `scrum.process.facts.v1` (defined in 506-v2).  
 - **A2A REST binding + Agent Card** (`/.well-known/agent-card.json`, `/v1/message:send`, `/v1/message:stream`, `/v1/tasks/*`) shared with other agents and owned by the A2A proto/backlog series.  
 - **Coder-internal CLI/tooling contracts** are defined in `504-agent-vertical-slice.md` and the 484a–484f CLI backlogs; AmeideCoder treats those as internal tools.
+- **MCP (agentic access) compatibility layer:** MCP servers are Integration primitives that expose capability-owned tools/resources; agents do not require MCP internally and should prefer Ameide SDK clients for typed calls. See `backlog/534-mcp-protocol-adapter.md`.
+
+### MCP vs A2A (clarification)
+
+- **MCP (capability tools/resources):** Agent → Capability (Domain/Projection). Tool identifiers are capability-scoped (`<capability>.<operation>`) and can be invoked via SDK clients (preferred in-platform) or via MCP protocol adapters (external/devtool compatibility).
+- **A2A (agent-to-agent):** Agent → Agent delegation (e.g., AmeideSA → AmeideCoder). A2A transports tasks/messages; it is not the capability API surface.
 
 ## Grounding & cross-references
 

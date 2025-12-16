@@ -108,7 +108,27 @@ ameide-gitops/                        # github.com/ameideio/ameide-gitops
 * `primitives/` holds **primitive CRs** and Helm/Kustomize overlays, mirroring the `primitives/*` code tree.
 * Argo CD syncs this repo into `ameide-{env}` namespaces; operators reconcile CRDs into workloads.
 
-### 2.3 Tenant GitOps repos
+### 2.3 Client applications (`packages/`)
+
+Client applications (IDE extensions, browser extensions, CLI tools) are **NOT primitives**. They are Application Components (clients) that consume primitive services directly. They live under `packages/` alongside SDKs:
+
+```text
+packages/
+├── ameide_vscode_ext/            # VSCode extension (538) - NOT a primitive
+├── ameide_core_cli/              # CLI tool - NOT a primitive
+├── ameide_sdk_go/                # Generated SDKs
+├── ameide_sdk_ts/
+└── ameide_sdk_python/
+```
+
+**Key distinction from primitives:**
+- Do NOT use `ameide primitive scaffold`
+- Do NOT have GitOps CRDs or operator deployment
+- Do NOT live under `primitives/`
+- Distributed via marketplace (VSCode), package registries (npm/pip), or direct download (CLI)
+- See `backlog/538-vscode-client-transformation.md` for the VSCode extension pattern
+
+### 2.4 Tenant GitOps repos
 
 Per-tenant repos hold custom primitives and config:
 

@@ -204,6 +204,35 @@ SRE capability owns:
 | `sre.domain.facts.v1` | `SreDomainFact` | Immutable events after persistence |
 | `sre.process.facts.v1` | `SreProcessFact` | Workflow state transition events |
 
+### 4.4 Application Interfaces for Agents (MCP)
+
+SRE is intended to be agent-operable (browser chat, external tooling, and platform agents). MCP is treated as a protocol adapter surface owned by an Integration primitive.
+
+References:
+- MCP adapter pattern: `backlog/534-mcp-protocol-adapter.md`
+- Read optimizations: `backlog/535-mcp-read-optimizations.md`
+- Write optimizations: `backlog/536-mcp-write-optimizations.md`
+
+**Published interface**
+- MCP tools: yes (read-heavy; bounded writes)
+- MCP resources: yes (read-only)
+- MCP prompts: optional (defer unless versioned/promotable)
+
+Starter tool map (illustrative; authoritative source is generated from proto):
+
+| Tool | Kind | Application Service (canonical) | Primitive | Approval | Evidence / audit |
+|------|------|----------------------------------|----------|----------|------------------|
+| `sre.getFleetHealth` | query | `FleetHealthQueryService.GetFleetHealth` | Projection | no | audit log + query tracing |
+| `sre.searchIncidents` | query | `IncidentQueryService.SearchIncidents` | Projection | no | audit log + query tracing |
+| `sre.searchPatterns` | query | `KnowledgeIndexQueryService.SearchPatterns` | Projection | no | audit log + query tracing |
+| `sre.createIncident` | command | `IncidentService.CreateIncident` | Domain | no (observational record) | `sre.domain.facts.v1` + audit trail projection |
+| `sre.resolveIncident` | command | `IncidentService.Resolve` | Domain | yes | `sre.domain.facts.v1` + audit trail projection |
+
+Edge constraints (SRE):
+
+- High-risk infrastructure operations (cluster writes, GitOps commits) are not exposed as direct domain writes by default; they are gated by human approval and executed via controlled workflows/agents.
+- All domain writes emit domain facts via outbox; audit/read models are projection-backed.
+
 ---
 
 ## 5) Application Component realization (primitives)

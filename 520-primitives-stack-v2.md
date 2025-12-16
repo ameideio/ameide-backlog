@@ -344,6 +344,7 @@ Make the inner loop and CI gates identical across primitives:
 - Regen-diff: `git diff --exit-code` must be clean after generation.
 - Import policy: runtime code imports only generated SDK outputs (no proto source-tree imports).
 - Tests: generated structural tests always run; human-written behavior tests run at least per primitive kind.
+- Scaffold test enforcement: RED scaffold tests must be replaced with GREEN implementations before merge (see `backlog/537-primitive-testing-discipline.md`; `AMEIDE_SCAFFOLD` markers fail verification by default).
 
 ### 8) Upgrade playbook (generation + schema evolution)
 
@@ -447,6 +448,11 @@ Hard constraints (required):
 - **Generation:** Pydantic/state models, LangGraph skeleton, tool adapters, and tests (graph compiles, required tools registered, deterministic test harness). ([LangGraph Graph API][9], [LangGraph persistence][7], [LangGraph testing][8], [LangChain tools][11], [Tool calling blog][17])
 - **Operator:** injects model/provider configuration and secrets via Kubernetes Secrets/ConfigMaps; never stores prompts/secrets in proto/generated outputs. ([Kubernetes secrets][12])
 
+MCP posture (required):
+
+- Agents should prefer Ameide SDK clients (typed, stable, import-isolated) when calling other primitives.
+- MCP is a compatibility layer for external ecosystems and developer tooling; treat it as a capability-owned Application Interface decision (via Integration primitives), not the internal “agent runtime boundary”.
+
 State discipline (required):
 
 - If persistence is enabled, requests must provide a stable `thread_id` (enforced at the API boundary and passed into LangGraph config).
@@ -460,7 +466,9 @@ State discipline (required):
 - **Generation:** SDKs and framework skeletons (client wiring, schema-driven forms/components where applicable) written only to generated roots (e.g., `build/generated/**`).
 - **Operator:** reconciles UI workload, HTTPRoute exposure, env injection, and readiness.
 
-UISurface guardrail (required): do not place implementation-owned UI code under any generator-cleaned output root; if you want “starter code”, copy templates once into an implementation-owned app directory and evolve it there.
+UISurface guardrail (required): do not place implementation-owned UI code under any generator-cleaned output root; if you want "starter code", copy templates once into an implementation-owned app directory and evolve it there.
+
+**Explicit exclusion:** IDE extensions (VSCode, JetBrains), browser extensions, CLI tools, and mobile apps are **NOT** UISurface primitives. They are Application Components (clients) that consume UISurface/Projection/Domain services directly. They don't use `ameide primitive scaffold`, aren't deployed via operators, and live under `packages/` (not `primitives/`). See `backlog/538-vscode-client-transformation.md` for the VSCode client pattern.
 
 ### Projection
 
@@ -486,6 +494,12 @@ Projection storage options are deliberately pluggable:
 ### Integration
 
 **Intent:** “flows as code” integrations (defaulting to NiFi) with strong day-2 lifecycle management.
+
+Protocol adapters (required):
+
+- Protocol adapters (e.g., MCP servers) are Integration primitives. See `backlog/534-mcp-protocol-adapter.md` for the MCP-specific implementation pattern.
+- Adapters do not own semantics; they translate external protocols (JSON-RPC/MCP) into proto-first Application Services (gRPC/EDA), following CQRS (commands → Domain, queries/resources → Projection).
+- Tool schemas are derived from proto (annotations + codegen). Never hand-author a parallel JSON tool contract; exposure is default-deny with explicit allowlists.
 
 - **Proto:** ports/contracts declared as annotated service methods; message schemas describe what is consumed/emitted; parameters remain placeholders.
 - **Generation:** flow artifacts (registry versioned flow snapshots), parameter context templates (placeholders only), descriptor sets/schemas, structural tests/harness.

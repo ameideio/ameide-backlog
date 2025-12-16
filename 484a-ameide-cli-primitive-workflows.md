@@ -43,6 +43,17 @@ ameide primitive verify --all --proto-path <path> --json
 ameide primitive scaffold --kind domain --name orders --lang go --dry-run --json
 ```
 
+MCP adapter note:
+
+- MCP servers are treated as **Integration primitives** (protocol adapters). See `backlog/534-mcp-protocol-adapter.md`.
+- If you are scaffolding a capability-owned MCP adapter, prefer naming it `<capability>-mcp-adapter` and keep it thin: JSON-RPC/MCP ↔ proto-first Application Services.
+
+Example:
+
+```bash
+ameide primitive scaffold --kind integration --name transformation-mcp-adapter --include-gitops --json
+```
+
 ---
 
 ## 2. What CLI Does vs What Agents Do

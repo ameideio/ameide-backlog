@@ -496,3 +496,16 @@ service CommerceHardwareIntegrationService {
   - required metadata fields present,
   - topic naming matches package major,
   - no CRUD RPC names for write services.
+
+---
+
+## MCP exposure (proto-first)
+
+If Commerce publishes MCP tools/resources, MCP schemas/manifests are derived from these proto contracts (service/method annotations) and implemented via a capability-owned Integration primitive (`commerce-mcp-adapter`).
+
+Rules:
+
+- Do not hand-author a parallel JSON tool schema; generate MCP schemas from proto (default deny; explicit allowlist).
+- MCP is a protocol binding; semantics remain owned by the underlying Domain/Projection Application Services.
+
+See `backlog/534-mcp-protocol-adapter.md` for the adapter pattern and generation posture.

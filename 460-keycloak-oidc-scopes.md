@@ -96,6 +96,7 @@ The `ameide` realm JSON in `keycloak_realm/values.yaml` defines only custom scop
 | [333-realms.md](333-realms.md) | Realm-per-tenant ADR; needs export-based template pattern |
 | [426-keycloak-config-map.md](426-keycloak-config-map.md) | GitOps map; needs OIDC scopes section |
 | [462-secrets-origin-classification.md](462-secrets-origin-classification.md) | Client secret extraction flow (client-patcher → Vault) |
+| [538-vscode-client-auth.md](538-vscode-client-auth.md) | MCP-specific scopes (`mcp:tools`, `mcp:resources`) for VSCode/Claude Code clients |
 | [old/104-keycloak-config-v2.md](old/104-keycloak-config-v2.md) | Previous `invalid_scope` workaround (archived) |
 | [447-third-party-chart-tolerations.md](447-third-party-chart-tolerations.md) | §12 documents Keycloak `spec.scheduling` |
 | [442-environment-isolation.md](442-environment-isolation.md) | Keycloak tolerations entry |

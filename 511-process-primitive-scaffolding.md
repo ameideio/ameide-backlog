@@ -29,7 +29,8 @@
 - **Primitive stack:** `477-primitive-stack.md` (Process primitives in `primitives/process/{name}`).  
 - **EDA / idempotency:** `470-ameide-vision.md`, `472-ameide-information-application.md`, `496-eda-principles.md`.  
 - **CLI workflows:** `484-ameide-cli-overview.md`, `484a-ameide-cli-primitive-workflows.md`, `484f-ameide-cli-scaffold-implementation.md`.  
-- **Primitive/operator contract:** `495-ameide-operators.md`, `497-operator-implementation-patterns.md`.  
+- **Primitive/operator contract:** `495-ameide-operators.md`, `497-operator-implementation-patterns.md`.
+- **Testing discipline:** `537-primitive-testing-discipline.md` (RED→GREEN TDD pattern, Temporal determinism/replay testing, CI enforcement).
 - **Process operator / vertical slice:** `499-process-operator.md`, `506-scrum-vertical-v2.md`.  
 - **Capability implementation DAG:** `backlog/533-capability-implementation-playbook.md` (Process scaffold + implementation nodes).
 

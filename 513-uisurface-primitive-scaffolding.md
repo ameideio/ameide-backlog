@@ -16,6 +16,20 @@
 
 ---
 
+## Scope exclusion – client applications
+
+> **Not UISurface primitives:** IDE extensions (VSCode, JetBrains), browser extensions, CLI tools, and mobile apps are **Application Components (clients)**, not UISurface primitives. They consume primitive services but are not deployed via operators, do not use `ameide primitive scaffold`, and do not live under `primitives/`. See `backlog/538-vscode-client-transformation.md` for the VSCode client pattern.
+
+**Key distinction:**
+| Aspect | UISurface Primitive | Client Application |
+|--------|--------------------|--------------------|
+| **Location** | `primitives/uisurface/{name}/` | `packages/{name}/` |
+| **Deployment** | Operator-managed (CRD/GitOps) | Marketplace/manual install |
+| **Scaffold** | `ameide primitive scaffold --kind uisurface` | Manual or extension tooling |
+| **Example** | Platform dashboard, workspace UI | VSCode extension (538), CLI |
+
+---
+
 ## General implementation guidelines (for CLI scaffolder)
 
 - Maintain a single, opinionated scaffold per primitive kind; **do not introduce new CLI flags** beyond the existing `ameide primitive scaffold` parameters.  
@@ -32,6 +46,7 @@
 - **Primitive/operator contract:** `495-ameide-operators.md`, `497-operator-implementation-patterns.md`.  
 - **UISurface operator:** `501-uisurface-operator.md`.  
 - **Capability implementation DAG:** `backlog/533-capability-implementation-playbook.md` (UISurface scaffold + implementation nodes).
+- **Contrast – client applications:** `538-vscode-client-transformation.md`, `538-vscode-client-extension.md` (VSCode extension is NOT a UISurface primitive; see "Scope exclusion" above).
 
 ---
 

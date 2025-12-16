@@ -75,6 +75,7 @@ For a capability to be considered “architected” (not just brainstormed), it 
    - identity & scope model (axes used across intents/facts/queries),
    - data objects and read models (projections + query surfaces),
    - integration ports (external seams).
+   - application interfaces for agents (MCP tools/resources/prompts; see §9).
 3. **Technology**
    - topology modes (cloud/edge/offline) and platform constraints (brokers/DB/workflow engine/gateways),
    - placement assumptions and degraded-mode expectations.
@@ -177,3 +178,70 @@ This aligns with “Transformation is the change-the-business capability” desc
 1. “Capability” is a stable concept across backlogs: business intent → EDA contracts → primitives.
 2. New capability backlogs follow the deliverables in §4 and the method in `524-transformation-capability-decomposition.md`.
 3. We do not introduce a new primitive kind called “Capability”; capability is a business-level grouping whose implementation is primitives + contracts.
+
+---
+
+## 9) Application Interfaces for Agents (MCP)
+
+This section is required in every capability backlog. It makes **agentic access** an explicit Application Interface decision (not an accidental side effect).
+
+**Normative references:**
+- MCP adapter pattern: `backlog/534-mcp-protocol-adapter.md`
+- Read-side optimizations (semantic search): `backlog/535-mcp-read-optimizations.md`
+- Write-side optimizations (agent-friendly commands): `backlog/536-mcp-write-optimizations.md`
+
+### 9.1 What the capability publishes
+
+Declare whether the capability publishes:
+
+- **MCP tools:** yes/no (list)
+- **MCP resources:** yes/no (list)
+- **MCP prompts:** optional; only if you can keep them versioned/owned properly (list)
+
+### 9.2 Tool catalog (required)
+
+For each exposed MCP tool, record:
+
+- **Tool name:** `<capability>.<operation>`
+- **MCP kind:** `query` or `command`
+- **Canonical Application Service:** the ArchiMate Application Service name (usually the gRPC service + method)
+- **Owning primitive:** Domain (writes) or Projection (reads)
+- **Auth/risk:** required scopes/roles + risk tier; whether human approval is required
+- **Latency:** expected P50/P95 and whether the tool is safe for interactive use
+- **Failure modes:** expected error classes (permission denied, invalid argument, unavailable, partial results)
+- **Evidence/audit:** what facts/events/logs are emitted (domain facts, process facts, audit trail projection)
+
+Recommended table (copy/paste):
+
+| Tool | Kind | Application Service (canonical) | Primitive | Scopes / risk tier | Approval | Latency (P95) | Failure modes | Evidence / audit |
+|------|------|----------------------------------|----------|--------------------|----------|---------------|---------------|------------------|
+| `<cap>.<op>` | query/command | `<Service>.<Method>` | Domain/Projection | `<scopes> (tier N)` | yes/no | `<ms/s>` | `<codes>` | `<facts/logs>` |
+
+### 9.3 Resource catalog (required if any resources exist)
+
+Resources are read-only and resolve via Projection query services.
+
+| Resource URI pattern | Backing query service | Primitive | Latency (P95) | Notes |
+|----------------------|-----------------------|----------|---------------|------|
+| `<cap>://<type>/{id}` | `<Service>.<Method>` | Projection | `<ms/s>` | `<size/caching>` |
+
+### 9.4 Prompts (optional; discouraged unless well-governed)
+
+If publishing prompts:
+
+- Treat prompts as versioned, capability-owned artifacts with explicit ownership and promotion rules.
+- Prefer “prompt IDs” that refer to versioned artifacts rather than embedding prompt text in multiple places.
+
+### 9.5 Edge constraints (required)
+
+Declare:
+
+- **Write approvals:** which tools require human approval, and where approvals are recorded
+- **Evidence bundles:** what gets produced as evidence (facts, baseline promotions, audit timeline links)
+- **Safety posture:** default deny tool exposure; explicit allowlist; Origin validation for Streamable HTTP
+
+### 9.6 Non-negotiables (proto-first)
+
+- **Protocol adapters are Integration primitives.** MCP servers belong in Integration primitives, not Domains/Agents.
+- **Adapters do not own semantics.** They translate to proto-first Application Services and do not become a parallel “business API”.
+- **Tool schemas are derived from proto.** Never hand-author a parallel JSON schema contract; generate MCP schemas from proto annotations and keep exposure default-deny.

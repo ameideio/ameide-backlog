@@ -135,6 +135,49 @@ Commerce Application Components (primitives) rely on Technology Services such as
 - `523-commerce-agent.md` — optional setup/support assistants (read-only diagnostics + guided steps)
 - `523-commerce-proto.md` — proto proposal for primitive-to-primitive communication
 
+## Application Interfaces for Agents (MCP)
+
+Commerce should declare an explicit MCP surface for agentic access (external devtools + portal chat), implemented as a capability-owned **Integration primitive** (protocol adapter), not as an Agent feature.
+
+References:
+- MCP adapter pattern: `backlog/534-mcp-protocol-adapter.md`
+- Read optimizations: `backlog/535-mcp-read-optimizations.md`
+- Write optimizations: `backlog/536-mcp-write-optimizations.md`
+
+**Published interface (target)**
+- MCP tools: yes
+- MCP resources: yes (read-only)
+- MCP prompts: optional; only if versioned/promotable
+
+**Integration primitive**
+- `commerce-mcp-adapter` translates MCP (stdio + Streamable HTTP) into proto-first Application Services.
+- Tool schemas/manifests are generated from proto annotations (default deny; explicit allowlist).
+
+Starter tool map (illustrative; authoritative source is generated from proto once defined):
+
+| Tool | Kind | Application Service (canonical) | Primitive | Approval | Edge constraints / notes |
+|------|------|----------------------------------|----------|----------|--------------------------|
+| `commerce.listProducts` | query | `CatalogQueryService.ListProducts` | Projection | no | interactive-safe; paginated |
+| `commerce.getOrder` | query | `OrderQueryService.GetOrder` | Projection | no | may be eventually consistent |
+| `commerce.searchInventory` | query | `InventoryQueryService.SearchAvailability` | Projection | no | topology-aware (cloud/edge) |
+| `commerce.placeOrder` | command | `OrderWriteService.PlaceOrder` | Domain | yes | must emit domain facts; idempotent |
+| `commerce.cancelOrder` | command | `OrderWriteService.CancelOrder` | Domain | yes | compensation semantics explicit |
+| `commerce.claimDomain` | command | `SiteWriteService.ClaimDomain` | Domain/Process | yes | BYOD workflow evidence required |
+
+Starter resources (illustrative):
+
+| Resource URI pattern | Backing query service | Primitive |
+|----------------------|-----------------------|----------|
+| `commerce://product/{id}` | `CatalogQueryService.GetProduct` | Projection |
+| `commerce://order/{id}` | `OrderQueryService.GetOrder` | Projection |
+| `commerce://site/{id}` | `SiteQueryService.GetSite` | Projection |
+
+Edge constraints (Commerce):
+
+- Writes require human approval by default when invoked by agents; exceptions must be explicit and auditable.
+- Evidence/audit is produced as domain facts (after persistence) and surfaced via projection-backed timelines; BYOD domain operations require observable evidence (DNS checks, verification, ACME issuance, revoke/transfer).
+- Offline/edge modes must be reflected in failure modes and responses (stale reads, degraded writes, queued intents).
+
 ## “Real-time required” operations (v1 list; keep small)
 
 Default is async replication. These operations are explicitly not safe to rely on eventual consistency without a deliberate design:

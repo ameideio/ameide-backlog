@@ -29,7 +29,8 @@
 - **Primitive stack:** `477-primitive-stack.md` (Domain primitives in `primitives/domain/{name}` and GitOps under `gitops/primitives/domain/{name}`).  
 - **Primitive/operator contract:** `495-ameide-operators.md` (shared CRD/spec/status patterns), `497-operator-implementation-patterns.md` (controller-runtime patterns), `498-domain-operator.md` (Domain operator implementation).  
 - **EDA / outbox principles:** `470-ameide-vision.md` (§8–13), `472-ameide-information-application.md` (§3.3), `496-eda-principles.md`.  
-- **CLI workflows & verification:** `484-ameide-cli-overview.md`, `484a-ameide-cli-primitive-workflows.md`, `484b-ameide-cli-proto-contract.md`, `484f-ameide-cli-scaffold-implementation.md`.  
+- **CLI workflows & verification:** `484-ameide-cli-overview.md`, `484a-ameide-cli-primitive-workflows.md`, `484b-ameide-cli-proto-contract.md`, `484f-ameide-cli-scaffold-implementation.md`.
+- **Testing discipline:** `537-primitive-testing-discipline.md` (RED→GREEN TDD pattern, CI enforcement, per-primitive test invariants).  
 - **Domain operator / vertical slice:** `498-domain-operator.md`, `502-domain-vertical-slice.md`.  
 - **Scrum example:** `506-scrum-vertical-v2.md`, `508-scrum-protos.md` (Transformation Scrum domain).
 - **Capability implementation DAG:** `backlog/533-capability-implementation-playbook.md` (Domain scaffold + implementation nodes).
