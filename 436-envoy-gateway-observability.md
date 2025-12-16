@@ -42,7 +42,7 @@ Gateway (ameide-*/ameide)
 ```
 
 > **Update (2025-12-16):** Envoy Gateway (controller) runs cluster-scoped in the `argocd` namespace.
-> `EnvoyProxy` resources are **environment-scoped** and are deployed to the environment namespace (e.g., `ameide-dev`, `ameide-staging`, `ameide-prod`, `ameide-local`), with `Gateway.spec.infrastructure.parametersRef.namespace` pointing to that environment namespace.
+> `EnvoyProxy` resources are **environment-scoped** and are deployed to the environment namespace (e.g., `ameide-dev`, `ameide-staging`, `ameide-prod`, `ameide-local`). The `Gateway.spec.infrastructure.parametersRef` reference is **namespace-local** (the `EnvoyProxy` must live in the same namespace as the `Gateway`; the `namespace` field is not part of the Gateway API schema).
 >
 > Envoy *data-plane* Deployments/Services are created by the controller and live in `argocd` (labelled with the owning Gateway namespace/name).
 > See [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md) for dual ApplicationSet architecture.
@@ -123,7 +123,6 @@ spec:
       group: gateway.envoyproxy.io
       kind: EnvoyProxy
       name: ameide-proxy-config
-      namespace: ameide-dev
   addresses:
     - type: IPAddress
       value: 40.68.113.216

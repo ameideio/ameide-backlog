@@ -166,6 +166,7 @@ Remediation approach (GitOps-aligned, local-only):
 Remediation approach (GitOps-aligned, no band-aids):
 1. Treat Argo-managed local baseline as production-like: run a deterministic server entrypoint (no runtime package-manager downloads, no dev server).
 2. Fix the local Redis standalone chart behavior so `auth.enabled=false` truly runs Redis without `requirepass` (and keep `auth.enabled=true` for environments that need it).
+3. Until a **multi-arch production image** exists (tag that contains a prebuilt `.next` and runs `next start`), disable the Argo baseline for local and use the dedicated Tilt release per [424-tilt-www-ameide-separate-release.md](424-tilt-www-ameide-separate-release.md).
 
 ## Update (2025-12-15): Local observability + Gateway Progressing (OTEL collector arch + local LoadBalancer)
 
@@ -197,6 +198,21 @@ Remediation approach (reproducible local):
 1. Make “LoadBalancer provider” an explicit local capability: deploy MetalLB (or re-enable k3s `servicelb`) via GitOps so `LoadBalancer` services are assigned addresses deterministically.
 2. Keep local Gateway health tied to real address assignment; do not mask with Argo health overrides.
 3. Stabilize Envoy Gateway (controller) so data-plane proxies become Ready and populate Service Endpoints; without endpoints, LoadBalancer provisioning and Gateway status can stall.
+
+## Update (2025-12-16): Gateway policy schema drift (ComparisonError) + cluster-gateway OutOfSync
+
+Observed Argo apps failing comparison or staying `OutOfSync` even while resources are otherwise functional:
+- `local-platform-gateway`: `ComparisonError` during diff calculation
+- `cluster-gateway`: `OutOfSync` on `Gateway/cluster`
+
+Root cause:
+- We rendered fields that **do not exist in the installed CRD/Gateway API schema**, which causes Argo to fail structured diff:
+  - `EnvoyPatchPolicy.spec.targetRef.namespace` is not declared in the Envoy Gateway policy schema.
+  - `Gateway.spec.infrastructure.parametersRef.namespace` is not declared in the Gateway API schema (namespace is implied; reference is within the Gateway’s namespace).
+
+Remediation approach (vendor-aligned, no band-aids):
+1. Remove the unsupported `namespace` fields from the manifests so Argo structured diff works and self-heal can converge.
+2. Keep per-environment isolation by ensuring the referenced `EnvoyProxy` is deployed in the same namespace as the `Gateway` (namespaced ownership boundary stays intact without cross-namespace refs).
 
 ## Update (2025-12-14): Local GitLab OutOfSync noise (Argo diff + orphaned Helm hook)
 

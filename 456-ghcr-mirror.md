@@ -62,6 +62,16 @@ Recent local `arm64` debugging showed two failure modes that this doc should exp
 - Add validation (pipeline) to fail the mirror job when a tag does not include the expected platforms.
 - Keep an environment-scoped fallback mechanism (local can temporarily use upstream multi-arch images when a mirror tag is missing the required platforms), but treat this as a tracked exception until the mirror is repaired.
 
+## Addendum (2025-12-16): Loki mirror tag breaks local arm64
+
+**Incident:** `ameide-local` Loki (`local-platform-loki`) CrashLooped on `ghcr.io/ameideio/mirror/loki:3.5.7` with stack traces referencing `runtime/asm_amd64.s`, consistent with an `amd64` artifact being selected on an `arm64` node.
+
+**Meaning:** even “commonly multi-arch” upstream images can regress if the mirror tag is flattened to a single platform or republished incorrectly.
+
+**Action items:**
+- Re-publish `ghcr.io/ameideio/mirror/loki:3.5.7` as a proper multi-arch manifest list (preserve `linux/amd64` + `linux/arm64`).
+- Until the mirror tag is repaired, local uses a values override to pull the upstream vendor image (`grafana/loki:3.5.7`) so GitOps remains stable on arm64.
+
 ## Infrastructure
 
 ### GitHub Actions Workflow
