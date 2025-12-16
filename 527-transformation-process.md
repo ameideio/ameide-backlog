@@ -1,6 +1,6 @@
 # 527 Transformation — Process Primitive Specification
 
-**Status:** Draft  
+**Status:** Draft (scaffold implemented; verification green; workflow logic pending)  
 **Parent:** [527-transformation-capability.md](527-transformation-capability.md)
 
 This document specifies the **Transformation Process primitives** — Temporal-backed governance workflows that execute methodology profiles (Scrum/TOGAF/PMI) and the "requirement → running" delivery loop.
@@ -56,9 +56,29 @@ ameide primitive scaffold --kind process --name pmi --include-gitops
 
 Store the canonical workflow specs in Transformation (BPMN-compliant ProcessDefinitions + versions) and bind Process CRs to promoted versions.
 
+## 4.1) Implementation progress (repo snapshot)
+
+Delivered (scaffold + guardrails):
+
+- Process scaffold exists at `primitives/process/transformation` (worker + ingress shape, non-root container, tests).
+- Repo-mode verification is green: `bin/ameide primitive verify --kind process --name transformation --mode repo`.
+- Scaffold tests run: `cd primitives/process/transformation && go test ./...`.
+
+Not yet delivered (process meaning):
+
+- Deterministic BPMN-driven governance workflows (Scrum/TOGAF/PMI) and continuous refinement loop are not implemented end-to-end.
+- Emission of process facts as first-class observability stream for workflow transitions is not implemented end-to-end.
+
+## 4.2) Clarification requests (next steps)
+
+Confirm/decide:
+
+- The canonical “continuous refinement loop” event catalog (process facts) and the minimum required fields for correlation/audit replay.
+- Which gates are human-in-loop by default vs autonomous, and what signals are allowed at each gate (Approve/Reject/Override/Cancel).
+- The canonical mapping from each signal to the next domain command/intent (including role checks and evidence requirements).
+
 ## 5) Acceptance criteria
 
 1. Governance workflows are Temporal-backed and emit process facts for all transitions.
 2. Processes never become canonical writers for Transformation artifacts.
 3. Domain writes occur only via domain intents/commands (never direct DB writes; no “process-owned truth”).
-

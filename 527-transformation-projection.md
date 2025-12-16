@@ -1,6 +1,6 @@
 # 527 Transformation — Projection Primitive Specification
 
-**Status:** Draft  
+**Status:** Draft (scaffold implemented; ingestion/read models pending)  
 **Parent:** [527-transformation-capability.md](527-transformation-capability.md)
 
 This document specifies the **Transformation Projection primitive** — read models for the portal, agents, and architecture impact analysis.
@@ -71,9 +71,29 @@ Query rules:
 ameide primitive scaffold --kind projection --name transformation --include-gitops
 ```
 
+## 4.1) Implementation progress (repo snapshot)
+
+Delivered (scaffold + tests):
+
+- Projection scaffold exists at `primitives/projection/transformation` (query service skeleton, non-root container, tests).
+- Scaffold tests run: `cd primitives/projection/transformation && go test ./...`.
+- Note: `ameide primitive verify` does not currently support `--kind projection` (repo guardrails are not yet enforced via CLI for Projection).
+
+Not yet delivered (projection meaning):
+
+- Idempotent ingestion/materialization from domain facts + process facts into the listed read models is not implemented end-to-end.
+- Agent-grade read semantics (`read_context` + citations + audit replay, semantic search) are not implemented end-to-end.
+
+## 4.2) Clarification requests (next steps)
+
+Confirm/decide:
+
+- The canonical `read_context` contract (baseline/time/revision) for all query surfaces and what citation fields are mandatory in every response.
+- Whether the projection starts in “bridge mode” (reading Domain DB) or immediately in “facts → read model” mode for the v1 acceptance slice.
+- The minimum viable impact analysis queries needed for v1 (baseline compare, view render, graph traversal).
+
 ## 5) Acceptance criteria
 
 1. UISurface and Agents read via projection query services (not domain DB reads).
 2. Projections are idempotent and replay-safe.
 3. Search/history/diff/impact analysis are projection-backed.
-

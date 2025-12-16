@@ -1,6 +1,6 @@
 # 538 — VSCode Client Extension Implementation
 
-**Status:** Draft
+**Status:** Draft (no repo implementation yet)
 **Parent:** [538-vscode-client-transformation.md](538-vscode-client-transformation.md)
 **Audience:** Extension developers, platform engineering
 **Scope:** VSCode extension implementation details — APIs, lifecycle, UI components, optional local MCP server for `vscode.*` tools.
@@ -16,6 +16,30 @@
 
 ---
 
+## Implementation progress (current)
+
+Repo status (today):
+- [x] This doc defines a target extension architecture (typed SDK for UI; optional local MCP server for `vscode.*` only).
+- [ ] No VSCode extension implementation detected yet (no `package.json` extension manifest, no `src/extension.ts`, no packaging pipeline).
+
+Build-out checklist:
+- [ ] Decide repo/package location for the extension (monorepo vs dedicated `ameide-vscode` repo) and publishing target (Marketplace / OpenVSX / internal).
+- [ ] Implement manifest + activation events + configuration (platform URL, realm URL, cache TTL, enable local MCP).
+- [ ] Implement auth UX (sign-in/out) using the referenced auth spec (`backlog/538-vscode-client-auth.md`) and store tokens securely.
+- [ ] Implement minimal UI surfaces (tree views for elements/views/baselines; details panel; search; pin/unpin context).
+- [ ] Implement caching + pagination + retry strategy for QueryService calls (avoid chatty graph traversals).
+- [ ] Implement optional local MCP server for `vscode.*` tools only (open files, selection, pinned context), explicitly not proxying platform MCP.
+- [ ] Add integration tests for auth + basic queries and smoke tests for local MCP server behavior.
+
+## Clarification requests (next steps)
+
+Decide/confirm:
+- [ ] What is v1 extension scope: “read-only browser + pin context” vs “also authoring/proposals” (which would require governance/process integration).
+- [ ] Canonical platform URLs per environment (dev/staging/prod) and how users select tenant/workspace/model.
+- [ ] Token storage approach (SecretStorage vs OS keychain wrappers) and offline/session-expiry UX.
+- [ ] Whether the extension should talk to gRPC directly or via a REST/Connect gateway (browser compatibility, TLS, proxies).
+- [ ] Whether local MCP server is required for v1, and if so which tool set is in-scope (`vscode.openFile`, `vscode.getSelection`, etc.).
+
 ## Architecture Decisions (ADRs)
 
 | ADR | Decision | Rationale |
@@ -24,6 +48,22 @@
 | **ADR-02** | **No token brokering** | Each MCP client handles its own OAuth. Extension does NOT proxy tokens for external AI tools. Security boundary remains clear. |
 | **ADR-03** | **Local MCP server is optional, `vscode.*` tools only** | Local MCP server provides IDE context (open files, selection, pinned elements) for AI tools that support it. It does NOT proxy platform tools. |
 | **ADR-04** | **Direct remote OAuth for AI tools** | AI tools connect to platform MCP adapter directly via Streamable HTTP + OAuth 2.1. No relay/proxy architecture. |
+
+## Implementation progress (repo)
+
+- [x] Server-side extensions execution runtime exists (`services/extensions-runtime`) with an SDK helper (`packages/ameide_sdk_go/extensions_runtime.go`).
+- [ ] VSCode extension source tree is not implemented in this repo yet (no extension package, build pipeline, or tests).
+- [ ] No local MCP server implementation exists for `vscode.*` tools (IDE context).
+- [ ] No VSCode auth integration is implemented (PKCE/login, token storage, refresh, tenant selection).
+- [ ] Document has an internal mismatch: ADR-01 says “UI uses SDK, not MCP”, but §4 is “Platform client (MCP over Streamable HTTP)” and the sample manifest description references MCP.
+
+## Clarifications requested (next steps)
+
+- [ ] Decide whether the extension talks to the platform via typed SDK/gRPC or via MCP (pick one for v1), then align §4 and the manifest copy accordingly.
+- [ ] Decide where the extension lives (monorepo path + repo split), and the build/test toolchain (pnpm/esbuild/vitest vs something else).
+- [ ] Decide whether the optional local MCP server is required for v1 and what the minimum `vscode.*` tool set is (files, selection, diagnostics, terminal, Git).
+- [ ] Confirm the authentication approach for VSCode (Keycloak PKCE, device code, or brokered login) and the token storage mechanism.
+- [ ] Define caching/offline expectations (TTL defaults, eviction, and “refresh” UX) and whether pinned AI context persists across workspaces.
 
 ---
 

@@ -1,6 +1,6 @@
 # 535 — MCP Read Optimizations (Semantic Search & Contextual Retrieval)
 
-**Status:** Draft
+**Status:** Draft (no repo implementation yet)
 **Audience:** Architecture, platform engineering, AI/agent teams
 **Scope:** Define **semantic search** as a Projection capability — enabling AI agents to find relevant data using natural language queries via contextual retrieval (pgvector + hybrid search).
 
@@ -12,12 +12,52 @@
 
 ---
 
+## Implementation progress (current)
+
+Repo status (today):
+- [x] This doc defines the target pattern (Projection-owned semantic retrieval; adapter calls Projection, not embedding APIs).
+- [ ] No semantic search Projection implementation detected yet (no `semanticSearch` RPCs, pgvector migrations, or indexing pipeline in-tree).
+
+Build-out checklist:
+- [ ] Define/confirm proto query surface (e.g. `SemanticSearch`, `GetContext`, `Reindex`, `GetIndexHealth`) and response shape (scores + provenance).
+- [ ] Add storage schema + migrations (pgvector for embeddings, tsvector for keyword search, plus metadata tables for chunks/documents).
+- [ ] Implement ingestion/indexing pipeline (consume facts/read models → build contextual chunks → embed → upsert index).
+- [ ] Implement hybrid retrieval (dense + sparse) with rank fusion + dedupe; add deterministic tie-break rules.
+- [ ] Enforce authorization at query time (tenant/role filters; prevent cross-tenant leakage in retrieval).
+- [ ] Add observability (index lag, embedding failures, chunk counts, hot queries, cost budgets).
+- [ ] Add conformance tests (golden queries + expected top-k; regression harness for chunking and ranking).
+
+## Clarification requests (next steps)
+
+Decide/confirm:
+- [ ] Embedding provider strategy (in-process model vs external API; if external, which Integration primitive owns calls + caching + retry).
+- [ ] Chunking rules for each artifact type (graph elements vs docs vs code) including relationship traversal depth and maximum token budget per chunk.
+- [ ] Multi-tenant partition strategy (single shared index with `tenant_id` filter vs per-tenant tables/indexes) and retention policy.
+- [ ] Reranking posture (none in v1 vs lightweight cross-encoder) and latency/cost targets for `semanticSearch`.
+- [ ] Re-index triggers (event-driven vs scheduled), backfill strategy, and “index versioning” during schema evolution.
+
 ## Layer header (Application)
 
 - **Primary ArchiMate layer(s):** Application.
 - **Primary element types used:** Application Service (semantic query), Data Object (contextual chunks, embeddings).
 - **Out-of-scope layers:** Strategy/Business (capability design), Technology (vector DB internals).
 - **Allowed nouns:** semantic search, contextual retrieval, embedding, chunk, hybrid search, reranking.
+
+## Implementation progress (repo)
+
+- [x] Projection primitives and query services exist (baseline structured reads), e.g. Transformation supports `ListTransformationElements(search_query=...)` in `packages/ameide_core_proto/src/ameide_core_proto/transformation/v1/transformation_service.proto`.
+- [ ] No `semanticSearch` query surface (gRPC or MCP tool) implemented yet.
+- [ ] No embedding pipeline or contextual chunk generation job implemented.
+- [ ] No pgvector schema/migrations (or other vector store) committed for projections.
+- [ ] No hybrid retrieval (dense + sparse) merge/dedupe/rerank implementation exists yet.
+
+## Clarifications requested (next steps)
+
+- [ ] Pick the embedding model(s) (provider, dimensions) and the tenancy/isolation model (per-tenant namespace, per-tenant keys, cost controls).
+- [ ] Decide where vectors live for v1: Postgres `pgvector` in each Projection DB vs a shared/vector service, and how to handle backups/migrations.
+- [ ] Define the first “canonical” semantic search target (Transformation ArchiMate vs SRE incidents/runbooks) to lock the chunk schema and evaluation harness.
+- [ ] Decide indexing triggers: event-driven from Domain facts, Projection read-model changes, or scheduled rebuilds (and what “freshness” SLO is required).
+- [ ] Define the minimum response contract (scores, citations, stable element IDs, `ReadContext`) so clients can render and cache results consistently.
 
 ---
 
@@ -113,6 +153,21 @@ Embedding generation is **async** because:
 - Embedding API calls are slow (100-500ms)
 - Shouldn't block the main projection pipeline
 - Can be batched for efficiency
+
+#### 2.2.1 Read-after-write expectations (projections may lag)
+
+Semantic search and contextual retrieval operate on the Projection/indexed view of the model.
+After a write:
+
+* The **write tool result** should be treated as the authoritative confirmation of what was created/updated.
+* Projection-backed search results may lag briefly depending on indexing/event processing.
+
+Therefore:
+
+* Write tools SHOULD return the created/updated entity (and revision/citation metadata where applicable).
+* Agents SHOULD prefer reading by returned `id` if they must verify immediately, rather than assuming search reflects the change instantly.
+
+See also: `backlog/536-mcp-write-optimizations.md` §6.0 for write tool response design.
 
 ### 2.3 Consumers
 

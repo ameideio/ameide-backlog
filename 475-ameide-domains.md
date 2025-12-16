@@ -405,8 +405,19 @@ L2O/O2C are just named instances of this pattern.
 
   * All tenant‑facing UX is implemented in a custom Next.js platform app, which:
 
-    * shows *process‑centric views* (e.g. “L2O pipeline”, “O2C flow board”), and
-    * *domain‑centric workspaces* (e.g. “Product catalog”, “Pricing rules”, “Orders”).
+    * shows *process‑centric views* (e.g. "L2O pipeline", "O2C flow board"), and
+    * *domain‑centric workspaces* (e.g. "Product catalog", "Pricing rules", "Orders").
+
+**Workspace Composition Model:**
+
+Workspaces are composed of pages that host **canvases**; canvases render **widgets**; layouts are configurable per tenant and per user. Governed templates are promoted through the Transformation domain using the same lifecycle as ProcessDefinitions and AgentDefinitions.
+
+End users experience workspaces as:
+* **Process-centric views** (case management, approval inboxes, process monitoring)
+* **Domain workspaces** (record pages, forms, tables, timelines)
+* **Dashboard canvases** (metrics, charts, highlights, activity feeds)
+
+All composed from the same widget registry with tenant and user layout flexibility.
 
 * **Backstage is back‑office only**
 

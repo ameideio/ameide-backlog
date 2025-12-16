@@ -295,8 +295,8 @@ In addition to the Domain/Process/Agent primitives described below, the platform
 
 **Next.js platform app**
 
-* Primary user UI: Next.js app (`www_ameide_platform`) consuming Ameide SDK TS via the proto-based APIs.
-* Microfrontends hosted under a shell; per‑domain/per‑process views are separate bundles but share the same Ameide SDK and auth/session model.
+* Primary user UI: stable UISurface shell (`www_ameide_platform`) consuming Ameide SDK TS via the proto-based APIs.
+* Domain/process workspaces are rendered as **config-driven canvases composed of code-owned widgets**; bundles may be split per feature/team, but the deployment unit remains the UISurface image.
 
 **Backstage instance**
 
@@ -423,7 +423,7 @@ For tenants with custom primitives, additional namespaces are provisioned based 
 
 > **See [478-ameide-extensions.md](478-ameide-extensions.md)** for the complete namespace strategy, repository model, and E2E primitive creation flow.
 
-Tier 1 WASM extensions run inside the shared `extensions-runtime` service in `ameide-{env}`. Modules are treated as tenant-scoped data executed under strict sandbox and host-call policies, so the “no tenant services in `ameide-*` namespaces” invariant still holds.
+Tier 1 WASM extensions run inside the shared `extensions-runtime` service in `ameide-{env}`. Modules are treated as **tenant-scoped configuration data** (not tenant services) executed by a platform-controlled runtime under strict sandbox and host-call policies, so the "no tenant code in `ameide-*` namespaces" invariant still holds. The WASM module itself is stored as an artifact (like a ProcessDefinition) and executed in a sandboxed interpreter, not as a privileged service.
 
 ---
 

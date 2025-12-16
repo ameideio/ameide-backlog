@@ -79,10 +79,11 @@ At the outermost layer we keep the two‑level tenancy model already defined in 
   * Infrastructure isolation unit (realm, DB schema/RLS partition, routing).
   * Has settings like region, data residency, billing tier. 
 
-* **Organization**
+* **Organization (Org)**
 
-  * “Workspace” within a tenant — what end users identify as *their Ameide org*.
-  * Holds teams, memberships, roles, domain/process configuration, and transformation backlog. 
+  * Business unit within a tenant — what end users identify as *their Ameide org*.
+  * Holds teams, memberships, roles, domain/process configuration, and transformation backlog.
+  * (Note: distinct from UI "workspaces" which are configurable page layouts) 
 
 * **User**
 
@@ -330,6 +331,13 @@ These are processes that **change** L2O, Onboarding, etc:
   * Design of new ProcessDefinitions, AgentDefinitions, Domain primitives, Workspaces.
   * Backstage template runs and rollout.
   * Continuous improvement loops (OKRs, KPIs).
+
+**Workspace Governance Model:**
+
+* **Standard workspaces** (tenant-wide defaults) are part of transformation/design and go through governance gates (draft → review → promoted).
+* **Personal workspaces** (user layout customization) are a day-to-day productivity feature and do not require governance approval.
+
+This enables flexibility without sacrificing control: governed defaults ensure consistency; user personalization enables individual productivity.
 
 * **IPA → new model**
 

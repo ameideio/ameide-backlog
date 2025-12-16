@@ -93,6 +93,23 @@ The doc also calls out vendor recommendations (HashiCorp and Big Bang) so review
 - `secrets-smoke` waits up to 5 minutes (configurable env) for ExternalSecrets.
 - `scripts/validate-hardened-charts.sh` runs in CI via `.github/workflows/ci-helm.yml` and remains required locally + Tilt for fast feedback.
 
+#### CLI Verification (Implemented)
+
+The core repository now includes a lightweight secret guardrail verifier:
+
+```bash
+ameide dev verify --repo-root .
+```
+
+What it enforces today:
+- Forbids `kind: SealedSecret`
+- Scans YAML/JSON manifests under core + GitOps roots and fails if a Kubernetes `Secret` contains inline credential-like keys (e.g., `password`, `token`, `clientSecret`, `privateKey`) with literal values (allows Helm templating `{{ ... }}` and env placeholders like `${VAR}`)
+
+What it does not enforce yet (still required by this backlog’s target state):
+- ExternalSecret/Vault wiring correctness (store refs, cross-namespace policies)
+- Secret reference resolution (every `existingSecret` exists and exposes required keys)
+- Naming/ownership policies beyond the inline-secret guardrail
+
 ### 5. Documentation & Communication
 - Each service README includes:
   - Secret ownership (which ExternalSecret / existingSecret).

@@ -1,11 +1,28 @@
 # 526 SRE — Integration Primitive Specification
 
-**Status:** Draft
+**Status:** Draft (scaffolded; adapters pending)
 **Parent:** [526-sre-capability.md](526-sre-capability.md)
 
 This document specifies the **sre-integration** primitive — adapters for external systems including Kubernetes, ArgoCD, Prometheus/AlertManager/Grafana/Loki/Tempo, ticketing, and paging systems.
 
 ---
+
+## Implementation progress (repo)
+
+- [x] Implemented primitive scaffold: `primitives/integration/sre` (server skeleton + tests).
+- [x] Implemented SRE MCP protocol adapter scaffold: `primitives/integration/sre-mcp-adapter` (stdio + HTTP, origin validation, scope gating; tool surface currently hand-authored).
+- [x] Repo verification passes: `bin/ameide primitive verify --kind integration --name sre --mode repo`.
+- [x] Repo verification passes for MCP adapter shape checks: `bin/ameide primitive verify --kind integration --name sre-mcp-adapter --mode repo`.
+- [ ] No real external adapters implemented yet (AlertManager, ArgoCD, Kubernetes watch/poll, ticketing, paging).
+- [ ] No durable publishing of intents to `sre.domain.intents.v1` from external systems implemented yet (beyond local scaffolds).
+
+## Clarifications requested (next steps)
+
+- [ ] Decide the first “real” adapter to implement (recommended: AlertManager ingestion or ArgoCD polling) and define its end-to-end success criteria.
+- [ ] Define the integration runtime identity model (how each adapter sets `SreMessageMeta.actor` and the `producer`, and how tenant/environment is resolved).
+- [ ] Define dedupe keys per source (AlertManager fingerprint? ArgoCD app+revision? K8s event UID?) and required inbox semantics for integrations.
+- [ ] Define the exact command/intent submission pattern: gRPC to Domain vs publishing `SreDomainIntent` onto `sre.domain.intents.v1` (and when each is allowed).
+- [ ] Confirm whether integrations are allowed to emit integration facts (`sre.integration.facts.v1`) for observability, and what consumers are allowed to do with them.
 
 ## 1) Integration responsibilities
 

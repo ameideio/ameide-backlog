@@ -1,6 +1,6 @@
 # 527 — Transformation Capability (Define the capability, then realize it via primitives)
 
-**Status:** Draft (authoritative once accepted)  
+**Status:** Draft (scaffolds implemented; spec acceptance pending)  
 **Audience:** Architecture, platform engineering, operators/CLI, agent/runtime teams  
 **Scope:** Define **Transformation** as a *business capability* implemented as Ameide primitives (Domain/Process/Projection/Integration/UISurface/Agent), with 496-native EDA contracts.
 
@@ -42,6 +42,30 @@ Today “Transformation” exists as:
 …but we lack a single authoritative backlog that says:
 
 > “Transformation is a capability. These are its domains/processes/surfaces/integrations, and these are its EDA contracts.”
+
+## 0.1) Implementation progress (repo snapshot)
+
+Delivered (scaffold + guardrails):
+
+- Proto module lints and generates cleanly (`buf lint` and `buf generate` templates run clean).
+- Transformation scaffolds exist for all primitives:
+  - Domain: `primitives/domain/transformation`
+  - Process: `primitives/process/transformation`
+  - Projection: `primitives/projection/transformation`
+  - Integration (MCP adapter): `primitives/integration/transformation-mcp-adapter`
+  - UISurface: `primitives/uisurface/transformation`
+  - Agent: `primitives/agent/transformation`
+- Repo-mode verification is green for CLI-supported kinds:
+  - `bin/ameide primitive verify --kind domain --name transformation --mode repo`
+  - `bin/ameide primitive verify --kind process --name transformation --mode repo`
+  - `bin/ameide primitive verify --kind agent --name transformation --mode repo`
+  - `bin/ameide primitive verify --kind uisurface --name transformation --mode repo`
+
+Not yet delivered (capability meaning):
+
+- Enterprise Repository as canonical system of record (typed artifacts + baselines + promotions + evidence) is not implemented end-to-end.
+- Projection ingestion/materialization from facts (read_context + citations, semantic search) is not implemented end-to-end.
+- Methodology governance loops (Scrum/TOGAF/PMI) are not implemented end-to-end beyond scaffolds.
 
 ## 1) Definition
 
@@ -173,6 +197,15 @@ See [534-mcp-protocol-adapter.md](534-mcp-protocol-adapter.md) §5 for full OAut
 | External AI tools (Claude Code, Cursor, Copilot) | MCP (Streamable HTTP) | Compatibility binding for devtools |
 
 MCP is a **compatibility interface**, not the canonical tool runtime. Tool definitions live in proto with `(ameide.mcp.expose)` annotations; MCP schemas are generated, never hand-authored.
+
+## 4.2) Clarification requests (next steps)
+
+Confirm/decide:
+
+- Which Transformation proto surface is canonical going forward: legacy `ameide_core_proto.transformation.v1` RPC façade vs bus-native intents/facts packages (and the planned deprecation window).
+- Which single end-to-end “acceptance slice” is the v1 target (Scrum governance? baseline promotion? Architecture revisions?) and what facts/process facts prove it.
+- Whether proposal/draft-as-default writes are required for all agent-driven mutations (and which exceptions exist), and where the approval gates live (Domain vs Process).
+- The minimum “agent-grade memory read surface” requirements for v1 (read_context + citations + audit replay), and which query services own them.
 
 ## 5) Acceptance criteria
 

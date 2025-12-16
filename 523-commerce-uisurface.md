@@ -1,5 +1,9 @@
 # 523 Commerce — UISurface component
 
+**Status:** Scaffolded (minimal Node placeholders + tests; real UX pending)
+
+Implementation (repo): `primitives/uisurface/commerce-admin`, `primitives/uisurface/commerce-pos`, `primitives/uisurface/commerce-storefront`
+
 ## Layer header (Application: experiences)
 
 - **Primary ArchiMate layer(s):** Application (UISurfaces are Application Components that present experiences).
@@ -17,6 +21,34 @@ UISurfaces:
 3. `commerce-storefront` (public): multi-tenant hostname routing and BYOD domains.
 
 This document covers UISurface runtime/operator boundaries. Payments/hardware/replication and BYOD plumbing live in `523-commerce-integration.md` and `523-commerce-process.md`.
+
+## Implementation progress (current)
+
+Implemented (scaffold):
+
+- [x] Minimal Node servers for `commerce-admin`, `commerce-pos`, and `commerce-storefront`.
+- [x] Guardrails in place (tests, non-root containers, `ameide primitive verify` passes).
+
+Not yet implemented:
+
+- [ ] Real UX (auth, navigation, domain onboarding flows, health/sync dashboards).
+- [ ] Storefront host resolution integration (call Projection `ResolveHostname` and fail closed).
+- [ ] POS degraded-mode UX contract enforcement (if store-edge is in v1 scope).
+
+Build-out checklist (UISurfaces v1):
+
+- [ ] Define the auth/session model and “current context” selector UX (tenant/site/channel/location).
+- [ ] Implement `commerce-admin` BYOD domain onboarding flow (claim, verify instructions, status, revoke).
+- [ ] Implement `commerce-storefront` strict host allowlist + “unmapped host” behavior (404) and caching rules.
+- [ ] If store-edge is in scope: implement `commerce-pos` degraded-mode capability matrix and WAN-down gating UX.
+
+## Clarification requests (next steps)
+
+Confirm/decide:
+
+- [ ] Auth/identity approach for admin/POS (Keycloak? session model?) and tenant/site/channel context selection UX.
+- [ ] Whether `commerce-storefront` is truly headless (API-only) in v1 or also serves rendered content.
+- [ ] Minimal operational dashboards required in `commerce-admin` (domain onboarding, cert status, replication health).
 
 For the value-stream view (Plan-to-Merchandise, Order-to-Cash, Inventory-to-Deliver, Store Ops), see `523-commerce-process.md`.
 

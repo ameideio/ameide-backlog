@@ -14,7 +14,7 @@ This file exists because multiple 367-* backlogs reference it as the parent; it 
 - **Scrum runtime seam (Stage 2):** `backlog/506-scrum-vertical-v2.md` (topics, envelopes, Temporal workflow structure) and `packages/ameide_core_proto/src/ameide_core_proto/process/scrum/v1/**` (process facts).
 - **EDA invariants:** `backlog/496-eda-principles.md` (outbox, idempotency, commands vs facts).
 - **Agent execution (Stage 3):** `backlog/505-agent-developer-v2.md` and `backlog/505-agent-developer-v2-implementation.md`.
-- **Tool split:** `backlog/520-primitives-stack-v2.md`, `backlog/521-code-generation-improvements.md`, `backlog/522-cli-orchestration-improvements.md` (Buf generates; CLI orchestrates; CI gates).
+- **Tool split:** `backlog/520-primitives-stack-v2.md`, `backlog/521c-internal-generation-improvements.md`, `backlog/521d-external-generation-improvements.md` (Buf generates; CLI orchestrates; CI gates).
 
 ## Stage map
 
@@ -30,4 +30,3 @@ This file exists because multiple 367-* backlogs reference it as the parent; it 
 
 - Methodology semantics live in Stage 1; orchestration/timeboxes live in Stage 2; agent autonomy lives in Stage 3.
 - Runtime integration is event-driven only (bus topics + SDKs); synchronous calls are control-plane only (operators resolving static config).
-

@@ -1,6 +1,6 @@
 # 534 — MCP Protocol Adapter (Model Context Protocol for Agentic Access)
 
-**Status:** Draft
+**Status:** Draft (scaffold + shared runtime implemented)
 **Audience:** Architecture, platform engineering, AI/agent teams
 **Scope:** Define **MCP** as a protocol adapter pattern for **agentic access** — enabling AI agents (platform agents, browser chat, Claude Code, etc.) to interact with capabilities via a standard tool interface, following CQRS principles.
 
@@ -12,6 +12,30 @@
 - Primitives stack: `backlog/520-primitives-stack-v2.md`
 
 ---
+
+## Implementation progress (current)
+
+Implemented in repo:
+- [x] Shared MCP runtime module (`packages/ameide_mcp`) for Streamable HTTP muxing, PRM discovery, origin policy, and token verification hooks (capability-agnostic, leaf dependency).
+- [x] MCP adapter scaffold command: `ameide scaffold integration mcp-adapter --capability <cap>` (templates under `packages/ameide_core_cli/internal/commands/templates/integration/mcp_adapter/`).
+- [x] MCP adapter shape verification: `ameide primitive verify --check mcp` enforces the required files/tests for `*-mcp-adapter` Integration primitives.
+- [x] Reference adapter (shape + conformance): `primitives/integration/sre-mcp-adapter` implements stdio + Streamable HTTP, PRM endpoint, origin allowlist, and unit tests; `ameide primitive verify --kind integration --name sre-mcp-adapter --mode repo` passes.
+- [!] Reference adapter (HTTP mux spine): `primitives/integration/transformation-mcp-adapter` uses `packages/ameide_mcp.NewHTTPMux(...)` and includes a smoke test; `ameide primitive verify --kind integration --name transformation-mcp-adapter --mode repo` passes but warns that transport/security tests are missing.
+
+Not yet implemented (still design-level in this backlog):
+- [ ] Proto-annotated tool/resource exposure (no hand-authored parallel JSON schema; generate from `(ameide.mcp.expose)` or equivalent).
+- [ ] Real capability routing (tools/resources that call Projection/Domain gRPC via SDKs; current adapters are scaffolds/placeholders).
+- [ ] One “conformance suite” that can be run against any adapter (beyond unit tests) to validate auth/origin/PRM + tool/resource behavior.
+
+## Clarification requests (next steps)
+
+Decide/confirm:
+- [ ] Canonical env-var/config contract for adapters (currently mixed prefixes: `AMEIDE_*` vs `MCP_*`) including auth mode, issuer/JWKS, required scopes, and allowed origins.
+- [ ] Whether stdio transport is required beyond local/dev (vs HTTP-only in-cluster) and how it is gated.
+- [ ] Canonical mapping from MCP identity → Ameide tenant/user (claims, tenant selection, and required scopes per capability).
+- [ ] Trace/correlation propagation rule (what goes in HTTP headers vs tool inputs; how it maps to Ameide RequestContext).
+- [ ] Error mapping contract (gRPC status/details → MCP JSON-RPC error shape) and what is safe to expose to external clients.
+- [ ] Whether the platform standardizes on `mcp:tools`/`mcp:resources` only, or introduces capability-scoped write scopes (e.g. `sales:write`, `transformation:write`) for coarse authz filtering before tool-level enforcement.
 
 ## Layer header (Application)
 
@@ -36,6 +60,27 @@
 | **ADR-06** | **Writes default to proposals** | MCP write tools should default to creating proposals (governed by Process), not direct mutations, unless scope+risk allow it. |
 | **ADR-07** | **Internal agents use SDK/gRPC; MCP is external compatibility binding** | Platform agents (AmeidePO, AmeideSA, AmeideCoder) use typed SDK clients for performance and type safety. MCP adapters exist for external AI tools (Claude Code, Cursor, Copilot). This preserves typed invariants and avoids JSON-RPC overhead inside the cluster. |
 | **ADR-08** | **Approval governance owned by Domain/Process, not adapter** | MCP command tools create intents/draft revisions. Approval gating is enforced by Domain policies + Process workflows. The adapter never implements approval state machines. |
+
+## Implementation progress (repo)
+
+- [x] Shared MCP HTTP + security spine exists: `packages/ameide_mcp` (Streamable HTTP mux, PRM handler, origin policy, dev + Keycloak JWT verification, conformance tests).
+- [x] Capability-scoped MCP adapters exist: `primitives/integration/transformation-mcp-adapter` and `primitives/integration/sre-mcp-adapter`.
+- [x] SRE adapter serves `initialize`, `tools/list`, `tools/call`, `resources/list`, `resources/read` over stdio + HTTP, with basic scope gating and PRM endpoint.
+- [x] CLI scaffold template exists for Integration MCP adapters (embedded templates under `packages/ameide_core_cli/internal/commands/templates/integration/mcp_adapter`).
+- [ ] Tool catalogs are not proto-derived yet (SRE tools are hand-authored; transformation adapter is currently shape-only).
+- [ ] `(ameide.mcp.expose)` (or equivalent) proto annotations and the generation pipeline are not implemented.
+- [ ] MCP adapters are not consistently referenced by any proto surface yet (e.g., `INTEGRATION/sre-mcp-adapter` has no proto files referencing the primitive, so verification skips naming checks).
+- [ ] Trace/correlation propagation from MCP requests into `RequestContext` is not standardized (e.g., `primitives/integration/sre-mcp-adapter/internal/mcp/server.go` generates new IDs and drops trace context).
+- [ ] Platform-wide tool registry / generated catalog artifact is not implemented.
+
+## Clarifications requested (next steps)
+
+- [ ] Choose the canonical proto annotation surface for MCP exposure (new `common/v1/mcp.proto` options vs reusing `common/v1/annotations.proto`), and name the option (`ameide.mcp.expose`?).
+- [ ] Define minimum “DONE” transport set for adapters: `http` only vs `http + stdio`, and whether localhost-enforcement is mandatory for dev mode.
+- [ ] Confirm auth baseline: Keycloak issuer/JWKS discovery inputs, required scopes, and whether PRM should advertise a single auth server or per-tenant realm.
+- [ ] Decide whether adapters must always propagate W3C trace context (`traceparent`/`tracestate`) into gRPC metadata and/or `RequestContext.metadata`.
+- [ ] Decide if platform agents are allowed to use MCP in-cluster (ADR-07 says “no”); if not, document the required typed SDK tool surfaces that mirror MCP exactly.
+- [ ] Confirm whether “write tools default to proposals” is a hard requirement for all capabilities or capability-specific policy.
 
 ---
 
@@ -357,7 +402,57 @@ commerce.listProducts
 commerce.searchInventory
 ```
 
-### 3.3 Resource URI convention
+### 3.3 Tool calling lifecycle (chat → tools/call → domain)
+
+MCP tools are not "run by the LLM". In an agentic chat:
+
+* The **LLM produces a tool call intent** (tool name + JSON arguments).
+* The **client/runtime executes** the call over MCP (`tools/call`).
+* The **MCP adapter normalizes/enriches** the request and routes it to the correct backend (CQRS).
+* The **Domain** is authoritative for validation/invariants and persistence.
+* The **tool result** is returned to the LLM, which then writes a human confirmation.
+
+ASCII sequence (write example):
+
+```text
+User (chat)
+ │  "Create capability X with owner=Supply Chain, criticality=High"
+ ▼
+LLM (vendor runtime)
+ │  - Tool calling enabled
+ │  - Structured Output / strict tools ON (if supported)
+ │  - Temperature=0 (recommended for writes)
+ │  => emits tool call JSON that matches tool schema
+ ▼
+MCP Client / Agent runtime
+ │  JSON-RPC: tools/call
+ │  - Schema validation (client-side)
+ │  - May show confirmation modal for write operations (ChatGPT behavior)
+ ▼
+MCP Protocol Adapter
+ │  - parse/validate input shape
+ │  - enrich (defaults, IDs, mapping)
+ │  - route (CQRS → write side)
+ ▼
+Domain (write side)
+ │  - validate invariants (including internal structure rules)
+ │  - enforce idempotency
+ │  - persist + emit events
+ ▼
+Adapter returns tool result
+ │  canonical created object (final structure + ids + revision + warnings)
+ ▼
+MCP Client → LLM
+ │  tool result processed
+ ▼
+User sees confirmation + next steps
+```
+
+**Key contract:** the tool's JSON schema is the "shape" contract. If the client/model supports strict structured output, configure it so the LLM must produce arguments conforming to the tool schema for write operations.
+
+See also: `backlog/536-mcp-write-optimizations.md` §6 for detailed write flow.
+
+### 3.4 Resource URI convention
 
 ```
 <capability>://<type>/<id>
@@ -376,7 +471,7 @@ commerce://product/sku-abc
 Resources are read-only and resolve via Projection QueryService through `resources/read`.
 If a capability interaction requires parameters or computation, model it as a tool, not a resource.
 
-### 3.4 Tool input/output mapping
+### 3.5 Tool input/output mapping
 
 MCP tools accept JSON arguments and return structured content. The adapter translates:
 
@@ -395,7 +490,7 @@ result:                                    ListElementsResponse (protobuf)
   content: [{ type: "text", text: "..." }]   → JSON serialized
 ```
 
-### 3.5 Structured tool output (preferred)
+### 3.6 Structured tool output (preferred)
 
 MCP supports multiple content types in tool responses. **Prefer structured JSON output** over text-wrapped JSON:
 
@@ -472,7 +567,7 @@ func (s *Server) formatQueryResults(results []*pb.Element) []MCPContent {
 }
 ```
 
-### 3.6 ReadContext and citation discipline
+### 3.7 ReadContext and citation discipline
 
 **All query tools MUST support `read_context`** for reproducible, auditable queries:
 
@@ -1017,6 +1112,73 @@ Clients may use these hints to:
 3. **Reviewable exposure** — `(ameide.mcp.expose)` annotation is visible in code review
 4. **Type safety** — JSON schema derived from proto types
 
+### 6.7 Portable schema constraints
+
+Generated JSON schemas MUST be compatible across major LLM vendors. Follow these constraints:
+
+**Supported JSON Schema features (portable subset):**
+- Core types: `object`, `properties`, `required`, `enum`, `array`, `items`, `type`
+- String validation: `minLength`, `maxLength`, `pattern`
+- Number validation: `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`
+- Descriptions: `description`, `title`
+
+**Limited or vendor-specific (use with caution):**
+- Combinators: `anyOf`, `oneOf`, `allOf` (limited support in Google Vertex AI, Amazon Nova)
+- Deep nesting: Keep object nesting ≤ 2 levels (Amazon Nova best practice; deeper nesting degrades performance)
+- Advanced keywords: `dependencies`, `patternProperties`, `additionalProperties: false` (inconsistent vendor support)
+
+**Schema size considerations:**
+- Schema definitions count toward token budget (Google Vertex AI)
+- Large schemas increase first-call latency (Cohere caches after initial requests)
+- Keep total schema size < 2000 tokens for optimal performance
+
+**Proto-to-JSON-Schema mapping guidance:**
+
+```protobuf
+// ✅ GOOD: Simple, portable schema
+message CreateElementRequest {
+  string type = 1;           // → type: string, enum: [...]
+  string name = 2;           // → type: string, minLength: 1
+  string description = 3;    // → type: string (optional)
+
+  message Profile {          // → Nested 1 level (portable)
+    string owner = 1;
+    string criticality = 2;  // → enum: ["Low", "Medium", "High"]
+  }
+  Profile profile = 4;
+}
+
+// ⚠️ AVOID: Deep nesting, complex validation
+message CreateComplexElement {
+  oneof type_selector {      // → oneOf (limited vendor support)
+    CapabilitySpec capability = 1;
+    ComponentSpec component = 2;
+  }
+
+  message NestedLevel1 {
+    message NestedLevel2 {
+      message NestedLevel3 { // → 3+ levels (degrades Nova performance)
+        // ...
+      }
+    }
+  }
+}
+```
+
+**Tool input examples validation:**
+
+All tool input examples in documentation and tests MUST validate against the published schema. Anthropic Claude API rejects tool definitions with invalid examples (HTTP 400).
+
+**Proto codegen enforcement:**
+
+The `mcp-schema` buf plugin SHOULD:
+- Warn on schemas exceeding 2000 tokens
+- Error on nesting depth > 2 levels
+- Validate that examples conform to schema
+- Document vendor-specific feature usage
+
+See also: `backlog/536-mcp-write-optimizations.md` §1.2 for vendor compatibility matrix.
+
 ---
 
 ## 7) Tool exposure policy
@@ -1396,6 +1558,9 @@ Claude: [invokes transformation.submitArchitectureIntent with intent to create C
 16. **Bearer token validation**: MCP adapter validates JWT tokens and extracts user identity/tenant context.
 17. **Keycloak clients**: Per-MCP-client Keycloak configurations exist (VS Code, Claude Code) with appropriate redirect URIs.
 18. **Generated tool catalog**: Platform-wide MCP tool catalog is generated from proto and published at `.well-known/mcp-tools.json`.
+19. **Tool calling lifecycle** (§3.3): Clarifies LLM produces intent, client executes, adapter translates, domain validates. Updated diagram shows vendor structured output layer.
+20. **Portable schema constraints** (§6.7): JSON schemas follow portable subset (≤2 nesting levels, avoid `oneOf`/`anyOf`). Tool examples MUST validate against schema.
+21. **Tool scaling guidance** (§13.6): Recommends ≤20 tools per adapter, warns at 50, requires review at 100. Documents vendor tool selection limitations.
 
 ---
 
@@ -1513,6 +1678,49 @@ The registry does NOT:
 - Own tool schemas (proto remains authoritative)
 - Aggregate responses across capabilities
 - Enforce authorization (each adapter validates tokens)
+
+### 13.6 Tool scaling and selection performance
+
+**Tool catalog scaling limitations:**
+
+As the number of exposed tools grows, tool selection performance degrades across vendors. Research and vendor documentation shows:
+
+- **Anthropic** explicitly documents tool search and programmatic tool calling to access thousands of tools without consuming context window
+- Large tool lists increase prompt tokens and degrade tool selection accuracy
+- Most vendors recommend ≤ 50-100 tools per call for optimal performance
+
+**Platform mitigation strategies:**
+
+1. **Per-use-case tool filtering**
+   - Clients should request only relevant tools for the current task
+   - Use capability-scoped adapters (one per capability, not platform-wide)
+   - Implement tool discovery with filtering (`GET /tools?capability=transformation`)
+
+2. **Proto-first schema management**
+   - Keep tool schemas minimal (see §6.7 for portable schema constraints)
+   - Use shared message types to reduce total schema size
+   - Document when schemas exceed recommended token budgets
+
+3. **High-level "meta-tools" for complex operations**
+   - Prefer single `createCapabilityStructure` over exposing 5-10 low-level element/relationship tools
+   - Reduces tool count and simplifies tool selection for agents
+   - See `backlog/536-mcp-write-optimizations.md` §8 for template patterns
+
+4. **Dynamic tool subsetting (future)**
+   - Consider programmatic tool calling (per Anthropic pattern) if tool count exceeds 100
+   - Implement tool search/retrieval as a meta-capability
+   - Use context-aware tool filtering based on conversation state
+
+**Current platform stance:**
+
+- **Recommended**: ≤ 20 tools per capability adapter
+- **Warning threshold**: 50 tools (document why count is high)
+- **Hard limit**: 100 tools per adapter (require architectural review)
+
+If a capability legitimately needs >50 tools, consider:
+- Splitting into multiple logical capabilities
+- Implementing tool search/discovery as a first-class operation
+- Using high-level template tools to reduce surface area
 
 ---
 

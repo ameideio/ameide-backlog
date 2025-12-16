@@ -1,6 +1,6 @@
 # 526 SRE — Agent Primitive Specification
 
-**Status:** Draft
+**Status:** Draft (scaffolded; workflow logic pending)
 **Parent:** [526-sre-capability.md](526-sre-capability.md)
 
 This document specifies the **SRE agent primitives** — the LangGraph-based agents that implement the 525 backlog-first triage workflow.
@@ -11,6 +11,12 @@ This document specifies the **SRE agent primitives** — the LangGraph-based age
 > - SRE agents never shell into repos or run CLI directly
 
 ---
+
+## Repo status (current)
+
+- Implemented primitive: `primitives/agent/sre` (agent scaffold + handlers + tests).
+- Implemented protocol adapter: `primitives/integration/sre-mcp-adapter` (MCP server scaffold; tool surface intended to be proto-derived).
+- Pending: full LangGraph DAG for 525, approval gating policy integration, and tool schema generation from proto surfaces.
 
 ## 1) Agent architecture
 

@@ -10,6 +10,20 @@ Each node lists:
 
 This playbook is intentionally **capability-agnostic**. Capability docs define semantics; `520` defines platform guardrails.
 
+## Implementation progress (repo)
+
+- [x] Proven end-to-end on at least one capability slice (SRE): `buf lint` + `buf breaking` + codegen freshness + GitOps component checks exercised via `ameide primitive verify`.
+- [x] CI/guardrails feedback loop validated: verification failures drove structural fixes (monorepo `buf breaking` `--against` ref, codegen mapping for `google/api/field_behavior.proto`, process/domain shape checks).
+- [ ] Convert this playbook into a machine-executable workflow spec (LangGraph/Temporal) with stable node IDs and structured outputs.
+- [ ] Add a “per-node verification command” appendix (exact `ameide primitive verify` invocations per node, plus expected failure classes).
+
+## Clarifications requested (next steps)
+
+- [ ] Define whether `Node 8` is allowed to fail due to unrelated repo-wide proto lint failures, or whether verification should be scoped to “touched packages only”.
+- [ ] Decide canonical “definition of done” for **Projection** and **Integration** beyond scaffold shape (e.g., required inbox/outbox patterns, minimum query/read models).
+- [ ] Decide whether “event catalog” is mandatory for every Domain/Process (currently verify treats absence inconsistently across primitives).
+- [ ] Define the minimum acceptable “MCP adapter” compliance level at `Node 7C` (proto-derived tool schemas vs hand-authored stopgaps).
+
 ## DAG Overview (parallelizable)
 
 ```
@@ -91,7 +105,7 @@ Note: Node 3F (Scaffold Integration) and Node 7C (Implement Integration) follow 
 - **Verification discipline:** `backlog/415-implementation-verification.md`, `backlog/448-per-environment-service-verification.md`
 - **Testing discipline:** `backlog/537-primitive-testing-discipline.md` (RED→GREEN TDD, per-primitive invariants, CI enforcement)
 - **Operators (control-plane responsibilities):** `backlog/498-domain-operator.md`, `backlog/499-process-operator.md`, `backlog/500-agent-operator.md`, `backlog/501-uisurface-operator.md`
-- **Scaffolding/codegen change logs:** `backlog/521-code-generation-improvements.md`, `backlog/522-cli-orchestration-improvements.md`
+- **Scaffolding/codegen change logs:** `backlog/521c-internal-generation-improvements.md`, `backlog/521d-external-generation-improvements.md`
 
 ---
 
@@ -100,7 +114,7 @@ Note: Node 3F (Scaffold Integration) and Node 7C (Implement Integration) follow 
 **Context (read only)**
 - `backlog/520-primitives-stack-v2.md`
 - `backlog/514-primitive-sdk-isolation.md`
-- `backlog/522-cli-orchestration-improvements.md`
+- `backlog/521d-external-generation-improvements.md`
 
 **Actions**
 - Identify the primitive set required (Domain is mandatory; others only if needed).

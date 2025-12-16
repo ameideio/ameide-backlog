@@ -181,6 +181,34 @@ source "tools/integration-runner/junit-path.sh"
 JUNIT_PATH="$(resolve_junit_path service-name)"
 ```
 
+### CLI Enforcement (Implemented)
+
+The repository now enforces the runner contract via:
+
+```bash
+ameide dev verify --repo-root .
+```
+
+The verifier applies to both:
+
+- `services/<service>/__tests__/integration/` integration packs
+- `primitives/<kind>/<name>/tests/` integration packs
+
+The verifier fails when a pack exists but does not satisfy:
+
+- **Services**: `services/<service>/__mocks__/` exists
+- **Services**: `__tests__/integration/run_integration_tests.sh` exists and is executable
+- **Primitives**: `tests/run_integration_tests.sh` exists and is executable
+- Runner sources `tools/integration-runner/integration-mode.sh` and `tools/integration-runner/junit-path.sh`
+- Runner resolves mode via `MODE="$(integration_mode)"` (or equivalent) and exports `INTEGRATION_TEST_MODE`
+- Runner declares a `required_vars=(...)` (or `required_env_vars=(...)`) array and every entry (when present) starts with the expected prefix (`SERVICEPREFIX_FIELD`)
+- Runner emits an `integration_test_started` structured log event
+- Runner contains no inline `resolve_junit_path()` fallback
+- Runner contains no `${VAR:-default}` default expansions
+- Runner does not install dependencies (`pnpm install`, `pip install`, `uv sync`, `apt-get install`, etc.)
+- Runner does not reference legacy toggles (`RUN_INTEGRATION_TESTS`, `*_USE_LIVE_DB`, `*_INTEGRATION_ENABLED`, `SKIP_*TESTS`)
+- At least one test file exists under the pack (beyond the runner script)
+
 ---
 
 ## Mock Layer Architecture

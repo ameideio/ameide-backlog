@@ -1,11 +1,27 @@
 # 526 SRE — Domain Primitive Specification
 
-**Status:** Draft
+**Status:** In progress (Incident MVP implemented)
 **Parent:** [526-sre-capability.md](526-sre-capability.md)
 
 This document specifies the **sre-domain** primitive — the system-of-record for incidents, alerts, runbooks, SLOs, health assessments, service ownership, and postmortems.
 
 ---
+
+## Implementation progress (repo)
+
+- [x] Implemented primitive: `primitives/domain/sre` (outbox + dispatcher + inbox/idempotency + migrations).
+- [x] Implemented aggregate surface: Incident command surface via `IncidentService` (create, severity reclassify, assign, timeline entry, acknowledge, status transition, resolve/close).
+- [x] Implemented EDA/outbox persistence includes W3C trace context fields (`traceparent`/`tracestate`) captured from request metadata/context.
+- [x] Repo verification passes: `bin/ameide primitive verify --kind domain --name sre --mode repo`.
+- [ ] Alert, Runbook, SLO, Health/FleetState, Service, Postmortem are proto-defined but not yet fully persisted/served by the domain runtime.
+
+## Clarifications requested (next steps)
+
+- [ ] Confirm which additional aggregates are required for SRE v1 beyond Incident (runbooks next? alerts next?) and the minimum write/query surfaces for each.
+- [ ] Confirm canonical incident status transitions (allowed edges) and which transitions require approval vs are “observational” (ack/status vs resolve/close).
+- [ ] Confirm whether “acknowledgement” is strictly a status transition, a separate fact, or both (today: both exist as distinct intent/fact concepts in the contract set).
+- [ ] Confirm idempotency keys and dedupe semantics for external intent sources (what is the natural key for “same alert”, “same timeline entry”, etc.).
+- [ ] Confirm actor model requirements (human vs agent vs integration) and how it maps into `SreMessageMeta.actor`.
 
 ## 1) Domain responsibilities
 

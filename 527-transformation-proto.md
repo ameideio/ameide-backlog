@@ -1,6 +1,6 @@
 # 527 Transformation — Proto Contract Specification
 
-**Status:** Draft  
+**Status:** Draft (partial implementation in repo; core envelope unification pending)  
 **Parent:** [527-transformation-capability.md](527-transformation-capability.md)
 
 This document specifies the **proto contracts** for the Transformation capability following `backlog/496-eda-principles.md` and `backlog/509-proto-naming-conventions.md`.
@@ -15,10 +15,28 @@ This document specifies the **proto contracts** for the Transformation capabilit
 - **Primary element types used:** Application Service (RPC/query), Application Interface (topic families), Application Event (facts), Data Object (proto messages/envelopes).
 - **Out-of-scope layers:** Strategy/Business definition (see `backlog/527-transformation-capability.md`) and Technology runtime selection.
 
+## 0.1) Implementation progress (repo snapshot)
+
+Delivered (today, in repo):
+
+- Bus-native Scrum profile contracts exist under `packages/ameide_core_proto/src/ameide_core_proto/transformation/scrum/v1/` (intents, facts, query, artifacts/common).
+- Bus-native Architecture contracts exist under `packages/ameide_core_proto/src/ameide_core_proto/transformation/architecture/v1/` (intents, facts, query).
+- Repository data objects exist under `packages/ameide_core_proto/src/ameide_core_proto/transformation/repository/v1/` (ArchiMate/BPMN/baselines/definitions/evidence messages).
+- Legacy UI façade contracts exist under `packages/ameide_core_proto/src/ameide_core_proto/transformation/v1/` (`TransformationService` RPCs).
+- Scrum process facts exist under `packages/ameide_core_proto/src/ameide_core_proto/process/scrum/v1/`.
+
+Not yet delivered (target state in this spec):
+
+- A single “core” Transformation envelope + subject + intent/fact catalogs under `ameide_core_proto.transformation.core.v1` (only shared common/meta exists today).
+- TOGAF/PMI profile contracts and their process facts packages.
+
 ## 1) Packages (authoritative)
 
-- Core Transformation (target): `ameide_core_proto.transformation.core.v1`
+- Core Transformation common/meta (partial today; target for full unification): `ameide_core_proto.transformation.core.v1`
+- Repository messages (exists): `ameide_core_proto.transformation.repository.v1`
+- Architecture bounded context (exists): `ameide_core_proto.transformation.architecture.v1`
 - Scrum profile (exists): `ameide_core_proto.transformation.scrum.v1`
+- Legacy UI façade (exists; migration target): `ameide_core_proto.transformation.v1`
 - TOGAF profile (target): `ameide_core_proto.transformation.togaf.v1`
 - PMI profile (target): `ameide_core_proto.transformation.pmi.v1`
 - Process facts:
@@ -32,6 +50,8 @@ This document specifies the **proto contracts** for the Transformation capabilit
 |------------|--------------|---------|
 | `transformation.domain.intents.v1` | `TransformationDomainIntent` | Requests to mutate core Transformation state |
 | `transformation.domain.facts.v1` | `TransformationDomainFact` | Facts emitted after persistence |
+| `transformation.architecture.domain.intents.v1` | `TransformationArchitectureDomainIntent` | Requests to mutate architecture repository state |
+| `transformation.architecture.domain.facts.v1` | `TransformationArchitectureDomainFact` | Architecture facts emitted after persistence |
 | `scrum.domain.intents.v1` | `ScrumDomainIntent` | Requests to mutate Scrum profile state |
 | `scrum.domain.facts.v1` | `ScrumDomainFact` | Scrum facts emitted after persistence |
 | `scrum.process.facts.v1` | `ScrumProcessFact` | Scrum workflow facts (Temporal) |
@@ -197,3 +217,10 @@ Core facts are immutable past-tense events transported on `transformation.domain
 3. Envelopes include required tenant + traceability metadata and monotonic versions for idempotency.
 4. No backlog docs embed full proto text (file index only).
 
+## 8) Clarification requests (next steps)
+
+Confirm/decide:
+
+- Whether `transformation.domain.*` is the single canonical topic family (and how `transformation.architecture.*`/`scrum.*` fold into it), or whether multiple bounded-context topic families remain first-class.
+- The canonical envelope pattern (e.g., `meta + subject + oneof`) and which fields are required across all Transformation message families (including producer identity and monotonic versioning rules).
+- The v1 plan for TOGAF/PMI: whether to stub packages now (empty catalogs) or defer until governance workflows are defined.

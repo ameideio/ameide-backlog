@@ -1,6 +1,6 @@
 # 538 — VSCode Client for Transformation (IDE-Based Agentic Access)
 
-**Status:** Draft
+**Status:** Draft (platform-side MCP adapter exists; VSCode client not implemented)
 **Parent:** [527-transformation-capability.md](527-transformation-capability.md)
 **Audience:** Platform engineering, UX/UI, agent teams
 **Scope:** Define a VSCode extension as an **Application Component (client)** that bridges platform architecture context to user-subscribed AI tools (Claude Code, Copilot, Cursor, etc.).
@@ -16,6 +16,27 @@
 - Primitives stack: `backlog/520-primitives-stack-v2.md`
 
 ---
+
+## Implementation progress (current)
+
+Repo status (today):
+- [x] Platform-side Transformation MCP adapter primitive exists: `primitives/integration/transformation-mcp-adapter` (passes `ameide primitive verify --kind integration --name transformation-mcp-adapter --mode repo`, with warnings about missing transport/security tests).
+- [x] Type-safe client SDKs exist (e.g., TS SDK under `packages/ameide_sdk_ts`) suitable for extension UI query calls.
+- [ ] No VSCode extension package/repo is implemented in-tree yet (no `packages/*vscode*`, no extension build pipeline, no marketplace packaging).
+
+Next milestones (checklist):
+- [ ] Create a dedicated extension package/repo layout (where it lives, how it versions, how it releases).
+- [ ] Implement auth flow for the extension UI (PKCE + SecretStorage) per `backlog/538-vscode-client-auth.md`.
+- [ ] Implement first read-only vertical slice: browse elements + views via Projection query services, with caching + pagination.
+- [ ] Decide whether to ship an optional local MCP server for `vscode.*` context tools in v0 (and add conformance tests if yes).
+
+## Clarification requests (next steps)
+
+Decide/confirm:
+- [ ] Where the extension code lives (monorepo `packages/` vs dedicated `ameide-vscode` repo) and what the release process is (CI, signing, marketplace publishing).
+- [ ] The default “platform URL” per environment (dev/staging/prod) and how the extension discovers it (settings vs well-known discovery).
+- [ ] Whether the extension ever calls the platform MCP adapter (tooling) or strictly uses typed SDKs for UI and leaves MCP to external AI tools.
+- [ ] What the minimum supported client set is for v0 (VS Code stable only vs include `github.dev`/Codespaces/Gitpod).
 
 ## Layer header (Application)
 

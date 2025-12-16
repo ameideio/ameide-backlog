@@ -1,12 +1,18 @@
-# 522 — CLI Orchestrator (boundary + improvements log)
+# 521d — External Generation Improvements (CLI orchestration)
 
-This document defines the **boundary** for the Ameide CLI when it acts as an orchestrator (what it does and does not do), and tracks changes to that orchestration behavior over time.
+This document tracks changes to Ameide CLI orchestration behavior over time (scaffolding/wiring workflows, convenience wrappers, and repo-aware automation).
 
-This is intentionally separate from codegen plugin changes (tracked in `backlog/521-code-generation-improvements.md`).
+Baseline: `backlog/521a-external-generation-baseline.md`
+
+Companion docs:
+- Internal generation improvements: `backlog/521c-internal-generation-improvements.md`
+- Verification improvements: `backlog/521g-internal-verification-improvements.md`, `backlog/521h-external-verification-improvements.md`
+
+This is intentionally separate from internal codegen plugin changes (tracked in `backlog/521c-internal-generation-improvements.md`).
 
 See also: `backlog/533-capability-implementation-playbook.md` (uses 522 as node context for capability implementation).
 
-## Boundary
+## Boundary (summary)
 
 The CLI can be repo-aware and environment-aware, but it does not “grow back into codegen”.
 
@@ -31,7 +37,7 @@ Hard rule (see `backlog/520-primitives-stack-v2.md` §2b):
 
 ### Canonical gate
 
-- CI remains authoritative: regen-diff + compile/tests are the drift guardrails. The CLI may wrap them locally, but it does not introduce a separate “verify CLI gate”.
+- CI remains authoritative: regen-diff + compile/tests are the drift guardrails. The CLI may wrap them locally, but it does not introduce a competing gate.
 
 ## Scope
 
@@ -110,7 +116,7 @@ Change:
   - **Implementation-owned** runtime code and checked-in scaffold templates (never overwritten by generation).
 
 Key paths:
-- `backlog/522-cli-orchestration-improvements.md`
+  - `backlog/521d-external-generation-improvements.md`
 - `backlog/510-domain-primitive-scaffolding.md`
 - `backlog/511-process-primitive-scaffolding.md`
 - `backlog/512-agent-primitive-scaffolding.md`
@@ -166,4 +172,4 @@ Verification:
 - Add a dedicated CLI command that runs a full vertical loop (generate → build → push → GitOps sync → smoke), with clear separation between “repo actions” and “cluster actions”.
 - Ensure CLI-generated projects default to the same naming conventions used by the v0 samples.
 - Add an official MCP adapter scaffold path (wrapper over primitive scaffolding) like `ameide scaffold integration mcp-adapter --capability <cap>` that generates stdio + Streamable HTTP wiring, policy hooks, Origin validation, tool allowlists, and transport compliance golden tests.
-- Add a proto-driven MCP schema generator plugin (e.g., `protoc-gen-ameide-mcp-schema`) so MCP tool schemas/manifests are derived from proto annotations and cannot drift; track the actual implementation in `backlog/521-code-generation-improvements.md` once it lands.
+- Add a proto-driven MCP schema generator plugin (e.g., `protoc-gen-ameide-mcp-schema`) so MCP tool schemas/manifests are derived from proto annotations and cannot drift; track the actual implementation in `backlog/521c-internal-generation-improvements.md` once it lands.

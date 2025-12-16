@@ -1,5 +1,9 @@
 # 523 Commerce — Integration component
 
+**Status:** Scaffolded (hardware ping + payments stub + tests; gateway/cert/DNS/replication adapters TBD)
+
+Implementation (repo): `primitives/integration/commerce`
+
 ## Layer header (Application boundary / external seams)
 
 - **Primary ArchiMate layer(s):** Application (Integration primitives are Application Components at the boundary).
@@ -17,6 +21,35 @@ Define the external seams that make commerce work across channels and topologies
 - cloud ↔ edge replication flows (async default + small real-time surface).
 
 Per v2 rules, proto declares ports/contracts; endpoints and secrets are runtime-bound (see `520-primitives-stack-v2.md` and `520-primitives-stack-v2-research-integration.md`).
+
+## Implementation progress (current)
+
+Implemented (scaffold):
+
+- [x] Hardware integration “ping” and a payments port surface stub.
+- [x] Guardrails in place (tests, non-root container, `ameide primitive verify` passes).
+
+Not yet implemented:
+
+- [ ] Gateway API + cert-manager + DNS adapters required for BYOD onboarding to be fully automated.
+- [ ] Payments provider connectors (and webhook ingestion) for a real tender.
+- [ ] Replication integration (NiFi flows, parameter contexts, conditions) for cloud↔edge sync.
+
+Build-out checklist (Integration v1 BYOD + future):
+
+- [ ] Choose the v1 Gateway implementation and map required APIs (HTTPRoute, ReferenceGrant, SNI cert handling).
+- [ ] Implement DNS verification probes (TXT/CNAME/HTTP) with idempotent state reporting.
+- [ ] Implement cert issuance/renewal adapter (cert-manager mode) and status reporting.
+- [ ] Define payment provider v1 (or confirm mock-only) and implement auth + webhook idempotency rules.
+
+## Clarification requests (next steps)
+
+Confirm/decide:
+
+- [ ] Which Gateway implementation and cert-manager mode is the v1 target (and any hard limits: listeners/certs/churn).
+- [ ] DNS verification method(s) for v1 (TXT vs CNAME vs HTTP) and retry/backoff semantics.
+- [ ] Payments provider choice for v1 (or “mock only”), and whether webhooks are in v1 scope.
+- [ ] Whether replication is in v1 scope; if yes, what the minimal lane-1 datasets are and what “lane-2 real-time” escape hatch exists.
 
 ## Stack alignment (proto / generation / operator)
 

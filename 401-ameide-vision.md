@@ -9,7 +9,7 @@
 - **Platform (org/teams/roles):** `services/platform` serves `ameide_core_proto.platform.v1` for organizations, teams, roles, users, invitations (`services/platform/README.md`). Tilt/Helm deploy with Vault-managed DB creds.
 - **Transformation (governance/runtime):** `services/transformation` runs lifecycle APIs (initiatives → transformations, stages, milestones, metrics) and projects runtime facts back into the graph (`services/transformation/README.md`). It is the execution plane for methodologies and role maps.
 - **Workflows (orchestration surface):** `services/workflows` provides the gRPC workflow API; Python workers (`services/workflows_runtime`, `services/workflow_worker`) execute Temporal workflows with strict `TEMPORAL_*` env validation and integration tests against Temporal test servers (`services/workflows_runtime/README.md`).
-- **Guardrails:** Charts require ExternalSecrets for DB access (Vault), db-migration hooks fail fast, and `infra/kubernetes/scripts/validate-hardened-charts.sh` renders overlays in CI (referenced across service READMEs).
+- **Guardrails:** Charts require ExternalSecrets for DB access (Vault), db-migration hooks fail fast, and `gitops/ameide-gitops/scripts/validate-hardened-charts.sh` renders overlays in CI (referenced across service READMEs).
 
 ## 2) Agentic & AI Plane
 - **Agents control plane:** `services/agents` (Go) stores node definitions and tenant-scoped agents, supports catalog streaming of node snapshots, routing simulation, and MinIO-backed artifact uploads (LangGraph compilation TODO). gRPC surface: `ameide_core_proto.agents.v1` (`services/agents/README.md`).
@@ -36,7 +36,7 @@
 ## 5) Delivery, Ops, and Guardrails
 - **GitOps & bootstrap:** Argo CD (single control plane in the `argocd` namespace) reconciles every namespace (`ameide-dev`, `ameide-staging`, `ameide-prod`). DevContainers now only hydrate tooling (`pnpm`, Azure CLI, kubelogin, Telepresence) and fetch AKS credentials; there is no local k3d bootstrap. Tilt handles the inner loop by deploying the `*-tilt` releases and Telepresence routes cluster traffic back to the local dev process (`README.md`, `backlog/435-remote-first-development.md`).
 - **Ingress & TLS:** Envoy Gateway remains the sole TLS terminator. Wildcard DNS for `*.dev.ameide.io` plus the Telepresence-only `*.local.ameide.io` listener is managed under `.devcontainer/` (`README.md`, `backlog/417-envoy-route-tracking.md`).
-- **Secrets & compliance:** ExternalSecrets + Vault are mandatory; charts fail without `existingSecret` references. db-migration hooks and `infra/kubernetes/scripts/validate-hardened-charts.sh` enforce credentials and template validity (called out in service READMEs).
+- **Secrets & compliance:** ExternalSecrets + Vault are mandatory; charts fail without `existingSecret` references. db-migration hooks and `gitops/ameide-gitops/scripts/validate-hardened-charts.sh` enforce credentials and template validity (called out in service READMEs).
 - **Build & images:** BuildKit scripts under `build/scripts/` produce OCI images; service Dockerfiles copy `pnpm-lock.yaml` before frozen installs to pin deps (documented in per-service READMEs and policy in 393). Helm/Argo use image tags from publishes; GitOps repo lives at `gitops/ameide-gitops` (nested).
 
 ## 6) Release, Versioning, and Artifacts
@@ -60,4 +60,4 @@
 - **Service capabilities:** `services/**/README.md` (Graph, Repository, Platform, Transformation, Workflows, Agents, Agents Runtime, Inference, Inference Gateway, Chat, Threads, www_ameide_platform, www_ameide).
 - **SDK policy & client contract:** `backlog/393-ameide-sdk-import-policy.md`, `backlog/389-ameide-sdk-ameideclient.md`, `sdk/manifest/ameide-client.json`.
 - **Versioning & publishing:** `backlog/388-ameide-sdks-north-star.md`, `backlog/390-ameide-sdk-versioning.md`, `.github/workflows/cd-packages.yml`.
-- **Ops/bootstrapping:** `ameide-gitops/bootstrap/bootstrap.sh` now owns the GitOps/bootstrap CLI while `ameide/.devcontainer/postCreate.sh` + `tools/dev/bootstrap-contexts.sh` (in `ameideio/ameide`) provide the developer bootstrap; supporting scripts remain in `README.md`, `infra/kubernetes/scripts/validate-hardened-charts.sh`, and `build/scripts/*`.
+- **Ops/bootstrapping:** `ameide-gitops/bootstrap/bootstrap.sh` now owns the GitOps/bootstrap CLI while `ameide/.devcontainer/postCreate.sh` + `tools/dev/bootstrap-contexts.sh` (in `ameideio/ameide`) provide the developer bootstrap; supporting scripts remain in `README.md`, `gitops/ameide-gitops/scripts/validate-hardened-charts.sh`, and `build/scripts/*`.

@@ -29,6 +29,8 @@ The UISurface operator manages the lifecycle of **UISurface primitives** – Nex
 
 **Key insight**: The operator wires routing + auth; the UISurface image implements the UI using Ameide TS SDK.
 
+**Canvas/layout configuration is runtime data consumed by the UISurface app; it is not encoded in CRDs and is not interpreted by the operator.**
+
 ---
 
 ## 2. CRD Summary

@@ -2,6 +2,40 @@
 
 This backlog defines Commerce using the `470`/`529` ArchiMate language anchor, while staying precise about Ameide’s primitives + EDA + operators.
 
+**Status:** Implemented (v1 primitives scaffolded: BYOD storefront domains + hostname resolution; other subdomains TBD)
+
+**Implementation (repo):**
+- Proto: `packages/ameide_core_proto/src/ameide_core_proto/commerce/`
+- Domain: `primitives/domain/commerce`
+- Projection: `primitives/projection/commerce`
+- Process: `primitives/process/commerce`
+- Integration: `primitives/integration/commerce`
+- UISurfaces: `primitives/uisurface/commerce-admin`, `primitives/uisurface/commerce-pos`, `primitives/uisurface/commerce-storefront`
+- Agent: `primitives/agent/commerce-assistant`
+
+## Implementation progress (current)
+
+Delivered (v1 BYOD storefront domains slice):
+
+- [x] Proto contracts exist for Domain/Process/Projection/Integration/Agent and are buf-lint/breaking clean.
+- [x] Domain supports BYOD hostname claim → verify/fail → mapping request → activate/fail → revoke (with inbox/outbox tables + Flyway migration images).
+- [x] Projection supports hostname resolution + claim/mapping reads (currently bridge mode: reads Domain tables).
+- [x] Process has worker/ingress scaffold + required shape files; placeholder BYOD workflow scaffold exists.
+- [x] Integration has hardware “ping” + payments port stub; tests/guardrails are in place.
+- [x] UISurfaces (`commerce-admin`, `commerce-pos`, `commerce-storefront`) and the Agent (`commerce-assistant`) are scaffolded with tests + non-root containers.
+
+Repo guardrails:
+
+- [x] `ameide primitive verify --mode repo` passes for the commerce primitives when GitOps manifests are present.
+
+Build-out checklist (next implementation slices):
+
+- [ ] Decide/lock v1 scope profile (go-live foundation only vs web O2C MVP vs omnichannel MVP with store-edge + replication).
+- [ ] Switch hostname projection from bridge reads → facts ingestion + materialized read model.
+- [ ] Implement BYOD onboarding workflow end-to-end (Process orchestrates DNS/cert/gateway steps via Integration adapters).
+- [ ] Add the “ownership table” for Domain vs Process workflows and enforce it in contracts.
+- [ ] Expand Domain subdomains beyond BYOD (SalesChannel/Site, Orders/OMS, Inventory/ATP, StoreOps) based on the v1 scope decision.
+
 ## Layer header (Strategy + Business, with Application realization)
 
 - **Primary ArchiMate layer(s):** Strategy + Business (Capability, Value Streams, Business Processes).
@@ -216,3 +250,18 @@ Commerce should be explainable as an event-driven platform, not just a set of pr
 - **Tenant isolation + traceability metadata** are required on every message.
 
 The concrete message families, envelopes, and topic naming are proposed in `523-commerce-proto.md`, including CloudEvents/W3C Trace Context alignment for cross-broker/HTTP interoperability.
+
+## Clarification requests (next steps)
+
+To expand Commerce beyond BYOD domains without redesign churn, confirm these v1 choices:
+
+- [ ] v1 profile: go-live foundation only vs web O2C MVP vs omnichannel MVP (POS + store-edge + replication).
+- [ ] Topology: cloud-only vs cloud + store-edge (LAN mode) in v1 (device-offline deferred unless explicitly in scope).
+- [ ] Payments posture: provider choice vs mock; whether offline tenders are in scope.
+- [ ] Broker target: Kafka/Strimzi now vs “outbox-only” until broker wiring is standardized.
+- [ ] PIM/CMS posture: integration-only vs minimal embedded product content for v1.
+- [ ] Scope owners: which subdomains are first-class v1 (Orders/OMS, Inventory/ATP, StoreOps, Customer/Loyalty, GiftCards).
+
+Also clarify the platform posture for generated SDK stubs:
+
+- [ ] `packages/ameide_sdk_*` generated proto trees are build artifacts; confirm whether CI/devcontainer generation is an expected precondition for `ameide primitive verify` gates.

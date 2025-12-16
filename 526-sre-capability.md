@@ -1,6 +1,6 @@
 # 526 — SRE Capability (Site Reliability Engineering)
 
-**Status:** Draft (normative once accepted)
+**Status:** In progress (proto + primitives implemented; doc still draft)
 **Audience:** Architecture, Platform SRE, platform engineering, operators/CLI, agent/runtime teams
 **Scope:** Define **SRE** as a *business capability* with value streams and business processes, supported by Application Services, which are realized by Ameide primitives (Domain/Process/Projection/Integration/UISurface/Agent).
 
@@ -12,6 +12,25 @@ This backlog formalizes the operational workflows described in `525-backlog-firs
 - Capability worksheet: `backlog/530-ameide-capability-design-worksheet.md`
 - EDA contract rules: `backlog/496-eda-principles.md`, `backlog/496-eda-protobuf-ameide.md`
 - Primitives pipeline: `backlog/470-ameide-vision.md`, `backlog/477-primitive-stack.md`, `backlog/520-primitives-stack-v2.md`
+
+## Implementation progress (repo)
+
+- [x] SRE proto pack exists and compiles: `packages/ameide_core_proto/src/ameide_core_proto/sre/` (intents/facts/process facts + query surfaces).
+- [x] SRE primitives exist and pass repo verification: `bin/ameide primitive verify --kind {domain,process,projection,integration,agent} --name sre --mode repo`.
+- [x] SRE MCP adapter exists and passes MCP adapter scaffold checks: `bin/ameide primitive verify --kind integration --name sre-mcp-adapter --mode repo`.
+- [x] Incident MVP is implemented as a canonical Domain writer (`primitives/domain/sre`) with outbox + W3C trace context fields persisted/emitted.
+- [ ] Projection read models are mostly stubbed (minimal incident search; most query endpoints return empty responses).
+- [ ] Process workflows beyond “IncidentTriage started/completed” are not implemented yet (full 525 phase model + approvals + verification pending).
+- [ ] Real integrations are not implemented yet (AlertManager/ArgoCD/Kubernetes/paging/ticketing adapters are scaffold-only).
+- [ ] No SRE UISurface exists yet (no `primitives/uisurface/sre-*` implementation for an operations console).
+
+## Clarifications requested (next steps)
+
+- [ ] Define the v1 “end-to-end slice” that makes SRE “real” (e.g., Alert ingestion → incident creation → triage workflow start → human approval gate → remediation execution → verification → close).
+- [ ] Decide the canonical SRE UI surface: new `primitives/uisurface/sre-operations-console` vs extending an existing UI surface (and what the minimum screens are).
+- [ ] Prioritize external adapters for v1 (AlertManager/ArgoCD/Kubernetes first?) and define the minimum contract each adapter must satisfy (idempotency, dedupe, intent-only).
+- [ ] Confirm whether on-call scheduling and stakeholder comms/status pages are in-scope for SRE v1 (or explicitly deferred as integrations).
+- [ ] Confirm the “definition of done” for “Process primitive implemented” (workflow visibility, approval signals, time-bounded ops, replay/idempotency guarantees).
 
 ## Layer header (Strategy + Business + Application realization)
 
@@ -175,7 +194,7 @@ SRE capability owns:
 
 | Service | Operations | Notes |
 |---------|------------|-------|
-| `IncidentService` | CreateIncident, UpdateSeverity, Assign, Resolve, Close, GetIncident, ListOpenIncidents | Bounded list queries only |
+| `IncidentService` | CreateIncident, ReclassifyIncidentSeverity, AssignIncident, AddIncidentTimelineEntry, AcknowledgeIncident, TransitionIncidentStatus, ResolveIncident, CloseIncident, GetIncident, ListOpenIncidents | Bounded list queries only |
 | `AlertService` | IngestAlert, Acknowledge, CorrelateToIncident, GetAlert | No search (projection) |
 | `RunbookService` | CreateRunbook, UpdateRunbook, GetRunbook | No search (projection) |
 | `SLOService` | CreateSLO, UpdateSLO, GetSLO, ListSLOs | Budget state only |
@@ -226,7 +245,7 @@ Starter tool map (illustrative; authoritative source is generated from proto):
 | `sre.searchIncidents` | query | `IncidentQueryService.SearchIncidents` | Projection | no | audit log + query tracing |
 | `sre.searchPatterns` | query | `KnowledgeIndexQueryService.SearchPatterns` | Projection | no | audit log + query tracing |
 | `sre.createIncident` | command | `IncidentService.CreateIncident` | Domain | no (observational record) | `sre.domain.facts.v1` + audit trail projection |
-| `sre.resolveIncident` | command | `IncidentService.Resolve` | Domain | yes | `sre.domain.facts.v1` + audit trail projection |
+| `sre.resolveIncident` | command | `IncidentService.ResolveIncident` | Domain | yes | `sre.domain.facts.v1` + audit trail projection |
 
 Edge constraints (SRE):
 
@@ -291,20 +310,20 @@ See: [526-sre-agent.md](526-sre-agent.md)
 
 ### Domain intents (commands)
 
-- Incident: `CreateIncidentRequested`, `UpdateIncidentSeverityRequested`, `AssignIncidentRequested`, `ResolveIncidentRequested`, `CloseIncidentRequested`
+- Incident: `CreateIncidentRequested`, `ReclassifyIncidentSeverityRequested`, `AssignIncidentRequested`, `AddIncidentTimelineEntryRequested`, `AcknowledgeIncidentRequested`, `TransitionIncidentStatusRequested`, `ResolveIncidentRequested`, `CloseIncidentRequested`
 - Alert: `IngestAlertRequested`, `AcknowledgeAlertRequested`, `CorrelateAlertsToIncidentRequested`
-- Runbook: `CreateRunbookRequested`, `ExecuteRunbookRequested`
-- SLO: `CreateSLORequested`, `RecordSLIWindowRequested` (aggregated windows, not raw)
+- Runbook: `CreateRunbookRequested`, `ExecuteRunbookRequested`, `UpdateRunbookRequested`
+- SLO: `CreateSLORequested`, `RecordSLIWindowRequested` (aggregated windows, not raw), `UpdateSLORequested`
 - Health: `RecordHealthCheckRequested`, `RecordFleetStateRequested`
 - Service: `CreateServiceRequested`, `UpdateServiceRequested`, `DeleteServiceRequested`
 - Postmortem: `CreatePostmortemRequested`, `UpdatePostmortemRequested`, `PublishPostmortemRequested`
 
 ### Domain facts (emitted by domain only)
 
-- Incident: `IncidentCreated`, `IncidentSeverityChanged`, `IncidentAssigned`, `IncidentResolved`, `IncidentClosed`
+- Incident: `IncidentCreated`, `IncidentSeverityChanged`, `IncidentAssigned`, `IncidentTimelineEntryAdded`, `IncidentAcknowledged`, `IncidentStatusChanged`, `IncidentResolved`, `IncidentClosed`
 - Alert: `AlertIngested`, `AlertAcknowledged`, `AlertsCorrelatedToIncident`
-- Runbook: `RunbookCreated`, `RunbookExecutionCompleted`
-- SLO: `SLOCreated`, `SLIWindowRecorded`, `SLOBudgetExhausted`
+- Runbook: `RunbookCreated`, `RunbookUpdated`, `RunbookExecutionCompleted`
+- SLO: `SLOCreated`, `SLIWindowRecorded`, `SLOBudgetExhausted`, `SLOUpdated`
 - Health: `HealthCheckRecorded`, `FleetStateRecorded`
 - Service: `ServiceCreated`, `ServiceUpdated`, `ServiceDeleted`
 - Postmortem: `PostmortemCreated`, `PostmortemUpdated`, `PostmortemPublished`

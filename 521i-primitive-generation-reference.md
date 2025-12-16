@@ -1,11 +1,19 @@
-# 521 — Primitive Generation Reference
+# 521i — Primitive Generation Reference
 
 The authoritative mapping of what each primitive type gets from scaffolding (CLI) and code generation (Buf).
 
+Baselines:
+- External generation (CLI scaffolding): `backlog/521a-external-generation-baseline.md`
+- Internal generation (Buf/plugins): `backlog/521b-internal-generation-baseline.md`
+- Internal verification: `backlog/521e-internal-verification-baseline.md`
+- External verification: `backlog/521f-external-verification-baseline.md`
+
 See also:
-- `521a-cli-scaffolding.md` — CLI scaffold behavior (external tooling)
-- `521b-buf-generation.md` — Buf generation behavior (internal tooling)
-- `533-capability-implementation-playbook.md` — Uses 521 as context for implementation
+- `backlog/521a-external-generation-baseline.md` — CLI scaffold behavior (baseline)
+- `backlog/521b-internal-generation-baseline.md` — Buf generation behavior (baseline)
+- `backlog/521c-internal-generation-improvements.md` — Internal generation log
+- `backlog/521d-external-generation-improvements.md` — External generation log
+- `backlog/533-capability-implementation-playbook.md` — Uses 521 as context for implementation
 
 ---
 
@@ -86,7 +94,7 @@ See also:
 
 ### Domain
 
-**CLI Outputs:** See `521a-cli-scaffolding.md § Domain`
+**CLI Outputs:** See `backlog/521a-external-generation-baseline.md § Domain`
 
 | Path | Purpose |
 |------|---------|
@@ -106,7 +114,7 @@ See also:
 | `primitives/domain/{name}/migrations/Dockerfile.*` | Migration container |
 | `primitives/domain/{name}/internal/tests/{rpc}_test.go` | Per-RPC tests |
 
-**Buf Outputs:** See `521b-buf-generation.md § Domain`
+**Buf Outputs:** See `backlog/521b-internal-generation-baseline.md § Domain`
 
 | Path | Purpose |
 |------|---------|
@@ -116,7 +124,7 @@ See also:
 
 ### Projection
 
-**CLI Outputs:** See `521a-cli-scaffolding.md § Projection`
+**CLI Outputs:** See `backlog/521a-external-generation-baseline.md § Projection`
 
 | Path | Purpose |
 |------|---------|
@@ -128,7 +136,7 @@ See also:
 | `primitives/projection/{name}/internal/handlers/handlers.go` | Query handlers (proto-derived) |
 | `primitives/projection/{name}/internal/tests/{rpc}_test.go` | Per-RPC tests |
 
-**Buf Outputs:** See `521b-buf-generation.md § Projection`
+**Buf Outputs:** See `backlog/521b-internal-generation-baseline.md § Projection`
 
 | Path | Purpose |
 |------|---------|
@@ -138,7 +146,7 @@ See also:
 
 ### Process
 
-**CLI Outputs:** See `521a-cli-scaffolding.md § Process`
+**CLI Outputs:** See `backlog/521a-external-generation-baseline.md § Process`
 
 | Path | Purpose |
 |------|---------|
@@ -154,7 +162,7 @@ See also:
 | `primitives/process/{name}/internal/process/state.go` | Process state struct |
 | `primitives/process/{name}/internal/tests/{rpc}_test.go` | Per-RPC tests |
 
-**Buf Outputs:** See `521b-buf-generation.md § Process`
+**Buf Outputs:** See `backlog/521b-internal-generation-baseline.md § Process`
 
 | Path | Purpose |
 |------|---------|
@@ -164,7 +172,7 @@ See also:
 
 ### Agent (Python/LangGraph)
 
-**CLI Outputs:** See `521a-cli-scaffolding.md § Agent`
+**CLI Outputs:** See `backlog/521a-external-generation-baseline.md § Agent`
 
 | Path | Purpose |
 |------|---------|
@@ -181,7 +189,7 @@ See also:
 
 ### Integration (MCP Adapter)
 
-**CLI Outputs:** See `521a-cli-scaffolding.md § Integration`
+**CLI Outputs:** See `backlog/521a-external-generation-baseline.md § Integration`
 
 | Path | Purpose |
 |------|---------|
@@ -206,7 +214,7 @@ See also:
 
 ### UISurface
 
-**CLI Outputs:** See `521a-cli-scaffolding.md § UISurface`
+**CLI Outputs:** See `backlog/521a-external-generation-baseline.md § UISurface`
 
 | Path | Purpose |
 |------|---------|
@@ -217,7 +225,7 @@ See also:
 | `primitives/uisurface/{name}/catalog-info.yaml` | Backstage catalog |
 | `primitives/uisurface/{name}/tests/server.test.js` | Tests |
 
-**Buf Outputs:** See `521b-buf-generation.md § UISurface`
+**Buf Outputs:** See `backlog/521b-internal-generation-baseline.md § UISurface`
 
 | Path | Purpose |
 |------|---------|
@@ -228,7 +236,9 @@ See also:
 ## Related Documents
 
 - `520-primitives-stack-v2.md` — Architecture decisions, §2b boundary rule
-- `521a-cli-scaffolding.md` — CLI scaffold details and changelog
-- `521b-buf-generation.md` — Buf generation details and changelog
+- `backlog/521a-external-generation-baseline.md` — CLI scaffold details (baseline)
+- `backlog/521b-internal-generation-baseline.md` — Buf generation details (baseline)
+- `backlog/521c-internal-generation-improvements.md` — Internal generation log
+- `backlog/521d-external-generation-improvements.md` — External generation log
 - `533-capability-implementation-playbook.md` — Uses 521 as context for implementation
 - `534-mcp-protocol-adapter.md` — MCP adapter specification

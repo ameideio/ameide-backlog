@@ -1,6 +1,6 @@
 # 527 Transformation — Agent Primitive Specification
 
-**Status:** Draft  
+**Status:** Draft (agent scaffold implemented; role definitions/tools pending)  
 **Parent:** [527-transformation-capability.md](527-transformation-capability.md)
 
 This document specifies the **Transformation Agent primitives** — role-based assistants invoked by the portal and/or governance workflows.
@@ -38,6 +38,26 @@ In the future state, a role-based agent guides a tenant through `backlog/524-tra
 - Creates/updates the required artifacts (glossary, value streams, EDA topology, proto proposal, decomposition, acceptance slice).
 - Uses governance flows (Scrum/TOGAF/PMI) to enforce review/approval gates and promotions.
 - Never bypasses writer boundaries: it proposes changes and emits intents; domains persist and emit facts; processes orchestrate.
+
+## 2.1) Implementation progress (repo snapshot)
+
+Delivered (scaffold + guardrails):
+
+- Agent scaffold exists at `primitives/agent/transformation` (gRPC server skeleton, tests, non-root container).
+- Repo-mode verification is green: `bin/ameide primitive verify --kind agent --name transformation --mode repo`.
+
+Not yet delivered (agent meaning):
+
+- Role-based AgentDefinitions (tool grants + risk tiers) stored/promoted in Transformation are not implemented end-to-end.
+- Agent write posture (validate → propose → approve/apply) is not implemented end-to-end.
+
+## 2.2) Clarification requests (next steps)
+
+Confirm/decide:
+
+- The initial role taxonomy (SA/TA/PM/etc.) and which tools each role is allowed to invoke by default.
+- What “small persisted agent state” means operationally (what is allowed to be stored on the Agent primitive vs attached as Transformation artifacts/evidence).
+- Whether agents can initiate process workflows directly, or must do so only via domain commands that trigger processes.
 
 ## 3) Acceptance criteria
 

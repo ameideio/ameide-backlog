@@ -1,6 +1,6 @@
 # 538 — VSCode Client Authentication (Keycloak OIDC Integration)
 
-**Status:** Draft
+**Status:** Draft (design only; GitOps not implemented)
 **Parent:** [538-vscode-client-transformation.md](538-vscode-client-transformation.md)
 **Audience:** Platform engineering, identity/auth, extension developers
 **Scope:** Define the Keycloak OIDC client configuration and authentication flow for the VSCode client extension.
@@ -13,6 +13,27 @@
 - Keycloak OIDC scopes: `backlog/460-keycloak-oidc-scopes.md`
 
 ---
+
+## Implementation progress (current)
+
+Repo status (today):
+- [x] Authentication design is specified here (public client + PKCE, separate clients per consumer type, no token brokering).
+- [ ] No Keycloak GitOps configuration detected for `ameide-vscode` / `ameide-mcp-*` clients yet (no occurrences in `gitops/ameide-gitops/sources/`).
+- [ ] No end-to-end auth smoke test exists yet (extension UI login → token storage → successful query call).
+
+Next milestones (checklist):
+- [ ] Add Keycloak realm GitOps for `ameide-vscode` public client + redirect URIs (and decide which redirect URIs are allowed in v0).
+- [ ] Add Keycloak client scopes `mcp:tools` and `mcp:resources` (or confirm they already exist elsewhere) and assign to the relevant `ameide-mcp-*` clients.
+- [ ] Implement “whoami”/token introspection debug path for extension troubleshooting (claims + tenant selection visibility).
+- [ ] Add a security review checklist: token lifetimes, offline_access policy, allowed origins, and logout semantics.
+
+## Clarification requests (next steps)
+
+Decide/confirm:
+- [ ] Whether MCP clients use DCR (Dynamic Client Registration) or pre-provisioned Keycloak clients (and which clients are required at v0).
+- [ ] The canonical claim(s) for tenant selection (`tenantId` vs `tenant_id` vs org/group mapping) and what happens when a user belongs to multiple tenants.
+- [ ] Whether `offline_access` is ever allowed for interactive VSCode sessions, or only for device/CLI flows.
+- [ ] How role/group claims map to capability permissions for MCP (coarse scope check vs fine-grained tool authorization).
 
 ## Layer header (Application / Technology)
 

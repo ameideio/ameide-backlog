@@ -1,5 +1,9 @@
 # 523 Commerce — Agent component (optional)
 
+**Status:** Scaffolded (read-only diagnostics surface + tests; tool design pending)
+
+Implementation (repo): `primitives/agent/commerce-assistant`
+
 ## Layer header (Application: governed assistants)
 
 - **Primary ArchiMate layer(s):** Application.
@@ -35,3 +39,27 @@ Agents follow the same EDA invariants as other primitives:
 - Preserve tenant isolation and propagate correlation/causation metadata for auditability.
 
 See `523-commerce-proto.md` for message families and envelopes.
+
+## Implementation progress (current)
+
+Implemented (scaffold):
+
+- [x] Minimal agent gRPC surface that is read-only and passes guardrails (tests + non-root container).
+
+Not yet implemented:
+
+- [ ] Actual diagnostic tools/resources for BYOD onboarding and store health.
+- [ ] MCP protocol adapter surface (if in scope) and its allowlist/guardrails.
+
+Build-out checklist (Agent v1):
+
+- [ ] Define the minimal read-only tool set: domain claims/mappings, cert/gateway status, projection lag/health, store-site connectivity checks.
+- [ ] Define “guided steps” response format (next actions, copy-paste DNS records, safe retry suggestions) without mutating state.
+- [ ] Add auditability requirements (correlation/causation propagation; tool call logs).
+
+## Clarification requests (next steps)
+
+Confirm/decide:
+
+- [ ] Whether Commerce will ship a `commerce-mcp-adapter` Integration primitive in v1 (see `backlog/534-mcp-protocol-adapter.md`).
+- [ ] Which read-only tools/resources the assistant must expose first (domains, cert status, gateway routes, projection lag).

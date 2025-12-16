@@ -1,5 +1,7 @@
 # 523 Commerce — Proto proposal (communication between primitives)
 
+**Status:** Implemented (v1 commerce protos + write service + agent surface)
+
 This document proposes a proto shape for commerce that makes the communication topology explicit, 496-native, and ArchiMate-aligned (Application Services/Interfaces/Events realized by Ameide primitives as Application Components).
 
 - commands/intents vs facts,
@@ -18,7 +20,29 @@ Phase 1 focus (v1): **public storefront domains + BYOD onboarding**.
 
 Implementation status:
 
-- Implemented in `packages/ameide_core_proto/src/ameide_core_proto/commerce/v1/` and `packages/ameide_core_proto/src/ameide_core_proto/commerce/integration/v1/` plus `packages/ameide_core_proto/src/ameide_core_proto/process/commerce/v1/`.
+- Implemented in `packages/ameide_core_proto/src/ameide_core_proto/commerce/v1/` (including `commerce_write_service.proto`), `packages/ameide_core_proto/src/ameide_core_proto/commerce/agent/v1/`, `packages/ameide_core_proto/src/ameide_core_proto/commerce/integration/v1/`, and `packages/ameide_core_proto/src/ameide_core_proto/process/commerce/v1/`.
+
+## Implementation progress (current)
+
+Delivered (v1 BYOD slice):
+
+- [x] Commerce Domain intents/facts and Commerce Process facts carry the shared `common.v1.eventing` options spine (stable type + stream ref + schema subject + routing/idempotency hints).
+- [x] Domain write service RPCs use business verbs (no CRUD-style update/set/patch prefixes).
+- [x] Proto files for BYOD storefront domains exist (envelope, domains, query, write service, agent surface, process facts).
+
+Build-out checklist (contracts hardening):
+
+- [ ] Standardize RequestContext propagation across all RPCs (Domain/Process/Integration/Projection) and document header-vs-message rules.
+- [ ] Freeze and publish the stable fact type identifiers (and their CloudEvents mapping) as the compatibility contract.
+- [ ] Add a single “ownership table” mapping business workflows → Domain/Process responsibility and the facts/intents involved.
+
+## Clarification requests (next steps)
+
+Confirm/decide:
+
+- [ ] Whether RPC correlation/trace propagation is standardized via gRPC metadata/headers or must be explicitly present in request messages (especially Integration RPCs).
+- [ ] Whether Integration requests should also carry `common.v1.RequestContext` (vs only `scope + idempotency_key`) for uniform observability.
+- [ ] Whether CloudEvents mapping is normative (and which fields are the canonical stable identifiers across refactors).
 
 ## Layer header (Application contracts)
 
