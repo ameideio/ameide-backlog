@@ -1,8 +1,14 @@
-# 521b — Buf Generation (Internal Tooling)
+# 521b — Internal Generation Baseline (Buf/plugins)
 
 Tracks Buf/plugin behavior — what generated-only files Buf creates from proto sources.
 
-See `521-primitive-generation-reference.md` for the high-level mindmap.
+Companion docs:
+- External generation baseline (CLI scaffolding): `backlog/521a-external-generation-baseline.md`
+- Internal generation improvements log: `backlog/521c-internal-generation-improvements.md`
+- Primitive mapping reference: `backlog/521i-primitive-generation-reference.md`
+- Verification baselines: `backlog/521e-internal-verification-baseline.md`, `backlog/521f-external-verification-baseline.md`
+
+See `backlog/521i-primitive-generation-reference.md` for the high-level mapping.
 
 ---
 
@@ -18,7 +24,7 @@ Generated-only outputs (safe to delete/regenerate):
 | Per-primitive registration | `buf.gen.{kind}-{name}.local.yaml` | `primitives/{kind}/{name}/internal/gen/` |
 
 **Not included:**
-- CLI scaffold templates and GitOps wiring automation (tracked in `521a-cli-scaffolding.md`)
+- CLI scaffold templates and GitOps wiring automation (tracked in `backlog/521a-external-generation-baseline.md`)
 - Runtime implementation changes unrelated to generation
 - Operator/controller logic unless it directly changes what codegen emits
 
@@ -229,7 +235,7 @@ cd packages/ameide_core_proto && \
 
 ---
 
-## Log
+## Log (mirror; canonical log in `backlog/521c-internal-generation-improvements.md`)
 
 ### 2025-12-13 — Unify Go service registration glue
 

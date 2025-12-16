@@ -221,10 +221,10 @@ We carry forward the earlier principles and make them concrete here:
 
 We keep two complementary UI modes:
 
-1. **Traditional “ERP-style” workspaces**
+1. **Traditional "ERP-style" workspaces**
 
    * List/detail pages over domain entities (Customers, Opportunities, Orders, Invoices).
-   * Implemented as microfrontends per domain, using the TS SDK to call proto-based APIs.
+   * Implemented as config-driven canvases with code-owned widgets, using the TS SDK to call proto-based APIs.
 
 2. **Process views** (process-first principle)
 
@@ -238,6 +238,35 @@ Information-wise:
   * Domain state → Domain primitives (via SDKs)
   * Process state → Process primitives (via SDKs)
   * Knowledge/analytics → Graph and Transformation design tooling projections
+
+
+#### UI Composition Artifacts (Workspaces, Canvases, Widgets)
+
+**Core Data Objects (ArchiMate Information Architecture):**
+
+* `WorkspaceTemplate` - Governed design artifact; versioned; promoted through Transformation
+* `Workspace` - Tenant runtime instance: which template, which workspaces enabled
+* `CanvasDefinition` - Layout + widget instances (x, y, w, h + widget type + props)
+* `UserCanvasOverride` - Per-user personalization state (layout deltas)
+
+**Lifecycle Separation:**
+* **Design-time governed artifacts** live with Transformation Domain's artifact store model (same lifecycle as ProcessDefinitions/AgentDefinitions)
+* **Runtime personalization** lives as normal domain data (Platform/Identity domain or Experience slice)
+
+**Runtime Ownership & APIs:**
+
+When a user customizes a workspace layout (drag widget, resize, add/remove), the UISurface app calls:
+* **Platform/Identity Domain** APIs to persist `UserCanvasOverride` (layout deltas, widget positions, enabled widgets)
+* **Transformation Domain** APIs to resolve the base `WorkspaceTemplate` and canonical `CanvasDefinition`
+
+Merge logic:
+1. Fetch base `CanvasDefinition` from Transformation (governed template)
+2. Fetch `UserCanvasOverride` from Platform/Identity (ungoverned personalization)
+3. Apply override deltas to base (widget positions, visibility, custom props)
+4. Render merged layout using widget registry
+
+**Backstage Integration:**
+* Catalog entries for "UI component packs / widget packs / UISurface templates" (not "microfrontends" - avoids implying deployable independence)
 
 ### 2.5 Extensions (Tier 1 WASM)
 

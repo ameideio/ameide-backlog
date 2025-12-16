@@ -1,5 +1,9 @@
 # 523 Commerce — Projection component
 
+**Status:** Implemented (v1 hostname query service; true projection ingestion/materialization TBD)
+
+Implementation (repo): `primitives/projection/commerce`
+
 ## Layer header (Application)
 
 - **Primary ArchiMate layer(s):** Application.
@@ -27,6 +31,32 @@ Projections are idempotent consumers that materialize read models:
 - Surface lag/health as first-class operational signals (e.g., “revoke convergence” SLOs) per Principle 8.
 
 See `523-commerce-proto.md` for the proposed fact envelopes and topic families.
+
+## Implementation progress (current)
+
+Implemented (v1 hostname reads):
+
+- [x] Query service for hostname resolution and claim/mapping reads.
+- [x] Guardrails in place (tests, non-root container, `ameide primitive verify` passes).
+
+Bridge mode (explicitly temporary):
+
+- [x] Reads from Domain tables today (fast path for v1).
+- [ ] Materialize read model from consumed facts (projection-owned schema + idempotent ingestion).
+
+Build-out checklist (Projection v1+):
+
+- [ ] Define hostname projection schema (including revoke convergence semantics + cache headers/TTL strategy).
+- [ ] Implement facts ingestion + checkpointing (at-least-once safe; replayable).
+- [ ] Add projection health endpoints/metrics (lag, last checkpoint, revoke convergence SLO).
+
+## Clarification requests (next steps)
+
+Confirm/decide:
+
+- [ ] When the hostname projection should switch from “bridge reads” to “facts → read model” ingestion.
+- [ ] Target read model schema for hostname resolution (including revoke convergence semantics and caching policy).
+- [ ] Projection SLOs/telemetry to publish (lag, last applied checkpoint, revoke convergence).
 
 ## Key projections (v1 set)
 

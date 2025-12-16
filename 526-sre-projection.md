@@ -1,11 +1,28 @@
 # 526 SRE — Projection Primitive Specification
 
-**Status:** Draft
+**Status:** Draft (scaffolded; read models pending)
 **Parent:** [526-sre-capability.md](526-sre-capability.md)
 
 This document specifies the **sre-projection** primitive — read models for operations dashboards, incident history, fleet health visualization, and semantic search.
 
 ---
+
+## Implementation progress (repo)
+
+- [x] Implemented primitive: `primitives/projection/sre` (projection query service scaffold + tests).
+- [x] Minimal incident search exists as a stopgap: projection delegates to domain `ListOpenIncidents` and filters in-memory (not event-sourced read models).
+- [x] Repo verification passes: `bin/ameide primitive verify --kind projection --name sre --mode repo`.
+- [ ] No durable fact consumption from `sre.domain.facts.v1` / `sre.process.facts.v1` yet (no inbox + replayable projector).
+- [ ] No materialized view stores yet (incident timeline, fleet health, SLO burndown, runbooks/services/postmortems catalogs).
+- [ ] No semantic search / contextual retrieval implementation yet (see `backlog/535-mcp-read-optimizations.md`).
+
+## Clarifications requested (next steps)
+
+- [ ] Define the v1 projection “must-have” read models for SRE (incident timeline + fleet health first?) and the exact query RPCs that back the operations console and agents.
+- [ ] Decide the projection ingestion mechanism: broker subscription vs domain fan-out vs integration events, and the minimum inbox semantics (exactly-once, replay, backfill).
+- [ ] Define search requirements for incidents/runbooks/services (full-text vs semantic; filters; pagination; ranking).
+- [ ] Define data retention and compaction rules for high-volume facts (health checks, fleet snapshots, timeline entries).
+- [ ] Define “read-after-write” expectations and client behavior (staleness windows, cursoring, eventual consistency UX).
 
 ## 1) Projection responsibilities
 

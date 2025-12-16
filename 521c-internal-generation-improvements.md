@@ -1,8 +1,14 @@
-# 521 — Code Generation Improvements Log
+# 521c — Internal Generation Improvements (Buf/plugins)
 
-This document tracks changes to code generation across the repo: Buf templates, protoc/Buƒ plugins, generated output conventions, and the developer workflow around regeneration.
+This document tracks **internal generation** changes across the repo: Buf templates, protoc/Buƒ plugins, generated output conventions, and the developer workflow around regeneration.
 
 It exists to make generator evolution auditable and reduce “tribal knowledge” when people touch scaffolding.
+
+Baseline: `backlog/521b-internal-generation-baseline.md`
+
+Companion docs:
+- External generation improvements: `backlog/521d-external-generation-improvements.md`
+- Verification improvements: `backlog/521g-internal-verification-improvements.md`, `backlog/521h-external-verification-improvements.md`
 
 See also: `backlog/533-capability-implementation-playbook.md` (uses 521 as node context for capability implementation).
 
@@ -17,10 +23,10 @@ Included:
 Not included:
 - Runtime implementation changes that are unrelated to generation.
 - Operator/controller logic unless it directly changes what codegen emits or how it is consumed.
-- CLI/orchestrator scaffolding templates and GitOps wiring automation (tracked in `backlog/520-primitives-stack-v2-tdd.md`).
+- CLI scaffolding/orchestration changes (tracked in `backlog/521a-external-generation-baseline.md` and `backlog/521d-external-generation-improvements.md`).
 
 Bright line:
-- Anything derived from protobuf descriptors is reproducible by running `buf generate` in a clean checkout; anything else belongs to the CLI orchestrator and/or human-owned templates.
+- Anything derived from protobuf descriptors is reproducible by running `buf generate` in a clean checkout; anything else belongs to CLI scaffolding/orchestration.
 
 ## How to use this log
 

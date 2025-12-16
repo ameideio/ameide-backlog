@@ -1,6 +1,6 @@
 # 511 – Process Primitive Scaffolding (Go, opinionated)
 
-> **Status update (520/521):** This backlog specifies the Process scaffold produced by the Ameide CLI (`ameide primitive scaffold`). The consolidated approach is a split: the CLI orchestrates scaffolding + external wiring (repo layout, GitOps), and `buf generate` + plugins handle internal deterministic generation (SDKs, generated-only glue). See `backlog/520-primitives-stack-v2.md` and `backlog/521-code-generation-improvements.md`.
+> **Status update (520/521):** This backlog specifies the Process scaffold produced by the Ameide CLI (`ameide primitive scaffold`). The consolidated approach is a split: the CLI orchestrates scaffolding + external wiring (repo layout, GitOps), and `buf generate` + plugins handle internal deterministic generation (SDKs, generated-only glue). See `backlog/520-primitives-stack-v2.md` and `backlog/521c-internal-generation-improvements.md`.
 
 **Status:** Active reference (aligned with 520/521)  
 **Audience:** AI agents, Go developers, CLI implementers  

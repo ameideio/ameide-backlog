@@ -30,7 +30,7 @@ The prior backlogs converged on the same outcome—“every workload reads secre
 1. **Close Remaining Service Gaps** – Migrate any outstanding items from backlog/348 (env/secret split), backlog/355 (per-service releases), and backlog/360 (db-migrations regression) into this doc and drive them to completion.
 2. **Layer 15 Boundary** – Reduce Layer 15 (`secrets-certificates`) to: `vault-secret-store`, shared secret bundles (core/observability/temporal), and *one* data-plane bundle that pre-provisions the platform/agents/graph/transformation/threads/agents-runtime/workflows/langgraph database secrets needed before migrations run. All other services must ship their own ExternalSecrets.
 3. **Unified Vault Fixture Story** – Keep the `foundation-vault-bootstrap` CronJob fixture map (shared values + ConfigMap) current with every secret key referenced in repo charts (including LangGraph). Document how to seed new keys, how to trigger the CronJob for immediate reconciliation, and how to rotate them per environment.
-4. **Guardrail Automation (Deferred)** – Keep `infra/kubernetes/scripts/validate-hardened-charts.sh` ready to template the data-plane bundle + db-migrations, but pause CI wiring until enforcement resumes; document any manual checks performed in the interim.
+4. **Guardrail Automation (Deferred)** – Keep `gitops/ameide-gitops/scripts/validate-hardened-charts.sh` ready to template the data-plane bundle + db-migrations, but pause CI wiring until enforcement resumes; document any manual checks performed in the interim.
 5. **Operational Runbooks** – Every chart README and Layer 15 bundle must describe ownership, rotation steps, and the smoke tests that verify the secrets.
 
 ---
@@ -53,7 +53,7 @@ The prior backlogs converged on the same outcome—“every workload reads secre
 - Treat integration test jobs the same as services: every `*-int-tests-secrets` entry in the Layer 15 `integration-secrets` release must define the exact env keys the pods consume (DB URLs, API tokens, OTEL exporter endpoints, etc.), with matching fixtures inside the CronJob payload. The Tilt-managed `test-transformation` runner depends on `transformation-int-tests-secrets`, so missing keys (e.g., `OTEL_EXPORTER_OTLP_ENDPOINT`) surface as guardrail regressions rather than noisy runtime errors.
 
 ### 4. Automation & Guardrails
-- **CI (Deferred):** Document the intended `.github/workflows/ci-helm.yml` integration for `infra/kubernetes/scripts/validate-hardened-charts.sh`, but pause wiring/fail-fast gating until the deferral lifts. Track any manual validations performed per PR.
+- **CI (Deferred):** Document the intended `.github/workflows/ci-helm.yml` integration for `gitops/ameide-gitops/scripts/validate-hardened-charts.sh`, but pause wiring/fail-fast gating until the deferral lifts. Track any manual validations performed per PR.
 - **Tilt / Infra health-check:** Keep the existing guardrails (Tilt requiring infra layers, secrets-smoke wait knobs) documented here. Extend infra smoke tests to include db-migrations + ExternalSecret readiness.
 - **Runtime validation:** db-migrations, workflows-runtime, Temporal namespace bootstrap, etc., must emit clear error messages when prerequisites are missing.
 

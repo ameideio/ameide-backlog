@@ -1,6 +1,6 @@
 # 513 – UISurface Primitive Scaffolding (TypeScript, opinionated)
 
-> **Status update (520/521/522):** This backlog specifies the UISurface scaffold produced by the Ameide CLI (`ameide primitive scaffold`). The consolidated approach is a split: the CLI orchestrates scaffolding + external wiring (repo layout, GitOps), and `buf generate` + plugins handle internal deterministic generation (generated-only glue and deterministic artefacts). See `backlog/520-primitives-stack-v2.md`, `backlog/521-code-generation-improvements.md`, and `backlog/522-cli-orchestration-improvements.md`.
+> **Status update (520/521/522):** This backlog specifies the UISurface scaffold produced by the Ameide CLI (`ameide primitive scaffold`). The consolidated approach is a split: the CLI orchestrates scaffolding + external wiring (repo layout, GitOps), and `buf generate` + plugins handle internal deterministic generation (generated-only glue and deterministic artefacts). See `backlog/520-primitives-stack-v2.md`, `backlog/521c-internal-generation-improvements.md`, and `backlog/521d-external-generation-improvements.md`.
 
 **Status:** Active reference (aligned with 520/521/522)  
 **Audience:** UI engineers, AI agents, CLI implementers  

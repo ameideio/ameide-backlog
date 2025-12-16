@@ -1,6 +1,6 @@
 # 527 Transformation — Domain Primitive Specification
 
-**Status:** Draft  
+**Status:** Draft (scaffold implemented; verification green; business logic pending)  
 **Parent:** [527-transformation-capability.md](527-transformation-capability.md)
 
 This document specifies the **Transformation Domain primitives** — the canonical writers for design-time transformation artifacts (Enterprise Repository + Definition Registry) and methodology profile state (Scrum/TOGAF/PMI).
@@ -136,6 +136,28 @@ CREATE TABLE idempotency_keys (
 
 **Critical constraint:** Idempotency key insertion MUST be in the same transaction as the domain write. This ensures exactly-once semantics even under adapter restarts or horizontal scaling.
 
+## 6.1) Implementation progress (repo snapshot)
+
+Delivered (scaffold + guardrails):
+
+- Domain scaffold exists at `primitives/domain/transformation` (gRPC server, outbox + dispatcher skeleton, Flyway migrations, non-root container).
+- Repo-mode verification is green: `bin/ameide primitive verify --kind domain --name transformation --mode repo`.
+- Unit/integration smoke tests exist and run: `cd primitives/domain/transformation && go test ./...`.
+
+Not yet delivered (domain meaning):
+
+- The canonical Enterprise Repository write model (initiatives/workspace/artifacts/baselines/definitions) is not implemented end-to-end; handlers remain scaffold-level.
+- Outbox dispatcher publishing to a broker and emitting the declared topic families is not implemented end-to-end.
+
+## 6.2) Clarification requests (next steps)
+
+Confirm/decide:
+
+- The canonical artifact taxonomy for “context curation” (what is an Artifact vs Attachment vs EvidenceBundle vs Definition) and the minimum metadata required for reproducibility.
+- Baseline/promotion policy: default approval requirements, roles, and whether promotion is per-initiative or cross-initiative.
+- Proposal/draft lifecycle: whether proposals are first-class artifacts (states + IDs) or represented as draft revisions/baselines, and which facts are required.
+- Durable idempotency: expected retention/TTL for `client_request_id`, and which commands are required to be idempotent vs best-effort.
+
 ## 7) Acceptance criteria
 
 1. Core Transformation state and definitions have a single-writer domain boundary.
@@ -143,4 +165,3 @@ CREATE TABLE idempotency_keys (
 3. All state changes emit domain facts with per-aggregate monotonic versions.
 4. Domains do not provide search/portal read APIs; projections do.
 5. Durable idempotency via `client_request_id` at WriteService boundary (two-layer strategy).
-

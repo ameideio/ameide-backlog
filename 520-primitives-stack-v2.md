@@ -470,6 +470,27 @@ UISurface guardrail (required): do not place implementation-owned UI code under 
 
 **Explicit exclusion:** IDE extensions (VSCode, JetBrains), browser extensions, CLI tools, and mobile apps are **NOT** UISurface primitives. They are Application Components (clients) that consume UISurface/Projection/Domain services directly. They don't use `ameide primitive scaffold`, aren't deployed via operators, and live under `packages/` (not `primitives/`). See `backlog/538-vscode-client-transformation.md` for the VSCode client pattern.
 
+#### UISurface Runtime Model: Shell + Canvases + Widgets
+
+**UISurface is one deployable web application** (one Next.js entrypoint per surface type: portal/admin/mobile if needed).
+
+**Architecture:**
+- **The shell is stable**: auth/session, navigation, permissions, feature flags, design system.
+- **Pages are canvases**: a route resolves to a `CanvasDefinition` (layout + widget instances) loaded at runtime using tenant/org/user context.
+- **Widgets are code-owned** (bundled with the UISurface image), **layouts are config-owned** (editable at runtime by users/agents).
+
+**Configuration layering:**
+1. Product default template (shipped with UISurface codebase or as promoted standard)
+2. Tenant standard template (governed; versioned/promoted)
+3. Role/team standard layout (optional; governed)
+4. User personalization (not governed)
+
+**Tenant custom behavior** must not require tenant React bundles:
+- Small rules/transformations via Tier 1 `WasmExtensionRuntime`
+- Larger changes via tenant custom primitives in `tenant-{id}-*-cust` namespaces
+
+**Microfrontends are optional** as an internal build/package strategy (code-splitting), but tenant customization is configuration-first.
+
 ### Projection
 
 **Intent:** read-optimized materialized views / analytical query services built from transactional data and/or domain facts/events.

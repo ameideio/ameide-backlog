@@ -260,6 +260,8 @@ This is a **thin infra operator**, *not* a layout engine:
 * It doesn't understand UI components or forms.
 * It only ensures that a given UISurface image is reachable and correctly wired to primitives.
 
+**Canvas/layout configuration is runtime data consumed by the UISurface app; it is not encoded in CRDs and is not interpreted by the operator.**
+
 **UISurface CRD (YAML, `*-gitops/primitives/uisurface/{name}`)**
 
 * Declares:

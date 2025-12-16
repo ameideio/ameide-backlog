@@ -1,6 +1,6 @@
 # 527 Transformation — Implementation & Migration (core)
 
-**Status:** Draft  
+**Status:** Draft (scaffolds implemented; migration plan pending)  
 **Parent:** [527-transformation-capability.md](527-transformation-capability.md)
 
 This document captures the Implementation & Migration layer for delivering the Transformation capability, including work packages, migration seams, and explicit gaps between the current codebase and the target architecture.
@@ -43,12 +43,32 @@ Transformation is implemented by applying:
 
 **Scaffold stance mapping (non-negotiable)**
 
-- Domain (`transformation-domain`): won’t compile until wired
-- Process (governance orchestrators): won’t compile until wired
-- Projection (workspace/read models/graph/vector): won’t compile until wired
-- UISurface: compile-clean, but fails structural checks until wired
-- Integration: compile-clean, but fails structural checks until wired
-- Agent: compile-clean, but fails structural checks until wired
+- Domain (`transformation-domain`): compile-clean scaffold; business logic pending
+- Process (governance orchestrators): compile-clean scaffold; workflow logic pending
+- Projection (workspace/read models/graph/vector): compile-clean scaffold; ingestion/read models pending
+- UISurface: placeholder runtime; portal UX pending
+- Integration: MCP adapter scaffold; connector/tool wiring pending
+- Agent: compile-clean scaffold; role definitions/tools pending
+
+## 2.1) Implementation progress (repo snapshot)
+
+Delivered (scaffold + guardrails):
+
+- Primitive scaffolds exist for Transformation under `primitives/*/transformation*` and compile/test cleanly.
+- Repo-mode verification is green for CLI-supported kinds:
+  - `bin/ameide primitive verify --kind domain --name transformation --mode repo`
+  - `bin/ameide primitive verify --kind process --name transformation --mode repo`
+  - `bin/ameide primitive verify --kind agent --name transformation --mode repo`
+  - `bin/ameide primitive verify --kind uisurface --name transformation --mode repo`
+- Proto contracts for Scrum and Architecture bounded contexts exist, plus legacy `TransformationService` façade protos (see `backlog/527-transformation-proto.md`).
+
+## 2.2) Clarification requests (next steps)
+
+Confirm/decide:
+
+- Which “acceptance slice” is the next migration target (e.g., Scrum governance loop vs architecture revision/baseline promotion), and what evidence proves success end-to-end.
+- Whether `services/transformation` remains a façade (Phase 1/2) or is retired in favor of domain/process/projection primitives (and the deprecation plan).
+- Which projection read models are required for the first slice (workspace, audit timeline, baseline compare), and whether projection starts in bridge mode.
 
 ## 3) Current platform vs target (documented gap)
 
@@ -60,7 +80,7 @@ Transformation is implemented by applying:
 - Transformation UI deliverables are currently backed by generalized graph/metamodel element storage:
   - element rows in `elements` with `element_kind` carrying notation-specific kinds (ArchiMate/BPMN/etc.)
   - proto shape: `ameide_core_proto.graph.v1.Element` with `ElementKind` including `ELEMENT_KIND_ARCHIMATE_*` and `ELEMENT_KIND_BPMN_*`
-- Scrum governance has partial foundation (Scrum protos exist; DB migrations for Scrum tables + outbox exist), but the domain primitive and outbox dispatcher are not yet implemented end-to-end.
+- Scrum governance has partial foundation (Scrum protos exist; scaffolds exist for domain/process/projection), but the outbox publishing + process orchestration + portal read models are not yet implemented end-to-end.
 
 ### Target state (527 stack)
 
@@ -105,8 +125,8 @@ Target role:
 
 ### `primitives/domain/transformation` (scaffold)
 
-- Scaffold only, unimplemented handlers for `ScrumQueryService`.
-- Has a generic outbox migration but is not wired to Transformation schema or Scrum tables.
+- Scaffold exists with outbox/dispatcher shape, migrations, and smoke tests, but handlers remain placeholder-level.
+- Target bounded contexts (core repository + methodology profiles) are not implemented end-to-end.
 
 Target role:
 
@@ -158,4 +178,3 @@ This is the “how we govern implementation” plan for delivering the full futu
 - Repeat `524` Step 6 loop for every work package: scaffold → generate → compile/test → publish images → GitOps sync → smoke probes.
 - Promote only when contract gates and deployment gates are green.
 - Manage drift continuously via `524` Step 7 (TOGAF Phase H).
-

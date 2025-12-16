@@ -1,5 +1,9 @@
 # 523 Commerce — Process component
 
+**Status:** Scaffolded (Temporal worker/ingress + required shape + tests; real workflow logic pending)
+
+Implementation (repo): `primitives/process/commerce`
+
 ## Layer header (Application, with Business Process alignment)
 
 - **Primary ArchiMate layer(s):** Application.
@@ -33,6 +37,36 @@ Processes implement sagas and cross-domain invariants under eventual consistency
 - Request changes through domain commands (RPC) or domain intents (topic); never bypass single-writer domains.
 - Emit process facts to `commerce.process.facts.v1` so orchestration progress is observable and debuggable.
 - Use explicit workflow IDs/idempotency keys; expect duplicates and retries everywhere.
+
+## Implementation progress (current)
+
+Implemented (scaffold + guardrails):
+
+- [x] Worker + ingress binaries exist; required scaffold shape files are present.
+- [x] Placeholder workflow exists for BYOD onboarding; process facts proto exists.
+- [x] Events catalog exists for topic family constants.
+- [x] Guardrails in place (tests, non-root container, `ameide primitive verify` passes).
+
+Not yet implemented:
+
+- [ ] Deterministic workflow IDs, SignalWithStart routing, and idempotent “seen version” state handling.
+- [ ] DNS verification + cert issuance + gateway route orchestration steps and retry/backoff policy.
+- [ ] Emission of `commerce.process.facts.v1` as a first-class observability stream (progress + failure taxonomy).
+
+Build-out checklist (Process v1 BYOD):
+
+- [ ] Define the authoritative step graph for BYOD onboarding (claim → verify → issue cert → configure routes → activate).
+- [ ] Define the failure taxonomy (DNS, ACME, Gateway, propagation delays) and the retry/backoff/circuit-break rules.
+- [ ] Implement correlation propagation end-to-end (workflow → integration calls → domain commands → facts).
+- [ ] Add “revoke convergence” workflow (revoke mapping/claim, ensure projection/cache convergence, surface SLO).
+
+## Clarification requests (next steps)
+
+Confirm/decide:
+
+- [ ] Which steps live in Process vs Integration for v1 BYOD (DNS probe, ACME issuance, Gateway wiring, revocation).
+- [ ] Canonical external controller set (Gateway implementation, cert-manager mode, DNS verification strategy).
+- [ ] v1 “real-time required” list and what is explicitly gated in UX when WAN is down (if store-edge is in scope).
 
 See `523-commerce-proto.md` for the proposed process fact envelope and topic family.
 

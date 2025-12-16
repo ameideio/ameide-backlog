@@ -1,6 +1,6 @@
 # 536 — MCP Write Optimizations (Agent-Friendly Commands)
 
-**Status:** Draft
+**Status:** Draft (partial adapter scaffolds exist; write optimizations not implemented)
 **Audience:** Architecture, platform engineering, AI/agent teams
 **Scope:** Define write-side optimizations for MCP — enabling AI agents to create and modify data with simplified inputs, schema discovery, and meaningful responses.
 
@@ -13,12 +13,56 @@
 
 ---
 
+## Implementation progress (current)
+
+Implemented in repo (enablers):
+- [x] MCP adapter scaffolding + verification exists (`ameide scaffold integration mcp-adapter`, and `ameide primitive verify --check mcp`).
+- [x] Shared MCP runtime spine exists (`packages/ameide_mcp`) for HTTP transport, origin policy, and auth middleware.
+
+Not yet implemented (still design-level in this backlog):
+- [ ] Proto-driven schema discovery tools (e.g. “getElementTypes”, “getRelationshipTypes”) generated from proto + metamodel.
+- [ ] Agent-friendly write tools that map simplified inputs → valid Domain intents (ID generation, metadata derivation, enum mapping, defaults).
+- [ ] Proposal-first write flow integrated with Process governance (create proposal → review/approve → commit) as the default, with explicit escape hatches.
+- [ ] Rich error responses with actionable suggestions (valid enums, missing fields, nearest matches) without leaking sensitive data.
+
+Build-out checklist:
+- [ ] Define “write tool surface” per capability (high-level templates vs low-level CRUD-ish tools) and keep it minimal.
+- [ ] Implement deterministic ID + idempotency policy (idempotency keys, dedupe rules, replay-safe behavior).
+- [ ] Standardize RequestContext propagation (trace/correlation/tenant) from MCP HTTP → Domain/Process RPCs.
+- [ ] Add conformance tests that assert: schema discovery works, invalid inputs fail clearly, proposals are enforced by default, and committed writes emit expected facts.
+
+## Clarification requests (next steps)
+
+Decide/confirm:
+- [ ] Default governance posture: “writes create proposals unless explicitly permitted” (and the exact policy knobs/roles that allow direct commits).
+- [ ] Where “schema truth” comes from for write tools (proto annotations vs metamodel registry vs both) and how versions are handled.
+- [ ] How to scope write operations (workspace/model selection) without relying on the agent inventing IDs (context pinning, defaults, or required inputs).
+- [ ] Which write operations are v1 for Transformation/SRE (minimal set) vs deferred (bulk imports, refactors, cross-model moves).
+- [ ] How to handle optimistic concurrency/versioning for agent writes (ETags, expected version, or server-side merge strategy).
+
 ## Layer header (Application)
 
 - **Primary ArchiMate layer(s):** Application.
 - **Primary element types used:** Application Interface (MCP adapter), Application Service (write translation).
 - **Out-of-scope layers:** Strategy/Business (capability design), Technology (domain internals).
 - **Allowed nouns:** write optimization, schema discovery, input simplification, rich response.
+
+## Implementation progress (repo)
+
+- [x] Domain write services exist behind gRPC with `RequestContext` (capability-specific), providing the authoritative mutation surface.
+- [x] SRE MCP adapter already performs basic “agent-friendly input → domain request” enrichment for a small set of tools (e.g., `createIncident` generates IDs/metadata in `primitives/integration/sre-mcp-adapter/internal/mcp/server.go`).
+- [ ] No shared schema discovery tools (`getElementTypes`, `getRelationshipTypes`, `getWriteSchema`) implemented across adapters/capabilities.
+- [ ] No standard “validate (dry-run) → confirm → commit” tool flow implemented in adapters.
+- [ ] No standardized idempotency strategy for MCP writes (e.g., `client_request_id` + domain idempotency keys) implemented end-to-end.
+- [ ] No enforcement that writes default to proposals / governance workflows (currently capability-specific and tool-specific).
+
+## Clarifications requested (next steps)
+
+- [ ] Define which write categories are allowed as direct Domain commands vs proposal-only (and how this maps to risk tiers and approvals).
+- [ ] Standardize the MCP → gRPC metadata mapping: correlation/causation IDs, W3C trace context, and where these live (`RequestContext.metadata` vs gRPC headers).
+- [ ] Choose the canonical idempotency contract for write tools: required `client_request_id`, how duplicates are detected, and the “repeat response” behavior.
+- [ ] Decide where schema discovery truth lives: proto options → generated JSON schema, or an explicit “schema service” in Projection/Domain.
+- [ ] Decide whether high-level template tools (e.g., `createCapabilityStructure`) are mandatory for complex writes to prevent agents from orchestrating many low-level calls.
 
 ---
 
@@ -59,6 +103,92 @@ When AI agents write to capabilities via MCP, they face several challenges:
 | **MCP abstracts complexity** | Generate IDs, derive metadata, handle versioning |
 | **LLM sends what it's good at** | Semantic content in JSON, no protocol boilerplate |
 | **MCP gives meaningful responses** | Success with created entity, errors with suggestions |
+
+### 1.1 Schema-as-contract for element internal structure
+
+When a user says "create this capability", the platform must ensure the saved element matches a **specific internal structure** (required fields, required properties/profile, optional default sub-structure).
+
+We achieve this by:
+
+1. **Tool input schema defines the required structure**
+
+   * Required fields/properties are required in the tool schema (or via a nested `profile` object).
+   * Agents SHOULD treat this schema as the contract, not a prompt suggestion.
+2. **(Recommended) Strict structured output at the client/model boundary**
+   Configure the model/tooling so tool arguments must validate against the tool schema.
+3. **Domain validation remains authoritative**
+   The adapter may validate shape, but the Domain enforces invariants, defaults, governance, and rejects invalid writes.
+
+Practical implication:
+
+* If "internal structure" is **just fields/properties**, a single `createCapability` (or `createElement(type=Capability)`) is sufficient.
+* If "internal structure" includes **standard decomposition/relationships**, expose a **high-level template tool** (e.g., `createCapabilityStructure`) so the platform builds the structure deterministically (agents should not orchestrate 5–10 low-level calls).
+
+See also: `backlog/534-mcp-protocol-adapter.md` §3.3 for tool calling lifecycle.
+
+### 1.2 Vendor compatibility and runtime configuration
+
+**Client runtime configuration for reliable writes:**
+
+Modern LLM vendors provide **structured output** capabilities that enforce tool schema conformance at the model boundary. Configure clients to use these features for write operations:
+
+| Vendor | Feature | Configuration |
+|--------|---------|---------------|
+| **OpenAI** | Structured Outputs | `response_format: {"type": "json_schema", "strict": true}` |
+| **Google Gemini** | Structured Outputs | `response_mime_type: "application/json"` with schema |
+| **Azure OpenAI** | Structured Outputs | Same as OpenAI (recommended for function calling) |
+| **Cohere** | Strict Tools | `strict_tools=True` (ensures exact schema conformance) |
+| **Mistral** | Structured Outputs | `response_format: {"type": "json_object"}` + schema |
+| **Amazon Nova** | Structured Output | `inferenceConfig: {structuredOutput: {format: "json"}}` |
+
+**Temperature for write operations:**
+
+Set **temperature=0** (greedy decoding) for write tools to maximize schema adherence and reduce hallucinations:
+
+```python
+# OpenAI / Azure OpenAI
+completion = client.chat.completions.create(
+    model="gpt-4",
+    messages=[...],
+    tools=[...],
+    temperature=0  # Deterministic tool calling
+)
+
+# Amazon Nova
+response = bedrock.converse(
+    modelId="amazon.nova-pro-v1",
+    messages=[...],
+    toolConfig={...},
+    inferenceConfig={"temperature": 0}
+)
+```
+
+**Rationale:**
+- **Google Vertex AI** recommends temperature `0` for function calling to reduce hallucinations
+- **Amazon Nova** recommends greedy decoding (`temperature=0`) for both structured output and tool use
+- Low temperature makes tool selection and argument generation deterministic
+
+**JSON Schema subset limits:**
+
+Not all vendors support full JSON Schema. Portable tool schemas should use:
+
+- **Core types**: `object`, `properties`, `required`, `enum`, `array`, `items`
+- **Validation**: `minLength`, `maxLength`, `minimum`, `maximum`, `pattern`
+- **Nesting**: Keep ≤ 2 layers where possible (Amazon Nova best practice)
+- **Size**: Schema counts toward token budget (Google Vertex AI note)
+
+**Avoid** (vendor-specific or limited support):
+- `anyOf`, `oneOf`, `allOf` (limited support in Vertex AI, Nova)
+- Deep nesting (>2 levels degrades performance per Nova guidance)
+- Exotic constraints (`dependencies`, `patternProperties`, etc.)
+
+**Expected client behavior:**
+
+Write tools MAY trigger explicit user confirmation in client UIs:
+- **ChatGPT** shows confirmation modals before write/modify operations (per OpenAI Help Center)
+- **Browser-based clients** should implement similar UX gating for governance
+
+This aligns with the validate→confirm→commit pattern (see §6.0).
 
 ---
 
@@ -332,6 +462,59 @@ Agents can discover valid inputs before writing:
       description: "IDs of relationships that were also deleted"
 ```
 
+### 4.5 createCapability (domain-specific example)
+
+Purpose: Create a Capability element with a required profile structure.
+
+**Input (agent-facing):**
+
+```json
+{
+  "name": "Fulfillment",
+  "description": "Ability to fulfill customer orders",
+  "profile": {
+    "owner": "Supply Chain",
+    "criticality": "High",
+    "lifecycle": "Active"
+  }
+}
+```
+
+**Adapter responsibilities:**
+
+* Derive `model_id`, `tenant_id`, timestamps, `correlation_id`
+* Generate element `id` (or accept provided id)
+* Map type string → enum (`Capability` → `CAPABILITY`)
+* Apply defaults (if any)
+
+**Domain responsibilities:**
+
+* Validate required profile fields
+* Enforce invariants (naming rules, uniqueness, governance)
+* Persist + emit events
+
+**Output:**
+
+```json
+{
+  "success": true,
+  "capability": {
+    "id": "cap-abc-123",
+    "type": "Capability",
+    "name": "Fulfillment",
+    "layer": "strategy",
+    "revision": 1,
+    "profile": {
+      "owner": "Supply Chain",
+      "criticality": "High",
+      "lifecycle": "Active"
+    }
+  }
+}
+```
+
+This example demonstrates how a domain-specific tool can enforce "internal structure" (required profile) through the tool schema contract. See §1.1 for details on schema-as-contract principle.
+
 ---
 
 ## 5) Rich error responses
@@ -425,6 +608,38 @@ Agents can discover valid inputs before writing:
 ---
 
 ## 6) Validation tool (dry run) — Default first step
+
+### 6.0 End-to-end write flow (chat → validate → commit)
+
+In chat, "create capability" becomes one or more MCP tool calls.
+The recommended pattern is:
+
+* LLM produces tool arguments that match the tool schema.
+* Agent runtime calls `validateWrite` first (dry run).
+* Only if valid: call the write tool to commit.
+
+```text
+User: "Create capability X"
+  │
+  ▼
+LLM: selects write tool + fills arguments (schema-shaped)
+  │
+  ▼
+1) validateWrite(operation="createCapability", payload={...})
+  │      ├─ valid=false → return errors/suggestions → LLM fixes args → retry
+  │      └─ valid=true  → proceed
+  ▼
+2) createCapability(payload={...}, client_request_id=...)
+  │
+  ▼
+Tool result returns canonical created capability (id, revision, defaults applied)
+```
+
+**Why return canonical created objects:** projections/search indexes may lag; the tool result should be sufficient to confirm what was created without an immediate read-after-write.
+
+See also: `backlog/535-mcp-read-optimizations.md` §2.2.1 for read-after-write expectations.
+
+---
 
 **validateWrite SHOULD be the default first step for agent write workflows.** This ensures agents check validity before committing, reducing errors and improving UX.
 
@@ -970,3 +1185,217 @@ func DeriveLayer(typeName string) (Layer, error) {
 | Idempotency | Two-layer: Adapter cache (24h) + Domain boundary (7d, durable) | Cross-region idempotency |
 | High-level operations | None | createCapabilityStructure, etc. |
 | Conflict retry | None | Automatic retry on version conflict |
+
+---
+
+## Appendix A — Vendor patterns: Structured Outputs + Tool Calling for MCP Writes
+
+**Last verified:** 2025-12-16
+**Why this appendix exists:** MCP write tools are only "agent-friendly" if the *model can reliably produce arguments that match your tool schema* (and if the host/client implements a safe write UX). Most LLM vendors now provide some form of schema-constrained decoding for either (a) tool arguments or (b) text responses. This appendix captures the cross-vendor patterns that matter for MCP write.
+
+### A.1 Terminology mapping (same idea, different names)
+
+| Concept | MCP | OpenAI | Anthropic | Google (Gemini/Vertex) | AWS (Nova/Bedrock) | Cohere | Mistral | Snowflake |
+|---|---|---|---|---|---|---|---|---|
+| "Tool calling" | tool invocation | function / tool calling | tool use | function calling | tool use (function calling) | tools | function calling | n/a (focus is structured output) |
+| "Schema-constrained outputs" | JSON Schema in `inputSchema` | Structured Outputs / JSON Schema | `input_schema` for tools | Structured Outputs | output schema / constrained decoding | Structured Outputs / `strict_tools` | (tool params JSON schema) | structured outputs (`response_format`) |
+| "Write safety / confirmation" | tool annotations + client UX | confirmation UI for write connectors | app-controlled | app-controlled | app-controlled | app-controlled | app-controlled | app-controlled |
+
+### A.2 Core design pattern: "Schema-as-contract" for MCP write tools
+
+**Goal:** When a user says "create this capability / element", the model should emit a tool call like:
+
+- Tool: `createElement`
+- Args: `{ "type": "...", "name": "...", "description": "...", ... }`
+
+…and those args should always validate against your tool schema.
+
+**How it composes:**
+1. **You define the contract** in the tool schema (MCP tool `inputSchema`).
+2. **Vendor tool calling** (or structured outputs) constrains the model's output to that schema.
+3. **MCP adapter still validates** inputs server-side (never trust the client).
+4. Adapter enriches + translates into Domain intent (IDs, correlation, tenant, versioning, etc.).
+
+### A.3 Portable schema subset (works across more vendors)
+
+Because vendors support different subsets of JSON Schema, prefer a conservative "portable" subset for tool inputs:
+
+**Recommended**
+- Top-level: `{ "type": "object", "properties": {...}, "required": [...] }`
+- Use `additionalProperties: false` (both for correctness and to prevent "schema drift")
+- Use enums for "closed sets" (types, relationship kinds)
+- Keep nesting shallow (≤ 2 levels) for best performance (esp. on providers that advise it)
+- Use strings for IDs and "opaque references"
+- Prefer arrays of objects for bulk operations (but cap sizes)
+
+**Avoid unless you know the vendor supports it**
+- Deep recursion and overly nested schemas (performance + context costs)
+- Complex combinators (`oneOf`/`anyOf`/`allOf`) and advanced JSON Schema features
+- Overly large schemas (some vendors impose limits across all tools / fields)
+
+**Server-side rule:** even with strict mode, always validate the tool args again in the MCP adapter.
+
+### A.4 Write-safety pattern: "Confirm before execute" for consequential tools
+
+For writes that mutate persistent state (create/update/delete), implement:
+
+1. **Client confirmation UI** before execution (especially for destructive tools).
+2. **Tool annotations** to drive UX:
+   - `readOnlyHint: true/false`
+   - `destructiveHint: true/false`
+   - `idempotentHint: true/false`
+
+**Important:** tool annotations are UX hints, not security boundaries. Always enforce authz + policy server-side.
+
+### A.5 Vendor notes you can rely on (what each vendor explicitly recommends)
+
+#### A.5.1 OpenAI (tool calling + structured outputs)
+**What to use**
+- Use **function/tool calling** when you want the model to produce tool arguments.
+- Use **Structured Outputs** when you want schema-constrained JSON in the model's *text* response.
+
+**Notable implementation details (from docs)**
+- Structured Outputs is designed to ensure outputs adhere to a supplied JSON schema.
+- Structured Outputs via `text.format` uses `type: "json_schema"` with `strict: true` (Responses API).
+- JSON mode is weaker than Structured Outputs; when using function calling, JSON mode is on by default.
+
+**Write safety**
+- In ChatGPT connectors, OpenAI states the UI shows explicit confirmation before executing write actions.
+
+**Implications for MCP write**
+- If your MCP host uses OpenAI models, lean on tool calling for argument shaping, but keep a server validator and confirmation gate for mutations.
+
+#### A.5.2 Microsoft Azure OpenAI
+**What to use**
+- Azure positions "structured outputs" as stricter than older JSON mode and recommends it for function calling and multi-step workflows.
+
+**Implications**
+- Same "schema-as-contract" approach; confirm writes; validate server-side.
+
+#### A.5.3 Google Gemini API + Vertex AI
+**Gemini Structured Outputs**
+- Gemini supports JSON Schema constrained responses and positions it as guaranteeing predictable, parsable, type-safe results and enabling programmatic detection of refusals.
+
+**Vertex function calling best practices**
+- Use system instructions to provide missing context (date/time/location).
+- Use low temperature (0 or similar) to reduce hallucinations.
+- Validate with the user before executing calls that have significant consequences (orders, DB updates).
+- Use structured output together with function calling for consistently formatted non-tool responses.
+
+**Implications**
+- Vendor explicitly endorses: low temperature + confirm-before-execute for consequential writes.
+
+#### A.5.4 Anthropic Claude
+**Tool use flow**
+- Claude tool use has an explicit "stop_reason: tool_use", then the client executes and returns a `tool_result`.
+
+**Tool definition + examples**
+- Tool `input_examples` must validate against the tool's `input_schema`; invalid examples cause API errors.
+- Anthropic provides a "tool runner" (SDK feature) to manage execution loops + validation.
+
+**Implications**
+- If your MCP host uses Claude, invest in "tool definitions that teach" (good descriptions + valid examples), but watch token cost of examples.
+
+#### A.5.5 AWS (Amazon Nova / Bedrock)
+**Structured output guidance**
+- AWS recommends providing an output schema and using `temperature=0` ("greedy decoding") for structured output.
+- AWS notes outputs are not fully deterministic and may still vary from the output schema in pure prompting scenarios.
+
+**Tool use guidance**
+- Best practices include: temperature=0, limit JSON schemas to two layers of nesting, and make tool name/description/schema explicit.
+- Amazon Nova "understanding" models support only a subset of JSON Schema for tool input schemas; the top-level must be an object, and only `type`, `properties`, `required` are supported at the top level.
+
+**Implications**
+- For portability to Nova: keep tool schemas shallow and simple; do not depend on advanced schema features.
+
+#### A.5.6 Cohere
+**Structured Outputs**
+- Cohere supports Structured Outputs for JSON and for Tools; for Tools, `strict_tools=true` enforces tool calls that adhere exactly to the provided schema.
+- Constraints: only supported in Chat API V2, at least one required parameter is needed, and Cohere caps total fields across all tools in a call.
+
+**Implications**
+- When using Cohere with an MCP host, `strict_tools` is the closest analogue to "strict tool argument shaping"; still validate server-side.
+
+#### A.5.7 Mistral
+**Function calling**
+- Mistral function calling uses JSON schema for tool parameter specifications.
+- Offers `tool_choice` modes and optional parallel tool calling.
+
+**Implications**
+- Same design: schemas must be clear, minimal, and stable; consider disabling parallel tool calls for write tools if you need serialized safety checks.
+
+#### A.5.8 Snowflake Cortex (AI_COMPLETE structured outputs)
+**Structured outputs**
+- Snowflake supports structured outputs by supplying a JSON schema; it verifies each generated token against the schema to ensure conformance.
+- Snowflake documents extra requirements when using OpenAI GPT models (e.g., `additionalProperties: false` in every node; `required` includes all properties).
+- Snowflake also supports schema references (`$ref`) for structured outputs.
+
+**Implications**
+- If your architecture uses Snowflake as the LLM gateway, structured outputs can offload much of the "retry until valid JSON" logic, but you still must validate + govern writes.
+
+### A.6 Concrete "MCP write" recipe (vendor-agnostic)
+
+**Step 1: keep tool inputs semantic**
+- Tool args are "what the model is good at":
+  - `type`, `name`, `description`, `properties`, human-friendly references
+- Adapter adds "what the model is bad at":
+  - IDs, correlation, timestamps, versioning, policy state
+
+**Step 2: enable strict/schema-constrained decoding when available**
+- Prefer:
+  - vendor tool calling with schema constraints
+  - "strict tools" modes (where supported)
+  - "structured outputs" for text responses that must be JSON
+
+**Step 3: validate + normalize in the adapter**
+- Validate tool args against schema
+- Normalize enums ("ApplicationComponent" → `APPLICATION_COMPONENT`)
+- Resolve references ("Billing Service" → lookup ID; if ambiguous, return "needs_disambiguation" error)
+
+**Step 4: confirm before executing writes**
+- For destructive tools: force explicit user confirmation
+- For non-destructive creates: still consider confirmation if it writes to a shared model or has governance implications
+
+**Step 5: return a rich, structured response**
+- Always return:
+  - `success`
+  - created IDs
+  - next-step suggestions (e.g., "create relationship", "add to view")
+
+### A.7 Reference links (vendor docs)
+
+**OpenAI**
+- Structured outputs: https://platform.openai.com/docs/guides/structured-outputs
+- Function calling: https://platform.openai.com/docs/guides/function-calling
+- ChatGPT connector write confirmation (help center): https://help.openai.com/en/articles/12584461-developer-mode-apps-and-full-mcp-connectors-in-chatgpt-beta
+
+**Microsoft Azure OpenAI**
+- Structured outputs: https://learn.microsoft.com/en-us/azure/ai-foundry/openai/how-to/structured-outputs
+
+**Google**
+- Gemini structured outputs: https://ai.google.dev/gemini-api/docs/structured-output
+- Gemini function calling: https://ai.google.dev/gemini-api/docs/function-calling
+- Vertex AI function calling best practices: https://docs.cloud.google.com/vertex-ai/generative-ai/docs/multimodal/function-calling
+
+**Anthropic**
+- Tool use overview: https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview
+- Implement tool use (examples + tool runner): https://platform.claude.com/docs/en/agents-and-tools/tool-use/implement-tool-use
+
+**AWS (Amazon Nova / Bedrock)**
+- Nova structured output prompting: https://docs.aws.amazon.com/nova/latest/userguide/prompting-structured-output.html
+- Nova tool use best practices: https://docs.aws.amazon.com/nova/latest/nova2-userguide/using-tools.html
+- Nova tool definition / JSON Schema subset notes: https://docs.aws.amazon.com/nova/latest/userguide/tool-use-definition.html
+
+**Cohere**
+- Structured outputs: https://docs.cohere.com/docs/structured-outputs
+- strict_tools changelog: https://docs.cohere.com/changelog/structured-outputs-tools
+
+**Mistral**
+- Function calling: https://docs.mistral.ai/capabilities/function_calling
+
+**Snowflake**
+- AI_COMPLETE structured outputs: https://docs.snowflake.com/en/user-guide/snowflake-cortex/complete-structured-outputs
+- $ref support release note: https://docs.snowflake.com/en/release-notes/2025/other/2025-05-19-complete-structured-output-json-refs
+
+**MCP spec (tool annotations)**
+- Tool annotations: https://modelcontextprotocol.io/legacy/concepts/tools

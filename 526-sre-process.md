@@ -1,11 +1,29 @@
 # 526 SRE — Process Primitive Specification
 
-**Status:** Draft
+**Status:** In progress (Temporal scaffold + IncidentTriage MVP)
 **Parent:** [526-sre-capability.md](526-sre-capability.md)
 
 This document specifies the **sre-process** primitive — Temporal-backed workflows for incident triage, change verification, and SLO monitoring.
 
 ---
+
+## Implementation progress (repo)
+
+- [x] Implemented primitive: `primitives/process/sre` (Temporal worker + ingress, event catalog under `primitives/process/sre/events`).
+- [x] Implemented workflow skeleton: `IncidentTriageWorkflow` driven by `SignalWithStart` from domain facts; emits `IncidentTriageStarted` + `IncidentTriageCompleted` process facts.
+- [x] Repo verification passes: `bin/ameide primitive verify --kind process --name sre --mode repo`.
+- [ ] Full 525 phase model is not implemented yet (pattern lookup → triage → remediation → verification → documentation).
+- [ ] Approval signals + risk-tier gating are not implemented yet.
+- [ ] Change verification, SLO burn monitoring, and alert correlation workflows are not implemented yet.
+- [ ] Durable broker subscription / event-driven ingress from `sre.domain.facts.v1` is not implemented yet (current ingress is a scaffold; delivery semantics TBD).
+
+## Clarifications requested (next steps)
+
+- [ ] Decide the canonical ingestion path for domain facts into Temporal: Kafka consumer → ingress RPC, direct subscription sidecar, or “process operator” managed delivery.
+- [ ] Define workflow idempotency/replay rules (how duplicate facts are handled; how `aggregate_version` maps to “last seen” state).
+- [ ] Define approval semantics in-process: signals vs separate governance process, and how “time-bounded ops” are enforced (timeouts, retries, escalation).
+- [ ] Define the “minimum observable workflow” surface for operators (Temporal visibility + projection facts + UI), and what process facts must be emitted for audits.
+- [ ] Confirm whether Runbook execution belongs in SRE Process (as a workflow) or is modeled as Domain state + integration activity.
 
 ## 1) Process responsibilities
 

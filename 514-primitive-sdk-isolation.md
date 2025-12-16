@@ -14,7 +14,7 @@
   - Operators own infra and health.
   - Primitives own SDK-based runtime behavior.
   - The CLI/scaffolder stitches them together without collapsing these boundaries.
-  - Codegen plugin evolution is tracked in `backlog/521-code-generation-improvements.md`; CLI/orchestration evolution is tracked in `backlog/522-cli-orchestration-improvements.md`.
+  - Codegen plugin evolution is tracked in `backlog/521c-internal-generation-improvements.md`; CLI/orchestration evolution is tracked in `backlog/521d-external-generation-improvements.md`.
 
 ---
 

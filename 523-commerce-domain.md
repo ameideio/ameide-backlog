@@ -1,5 +1,9 @@
 # 523 Commerce — Domain component
 
+**Status:** Implemented (v1 BYOD storefront hostname writer + inbox/outbox + tests; functional scope outside BYOD pending)
+
+Implementation (repo): `primitives/domain/commerce`
+
 ## Layer header (Application)
 
 - **Primary ArchiMate layer(s):** Application.
@@ -24,6 +28,38 @@ Start with a small number of subdomains:
 8. Customer & Loyalty (optional early; often external)
 
 Payments/hardware drivers are integrations; the domain owns only payment intent state and idempotency.
+
+## Implementation progress (current)
+
+Implemented (v1 BYOD domains):
+
+- [x] gRPC write service for claim/mapping lifecycle (business-verb RPCs).
+- [x] Emits `commerce.domain.facts.v1` via transactional outbox (publisher wiring beyond “log” remains pending).
+- [x] Postgres schema + Flyway migrations include outbox/inbox and BYOD claim/mapping tables.
+- [x] Guardrails in place (tests, non-root container, `ameide primitive verify` passes).
+
+Not yet implemented (still design-level in this backlog):
+
+- [ ] SalesChannel/Site aggregates + facts (storefront routing policy becomes data, not code).
+- [ ] Orders/OMS aggregates + facts (idempotent checkout, fulfillment/returns).
+- [ ] Inventory/ATP aggregates + facts (stock locations, availability and sourcing).
+- [ ] StoreOps aggregates + facts (register/device/shift/receipts).
+- [ ] Payments domain state machine (PaymentIntent) and invariants (integration-first vs embedded minimal ledger).
+
+## Clarification requests (next steps)
+
+Confirm/decide:
+
+- [ ] Whether hostname uniqueness is global across tenants (current schema enforces global uniqueness) and what transfer/cooldown rules apply.
+- [ ] Whether wildcard hostnames are allowed in v1 (docs mention “exact hostname v1”, but the proto enum includes wildcard).
+- [ ] Canonical `site_id`/`sales_channel_id` selection rule for storefront routing (resolved host → site → default channel vs explicit mapping).
+- [ ] Which additional Domain subdomains are in v1, and the explicit “Domain vs Process ownership table” for each workflow.
+
+Build-out checklist (Domain v1+):
+
+- [ ] Define the v1 aggregate set (names, IDs, invariants, required facts) and freeze fact type identifiers.
+- [ ] Implement outbox publisher to the platform broker (once broker target is confirmed).
+- [ ] Add Domain-side validation surfaces for Integrations (webhook idempotency keys, provider correlation IDs).
 
 ## Reference analogs (D365 CRT / SAP OCC)
 
