@@ -152,6 +152,14 @@ kubectl get applications -n argocd | grep -E "loki|grafana|prometheus|alloy"
 # All should show Synced/Healthy
 ```
 
+## Addendum (2025-12-16): Loki memberlist DNS bootstrap (local readiness)
+
+When running Loki in `SingleBinary` mode with memberlist enabled, local clusters can hit a bootstrap loop:
+- `platform-loki-0` readiness returns `503` while Loki is trying to join the memberlist ring.
+- The memberlist **headless Service** (`platform-loki-memberlist`) may not have DNS records until endpoints exist; endpoints are only published for **Ready** pods by default.
+
+**Vendor-aligned fix:** set `memberlist.service.publishNotReadyAddresses: true` so the headless Service publishes endpoints before readiness, allowing DNS resolution and ring join to succeed deterministically.
+
 ---
 
 ## Chart Value Paths Reference
