@@ -186,12 +186,17 @@ Remediation approach (vendor-aligned, GitOps-idempotent):
 - **Observed symptoms:**
   - `cluster-strimzi-operator` appeared `Progressing` intermittently and the `strimzi-cluster-operator` pod restarted due to probe failures.
   - `local-platform-loki` and `local-platform-alloy-logs` emitted periodic readiness probe failures (`context deadline exceeded`) while pods remained Running.
+  - Other local system workloads showed the same “probe budget too strict under transient stalls” pattern:
+    - `ameide-local/keycloak-0` readiness probe failures (`/health/ready` timeouts) with frequent restarts.
+    - `ameide-local/platform-prometheus-kube-state-metrics-*` liveness failures returning HTTP 503, leading to repeated restarts.
+    - `argocd/argocd-application-controller-*` and `argocd/argocd-repo-server-*` occasionally timing out on `healthz` probes under load.
 - **Root cause:** Several control-plane components used HTTP probe defaults with `timeoutSeconds: 1`, which is too aggressive for a constrained local cluster during apiserver/client stalls. Kubelet interprets transient slow responses as Unhealthy and restarts pods (liveness) or marks them NotReady (readiness), which can surface as Argo “Progressing”/flapping even when the steady-state is functional.
 
 Remediation approach (vendor-aligned, GitOps-idempotent):
 1. Prefer vendor-supported configuration to **increase probe budgets** (e.g., `timeoutSeconds` and `failureThreshold`) for local, and ensure charts expose those knobs.
 2. For charts that do **not** expose probe timeout/failure threshold, patch the vendored chart minimally to add those fields with defaults matching upstream behavior, then override locally.
 3. Add explicit resource requests for observability components so they are not starved under contention.
+4. Reduce local apiserver stalls at the source by **reserving the k3d control-plane node** (taint `k3d-ameide-server-0` `NoSchedule` when agents exist) so heavy data-plane workloads don’t compete with the control-plane on the same node.
 
 ## Update (2025-12-16): ArgoCD repo credentials can block Git sync (invalid GitHub token forces auth)
 
