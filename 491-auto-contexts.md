@@ -5,20 +5,36 @@
 
 ## Goal
 
-On every DevContainer start, we want kubectl, Telepresence, and the `argocd` CLI to be immediately usable against the shared `ameide` dev cluster without manual context juggling. This backlog captures the contexts that should be configured automatically, plus the commands needed to re-create them if a developer wipes their environment.
+On every DevContainer start, we want kubectl, Telepresence, and the `argocd` CLI to be immediately usable without manual context juggling.
+
+This covers two “developer targets”:
+- **Shared AKS** (`ameide`) for remote-first development (Telepresence workflows).
+- **Local k3d** (`k3d-ameide`) for fully local GitOps convergence (see `*.local.ameide.io` patterns in [109-local-development-domain-access.md](000-200/109-local-development-domain-access.md)).
 
 ## Contexts to pre-configure
 
 We have **one shared AKS cluster (`ameide`)** with separate namespaces per environment (see [434-unified-environment-naming.md](434-unified-environment-naming.md#environment-matrix)). Every tool should surface predictable contexts that only differ by default namespace or endpoint.
+
+### Shared AKS (`ameide`) contexts
 
 | Tool          | Context Name       | Purpose / Namespace                        |
 |---------------|--------------------|--------------------------------------------|
 | `kubectl`     | `ameide-dev`       | Cluster `ameide`, namespace `ameide-dev`   |
 | `kubectl`     | `ameide-staging`   | Cluster `ameide`, namespace `ameide-staging` |
 | `kubectl`     | `ameide-prod`      | Cluster `ameide`, namespace `ameide-prod`  |
-| `argocd` CLI  | `argocd.dev`       | Remote Gateway (`argocd.dev.ameide.io`)    |
-| `argocd` CLI  | `argocd.local`     | Port-forwarded `127.0.0.1:8443`            |
+| `argocd` CLI  | `argocd.cluster`   | Remote Gateway (`argocd.ameide.io`)        |
+| `argocd` CLI  | `argocd.dev`       | Optional env gateway (`argocd.dev.ameide.io`) |
+| `argocd` CLI  | `argocd.local`     | Port-forward fallback (`127.0.0.1:8443`)   |
 | Telepresence  | `ameide-dev` (default) | Intercepts in `ameide-dev` (override for staging/prod) |
+
+### Local k3d (`k3d-ameide`) contexts
+
+| Tool          | Context Name       | Purpose / Namespace                        |
+|---------------|--------------------|--------------------------------------------|
+| `kubectl`     | `k3d-ameide`       | Local k3d cluster, namespace `ameide-local` |
+| `argocd` CLI  | `argocd.local`     | Local Gateway (`https://argocd.local.ameide.io`) |
+| `argocd` CLI  | `argocd.local-pf`  | Port-forward fallback (`127.0.0.1:8443`)   |
+| Telepresence  | (n/a)              | Telepresence is for shared clusters         |
 
 > **Note:** This backlog covers the **developer bootstrap** that lives in `ameideio/ameide` (`tools/dev/bootstrap-contexts.sh`). The cluster-wide GitOps bootstrap continues to live in `ameideio/ameide-gitops: bootstrap/bootstrap.sh` per [435-remote-first-development.md](435-remote-first-development.md); that script installs Argo CD and applies ApplicationSets, whereas this one just ensures DevContainer sessions have working contexts against the already-bootstrapped AKS environments.
 
@@ -40,7 +56,11 @@ Re-run manually with `bash tools/dev/bootstrap-contexts.sh` if you blow away `~/
 
 ### 3. Argo CD CLI contexts
 
-`tools/dev/bootstrap-contexts.sh` also drives ArgoCD end-to-end: it decodes `argocd-initial-admin-secret`, stores the password under `$HOME/.config/argocd/admin-password`, launches/records a `kubectl port-forward` on `127.0.0.1:8443`, and runs `argocd login` against both the local endpoint (`--grpc-web --insecure`) and the public gateway (`argocd.dev.ameide.io`, best effort). After `.devcontainer/postCreate.sh` finishes, `argocd context` already lists both servers and `argocd app list` succeeds without extra steps.
+`tools/dev/bootstrap-contexts.sh` also drives ArgoCD end-to-end:
+- Shared AKS: log into the remote gateway (`argocd.ameide.io`, and optionally `argocd.dev.ameide.io` if it exists).
+- Local k3d: prefer the local Gateway (`https://argocd.local.ameide.io`) when running a local cluster, and keep a port-forward fallback on `127.0.0.1:8443`.
+
+The bootstrap decodes `argocd-initial-admin-secret`, stores the password under `$HOME/.config/argocd/admin-password`, and ensures `argocd app list` succeeds without manual steps.
 
 ### 4. Cleanup on exit
 
@@ -59,9 +79,10 @@ trap cleanup_argocd_pf EXIT
 ## Verification checklist
 
 1. Open the DevContainer and confirm:
-   - `kubectl config current-context` → `ameide`
-   - `telepresence status` shows the prepared context.
-   - `argocd context` lists both `argocd.dev.ameide.io` and `127.0.0.1:8443`.
+   - Shared AKS: `kubectl config current-context` → `ameide-dev` (or the selected env).
+   - Local k3d: `kubectl config current-context` → `k3d-ameide`.
+   - Telepresence (AKS only): `telepresence status` shows the prepared context.
+   - `argocd context` includes the right endpoint(s) for your target (`argocd.ameide.io` for AKS, `argocd.local.ameide.io` for local, and `127.0.0.1:8443` as fallback).
 
 2. Run `argocd app list` without additional login steps.
 
