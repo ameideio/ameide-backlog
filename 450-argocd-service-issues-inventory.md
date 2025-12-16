@@ -199,6 +199,28 @@ Remediation approach (vendor-aligned, GitOps-idempotent):
 4. Reduce local apiserver stalls at the source by **reserving the k3d control-plane node** (taint `k3d-ameide-server-0` `NoSchedule` when agents exist) so heavy data-plane workloads don’t compete with the control-plane on the same node.
 5. Keycloak operator nuance: `Keycloak.spec.{livenessProbe,readinessProbe}` only supports a small subset of fields (no `timeoutSeconds`/`httpGet`), so full probe tuning must be expressed via `Keycloak.spec.unsupported.podTemplate` (container `livenessProbe/readinessProbe/startupProbe`) instead.
 
+### Follow-up (local): kube-state-metrics CrashLoopBackOff from hardcoded `/livez`
+
+- **Pod:** `ameide-local/platform-prometheus-kube-state-metrics-*`
+  - **Symptom:** `CrashLoopBackOff` with restarts climbing (liveness probe repeatedly returns HTTP 503 for `/livez`).
+  - **Contributing factor:** runs as `BestEffort` (no CPU/memory requests), making it a prime victim during local contention.
+- **Root cause:** upstream `kube-state-metrics` chart hardcodes probe paths (`/healthz`, `/livez`, `/readyz`) in templates, so local cannot switch liveness away from `/livez` without a minimal vendored-chart patch.
+
+Remediation approach (vendor-aligned, reproducible):
+1. Patch the vendored `kube-state-metrics` chart template to allow `livenessProbe.httpGet.path` override (default remains `/livez`).
+2. In local values, set liveness path to `/healthz` (process-alive) and keep readiness on `/readyz` (functional), so transient apiserver stalls don’t cause a self-inflicted CrashLoop.
+3. Set resource requests for kube-state-metrics in local to avoid BestEffort starvation.
+
+### Follow-up (local): `postgres-password-reconcile` CronJob failures (runtime `apk add`)
+
+- **CronJob:** `ameide-local/postgres-password-reconcile` (from `platform-postgres-clusters`)
+  - **Symptom:** intermittent failed Jobs (exit code 2) and noisy failed pods.
+  - **Root cause:** the job installs dependencies at runtime (`apk add postgresql-client curl jq`), which is not deterministic and can fail under transient network/DNS/apiserver stalls.
+
+Remediation approach (vendor-aligned, reproducible):
+1. Prefer CloudNativePG `managed.roles` (already configured) for role + password reconciliation.
+2. Keep `passwordReconcile` as an escape-hatch feature, but default it **off** (including local) unless we are actively migrating password sources; avoid long-running “self-heal” CronJobs that rely on runtime package installs.
+
 ## Update (2025-12-16): ArgoCD repo credentials can block Git sync (invalid GitHub token forces auth)
 
 - **Env:** `local` (k3d) and any bootstrap path that creates `repo-creds-ameide-gitops`.

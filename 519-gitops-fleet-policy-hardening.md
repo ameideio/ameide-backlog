@@ -303,6 +303,7 @@ Example wrapper conventions:
 3. Set explicit resource requests for local observability components so scheduling/cpu starvation doesn’t translate into false probe failures.
 4. Reserve the local k3d control-plane node for control-plane work (taint `NoSchedule` when agents exist) so data-plane pods don’t starve the apiserver and trigger probe/leader-election churn.
 5. When an operator CRD only exposes partial probe settings (e.g., Keycloak’s top-level probe fields), use the operator-supported pod template override mechanism (e.g., `spec.unsupported.podTemplate`) to set full probe objects deterministically.
+6. Avoid hardcoded liveness semantics that depend on external systems (e.g., apiserver) for local: if vendor charts hardcode probe paths, patch vendored charts minimally to expose the path/enablement knobs with upstream-matching defaults.
 
 **Exit criteria**
 - Local bootstrap completes with no recurring probe-driven restarts for core operators (e.g., Strimzi) and observability (Loki/Alloy).
@@ -341,6 +342,7 @@ Example wrapper conventions:
    - idempotent operations
    - TTL cleanup for completed Jobs
 2. Migrate Temporal namespace bootstrap to the standard pattern.
+3. Prohibit runtime dependency installs in Jobs/CronJobs (`apk add`, `curl | bash`, downloading CLIs): images must be self-contained so GitOps is reproducible offline and under transient network stalls.
 
 **Exit criteria**
 - Bootstrap jobs do not fail due to race-to-dependency readiness.
