@@ -2,10 +2,14 @@
 
 **Status**: Implemented
 **Created**: 2025-12-04
+**Updated**: 2025-12-16
 
 ## Summary
 
-This document describes the per-environment Envoy Gateway architecture where each environment (dev, staging, production, cluster) has its own GatewayClass, EnvoyProxy, and dedicated static IP. This supersedes the previous shared GatewayClass approach.
+This document describes the per-environment Envoy Gateway architecture where:
+- **One Envoy Gateway controller** runs per cluster (cluster-shared control plane).
+- Each environment owns its **namespaced Gateway/Routes** and a **namespaced EnvoyProxy** that defines data-plane infrastructure knobs (LB/static IP/annotations/tolerations) and telemetry.
+- Per-environment infrastructure variability is expressed **per `Gateway`** via `Gateway.spec.infrastructure.parametersRef` (namespaced), instead of multiplying cluster-scoped `GatewayClass` objects.
 
 ## Related Documents
 
@@ -30,7 +34,9 @@ The previous architecture used a single shared `GatewayClass` named `envoy` for 
 3. **Race condition** - Whichever environment synced last would overwrite the GatewayClass parametersRef
 4. **Wrong IPs assigned** - All environments got the last-synced environment's static IP configuration
 
-The solution is **one GatewayClass per environment**, each referencing its own EnvoyProxy with correct static IP and tolerations.
+**Updated solution (vendor/spec-aligned):**
+- Keep `GatewayClass` ownership cluster-scoped (one shared class per controller).
+- Put environment-specific infra differences on the **namespaced `Gateway`** via `spec.infrastructure.parametersRef`, pointing to the env’s `EnvoyProxy`.
 
 ## Architecture Overview
 
@@ -39,14 +45,12 @@ The solution is **one GatewayClass per environment**, each referencing its own E
 │                              Kubernetes Cluster                                      │
 ├─────────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                      │
-│  CLUSTER-SCOPED: GatewayClasses (one per environment)                               │
-│  ┌─────────────────┬─────────────────┬─────────────────┬─────────────────┐         │
-│  │   envoy-dev     │  envoy-staging  │   envoy-prod    │  envoy-cluster  │         │
-│  │   parametersRef │   parametersRef │   parametersRef │   parametersRef │         │
-│  │        │        │        │        │        │        │        │        │         │
-│  └────────┼────────┴────────┼────────┴────────┼────────┴────────┼────────┘         │
-│           │                 │                 │                 │                   │
-│           ▼                 ▼                 ▼                 ▼                   │
+│  CLUSTER-SCOPED: GatewayClass (shared)                                              │
+│  ┌──────────────────────────────────────────────────────────────────────────────┐  │
+│  │   GatewayClass: envoy                                                         │  │
+│  │   (no per-env parametersRef; per-Gateway overrides via infrastructureRef)     │  │
+│  └──────────────────────────────────────────────────────────────────────────────┘  │
+│                                                                                      │
 │  ┌─────────────────┬─────────────────┬─────────────────┬─────────────────┐         │
 │  │   ameide-dev    │ ameide-staging  │  ameide-prod    │     argocd      │         │
 │  │   namespace     │   namespace     │   namespace     │   namespace     │         │
@@ -73,13 +77,13 @@ The solution is **one GatewayClass per environment**, each referencing its own E
 └─────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-## Resource Mapping
+## Resource Mapping (updated)
 
-| Environment | GatewayClass | EnvoyProxy | Gateway Namespace | Static IP | Domain |
-|-------------|--------------|------------|-------------------|-----------|--------|
-| Dev | `envoy-dev` | `ameide-dev/ameide-proxy-config` | `ameide-dev` | 40.68.113.216 | `*.dev.ameide.io` |
-| Staging | `envoy-staging` | `ameide-staging/ameide-proxy-config` | `ameide-staging` | 108.142.228.7 | `*.staging.ameide.io` |
-| Production | `envoy-prod` | `ameide-prod/ameide-proxy-config` | `ameide-prod` | 4.180.130.190 | `*.ameide.io` |
+| Environment | GatewayClass | EnvoyProxy (infra/telemetry) | Gateway Namespace | Static IP | Domain |
+|-------------|--------------|------------------------------|-------------------|-----------|--------|
+| Dev | `envoy` | `ameide-dev/ameide-proxy-config` | `ameide-dev` | 40.68.113.216 | `*.dev.ameide.io` |
+| Staging | `envoy` | `ameide-staging/ameide-proxy-config` | `ameide-staging` | 108.142.228.7 | `*.staging.ameide.io` |
+| Production | `envoy` | `ameide-prod/ameide-proxy-config` | `ameide-prod` | 4.180.130.190 | `*.ameide.io` |
 | Cluster (ArgoCD) | `envoy-cluster` | `argocd/cluster-proxy-config` | `argocd` | 20.160.216.7 | `argocd.ameide.io` |
 
 ## TLS Termination
