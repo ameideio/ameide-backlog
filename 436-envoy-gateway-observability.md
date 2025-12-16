@@ -1,11 +1,11 @@
 # Backlog 436: Envoy Gateway Observability
 
 **Status**: Implemented
-**Updated**: 2025-12-04
+**Updated**: 2025-12-16
 
 ## Overview
 
-This document specifies the observability configuration for Envoy Gateway, including Prometheus metrics and OpenTelemetry access logs. The implementation uses an `EnvoyProxy` resource referenced by the `GatewayClass` via `parametersRef`.
+This document specifies the observability configuration for Envoy Gateway, including Prometheus metrics and OpenTelemetry access logs. The implementation uses an `EnvoyProxy` resource referenced by the **namespaced `Gateway`** via `spec.infrastructure.parametersRef` (vendor-aligned per-Gateway infrastructure).
 
 ## Related Backlogs
 
@@ -18,21 +18,20 @@ This document specifies the observability configuration for Envoy Gateway, inclu
 
 ## Background
 
-The `ClientTrafficPolicy` resource does not support `spec.telemetry` in Envoy Gateway v1.6.0. The invalid template was removed in commit `f2feec8`. Telemetry must be configured via an `EnvoyProxy` resource with `spec.telemetry`, referenced from the `GatewayClass`.
+The `ClientTrafficPolicy` resource does not support `spec.telemetry` in Envoy Gateway v1.6.0. The invalid template was removed in commit `f2feec8`. Telemetry must be configured via an `EnvoyProxy` resource with `spec.telemetry`, referenced from the `Gateway` (per-Gateway infra ref).
 
 ## Architecture
 
 ```
-GatewayClass (envoy)
+Gateway (ameide-*/ameide)
     |
-    +-- parametersRef --> EnvoyProxy (ameide-proxy-config)
-                              |
-                              +-- spec.provider.kubernetes.envoyService
-                              |       |
-                              |       +-- loadBalancerIP: <from globals.yaml>
-                              |       +-- annotations: azure-load-balancer-resource-group
-                              |
-                              +-- spec.telemetry
+    +-- spec.infrastructure.parametersRef --> EnvoyProxy (ameide-proxy-config)
+                                                |
+                                                +-- spec.provider.kubernetes.envoyService
+                                                |       |
+                                                |       +-- annotations: azure-load-balancer-resource-group
+                                                |
+                                                +-- spec.telemetry
                                     |
                                     +-- metrics.prometheus: {}
                                     |
@@ -43,7 +42,7 @@ GatewayClass (envoy)
 ```
 
 > **Update (2025-12-16):** Envoy Gateway (controller) runs cluster-scoped in the `argocd` namespace.
-> `EnvoyProxy` resources are **environment-scoped** and are deployed to the environment namespace (e.g., `ameide-dev`, `ameide-staging`, `ameide-prod`, `ameide-local`), with `GatewayClass.spec.parametersRef.namespace` pointing to that environment namespace.
+> `EnvoyProxy` resources are **environment-scoped** and are deployed to the environment namespace (e.g., `ameide-dev`, `ameide-staging`, `ameide-prod`, `ameide-local`), with `Gateway.spec.infrastructure.parametersRef.namespace` pointing to that environment namespace.
 >
 > Envoy *data-plane* Deployments/Services are created by the controller and live in `argocd` (labelled with the owning Gateway namespace/name).
 > See [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md) for dual ApplicationSet architecture.
@@ -63,7 +62,7 @@ GatewayClass (envoy)
 | File | Purpose |
 |------|---------|
 | `sources/charts/apps/gateway/templates/envoyproxy-telemetry.yaml` | EnvoyProxy resource with telemetry config |
-| `sources/charts/apps/gateway/templates/gatewayclass.yaml` | GatewayClass with `parametersRef` |
+| `sources/charts/apps/gateway/templates/gateway.yaml` | Gateway with `spec.infrastructure.parametersRef` |
 | `sources/charts/apps/gateway/values.yaml` | Base telemetry configuration |
 | `sources/values/env/dev/platform/platform-gateway.yaml` | Dev cluster name override |
 | `sources/values/env/staging/platform/platform-gateway.yaml` | Staging cluster name override |
@@ -80,16 +79,15 @@ metadata:
   name: ameide-proxy-config
   namespace: ameide-dev
 spec:
-  # Static IP configuration - see per-environment values files
+  # Infra knobs for the generated data-plane Service (type/annotations/tolerations).
+  # Static IP is requested via Gateway.spec.addresses.
   provider:
     type: Kubernetes
     kubernetes:
       envoyService:
         type: LoadBalancer
-        loadBalancerIP: "40.68.113.216"  # Dev IP from Terraform
         annotations:
           service.beta.kubernetes.io/azure-load-balancer-resource-group: "Ameide"
-          service.beta.kubernetes.io/azure-load-balancer-ipv4: "40.68.113.216"
   telemetry:
     metrics:
       prometheus: {}  # Note: schema uses empty object, not "enabled: true"
@@ -110,21 +108,25 @@ spec:
                   k8s.cluster.name: "ameide-dev"
 ```
 
-### GatewayClass Reference
+### Gateway infrastructure reference
 
 ```yaml
 apiVersion: gateway.networking.k8s.io/v1
-kind: GatewayClass
+kind: Gateway
 metadata:
-  name: envoy
+  name: ameide
+  namespace: ameide-dev
 spec:
-  controllerName: gateway.envoyproxy.io/gatewayclass-controller
-  description: "Envoy Gateway for AMEIDE platform"
-  parametersRef:
-    group: gateway.envoyproxy.io
-    kind: EnvoyProxy
-    name: ameide-proxy-config
-    namespace: ameide-dev
+  gatewayClassName: envoy
+  infrastructure:
+    parametersRef:
+      group: gateway.envoyproxy.io
+      kind: EnvoyProxy
+      name: ameide-proxy-config
+      namespace: ameide-dev
+  addresses:
+    - type: IPAddress
+      value: 40.68.113.216
 ```
 
 ### Values Configuration
@@ -144,24 +146,31 @@ telemetry:
       resources:
         k8s.cluster.name: "ameide"
 
-# Static IP configuration (per-environment in values files)
+# Static IP configuration (requested on the Gateway)
 infrastructure:
   useStaticIP: true
-  loadBalancerIP: ""  # Set per-environment
   annotations:
     service.beta.kubernetes.io/azure-load-balancer-resource-group: "Ameide"
 ```
 
-Per-environment values (e.g., `sources/values/env/dev/platform/platform-gateway.yaml`):
+Per-environment values (e.g., `sources/values/env/dev/platform/platform-gateway.yaml`) enable static IP mode, but do not hardcode the IP in the values file:
 
 ```yaml
 infrastructure:
   useStaticIP: true
-  loadBalancerIP: "40.68.113.216"
   annotations:
     service.beta.kubernetes.io/azure-load-balancer-resource-group: "Ameide"
-    service.beta.kubernetes.io/azure-load-balancer-ipv4: "40.68.113.216"
 ```
+
+The actual IP value is sourced from environment globals (synced from IaC outputs):
+
+```yaml
+# sources/values/env/dev/globals.yaml
+azure:
+  envoyPublicIpAddress: "40.68.113.216"
+```
+
+The gateway chart renders `Gateway.spec.addresses` from `azure.envoyPublicIpAddress` when `infrastructure.useStaticIP=true` (unless `gateway.addresses` is explicitly provided).
 
 ### Environment-Specific Cluster Names
 

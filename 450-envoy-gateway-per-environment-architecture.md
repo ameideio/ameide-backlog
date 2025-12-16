@@ -338,14 +338,14 @@ curl -v https://platform.dev.ameide.io 2>&1 | grep -E 'SSL|TLS|certificate'
 ### Gateway shows PROGRAMMED: False
 
 1. Check EnvoyProxy exists in correct namespace
-2. Check GatewayClass parametersRef points to correct namespace
+2. Check `Gateway.spec.infrastructure.parametersRef` points to the correct EnvoyProxy name + namespace
 3. Check Envoy pods are Running (may be Pending due to taints)
 
 ### Wrong IP assigned
 
-1. Verify EnvoyProxy has correct `loadBalancerIP` in spec
-2. Delete the LoadBalancer service to force recreation
-3. Check Azure annotations are correct
+1. Verify `Gateway.spec.addresses` requests the correct IP for the environment
+2. Check Azure annotations are correct (resource group, health probe path)
+3. If migrating from the legacy `loadBalancerIP`/annotation approach, delete the generated LoadBalancer Service once to force recreation with the requested IP
 
 ### Envoy pods Pending
 
@@ -365,7 +365,7 @@ curl -v https://platform.dev.ameide.io 2>&1 | grep -E 'SSL|TLS|certificate'
 
 If migrating from the old shared `envoy` GatewayClass:
 
-1. The old `envoy` GatewayClass may still exist - it can be deleted once all Gateways use per-environment classes
+1. The old per-environment `GatewayClass` objects (`envoy-dev`, `envoy-staging`, `envoy-prod`, `envoy-local`) may still exist; they can be deleted once all Gateways reference the shared `GatewayClass/envoy` and use per-Gateway infra refs.
 2. Old Envoy services with wrong IPs should be deleted to force recreation
 3. ArgoCD will recreate resources with correct configuration on next sync
 

@@ -48,7 +48,7 @@ Current networking configuration lacks several production-ready features:
 
 ### EnvoyProxy Per-Environment Architecture
 
-Each environment has its own EnvoyProxy resource with a dedicated static IP from Terraform:
+Each environment has its own EnvoyProxy resource for telemetry + infra knobs (tolerations, Service annotations). The **static public IP** is requested on the namespaced Gateway via `Gateway.spec.addresses` (vendor-aligned per-Gateway addressing).
 
 | Environment | EnvoyProxy | Namespace | Static IP | Azure Resource |
 |-------------|------------|-----------|-----------|----------------|
@@ -60,8 +60,10 @@ Each environment has its own EnvoyProxy resource with a dedicated static IP from
 **DNS Records**: Explicit subdomain A records (www, platform, api, grafana, etc.) are Terraform-managed alongside wildcard (`*`) and apex (`@`) records. This ensures DNS always points to the correct Envoy IP per environment. See [444-terraform.md](444-terraform.md) TF-22.
 
 Configuration files:
-- Per-env static IPs: `sources/values/{dev,staging,production}/platform/platform-gateway.yaml`
-- Cluster gateway: `sources/charts/cluster/gateway/values.yaml`
+- Per-env static IP source: `sources/values/env/{dev,staging,production}/globals.yaml:azure.envoyPublicIpAddress` (synced from IaC outputs)
+- Per-env Gateway config: `sources/values/env/{dev,staging,production}/platform/platform-gateway.yaml` (`infrastructure.useStaticIP=true`); the gateway chart renders `Gateway.spec.addresses` from env globals unless `gateway.addresses` is explicitly provided
+- Terraform → GitOps sync: `infra/scripts/sync-globals.sh` writes `sources/values/env/{dev,staging,production}/globals.yaml:azure.envoyPublicIpAddress`
+- Cluster gateway: `sources/charts/cluster/gateway/values.yaml` (and `sources/values/cluster/globals.yaml:azure.clusterPublicIpAddress`)
 - EnvoyProxy template: `sources/charts/apps/gateway/templates/envoyproxy-telemetry.yaml`
 
 ### Tenant Routing Patterns

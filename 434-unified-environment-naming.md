@@ -564,7 +564,7 @@ Infrastructure values flow from Bicep to Helm via git:
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │ Bicep deployment                                                 │
-│   bicep/main.bicep → az deployment group create                 │
+│   infra/bicep/managed-application/main.bicep → az deployment group create │
 │                                                                  │
 │ Outputs:                                                         │
 │   - envoyPublicIpAddress (static IP for gateway)                │
@@ -574,7 +574,7 @@ Infrastructure values flow from Bicep to Helm via git:
                           │
                           ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│ scripts/update-globals-from-bicep.sh <env>                      │
+│ infra/scripts/sync-globals.sh <env>                             │
 │                                                                  │
 │ Reads: artifacts/bicep-outputs/<env>.json                       │
 │ Updates: sources/values/<env>/globals.yaml                      │
@@ -609,7 +609,7 @@ Infrastructure values flow from Bicep to Helm via git:
 | Staging globals | `sources/values/env/staging/globals.yaml` |
 | Production globals | `sources/values/env/production/globals.yaml` |
 | **Infrastructure** | |
-| Bicep outputs sync | `scripts/update-globals-from-bicep.sh` |
+| Bicep outputs sync | `infra/scripts/sync-globals.sh` |
 | Dev cert-manager | `sources/values/env/dev/platform/platform-cert-manager-config.yaml` |
 | Staging cert-manager | `sources/values/env/staging/platform/platform-cert-manager-config.yaml` |
 | Production cert-manager | `sources/values/env/production/platform/platform-cert-manager-config.yaml` |
@@ -619,7 +619,7 @@ Infrastructure values flow from Bicep to Helm via git:
 
 ### Vendor Documentation References
 
-- **AKS LoadBalancer static IP**: [Azure docs](https://learn.microsoft.com/en-us/azure/aks/static-ip) — Bicep creates IP, Service uses `loadBalancerIP`
+- **AKS static IP for Gateway API**: [Azure docs](https://learn.microsoft.com/en-us/azure/aks/static-ip) — Terraform/Bicep creates the Public IP; GitOps requests it via `Gateway.spec.addresses` (Envoy Gateway applies it to the generated Service).
 - **cert-manager Azure DNS**: [cert-manager docs](https://cert-manager.io/docs/configuration/acme/dns01/azuredns/) — per-zone ClusterIssuers
 - **ArgoCD multi-tenant**: [ArgoCD docs](https://argo-cd.readthedocs.io/en/stable/operator-manual/multi-tenancy/) — single instance, Project isolation
 - **Envoy Gateway**: [Gateway API](https://gateway-api.sigs.k8s.io/) — host-based routing via HTTPRoute

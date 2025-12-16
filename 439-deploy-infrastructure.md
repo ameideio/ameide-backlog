@@ -103,26 +103,20 @@ For dedicated tenant clusters, use tenant-specific parameters:
 
 ```
 ameide-gitops/
-├── bicep/
-│   └── managed-application/
-│       ├── main.bicep                    # Root template
-│       ├── main.bicepparam               # Parameter file
-│       └── modules/
-│           ├── aks.bicep                 # AKS cluster
-│           ├── keyvault.bicep            # Key Vault + RBAC
-│           ├── keyvaultEnvSecrets.bicep  # .env → KV secrets
-│           ├── logAnalytics.bicep        # Log Analytics workspace
-│           ├── managedIdentity.bicep     # User-assigned identity
-│           ├── dns.bicep                 # Parent DNS zone
-│           ├── dnsIdentity.bicep         # DNS automation identity + federation
-│           ├── dnsChildZone.bicep        # Child DNS zones
-│           ├── dnsNsDelegation.bicep     # NS record delegation
-│           └── dnsRecords.bicep          # A records for services
+├── infra/
+│   ├── bicep/
+│   │   └── managed-application/
+│   │       ├── main.bicep                # Root template
+│   │       ├── main.bicepparam           # Parameter file
+│   │       └── modules/                  # AKS, KV, DNS, identities, records
+│   ├── terraform/
+│   │   └── azure/                        # Terraform outputs parity with Bicep
+│   └── scripts/
+│       └── sync-globals.sh               # Sync IaC outputs → globals.yaml
 ├── scripts/
 │   ├── deploy-managed-app.sh             # Main deployment orchestrator
 │   ├── setup-service-principal.sh        # SP with certificate auth
-│   ├── ensure-aks-admin-key.sh           # SSH key for AKS
-│   └── update-globals-from-bicep.sh      # Sync Bicep outputs → globals.yaml
+│   └── ensure-aks-admin-key.sh           # SSH key for AKS
 ├── bootstrap/
 │   ├── bootstrap.sh                      # GitOps bootstrap CLI
 │   ├── lib/
@@ -224,7 +218,7 @@ ameide-gitops/
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│ scripts/update-globals-from-bicep.sh <env>                       │
+│ infra/scripts/sync-globals.sh <env>                              │
 │                                                                  │
 │ Updates: sources/values/<env>/globals.yaml                       │
 │                                                                  │
@@ -236,6 +230,9 @@ ameide-gitops/
 │ └─ azure.vaultBootstrapIdentityClientId                          │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+**Consumption note (GitOps):**
+- `azure.envoyPublicIpAddress` is consumed by the platform Gateway chart as `Gateway.spec.addresses` (static IP request), not by setting `EnvoyProxy.spec.provider.kubernetes.envoyService.loadBalancerIP`.
 
 ### Phase 3: GitOps Bootstrap
 
@@ -470,11 +467,11 @@ This keeps infrastructure provisioning (Bicep) and per-tenant workloads (GitOps)
 - Generates RSA-4096 keypair
 - Reuses existing keypair if present
 
-### update-globals-from-bicep.sh
+### sync-globals.sh
 
 **Usage:**
 ```bash
-./scripts/update-globals-from-bicep.sh <env>
+./infra/scripts/sync-globals.sh <env>
 ```
 
 **Input:** `artifacts/bicep-outputs/<env>.json`

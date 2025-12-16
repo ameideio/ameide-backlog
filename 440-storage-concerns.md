@@ -304,11 +304,11 @@ schedules:
 6. [x] Create Bicep module for Azure Storage Account (`modules/storageAccount.bicep`) → **2025-12-04**
 7. [x] Create Bicep module for backup identity with workload identity (`modules/backupIdentity.bicep`) → **2025-12-04**
 8. [x] Add backup modules to `main.bicep` orchestration → **2025-12-04**
-9. [x] Update `update-globals-from-bicep.sh` to sync backup outputs → **2025-12-04**
+9. [x] Update `infra/scripts/sync-globals.sh` to sync backup outputs → **2025-12-04**
 10. [x] Add backup fields to `globals.yaml` for all environments → **2025-12-04**
 11. [x] Add CNPG barmanObjectStore config template (disabled, ready to enable) → **2025-12-04**
 12. [ ] Deploy Bicep with `enableBackupStorage=true` to create storage account
-13. [ ] Run `update-globals-from-bicep.sh` to populate backup fields in globals.yaml
+13. [ ] Run `infra/scripts/sync-globals.sh <env>` to populate backup fields in globals.yaml
 14. [ ] Enable CNPG scheduled backups (daily at 2 AM)
 15. [ ] Test CNPG backup and restore procedure
 
