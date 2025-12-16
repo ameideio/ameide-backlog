@@ -232,6 +232,16 @@ Remediation approach (GitOps-idempotent, secrets-aligned):
 1. Disable NiFi for local by default (extended data-plane component) until the sensitive properties key is sourced from Vault/ESO (no committed placeholders).
 2. Add a chart guardrail: if NiFi is enabled and the sensitive key is missing/placeholder, fail fast at render time.
 
+### Follow-up (local): vault-bootstrap CronJob leaves stale failed Jobs/Pods
+
+- **CronJob:** `ameide-local/foundation-vault-bootstrap-vault-bootstrap`
+  - **Symptom:** old failed job pods remain visible for hours (noise) even after subsequent successful runs.
+  - **Root cause:** `failedJobsHistoryLimit=1` keeps the latest failed Job indefinitely without a TTL; local users interpret this as “still broken” even when the controller is otherwise progressing.
+
+Remediation approach (GitOps-idempotent):
+1. Add `ttlSecondsAfterFinished` to the CronJob’s `jobTemplate.spec` so completed/failed Jobs are garbage-collected automatically.
+2. In local, set `failedJobsHistoryLimit=0` so the steady-state cluster does not retain failed Jobs.
+
 ## Update (2025-12-16): ArgoCD repo credentials can block Git sync (invalid GitHub token forces auth)
 
 - **Env:** `local` (k3d) and any bootstrap path that creates `repo-creds-ameide-gitops`.
