@@ -291,7 +291,7 @@ Example wrapper conventions:
 2. For vendor charts: add enablement in wrappers (not vendored chart trees).
 3. Establish a repo convention:
    - omit from component set when unsupported
-   - use `enabled=false` only when we want the app “visible but off”
+   - use `enabled=false` only when we want the app “visible but off” (chart should render a deterministic marker resource when disabled so Argo never sees an empty desired state)
 
 **Exit criteria**
 - Local disable decisions are expressed either by omission or `enabled=false`, never by “empty manifests + prune”.

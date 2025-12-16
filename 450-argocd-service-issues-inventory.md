@@ -168,6 +168,18 @@ Remediation approach (GitOps-aligned, no band-aids):
 2. Fix the local Redis standalone chart behavior so `auth.enabled=false` truly runs Redis without `requirepass` (and keep `auth.enabled=true` for environments that need it).
 3. Until a **multi-arch production image** exists (tag that contains a prebuilt `.next` and runs `next start`), disable the Argo baseline for local and use the dedicated Tilt release per [424-tilt-www-ameide-separate-release.md](424-tilt-www-ameide-separate-release.md).
 
+## Update (2025-12-16): `local-www-ameide-platform` OutOfSync after local disable (Argo auto-sync safety on empty desired state)
+
+- **App:** `local-www-ameide-platform`
+  - **Symptom:** Application stays `OutOfSync` while resources are otherwise `Healthy`.
+  - **Argo condition:** `Skipping sync attempt... auto-sync will wipe out all resources`
+  - **Root cause:** Local overrides intentionally disable the chart (renders **zero** desired manifests). With automated prune enabled, ArgoCD refuses to auto-sync unless `syncPolicy.automated.allowEmpty=true` is set.
+
+Remediation approach (vendor-aligned, GitOps-idempotent):
+1. Keep the chart disabled for local until a deterministic multi-arch runtime image exists (per the previous update).
+2. Avoid “empty desired state + prune” by having the chart render a deterministic “disabled marker” resource (e.g., a ConfigMap) when `enabled=false`, so Argo can prune previously-created resources without requiring `allowEmpty`.
+3. Keep the disable scoped to local (either omit the component from the local component set, or keep the App visible-but-off via the marker resource).
+
 ## Update (2025-12-15): Local observability + Gateway Progressing (OTEL collector arch + local LoadBalancer)
 
 Observed Argo apps stuck `Progressing`:
