@@ -20,6 +20,14 @@ See also:
 
 ---
 
+## Opinionated Defaults (Strict)
+
+- Scaffolding is **idempotent by default**: safe to rerun; creates missing files only and avoids overwriting implementation-owned code.
+- Verification is **strict by default**: missing tests fail, `AMEIDE_SCAFFOLD` markers fail, and generation drift is treated as a hard error (see `backlog/537-primitive-testing-discipline.md`).
+- MCP adapters are Integration primitives: protocol + policy at the edge, semantics in Domain/Projection; tool schemas are expected to be proto-derived (planned: `protoc-gen-ameide-mcp-catalog`).
+
+---
+
 ## Overview Table
 
 | Primitive | Language | CLI Command | Buf Template Pattern | Proto Required |

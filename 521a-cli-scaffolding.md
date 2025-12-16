@@ -53,6 +53,14 @@ The CLI is a first-class tool for both humans and coding agents (not a manual-on
 
 ---
 
+## Opinionated Defaults (Strict)
+
+- Scaffolds are **idempotent by default**: create missing files only; never overwrite implementation-owned code.
+- Existing primitives can be **backfilled** with missing repo-owned wiring/tests without requiring proto (best-effort), but remain RED until implemented.
+- Verification is **strict by default**: missing tests fail and `AMEIDE_SCAFFOLD` markers fail `ameide primitive verify` (see `backlog/537-primitive-testing-discipline.md`).
+
+---
+
 ## Per-Primitive CLI Outputs
 
 ### Domain
@@ -162,6 +170,11 @@ The CLI is a first-class tool for both humans and coding agents (not a manual-on
 | `primitives/integration/{cap}-mcp-adapter/internal/mcp/oauth_test.go` | OAuth tests |
 | `primitives/integration/{cap}-mcp-adapter/internal/mcp/origin.go` | Origin validation |
 | `primitives/integration/{cap}-mcp-adapter/internal/mcp/origin_test.go` | Origin tests |
+
+**Notes (534/535/536 alignment):**
+- Streamable HTTP endpoint is `/mcp`; PRM discovery is `/.well-known/oauth-protected-resource`.
+- Scope gating is enforced (`mcp:tools`, `mcp:resources`); stdio is treated as trusted local dev by default.
+- Scaffold includes `ping` and `validateWrite` tool surfaces; capability-specific tools must be registered (proto-first) before the adapter is considered complete.
 
 **Templates:** `packages/ameide_core_cli/internal/commands/templates/integration/mcp_adapter/`
 
@@ -304,6 +317,20 @@ Key paths:
 Verification:
 - `go test ./packages/ameide_core_cli/...`
 - `ameide scaffold integration mcp-adapter --capability transformation --dry-run --json`
+
+### 2025-12-16 — Opinionated scaffolding defaults + strict verify
+
+Change:
+- Made scaffolding idempotent by default (create missing only; safe to rerun).
+- Made verification strict by default (no tests and `AMEIDE_SCAFFOLD` markers fail).
+
+Key paths:
+- `packages/ameide_core_cli/internal/commands/primitive_commands.go`
+- `packages/ameide_core_cli/internal/commands/primitive_scaffold.go`
+- `packages/ameide_core_cli/internal/commands/primitive.go`
+
+Verification:
+- `go test ./packages/ameide_core_cli/...`
 
 ---
 

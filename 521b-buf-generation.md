@@ -27,6 +27,18 @@ Generated-only outputs (safe to delete/regenerate):
 
 ---
 
+## Verification Coupling (CLI)
+
+Buf is the **source of truth** for generated artifacts, and verification treats generation drift as a hard error:
+
+- `ameide primitive verify --check codegen` expects the relevant generated roots to exist and be fresh.
+- Missing generated roots are treated as **FAIL** (the fix is to run the appropriate `buf generate` template(s)).
+- TypeScript drift is verified via a temp-tree generate+diff; Go/Python drift is verified via proto-vs-generated staleness heuristics.
+
+This keeps “proto-first” real in practice: scaffolding creates repo-owned structure, Buf creates generated-only code, and verify fails if they drift.
+
+---
+
 ## Buf Generation Layers
 
 ```
