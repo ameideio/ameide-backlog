@@ -241,6 +241,28 @@ Verification:
 1. Prefer CloudNativePG `managed.roles` (already configured) for role + password reconciliation.
 2. Keep `passwordReconcile` as an escape-hatch feature, but default it **off** (including local) unless we are actively migrating password sources; avoid long-running “self-heal” CronJobs that rely on runtime package installs.
 
+### Follow-up (local): `cluster-gateway` stuck `Degraded` (Envoy Gateway controller unschedulable on tainted control-plane node)
+
+- **App:** `cluster-gateway`
+  - **Resource:** `Deployment/argocd/envoy-gateway`
+  - **Symptom:** Deployment exceeds progress deadline; pod remains `Pending` indefinitely; downstream `HTTPRoute` resources stay `Progressing` ("Waiting for parent Gateway status").
+  - **Observed cause:** local values pin the controller to the control-plane node via `nodeSelector`, but the control-plane node is tainted (`node-role.kubernetes.io/control-plane:NoSchedule` and `node-role.kubernetes.io/master:NoSchedule`) and the Deployment does not include tolerations.
+
+Remediation approach (vendor-aligned, reproducible):
+1. Keep the local-only control-plane pin (it reduces lease-renewal flakiness under k3d load), but add explicit tolerations for the control-plane/master taints.
+2. Scope the change to local-only values (`sources/values/cluster/local/gateway.yaml`) so hosted clusters keep their vendor defaults.
+
+### Follow-up (local): `local-platform-loki` stuck `Progressing` (sidecar ImagePullBackOff after local mirror fallback)
+
+- **App:** `local-platform-loki`
+  - **Resource:** `StatefulSet/ameide-local/platform-loki`
+  - **Symptom:** 1/2 containers Ready; pod shows `ImagePullBackOff` for the sidecar container; Application remains `Progressing`.
+  - **Observed cause:** local overrides switch Loki’s main image from the GHCR mirror to the upstream multi-arch image (arm64-safe), but the chart still uses the GHCR-mirrored `k8s-sidecar` image. Local also drops `imagePullSecrets`, so the private mirror sidecar cannot be pulled.
+
+Remediation approach (vendor-aligned, reproducible):
+1. In local values (`sources/values/env/local/observability/platform-loki.yaml`), override the sidecar image to an upstream multi-arch `k8s-sidecar` image (no mirror dependency), consistent with the local Loki fallback.
+2. Keep the shared/default sidecar image on the mirror for hosted clusters, gated by the mirror policy tracked in backlog/456.
+
 ### Follow-up (local): NiFiKop-managed NiFi pods stuck `Error` (placeholder secret value)
 
 - **App:** `local-data-nifi`
