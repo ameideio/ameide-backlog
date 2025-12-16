@@ -320,6 +320,7 @@ Example wrapper conventions:
 2. Remove Helm `rand*/lookup` stable-secret generation from app charts (or disable those templates by default).
 3. Keep `ignoreDifferences` only for truly controller-managed fields, not for secrets we can make deterministic.
 4. Document when ESO generators are allowed (rotation-only), and prohibit their use for “must remain stable” secrets.
+5. Prohibit committed placeholder secret values (`CHANGEME`, `REPLACE_ME`) in shared values; charts must either consume secrets from ESO/Vault or fail fast when enabled.
 
 **Exit criteria**
 - No runtime chart uses Helm randomness to produce a stable secret value.

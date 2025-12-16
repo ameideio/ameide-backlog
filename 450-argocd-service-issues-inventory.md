@@ -221,6 +221,17 @@ Remediation approach (vendor-aligned, reproducible):
 1. Prefer CloudNativePG `managed.roles` (already configured) for role + password reconciliation.
 2. Keep `passwordReconcile` as an escape-hatch feature, but default it **off** (including local) unless we are actively migrating password sources; avoid long-running “self-heal” CronJobs that rely on runtime package installs.
 
+### Follow-up (local): NiFiKop-managed NiFi pods stuck `Error` (placeholder secret value)
+
+- **App:** `local-data-nifi`
+  - **Resource:** `NifiCluster/ameide-local/nifi`
+  - **Symptom:** NiFi node pods like `nifi-0-node*` terminate with exit code 1; cluster remains in `ClusterRollingUpgrading` and `podIsReady=false`.
+  - **Observed config smell:** the NiFi chart currently uses a committed placeholder `config.sensitivePropsKey: CHANGEME`, which is both insecure and (depending on NiFi version) can be invalid/too short and prevent startup.
+
+Remediation approach (GitOps-idempotent, secrets-aligned):
+1. Disable NiFi for local by default (extended data-plane component) until the sensitive properties key is sourced from Vault/ESO (no committed placeholders).
+2. Add a chart guardrail: if NiFi is enabled and the sensitive key is missing/placeholder, fail fast at render time.
+
 ## Update (2025-12-16): ArgoCD repo credentials can block Git sync (invalid GitHub token forces auth)
 
 - **Env:** `local` (k3d) and any bootstrap path that creates `repo-creds-ameide-gitops`.
