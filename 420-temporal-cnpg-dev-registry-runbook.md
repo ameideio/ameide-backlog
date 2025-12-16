@@ -26,7 +26,7 @@
 - **Schema ownership:** The Temporal operator owns schema init/updates via its reconcile loop (setup/update Jobs driven by `TemporalCluster.spec.version`).
 - **Namespace management:** Temporal namespaces are created declaratively via `TemporalNamespace` CRs (packaged with `data-temporal`).
 - **DB preflight (self-healing):** `data-temporal` runs a `temporal-db-preflight` Argo `PreSync` hook to wait for Postgres and ensure the metadata partition row exists (`namespace_metadata.partition_id=54321`). This removes the need for manual SQL in the normal rollout path.
-- **Webhook CA injection:** The Temporal operator uses admission webhooks and depends on cert-manager CA injection in its namespace (`ameide-system`). This is provided by the `operators-cert-manager` Argo app (CRDs via `cluster-crds-cert-manager`).
+- **Webhook CA injection:** The Temporal operator uses admission webhooks and depends on cert-manager CA injection in its namespace (`ameide-system`). This is provided by the cluster-shared cert-manager install (`cluster-cert-manager` in `cert-manager`; CRDs via `cluster-crds-cert-manager`).
 - **Dev registry wiring:** k3d local registry `k3d-ameide.localhost:5001/ameide` is the single endpoint for dev GitOps. Builds push via the host-published port `localhost:5001` (configurable via `AMEIDE_REGISTRY_PUSH_HOST`) to avoid DNS-to-container IP hangs.
 - **Image naming:** Build script enforces hyphenated image tags (`agents-runtime`, `www-ameide`, `www-ameide-platform`, etc.) even if service directories use underscores. Filters accept either form.
 - **Argo CD apps:** Temporal is deployed by:
@@ -40,9 +40,8 @@ In dev, the **normal path** is now: open the DevContainer, let the GitOps bootst
   - **Cause:** Temporal schema setup/update Jobs (owned by the operator) failed or were blocked by Postgres schema ownership/permissions on a fresh cluster.
   - **Fix:** Inspect operator-owned schema pods (`temporal-setup-*`, `temporal-update-*`) and their logs; fix any DB ownership issues (CNPG) and let the operator rerun schema setup/update.
 - **Temporal operator webhook failures (CR create/update blocked, x509/CA bundle errors):**
-  - **Cause:** Missing/unsynced `operators-cert-manager` in `ameide-system`, or missing cert-manager CRDs (`cluster-crds-cert-manager`), preventing CA injection into the operator webhook configurations.
-  - **Also caused by:** cert-manager leader election collisions when multiple instances share the default `kube-system` leases (one instance “wins” and the other stops reconciling, so webhook cert Secrets never appear).
-  - **Fix:** Sync `cluster-crds-cert-manager` + `operators-cert-manager`, then `cluster-crds-temporal-operator` + `cluster-temporal-operator`; verify webhook `caBundle` is injected and the operator pods are Running.
+  - **Cause:** Missing/unsynced `cluster-cert-manager` (or missing cert-manager CRDs), preventing CA injection into the operator webhook configurations.
+  - **Fix:** Sync `cluster-crds-cert-manager` + `cluster-cert-manager`, then `cluster-crds-temporal-operator` + `cluster-temporal-operator`; verify webhook `caBundle` is injected and the operator pods are Running.
 - **Dev registry push hangs / missing images:**
   - **Cause:** Devcontainer resolving `k3d-ameide.localhost` to the registry container IP (no host port), and underscore image names diverging from GitOps values.
   - **Fix:** Build script now defaults push endpoint to `localhost:5001` while tagging `k3d-ameide.localhost:5001/ameide/<image>:dev`; enforces hyphenated tags; adds service filters; documents usage in README/backlog/415.
@@ -61,7 +60,7 @@ In dev, the **normal path** is now: open the DevContainer, let the GitOps bootst
    ```
 4) If Temporal remains degraded after bootstrap, or you want to force a clean recovery, sync Temporal schema + apps and wait for health:
    ```
-   argocd app sync cluster-crds-cert-manager operators-cert-manager cluster-crds-temporal-operator cluster-temporal-operator --grpc-web --server localhost:8443 --plaintext
+   argocd app sync cluster-crds-cert-manager cluster-cert-manager cluster-crds-temporal-operator cluster-temporal-operator --grpc-web --server localhost:8443 --plaintext
    argocd app sync dev-data-temporal --grpc-web --server localhost:8443 --plaintext
    argocd app wait dev-data-temporal --health --timeout 300 --grpc-web --server localhost:8443 --plaintext
    ```

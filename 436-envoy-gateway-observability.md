@@ -42,16 +42,19 @@ GatewayClass (envoy)
                                           +-- sinks: OpenTelemetry -> otel-collector:4317
 ```
 
-> **Note (2025-12-04):** EnvoyProxy is deployed to `envoy-gateway-system` namespace per environment.
-> Each environment has its own EnvoyProxy with a dedicated static IP from Terraform.
+> **Update (2025-12-16):** Envoy Gateway (controller) runs cluster-scoped in the `argocd` namespace.
+> `EnvoyProxy` resources are **environment-scoped** and are deployed to the environment namespace (e.g., `ameide-dev`, `ameide-staging`, `ameide-prod`, `ameide-local`), with `GatewayClass.spec.parametersRef.namespace` pointing to that environment namespace.
+>
+> Envoy *data-plane* Deployments/Services are created by the controller and live in `argocd` (labelled with the owning Gateway namespace/name).
 > See [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md) for dual ApplicationSet architecture.
 >
-> | Environment | EnvoyProxy Name | Namespace | Static IP |
+> | Environment | EnvoyProxy Name | EnvoyProxy Namespace | Public Address Source |
 > |-------------|-----------------|-----------|-----------|
-> | dev | ameide-proxy-config | envoy-gateway-system | 40.68.113.216 |
-> | staging | ameide-proxy-config | envoy-gateway-system | 108.142.228.7 |
-> | production | ameide-proxy-config | envoy-gateway-system | 4.180.130.190 |
-> | argocd (cluster) | cluster-proxy-config | argocd | 20.160.216.7 |
+> | dev | ameide-proxy-config | ameide-dev | Azure static IP (Terraform) |
+> | staging | ameide-proxy-config | ameide-staging | Azure static IP (Terraform) |
+> | production | ameide-proxy-config | ameide-prod | Azure static IP (Terraform) |
+> | local | ameide-proxy-config | ameide-local | k3d/k3s ServiceLB node IP |
+> | argocd (cluster) | cluster-proxy-config | argocd | Local: ClusterIP / Azure: static IP |
 
 ## Implementation
 
@@ -68,14 +71,14 @@ GatewayClass (envoy)
 
 ### EnvoyProxy Resource
 
-Deployed to `envoy-gateway-system` namespace per environment:
+Deployed to the **environment namespace** (defaults to `.Release.Namespace` in the gateway chart):
 
 ```yaml
 apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: EnvoyProxy
 metadata:
   name: ameide-proxy-config
-  namespace: envoy-gateway-system
+  namespace: ameide-dev
 spec:
   # Static IP configuration - see per-environment values files
   provider:
@@ -121,7 +124,7 @@ spec:
     group: gateway.envoyproxy.io
     kind: EnvoyProxy
     name: ameide-proxy-config
-    namespace: envoy-gateway-system
+    namespace: ameide-dev
 ```
 
 ### Values Configuration
@@ -132,7 +135,6 @@ Base values in `sources/charts/apps/gateway/values.yaml`:
 telemetry:
   enabled: true
   name: ameide-proxy-config
-  namespace: envoy-gateway-system
   metrics:
     prometheus: {}
   accessLog:
@@ -242,14 +244,17 @@ Prometheus scraping configured via ServiceMonitors (file: `sources/charts/apps/g
 ### Check EnvoyProxy resource
 
 ```bash
-kubectl get envoyproxy -n envoy-gateway-system
-kubectl describe envoyproxy ameide-proxy-config -n envoy-gateway-system
+kubectl get envoyproxy -n ameide-dev
+kubectl describe envoyproxy ameide-proxy-config -n ameide-dev
 
 # Verify static IP is configured
-kubectl get envoyproxy ameide-proxy-config -n envoy-gateway-system -o jsonpath='{.spec.provider}'
+kubectl get envoyproxy ameide-proxy-config -n ameide-dev -o jsonpath='{.spec.provider}'
 
 # Check cluster gateway EnvoyProxy (argocd namespace)
 kubectl get envoyproxy cluster-proxy-config -n argocd
+
+# Locate the controller-created data-plane Service/Deployment (lives in argocd)
+kubectl get svc -n argocd -l gateway.envoyproxy.io/owning-gateway-namespace=ameide-dev
 ```
 
 ### Check GatewayClass references EnvoyProxy
@@ -268,7 +273,7 @@ curl -s "http://$LOKI_IP:3100/loki/api/v1/query_range" \
 ### Verify Prometheus metrics
 
 ```bash
-kubectl port-forward -n envoy-gateway-system svc/envoy-gateway 19001:19001
+kubectl port-forward -n argocd svc/envoy-gateway 19001:19001
 curl http://localhost:19001/metrics
 ```
 

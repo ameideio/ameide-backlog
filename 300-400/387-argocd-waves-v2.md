@@ -13,7 +13,7 @@ Objective: a single ApplicationSet + RollingSync enforces global ordering (CRDs 
 - Temporal namespace bootstrap order: namespace-creation Jobs/CRs should run post-runtime (new 455 band or a higher sync-wave inside 450). Keep 440 for configs that do not require a running Temporal cluster.
 - Vault webhook certs are secrets/config CRs: place `vault-webhook-certs` in 130 with other certs/secrets, not 120.
 - SecretStore ordering: if the provider depends on Vault being reachable, place it after Vault runtime (155) instead of relaxing health checks; keep ESO/Vault path verification in smokes.
-- Temporal operator depends on cert-manager CA injection for its admission webhooks: ensure the operator namespace has an isolated cert-manager instance (now `operators-cert-manager` in `ameide-system`) before deploying the operator.
+- Temporal operator depends on cert-manager CA injection for its admission webhooks: ensure `cluster-crds-cert-manager` + `cluster-cert-manager` are Healthy before deploying `cluster-temporal-operator` into `ameide-system`.
 
 ## Terminology and target state
 - RollingSync phases: group Applications by a phase label (`rollout-phase`) and advance through steps in order. The number is only a selector; ordering is defined by the step list.

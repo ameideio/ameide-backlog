@@ -486,7 +486,7 @@ spec:
     - from:
         - namespaceSelector:
             matchLabels:
-              name: envoy-gateway-system
+              kubernetes.io/metadata.name: argocd
     # Deny from tenant-*-cust namespaces (implicit)
 ```
 
@@ -507,7 +507,7 @@ spec:
     - to:
         - namespaceSelector:
             matchLabels:
-              name: envoy-gateway-system
+              kubernetes.io/metadata.name: argocd
       ports:
         - protocol: TCP
           port: 443

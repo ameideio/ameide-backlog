@@ -4,11 +4,11 @@
 
 ## Summary
 
-ArgoCD runs in its own isolated `argocd` namespace with dedicated infrastructure resources, completely independent of application environment namespaces (dev/staging/production). This ensures ArgoCD remains operational even when all environment namespaces are scaled down or unavailable.
+ArgoCD runs in its own isolated `argocd` namespace with dedicated infrastructure resources, completely independent of application environment namespaces (`ameide-{env}`). This ensures ArgoCD remains operational even when environment namespaces are scaled down or unhealthy.
 
 ## Problem
 
-Previously, ArgoCD TLS certificates depended on cert-manager deployed in environment namespaces (e.g., `ameide-dev`). This created several issues:
+Previously, ArgoCD TLS certificates depended on environment-scoped cert-manager/resources. This created several issues:
 
 1. **Circular dependency**: ArgoCD manages environment deployments, but depended on those environments for its own TLS
 2. **Availability risk**: If dev namespace was scaled down or unhealthy, ArgoCD lost TLS capability
@@ -27,10 +27,10 @@ Previously, ArgoCD TLS certificates depended on cert-manager deployed in environ
 │  │                    argocd namespace                           │   │
 │  │  (Cluster-scoped, always running)                            │   │
 │  │                                                               │   │
-│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │   │
-│  │  │   ArgoCD    │  │ cert-manager│  │ ClusterIssuer +     │  │   │
-│  │  │   Server    │  │  (isolated) │  │ Certificate         │  │   │
-│  │  └─────────────┘  └─────────────┘  └─────────────────────┘  │   │
+│  │  ┌─────────────┐  ┌──────────────────┐  ┌─────────────────┐  │   │
+│  │  │   ArgoCD    │  │ Cluster Gateway  │  │ argocd-tls App   │  │   │
+│  │  │ components  │  │ (Gateway/Routes) │  │ (Certificate)    │  │   │
+│  │  └─────────────┘  └──────────────────┘  └─────────────────┘  │   │
 │  │                                                               │   │
 │  └──────────────────────────────────────────────────────────────┘   │
 │                              │                                       │
@@ -39,43 +39,29 @@ Previously, ArgoCD TLS certificates depended on cert-manager deployed in environ
 │  ┌──────────────────┐ ┌──────────────────┐ ┌──────────────────┐    │
 │  │   ameide-dev     │ │  ameide-staging  │ │   ameide-prod    │    │
 │  │                  │ │                  │ │                  │    │
-│  │  cert-manager    │ │  cert-manager    │ │  cert-manager    │    │
-│  │  (environment)   │ │  (environment)   │ │  (environment)   │    │
-│  │                  │ │                  │ │                  │    │
 │  │  apps, data,     │ │  apps, data,     │ │  apps, data,     │    │
 │  │  platform...     │ │  platform...     │ │  platform...     │    │
 │  └──────────────────┘ └──────────────────┘ └──────────────────┘    │
 │                                                                      │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │                 cert-manager namespace                        │   │
+│  │            (single install per cluster)                        │   │
+│  └──────────────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-### Cert-Manager Instances
+### Cert-manager (single install per cluster)
 
-There are **multiple cert-manager instances** in the cluster, each with a specific purpose:
-
-| Instance | Namespace | Purpose | DNS Zone | Managed By |
-|----------|-----------|---------|----------|------------|
-| `argocd-cert-manager` | `argocd` | ArgoCD TLS only | `ameide.io` (apex) | ArgoCD self-manages |
-| `foundation-cert-manager` | `ameide-dev` | Dev environment certs | `dev.ameide.io` | ArgoCD ApplicationSet |
-| `foundation-cert-manager` | `ameide-staging` | Staging environment certs | `staging.ameide.io` | ArgoCD ApplicationSet |
-| `foundation-cert-manager` | `ameide-prod` | Production environment certs | `ameide.io` | ArgoCD ApplicationSet |
-
-### Why Multiple Cert-Managers?
-
-1. **Isolation**: Environment failures don't affect ArgoCD
-2. **Namespace-scoped resources**: Each cert-manager manages Issuers and Certificates in its namespace
-3. **Independent scaling**: Environments can scale to zero without affecting cluster operations
-4. **Cleaner RBAC**: Each cert-manager only needs permissions for its namespace's DNS zone
+cert-manager is deployed **once per cluster** as `cluster-cert-manager` in the `cert-manager` namespace (vendor-supported topology). ArgoCD TLS is provided by the `argocd-tls` Application, which creates a `ClusterIssuer` + `Certificate` and relies on `cluster-cert-manager` to reconcile them.
 
 ## ArgoCD Namespace Contents
 
-### Applications (self-managed via `argocd-config`)
+### ArgoCD-managed manifests (`argocd/`)
 
 ```
 argocd/
 ├── bootstrap-app.yaml       # Applied by bootstrap.sh, syncs argocd/ directory
 ├── kustomization.yaml       # Defines what ArgoCD manages
-├── cert-manager.yaml        # Deploys cert-manager in argocd namespace
 ├── argocd-tls.yaml          # ClusterIssuer + Certificate for argocd.ameide.io
 ├── tls/                     # Helm chart for TLS resources
 │   ├── Chart.yaml
@@ -83,8 +69,6 @@ argocd/
 │   └── templates/
 │       ├── clusterissuer.yaml
 │       └── certificate.yaml
-├── applications/
-│   └── cluster-gateway.yaml # Envoy Gateway for argocd.ameide.io
 ├── projects/                # ArgoCD AppProjects
 ├── applicationsets/         # Root ApplicationSets
 └── repos/                   # Repository credentials
@@ -112,19 +96,9 @@ sources/charts/cluster/
 | Deployment | `argocd-dex-server` | SSO/OIDC authentication |
 | Deployment | `argocd-redis` | Caching layer |
 | Deployment | `argocd-notifications-controller` | Notifications |
-| Deployment | `cert-manager` | TLS certificate management |
-| Deployment | `cert-manager-webhook` | Cert-manager admission webhook |
-| Deployment | `cert-manager-cainjector` | CA bundle injection |
-| Service | `argocd-server` | LoadBalancer with static IP |
-              | Secret | `argocd-ameide-io-tls` | TLS certificate for HTTPS |
-              | ClusterIssuer | `letsencrypt-argocd` | Let's Encrypt for argocd.ameide.io |
-              | Certificate | `argocd-server` | TLS cert for argocd.ameide.io |
-              | GatewayClass | `envoy-cluster` | Envoy Gateway controller class |
-              | Gateway | `cluster` | HTTPS gateway for argocd.ameide.io |
-              | Gateway | `cluster-redirect` | HTTP→HTTPS redirect gateway |
-              | HTTPRoute | `argocd` | Routes traffic to argocd-server |
-              | HTTPRoute | `http-to-https-redirect` | 301 redirect from HTTP |
-              | EnvoyProxy | `cluster-proxy-config` | LoadBalancer with static IP |
+| Service | `argocd-server` | ClusterIP (exposed via Gateway API) |
+| Secret | `argocd-server-tls` | TLS certificate secret ArgoCD server expects |
+| Gateway/HTTPRoute | (cluster-gateway) | Exposes `argocd.ameide.io` via Gateway API |
 
 ## Value Flow for TLS
 

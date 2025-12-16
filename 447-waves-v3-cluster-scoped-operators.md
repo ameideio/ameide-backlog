@@ -134,9 +134,7 @@ Each operator deploys to a dedicated `-system` namespace:
 | external-secrets | `external-secrets` | All namespaces |
 | Temporal operator | `ameide-system` | All namespaces |
 
-**Note on Temporal operator namespace:** the Temporal operator bundles admission webhooks and requires cert-manager to mint its serving certificate and inject the CA bundle. Our cert-manager instances are namespace-scoped, so the operator must live in a namespace that runs an isolated cert-manager instance for webhook CA injection.
-**Update (2025-12-14):** Temporal operator now runs in `ameide-system`, and `operators-cert-manager` is deployed in `ameide-system` to provide webhook cert issuance + CA injection.
-**Gotcha:** for multiple cert-manager installs, set `global.leaderElection.namespace` per instance (e.g. `argocd`, `ameide-system`, `ameide-dev`, …) so they do not share the default `kube-system` leases.
+**Note on Temporal operator namespace:** the Temporal operator bundles admission webhooks and requires cert-manager to mint its serving certificate and inject the CA bundle. With the **single cert-manager per cluster** policy, this is handled by `cluster-cert-manager` (in `cert-manager`) and works for webhooks in `ameide-system` as long as rollout ordering keeps cert-manager healthy before the operator is installed.
 
 Operators are configured with `watchNamespaces: []` (empty = all namespaces) so they can manage CRs in any environment namespace.
 

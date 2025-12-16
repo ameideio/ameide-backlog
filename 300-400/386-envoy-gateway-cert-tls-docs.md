@@ -4,33 +4,36 @@
 
 > **Related**: See [436-envoy-gateway-observability.md](436-envoy-gateway-observability.md) for telemetry configuration using `EnvoyProxy` resource, [417-envoy-route-tracking.md](417-envoy-route-tracking.md) for route inventory, and [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md) for dual ApplicationSet architecture.
 >
-> **Updated 2025-12-04**: EnvoyProxy resources are now deployed per-environment to `envoy-gateway-system` namespace with dedicated static IPs. See 436 for IP table.
+> **Updated 2025-12-16**: Envoy Gateway control-plane runs cluster-shared in `argocd`; EnvoyProxy resources are per-environment in `ameide-{env}`; Envoy data-plane Deployments/Services are created by the controller and live in `argocd`. Control-plane TLS for xDS is managed by Envoy Gateway `certgen` (secrets in `argocd`); external TLS for hostnames is managed by cert-manager (secrets in the environment namespace).
 
-### What we’re targeting (matches vendor guidance)
-- Keep cert-manager as the CA/issuer and let it mint all EG control-plane and external TLS certs.
-- Leave `certgen` **enabled** in values; certgen becomes a no-op when secrets already exist, keeping us on the supported path for OIDC/OAuth2 and other internals.
-- Remove vendor Helm hooks so certgen resources are reconciled like any other Argo-managed workload (no hook lifecycle issues).
+### Current model (vendor-aligned, deterministic)
+- **Single cert-manager install per cluster** (`cluster-cert-manager` in `cert-manager` namespace) mints external TLS certificates (wildcards or per-host) and injects webhook CA bundles cluster-wide.
+- **Envoy Gateway internal/control-plane TLS (xDS)** is owned by **Envoy Gateway `certgen`** (secrets are created in the controller namespace `argocd`).
+- **External TLS (user-facing hostnames)** is owned by **cert-manager** (secrets live in the environment namespace and are referenced by Gateway listeners/routes).
 
-### Implementation shape (target)
-- GitOps: EG control-plane TLS surfaced via cert-manager Issuers/Certificates in the platform cert-manager config chart (dev path below); certgen stays enabled with plain manifests (no hook semantics).
-- Namespace: Envoy Gateway operator runs in `envoy-gateway-system` namespace. EnvoyProxy resources are deployed per-environment with dedicated static IPs. Gateway resources (Gateway, HTTPRoute) are in environment namespaces (`ameide-dev`, `ameide-staging`, `ameide-prod`).
-- Chart/values: `certgen.enabled=true`; certgen job/RBAC are plain resources (no Helm/Argo hooks) so they reconcile cleanly while cert-manager provides the real certs.
+### Namespaces and ownership
+- **Controller**: `Deployment/envoy-gateway` in `argocd`
+- **Per-env config**: `EnvoyProxy` + `Gateway` + `HTTPRoute` in `ameide-{env}`
+- **Data-plane (generated)**: `Deployment/Service` created by Envoy Gateway controller in `argocd` (labeled with the owning Gateway namespace/name)
 
-### Control-plane TLS via cert-manager (vendor doc “Control Plane Authentication using custom certs”)
-- Issuers: `self-signed-root`, `ameidet-ca-issuer`, `envoy-gateway-ca-issuer` (namespaced to EG install namespace).
-- Certificates/secrets: CA (`envoy-gateway-ca`), controller (`envoy-gateway`), proxy (`envoy`), ratelimit (`envoy-rate-limit`).
-- DNS SANs cover service/FQDN forms within the install namespace.
-- Certgen stays enabled; with these secrets present, certgen is a no-op but keeps EG on the supported path for OIDC/OAuth2 internals.
+### Control-plane TLS (xDS) via certgen (current)
+- Secrets live in `argocd` (created by the Envoy Gateway chart/job):
+  - `Secret/envoy-gateway-ca`
+  - `Secret/envoy-gateway`
+  - `Secret/envoy`
+  - (optional) `Secret/envoy-rate-limit` if rate-limit is enabled
+- This keeps the control-plane convergent without requiring cross-app ordering between cert-manager config and the controller install.
 
-### External TLS via cert-manager
-- Wildcard cert `ameide-wildcard-tls` issued by cert-manager and referenced by the Gateway chart.
-- Option: add `cert-manager.io/issuer`/`cert-manager.io/cluster-issuer` annotations on Gateway resources if shifting to per-Gateway Certificates instead of a precreated wildcard.
+### External TLS via cert-manager (current)
+- Wildcard cert(s) are issued by cert-manager and referenced by Gateway listeners.
+- Local/offline: wildcard is issued by a self-signed CA in-cluster.
+- Cloud: wildcard is issued via Let’s Encrypt DNS-01 (Azure Workload Identity).
 
-### Paths and knobs (dev)
-- EG shared values (certgen enabled, no hooks): `gitops/ameide-gitops/sources/charts/shared-values/infrastructure/envoy-gateway.yaml`
-- EG dev overlay (pins controller tolerations/node selectors so pods land on the dev pool): `gitops/ameide-gitops/sources/values/env/dev/platform/platform-envoy-gateway.yaml`
-- Cert-manager control-plane PKI for EG: `gitops/ameide-gitops/sources/values/env/dev/platform/platform-cert-manager-config.yaml`
-- Argo app / wave: see rolloutPhase values in component files (310 CRDs, 320 operator, 330 certs, 340 gateway)
+### Key file paths
+- Envoy Gateway shared values: `sources/charts/shared-values/infrastructure/envoy-gateway.yaml`
+- Local external TLS + ArgoCD TLS: `sources/values/env/local/platform/platform-cert-manager-config.yaml`
+- Per-env Gateway/HTTPRoute config: `sources/values/env/<env>/platform/platform-gateway.yaml`
+- EnvoyProxy per-env overrides: see [436-envoy-gateway-observability.md](436-envoy-gateway-observability.md)
 
 ## Detailed implementation steps (dev)
 
@@ -56,7 +59,7 @@
 
 ### 2) Certgen behavior
 - Kept enabled in shared values: `sources/charts/shared-values/infrastructure/envoy-gateway.yaml`.
-- Effect: certgen job/RBAC are plain Argo-managed resources (vendor Helm hooks removed) and will reconcile like any other workload; with cert-manager-issued secrets present, certgen is a no-op but stays on the supported path.
+- Effect: certgen job/RBAC are plain Argo-managed resources (vendor Helm hooks removed) and reconcile like any other workload; certgen is the authoritative source of Envoy Gateway internal/xDS TLS secrets in `argocd`.
 
 ### 3) Envoy Gateway CRDs and operator wiring
 Per `backlog/387-argocd-waves-v2.md`, CRDs are split from the operator chart:
@@ -67,7 +70,7 @@ Per `backlog/387-argocd-waves-v2.md`, CRDs are split from the operator chart:
 - **Operator (320)**: `environments/dev/components/platform/control-plane/envoy-gateway/component.yaml`
   - Chart: `sources/charts/third_party/oci/docker.io/envoyproxy/gateway-helm/1.6.0-nocreds`
   - `skipCrds: true` (CRDs handled by platform-envoy-crds at 310)
-  - Namespace: `ameide`
+  - Namespace: `argocd`
   - Value files (in order):
     1) `sources/charts/shared-values/infrastructure/envoy-gateway.yaml`
     2) `sources/values/env/local/platform/infrastructure/envoy-gateway.yaml` (forces the controller Service to `ClusterIP` and strips cloud-specific annotations so local clusters stay internal-only; Azure clusters keep their load balancer settings in `_shared`)
@@ -80,10 +83,10 @@ Per `backlog/387-argocd-waves-v2.md`, CRDs are split from the operator chart:
 
 ### 5) Namespacing considerations
 - Current architecture:
-  - Envoy Gateway operator: `envoy-gateway-system` namespace
-  - EnvoyProxy resources: `envoy-gateway-system` (per-environment with static IPs)
+  - Envoy Gateway operator: `argocd` namespace (cluster-shared)
+  - EnvoyProxy resources: environment namespaces (`ameide-{env}`)
   - Gateway/HTTPRoute resources: environment namespaces (`ameide-dev`, `ameide-staging`, `ameide-prod`)
-  - Control-plane TLS certs: `envoy-gateway-system` (managed by cert-manager)
+  - Control-plane TLS secrets: `argocd` (managed by Envoy Gateway certgen)
 - See [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md) for dual ApplicationSet architecture.
 
 ### 6) Argo/RollingSync hygiene for certgen
@@ -103,8 +106,8 @@ Per `backlog/387-argocd-waves-v2.md`, CRDs are split from the operator chart:
 ### Expected healthy state
 
 - TLS/xDS:
-  - `Certificate` resources `envoy-gateway-ca`, `envoy-gateway-server`, `envoy-proxy-server`, and `envoy-ratelimit-server` in namespace `ameide` are `Ready=True`.
-  - Secrets `envoy-gateway`, `envoy`, and `envoy-rate-limit` exist in `ameide` with `Type: kubernetes.io/tls` and `ca.crt` populated.
+  - Secrets `envoy-gateway-ca`, `envoy-gateway`, and `envoy` exist in `argocd` with `Type: kubernetes.io/tls` and `ca.crt` populated (created/owned by certgen).
+  - External TLS for hostnames is independent: the environment namespace has the listener TLS secret (e.g., `Secret/ameide-wildcard-tls` in `ameide-{env}`) Ready and referenced by the Gateway.
   - Envoy logs **do not** show `CERTIFICATE_VERIFY_FAILED` for `xds_cluster`.
 - Gateway / address:
   - `kubectl describe gateway ameide -n ameide` shows:

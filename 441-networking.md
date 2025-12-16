@@ -87,7 +87,8 @@ metadata:
 spec:
   parentRefs:
     - name: ameide
-      namespace: envoy-gateway-system
+      # Gateway resources live in the platform environment namespace (not the controller namespace).
+      namespace: ameide-prod
   hostnames:
     - "platform.acme.ameide.io"
     - "api.acme.ameide.io"
@@ -699,7 +700,8 @@ apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: EnvoyGateway
 metadata:
   name: eg
-  namespace: envoy-gateway-system
+  # Envoy Gateway controller runs in `argocd` (cluster-shared control plane).
+  namespace: argocd
 spec:
   rateLimit:
     backend:

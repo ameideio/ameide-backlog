@@ -53,7 +53,7 @@ When developing AMEIDE Core platform locally using DevContainer + k3d, accessing
 
 ```bash
 # 1. Install tools
-brew install k3d kubectl dnsmasq jq helm helmfile
+brew install k3d kubectl dnsmasq jq helm
 
 # 2. Configure wildcard DNS for *.local.ameide.io -> 127.0.0.1
 CONF_DIR="$(brew --prefix)/etc/dnsmasq.d"
@@ -96,26 +96,16 @@ k3d cluster create --config k3d-ameide.yaml
 # Note: For Docker Desktop, add to Settings → Docker Engine:
 # "insecure-registries": ["docker.io/ameide"]
 
-# 5. Install Gateway API CRDs and Envoy Gateway (idempotent)
-kubectl get gatewayclasses.gateway.networking.k8s.io >/dev/null 2>&1 || \
-  kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/latest/download/standard-install.yaml
+# 5. Bootstrap GitOps (recommended, idempotent)
+# Gateway API CRDs, Envoy Gateway, cert-manager, and all platform routing are installed by Argo CD.
+./bootstrap/bootstrap.sh --config bootstrap/configs/local.yaml --install-argo --apply-root-apps --wait-tiers
 
-kubectl get ns envoy-gateway-system >/dev/null 2>&1 || \
-  kubectl apply -f https://github.com/envoyproxy/gateway/releases/latest/download/install.yaml
-
-# Verify installation
-kubectl wait --for=condition=Ready -n envoy-gateway-system deployment/envoy-gateway --timeout=60s
+# Verify the controller is installed (control-plane runs in `argocd`)
+kubectl wait --for=condition=Available -n argocd deployment/envoy-gateway --timeout=60s
 kubectl get gatewayclass
-kubectl get crd | grep gateway.networking.k8s.io
 
-# 6. Create and configure namespace
-kubectl create ns ameide --dry-run=client -o yaml | kubectl apply -f -
-kubectl label ns ameide gateway-access=allowed --overwrite
-
-# 7. Install cert-manager and configure self-signed issuer
-# This is handled automatically by Helmfile deployment
-helmfile -e local sync -l name=cert-manager
-helmfile -e local sync -l name=cert-manager-config
+# 6. Verify environment namespace exists (managed by GitOps)
+kubectl get ns ameide-local
 
 # Certificate will be automatically created as ameide-wildcard-tls
 ```
@@ -442,7 +432,7 @@ curl -sS -H "Host: auth.local.ameide.io" https://127.0.0.1/realms/master/.well-k
 | Port 8443 connection refused | Port not forwarded | Check VS Code Ports panel, ensure forwarding active |
 | Certificate warnings | Self-signed cert | Expected for local dev, click "Advanced" → "Proceed" |
 | Keycloak redirects to wrong URL | KC_HOSTNAME misconfigured | Verify KC_HOSTNAME and KC_HOSTNAME_PORT envs |
-| Gateway not responding | Service not exposed | Check `kubectl -n envoy-gateway-system get svc` |
+| Gateway not responding | Service not exposed | Check `kubectl -n argocd get svc` (Envoy Gateway control-plane/data-plane live in `argocd`) |
 | VPN breaks resolution | `.test` intercepted | Disconnect VPN or use IP-based nip.io domains |
 
 ## Optional Enhancements
@@ -496,31 +486,16 @@ setup: ## One-time setup (DNS, certs)
 up: ## Start cluster and platform
 	@echo "Creating k3d cluster..."
 	@k3d cluster create ameide --config k3d-config.yaml
-	
-	@echo "Installing Gateway API CRDs..."
-	@kubectl get gatewayclasses.gateway.networking.k8s.io >/dev/null 2>&1 || \
-		kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/$(GATEWAY_API_VERSION)/standard-install.yaml
-	
-	@echo "Installing Envoy Gateway..."
-	@kubectl get ns envoy-gateway-system >/dev/null 2>&1 || \
-		kubectl apply -f https://github.com/envoyproxy/gateway/releases/download/$(ENVOY_GATEWAY_VERSION)/install.yaml
-	
-	@echo "Waiting for Envoy Gateway..."
-	@kubectl wait --for=condition=Ready -n envoy-gateway-system deployment/envoy-gateway --timeout=60s
-	
-	@echo "Creating namespace with labels..."
-	@kubectl create ns ameide --dry-run=client -o yaml | kubectl apply -f -
-	@kubectl label ns ameide gateway-access=allowed --overwrite
-	
-	@echo "Installing platform..."
-	@helm install platform ./infra/kubernetes/charts/platform
+
+	@echo "Bootstrapping GitOps (installs Gateway API, Envoy Gateway, cert-manager, platform)..."
+	@./bootstrap/bootstrap.sh --config bootstrap/configs/local.yaml --install-argo --apply-root-apps --wait-tiers
 
 down: ## Stop cluster
 	@k3d cluster delete ameide
 
 trust-certs: ## Check cert-manager certificates
-	@kubectl get certificate -n ameide
-	@kubectl get secret ameide-wildcard-tls -n ameide
+	@kubectl get certificate -n ameide-local
+	@kubectl get secret ameide-wildcard-tls -n ameide-local
 
 doctor: ## Check prerequisites
 	@./scripts/doctor.sh

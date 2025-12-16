@@ -21,6 +21,7 @@ This document defines the **required order of operations** and the **tooling con
 3. **Backlog stays current**: update backlog entries for any new incident or meaningful variant of a known incident.
 4. **Time-bounded commands**: do not set command timeouts higher than **5 minutes**.
 5. **GitOps discipline**: changes land as commits (backlog + gitops repo), then Argo reconciles.
+6. **Don’t delete what you don’t manage**: never delete repo files or cluster resources as “cleanup” unless they are explicitly owned by this repo/change and the deletion is part of the requested work.
 
 ## Workflow: Spot → Verify → Triage → Fix → Verify → Document
 
@@ -129,4 +130,3 @@ Preferred approach:
 - **Scope**:
 - **Exception** (if any):
 - **Enforcement/Guardrail**:
-

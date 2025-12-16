@@ -369,8 +369,8 @@ If migrating from the old shared `envoy` GatewayClass:
 
 The following documents reference the old architecture and should note this document:
 
-- **386-envoy-gateway-cert-tls-docs.md**: References `envoy-gateway-system` namespace for EnvoyProxy
-- **436-envoy-gateway-observability.md**: References shared `envoy` GatewayClass
+- **386-envoy-gateway-cert-tls-docs.md**: Update to reflect controller in `argocd` + per-env `EnvoyProxy`
+- **436-envoy-gateway-observability.md**: Update to reflect controller in `argocd` + per-env `EnvoyProxy`
 
 ## References
 

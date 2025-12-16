@@ -54,6 +54,14 @@ Follow-up (local):
   - Scale the `cluster-redis-operator` Deployment to `replicas: 0` for local.
   - Override local consumers (e.g. `www-ameide-platform`) to use `redis://redis-master:6379/0` (no Sentinel) explicitly.
 
+## Update (2025-12-16): `platform-control-plane-smoke` false negatives (Envoy Gateway namespace moved)
+
+Observed a platform smoke Job failing due to an outdated assumption that Envoy Gateway runs per-environment.
+
+- **Symptom:** smoke Job waits for `deployment/envoy-gateway` in the environment namespace and fails even though the cluster is healthy.
+- **Root cause:** Envoy Gateway control-plane is now cluster-shared and runs in `argocd`; per-environment resources are `Gateway`/`HTTPRoute`/`EnvoyProxy` in `ameide-{env}`.
+- **Fix direction:** update the smoke script to check `deployment/envoy-gateway` in `argocd`, while still checking `Gateway/HTTPRoute` in the environment namespace.
+
 ## Update (2025-12-15): `local-foundation-external-secrets-ready` “Last Sync Failed” (readiness gate drift)
 
 Observed an Argo app that was `Synced/Healthy` but still showed **`operationState.phase=Failed`** due to a Sync hook Job hitting its backoff limit.
