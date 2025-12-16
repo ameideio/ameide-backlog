@@ -228,7 +228,14 @@ Implementation note (Option A execution):
 Local k3d clusters are capacity-constrained and can exhibit apiserver write latency that breaks leader-election renewals and long-running health checks. Local should stay **reproducible and self-healing**, but it can legitimately diverge in *operational toggles* that make single-replica controllers stable.
 
 **Policy (local-only, capability-shaped):**
+- **Treat local clusters as disposable infrastructure (Terraform-first):**
+  - If the local apiserver becomes unreliable (timeouts / stale Argo status / lease renewals failing), the supported remediation is to **recreate the local cluster via Terraform** (`infra/scripts/tf-local.sh destroy/apply`), not to manually delete namespaces/resources.
+  - This is consistent with k3s vendor guidance that embedded SQLite is the default and is best suited to “simple/short-lived” clusters; heavy churn can surface datastore latency that cascades into controller health flapping.
+- **Local secret seeding is part of reproducible bootstrap (no manual prerequisites):**
+  - Local bootstrap must ensure `vault-bootstrap-local-secrets` exists (seeded from `.env`) before `foundation-vault-bootstrap` runs; otherwise Vault stays sealed and every `ExternalSecret` remains `SecretSyncedError`.
 - **Disable leader election when `replicas=1`** for controllers/operators that exit on `leader election lost` (e.g., Strimzi, NiFiKop, Envoy Gateway). Leader election becomes a failure mode under local latency and provides no benefit at single replica.
+- **Argo CD must be locally stable (no self-inflicted CrashLoops):**
+  - For local clusters, increase Argo CD probe budgets (especially `argocd-repo-server` liveness/readiness timeouts) so transient stalls don’t cause kubelet restarts that cascade into stale Application status and rendering failures.
 - **No runtime downloads / no dev servers in Argo baseline**:
   - Argo-managed “baseline” workloads must start deterministically from the published image (no Corepack/pnpm downloads, no runtime codegen, no writes to the image filesystem).
   - Baseline images must be **runtime-capable** (e.g., Next.js images must include a production `.next` build if we run `next start`).
@@ -240,6 +247,10 @@ Local k3d clusters are capacity-constrained and can exhibit apiserver write late
   - Do not “green” Gateways by relaxing health checks; treat missing Gateway addresses as a real capability gap that must be solved in GitOps.
 
 **Tracking note:** if any local-only knob is required (leader election disable, reduced concurrency, reduced replicas), record it explicitly as a local capability decision and keep it out of shared defaults unless it is safe for real clusters.
+
+**Terraform/DNS/externals impact (local):**
+- Terraform owns the k3d cluster lifecycle (`infra/terraform/local` + `infra/scripts/tf-local.sh`). Avoid ad-hoc `k3d cluster create/delete` outside Terraform unless state is already lost (the wrapper detects and repairs this case).
+- Recreating the cluster changes ephemeral container IDs/IPs; anything that pins those (e.g., `*.local.ameide.io` host mappings, DNS scripts, port-forwards) must be derived from the current k3d/kube context (or rerun) after recreate.
 
 ### 4.3 Wrappers for vendor charts
 

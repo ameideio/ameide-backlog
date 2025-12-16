@@ -65,7 +65,7 @@ Targets no longer accept a `-e` flag because a single cluster hosts all namespac
 2. Run `./infra/scripts/deploy.sh <target>` – the helper writes `infra/terraform/azure/env.auto.tfvars.json` from `.env`, so every Terraform invocation (including ad-hoc `terraform -chdir=infra/terraform/azure plan`) automatically sees `var.env_secrets`. To refresh the file without a full deploy, run `./infra/scripts/write-env-secrets-tfvars.sh`.
 3. After apply, Terraform writes the latest outputs to `artifacts/terraform-outputs/<target>.json`, and the local target also starts an ArgoCD port-forward plus prints the credentials banner.
 
-For day-to-day local work, call `infra/scripts/tf-local.sh` instead of running `terraform -chdir=infra/terraform/local ...` directly. The wrapper performs the Docker availability check, recreates the `ameide-network` bridge, removes orphaned `k3d-ameide` clusters when Terraform state went missing, and then forwards every argument to Terraform (defaults to `apply`).
+For day-to-day local work, call `infra/scripts/tf-local.sh` instead of running `terraform -chdir=infra/terraform/local ...` directly. The wrapper performs the Docker availability check, recreates the `ameide-network` bridge, removes orphaned `k3d-ameide` clusters when Terraform state went missing, seeds `vault-bootstrap-local-secrets` from `.env` (so Vault unsealing + ExternalSecrets can converge), and then forwards every argument to Terraform (defaults to `apply`).
 
 ## Architecture
 

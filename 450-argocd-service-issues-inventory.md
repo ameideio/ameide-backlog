@@ -2,7 +2,7 @@
 
 **Status**: Partially Resolved (CI/CD blocking staging/prod)
 **Created**: 2025-12-04
-**Updated**: 2025-12-15
+**Updated**: 2025-12-16
 **Commit**: `6c805de fix(446): remove tolerations overrides, inherit from globals`
 **Related**: [442-environment-isolation.md](442-environment-isolation.md), [445-argocd-namespace-isolation.md](445-argocd-namespace-isolation.md), [446-namespace-isolation.md](446-namespace-isolation.md), [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md), [451-secrets-management.md](451-secrets-management.md), [456-ghcr-mirror.md](456-ghcr-mirror.md)
 
@@ -218,6 +218,26 @@ Remediation approach (vendor-aligned, reproducible):
   - **Root cause:** the job installs dependencies at runtime (`apk add postgresql-client curl jq`), which is not deterministic and can fail under transient network/DNS/apiserver stalls.
 
 Remediation approach (vendor-aligned, reproducible):
+
+## Update (2025-12-16): ArgoCD UI shows persistent `Progressing` due to local apiserver stalls (k3d/k3s + Kine SQLite)
+
+- **Env:** `local` (k3d/k3s)
+- **Symptom:** ArgoCD UI continues to show several Applications stuck in `Progressing` even after underlying workloads converge; cluster queries like `kubectl -n argocd get applications` intermittently time out or return stream errors.
+- **Hypothesis (vendor-aligned):** local k3s default datastore (Kine→SQLite) can become slow under high churn, causing kube-apiserver write latency (status PATCHes, Lease renewals, Job updates). When ArgoCD cannot consistently read/write status via the API server, UI health can appear stale.
+- **Compounding failure (observed):** `argocd-repo-server` can enter `CrashLoopBackOff` because its liveness probe uses an aggressive `timeoutSeconds: 1`; under local stalls, `GET /healthz?full=true` exceeds the budget and kubelet restarts the container, degrading chart rendering and making Application status even noisier/staler.
+
+Remediation approach (reproducible, idempotent, Terraform-first):
+1. Treat the local cluster as disposable infrastructure and **recreate it via Terraform** (do not manually delete namespaces/resources as “cleanup”).
+2. After recreate, re-verify ArgoCD health with bounded requests (use `--request-timeout=30s` for `kubectl` calls) to confirm the API server is responsive and Application status updates are flowing.
+
+Commands (local):
+- `infra/scripts/tf-local.sh destroy -auto-approve`
+- `infra/scripts/tf-local.sh apply -auto-approve`
+
+Verification:
+- `kubectl get nodes --request-timeout=30s`
+- `kubectl -n argocd get pods --request-timeout=30s`
+- `kubectl -n argocd get applications --request-timeout=30s` (should return quickly; any remaining `Progressing` should have an actionable resource health message)
 1. Prefer CloudNativePG `managed.roles` (already configured) for role + password reconciliation.
 2. Keep `passwordReconcile` as an escape-hatch feature, but default it **off** (including local) unless we are actively migrating password sources; avoid long-running “self-heal” CronJobs that rely on runtime package installs.
 
@@ -242,6 +262,27 @@ Remediation approach (GitOps-idempotent):
 1. Add `ttlSecondsAfterFinished` to the CronJob’s `jobTemplate.spec` so completed/failed Jobs are garbage-collected automatically.
 2. In local, set `failedJobsHistoryLimit=0` so the steady-state cluster does not retain failed Jobs.
 
+### Follow-up (local): Vault bootstrap stuck `Init:0/1` when local secrets seed is missing
+
+- **Env:** `local` (k3d)
+- **Pod:** `ameide-local/foundation-vault-bootstrap-vault-bootstrap-*`
+  - **Symptom:** pod stays `Init:0/1` / `PodInitializing` and all `ExternalSecret` resources remain `SecretSyncedError`.
+  - **Observed error:** `MountVolume.SetUp failed ... secret "vault-bootstrap-local-secrets" not found`
+  - **Downstream impact:** Vault remains sealed → `SecretStore/ameide-vault` is `InvalidProviderConfig` (`Vault is sealed`) → `ghcr-pull` and all app credentials never materialize.
+
+Remediation approach (Terraform-first, reproducible):
+1. Ensure the local provisioning entrypoint (`infra/scripts/tf-local.sh apply`, and/or the Terraform bootstrap module) **seeds** `vault-bootstrap-local-secrets` from `.env` via `infra/scripts/seed-local-secrets.sh` **before** applying the GitOps overlay.
+2. Keep the seed idempotent (apply/patch the Secret, do not require manual deletes) so repeated `apply` runs always converge the same way.
+
+### Follow-up (local): Vault bootstrap fixtures missing required DB password keys (ExternalSecrets stay `SecretSyncedError`)
+
+- **Symptom:** app Deployments remain `CreateContainerConfigError` because required Secrets (e.g., `transformation-db-credentials`) never materialize.
+- **Observed root cause:** `ExternalSecret` resources reference Vault keys like `transformation-db-password`, `threads-db-password`, `workflows-db-password`, `temporal-db-password`, but the local Vault bootstrap fixtures do not seed those keys (and the backfill path only copies from Kubernetes Secrets that don’t exist on a fresh cluster).
+
+Remediation approach (GitOps-idempotent, policy-shaped):
+1. Ensure `foundation-vault-bootstrap` fixtures seed all required `*-db-password` keys (use `"__generate__"` for stable per-cluster values) so fresh local clusters converge without manual steps.
+2. Keep the backfill behavior as a migration helper (copy existing K8s Secret → Vault only when the Vault key is missing/placeholder), but do not rely on it for greenfield clusters.
+
 ## Update (2025-12-16): ArgoCD repo credentials can block Git sync (invalid GitHub token forces auth)
 
 - **Env:** `local` (k3d) and any bootstrap path that creates `repo-creds-ameide-gitops`.
@@ -251,8 +292,10 @@ Remediation approach (GitOps-idempotent):
 
 Remediation approach (vendor-aligned, reproducible):
 1. For **public** repos, do not set `username`/`password` repo credentials at all (omit the Secret or create it with only `type` + `url`).
-2. For **private** repos, use a valid PAT (or GitHub App) and ensure bootstrap automation does not store raw tokens in Terraform state.
-3. In bootstrap tooling (Terraform/Bicep/scripts), prefer “try anonymous first, then use token only if required”.
+2. For **private** repos, use a valid credential and ensure the **username matches the credential type**:
+   - **PAT**: `username=<your GitHub username>`, `password=<PAT>`
+   - **GitHub App / installation token**: `username=x-access-token`, `password=<token>`
+3. In bootstrap tooling (Terraform/Bicep/scripts), prefer “try anonymous first, then use token only if required”, and if `GITHUB_USERNAME` is not provided, derive it from the token via the GitHub API (best-effort) instead of hardcoding `x-access-token`.
 
 ## Update (2025-12-16): `local-platform-alloy-logs` rollout stuck `Progressing` (arm64 + mirror image CrashLoop)
 
