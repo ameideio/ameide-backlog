@@ -205,6 +205,9 @@ azure:
     secretPrefix: ""  # No prefix - matches sanitized .env keys
 ```
 
+**Important implementation detail (bootstrap correctness)**  
+`secretPrefix: ""` must be treated as an explicit choice (no prefix). The Vault bootstrap implementation must not convert an empty prefix back to the default (`env-`) via shell defaults like `${VAR:=...}` or `${VAR:-...}`; use “unset-only” defaults (e.g., `${VAR-...}`) or explicit `if [ -z "${VAR+x}" ]` checks.
+
 ### 5. SecretStore (Per-Environment)
 
 **File**: `sources/values/_shared/foundation/foundation-vault-secret-store.yaml`
@@ -213,13 +216,13 @@ Each environment has its own SecretStore pointing to local Vault:
 
 ```yaml
 # ameide-dev
-SecretStore/ameide-vault → foundation-vault-core.ameide-dev.svc.cluster.local:8200
+SecretStore/ameide-vault → vault-core-dev.ameide-dev.svc.cluster.local:8200
 
 # ameide-staging
-SecretStore/ameide-vault → foundation-vault-core.ameide-staging.svc.cluster.local:8200
+SecretStore/ameide-vault → vault-core-staging.ameide-staging.svc.cluster.local:8200
 
 # ameide-prod
-SecretStore/ameide-vault → foundation-vault-core.ameide-prod.svc.cluster.local:8200
+SecretStore/ameide-vault → vault-core-prod.ameide-prod.svc.cluster.local:8200
 ```
 
 #### Cross-namespace consumers (local-only)

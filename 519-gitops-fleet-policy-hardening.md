@@ -159,6 +159,7 @@ These are intentionally deferred to later in this backlog (but now tracked expli
    - Consistent wait/retry/idempotency + cleanup semantics for bootstrap Jobs that gate waves.
    - Avoid hardcoded cross-chart naming assumptions in bootstrap scripts (e.g., Service names): derive env-scoped names from the release namespace or express them via the `global.ameide.*` contract so per-env isolation (`fullnameOverride`) doesn’t silently break bootstrap.
    - Avoid hardcoding Kubernetes token audience defaults in Vault Kubernetes auth roles: `aud` varies by cluster type (e.g., AKS includes API server/OIDC issuer audiences), so audience binding must be optional or cluster-derived to keep Vault → ESO auth reproducible.
+   - Ensure secret-source overrides are actually applied: `secretPrefix: ""` must remain empty (no prefix) when fetching from AKV; avoid shell defaults that convert an explicit empty prefix back to `env-`.
 
 ---
 

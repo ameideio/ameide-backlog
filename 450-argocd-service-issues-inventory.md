@@ -823,6 +823,7 @@ See [426-keycloak-config-map.md §3.2](426-keycloak-config-map.md) for client-pa
 - After switching Vault bootstrap to public images, `foundation-vault-bootstrap` Jobs failed `Init:StartError` because the initContainer used `rancher/kubectl` (no `/bin/sh`), but the chart’s initContainer command is a shell script that copies `kubectl` into a shared volume.
 - `foundation-vault-bootstrap` Jobs also waited forever for Vault because the chart defaulted `vault.serviceName=foundation-vault-core`, but Vault core is deployed per-environment with `fullnameOverride: vault-core-<env>` (e.g., `vault-core-dev`), so `VAULT_ADDR` resolved to a non-existent Service.
 - SecretStores could not authenticate to Vault even after unseal because the Vault Kubernetes auth roles were written with `audience=https://kubernetes.default.svc`, but AKS service account tokens use different `aud` values, resulting in `403 invalid audience (aud) claim`.
+- Even after `ghcr-pull` was materialized, many pods remained `ImagePullBackOff` with `403 Forbidden` from `https://ghcr.io/token` because Vault bootstrap had seeded placeholder `ghcr-token`/`ghcr-username` instead of sourcing the real credentials from Azure Key Vault (AKV overrides were not applied as expected; see 451 for the `secretPrefix` contract).
 
 **Root cause**
 - **Entra ID directory operations are not least-privilege** for the cluster deployer identity: creating or even checking groups requires tenant-level Microsoft Graph permissions that our subscription-scoped deployer SP does not have.
