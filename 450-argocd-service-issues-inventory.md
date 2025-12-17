@@ -858,6 +858,35 @@ See [426-keycloak-config-map.md §3.2](426-keycloak-config-map.md) for client-pa
 7. Remove hardcoded cross-chart service name assumptions in bootstrap charts: default to deriving env-scoped service names from the release namespace (e.g., `ameide-dev` → `vault-core-dev`) unless explicitly overridden.
 8. Do not hardcode Kubernetes service account token audiences in Vault roles: make `audience` optional (unset by default) or set it from a cluster-specific value when strict audience binding is desired.
 
+### Azure TLS stuck in `Issuing` (2025-12-17)
+
+**Status**: 🚧 OPEN (blocks `argocd-config` + `platform-cert-manager-config` health)
+
+**Symptom**
+- `argocd-config` becomes `Degraded` because `argocd-tls` is `Degraded`.
+- `argocd-tls` `Certificate/argocd-server` stays `Issuing` with `DoesNotExist` (TLS Secret not created).
+- Per-environment wildcard certs (e.g. `Certificate/ameide-wildcard-dev`) stay `Issuing`, cascading into env `Gateway`/routes staying `Progressing`.
+
+**Observed signals**
+- `Challenge/argocd-server-*` shows `Presented=True` but repeatedly reports `Waiting for DNS-01 challenge propagation` in cert-manager logs.
+  - External DNS resolution shows the TXT record is already visible publicly (e.g. `dig TXT _acme-challenge.argocd.ameide.io` returns the token), implying the *cluster’s recursive resolvers* used for propagation checks are stale/misleading.
+- `Challenge/ameide-wildcard-*-*` fails with:
+  - `error instantiating azuredns challenge solver: ClientID was omitted without providing one of --cluster-issuer-ambient-credentials or --issuer-ambient-credentials`
+  - This affects **namespaced Issuers** (per-env `platform-cert-manager-config`) and prevents DNS-01 presentation entirely.
+
+**Root cause**
+- Cluster-shared cert-manager is not configured for Azure Workload Identity “ambient credentials” when solving DNS-01 for **namespaced Issuers**.
+- cert-manager’s DNS-01 propagation checks rely on the cluster’s default recursive resolvers, which can lag or differ from public resolvers; this can stall Orders even when records are already publicly visible.
+
+**Remediation approach (vendor-aligned, GitOps-idempotent)**
+1. In the `cluster-cert-manager` Helm values (Azure only), enable:
+   - `--issuer-ambient-credentials=true`
+   - `--cluster-issuer-ambient-credentials=true`
+2. In the same values, set cert-manager DNS-01 propagation recursion to known public resolvers:
+   - `--dns01-recursive-nameservers-only=true`
+   - `--dns01-recursive-nameservers=8.8.8.8:53,1.1.1.1:53`
+3. Verify `Certificate` resources become `Ready=True` and Argo apps converge (`argocd-tls`, `argocd-config`, `{env}-platform-cert-manager-config`).
+
 ## Validation Commands
 
 ```bash

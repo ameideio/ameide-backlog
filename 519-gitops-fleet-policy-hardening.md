@@ -225,6 +225,14 @@ Operator webhook TLS + CA injection (e.g., Temporal operator in `ameide-system`)
 - Keep operator workloads cluster-scoped in `ameide-system`, but use the single cert-manager to issue webhook server certs and inject CA bundles.
 - Prefer explicit `Certificate` resources in the operator namespace and annotate webhook configurations with `cert-manager.io/inject-ca-from: ameide-system/<certificateName>` so CA bundles are reconciled deterministically by cainjector.
 
+Azure DNS-01 (Workload Identity) requirements:
+- If we solve ACME DNS-01 via Azure DNS using Azure Workload Identity, cert-manager must explicitly allow “ambient credentials” for both cluster and namespaced issuers:
+  - `--cluster-issuer-ambient-credentials=true`
+  - `--issuer-ambient-credentials=true`
+- Pin DNS-01 propagation checks to known public recursive resolvers to avoid “record exists publicly but propagation check still fails”:
+  - `--dns01-recursive-nameservers-only=true`
+  - `--dns01-recursive-nameservers=8.8.8.8:53,1.1.1.1:53`
+
 Local-only deviation (developer cluster):
 - If local clusters are extremely resource constrained, we may choose to restrict cert-manager watch scope or capabilities, but we should not model this as “multiple cert-managers”; instead capability-gate non-essential certificate consumers (or use per-component certgen jobs where vendor-supported).
 
