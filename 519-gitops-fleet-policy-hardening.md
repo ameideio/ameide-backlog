@@ -162,6 +162,7 @@ These are intentionally deferred to later in this backlog (but now tracked expli
    - Ensure secret-source overrides are actually applied: `secretPrefix: ""` must remain empty (no prefix) when fetching from AKV; avoid shell defaults that convert an explicit empty prefix back to `env-`.
    - Ensure Azure Workload Identity client IDs consumed by GitOps stay in sync with Terraform outputs:
      - Vault bootstrap (`vault_bootstrap_identity_client_id`) must be synced into `sources/values/env/*/foundation/foundation-vault-bootstrap.yaml` (and trigger a CronJob update) or AKV reads silently fail and the cluster deadlocks on private image pulls.
+   - Prefer fail-fast over silent fixture fallback for bootstrap critical-path secrets (e.g., GHCR pull creds): if Key Vault lookup fails for a required secret, the bootstrap should error so the misconfiguration is obvious and doesn’t degrade into opaque `ImagePullBackOff` loops.
 
 ---
 

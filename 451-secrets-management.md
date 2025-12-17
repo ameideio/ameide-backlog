@@ -197,6 +197,9 @@ The CronJob runs in each environment namespace and:
 2. Fetches secrets and overwrites fixture defaults
 3. Writes to HashiCorp Vault KV store
 
+Recommended guardrail:
+- Treat a small set of secrets as **required** for Azure clusters (at minimum `ghcr-username` and `ghcr-token` if workloads are pulled from private GHCR). If Key Vault fetch fails, the bootstrap should **fail fast** instead of silently falling back to fixture placeholders.
+
 Key configuration:
 ```yaml
 azure:
