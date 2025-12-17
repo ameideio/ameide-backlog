@@ -74,6 +74,16 @@ Recent local `arm64` debugging showed two failure modes that this doc should exp
 - Re-publish `ghcr.io/ameideio/mirror/loki:3.5.7` as a proper multi-arch manifest list (preserve `linux/amd64` + `linux/arm64`).
 - Until the mirror tag is repaired, local uses a values override to pull the upstream vendor image (`grafana/loki:3.5.7`) so GitOps remains stable on arm64.
 
+## Addendum (2025-12-17): Langfuse mirror tag breaks local arm64
+
+**Incident:** `ameide-local` Langfuse (`local-platform-langfuse`) CrashLooped on `ghcr.io/ameideio/mirror/langfuse:3.120.0` with a Go runtime fatal `lfstack.push invalid packing` and stack traces referencing `runtime/asm_amd64.s`, consistent with an `amd64` artifact (or broken emulation path) on local `arm64`.
+
+**Meaning:** the “multi-arch validation” policy must cover *all* mirrored tags we rely on in local, including non-DockerHub sources and “vendor upstream mirrored into GHCR”.
+
+**Action items:**
+- Re-publish `ghcr.io/ameideio/mirror/langfuse:3.120.0` as a proper multi-arch manifest list (preserve `linux/amd64` + `linux/arm64`).
+- Until the mirror tag is repaired, local uses a values override to pull the upstream multi-arch Langfuse image so Argo stays stable on arm64.
+
 ## Infrastructure
 
 ### GitHub Actions Workflow

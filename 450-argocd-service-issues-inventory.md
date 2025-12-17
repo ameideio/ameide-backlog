@@ -331,6 +331,30 @@ Remediation approach (GitOps-aligned):
 1. Add a **local-only** override to use the upstream multi-arch `grafana/alloy:v1.11.3` image until the GHCR mirror is republished as a proper multi-arch manifest list (track under 456).
 2. Keep the shared defaults on the mirror for real clusters once multi-arch is verified.
 
+## Update (2025-12-17): `local-platform-langfuse` CrashLoopBackOff (arm64 + mirror image not usable)
+
+- **App:** `local-platform-langfuse`
+  - **Resource:** `Deployment/ameide-local/platform-langfuse-web`
+  - **Symptom:** Application stays `Progressing` with `Waiting for rollout to finish: 1 old replicas are pending termination...`; pods CrashLoop.
+  - **Observed evidence (pod logs):** Go runtime fatal `lfstack.push invalid packing` with stack frames referencing `runtime/asm_amd64.s` while running on local `arm64`.
+  - **Root cause:** the configured image `ghcr.io/ameideio/mirror/langfuse:3.120.0` is not usable on local `arm64` (single-arch mirror tag or broken artifact selection under emulation).
+
+Remediation approach (vendor-aligned, reproducible):
+1. Add a **local-only** override to use the upstream multi-arch Langfuse image (`ghcr.io/langfuse/langfuse:3.120.0`, or vendor-recommended equivalent) until the mirror tag is republished as a proper multi-arch manifest list (track under 456).
+2. Keep the mirror defaults for clusters that are `amd64`-only once the mirror is validated as multi-arch.
+
+## Update (2025-12-17): `local-workflows-runtime` CrashLoopBackOff (Temporal namespace missing)
+
+- **App:** `local-workflows-runtime`
+  - **Resource:** `Deployment/ameide-local/workflows-runtime`
+  - **Symptom:** Application stays `Progressing` with `Waiting for rollout to finish: 0 of 1 updated replicas are available...`; container restarts and exits quickly.
+  - **Observed evidence (pod logs):** connects to Temporal frontend successfully, then fails with `Temporal namespace is missing; create it or update configuration`.
+  - **Root cause:** the runtime is configured for `TEMPORAL_NAMESPACE=ameide` but the GitOps-managed `TemporalNamespace` resources only create `default` in `ameide-local`, so the required namespace never exists.
+
+Remediation approach (vendor-aligned, GitOps-idempotent):
+1. Ensure `local-data-temporal` renders a `TemporalNamespace` CR for `ameide` (same `clusterRef` as the env’s `TemporalCluster`) so dependent apps never need imperative “create namespace” logic.
+2. Keep ordering wave-safe: `TemporalCluster` + schema/preflight must converge before apps that require the namespace (use sync-waves and/or Argo health checks, not manual steps).
+
 ## Update (2025-12-15): Local observability + Gateway Progressing (OTEL collector arch + local LoadBalancer)
 
 Observed Argo apps stuck `Progressing`:
