@@ -258,6 +258,7 @@ Local k3d clusters are capacity-constrained and can exhibit apiserver write late
 - When Terraform seeds Key Vault secrets, the Terraform runner identity must have **data-plane RBAC** (`Key Vault Secrets Officer` or stricter equivalent) on the vault; otherwise `azurerm_key_vault_secret` will fail during existence checks with `ForbiddenByRbac`.
 - GitOps consumers (Envoy Gateway addresses, DNS hostnames, etc.) must source Azure runtime facts from Terraform outputs (`artifacts/terraform-outputs/azure.json` → `infra/scripts/sync-globals.sh`) rather than hardcoding IPs/hostnames in Helm values.
 - ArgoCD bootstrap must not depend on private registry pull secrets (chicken-and-egg): ensure bootstrap correctly applies `sources/values/env/<env>/foundation/foundation-argocd.yaml` so Redis and other bootstrap images are public until `ghcr-pull` is created by External Secrets.
+- Any “bootstrap critical path” Job (e.g., Vault initialization/bootstrap) must also use public images and avoid `ghcr-pull` dependencies; otherwise Vault can’t initialize, SecretStores remain NotReady, and the entire cluster deadlocks on image pulls.
 
 ### 4.3 Wrappers for vendor charts
 

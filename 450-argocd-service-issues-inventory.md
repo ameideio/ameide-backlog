@@ -819,6 +819,7 @@ See [426-keycloak-config-map.md §3.2](426-keycloak-config-map.md) for client-pa
 - `module.keyvault.azurerm_key_vault.main`: Key Vault already exists and must be imported to be managed by Terraform.
 - `azurerm_key_vault_secret.env_secrets[*]`: `ForbiddenByRbac` (403) when Terraform checks/creates secrets (e.g. `github-token`, `ghcr-token`), because the Terraform runner identity has no Key Vault data-plane RBAC on the vault.
 - ArgoCD bootstrap installed Redis from `ghcr.io/ameideio/mirror/redis:7.2.5` and failed with `ImagePullBackOff` because `ghcr-pull` is not present during bootstrap (chicken-and-egg).
+- `foundation-vault-bootstrap` Jobs were stuck `Init:ImagePullBackOff` because the bootstrap chart used GHCR mirror images (`ghcr.io/ameideio/mirror/vault`, `ghcr.io/ameideio/mirror/bitnami-kubectl`) before `ghcr-pull` existed, preventing Vault initialization and leaving all `SecretStore/ameide-vault` resources NotReady.
 
 **Root cause**
 - **Entra ID directory operations are not least-privilege** for the cluster deployer identity: creating or even checking groups requires tenant-level Microsoft Graph permissions that our subscription-scoped deployer SP does not have.
