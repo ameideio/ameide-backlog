@@ -585,8 +585,8 @@ Dashboard (threads closed)          Dashboard (threads open)
 ### 5.2 Pattern 2: List Page Example
 
 **Example**: Repository Browser
-**Route**: `/org/[orgId]/repo/[graphId]`
-**Location**: [app/(app)/org/[orgId]/repo/[graphId]/page.tsx](../services/www_ameide_platform/app/(app)/org/[orgId]/repo/[graphId]/page.tsx)
+**Route**: `/org/[orgId]/repo/[repositoryId]`
+**Location**: [app/(app)/org/[orgId]/repo/[repositoryId]/page.tsx](../services/www_ameide_platform/app/(app)/org/[orgId]/repo/[repositoryId]/page.tsx)
 **Pattern**: List Page with optional activity panel
 
 **Current Implementation**: Three-column browser (tree + list + sidebar)
@@ -730,8 +730,8 @@ const shouldHideActivityPanel = shouldHideSidebars ||
 ### 5.3 Pattern 3: Settings Page Example
 
 **Example**: Repository Settings
-**Route**: `/org/[orgId]/repo/[graphId]/settings`
-**Location**: [app/(app)/org/[orgId]/repo/[graphId]/settings/page.tsx](../services/www_ameide_platform/app/(app)/org/[orgId]/repo/[graphId]/settings/page.tsx)
+**Route**: `/org/[orgId]/repo/[repositoryId]/settings`
+**Location**: [app/(app)/org/[orgId]/repo/[repositoryId]/settings/page.tsx](../services/www_ameide_platform/app/(app)/org/[orgId]/repo/[repositoryId]/settings/page.tsx)
 **Pattern**: Settings Page with section navigation
 
 **Current Implementation**: ✅ Already using `SettingsLayout` component
@@ -741,7 +741,7 @@ SETTINGS PAGE WIREFRAME
 ┌──────────────────────────────────────────────────────────────────────────┐
 │ PAGE HEADER                                                               │
 │   Repository Settings                                                     │
-│   Manage settings and configuration for this graph.                 │
+│   Manage settings and configuration for this repository.                 │
 └──────────────────────────────────────────────────────────────────────────┘
 
 ┌──────────────┬───────────────────────────────────────────────────────────┐
@@ -750,7 +750,7 @@ SETTINGS PAGE WIREFRAME
 │ ► Workflows  │ Workflow Automation                                       │
 │   Access     │                                                            │
 │   Collaborat │ Configure workflows that automatically trigger for        │
-│   General    │ elements in this graph.                              │
+│   General    │ elements in this repository.                              │
 │              │                                                            │
 │              │ ┌──────────────────────────────────────────────────────┐ │
 │              │ │ Workflow Rules List                                  │ │
@@ -836,7 +836,7 @@ The Organization Settings page still uses a custom inline implementation (2,368 
 ### 5.4 Pattern 4: Editor Page Example
 
 **Example**: ArchiMate Element Editor
-**Route**: `/org/[orgId]/repo/[graphId]/element/[elementId]` (future full-screen)
+**Route**: `/org/[orgId]/repo/[repositoryId]/element/[elementId]` (future full-screen)
 **Current**: Modal only via `@modal/(.)element/[elementId]`
 **Pattern**: Editor Page with full-screen canvas
 
@@ -1369,7 +1369,7 @@ type NavigationContext =
     /inbox                            # Initiative-scoped notification inbox
     /architect                        # Sub-section
       /capabilities                   # Feature page
-  /repo/[graphId]                # Repository context
+  /repo/[repositoryId]                # Repository context
     /inbox                            # Repo-scoped notification inbox
     /element/[elementId]              # Element page
     /@modal/(.)element/[elementId]    # Parallel modal route
@@ -1379,7 +1379,7 @@ type NavigationContext =
 
 **Parallel Routes** (Modal Intercepts):
 ```
-/org/[orgId]/repo/[graphId]/
+/org/[orgId]/repo/[repositoryId]/
   ├─ element/[elementId]/page.tsx           # Full page fallback
   └─ @modal/(.)element/[elementId]/page.tsx # Modal overlay
 ```
@@ -1392,7 +1392,7 @@ type NavigationContext =
 
 **Dynamic Segments**:
 - `[orgId]` - Organization ID
-- `[graphId]` - Repository element ID
+- `[repositoryId]` - Repository ID
 - `[transformationId]` - Initiative ID
 - `[elementId]` - Element ID
 - `[workflowsId]` - Workflow definition ID
@@ -1416,8 +1416,8 @@ Route                                          Layout Hierarchy
 /org/[orgId]/transformations                       Root → App → Org
 /org/[orgId]/transformations/[transformationId]        Root → App → Org → Initiative
 /org/[orgId]/transformations/[transformationId]/inbox  Root → App → Org → Initiative (Initiative notifications)
-/org/[orgId]/repo/[graphId]               Root → App → Org → Repository
-/org/[orgId]/repo/[graphId]/inbox         Root → App → Org → Repository (Repo notifications)
+/org/[orgId]/repo/[repositoryId]               Root → App → Org → Repository
+/org/[orgId]/repo/[repositoryId]/inbox         Root → App → Org → Repository (Repo notifications)
 /org/[orgId]/settings                          Root → App → Org
 
 /accept                                        Root → App
@@ -1988,7 +1988,7 @@ app/
 ├── (app)/layout.tsx                             # App layout
 ├── (app)/org/[orgId]/layout.tsx                 # Org layout
 ├── (app)/org/[orgId]/transformations/[transformationId]/layout.tsx  # Initiative
-└── (app)/org/[orgId]/repo/[graphId]/layout.tsx         # Repository
+└── (app)/org/[orgId]/repo/[repositoryId]/layout.tsx         # Repository
 ```
 
 ### 16.2 Page Files
@@ -1997,7 +1997,7 @@ app/
 app/(app)/
 ├── org/[orgId]/page.tsx                         # Org overview
 ├── org/[orgId]/transformations/[transformationId]/page.tsx  # Initiative workspace
-├── org/[orgId]/repo/[graphId]/page.tsx     # Repository browser
+├── org/[orgId]/repo/[repositoryId]/page.tsx     # Repository browser
 ├── user/profile/page.tsx                        # User profile
 └── user/profile/settings/page.tsx               # User settings
 ```
@@ -2290,7 +2290,7 @@ if (command) {
 ### 21.1 Current Implementation Status
 
 **✅ Implemented**:
-- Visual dropdown filter in graph browser - [page.tsx:466-498](../services/www_ameide_platform/app/(app)/org/[orgId]/repo/[graphId]/page.tsx#L466-L498)
+- Visual dropdown filter in repository browser - [page.tsx:466-498](../services/www_ameide_platform/app/(app)/org/[orgId]/repo/[repositoryId]/page.tsx#L466-L498)
 - Grouped filters by category (Documents, Views, Elements)
 - Filter state updates file list in real-time
 - Type-based filtering with `selectedElementType` state
@@ -3011,7 +3011,7 @@ const defaultSavedReplies = [
 
 **Context Inboxes** (Org/Repo/Initiative scoped):
 - `/org/[orgId]/inbox` - Auto-scoped to organization
-- `/org/[orgId]/repo/[graphId]/inbox` - Repository notifications
+- `/org/[orgId]/repo/[repositoryId]/inbox` - Repository notifications
 - `/org/[orgId]/transformations/[transformationId]/inbox` - Initiative notifications
 - Same layout as Global, but pre-filtered to context
 - One-click toggle to "All orgs" at top
@@ -4065,7 +4065,7 @@ export function StateLabel({ state, size = 'md', showIcon = true }: StateLabelPr
 6. ✅ **Repository List** (`org/[orgId]/repo`) → ListPageLayout with ActivityPanel (200 → 238 lines, +19% for rich features)
 7. ✅ **Repository Settings** (`repo/[id]/settings`) → SettingsLayout (already migrated)
 8. ✅ **Initiative Settings** (`transformations/[id]/settings`) → SettingsLayout (already migrated)
-9. ✅ **Repository Detail** (`repo/[graphId]`) → ListPageLayout with ActivityPanel (693 → 669 lines, -3.5%)
+9. ✅ **Repository Detail** (`repo/[repositoryId]`) → ListPageLayout with ActivityPanel (693 → 669 lines, -3.5%)
 10. ✅ **Initiative Overview** (`transformations/[transformationId]`) → DashboardLayout with widgets (399 → 280 lines, -30%)
 11. ✅ **User Management** (`org/[orgId]/users`) → ListPageLayout with ActivityPanel (NEW - 352 lines)
 12. ✅ **Teams Management** (`org/[orgId]/teams`) → ListPageLayout with ActivityPanel (NEW - 185 lines)

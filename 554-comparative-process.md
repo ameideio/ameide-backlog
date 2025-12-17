@@ -1,8 +1,23 @@
 # 554 — Comparative Process Primitives Analysis
 
-**Status:** Analysis Complete
+**Status:** Reviewed 2025-12-17 (analysis complete; codebase metrics corrected)
 **Audience:** Architecture, platform engineering, operators/CLI, workflow teams
 **Scope:** Comparative analysis of process primitive implementations across Sales, Commerce, Transformation, and SRE to identify maturity levels, workflow patterns, gaps, and recommended next steps.
+
+## Codebase Metrics (December 2025)
+
+| Process | Workflows (LOC) | Activities (LOC) | Ingress Router (LOC) | Tests (LOC) | Proto Facts |
+|---------|-----------------|------------------|----------------------|-------------|-------------|
+| **Sales** | 306 | 118 | 111 | 101 | 6 events (78 LOC) |
+| **SRE** | 209 | 50 | 76 | 69 | 14 events (148 LOC) |
+| **Commerce** | 22 (placeholder) | 0 | 25 (scaffold) | 63 | 0 (no process proto) |
+| **Transformation** | 4 (constant only) | 0 | 4 (empty struct) | 63 | 0 events |
+
+**Total Implementation Lines:**
+- **Sales:** 535 LOC (production-ready)
+- **SRE:** 404 LOC (production-ready)
+- **Commerce:** 47 LOC (scaffold)
+- **Transformation:** 8 LOC (placeholder)
 
 **Use with:**
 - Process primitives: `backlog/540-sales-process.md`, `backlog/523-commerce-process.md`, `backlog/527-transformation-process.md`, `backlog/526-sre-process.md`

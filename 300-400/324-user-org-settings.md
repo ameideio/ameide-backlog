@@ -883,7 +883,7 @@ Below is a practical **information architecture + UX backlog** for a B2B, multi�
 /org/[orgId]/users                                ✅ User management (2025-10-30)
 /org/[orgId]/teams                                ✅ Teams management (2025-10-30)
 
-/org/[orgId]/repo/[graphId]/settings         ✅ Repository settings (placeholder)
+/org/[orgId]/repo/[repositoryId]/settings         ✅ Repository settings (placeholder)
 /org/[orgId]/transformations/[transformationId]/settings  ✅ Initiative settings (placeholder)
 
 API Routes (invitation system):

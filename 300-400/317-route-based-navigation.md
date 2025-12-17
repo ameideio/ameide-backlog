@@ -53,7 +53,7 @@ Migrated navigation system from regex-based pathname matching to Next.js layout-
 Route Structure                           Navigation Component
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 /org/[orgId]/layout.tsx                → OrgNavigation
-/org/[orgId]/repo/[graphId]/      → RepoNavigation
+/org/[orgId]/repo/[repositoryId]/      → RepoNavigation
 /org/[orgId]/transformations/[id]/         → InitiativeNavigation
 ```
 
@@ -85,7 +85,7 @@ export function NavTabs({ tabs }: NavTabsProps) {
 
 Each uses `useSelectedLayoutSegment()` to determine active tab:
 ```typescript
-export function RepoNavigation({ orgId, graphId }: Props) {
+export function RepoNavigation({ orgId, repositoryId }: Props) {
   const segment = useSelectedLayoutSegment();
   // segment = null | 'settings' | 'element' | ...
 
@@ -115,14 +115,14 @@ export default async function OrganizationLayout({ children, params }) {
 }
 ```
 
-**Repository Layout** (`app/(app)/org/[orgId]/repo/[graphId]/layout.tsx`)
+**Repository Layout** (`app/(app)/org/[orgId]/repo/[repositoryId]/layout.tsx`)
 ```typescript
 export default async function RepositoryLayout({ children, params }) {
-  const { orgId, graphId } = await params;
+  const { orgId, repositoryId } = await params;
 
   return (
     <>
-      <RepoNavigation orgId={orgId} graphId={graphId} />
+      <RepoNavigation orgId={orgId} repositoryId={repositoryId} />
       <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         {children}
       </div>
@@ -250,7 +250,7 @@ All navigation appears full-width below the header as expected.
 - `app/(app)/org/[orgId]/settings/page.tsx` - Added content wrapper, changed default section to 'features'
 - `app/(app)/org/[orgId]/transformations/page.tsx` - Added content wrapper (list page)
 - `app/(app)/org/[orgId]/repo/page.tsx` - Added content wrapper (list page)
-- `app/(app)/org/[orgId]/repo/[graphId]/layout.tsx` - Renders repo navigation + content wrapper
+- `app/(app)/org/[orgId]/repo/[repositoryId]/layout.tsx` - Renders repo navigation + content wrapper
 - `app/(app)/org/[orgId]/transformations/[transformationId]/layout.tsx` - Renders transformation navigation + content wrapper
 - `features/navigation/conditional-org-navigation.tsx` - Updated with segment-aware logic using `useSelectedLayoutSegments()`
 - `features/navigation/components/Header.tsx` - Removed tab rendering code (~70 lines)

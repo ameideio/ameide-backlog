@@ -1,180 +1,358 @@
-# 527 Transformation — Implementation & Migration (core)
+# 527 Transformation — Implementation Plan (target-state, no migration shims)
 
-**Status:** Draft (scaffolds implemented; migration plan pending)  
-**Parent:** [527-transformation-capability.md](527-transformation-capability.md)
+**Status:** Draft (implementation in progress)  
+**Parent:** `backlog/527-transformation-capability.md`
 
-This document captures the Implementation & Migration layer for delivering the Transformation capability, including work packages, migration seams, and explicit gaps between the current codebase and the target architecture.
+This document is the **Implementation & Migration** layer plan for delivering the Transformation capability. Because we are **not live**, “migration” here means **implementation slicing + deletion of legacy code**, not compatibility shims, traffic splitting, or façade-first routing.
 
 ---
 
 ## Layer header (Implementation & Migration)
 
-- **Primary ArchiMate element types used:** Work Package, Plateau (optional), Deliverable, Gap.
-- **Goal:** describe deliverable slicing and acceptance seams, not application contract details.
+- **Primary ArchiMate element types used:** Work Package, Plateau, Deliverable, Gap.
+- **Goal:** a single executable plan with explicit DoD gates (tests + verify).
 
-## 1) Work packages (starter slicing)
+---
 
-**Work Package A — Enterprise Repository + baseline seam**
+## 0) Non-goals (explicit)
 
-- Entry:
-  - domain outbox publishing is operational
-  - projection rebuild/replay is supported
-- Exit evidence:
-  - typed ArchiMate storage is usable via write services/intents
-  - baseline draft → submit → approve/reject → promote is end-to-end
-  - evidence links are visible in an audit timeline read model
+- No compatibility shims for legacy backends.
+- No long-lived production use of `services/graph`, `services/repository`, or `services/transformation`.
+- No canonical “Artifact” model. “Artifact” is UX vocabulary only; canonical nouns are **Element**, **View**, **Document**, **Relationship**, **Version**, **Definition**.
+- No intermediate architecture that knowingly creates rework. Implement the target state directly.
 
-**Work Package B — Governance seam (Scrum / TOGAF ADM)**
+---
 
-- Entry:
-  - baseline seam exists (Work Package A exit)
-- Exit evidence:
-  - governance progression is driven by domain facts and process facts (no runtime RPC reads/writes)
-  - gate/timebox decisions require evidence bundles and are attributable
-  - UISurface reads projections and invokes domain write surfaces only
+## 0.1) Implementation progress (repo snapshot; checklist)
 
-## 2) Implementation approach (explicit)
+This section is a lightweight status tracker against the work packages below.
 
-Transformation is implemented by applying:
+- [x] WP-A1 Domain: enterprise repository write model implemented (`primitives/domain/transformation`).
+- [x] WP-A2 Projection: enterprise repository read model implemented (`primitives/projection/transformation`).
+- [x] WP-A2 Ingestion: outbox → projection relay implemented (`primitives/projection/transformation/cmd/relay`).
+- [x] WP-A3 UISurface: existing ArchiMate editor wired to primitives (`services/www_ameide_platform`).
+- [x] WP-Z Deletion: legacy `services/*` backends removed (`services/graph`, `services/repository`, `services/transformation`).
+- [ ] WP-0 Repo health: confirm repo-wide codegen drift gates are green and enforceable in CI (regen-diff).
+- [ ] GitOps parity: add checked-in GitOps components for Process/Agent/UISurface primitives in `gitops/primitives/**` and update guardrails to reference them consistently.
 
-- `backlog/520-primitives-stack-v2.md` (guardrails)
-- `backlog/533-capability-implementation-playbook.md` (capability implementation DAG)
-- per-kind scaffolding specs (`backlog/510-*` through `backlog/513-*`)
+Gates (currently passing):
 
-**Scaffold stance mapping (non-negotiable)**
+- `bin/ameide primitive verify --kind domain --name transformation --mode repo`
+- `bin/ameide primitive verify --kind projection --name transformation --mode repo`
+- `pnpm -C services/www_ameide_platform run typecheck`
 
-- Domain (`transformation-domain`): compile-clean scaffold; business logic pending
-- Process (governance orchestrators): compile-clean scaffold; workflow logic pending
-- Projection (workspace/read models/graph/vector): compile-clean scaffold; ingestion/read models pending
-- UISurface: placeholder runtime; portal UX pending
-- Integration: MCP adapter scaffold; connector/tool wiring pending
-- Agent: compile-clean scaffold; role definitions/tools pending
+## 1) Alignment to 520 (normative constraints)
 
-## 2.1) Implementation progress (repo snapshot)
+Cross-reference: `backlog/520-primitives-stack-v2.md`.
 
-Delivered (scaffold + guardrails):
+We treat 520 as non-negotiable for this plan:
 
-- Primitive scaffolds exist for Transformation under `primitives/*/transformation*` and compile/test cleanly.
-- Repo-mode verification is green for CLI-supported kinds:
-  - `bin/ameide primitive verify --kind domain --name transformation --mode repo`
-  - `bin/ameide primitive verify --kind process --name transformation --mode repo`
-  - `bin/ameide primitive verify --kind agent --name transformation --mode repo`
-  - `bin/ameide primitive verify --kind uisurface --name transformation --mode repo`
-- Proto contracts for Scrum and Architecture bounded contexts exist, plus legacy `TransformationService` façade protos (see `backlog/527-transformation-proto.md`).
+- **Proto is the behavior schema.** Services/messages/events are defined in protos; SDKs are generated from protos.
+- **`buf generate` is canonical.** The CLI orchestrates scaffolding/verify; it does not replace Buf plugins.
+- **Generated outputs are clobber-safe.** Implementation-owned code lives outside generated-only roots.
+- **Guardrails are gates.** “Done” means regen-diff is clean, tests are green, and `bin/ameide primitive verify` is meaningful.
 
-## 2.2) Clarification requests (next steps)
+---
 
-Confirm/decide:
+## 2) Target ownership (primitives)
 
-- Which “acceptance slice” is the next migration target (e.g., Scrum governance loop vs architecture revision/baseline promotion), and what evidence proves success end-to-end.
-- Whether `services/transformation` remains a façade (Phase 1/2) or is retired in favor of domain/process/projection primitives (and the deprecation plan).
-- Which projection read models are required for the first slice (workspace, audit timeline, baseline compare), and whether projection starts in bridge mode.
+Transformation is IT4IT-aligned by default (Transformation *is* the IT value-stream capability), but we keep strict primitive boundaries:
 
-## 3) Current platform vs target (documented gap)
+- **Domain primitive:** `primitives/domain/transformation`  
+  Canonical writer for Transformation-owned design-time state:
+  - Enterprise Repository (elements-only knowledge substrate + workspace tree)
+  - Definition Registry (schema-backed definitions + promotions)
+  - Governance (initiatives, baselines/promotions/approvals, evidence references)
+- **Projection primitive:** `primitives/projection/transformation`  
+  Read models + query services for UI/agents (browse/search/timelines), consuming facts idempotently.
+- **Process primitive:** `primitives/process/transformation`  
+  Orchestrates workflows (Temporal), emits process facts only, requests changes via domain commands/intents.
+- **Integration primitives:** `primitives/integration/transformation-*`  
+  Tool runners/adapters; they never become writers of canonical domain state.
+- **UISurface:** `services/www_ameide_platform`  
+  Thin: reads via projection query services; writes via domain command/intents.
 
-### Current state (observed)
+---
 
-- The web platform reads Transformation data via `TransformationService` RPCs (workspace, milestones, metrics, alerts).
-- The concrete `GetTransformationWorkspace` behavior used by the UI is implemented in platform services (`services/graph` / `services/repository`), not in `services/transformation`.
-- `services/transformation` implements transformation CRUD and agent definition upsert, but leaves workspace-oriented APIs unimplemented (`UNIMPLEMENTED` for `GetTransformationWorkspace` and `ListTransformationElements`).
-- Transformation UI deliverables are currently backed by generalized graph/metamodel element storage:
-  - element rows in `elements` with `element_kind` carrying notation-specific kinds (ArchiMate/BPMN/etc.)
-  - proto shape: `ameide_core_proto.graph.v1.Element` with `ElementKind` including `ELEMENT_KIND_ARCHIMATE_*` and `ELEMENT_KIND_BPMN_*`
-- Scrum governance has partial foundation (Scrum protos exist; scaffolds exist for domain/process/projection), but the outbox publishing + process orchestration + portal read models are not yet implemented end-to-end.
+## 3) Identity and storage model (locked decisions)
 
-### Target state (527 stack)
+### 3.1 Scope identity (required everywhere)
 
-- Transformation truth is owned and persisted by the **Transformation Domain primitives** as canonical writers.
-- Repository objects are first-class and partitioned (documentation target):
-  - core repository/definitions: `ameide_core_proto.transformation.core.v1`
-  - governance work models: `ameide_core_proto.transformation.governance.<method>.v1` (or per-profile packages)
-- Writes are event-driven (intents/commands → domain persistence/outbox → domain facts; process facts for orchestration), reads are projection-backed query services.
+All repository-scoped objects and envelopes are scoped by:
 
-## 4) Migration seam (recommended)
+- `{tenant_id, organization_id, repository_id}`
+- `repository_id` is the **only** repository identifier exposed in contracts and APIs (no `graph_id`).
 
-### Keep `TransformationService` as an initial UI façade
+### 3.2 Canonical storage (elements-only)
 
-- Phase 1: `TransformationService` reads remain backed by existing platform data models (graph/metamodel store) for continuity.
-- Phase 2: introduce projection-backed query services and pivot `TransformationService.GetTransformationWorkspace` to compose its response from:
-  - architecture projections (repository objects + baseline/evidence read models)
-  - governance projections (Scrum/TOGAF/PMI dashboards)
-- Phase 3: deprecate direct coupling to graph/metamodel element storage for Transformation deliverables; treat graph as a derived index/projection.
+Enterprise Repository canonical storage is **elements-only** (303 direction):
 
-### Writer boundary shift (non-negotiable)
+- `Element` (notation kind + `type_key` + `body` + `metadata`)
+- `ElementRelationship` (`SEMANTIC | CONTAINMENT | REFERENCE`)
+- `ElementVersion` (immutable snapshots for views/docs; head/published pointers; no cascading versioning)
+- Workspace organization is separate:
+  - `WorkspaceNode` (tree)
+  - `ElementAssignment` (node → element, optional pinned version)
 
-- Move canonical writes behind Transformation domain write surfaces (write services and/or domain intents).
-- Do not allow UISurfaces to become competing writers.
+### 3.3 “Diagram” naming
 
-## 5) Legacy strengths to preserve
+- UX: “diagram”
+- Domain noun: **View** = an `Element` with `kind = *_VIEW` whose layout is stored in `ElementVersion.body`.
 
-- Keep a single UI-friendly workspace read seam (compose a workspace read model; keep `GetTransformationWorkspace` as transitional façade).
-- Preserve notation-aware flexibility for early UI/editor iteration, but migrate canonical truth to typed repository objects and governed versions.
-- Reuse proven multi-tenant scoping enforcement patterns at RPC boundaries while shifting the canonical writer.
+---
 
-## 6) Legacy mapping (current code ownership)
+## 4) Proto naming conventions (Transformation-owned contracts)
 
-### `services/transformation` (legacy)
+Cross-reference: `backlog/509-proto-naming-conventions.md`.
 
-- Implements partial `TransformationService` CRUD and agent definition upsert/get.
-- Does not implement workspace/milestones/metrics/alerts.
-- Does not implement EDA contracts for Scrum intents/facts or outbox publishing.
+### 4.1 Target package layout
 
-Target role:
+Transformation-owned packages live under `ameide_core_proto.transformation.<subcontext>.v1`:
 
-- Either becomes a façade while Domain primitives take over, or is evolved into a Domain-primitive-shaped implementation (outbox + bus + strict boundaries).
+- `ameide_core_proto.transformation.knowledge.v1`  
+  Enterprise Repository substrate (repositories/nodes/assignments/elements/relationships/versions + view layout payload schema).
+- `ameide_core_proto.transformation.registry.v1`  
+  Definition Registry (ProcessDefinition/AgentDefinition/ExtensionDefinition + versions/promotions).
+- `ameide_core_proto.transformation.governance.v1`  
+  Initiatives + baselines/promotions/approvals + evidence references.
+- `ameide_core_proto.process.transformation.v1`  
+  Transformation process facts catalog (`ActivityTransitioned`, `GateDecisionRecorded`, `ToolRunRecorded`, …).
 
-### `primitives/domain/transformation` (scaffold)
+Topic families follow 509:
 
-- Scaffold exists with outbox/dispatcher shape, migrations, and smoke tests, but handlers remain placeholder-level.
-- Target bounded contexts (core repository + methodology profiles) are not implemented end-to-end.
+- `transformation.domain.intents.v1`
+- `transformation.domain.facts.v1`
+- `transformation.process.facts.v1`
 
-Target role:
+### 4.2 Service naming and ownership
 
-- Becomes the canonical implementation of the Transformation bounded contexts (core + scrum), consistent with the primitives stack and 496.
+To preserve the Domain/Projection boundary:
 
-## 7) Full-scope Phase G plan (implementation governance)
+- Domain exposes **write surfaces** (`*CommandService`).
+- Projection exposes **read surfaces** (`*QueryService`).
 
-This is the “how we govern implementation” plan for delivering the full future state, using:
+Example:
 
-- `backlog/524-transformation-capability-decomposition.md` as the execution loop
-- `backlog/520-primitives-stack-v2.md` as the conformance baseline
+- `TransformationKnowledgeCommandService` (implemented by Domain primitive)
+- `TransformationKnowledgeQueryService` (implemented by Projection primitive)
 
-### G.0 Governance gates (non-negotiable)
+### 4.3 Deletions (not live, so break now)
 
-- Contract gates: `buf lint`, `buf breaking`, deterministic `buf generate`, regen-diff, SDK-only import policy.
-- Runtime gates: compile/test per primitive runtime; determinism for Process primitives; replay safety for Agents; idempotency for Projections.
-- Deployment gates: deterministic builds + scans; GitOps sync + smoke probes; operators surface conditions.
-- Promotion gates: artifacts/definitions promoted only through governed flows (process facts + approvals), never by direct DB edits.
+- `ameide_core_proto.graph.v1` is transitional/legacy (the target-state substrate is `ameide_core_proto.transformation.knowledge.v1`). New work must not add new `graph.v1` dependencies; remove remaining `graph.v1` references as a dedicated cleanup step.
+- `ameide_core_proto.transformation.v1.TransformationService` is legacy and must be removed/replaced by the split subcontext services above.
+- Any proto vocabulary using “Artifact” as a canonical noun must be removed.
 
-### G.1 Work packages (plateaus) for full scope
+---
 
-1. **G1 — Contracts**
-   - Lock and publish proto packages:
-     - `ameide_core_proto.transformation.core.v1`
-     - `ameide_core_proto.transformation.scrum.v1` (validate/extend)
-     - `ameide_core_proto.transformation.togaf.v1`
-     - `ameide_core_proto.transformation.pmi.v1`
-     - `ameide_core_proto.process.{scrum,togaf,pmi}.v1`
-   - Lock topic families and envelope invariants (meta + subject + monotonic versions).
-2. **G2 — Enterprise Repository (Domain)**
-   - Implement typed ArchiMate store + views/layout + revision/promotion model.
-   - Implement BPMN ProcessDefinition storage/versioning + linking.
-   - Implement transactional outbox publishing + write surfaces.
-3. **G3 — Profile domains**
-   - Scrum: complete bounded context and outbox publishing per `backlog/506-scrum-vertical-v2.md`.
-   - TOGAF/ADM + PMI: implement profile configuration domains + facts.
-4. **G4 — Governance execution (Process)**
-   - Implement Temporal-backed governance processes (ingress + deterministic workflows + process outbox).
-5. **G5 — Projections and portal (Projection + UISurface)**
-   - Implement read models and full portal UX surfaces (see `backlog/527-transformation-projection.md`, `backlog/527-transformation-uisurface.md`).
-6. **G6 — Agent-driven `524` execution (Agent)**
-   - Store AgentDefinitions per role; wire tool grants and risk tiers; execute `524` as stored ProcessDefinition(s).
-7. **G7 — Hardening and migration**
-   - Multi-tenant isolation, auditability, retention policies, SLOs, backup/restore.
-   - Migrate off legacy façades with coexistence windows and explicit deprecation milestones.
+## 5) Work Packages and Plateaus
 
-### G.2 Delivery mechanics (day-to-day)
+### WP-0 (Prerequisite) — Contracts + codegen drift must be green
 
-- Repeat `524` Step 6 loop for every work package: scaffold → generate → compile/test → publish images → GitOps sync → smoke probes.
-- Promote only when contract gates and deployment gates are green.
-- Manage drift continuously via `524` Step 7 (TOGAF Phase H).
+**Goal:** make verification meaningful before we implement behavior.
+
+**Progress checklist**
+
+- [x] Enterprise Knowledge contracts exist and are in use:
+  - [x] `packages/ameide_core_proto/src/ameide_core_proto/transformation/knowledge/v1/`
+- [ ] Governance contracts exist:
+  - [ ] `packages/ameide_core_proto/src/ameide_core_proto/transformation/governance/v1/`
+- [ ] Definition Registry contracts exist:
+  - [ ] `packages/ameide_core_proto/src/ameide_core_proto/transformation/registry/v1/`
+- [ ] Transformation process-facts contracts exist:
+  - [ ] `packages/ameide_core_proto/src/ameide_core_proto/process/transformation/v1/`
+- [ ] Regen-diff gates are enforced repo-wide in CI (codegen drift is a hard error, not “best effort”).
+
+**Deliverables**
+
+- Proto packages exist under `packages/ameide_core_proto/src/ameide_core_proto/transformation/{knowledge,registry,governance}/v1/` (plus `process/transformation/v1/`):
+  - [x] `transformation/knowledge/v1`
+  - [ ] `transformation/registry/v1`
+  - [ ] `transformation/governance/v1`
+  - [ ] `process/transformation/v1`
+- Repo-wide SDK regeneration is deterministic and checked in.
+
+**DoD (gates)**
+
+- `pnpm -C packages/ameide_core_proto run generate:local`
+- `pnpm -C packages/ameide_core_proto exec buf generate --template buf.gen.sdk-ts.local.yaml`
+- `pnpm -C packages/ameide_core_proto exec buf generate --template buf.gen.sdk-go.local.yaml`
+- `pnpm -C packages/ameide_core_proto exec buf generate --template buf.gen.sdk-python.yaml`
+- `cd packages/ameide_core_proto && buf lint && buf breaking`
+- Regen-diff: running the generation commands above yields `git diff` empty.
+
+---
+
+### WP-A (MVP) — Enterprise Repository editing (ArchiMate first, any-notation ready)
+
+**MVP goal:** edit and view enterprise repository content, with the existing graphical editor wired through primitives.
+
+**Explicitly out of scope for MVP**
+
+- Initiatives, baselines/promotions/evidence bundles
+- Scrum/TOGAF/PMI workflows
+- Stored AgentDefinitions / agentic approvals
+
+#### A1) Domain primitive: TransformationKnowledgeCommandService
+
+**Scaffold (required)**
+
+- `bin/ameide primitive scaffold --kind domain --name transformation --lang go --proto-path <knowledge command service proto> --include-test-harness`
+
+**Progress checklist**
+
+- [x] Schema/migrations exist for the enterprise repository substrate (repositories, nodes, assignments, elements, relationships, versions).
+- [x] Transactional outbox exists and facts are emitted after persistence (`transformation.knowledge.domain.facts.v1`).
+- [x] Repository scoping is enforced on writes (`{tenant_id, organization_id, repository_id}` everywhere).
+- [ ] Optimistic concurrency is enforced for view head updates (expected head version id / version number).
+- [x] Gate: `bin/ameide primitive verify --kind domain --name transformation --mode repo` passes.
+
+**Implementation requirements**
+
+- Postgres schema/migrations for the enterprise repository substrate:
+  - repositories, workspace nodes, assignments
+  - elements, element_relationships, element_versions
+  - domain outbox (transactional) for facts
+- Repository scoping enforcement:
+  - every write validates `{tenant_id, organization_id, repository_id}`
+  - forbid cross-repo/cross-org references (relationships, assignments, version pointers)
+- Versioning semantics:
+  - view edits produce `ElementVersion` snapshots and advance `head_version_id`
+  - optimistic concurrency for view head updates (expected head version id / version number)
+
+**DoD (tests + verify)**
+
+- `cd primitives/domain/transformation && ./tests/run_integration_tests.sh`
+- `bin/ameide primitive verify --kind domain --name transformation --mode repo`
+
+#### A2) Projection primitive: TransformationKnowledgeQueryService
+
+**Scaffold (required)**
+
+- `bin/ameide primitive scaffold --kind projection --name transformation --lang go --proto-path <knowledge query service proto> --include-test-harness`
+
+**Progress checklist**
+
+- [x] Materialized read model tables exist (repositories/nodes/assignments/elements/relationships/versions).
+- [x] Idempotency is enforced (`projection_inbox(tenant_id,message_id)`).
+- [x] Query RPCs exist for MVP browse/list/get.
+- [x] Outbox → projection ingestion loop exists (no broker dependency):
+  - [x] `primitives/projection/transformation/cmd/relay` tails the domain outbox and applies facts with durable offsets.
+- [x] Gate: `bin/ameide primitive verify --kind projection --name transformation --mode repo` passes.
+
+**Ingestion (target-state, minimal infra)**
+
+To avoid introducing a message broker dependency in MVP while still preserving “projection consumes facts”:
+
+- Domain writes append to a **domain outbox** table in the same Postgres cluster.
+- Projection maintains:
+  - `projection_inbox(tenant_id, message_id)` for idempotency
+  - read models (`*_views`) for browse/search
+- Projection runs an ingestion loop (poll outbox → apply → mark inbox) and exposes query RPCs from its read models.
+
+**DoD (tests + verify)**
+
+- `cd primitives/projection/transformation && ./tests/run_integration_tests.sh`
+- `bin/ameide primitive verify --kind projection --name transformation --mode repo`
+
+#### A3) UISurface wiring (existing graphical editor)
+
+**Requirements**
+
+- Portal reads via projection query services only.
+- Portal writes via domain command surfaces only.
+- No fallback to legacy `TransformationService` / “typed artifact” services.
+
+**Progress checklist**
+
+- [x] `services/www_ameide_platform` repository pages are wired to primitives (no legacy `client.graph.*` calls).
+- [x] Existing ArchiMate view editor reads via projection and saves layout via domain commands.
+- [x] MVP-excluded “Transformations/initiatives” pages and API routes removed from the portal.
+- [x] Gate: `pnpm -C services/www_ameide_platform run typecheck` passes.
+- [ ] Gate: `pnpm -C services/www_ameide_platform test:unit` passes.
+- [ ] Targeted editor e2e suite exists and passes (or equivalent).
+
+**De-scope**
+
+- Remove MVP-excluded UI coupling:
+  - retire “Transformations” pages until governance is implemented by primitives
+
+**DoD**
+
+- `pnpm -C services/www_ameide_platform test:unit`
+- `pnpm -C services/www_ameide_platform typecheck`
+- Targeted editor e2e/interaction tests (existing suite):
+  - `pnpm -C services/www_ameide_platform test:e2e:archimate` (or the closest existing e2e target)
+
+---
+
+### WP-Z (Deletion) — Remove legacy services/*
+
+**Goal:** eliminate the “old/new soup”. Everything flows through primitives.
+
+**Progress checklist**
+
+- [x] Deleted legacy services:
+  - [x] `services/graph`
+  - [x] `services/repository`
+  - [x] `services/transformation`
+- [x] Workspace tooling updated (remove deleted workspaces).
+- [ ] GitOps no longer deploys/routs the deleted services anywhere under `gitops/ameide-gitops/**`.
+- [ ] Portal has no `/api/*` routes that proxy to deleted services.
+
+**Delete (required)**
+
+- `services/graph`
+- `services/repository`
+- `services/transformation`
+
+**Also update**
+
+- `pnpm-workspace.yaml` (remove deleted workspaces)
+- GitOps (stop deploying those services and stop routing their proto services through the “graph” backend)
+- Any portal `/api/*` routes that proxy to deleted services
+
+**DoD**
+
+- `pnpm -w test:unit` (or the repo’s equivalent unit suite) remains green
+- `go test ./...` remains green
+
+---
+
+## 6) Next plateaus (after MVP)
+
+These are explicitly sequenced so we reintroduce governance *after* the enterprise repository substrate is proven end-to-end.
+
+### P1 — Initiatives (governance container)
+
+- [ ] Domain: `Initiative` aggregate exists and references repository `element_id`/`version_id` (no forked repository truth).
+- Domain: `Initiative` that references repository element/version ids (does not fork repository truth).
+- Projection/UI: initiative browse/detail linking into repository modeling.
+- DoD: contract gates + projection tests + one e2e flow “initiative → repository view”.
+
+### P2 — Baselines/promotions/evidence
+
+- [ ] Domain: baseline lifecycle exists and references `{element_id, version_id}` (reproducible).
+- Domain: baseline lifecycle and promotion updates “published pointers” without cascading versioning.
+- Process: approval gates emitting process facts (`GateDecisionRecorded`) and step facts (`ActivityTransitioned`).
+- Projection/UI: baseline timeline + diff + evidence views.
+
+### P3 — Definition Registry + operator consumption
+
+- [ ] Domain: Definition Registry exists (schema-backed definitions, versions, promotions).
+- Domain: schema-backed `ProcessDefinition` / `AgentDefinition` / `ExtensionDefinition` with versioning/promotions.
+- Process: “Design → Deploy” workflows execute promoted definitions; CLI invoked via integration runners; tool runs recorded as process facts.
+
+### P4 — Scrum / TOGAF / PMI overlays
+
+- [ ] Separate profile domains exist (Scrum/TOGAF/PMI) and govern the same repository (no forked canonical model).
+- Separate profile domains/processes that govern the same repository (no forked canonical model).
+
+---
+
+## 7) Cross-references
+
+- `backlog/520-primitives-stack-v2.md` — canonical stack and gates
+- `backlog/509-proto-naming-conventions.md` — package/topic naming
+- `backlog/300-400/303-elements.md` — elements-only substrate
+- `backlog/521f-external-verification-baseline.md` — verify expectations
+- `backlog/527-transformation-scenario.md` — end-to-end “Design → Deploy” narrative (CLI is a tool inside the process)

@@ -7,7 +7,7 @@ Design and introduce a universal element-based graph that replaces artifact-cent
 ## Key Decisions / Open Questions
 
 1. **Schema Shape**
-   - Core fields: `element_id`, `tenant_id`, `graph_id`, `element_kind`, `ontology`, `type_key`, `body`, `metadata`.
+   - Core fields: `element_id`, `tenant_id`, `organization_id`, `repository_id`, `element_kind`, `ontology`, `type_key`, `body`, `metadata`.
    - Versioning strategy: append-only revisions per element with a derived “current” view.
    - Storage layout (single `universal_elements` table + `element_relationships` vs. partitioned tables).
 
@@ -38,9 +38,9 @@ Design and introduce a universal element-based graph that replaces artifact-cent
 
 | Table | Purpose | Key Columns |
 |-------|---------|-------------|
-| `elements` | Current (mutable) state of each element | `id` (PK), `tenant_id`, `graph_id`, `element_kind`, `ontology`, `type_key`, `body` (JSONB/BLOB), `metadata` (JSONB), `created_at`, `created_by`, `updated_at`, `updated_by` |
+| `elements` | Current (mutable) state of each element | `id` (PK), `tenant_id`, `organization_id`, `repository_id`, `element_kind`, `ontology`, `type_key`, `body` (JSONB/BLOB), `metadata` (JSONB), `created_at`, `created_by`, `updated_at`, `updated_by` |
 | `element_versions` | Immutable history of element revisions (append-only) | `element_id`, `version_id` (PK), `version_number`, `body`, `metadata`, `created_at`, `created_by` |
-| `element_relationships` | First-class relationship elements (semantic/structural) | `id` (PK), `tenant_id`, `graph_id`, `element_kind`, `ontology`, `type_key`, `source_element_id`, `target_element_id`, `body`, `metadata`, `created_at`, `created_by`, `updated_at`, `updated_by` |
+| `element_relationships` | First-class relationship elements (semantic/structural) | `id` (PK), `tenant_id`, `organization_id`, `repository_id`, `element_kind`, `ontology`, `type_key`, `source_element_id`, `target_element_id`, `body`, `metadata`, `created_at`, `created_by`, `updated_at`, `updated_by` |
 | `relationship_versions` | Revision history for relationship elements | `relationship_id`, `version_id` (PK), `version_number`, `source_element_id`, `target_element_id`, `body`, `metadata`, `created_at`, `created_by` |
 | `attachments` (optional) | External binaries (PDFs, images) referenced by elements | `id` (PK), `element_id`, `storage_uri`, `hash`, `media_type`, `size_bytes`, `metadata`, `created_at`, `created_by` |
 

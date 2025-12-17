@@ -56,7 +56,7 @@
 |---------|----------------|--------------|-------|
 | Dashboard | `/org/[orgId]`, transformation overview | `DashboardLayout`, widget grid (`react-grid-layout`), configurable cards | Supports responsive reflow; badges exposed via `PageHeader`. |
 | List | `/org/[orgId]/transformations`, `/repo/*` lists | `ListPageLayout`, optional activity panel tied to threads width | Standard filters today; typed qualifiers planned (P2). |
-| Settings | `/org/[orgId]/settings`, `/repo/[graphId]/settings` | `SettingsLayout` with section nav and sticky sidebar | Hides sidebar when threads panel is detached. |
+| Settings | `/org/[orgId]/settings`, `/repo/[repositoryId]/settings` | `SettingsLayout` with section nav and sticky sidebar | Hides sidebar when threads panel is detached. |
 | Editor | (reserved for full-screen modeling tools) | `EditorLayout` scaffold, tool palette, canvas, properties panel | Element editors currently stay modal; full-screen editor is a Phase 6 option. |
 | Data Shell | Initiative sub-pages | `InitiativeSectionShell` preloads transformation + workspace context | Used across 15+ transformation sub-sections. |
 | Placeholder | `/org/[orgId]/reports`, governance | `PlaceholderLayout` with metadata badges and action slots | Acts as a holding pattern for future feature areas. |
@@ -74,7 +74,7 @@
 |---------|------|------------------|-------------|
 | Organization | `app/(app)/org/[orgId]/layout.tsx` | Server-fetch organization (tenant-aware), wrap children with `OrgContextProvider`. | 404 fallback for missing org; generic fallback for other failures. |
 | Initiative | `.../org/[orgId]/transformations/[transformationId]/layout.tsx` | Resolves transformation, workspace, and navigation tabs; feeds `InitiativeSectionShell`. | Missing transformation → not found state; soft-fails workspace data. |
-| Repository | `.../org/[orgId]/repo/[graphId]/layout.tsx` | Loads graph metadata, element tree, permission scopes. | Surfaces guard rails before rendering editors or lists. |
+| Repository | `.../org/[orgId]/repo/[repositoryId]/layout.tsx` | Loads repository metadata, element tree, permission scopes. | Surfaces guard rails before rendering editors or lists. |
 | User | `app/(app)/user/layout.tsx` | Provides user session context, handles profile/settings routes. | Auth-required; falls back to session refresh. |
 
 Shared hooks (`useActiveOrganization`, `useActiveInitiative`, etc.) expose the loaded context to leaf pages without repeating fetches.
@@ -91,7 +91,7 @@ Shared hooks (`useActiveOrganization`, `useActiveInitiative`, etc.) expose the l
   /transformations/[transformationId]
     /inbox
     /architect/capabilities
-  /repo/[graphId]
+  /repo/[repositoryId]
     /inbox
     /element/[elementId]
     /@modal/(.)element/[elementId]
@@ -100,7 +100,7 @@ Shared hooks (`useActiveOrganization`, `useActiveInitiative`, etc.) expose the l
 ### 6.2 Patterns to Observe
 - **Route groups**: `(auth)` and `(app)` define shell boundaries.
 - **Parallel routes**: modal intercepts live under `@modal` to let element editors appear as overlays without leaving the list page.
-- **Dynamic segments**: `[orgId]`, `[transformationId]`, `[graphId]`, `[elementId]`, `[workflowsId]`, `[executionId]`.
+- **Dynamic segments**: `[orgId]`, `[transformationId]`, `[repositoryId]`, `[elementId]`, `[workflowsId]`, `[executionId]`.
 - **Layout mapping**: global routes → Root → App; org routes → Root → App → Org; transformation routes add the transformation shell; repositories mirror that pattern.
 
 ---
@@ -161,4 +161,3 @@ Successful delivery means the coverage metric is met, keyboard and command featu
 - Context hooks: `features/common/hooks/useActiveOrganization.ts`, etc.
 
 _Discrepancies to verify_: the pattern adoption count (25 vs 29 pages) and whether `EditorLayout` remains part of the active component library despite modal-first editors. Flag during the next audit.
-

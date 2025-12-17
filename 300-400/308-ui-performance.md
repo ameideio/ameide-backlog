@@ -51,7 +51,7 @@
 - `services/www_ameide_platform/features/editor-archimate/ArchiMateCanvas.tsx` (progressive rendering)
 - `services/www_ameide_platform/features/editor/hooks/usePrefetchElement.ts` (new file)
 - `services/www_ameide_platform/features/graph/components/RepositoryBrowser.tsx` (hover support)
-- `services/www_ameide_platform/app/(app)/org/[orgId]/repo/[graphId]/page.tsx` (prefetch integration)
+- `services/www_ameide_platform/app/(app)/org/[orgId]/repo/[repositoryId]/page.tsx` (prefetch integration)
 - `services/www_ameide_platform/features/editor-archimate/canvas/ReactFlowCanvas.tsx` (lazy component)
 
 **Remaining Work (Phase 2):**

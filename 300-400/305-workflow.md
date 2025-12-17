@@ -526,7 +526,7 @@ Workflows are accessible at three hierarchical levels, each serving different co
 │                                                                             │
 │  LEVEL 2A: REPOSITORY (Type-Based Automation Rules)                        │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │ /org/[orgId]/repo/[graphId]/settings/workflows                 │   │
+│  │ /org/[orgId]/repo/[repositoryId]/settings/workflows                 │   │
 │  │   ├─ Rule Configuration (by element type)                           │   │
 │  │   ├─ Event Triggers (lifecycle, creation, relationship)             │   │
 │  │   └─ Automatic Execution Policies                                   │   │
@@ -550,7 +550,7 @@ Workflows are accessible at three hierarchical levels, each serving different co
 │                                                                             │
 │  LEVEL 3: ELEMENT (Individual Element Workflows)                           │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │ /org/[orgId]/repo/[graphId]/element/[elementId]                │   │
+│  │ /org/[orgId]/repo/[repositoryId]/element/[elementId]                │   │
 │  │   ├─ Manual Workflow Triggers                                       │   │
 │  │   ├─ Active Runs (with real-time status)                            │   │
 │  │   └─ Run History                                                     │   │
@@ -579,13 +579,13 @@ Organization Page
 │        ├─ Tab: Catalog
 │        └─ Tab: Runs
 │
-├─ Repository Page (/org/[orgId]/repo/[graphId])
+├─ Repository Page (/org/[orgId]/repo/[repositoryId])
 │  ├─ Header Tabs: [Elements | Workflows | Settings]
 │  │  └─ Workflows Tab ◄─── LEVEL 2A: Quick access to graph rules
 │  │
-│  └─ Settings Hub (/org/[orgId]/repo/[graphId]/settings)
+│  └─ Settings Hub (/org/[orgId]/repo/[repositoryId]/settings)
 │     └─ Workflow Automation Card
-│        └─ Link to: /org/[orgId]/repo/[graphId]/settings/workflows
+│        └─ Link to: /org/[orgId]/repo/[repositoryId]/settings/workflows
 │
 ├─ Initiative Page (/org/[orgId]/transformations/[transformationId])
 │  ├─ Header Tabs: [Overview | Planning | Elements | Governance | Settings]
@@ -603,14 +603,14 @@ Organization Page
 ### Element Modal Architecture (Intercepting Routes)
 
 ```
-Repository Browser: /org/[orgId]/repo/[graphId]
+Repository Browser: /org/[orgId]/repo/[repositoryId]
 │
 │ User clicks element from list
 │
 v
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                         ELEMENT EDITOR MODAL                                │
-│  URL: /org/[orgId]/repo/[graphId]/element/[elementId]                 │
+│  URL: /org/[orgId]/repo/[repositoryId]/element/[elementId]                 │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │ ┌────────────────────────────────────┬─────────────────────────────────┐   │
 │ │                                    │   RIGHT SIDEBAR (340px)         │   │
@@ -649,9 +649,9 @@ v
 ```
 
 **Key Implementation Files:**
-- Route: `app/(app)/org/[orgId]/repo/[graphId]/@modal/(.)element/[elementId]/page.tsx`
-- Fallback: `app/(app)/org/[orgId]/repo/[graphId]/element/[elementId]/page.tsx`
-- Layout: `app/(app)/org/[orgId]/repo/[graphId]/layout.tsx` (provides modal slot)
+- Route: `app/(app)/org/[orgId]/repo/[repositoryId]/@modal/(.)element/[elementId]/page.tsx`
+- Fallback: `app/(app)/org/[orgId]/repo/[repositoryId]/element/[elementId]/page.tsx`
+- Layout: `app/(app)/org/[orgId]/repo/[repositoryId]/layout.tsx` (provides modal slot)
 - Component: `features/editor/ElementEditorModal.tsx`
 - Tabs: `features/editor/RightSidebarTabs.tsx`
 - Workflows Tab: `features/workflows/components/ElementWorkflowPanel.tsx`
@@ -748,7 +748,7 @@ Props:
 ┌─────────────────────────────────────────────────────────────────────────┐
 │          RepositoryWorkflowRules Component                              │
 │  Location: features/workflows/components/RepositoryWorkflowRules.tsx   │
-│  Route: /org/[orgId]/repo/[graphId]/settings/workflows            │
+│  Route: /org/[orgId]/repo/[repositoryId]/settings/workflows            │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                         │
 │  ┌───────────────────────────────────────────────────────────────────┐ │

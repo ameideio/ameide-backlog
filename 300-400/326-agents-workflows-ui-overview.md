@@ -586,7 +586,7 @@ Workflows can be associated with elements through:
 
 **Example Routes**:
 ```
-/org/[orgId]/repo/[graphId]/settings/workflows
+/org/[orgId]/repo/[repositoryId]/settings/workflows
 /org/[orgId]/transformations/[transformationId]/settings/workflows
 ```
 

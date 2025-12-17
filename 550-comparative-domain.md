@@ -1,6 +1,6 @@
 # 550 — Comparative Domain Primitives Analysis
 
-**Status:** Analysis Complete
+**Status:** Reviewed 2025-12-17 (revalidated vs current repo state)
 **Audience:** Architecture, platform engineering, operators/CLI, domain teams
 **Scope:** Comparative analysis of domain primitive implementations across Sales, Commerce, Transformation, and SRE to identify maturity levels, common patterns, gaps, and recommended next steps.
 
@@ -10,6 +10,12 @@
 - Proto conventions: `backlog/509-proto-naming-conventions.md`
 - Primitives stack: `backlog/520-primitives-stack-v2.md`
 - Capability definitions: `backlog/540-sales-capability.md`, `backlog/526-sre-capability.md`, `backlog/523-commerce.md`, `backlog/527-transformation-capability.md`
+
+## Verification Notes (2025-12-17)
+
+- Recomputed proto and migration counts/LOC from `packages/ameide_core_proto/` and `primitives/domain/*/migrations/`.
+- Verified RPC coverage by matching proto `rpc` names to `func (h *Handler) <RPC>(...)` for each domain’s **registered** gRPC services.
+- Confirmed tests pass: `go test ./primitives/domain/{sales,commerce,transformation,sre}/...`.
 
 ## Layer header (Application Architecture + Technology)
 
@@ -28,54 +34,50 @@ Four domain primitives (Sales, Commerce, Transformation, SRE) exist at varying l
 
 ## 1) Executive Summary
 
-### Overall Maturity Ranking
+### Maturity Signals (Current Snapshot)
 
-1. **SRE Domain** - 98% Complete (Production-Ready)
-2. **Transformation Domain** - 90% Complete (Production-Ready, Most Complex)
-3. **Commerce Domain** - 75% Complete (Production-Ready, Focused Scope)
-4. **Sales Domain** - 40% Complete (Scaffold/Template)
+- **GitOps-deployed domain primitives:** Sales, Transformation
+- **Code-only (no GitOps manifest):** Commerce, SRE
+- **Largest schema / most complex repository model:** Transformation (7 migrations, 1,364 LOC SQL)
+- **Most complete “primitive ecosystem” coverage:** Sales and Commerce (Domain + Integration + Process + Projection + UISurface + Agent present; Commerce UISurface has 3 variants)
 
 ### Implementation Strategy Variance
 
-**Two Distinct Approaches:**
+**Two Distinct Axes (Observed):**
 
-1. **Top-Down (Sales, Transformation):**
-   - Start with full proto contract + GitOps deployment
-   - Add ecosystem primitives (Process, Integration, Projection, UI, Agent)
-   - Defer handler implementation ("shape only")
-   - Result: Rich API surface, minimal business logic
+1. **Deployment-first vs code-first**
+   - **Deployment-first:** Sales, Transformation (GitOps manifests exist)
+   - **Code-first:** Commerce, SRE (no GitOps manifests yet)
 
-2. **Bottom-Up (Commerce, SRE):**
-   - Start with production handler implementation
-   - Focus on core domain logic first
-   - No GitOps deployment initially
-   - Result: Production code, limited deployment/ecosystem
+2. **CQRS separation**
+   - **Strict CQRS binaries:** Sales (domain write, projection read), Commerce (domain write, projection read)
+   - **Mixed read+write in domain binary:** SRE (IncidentService includes reads), Transformation (domain binary serves query services)
 
 ## 2) Implementation Completeness Matrix
 
 | Aspect | Sales | Commerce | Transformation | SRE |
 |--------|-------|----------|----------------|-----|
-| **Proto Contract** | 95% (14 write + 6 read RPCs) | 60% (8 write + 3 read RPCs) | 85% (10 combined RPCs) | 98% (8 write + 8 read RPCs) |
-| **Handler Logic** | 0% (Scaffold only) | 100% (Production code) | 100% (Production code) | 100% (Production code) |
-| **Database Schema** | 135 lines (2 migrations) | 76 lines (2 migrations) | 1,179 lines (6 migrations) | 80 lines (2 migrations) |
+| **Domain RPCs served** | 18 (SalesCommandService) | 8 (CommerceStorefrontWriteService) | 22 (1 write + 21 read/query) | 10 (mixed read+write) |
+| **Handler coverage** | All 18 RPCs implemented | All 8 RPCs implemented | All registered RPCs implemented | All 10 RPCs implemented |
+| **Database Schema** | 135 LOC SQL (2 migrations) | 76 LOC SQL (2 migrations) | 1,364 LOC SQL (7 migrations) | 80 LOC SQL (2 migrations) |
 | **Aggregates** | 3 types (Leads, Opportunities, Quotes) | 2 types (Claims, Mappings) | 5+ types (Models, BPMN, Baselines, etc.) | 1 type (Incidents) |
 | **GitOps Deployment** | ✓ Active | ✗ Missing | ✓ Active + Smoke Test | ✗ Missing |
-| **Ecosystem Primitives** | 5 (Process, Integration, Projection, UI, Agent) | 0 | 1 (Smoke Test) | 0 |
-| **Test Coverage** | Scaffold (RED tests) | Basic unit tests | Smoke tests | Unit tests |
-| **Event Dispatcher** | Skeleton | Functional | Skeleton | Functional |
-| **Documentation** | Detailed README with checklist | Simple README | Detailed README | Minimal README |
+| **Ecosystem Primitives** | Integration + Process + Projection + UISurface + Agent | Integration + Process + Projection + 3× UISurface + Agent | Process + Projection + UISurface + Agent (+ MCP adapter integration) | Integration + Process + Projection + Agent (no UISurface) |
+| **Tests (go test)** | PASS | PASS | PASS | PASS |
+| **Event Dispatcher** | Log-only publisher (no broker wiring) | Log-only publisher (no broker wiring) | Log-only publisher (no broker wiring) | Log-only publisher (no broker wiring) |
+| **Documentation** | 58-line README | 18-line README | 48-line README | 4-line README |
 
 ## 3) Domain-by-Domain Analysis
 
-### 3.1 SRE Domain - Most Mature (98%)
+### 3.1 SRE Domain - Incident Management (Code-only)
 
-**Status:** Production-ready, single-writer incident management system
+**Status:** Implemented incident management domain (IncidentService) with separate projection/query layer; not GitOps deployed
 
 **Strengths:**
-- Most comprehensive proto contract: 7 separate query services (Incident, FleetHealth, Alert, Runbook, SLO, KnowledgeIndex)
+- Rich proto surface includes IncidentService plus 6 projection query services (IncidentQuery, FleetHealth, Alert, Runbook, SLO, KnowledgeIndex)
 - Complete event sourcing: Full message metadata with correlation/causation IDs, trace context
 - Clean state machine: OPEN → ACKNOWLEDGED → INVESTIGATING → MITIGATING → RESOLVED → CLOSED
-- Production handlers: 8 fully implemented RPC methods with validation, state transitions, timeline tracking
+- IncidentService implements 10 RPCs (including Get/List reads) with validation, state transitions, and timeline tracking
 - Rich domain model: Severity levels, timeline entries, postmortem workflow, SLO tracking
 - Transactional outbox: Idempotent writes with domain inbox deduplication
 
@@ -88,40 +90,39 @@ Four domain primitives (Sales, Commerce, Transformation, SRE) exist at varying l
 
 **Gaps:**
 - No GitOps deployment config (code exists but not deployed)
-- No ecosystem primitives (Process, Integration, Projection, UI, Agent)
-- Limited test coverage
+- No UISurface primitive
+- Dispatcher is log-only (not wired to Kafka/Watermill)
 
 **Key Patterns:**
 - Single-writer constraint with version monotonicity
 - Timeline entries as immutable audit trail
 - Terminal state validation (cannot transition from RESOLVED/CLOSED)
 
-### 3.2 Transformation Domain - Most Complex (90%)
+### 3.2 Transformation Domain - Architecture Repository (GitOps-deployed)
 
-**Status:** Production-ready, architecture repository with multiple capabilities
+**Status:** Implemented architecture repository domain (SubmitIntent + query services) with GitOps deployment
 
 **Strengths:**
-- Largest schema: 6 migrations totaling 1,179 lines (most comprehensive)
+- Largest schema: 7 migrations totaling 1,364 LOC SQL (most comprehensive)
 - Complex domain model: ArchiMate, BPMN, Baselines, Process Definitions, Agent Definitions
-- Sophisticated handlers: 1,826 lines supporting 15+ intent types
+- Architecture write API is a single RPC (`SubmitIntent`) carrying 20+ intent variants (oneof) with per-intent handling
 - Version/revision tracking: head_version, published_version, version history snapshots
 - Lifecycle management: DRAFT → IN_REVIEW → APPROVED → RETIRED
-- Agent integration: LangGraph agent definitions with tools/permissions
 - Active deployment: GitOps config + smoke test harness
 
 **Implementation Details:**
 - **Location:** `primitives/domain/transformation/`
 - **Proto Files:** 16 files in `packages/ameide_core_proto/src/ameide_core_proto/transformation/`
-- **Database:** 6 migrations - initial schema, agent defs, scrum, architecture repo, outbox metadata, aggregate versions
-- **Handler:** `cmd/main.go` - 15+ intent handlers
+- **Database:** 7 migrations - initial schema, agent defs, scrum, architecture repo (includes outbox tables), outbox metadata, aggregate/baseline defaults, repository scoping
+- **Handler:** `internal/handlers/handlers.go` + `internal/handlers/scrum_query.go`
 - **GitOps:** `gitops/ameide-gitops/sources/values/_shared/apps/domain-transformation-v0.yaml` + smoke test config
 
 **Gaps:**
-- No event sourcing metadata in proto contract (no message_id, correlation IDs)
-- Read/write combined in single service (not strict CQRS)
+- `TransformationService` (from `transformation/v1/transformation_service.proto`) exists in proto but is not registered by the domain server (current server registers architecture + scrum services)
+- Domain binary serves query services (not strict CQRS separation)
 - Database config missing in GitOps (spec.db not populated)
 - Resource limits not defined
-- Limited ecosystem primitives (only smoke test)
+- Dispatcher is log-only (not wired to Kafka/Watermill)
 
 **Key Patterns:**
 - Aggregate versioning with FOR UPDATE locks (optimistic concurrency)
@@ -130,14 +131,14 @@ Four domain primitives (Sales, Commerce, Transformation, SRE) exist at varying l
 - Workspace hierarchy with graph elements
 - Field mask support for partial updates
 
-### 3.3 Commerce Domain - Focused Production (75%)
+### 3.3 Commerce Domain - Storefront Domains (Code-only)
 
 **Status:** Production-ready BYOD storefront hostname claim + mapping writer
 
 **Strengths:**
 - Production handlers: Fully implemented business logic (NOT scaffold)
 - Comprehensive validation: Input validation, hostname normalization, error handling
-- 17 specific error codes: DNS, certificate, rate-limiting scenarios (DomainOnboardingErrorCode)
+- 10 defined error codes (including UNSPECIFIED): DNS/cert/rate-limit/onboarding scenarios (DomainOnboardingErrorCode)
 - Complete state machines: HostnameClaimStatus + HostnameMappingStatus
 - Event dispatcher: Functional LogPublisher ready for Watermill integration
 - Idempotency: Domain inbox with ON CONFLICT deduplication
@@ -154,7 +155,7 @@ Four domain primitives (Sales, Commerce, Transformation, SRE) exist at varying l
 - No GitOps deployment config (not actively deployed)
 - Limited to hostname management (lacks customer, product, cart, order, payment domains)
 - No pagination in read operations
-- No ecosystem primitives
+- Dispatcher is log-only (not wired to Kafka/Watermill)
 - Narrow scope compared to typical commerce platform
 
 **Key Patterns:**
@@ -163,12 +164,12 @@ Four domain primitives (Sales, Commerce, Transformation, SRE) exist at varying l
 - Fact emission on state changes (CommerceDomainFact)
 - Transactional outbox with metadata extraction
 
-### 3.4 Sales Domain - Well-Designed Scaffold (40%)
+### 3.4 Sales Domain - CQRS Command Service (GitOps-deployed)
 
-**Status:** Shape-only scaffold; intentionally failing handlers awaiting AI agent implementation
+**Status:** Implemented SalesCommandService (18 RPCs) with full primitive ecosystem; GitOps deployed
 
 **Strengths:**
-- Excellent proto contract: 14 write RPCs + 6 read RPCs (most comprehensive command surface)
+- Strong CQRS contract: 18 write RPCs (SalesCommandService) + 6 read RPCs (SalesQueryService)
 - Complete state machines: LeadStatus, OpportunityStage (6 stages), QuoteStatus (8 states)
 - Approval workflow: SubmitQuoteForApproval → ApproveQuote / RejectQuote flow
 - Rich read models: Pipeline summary, approval work items, filtered lists
@@ -181,16 +182,14 @@ Four domain primitives (Sales, Commerce, Transformation, SRE) exist at varying l
 - **Location:** `primitives/domain/sales/`
 - **Proto Files:** 9 files in `packages/ameide_core_proto/src/ameide_core_proto/sales/`
 - **Database:** 2 migrations (135 lines) - `leads`, `opportunities`, `quotes`, `quote_line_items` with indexes
-- **Handler:** `internal/handlers/handlers.go` - Intentional RED failures
+- **Handler:** `internal/handlers/handlers.go` - SalesCommandService RPCs implemented with inbox/outbox patterns
 - **GitOps:** `gitops/ameide-gitops/sources/values/_shared/apps/domain-sales-v0.yaml`
 - **Ecosystem:** Agent (`gitops/ameide-gitops/sources/values/_shared/apps/agent-sales-copilot-v0.yaml`), Process, Integration, Projection, UI Surface
 
 **Gaps:**
-- **Zero handler implementation** (intentionally scaffolded for AI completion)
 - Database config missing in GitOps (spec.db not populated)
 - Resource limits not defined
-- Integration tests skeleton only (run_integration_tests.sh exists)
-- README states: "shape only, AI agent can focus on meaning"
+- Dispatcher is log-only (not wired to Kafka/Watermill)
 
 **Key Patterns (Ready to Implement):**
 - Port/adapter outbox interface
@@ -214,7 +213,7 @@ All domains implement identical outbox flow:
 **Files:**
 - Outbox port: `internal/ports/outbox.go`
 - Postgres adapter: `internal/adapters/postgres/outbox.go`
-- Domain inbox: `migrations/V1__domain_outbox.sql`
+- Domain inbox/outbox schema: `primitives/domain/sales/migrations/V1__domain_outbox.sql`, `primitives/domain/commerce/migrations/V1__domain_outbox.sql`, `primitives/domain/sre/migrations/V1__domain_outbox.sql`, `primitives/domain/transformation/migrations/V4__architecture_repository.sql`
 
 ### 4.2 Event Metadata Structure
 
@@ -229,7 +228,7 @@ All events include:
 - `traceparent` / `tracestate` (W3C Trace Context)
 
 **Best Implementation:** SRE (SreMessageMeta with all fields)
-**Weakest Implementation:** Transformation (missing from proto contract)
+**Also present in Transformation:** TransformationMessageMeta and ScrumMessageMeta include `message_id`, `correlation_id`, `causation_id`, and trace context
 
 ### 4.3 Standard File Structure
 
@@ -269,22 +268,18 @@ All domains have skeleton dispatcher:
 - Publish to event stream (Watermill/Kafka)
 - Mark as published (`UPDATE domain_outbox SET published_at = NOW()`)
 
-**Status:**
-- Commerce: Functional LogPublisher
-- SRE: Functional LogPublisher
-- Sales: Skeleton only
-- Transformation: Skeleton only
+**Status:** All four domain dispatchers currently use a log-only publisher (no broker wiring)
 
 ## 5) Proto Contract Comparison
 
 ### 5.1 API Surface
 
-| Domain | Write RPCs | Read RPCs | Query Services | State Machines | Pagination |
+| Domain | Domain (write) RPCs | Read/query RPCs (elsewhere) | Query Services | State Machines | Pagination |
 |--------|-----------|-----------|----------------|----------------|------------|
-| **SRE** | 8 | 8 | 7 specialized | Yes (Incidents) | Yes |
-| **Sales** | 14 | 6 | 1 | Yes (Opp/Quote) | Yes |
-| **Transformation** | 10 (combined) | - | 0 (combined) | No | Yes |
-| **Commerce** | 8 | 3 | 1 | Yes (Claims) | No |
+| **SRE** | 10 (IncidentService, mixed read+write) | 7 (projection query RPCs) | 6 query services | Yes (Incidents) | Yes |
+| **Sales** | 18 (SalesCommandService) | 6 (SalesQueryService via projection) | 1 | Yes (Opp/Quote) | Yes |
+| **Transformation** | 1 (SubmitIntent) | 21 (domain-served query RPCs) | 2 query services | Yes (Baselines/Definitions) | Yes |
+| **Commerce** | 8 (CommerceStorefrontWriteService) | 3 (CommerceQueryService via projection) | 1 | Yes (Claims/Mappings) | No |
 
 ### 5.2 Event Sourcing Maturity
 
@@ -293,16 +288,16 @@ All domains have skeleton dispatcher:
 | **SRE** | ✓ | ✓ | ✓ | ✓ (traceparent/state) | ✓ |
 | **Sales** | ✓ | ✓ | ✓ | ✓ (traceparent/state) | ✓ |
 | **Commerce** | ✓ | ✓ | ✓ | ✓ (traceparent/state) | ✓ |
-| **Transformation** | ✗ | ✗ | ✗ | ✗ | Partial |
+| **Transformation** | ✓ | ✓ | ✓ | ✓ (traceparent/state) | ✓ |
 
 ### 5.3 Comparative Strengths
 
 | Domain | Best Feature | Competitive Advantage |
 |--------|-------------|----------------------|
-| **SRE** | 7 specialized query services | Most mature CQRS/ES implementation |
-| **Transformation** | 6 migrations, complex schema | Most sophisticated domain model |
-| **Sales** | 14 write RPCs + full ecosystem | Best API design + deployment readiness |
-| **Commerce** | 17 error codes, production logic | Most production-ready business logic |
+| **SRE** | 6 specialized query services | Most mature CQRS/ES implementation |
+| **Transformation** | 7 migrations, complex schema | Most sophisticated domain model |
+| **Sales** | 18 write RPCs + full ecosystem | Best deployment + ecosystem coverage |
+| **Commerce** | 10 error codes, production logic | Most production-ready business logic |
 
 ## 6) GitOps Deployment Status
 
@@ -350,17 +345,17 @@ All current deployments use only: `image`, `replicas`, `strategy`, `logLevel`
 
 ## 7) Common Gaps (All Domains)
 
-1. **GitOps Database Config:** No domain uses `spec.db` (CNPG cluster ref, schema, migration job)
+1. **GitOps Database Config:** Deployed domains (Sales/Transformation) do not use `spec.db` (CNPG cluster ref, schema, migration job)
 2. **Resource Limits:** No domains define CPU/memory requests/limits
 3. **Security Context:** No `serviceAccountName` or `networkProfile` specified
 4. **Environment Variables:** No custom env vars configured
 5. **Observability:** Only `logLevel` configured, no metrics/traces/alerts
-6. **Dispatcher Integration:** All have skeleton dispatchers, none wired to Watermill/Kafka
+6. **Dispatcher Integration:** All dispatchers are log-only (none wired to Watermill/Kafka)
 
 ## 8) Recommended Next Steps
 
 ### 8.1 For Sales Domain (Highest ROI)
-1. **Implement handlers:** Convert scaffold to production logic (follow Commerce/SRE patterns)
+1. **Harden invariants:** Add targeted tests around critical command behaviors (idempotency, state transitions, invariants)
 2. **Add database config:** Populate `spec.db` in GitOps with CNPG cluster ref
 3. **Wire dispatcher:** Connect to Kafka via Watermill publisher
 4. **Add integration tests:** Implement test harness (mock + cluster modes)
@@ -368,13 +363,13 @@ All current deployments use only: `image`, `replicas`, `strategy`, `logLevel`
 
 ### 8.2 For Commerce & SRE Domains
 1. **Create GitOps configs:** Add deployment manifests
-2. **Define ecosystem:** Add Process/Integration/Projection primitives if needed
-3. **Add database config:** Wire CNPG integration
+2. **Wire database config:** Use `spec.db` and migrations in-cluster (CNPG + migration job)
+3. **Decide UISurface posture:** SRE has no UISurface; Commerce has 3 variants but no GitOps deployment
 4. **Expand test coverage:** Add integration and E2E tests
 
 ### 8.3 For Transformation Domain
-1. **Add event metadata:** Enhance proto contract with message_id, correlation_id, causation_id
-2. **Separate CQRS services:** Split combined service into command + query
+1. **Clarify served APIs:** Domain server registers architecture+scrum services; decide whether to also serve `TransformationService`
+2. **Rationalize CQRS boundary:** Decide whether architecture queries are served by domain, projection, or both (avoid duplicated implementations)
 3. **Add database config:** Wire CNPG integration
 4. **Wire dispatcher:** Connect to Kafka
 
@@ -399,13 +394,13 @@ All current deployments use only: `image`, `replicas`, `strategy`, `logLevel`
 - **Migrations:** `primitives/domain/commerce/migrations/`
 
 ### Transformation Domain
-- **Proto:** `packages/ameide_core_proto/src/ameide_core_proto/transformation/v1/transformation_service.proto`
-- **Handler:** `primitives/domain/transformation/cmd/main.go`
+- **Proto:** `packages/ameide_core_proto/src/ameide_core_proto/transformation/architecture/v1/transformation_architecture_intents.proto`
+- **Handler:** `primitives/domain/transformation/internal/handlers/handlers.go`
 - **GitOps:** `gitops/ameide-gitops/sources/values/_shared/apps/domain-transformation-v0.yaml`
 - **Migrations:** `primitives/domain/transformation/migrations/`
 
 ### SRE Domain
-- **Proto:** `packages/ameide_core_proto/src/ameide_core_proto/sre/core/v1/sre_service.proto`
+- **Proto:** `packages/ameide_core_proto/src/ameide_core_proto/sre/core/v1/query.proto`
 - **Handler:** `primitives/domain/sre/internal/handlers/handlers.go`
 - **Migrations:** `primitives/domain/sre/migrations/`
 
@@ -414,7 +409,7 @@ All current deployments use only: `image`, `replicas`, `strategy`, `logLevel`
 The four domain primitives demonstrate varying levels of maturity:
 - **SRE** leads in CQRS/ES implementation quality with complete event sourcing
 - **Transformation** has the most complex domain model with sophisticated versioning
-- **Sales** has the best API design and ecosystem readiness but needs handler implementation
+- **Sales** has strong CQRS design, GitOps deployment, and full primitive ecosystem coverage
 - **Commerce** has the most production-ready business logic but narrow functional scope
 
 All follow consistent architectural patterns (transactional outbox, port/adapter, event sourcing), but vary in deployment readiness and feature completeness. The primary gap across all domains is GitOps database configuration and resource governance.
@@ -422,7 +417,6 @@ All follow consistent architectural patterns (transactional outbox, port/adapter
 ### Key Insight: Strategic Convergence Needed
 
 The analysis reveals a need for convergence:
-- **Bring bottom-up domains (Commerce, SRE) to GitOps deployment** with full ecosystem primitives
-- **Complete top-down domains (Sales) with production handler implementation**
+- **Bring code-only domains (Commerce, SRE) to GitOps deployment**, and decide on missing/variant primitives (e.g., SRE UISurface; Commerce’s 3 UISurface variants)
 - **Standardize all domains** on CNPG database configuration, resource limits, security contexts
 - **Activate event dispatchers** across all domains for true event-driven operation

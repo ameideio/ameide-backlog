@@ -283,7 +283,7 @@ export async function GET(request: Request) {
 - `app/api/transformations/route.ts`
 - `app/api/transformations/[transformationId]/route.ts`
 - `app/api/repositories/route.ts`
-- `app/api/repositories/[graphId]/route.ts`
+- `app/api/repositories/[repositoryId]/route.ts`
 - `app/api/threads/stream/route.ts`
 - `lib/api/hooks.ts`
 - ... (see grep results from earlier)

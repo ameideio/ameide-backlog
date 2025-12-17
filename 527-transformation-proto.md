@@ -15,43 +15,54 @@ This document specifies the **proto contracts** for the Transformation capabilit
 - **Primary element types used:** Application Service (RPC/query), Application Interface (topic families), Application Event (facts), Data Object (proto messages/envelopes).
 - **Out-of-scope layers:** Strategy/Business definition (see `backlog/527-transformation-capability.md`) and Technology runtime selection.
 
-## 0.1) Implementation progress (repo snapshot)
+## 0.1) Implementation progress (repo snapshot; checklists)
 
 Delivered (today, in repo):
 
-- Bus-native Scrum profile contracts exist under `packages/ameide_core_proto/src/ameide_core_proto/transformation/scrum/v1/` (intents, facts, query, artifacts/common).
-- Bus-native Architecture contracts exist under `packages/ameide_core_proto/src/ameide_core_proto/transformation/architecture/v1/` (intents, facts, query).
-- Repository data objects exist under `packages/ameide_core_proto/src/ameide_core_proto/transformation/repository/v1/` (ArchiMate/BPMN/baselines/definitions/evidence messages).
-- Legacy UI façade contracts exist under `packages/ameide_core_proto/src/ameide_core_proto/transformation/v1/` (`TransformationService` RPCs).
-- Scrum process facts exist under `packages/ameide_core_proto/src/ameide_core_proto/process/scrum/v1/`.
+- [x] Enterprise Knowledge contracts exist and are used by the MVP:
+  - [x] `packages/ameide_core_proto/src/ameide_core_proto/transformation/knowledge/v1/` (commands, queries, facts, view layout payloads).
+  - [x] Domain emits `transformation.knowledge.domain.facts.v1` and Projection ingests those facts.
+- [x] Legacy UI façade contracts still exist (deprecated; not used by MVP):
+  - [x] `packages/ameide_core_proto/src/ameide_core_proto/transformation/v1/` (`TransformationService` RPCs).
+- [x] Scrum profile contracts exist (not in MVP slice):
+  - [x] `packages/ameide_core_proto/src/ameide_core_proto/transformation/scrum/v1/`
+  - [x] Scrum process facts exist under `packages/ameide_core_proto/src/ameide_core_proto/process/scrum/v1/`
 
 Not yet delivered (target state in this spec):
 
-- A single “core” Transformation envelope + subject + intent/fact catalogs under `ameide_core_proto.transformation.core.v1` (only shared common/meta exists today).
-- TOGAF/PMI profile contracts and their process facts packages.
+- [ ] Core Transformation envelope unification under `ameide_core_proto.transformation.core.v1` (subject/meta catalogs).
+- [ ] Governance/registry packages (`ameide_core_proto.transformation.governance.v1`, `ameide_core_proto.transformation.registry.v1`).
+- [ ] Transformation process facts proto catalog (topic exists in spec; proto package not yet implemented).
+- [ ] TOGAF/PMI profile contracts and their process facts packages.
 
 ## 1) Packages (authoritative)
 
 - Core Transformation common/meta (partial today; target for full unification): `ameide_core_proto.transformation.core.v1`
-- Repository messages (exists): `ameide_core_proto.transformation.repository.v1`
-- Architecture bounded context (exists): `ameide_core_proto.transformation.architecture.v1`
+- Enterprise Knowledge substrate (canonical repository model, 303 target-state): `ameide_core_proto.transformation.knowledge.v1`
+- Governance (target): `ameide_core_proto.transformation.governance.v1`
+- Definition Registry (target): `ameide_core_proto.transformation.registry.v1`
 - Scrum profile (exists): `ameide_core_proto.transformation.scrum.v1`
-- Legacy UI façade (exists; migration target): `ameide_core_proto.transformation.v1`
+- Legacy UI façade (exists; deprecated): `ameide_core_proto.transformation.v1`
 - TOGAF profile (target): `ameide_core_proto.transformation.togaf.v1`
 - PMI profile (target): `ameide_core_proto.transformation.pmi.v1`
 - Process facts:
   - Scrum: `ameide_core_proto.process.scrum.v1` (exists)
+  - Transformation (target): `ameide_core_proto.process.transformation.v1`
   - TOGAF: `ameide_core_proto.process.togaf.v1` (target)
   - PMI: `ameide_core_proto.process.pmi.v1` (target)
 
 ## 2) Topic families (runtime seams)
 
+Target posture: split “Enterprise Knowledge” (element-centric repository substrate) from “Governance” and “Profiles” at the topic-family level.
+Current implementations may still emit/consume `transformation.architecture.*` while refactoring toward `transformation.knowledge.*`.
+
 | Topic family | Message type | Purpose |
 |------------|--------------|---------|
 | `transformation.domain.intents.v1` | `TransformationDomainIntent` | Requests to mutate core Transformation state |
 | `transformation.domain.facts.v1` | `TransformationDomainFact` | Facts emitted after persistence |
-| `transformation.architecture.domain.intents.v1` | `TransformationArchitectureDomainIntent` | Requests to mutate architecture repository state |
-| `transformation.architecture.domain.facts.v1` | `TransformationArchitectureDomainFact` | Architecture facts emitted after persistence |
+| `transformation.process.facts.v1` | `TransformationProcessFact` | IT4IT-aligned value-stream workflow facts (Temporal); evidence of orchestration (distinct from domain facts) |
+| `transformation.knowledge.domain.intents.v1` | `TransformationKnowledgeDomainIntent` | Requests to mutate Enterprise Knowledge (elements/relationships/versions) |
+| `transformation.knowledge.domain.facts.v1` | `TransformationKnowledgeDomainFact` | Enterprise Knowledge facts emitted after persistence |
 | `scrum.domain.intents.v1` | `ScrumDomainIntent` | Requests to mutate Scrum profile state |
 | `scrum.domain.facts.v1` | `ScrumDomainFact` | Scrum facts emitted after persistence |
 | `scrum.process.facts.v1` | `ScrumProcessFact` | Scrum workflow facts (Temporal) |
@@ -67,23 +78,125 @@ Not yet delivered (target state in this spec):
 All envelopes (domain intents, domain facts, process facts) must include:
 
 - Tenant isolation: `tenant_id` (required)
+- Organization scope: `organization_id` (required everywhere as scope metadata)
+- Repository scope: `repository_id` (required; no separate `graph_id`)
 - Traceability: `message_id`, `correlation_id`, `causation_id` (when available), timestamps
 - Producer identity and schema/version metadata
 - Aggregate/process subject with stable identity and monotonic versioning where applicable
 
+## 3.1 Process-facts catalog (step events; to define)
+
+This catalog makes “each BPMN step produces an event” precise without violating domain boundaries.
+
+Rule:
+
+- **Every executable BPMN node transition emits a process fact** on `transformation.process.facts.v1`.
+- Domain facts remain the integration-grade business events (after persistence). Process facts are orchestration evidence.
+
+Recommended v1 event set (stable; generic; avoids proto explosion per workflow):
+
+- `ProcessInstanceStarted`
+- `ProcessInstanceCompleted`
+- `ProcessInstanceFailed`
+- `ActivityTransitioned` (single generic event for step transitions)
+- `GateDecisionRecorded` (Approve/Reject/Override/Cancel as evidence)
+- `ToolRunRecorded` (runner/CLI/buf/verify executions captured as evidence)
+- `ReadPerformed` (projection read used for a decision; evidence of what was read and under which `read_context`)
+
+Default emission invariant (v1):
+
+- For **deployable/scaffoldable** workflows, the runner MUST emit `ActivityTransitioned` for every executable node:
+  - `STARTED`
+  - `COMPLETED`
+  - `FAILED` (when applicable)
+- Suppressing step events is not allowed for deployable/scaffoldable workflows. (If a workflow is “model-only”, suppression MAY be allowed, but then “each step produces an event” does not apply.)
+
+Minimum required fields (conceptual; exact proto lives under `ameide_core_proto.transformation.core.v1` / `...process...` packages):
+
+- Scope: `{tenant_id, organization_id, repository_id}` (required)
+- Identity:
+  - `process_definition_id` + `process_definition_version` (required)
+  - `process_instance_id` (required)
+  - `activity_id` (required for `ActivityTransitioned`; BPMN element id)
+- Transition:
+  - `transition` enum: `STARTED | COMPLETED | FAILED | SKIPPED` (as applicable)
+  - `attempt`/`retry_count` where applicable
+  - `occurred_at` timestamp
+- Traceability:
+  - `message_id`, `correlation_id`, `causation_id` (when available)
+  - optional `domain_intent_ref` and `domain_fact_ref` links when an activity triggers/awaits domain changes
+- Tool evidence (for `ToolRunRecorded`):
+  - `tool` (e.g., `bin/ameide`, `buf`, `go test`)
+  - `arguments`/`invocation_ref`
+  - `result` (exit code, summary)
+  - evidence attachment refs (logs/artifacts)
+
+- Read evidence (for `ReadPerformed`):
+  - `query_ref` (stable identifier of the projection query used)
+  - `read_context` (baseline/time/revision selector)
+  - `result_ref` (hash/reference to the result payload, or citations sufficient for replay)
+  - `decision_ref` (optional; link back to the activity/gateway that used the read)
+
+Gateway clarity (v1):
+
+- Gateways SHOULD be represented as `ActivityTransitioned` events as well:
+  - `activity_id` = gateway BPMN element id
+  - optional fields (if added later) may include `selected_flow_id` / `branch_label` / `decision_summary`
+- This keeps “why did it go this way?” visible in the run timeline without introducing a new per-gateway proto catalog.
+
+Correlation invariant:
+
+- If an activity emits a domain intent, it MUST set/propagate correlation/causation so projections can join the activity transition evidence to the resulting domain facts deterministically.
+
+## 3.2 Read context + citations (query invariants; v1)
+
+The EDA envelope invariants above apply to bus messages (intents/facts). Projection query responses additionally MUST be reproducible:
+
+- All query responses MUST return a `read_context` describing what state was read (head/published/baseline/version pins).
+- Audit- and approval-grade views MUST return `citations[]` that reference the underlying domain facts/process facts and/or element versions used to compute the answer.
+
+Normative cross-reference:
+
+- `backlog/527-transformation-projection.md` §4.2.1 defines the v1 `read_context` + citation expectations.
+
 ## 4) Core aggregate set (Enterprise Repository; authoritative writers)
 
-Core Transformation treats the Enterprise Repository as a set of single-writer aggregates:
+Core Transformation treats the Enterprise Repository (Enterprise Knowledge) as a set of single-writer aggregates:
 
 - Initiative
 - WorkspaceNode
-- Artifact, ArtifactRevision
+- Element
+- ElementRelationship
+- ElementVersion
 - Baseline/Promotion
-- Typed artifacts within the repository:
-  - ArchiMateModel / Element / Relationship
-  - ArchiMateView (+ layout nodes/edges + view revisions)
-  - BpmnProcessDefinition (+ versions + links)
-  - Definition Registry entries (ProcessDefinition / AgentDefinition / ExtensionDefinition)
+- Definition Registry entries (ProcessDefinition / ScaffoldingPlanDefinition / CompiledWorkflowDefinition / AgentDefinition / ExtensionDefinition)
+
+### Notation (metamodel) profiles: standards-compliant vs extended (invariants)
+
+Transformation treats ArchiMate/BPMN/etc. as **profiles over the element model** (303). Storage remains element-centric; profiles define validity, validation, and exports.
+
+- **Namespaced `type_key` (required):**
+  - Standards namespaces: `archimate:*`, `bpmn:*` (and other standards as added)
+  - Ameide extension namespace: `ameide:*`
+- **Standards-compliant profile invariant:** validators/exporters MUST reject non-standard namespaces for that profile (e.g., an ArchiMate 3.2 compliant diagram cannot contain `ameide:*` types/relations).
+- **Extended profile invariant:** may include `ameide:*` (or vendor namespaces), but downstream consumers must explicitly opt in to that profile.
+
+**Profile note:** “ArchiMate model/view/element”, “BPMN definition”, and documents are represented as Elements with notation-specific kinds and namespaced `type_key` values. View/layout content is stored as versioned payload on ElementVersion.
+
+**ProcessDefinition note (BPMN as source of truth):**
+
+- ProcessDefinitions are **design-time definitions** stored and promoted by the Definition Registry (Domain).
+- The canonical authoring payload is **BPMN 2.0** (portable; standards-compliant profiles avoid non-standard namespaces for correctness).
+- Promoted ProcessDefinition versions are compiled into:
+  - `CompiledWorkflowDefinition` (Workflow IR for Temporal-backed execution), and
+  - `ScaffoldingPlanDefinition` (deterministic generation/verification plan).
+- Process primitives execute promoted compiled Workflow IR and emit **process facts**; they never replace domain facts as the system of record.
+
+**Design-time derivation note (general; any notation):**
+
+- The Definition Registry contains both **authored** definitions (human-authored or imported) and **derived** definitions produced by promotion gates.
+- Any notation profile (ArchiMate/C4/UML/DMN/docs/custom) may be used as a design-time source for deterministic derivations, with traceability to the source `{element_id, version_id}`.
+- BPMN is the workflow-specific case: promoted ProcessDefinition versions deterministically derive `CompiledWorkflowDefinition` + `ScaffoldingPlanDefinition` with traceability to `{process_definition_id, version}`.
 
 ## 5) Core intent catalog (to define)
 
@@ -98,52 +211,48 @@ Core intents are imperative requests to change Enterprise Repository state. Tran
 - `RenameWorkspaceNodeRequested`
 - `ReorderWorkspaceNodeChildrenRequested`
 
-### Artifact lifecycle (generic)
+### Element lifecycle (generic)
 
-- `CreateArtifactRequested`
-- `ReviseArtifactRequested`
-- `AttachArtifactBlobRequested`
-- `TagArtifactRequested` / `UntagArtifactRequested`
-- `DeprecateArtifactRequested` / `ArchiveArtifactRequested`
+- Element metadata lifecycle is expressed via `Element` updates and version snapshots.
+- Publishing/promotions are expressed via baseline/promotion workflows that reference `{element_id, version_id}` pairs.
 
 ### Baseline / promotion lifecycle
 
 - `CreateBaselineDraftRequested`
-- `AddArtifactRevisionToBaselineRequested`
-- `RemoveArtifactRevisionFromBaselineRequested`
+- `AddElementVersionToBaselineRequested`
+- `RemoveElementVersionFromBaselineRequested`
 - `SubmitBaselineForApprovalRequested`
 - `ApproveBaselineRequested` / `RejectBaselineRequested`
 - `PromoteBaselineRequested`
 - `RollbackBaselineRequested`
 
-### ArchiMate intents (typed; no file-as-canonical)
+### Enterprise Knowledge intents (element-centric substrate)
 
-- `CreateArchiMateModelRequested`
-- `UpsertArchiMateElementRequested`
-- `UpsertArchiMateRelationshipRequested`
-- `DeleteArchiMateElementRequested`
-- `DeleteArchiMateRelationshipRequested`
+- `CreateElementRequested`
+- `UpdateElementRequested`
+- `DeleteElementRequested`
+- `CreateElementRelationshipRequested`
+- `UpdateElementRelationshipRequested`
+- `DeleteElementRelationshipRequested`
+- `SnapshotElementVersionRequested`
+- `PublishElementVersionRequested` (optional; may be expressed as promotion workflow)
 
-### ArchiMate view/layout intents
+### ArchiMate profile intents (derived/convenience; optional)
 
-- `CreateArchiMateViewRequested`
-- `UpdateArchiMateViewPropertiesRequested`
-- `UpsertArchiMateViewNodeRequested`
-- `UpsertArchiMateViewEdgeRequested`
-- `DeleteArchiMateViewNodeRequested`
-- `DeleteArchiMateViewEdgeRequested`
-- `SnapshotArchiMateViewRevisionRequested`
+- `RecordArchimateViewLayoutRequested` (creates a new version for an ArchiMate view element)
 
 ### BPMN intents (design-time ProcessDefinitions)
 
 - `CreateBpmnProcessDefinitionRequested`
 - `CreateBpmnProcessVersionRequested`
-- `LinkBpmnProcessToArtifactsRequested`
+- `LinkBpmnProcessToElementsRequested`
 - `DeprecateBpmnProcessDefinitionRequested` / `ArchiveBpmnProcessDefinitionRequested`
 
 ### Definition Registry intents
 
 - `UpsertProcessDefinitionRequested`
+- `UpsertScaffoldingPlanDefinitionRequested` (derived from promoted ProcessDefinition)
+- `UpsertCompiledWorkflowDefinitionRequested` (derived from promoted ProcessDefinition)
 - `UpsertAgentDefinitionRequested`
 - `UpsertExtensionDefinitionRequested`
 - `PromoteDefinitionRequested`
@@ -161,13 +270,9 @@ Core facts are immutable past-tense events transported on `transformation.domain
 - `WorkspaceNodeRenamed`
 - `WorkspaceNodeChildrenReordered`
 
-### Artifact facts
+### Element lifecycle facts (generic)
 
-- `ArtifactCreated`
-- `ArtifactRevised`
-- `ArtifactBlobAttached`
-- `ArtifactTagged` / `ArtifactUntagged`
-- `ArtifactDeprecated` / `ArtifactArchived`
+- Element lifecycle is expressed via `Element*` and `ElementVersion*` facts plus baseline/promotion facts.
 
 ### Baseline / promotion facts
 
@@ -178,34 +283,33 @@ Core facts are immutable past-tense events transported on `transformation.domain
 - `BaselinePromoted`
 - `BaselineRollbackCreated`
 
-### ArchiMate model facts
+### Enterprise Knowledge facts
 
-- `ArchiMateModelCreated`
-- `ArchiMateElementUpserted`
-- `ArchiMateRelationshipUpserted`
-- `ArchiMateElementDeleted`
-- `ArchiMateRelationshipDeleted`
+- `ElementCreated`
+- `ElementUpdated`
+- `ElementDeleted`
+- `ElementRelationshipCreated`
+- `ElementRelationshipUpdated`
+- `ElementRelationshipDeleted`
+- `ElementVersionSnapshotted`
+- `ElementVersionPublished` (optional; may be expressed as promotion workflow)
 
-### ArchiMate view/layout facts
+### ArchiMate profile facts (derived/convenience; optional)
 
-- `ArchiMateViewCreated`
-- `ArchiMateViewPropertiesUpdated`
-- `ArchiMateViewNodeUpserted`
-- `ArchiMateViewEdgeUpserted`
-- `ArchiMateViewNodeDeleted`
-- `ArchiMateViewEdgeDeleted`
-- `ArchiMateViewRevisionSnapshotted`
+- `ArchimateViewLayoutRecorded`
 
 ### BPMN facts
 
 - `BpmnProcessDefinitionCreated`
 - `BpmnProcessVersionCreated`
-- `BpmnProcessArtifactLinksUpdated`
+- `BpmnProcessElementLinksUpdated`
 - `BpmnProcessDefinitionDeprecated` / `BpmnProcessDefinitionArchived`
 
 ### Definition Registry facts
 
 - `ProcessDefinitionUpserted`
+- `ScaffoldingPlanDefinitionUpserted`
+- `CompiledWorkflowDefinitionUpserted`
 - `AgentDefinitionUpserted`
 - `ExtensionDefinitionUpserted`
 - `DefinitionPromoted`
@@ -221,6 +325,7 @@ Core facts are immutable past-tense events transported on `transformation.domain
 
 Confirm/decide:
 
-- Whether `transformation.domain.*` is the single canonical topic family (and how `transformation.architecture.*`/`scrum.*` fold into it), or whether multiple bounded-context topic families remain first-class.
+- Whether `transformation.domain.*` is the single canonical topic family, or whether `transformation.knowledge.*` is split as a first-class bounded context (recommended for the Enterprise Knowledge substrate).
 - The canonical envelope pattern (e.g., `meta + subject + oneof`) and which fields are required across all Transformation message families (including producer identity and monotonic versioning rules).
 - The v1 plan for TOGAF/PMI: whether to stub packages now (empty catalogs) or defer until governance workflows are defined.
+- The v1 BPMN execution posture: compile-to-Temporal (recommended) vs direct runtime interpretation, and whether collaboration diagrams are required for “deployable/scaffoldable” ProcessDefinitions.

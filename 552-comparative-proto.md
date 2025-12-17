@@ -1,6 +1,6 @@
 # 552 — Comparative Proto Contracts Analysis
 
-**Status:** Analysis Complete
+**Status:** Reviewed 2025-12-17 (revalidated vs current proto sources; corrected counts + fixed stale examples)
 **Audience:** Architecture, platform engineering, API designers, domain teams, SDK maintainers
 **Scope:** Comparative analysis of protobuf contract definitions across Sales, Commerce, Transformation, and SRE domains to identify maturity levels, consistency patterns, code generation readiness, and API design quality.
 
@@ -31,28 +31,28 @@ This analysis complements `550-comparative-domain.md` (which focuses on implemen
 
 ## 1) Executive Summary
 
-### Overall Proto Maturity Ranking
+### Overall Proto Maturity Ranking (Revised December 2025)
 
-1. **Sales** (PRODUCTION-READY) - Clean CQRS, 4 buf configs, symmetric intent/fact, comprehensive command surface
-2. **SRE** (PRODUCTION-READY) - 7 query services, complete event sourcing metadata, most mature CQRS
-3. **Transformation** (ADVANCED/SPECIALIZED) - Most complex (1,873 LOC), 3 bounded contexts, extensible data model
-4. **Commerce** (FOCUSED/PRODUCTION) - Narrow but complete (604 LOC), 5 services, integration-heavy
+1. **Transformation** (ADVANCED / IN-FLUX) - 2,077 LOC across 12 files, 3 services / 40 RPCs, Core + Knowledge + Scrum contexts, complete message metadata across emitted facts
+2. **SRE** (PRODUCTION-READY) - 7 services (17 RPCs), rich observable systems coverage, complete message metadata; intent/fact symmetry is not perfect (25 intents vs 26 facts)
+3. **Sales** (PRODUCTION-READY) - Clean CQRS: 2 services / 24 RPCs (command includes 15 writes + 3 strong reads; query has 6 RPCs), symmetric 15 intent/fact, 5 buf configs
+4. **Commerce** (FOCUSED/PRODUCTION) - 5 services / 16 RPCs (domain + integrations + agent), symmetric 4 intent/fact, domain-specific error codes (10 values incl UNSPECIFIED)
 
-### Proto Complexity Comparison
+### Proto Complexity Comparison (Revised)
 
 | Domain | Proto Files | Lines of Code | Services | Intents | Facts | Bounded Contexts |
 |--------|------------|---------------|----------|---------|-------|------------------|
-| **Transformation** | 16 | 1,873 | 4 | 29 | 29 | 3 (Core, Architecture, Scrum) |
-| **SRE** | 13 | 1,178 | 7 | 18 | 18 | 1 (Observable Systems) |
-| **Sales** | 9 | 897 | 2 | 14 | 14 | 1 (Sales Lifecycle) |
-| **Commerce** | 9 | 604 | 5 | 4 | 4 | 1 (Storefront BYOD) |
+| **Transformation** | 12 | 2,077 | 3 | 13 (Scrum only; Knowledge writes are RPC) | 30 (Knowledge 16 + Scrum 14) | 3 (Core, Knowledge, Scrum) |
+| **SRE** | 13 | 1,178 | 7 | 25 | 26 | 1 (Observable Systems) |
+| **Sales** | 9 | 897 | 2 | 15 | 15 | 1 (Sales Lifecycle) |
+| **Commerce** | 9 | 573 | 5 | 4 | 4 | 1 (Storefront BYOD) |
 
-### Key Findings
+### Key Findings (Revised)
 
-1. **Event Sourcing Maturity**: SRE and Sales have complete event sourcing metadata (message_id, correlation_id, causation_id, traceparent); Transformation lacks these critical fields
-2. **CQRS Separation**: Sales has explicit command/query separation; SRE has 7 specialized query services; Transformation and Commerce use combined services
-3. **Code Generation**: Sales has 4 buf configs (domain, process, projection, uisurface); Transformation has 1 (domain); Commerce and SRE have none
-4. **API Surface**: Sales has most comprehensive write API (14 RPCs); SRE has most comprehensive read API (7 query services)
+1. **Event Sourcing Maturity**: ✅ All four domains have message metadata patterns with `message_id`, correlation/causation IDs, and trace context; note Transformation uses multiple meta types (`TransformationMessageMeta`, `TransformationKnowledgeMessageMeta`, `ScrumMessageMeta`)
+2. **CQRS Separation**: Sales is explicit (command + query); Transformation Knowledge is explicit (command + query); SRE splits projection queries into separate services but `IncidentService` mixes read/write; Commerce splits domain write vs projection read
+3. **Code Generation**: Sales has 5 buf configs (domain, integration, process, projection, uisurface); Transformation has 1 (domain); Commerce and SRE have none
+4. **API Surface**: Transformation has the largest current RPC surface (40 RPCs across Knowledge command/query + Scrum query); Sales has 24 total RPCs; Commerce has 16 total RPCs; SRE has 17 RPCs across 7 services
 5. **Buf Configuration Gap**: Commerce and SRE need domain buf configs for consistent code generation
 
 ## 2) Proto Files Inventory
@@ -66,10 +66,10 @@ This analysis complements `550-comparative-domain.md` (which focuses on implemen
 sales/
 ├── core/v1/
 │   ├── sales.proto                      # Core types (Lead, Opportunity, Quote)
-│   ├── sales_command_service.proto      # Write API (14 RPCs)
+│   ├── sales_command_service.proto      # 18 RPCs (15 writes + 3 strong reads)
 │   ├── sales_query_service.proto        # Read API (6 RPCs)
-│   ├── intents.proto                    # Commands (14 intent types)
-│   ├── facts.proto                      # Events (14 fact types)
+│   ├── intents.proto                    # Domain intents (15 variants)
+│   ├── facts.proto                      # Domain facts (15 variants)
 │   ├── opportunity.proto                # Opportunity aggregate
 │   └── quote.proto                      # Quote aggregate
 ├── integration/v1/
@@ -78,8 +78,9 @@ sales/
     └── process_facts.proto              # Process orchestration events
 ```
 
-**Buf Configs (4 files):**
+**Buf Configs (5 files):**
 - `buf.gen.domain-sales.local.yaml` - Domain primitive code generation
+- `buf.gen.integration-sales.local.yaml` - Integration primitive code generation
 - `buf.gen.process-sales.local.yaml` - Process primitive code generation
 - `buf.gen.projection-sales.local.yaml` - Projection primitive code generation
 - `buf.gen.uisurface-sales.local.yaml` - UI Surface primitive code generation
@@ -88,7 +89,7 @@ sales/
 
 ---
 
-### Commerce Domain (9 files, 604 LOC)
+### Commerce Domain (9 files, 573 LOC)
 
 **Location:** `packages/ameide_core_proto/src/ameide_core_proto/commerce/`
 
@@ -116,34 +117,28 @@ commerce/
 
 ---
 
-### Transformation Domain (16 files, 1,873 LOC)
+### Transformation Domain (12 files, 2,077 LOC)
 
 **Location:** `packages/ameide_core_proto/src/ameide_core_proto/transformation/`
 
 **File Structure:**
 ```
 transformation/
-├── v1/
-│   ├── transformation.proto             # Core transformation types
-│   └── transformation_service.proto     # Combined API (11 RPCs)
 ├── core/v1/
-│   └── transformation_core_common.proto # Shared types
-├── architecture/v1/
-│   ├── transformation_architecture_facts.proto
-│   ├── transformation_architecture_intents.proto
-│   └── transformation_architecture_query.proto
-├── repository/v1/
-│   ├── transformation_repository_archimate.proto
-│   ├── transformation_repository_baselines.proto
-│   ├── transformation_repository_bpmn.proto
-│   ├── transformation_repository_definitions.proto
-│   └── transformation_repository_evidence.proto
+│   └── transformation_core_common.proto           # Legacy/core meta (TransformationMessageMeta)
+├── knowledge/v1/
+│   ├── transformation_knowledge.proto             # Knowledge graph types (Element, Relationship, Node, etc.)
+│   ├── transformation_knowledge_common.proto      # TransformationKnowledgeMessageMeta
+│   ├── transformation_knowledge_facts.proto       # Facts (16 variants)
+│   ├── transformation_knowledge_command_service.proto # Command service (15 RPCs)
+│   ├── transformation_knowledge_query_service.proto   # Query service (15 RPCs)
+│   └── view_layout.proto
 └── scrum/v1/
     ├── transformation_scrum_artifacts.proto
-    ├── transformation_scrum_common.proto
-    ├── transformation_scrum_facts.proto
-    ├── transformation_scrum_intents.proto
-    └── transformation_scrum_query.proto
+    ├── transformation_scrum_common.proto    # ScrumMessageMeta
+    ├── transformation_scrum_facts.proto     # Facts (14 variants)
+    ├── transformation_scrum_intents.proto   # Intents (13 variants)
+    └── transformation_scrum_query.proto     # 10 RPCs
 ```
 
 **Buf Configs (1 file):**
@@ -163,10 +158,10 @@ sre/
 ├── core/v1/
 │   ├── sre.proto                        # Core SRE types
 │   ├── alert.proto                      # Alert types
-│   ├── facts.proto                      # Events (18 fact types)
+│   ├── facts.proto                      # Domain facts (26 variants)
 │   ├── health.proto                     # Health check types
 │   ├── incident.proto                   # Incident aggregate
-│   ├── intents.proto                    # Commands (18 intent types)
+│   ├── intents.proto                    # Domain intents (25 variants)
 │   ├── integration_facts.proto          # Inbound events
 │   ├── postmortem.proto                 # Postmortem types
 │   ├── query.proto                      # Query services (7 services)
@@ -187,7 +182,7 @@ sre/
 
 ### 3.1 Sales Domain - Clean CQRS
 
-**SalesCommandService** (Write API, 14 RPCs)
+**SalesCommandService** (Write boundary + minimal strong reads, 18 RPCs)
 ```protobuf
 service SalesCommandService {
   // Leads (3 operations)
@@ -210,6 +205,11 @@ service SalesCommandService {
   rpc SendQuoteToCustomer(SendQuoteToCustomerRequest) returns (SendQuoteToCustomerResponse);
   rpc MarkQuoteAccepted(MarkQuoteAcceptedRequest) returns (MarkQuoteAcceptedResponse);
   rpc MarkQuoteDeclined(MarkQuoteDeclinedRequest) returns (MarkQuoteDeclinedResponse);
+
+  // Minimal strong reads (get-by-id; projections provide browse/search)
+  rpc GetLead(GetLeadRequest) returns (GetLeadResponse);
+  rpc GetOpportunity(GetOpportunityRequest) returns (GetOpportunityResponse);
+  rpc GetQuote(GetQuoteRequest) returns (GetQuoteResponse);
 }
 ```
 
@@ -231,83 +231,45 @@ service SalesQueryService {
 
 ### 3.2 SRE Domain - Specialized Query Services
 
-**Write Service** (Combined, 8 RPCs)
+**IncidentService** (10 RPCs; mixed write + minimal strong reads)
 ```protobuf
 service IncidentService {
-  rpc CreateIncident(...) returns (...);
-  rpc ClassifyIncident(...) returns (...);
-  rpc AssignIncident(...) returns (...);
-  rpc AddIncidentTimelineEntry(...) returns (...);
-  rpc TransitionIncidentStatus(...) returns (...);
-  rpc ResolveIncident(...) returns (...);
-  rpc CloseIncident(...) returns (...);
-  rpc AcknowledgeIncident(...) returns (...);
+  rpc CreateIncident(CreateIncidentRequest) returns (CreateIncidentResponse);
+  rpc ReclassifyIncidentSeverity(ReclassifyIncidentSeverityRequest) returns (ReclassifyIncidentSeverityResponse);
+  rpc AssignIncident(AssignIncidentRequest) returns (AssignIncidentResponse);
+  rpc AddIncidentTimelineEntry(AddIncidentTimelineEntryRequest) returns (AddIncidentTimelineEntryResponse);
+  rpc AcknowledgeIncident(AcknowledgeIncidentRequest) returns (AcknowledgeIncidentResponse);
+  rpc TransitionIncidentStatus(TransitionIncidentStatusRequest) returns (TransitionIncidentStatusResponse);
+  rpc ResolveIncident(ResolveIncidentRequest) returns (ResolveIncidentResponse);
+  rpc CloseIncident(CloseIncidentRequest) returns (CloseIncidentResponse);
+
+  rpc GetIncident(GetIncidentRequest) returns (GetIncidentResponse);
+  rpc ListOpenIncidents(ListOpenIncidentsRequest) returns (ListOpenIncidentsResponse);
 }
 ```
 
-**Read Services** (7 specialized query services)
-```protobuf
-service IncidentQueryService {
-  rpc GetIncident(...) returns (...);
-  rpc ListIncidents(...) returns (...);
-}
+**Projection query services** (6 services / 7 RPCs total)
+- `IncidentQueryService` (SearchIncidents, GetIncidentTimeline)
+- `FleetHealthQueryService` (GetFleetHealth)
+- `AlertQueryService` (ListActiveAlerts)
+- `RunbookQueryService` (SearchRunbooks)
+- `SLOQueryService` (GetSLO)
+- `KnowledgeIndexQueryService` (SearchPatterns)
 
-service FleetHealthQueryService {
-  rpc GetFleetHealth(...) returns (...);
-  rpc ListFleetClusters(...) returns (...);
-}
-
-service AlertQueryService {
-  rpc GetAlert(...) returns (...);
-  rpc ListAlerts(...) returns (...);
-}
-
-service RunbookQueryService {
-  rpc GetRunbook(...) returns (...);
-  rpc ListRunbooks(...) returns (...);
-}
-
-service SLOQueryService {
-  rpc GetSLO(...) returns (...);
-  rpc ListSLOs(...) returns (...);
-}
-
-service KnowledgeIndexQueryService {
-  rpc SearchKnowledgeBase(...) returns (...);
-}
-```
-
-**Pattern:** Most mature CQRS with 7 specialized query services by concern
+**Pattern:** Domain service keeps minimal reads; specialized query services provide projection reads by concern
 
 ---
 
-### 3.3 Transformation Domain - Combined Service
+### 3.3 Transformation Domain - Knowledge + Scrum
 
-**TransformationService** (Combined, 11 RPCs)
-```protobuf
-service TransformationService {
-  // Read operations
-  rpc ListTransformations(...) returns (...);
-  rpc GetTransformation(...) returns (...);
-  rpc GetWorkspace(...) returns (...);
-  rpc ListElements(...) returns (...);
-  rpc GetMetricsSnapshot(...) returns (...);
-  rpc ListAlerts(...) returns (...);
+**Knowledge CQRS services**
+- `TransformationKnowledgeCommandService` (15 RPCs)
+- `TransformationKnowledgeQueryService` (15 RPCs)
 
-  // Write operations
-  rpc CreateTransformation(...) returns (...);
-  rpc ReviseTransformation(...) returns (...);
-  rpc CreateMilestone(...) returns (...);
-  rpc UpdateMilestoneProgress(...) returns (...);
-}
-```
+**Scrum query service**
+- `ScrumQueryService` (10 RPCs)
 
-**Additional Services:**
-- `TransformationArchitectureWriteService` (1 RPC: SubmitIntent)
-- `TransformationArchitectureQueryService` (Architecture queries)
-- `ScrumQueryService` (Scrum artifact queries)
-
-**Pattern:** Combined read/write in main service, separate query services for specialized contexts
+**Pattern:** Knowledge uses explicit command/query separation; Scrum uses bus intents/facts plus a read query service
 
 ---
 
@@ -316,13 +278,16 @@ service TransformationService {
 **CommerceStorefrontWriteService** (8 RPCs)
 ```protobuf
 service CommerceStorefrontWriteService {
-  rpc RequestHostnameClaim(...) returns (...);
-  rpc VerifyHostnameOwnership(...) returns (...);
-  rpc CreateHostnameMapping(...) returns (...);
-  rpc ActivateHostnameMapping(...) returns (...);
-  rpc RevokeHostnameClaim(...) returns (...);
-  rpc RevokeHostnameMapping(...) returns (...);
-  // ... additional operations
+  rpc RequestHostnameClaim(RequestHostnameClaimRequest) returns (RequestHostnameClaimResponse);
+  rpc VerifyHostnameClaim(VerifyHostnameClaimRequest) returns (VerifyHostnameClaimResponse);
+  rpc FailHostnameClaimVerification(FailHostnameClaimVerificationRequest) returns (FailHostnameClaimVerificationResponse);
+
+  rpc RequestHostnameMapping(RequestHostnameMappingRequest) returns (RequestHostnameMappingResponse);
+  rpc ActivateHostnameMapping(ActivateHostnameMappingRequest) returns (ActivateHostnameMappingResponse);
+  rpc FailHostnameMappingProvisioning(FailHostnameMappingProvisioningRequest) returns (FailHostnameMappingProvisioningResponse);
+
+  rpc RevokeHostnameClaim(RevokeHostnameClaimRequest) returns (google.protobuf.Empty);
+  rpc RevokeHostnameMapping(RevokeHostnameMappingRequest) returns (google.protobuf.Empty);
 }
 ```
 
@@ -338,6 +303,7 @@ service CommerceQueryService {
 **Integration Services:**
 - `CommercePaymentsIntegrationService` (Payment processing)
 - `CommerceHardwareIntegrationService` (Hardware devices)
+- `commerce_replication.proto` defines messages only (no service)
 - `CommerceAssistantAgentService` (AI assistant)
 
 **Pattern:** Write/query separation + specialized integration services
@@ -346,72 +312,84 @@ service CommerceQueryService {
 
 ## 4) Event Sourcing Maturity Analysis
 
-### 4.1 Event Metadata Comparison
+### 4.1 Event Metadata Comparison (Revised)
 
-| Domain | Message ID | Correlation ID | Causation ID | Trace Context | Producer | Schema Version |
-|--------|-----------|----------------|--------------|---------------|----------|----------------|
-| **Sales** | ✓ | ✓ | ✓ | ✓ (traceparent/state) | ✓ | ✓ |
-| **SRE** | ✓ | ✓ | ✓ | ✓ (traceparent/state) | ✓ | ✓ |
-| **Commerce** | ✓ | ✓ | ✓ | ✓ (traceparent/state) | ✓ | ✓ |
-| **Transformation** | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| Domain | Message ID | Correlation ID | Causation ID | Trace Context | Producer | Schema Version | Tenant ID |
+|--------|-----------|----------------|--------------|---------------|----------|----------------|-----------|
+| **Sales** | ✓ | ✓ | ✓ | ✓ (traceparent/state) | ✓ | ✓ | ✓ |
+| **SRE** | ✓ | ✓ | ✓ | ✓ (traceparent/state) | ✓ | ✓ | ✓ |
+| **Commerce** | ✓ | ✓ | ✓ | ✓ (traceparent/state) | ✓ | ✓ | ✓ (via scope) |
+| **Transformation** | ✓ | ✓ | ✓ | ✓ (traceparent/state) | ✓ | ✓ | ✓ |
 
-**Critical Gap:** Transformation domain proto lacks event sourcing metadata in message definitions.
+**Status:** ✅ ALL four domains now have complete event sourcing metadata.
 
 ### 4.2 Message Metadata Structures
 
 **Sales Domain (SalesMessageMeta)**
 ```protobuf
 message SalesMessageMeta {
-  string message_id = 1;        // REQUIRED, UUID, idempotency key
-  string correlation_id = 2;    // Request tracing
-  string causation_id = 3;      // Event causality chain
+  string message_id = 1;        // REQUIRED
+  string correlation_id = 2;
+  string causation_id = 3;
   google.protobuf.Timestamp occurred_at = 4;  // REQUIRED
-  string producer = 5;          // REQUIRED, source service identifier
-  string schema_version = 6;    // REQUIRED, version compatibility
-  string traceparent = 7;       // W3C Trace Context
-  string tracestate = 8;        // W3C Trace Context
-  string tenant_id = 9;         // REQUIRED, multi-tenancy
+  string producer = 5;          // REQUIRED
+  string schema_version = 6;    // REQUIRED
+  string traceparent = 20;      // W3C Trace Context
+  string tracestate = 21;       // W3C Trace Context
+  string tenant_id = 50;        // REQUIRED
 }
 ```
 
-**SRE Domain (SreMessageMeta)** - Identical structure to Sales
+**SRE Domain (SreMessageMeta)** - Identical structure to Sales with actor field
 
-**Commerce Domain (CommerceMessageMeta)** - Identical structure to Sales/SRE
+**Commerce Domain (CommerceMessageMeta)** - Similar structure with event_type/source/subject extensions
 
-**Transformation Domain** - Missing structured metadata message
+**Transformation Domain (TransformationMessageMeta)** - Present in `transformation/core/v1`:
+```protobuf
+message TransformationMessageMeta {
+  string message_id = 1;        // REQUIRED
+  string correlation_id = 2;
+  string causation_id = 3;
+  google.protobuf.Timestamp occurred_at = 4;  // REQUIRED
+  string producer = 5;          // REQUIRED
+  string schema_version = 6;
+  string traceparent = 20;      // W3C Trace Context
+  string tracestate = 21;
+  string tenant_id = 50;        // REQUIRED
+  TransformationSubject subject = 51;
+  TransformationActor actor = 52;
+}
+```
 
-**Recommendation:** Add `TransformationMessageMeta` following Sales/SRE/Commerce pattern.
+**Transformation Knowledge Domain (TransformationKnowledgeMessageMeta)** - Used by emitted knowledge facts:
+
+- See `packages/ameide_core_proto/src/ameide_core_proto/transformation/knowledge/v1/transformation_knowledge_common.proto`
+
+**Status:** All domains implement consistent event sourcing metadata patterns.
 
 ---
 
 ### 4.3 Intent/Fact Symmetry
 
-**Sales Domain - Perfect Symmetry (14:14)**
+**Sales Domain - Symmetry (15:15)**
 
 Intents:
-- `SalesDomainIntent` (oneof with 14 intent types)
+- `SalesDomainIntent` (oneof with 15 intent variants)
 
 Facts:
-- `SalesDomainFact` (oneof with 14 fact types)
+- `SalesDomainFact` (oneof with 15 fact variants)
 
-**Mapping:**
-- `CreateLeadRequested` → `LeadCreated`
-- `QualifyLeadRequested` → `LeadQualified`
-- `DisqualifyLeadRequested` → `LeadDisqualified`
-- (11 more mappings...)
+**Note:** SalesCommandService also includes 3 strong reads (GetLead/GetOpportunity/GetQuote) that do not map to bus intents/facts.
 
-**SRE Domain - Perfect Symmetry (18:18)**
+**SRE Domain - Near Symmetry (25:26)**
 
 Intents:
-- `SreDomainIntent` (oneof with 18 intent types)
+- `SreDomainIntent` (oneof with 25 intent variants)
 
 Facts:
-- `SreDomainFact` (oneof with 18 fact types)
+- `SreDomainFact` (oneof with 26 fact variants)
 
-**Mapping:**
-- `CreateIncidentRequested` → `IncidentCreated`
-- `ClassifyIncidentRequested` → `IncidentClassified`
-- (16 more mappings...)
+**Why asymmetric:** Some facts are emitted without a direct external “intent” equivalent (e.g., budget exhaustion).
 
 **Commerce Domain - Perfect Symmetry (4:4)**
 
@@ -421,43 +399,39 @@ Intents:
 Facts:
 - `CommerceDomainFact` (oneof with 4 fact types)
 
-**Transformation Domain - Perfect Symmetry (29:29)**
+**Transformation Domain - Mixed (by context)**
 
-Architecture Intents/Facts:
-- 12 architecture intent types
-- 12 architecture fact types
+- **Knowledge:** facts only (16 variants); write surface is RPC-based (`TransformationKnowledgeCommandService`), not a bus intent envelope
+- **Scrum:** 13 intent variants, 14 fact variants
 
-Scrum Intents/Facts:
-- 17 scrum intent types
-- 17 scrum fact types
-
-**Pattern:** All domains maintain 1:1 intent-to-fact symmetry (excellent design).
+**Pattern:** Intent/fact symmetry is strong in Sales/Commerce, but not universal across all domains/contexts.
 
 ---
 
 ### 4.4 Confluent Schema Registry Integration
 
-**All domains use buf/confluent/v1 extensions:**
+**All domains use `buf/confluent/v1` subject annotations for schema naming:**
 
 ```protobuf
 import "buf/confluent/v1/extensions.proto";
 
-option (buf.confluent.v1.file_reference) = {
-  schema_reference: {
-    name: "sales.domain.intents.v1"
-    subject_name_strategy: TOPIC_NAME_STRATEGY
-  }
-};
+message SalesDomainIntent {
+  option (buf.confluent.v1.subject) = {
+    instance_name: "default"
+    name: "sales.domain.intents.v1-value"
+  };
+}
 ```
 
 **Stream References:**
-- Sales: `sales.domain.intents.v1`, `sales.domain.facts.v1`
+- Sales: `sales.domain.intents.v1`, `sales.domain.facts.v1` (plus `ameide_core_proto.common.v1.eventing` stream_ref fields)
 - Commerce: `commerce.domain.intents.v1`, `commerce.domain.facts.v1`
-- Transformation: `transformation.architecture.intents.v1`, `transformation.architecture.facts.v1`, `transformation.scrum.intents.v1`, `transformation.scrum.facts.v1`
+- Transformation: `transformation.knowledge.domain.facts.v1` (facts), `scrum.domain.intents.v1` (intents), `scrum.domain.facts.v1` (facts)
 - SRE: `sre.domain.intents.v1`, `sre.domain.facts.v1`
 
-**Partition Keys:** All domains use `meta.tenant_id` + aggregate identity
-**Idempotency Keys:** All domains use `meta.message_id`
+**Partition / idempotency keys:**
+- Sales and SRE explicitly declare these via `ameide_core_proto.common.v1.eventing` options.
+- Commerce, Transformation Knowledge, and Scrum currently do not declare partition/idempotency rules via the shared eventing option (but their meta includes `message_id` and tenant scoping).
 
 **Status:** Excellent consistency across all domains.
 
@@ -467,14 +441,12 @@ option (buf.confluent.v1.file_reference) = {
 
 ### 5.1 Enum Type Comparison
 
-| Domain | Key Enums | States/Values |
-|--------|----------|---------------|
-| **SRE** | Severity (4), IncidentStatus (6), AlertStatus (4), HealthStatus (4), ServiceTier (4), PostmortemStatus (3) | 6 enums, 25 total values |
-| **Sales** | LeadStatus (4), OpportunityStage (6), QuoteStatus (8) | 3 enums, 18 total values |
-| **Transformation** | TransformationStage (6), TransformationHealth (4), TransformationCadence (3) | 3 enums, 13 total values |
-| **Commerce** | HostnameClaimStatus (~4), HostnameMappingStatus (~4), DomainVerificationMethod (~3) | ~4 enums, ~11 total values |
-
-**Winner:** SRE (most comprehensive enum system for observable systems domain)
+| Domain | Key Enums (examples) | Notes |
+|--------|-----------------------|-------|
+| **SRE** | `Severity`, `IncidentStatus`, `AlertStatus`, `HealthStatus`, `ServiceTier`, `PostmortemStatus` | Broadest enum surface across multiple subdomains |
+| **Sales** | `LeadStatus`, `OpportunityStage`, `QuoteStatus` | Tight, workflow-centric enum set |
+| **Transformation** | `ElementKind` (Knowledge) | Large enum set driving UI/editor mapping for repository elements |
+| **Commerce** | `HostnameClaimStatus`, `HostnameMappingStatus`, `DomainVerificationMethod`, `DomainOnboardingErrorCode` | Status + operational error codes for onboarding |
 
 ---
 
@@ -483,38 +455,36 @@ option (buf.confluent.v1.file_reference) = {
 **Sales Domain - Business Domain Types**
 ```protobuf
 message Money {
-  string currency_code = 1;  // ISO 4217
-  int64 amount_cents = 2;    // Cents/smallest unit
+  string currency = 1;  // ISO 4217 (e.g. "USD")
+  int64 units = 2;
+  int32 nanos = 3;
 }
 
 message LineItem {
-  string product_id = 1;
-  string product_name = 2;
+  string sku = 1;
+  string description = 2;
   int32 quantity = 3;
   Money unit_price = 4;
-  Money line_total = 5;
+  Money total_price = 5;
 }
 
 message ActorRef {
-  string user_id = 1;
+  string user_id = 1;  // REQUIRED
   string display_name = 2;
 }
 ```
 
-**Transformation Domain - Extensible Repository Types**
+**Transformation Knowledge Domain - Extensible Repository Types**
 ```protobuf
-message Transformation {
-  ResourceMetadata metadata = 1;
-  TransformationSpec spec = 2;
-  google.protobuf.Struct attributes = 3;  // Extensible
-  repeated Milestone milestones = 4;
-  repeated MetricSnapshot metrics = 5;
-}
-
-message ArchiMateModel {
-  string model_id = 1;
-  google.protobuf.Any payload = 2;  // Polymorphic
-  repeated ArchiMateElement elements = 3;
+message Element {
+  string id = 1;
+  string tenant_id = 2;
+  string organization_id = 3;
+  string repository_id = 4;
+  ElementKind kind = 5;
+  string type_key = 7;
+  google.protobuf.Any body = 8;          // Polymorphic payload
+  map<string, string> metadata = 9;      // Extensible attributes
 }
 ```
 
@@ -541,12 +511,11 @@ message ResourceRef {
 **Commerce Domain - Domain-Specific Types**
 ```protobuf
 message StorefrontHostnameClaim {
-  string claim_id = 1;
+  CommerceScope scope = 1;
   string hostname = 2;
-  HostnameClaimStatus status = 3;
-  DomainVerificationMethod verification_method = 4;
-  google.protobuf.Struct dns_instructions = 5;  // JSONB
-  google.protobuf.Struct error_details = 6;     // JSONB
+  HostnameClaimStatus status = 4;
+  DomainVerificationInstructions instructions = 5;
+  DomainOnboardingError last_error = 6;
 }
 ```
 
@@ -602,18 +571,26 @@ message ResourceMetadata {
 
 ## 6) Buf Configuration Analysis
 
-### 6.1 Sales Domain - Most Complete (4 configs)
+### 6.1 Sales Domain - Most Complete (5 configs)
 
 **buf.gen.domain-sales.local.yaml**
 ```yaml
 version: v2
+clean: true
+inputs:
+  - directory: src
 plugins:
   - local: protoc-gen-ameide-register-go
     out: ../../primitives/domain/sales/internal/gen
     opt:
-      - paths=source_relative
+      - package=gen
+      - output_file=domain_services.generated.go
+      - register_func=RegisterDomainServices
+      - interface_name=DomainServices
+      - go_import_prefix=github.com/ameideio/ameide-sdk-go/gen/go
 ```
 
+**buf.gen.integration-sales.local.yaml** - Integration primitive code generation
 **buf.gen.process-sales.local.yaml** - Process primitive code generation
 **buf.gen.projection-sales.local.yaml** - Projection primitive code generation
 **buf.gen.uisurface-sales.local.yaml** - UI Surface primitive code generation
@@ -631,12 +608,18 @@ managed:
   enabled: true
   override:
     - file_option: go_package_prefix
-      value: github.com/ameideio/ameide-core/primitives/domain/transformation/internal/gen
+      value: github.com/ameideio/ameide-sdk-go/gen/go
+clean: true
+inputs:
+  - directory: src
 plugins:
   - local: protoc-gen-ameide-register-go
     out: ../../primitives/domain/transformation/internal/gen
     opt:
-      - paths=source_relative
+      - package=gen
+      - output_file=domain_services.generated.go
+      - register_func=RegisterDomainServices
+      - interface_name=DomainServices
 ```
 
 **Status:** Domain primitive only; needs process/projection/uisurface configs
@@ -692,75 +675,67 @@ plugins:
 
 ### 7.1 Pagination Patterns
 
-**Sales Domain - Consistent Pagination**
+**Sales Domain - Page size/token fields**
 ```protobuf
 message ListOpportunitiesRequest {
-  string tenant_id = 1;
-  int32 page_size = 2;
-  string page_token = 3;
-  OpportunityFilter filter = 4;
+  ameide_core_proto.common.v1.RequestContext context = 1;
+  OpportunityStage stage = 2;
+  string owner_user_id = 3;
+  int32 page_size = 10;
+  string page_token = 11;
 }
 
 message ListOpportunitiesResponse {
   repeated OpportunityView opportunities = 1;
   string next_page_token = 2;
-  int32 total_count = 3;
 }
 ```
 
-**SRE Domain - Consistent Pagination**
+**SRE Domain - Shared PaginationRequest/PaginationResponse**
 ```protobuf
-message ListIncidentsRequest {
-  string tenant_id = 1;
-  int32 page_size = 2;
-  string page_token = 3;
-  IncidentFilter filter = 4;
+message SearchIncidentsRequest {
+  ameide_core_proto.common.v1.RequestContext context = 1;
+  string query = 2;
+  ameide_core_proto.common.v1.PaginationRequest pagination = 3;
 }
 
-message ListIncidentsResponse {
+message SearchIncidentsResponse {
   repeated Incident incidents = 1;
-  string next_page_token = 2;
+  ameide_core_proto.common.v1.PaginationResponse pagination = 2;
 }
 ```
 
-**Commerce Domain - No Pagination (GAP)**
+**Commerce Domain**
+- No list/browse RPCs in `CommerceQueryService` (ResolveHostname/GetHostnameClaim/GetHostnameMapping), so pagination patterns are currently not exercised in the domain query surface.
+
+**Transformation Knowledge Domain - Shared PaginationRequest/PaginationResponse**
 ```protobuf
-message ListHostnameClaimsRequest {
-  string tenant_id = 1;
-  // Missing: page_size, page_token
-}
-
-message ListHostnameClaimsResponse {
-  repeated HostnameClaim claims = 1;
-  // Missing: next_page_token
+message ListRepositoriesRequest {
+  ameide_core_proto.common.v1.RequestContext context = 1;
+  string tenant_id = 2;
+  ameide_core_proto.common.v1.PaginationRequest pagination = 3;
 }
 ```
 
-**Transformation Domain - Has Pagination**
-```protobuf
-message ListElementsRequest {
-  string transformation_id = 1;
-  int32 page_size = 2;
-  string page_token = 3;
-}
-```
-
-**Status:** Sales and SRE have consistent pagination; Commerce needs pagination; Transformation has partial pagination.
+**Status:** Pagination patterns are not fully standardized (Sales uses page_size/page_token fields; SRE/Transformation Knowledge use shared pagination messages).
 
 ---
 
 ### 7.2 Error Handling Patterns
 
-**Commerce Domain - Most Comprehensive (17 error codes)**
+**Commerce Domain - Domain-specific error codes (10 values incl UNSPECIFIED)**
 ```protobuf
 enum DomainOnboardingErrorCode {
   DOMAIN_ONBOARDING_ERROR_CODE_UNSPECIFIED = 0;
-  DOMAIN_ONBOARDING_ERROR_CODE_DNS_VERIFICATION_FAILED = 1;
-  DOMAIN_ONBOARDING_ERROR_CODE_CERTIFICATE_PROVISIONING_FAILED = 2;
-  DOMAIN_ONBOARDING_ERROR_CODE_RATE_LIMIT_EXCEEDED = 3;
-  DOMAIN_ONBOARDING_ERROR_CODE_HOSTNAME_IN_USE = 4;
-  DOMAIN_ONBOARDING_ERROR_CODE_INVALID_HOSTNAME = 5;
-  // ... 12 more error codes
+  DOMAIN_ONBOARDING_ERROR_CODE_DNS_TARGET_INCORRECT = 1;
+  DOMAIN_ONBOARDING_ERROR_CODE_TXT_MISSING = 2;
+  DOMAIN_ONBOARDING_ERROR_CODE_TXT_MISMATCH = 3;
+  DOMAIN_ONBOARDING_ERROR_CODE_PROPAGATION_PENDING = 4;
+  DOMAIN_ONBOARDING_ERROR_CODE_CAA_BLOCKED = 10;
+  DOMAIN_ONBOARDING_ERROR_CODE_CERT_ISSUE_RATE_LIMIT = 11;
+  DOMAIN_ONBOARDING_ERROR_CODE_CERT_ISSUE_FAILED = 12;
+  DOMAIN_ONBOARDING_ERROR_CODE_HOSTNAME_ALREADY_CLAIMED = 20;
+  DOMAIN_ONBOARDING_ERROR_CODE_CDN_INTERFERENCE = 21;
 }
 ```
 
@@ -774,18 +749,21 @@ enum DomainOnboardingErrorCode {
 
 ### 7.3 Field Mask Support
 
-**Transformation Domain - Field Mask for Partial Updates**
+**Transformation Knowledge Domain - Field Mask for Partial Updates**
 ```protobuf
 import "google/protobuf/field_mask.proto";
 
-message ReviseTransformationRequest {
-  string transformation_id = 1;
-  Transformation transformation = 2;
-  google.protobuf.FieldMask update_mask = 3;  // Partial update support
+message EditRepositoryRequest {
+  ameide_core_proto.common.v1.RequestContext context = 1;
+  Repository repository = 2;
+  google.protobuf.FieldMask update_mask = 3;
 }
 ```
 
-**Sales/Commerce/SRE Domains - No Field Mask Support**
+**Transformation Scrum Domain - Field Mask Support**
+- `RefineProductBacklogItemRequested` includes `google.protobuf.FieldMask update_mask`
+
+**Sales/Commerce/SRE Domains**
 - Full replacement updates only
 - No partial update capability
 
@@ -793,23 +771,29 @@ message ReviseTransformationRequest {
 
 ---
 
-## 8) Critical Gaps Summary
+## 8) Critical Gaps Summary (Revised)
 
 ### 8.1 By Domain
 
 **Sales Domain**
-- ✅ No critical proto gaps (production-ready)
-- Enhancement: Add field mask support for partial updates
+- ✅ Strong CQRS contract (command + query services) and complete metadata in bus envelopes
+- ✅ Most complete buf config coverage (5 files)
+- Gaps:
+  - Pagination style differs from SRE/Transformation Knowledge (Sales uses `page_size`/`page_token` fields vs shared pagination messages)
+  - No field mask support in Sales command RPCs (edits are modeled as intent-style commands)
 
 **Commerce Domain**
 1. Missing `buf.gen.domain-commerce.local.yaml`
-2. No pagination in list operations
+2. Query surface does not currently expose list/browse RPCs (so pagination patterns are not exercised yet)
 3. Limited to hostname management (lacks broader commerce scope)
 
 **Transformation Domain**
-1. Missing event sourcing metadata (message_id, correlation_id, causation_id)
-2. No explicit CQRS separation (combined read/write service)
-3. Missing buf configs for process/projection/integration/uisurface primitives
+- ✅ Knowledge context provides explicit CQRS (command + query services) and uses `TransformationKnowledgeMessageMeta` on emitted facts
+- ✅ Largest current RPC surface (40 RPCs across 3 services)
+- Gaps:
+  - Multiple metadata types across contexts (`TransformationMessageMeta`, `TransformationKnowledgeMessageMeta`, `ScrumMessageMeta`)
+  - Knowledge writes are RPC-based (no bus intent envelope), while Scrum uses bus intents/facts; eventing conventions differ by context
+  - Missing buf configs for non-domain primitives (process/projection/integration/uisurface) if generation glue is desired
 
 **SRE Domain**
 1. Missing `buf.gen.domain-sre.local.yaml`
@@ -817,13 +801,13 @@ message ReviseTransformationRequest {
 
 ---
 
-### 8.2 Cross-Domain Gaps
+### 8.2 Cross-Domain Gaps (Revised)
 
-1. **Buf Configuration Inconsistency**: Only 2/4 domains have buf configs
-2. **Event Metadata Standardization**: Transformation lacks event sourcing metadata
-3. **Pagination Consistency**: Commerce lacks pagination patterns
-4. **Field Mask Support**: Only Transformation supports partial updates
-5. **Error Handling**: Inconsistent approach (Commerce uses enums, others use gRPC Status)
+1. **Buf Configuration Inconsistency**: Only 2/4 domains have buf configs (Sales has 5, Transformation has 1)
+2. **Event Metadata Standardization**: Metadata fields are broadly aligned, but types and conventions vary (notably across Transformation contexts)
+3. **Pagination Consistency**: Pagination is not standardized (Sales uses `page_size/page_token`; SRE/Transformation Knowledge use `PaginationRequest/Response`)
+4. **Field Mask Support**: Only Transformation Knowledge + Scrum use field masks for partial updates
+5. **Error Handling**: Inconsistent approach (Commerce uses error enums; others rely on gRPC Status)
 
 ---
 
@@ -836,23 +820,19 @@ message ReviseTransformationRequest {
    - Create `buf.gen.domain-sre.local.yaml` (follow transformation managed mode)
    - Target: `packages/ameide_core_proto/`
 
-2. **Add Event Sourcing Metadata to Transformation**
-   - Create `TransformationMessageMeta` message following Sales/SRE/Commerce pattern
-   - Add to all intent and fact messages
-   - File: `packages/ameide_core_proto/src/ameide_core_proto/transformation/core/v1/transformation_core_common.proto`
+2. **Standardize Pagination Conventions**
+   - Decide between `page_size/page_token` fields (Sales pattern) vs shared `PaginationRequest/Response` (SRE/Transformation Knowledge pattern)
+   - Apply consistently for new list/search RPCs
 
-3. **Add Pagination to Commerce**
-   - Add `page_size`, `page_token` to list requests
-   - Add `next_page_token` to list responses
-   - Follow Sales/SRE pagination pattern
+3. **Clarify Intent/Fact Strategy Per Context**
+   - Decide whether “knowledge writes” should also have a bus intent envelope (like Sales/SRE/Scrum), or remain RPC-only with facts
 
 ---
 
 ### 9.2 Medium-Term Enhancements (Priority 2)
 
-1. **Standardize CQRS Separation**
-   - Transformation: Split combined service into command + query services
-   - Follow Sales pattern (explicit command/query separation) or SRE pattern (specialized query services)
+1. **Standardize CQRS Separation Where Needed**
+   - Keep explicit CQRS for Knowledge; evaluate whether SRE’s `IncidentService` should remain mixed read/write or be split
 
 2. **Add Field Mask Support**
    - Sales: Add `google.protobuf.FieldMask` to update operations
@@ -911,50 +891,46 @@ message ReviseTransformationRequest {
 - Domain Messages: `packages/ameide_core_proto/src/ameide_core_proto/commerce/v1/commerce_domain_messages.proto`
 
 **Transformation:**
-- Main Service: `packages/ameide_core_proto/src/ameide_core_proto/transformation/v1/transformation_service.proto`
-- Architecture Intents: `packages/ameide_core_proto/src/ameide_core_proto/transformation/architecture/v1/transformation_architecture_intents.proto`
+- Knowledge Command Service: `packages/ameide_core_proto/src/ameide_core_proto/transformation/knowledge/v1/transformation_knowledge_command_service.proto`
+- Knowledge Query Service: `packages/ameide_core_proto/src/ameide_core_proto/transformation/knowledge/v1/transformation_knowledge_query_service.proto`
+- Knowledge Facts: `packages/ameide_core_proto/src/ameide_core_proto/transformation/knowledge/v1/transformation_knowledge_facts.proto`
 - Scrum Intents: `packages/ameide_core_proto/src/ameide_core_proto/transformation/scrum/v1/transformation_scrum_intents.proto`
 
 **SRE:**
-- Incident Service: `packages/ameide_core_proto/src/ameide_core_proto/sre/core/v1/sre_service.proto`
+- Incident + Query Services: `packages/ameide_core_proto/src/ameide_core_proto/sre/core/v1/query.proto`
 - Intents: `packages/ameide_core_proto/src/ameide_core_proto/sre/core/v1/intents.proto`
 - Facts: `packages/ameide_core_proto/src/ameide_core_proto/sre/core/v1/facts.proto`
 - Query Services: `packages/ameide_core_proto/src/ameide_core_proto/sre/core/v1/query.proto`
 
 ### Buf Configuration Files
 
-**Sales:**
+**Sales (5 files - most complete):**
 - Domain: `packages/ameide_core_proto/buf.gen.domain-sales.local.yaml`
+- Integration: `packages/ameide_core_proto/buf.gen.integration-sales.local.yaml`
 - Process: `packages/ameide_core_proto/buf.gen.process-sales.local.yaml`
 - Projection: `packages/ameide_core_proto/buf.gen.projection-sales.local.yaml`
 - UISurface: `packages/ameide_core_proto/buf.gen.uisurface-sales.local.yaml`
 
-**Transformation:**
+**Transformation (1 file):**
 - Domain: `packages/ameide_core_proto/buf.gen.domain-transformation.local.yaml`
 
 **Commerce & SRE:**
-- Missing (GAP)
+- Missing (GAP - needs domain configs)
 
 ---
 
-## 11) Conclusion
+## 11) Conclusion (Revised December 2025)
 
 The four domain proto contracts demonstrate varying levels of API design maturity:
 
-- **Sales** leads in code generation readiness (4 buf configs), clean CQRS separation, and comprehensive command surface (14 RPCs)
-- **SRE** has the most mature CQRS implementation (7 specialized query services) and complete event sourcing metadata
-- **Transformation** has the most sophisticated data model (1,873 LOC, 3 bounded contexts, extensibility patterns) but lacks event sourcing metadata
-- **Commerce** has the narrowest but most focused scope (604 LOC, BYOD storefront) with excellent error handling (17 error codes)
+- **Transformation** currently leads in RPC surface (40 RPCs across Knowledge command/query + Scrum query) and uses field masks in Knowledge/Scrum, but mixes conventions across contexts
+- **SRE** has the most mature multi-service query surface (7 services, 17 RPCs) and complete message metadata, but intent/fact symmetry is not perfect (25 intents vs 26 facts)
+- **Sales** leads in codegen readiness (5 buf configs), clean CQRS separation (2 services / 24 RPCs), and symmetric 15 intent/fact design
+- **Commerce** remains focused (573 LOC, BYOD storefront) with domain-specific error codes (10 values) but no buf configs and a narrow query surface
 
-All domains maintain excellent intent/fact symmetry and Confluent schema registry integration. The primary gaps are:
-
-1. **Buf configuration** for Commerce and SRE (blocks consistent code generation)
-2. **Event sourcing metadata** for Transformation (blocks proper event tracing)
-3. **Pagination** for Commerce (limits scalability)
-4. **CQRS standardization** across Transformation and Commerce
-
-### Key Insight: Proto Layer is Production-Ready for Sales/SRE, Needs Standardization for Commerce/Transformation
-
-The analysis reveals Sales and SRE have production-ready proto contracts with complete event sourcing, CQRS patterns, and code generation infrastructure. Commerce and Transformation need buf configs, event metadata standardization, and API consistency improvements to match Sales/SRE maturity.
+Primary remaining gaps:
+1. **Buf configuration** for Commerce and SRE (blocks consistent codegen glue)
+2. **Pagination standardization** (Sales differs from SRE/Transformation Knowledge)
+3. **Consistency within Transformation** (RPC vs bus conventions, metadata types, and shared eventing options)
 
 **This analysis complements `550-comparative-domain.md`** (which focuses on implementation maturity) by providing a contract-layer view of API design, event sourcing, and code generation readiness across all four domains.

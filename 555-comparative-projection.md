@@ -1,6 +1,6 @@
 # 555 Comparative Projection Primitive Analysis
 
-**Status:** Analysis Complete (Updated 2025-12-17)
+**Status:** Reviewed 2025-12-17 (analysis complete; maturity table metrics corrected)
 **Type:** Cross-cutting Architecture Analysis
 **Scope:** Sales, Commerce, Transformation, SRE projection primitives
 
@@ -12,10 +12,10 @@ Comparative analysis of projection primitive implementation maturity across four
 
 | Domain | Overall Score | Storage | Read Models | Query RPCs | Event Consumption | Tests | GitOps |
 |--------|--------------|---------|-------------|------------|-------------------|-------|--------|
-| **Sales** | ★★★★★ (5/5) | PostgreSQL | 5 tables | 6/6 (100%) | ✅ Inbox pattern | ✅ 308 LOC | ✅ Yes |
-| **Transformation** | ★★★★ (4/5) | PostgreSQL | 6 tables | 7/7 (100%) | ✅ Inbox pattern | ✅ 84 LOC | ❌ No |
+| **Sales** | ★★★★★ (5/5) | PostgreSQL | 5 tables | 6/6 (100%) | ✅ Inbox pattern | ✅ 284 LOC | ✅ Yes |
+| **Transformation** | ★★★★ (4/5) | PostgreSQL | 6 tables | 7/11 (63.6%) | ✅ Inbox pattern | ✅ 89 LOC | ❌ No |
 | **Commerce** | ★★★ (3/5) | PostgreSQL | 2 tables | 3/3 (100%) | ❌ None | ⚠️ 6 LOC stub | ❌ No |
-| **SRE** | ★½ (1.5/5) | None | N/A | 1/15 (6.7%) | N/A | ⚠️ 67 LOC | ❌ No |
+| **SRE** | ★½ (1.5/5) | None | N/A | 1/7 (14.3%) | N/A | ⚠️ 67 LOC | ❌ No |
 
 ## Architectural Patterns
 

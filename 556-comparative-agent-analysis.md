@@ -1,6 +1,6 @@
 # 556 — Comparative Agent Implementation Analysis
 
-**Status:** Analysis complete (review document for cross-domain Agent implementation progress)
+**Status:** Reviewed 2025-12-17 (mostly accurate; corrected SRE proto-service status)
 **Created:** 2025-12-16
 **Purpose:** Comparative review of Agent primitive implementations across Sales, Commerce, Transformation, and SRE domains
 
@@ -73,7 +73,7 @@ This analysis reviews the implementation status of Agent primitives across four 
    - ✅ Multi-agent pattern (SREAgent→SRECoder)
    - ✅ MCP adapter exists (sre-mcp-adapter)
    - ❌ Minimal README (4 lines)
-   - ❌ No proto service definition
+   - ⚠️ No domain-specific proto service (uses generic EchoAgentService)
    - ❌ No real SRE logic
 
 ---
@@ -105,7 +105,7 @@ This analysis reviews the implementation status of Agent primitives across four 
 | **Sales-Copilot** | ❌ None | Custom Python dataclass | N/A | N/A | No (HTTP) | **MISSING** - No proto service |
 | **Commerce-Assistant** | ✅ CommerceAssistantAgentService | CommerceScope | thread_id, input, scope, hostname | thread_id, turn_count, output | No (unary) | **BETA** - Domain-specific types |
 | **Transformation** | ✅ EchoAgentService | AgentDefinition (rich storage) | thread_id, input | thread_id, turn_count, output | No (unary) | **EARLY** - Generic echo pattern |
-| **SRE** | ❌ None | Generic echo (borrowed) | thread_id, input | thread_id, turn_count, output | No (unary) | **MISSING** - Uses generic proto |
+| **SRE** | ✅ EchoAgentService (generic) | Generic echo | thread_id, input | thread_id, turn_count, output | No (unary) | **EARLY** - Generic echo pattern |
 
 **General Agent Framework Proto** (cross-domain):
 - ✅ **AgentsService** (`agents/v1/agents.proto`) - Declarative catalog with versioning
@@ -380,7 +380,7 @@ primitives/agent/sre/
 | **Sales** | ❌ None | N/A | **MISSING** |
 | **Commerce** | ✅ CommerceAssistantAgentService | CommerceScope (tenant/site/channel context) | **BETA** |
 | **Transformation** | ✅ EchoAgentService (generic) | AgentDefinition (rich storage) | **EARLY** |
-| **SRE** | ❌ None | Generic echo (borrowed) | **MISSING** |
+| **SRE** | ✅ EchoAgentService (generic) | Generic echo | **EARLY** |
 
 **Critical Gap:** Sales and SRE have agent implementations but no dedicated proto service definitions
 

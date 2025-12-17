@@ -79,7 +79,7 @@ Delivery Channels (WebSocket, Email, Webhook)
 
 **Context Inboxes**:
 - `/org/[orgId]/inbox` - Organization-scoped
-- `/org/[orgId]/repo/[graphId]/inbox` - Repository-scoped
+- `/org/[orgId]/repo/[repositoryId]/inbox` - Repository-scoped
 - `/org/[orgId]/transformations/[transformationId]/inbox` - Initiative-scoped
 - Auto-scoped when inside a context, one-click to widen
 
