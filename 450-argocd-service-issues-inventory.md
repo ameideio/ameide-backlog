@@ -619,7 +619,7 @@ See [451-secrets-management.md](451-secrets-management.md) for complete secrets 
 1. Extend Vault bootstrap role binding to allow ESO auth from `ameide-system` (add it to `externalSecrets.namespaces`).
 2. Ensure a `SecretStore/ameide-vault` exists in `ameide-system` that targets the stable cluster Vault backend (prefer `vault-core-prod`).
 3. Materialize `ghcr-pull` in `ameide-system` via ExternalSecrets (reuse `foundation-ghcr-pull-secret` with `registry.additionalNamespaces: [ameide-system]`).
-4. Stop using `:dev` tags for cluster-scoped controllers on hosted clusters; use a versioned/CI-built tag (e.g., chart `appVersion`) so amd64 nodes can pull deterministically.
+4. Ensure any cluster-scoped controller image tag used on hosted clusters is **multi-arch (at least linux/amd64)**. If we only publish `:dev` today, treat that as a release alias and make it multi-arch; follow up to publish versioned tags and switch away from `:dev`.
 5. Verify operator pods pull successfully and `cluster-ameide-operators` becomes `Healthy`.
 
 ---

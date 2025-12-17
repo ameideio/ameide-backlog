@@ -277,7 +277,7 @@ Local k3d clusters are capacity-constrained and can exhibit apiserver write late
 - GitOps consumers (Envoy Gateway addresses, DNS hostnames, etc.) must source Azure runtime facts from Terraform outputs (`artifacts/terraform-outputs/azure.json` → `infra/scripts/sync-globals.sh`) rather than hardcoding IPs/hostnames in Helm values.
 - ArgoCD bootstrap must not depend on private registry pull secrets (chicken-and-egg): ensure bootstrap correctly applies `sources/values/env/<env>/foundation/foundation-argocd.yaml` so Redis and other bootstrap images are public until `ghcr-pull` is created by External Secrets.
 - Any cluster-shared namespace that runs cluster-scoped controllers (e.g., `ameide-system`) must also receive `ghcr-pull` deterministically; do not assume “env namespaces only” or operators will `ImagePullBackOff` while env workloads appear healthy.
-- Cluster-scoped controllers on hosted clusters must not depend on ad-hoc `:dev` image tags (single-arch “developer publish” footgun); use versioned/CI-built tags for reproducible amd64 pulls.
+- Cluster-scoped controllers on hosted clusters must only use **multi-arch** tags (at least `linux/amd64`). If `:dev` is the only published tag today, treat it as a release alias and make it multi-arch; follow up to publish versioned tags and switch away from `:dev`.
 - Any “bootstrap critical path” Job (e.g., Vault initialization/bootstrap) must also use public images and avoid `ghcr-pull` dependencies; otherwise Vault can’t initialize, SecretStores remain NotReady, and the entire cluster deadlocks on image pulls.
 
 ### 4.3 Wrappers for vendor charts
