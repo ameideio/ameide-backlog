@@ -14,6 +14,7 @@
 - Remediation: keep the WI client ID **single-sourced and committed**:
   - extend `sync-globals.sh cluster` to update both `sources/values/cluster/globals.yaml` and `sources/values/cluster/azure/cert-manager.yaml`,
   - commit/push those changes before expecting cert-manager to solve DNS challenges.
+- Operational nuance: changing the ServiceAccount `azure.workload.identity/client-id` does not automatically restart existing cert-manager pods. Add a pod-template label/annotation carrying the client ID so a GitOps update forces a Deployment rollout and the webhook reinjects the updated `AZURE_CLIENT_ID`.
 
 > **Scope:** Applies to dev/staging/prod AKS clusters where Azure DNS + ACME DNS-01 is enabled. Local/offline clusters intentionally disable DNS-01 and rely on self-signed Issuer/CA chains (see [444-terraform.md](444-terraform.md#local-target-safeguards) and the local note in [448-cert-manager-workload-identity.md](448-cert-manager-workload-identity.md#local-offline-environments)).
 
