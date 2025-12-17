@@ -41,8 +41,9 @@ Root cause:
 
 Remediation (GitOps, vendor-aligned):
 - During reconciliation, after ensuring the client exists, explicitly attach required scopes using the Admin API:
-  - `POST /admin/realms/{realm}/clients/{clientId}/default-client-scopes/{scopeId}`
-  - `POST /admin/realms/{realm}/clients/{clientId}/optional-client-scopes/{scopeId}`
+  - `PUT /admin/realms/{realm}/clients/{id}/default-client-scopes/{scopeId}` with body `{}` (empty JSON)
+  - `PUT /admin/realms/{realm}/clients/{id}/optional-client-scopes/{scopeId}` with body `{}` (empty JSON)
+  - Note: the endpoint uses the **client UUID** (`id`), not the `clientId` string, and updating `defaultClientScopes` / `optionalClientScopes` in the client JSON representation is not sufficient (Keycloak treats scope linkage as separate resources).
 - Keep realm-scope reconciliation (ensuring `profile`/`email` scopes exist) as a prerequisite for client-scope attachment.
 
 ## Addendum (2025-12-17): client-patcher Keycloak auth must be debuggable and resilient

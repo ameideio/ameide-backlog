@@ -371,6 +371,25 @@ Verification:
        - `https://auth.ameide.io/realms/ameide/protocol/openid-connect/auth?client_id=argocd&redirect_uri=https%3A%2F%2Fargocd.ameide.io%2Fapi%2Fdex%2Fcallback&response_type=code&scope=openid+profile+email+groups`
      - ArgoCD `/auth/login` reaches the Keycloak login page and completes without redirecting to `/login?has_sso_error=true`.
 
+### Update (2025-12-17): ArgoCD SSO fails (Dex `unauthorized_client`, client secret mismatch)
+
+- **Env:** `azure` (AKS) + `local`
+- **Symptom (Dex logs):** `oidc: failed to get token: oauth2: "unauthorized_client" "Invalid client or Invalid client credentials"`
+- **Root cause:** ArgoCD is not consuming the Keycloak-generated `argocd` client secret:
+  - `argocd-secret` is still populated from ArgoCD Helm values with a placeholder (`configs.secret.extra.dex.keycloak.clientSecret`).
+  - The intended GitOps flow (“Keycloak client-patcher extracts → Vault → ExternalSecret → `argocd-secret`”) was not applied because:
+    - `ExternalSecret/argocd-secret-sync` is not deployed, and
+    - `SecretStore/ameide-vault` is missing in the `argocd` namespace on AKS.
+- **Remediation (GitOps, reproducible):**
+  1. Ensure `SecretStore/ameide-vault` exists in `argocd` (typically from the production Vault via `foundation-vault-secret-store.extraSecretStores`).
+  2. Deploy `ExternalSecret/argocd-secret-sync` in `argocd` to materialize `Secret/argocd-secret` keys used by Dex (`dex.keycloak.clientSecret`, `dex.oauth.clientSecret`) and ArgoCD (`server.secretkey`, `admin.password`, `admin.passwordMtime`).
+  3. Verify Dex initializes and the error disappears.
+- **Verification (no secret leakage):**
+  - `kubectl -n argocd get externalsecret argocd-secret-sync`
+  - `kubectl -n argocd describe externalsecret argocd-secret-sync | rg -n "Ready|Error|SecretSynced"`
+  - `kubectl -n argocd logs deploy/argocd-dex-server --tail=200 | rg -n "unauthorized_client|invalid_client" || true`
+  - End-to-end: `infra/scripts/verify-argocd-sso.sh --azure` and `infra/scripts/verify-argocd-sso.sh --local`
+
 ### Root cause A: all AKS node pools are tainted `NoSchedule`
 
 - **Evidence**: scheduler events for Pods/Jobs show `0/N nodes are available: ... had untolerated taint {ameide.io/environment: <env>}` and `CriticalAddonsOnly=true:NoSchedule`.
