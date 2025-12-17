@@ -102,6 +102,18 @@ Remediation approach (GitOps-aligned, no band-aids):
    - If leader election must remain enabled, bypass the `kubernetes.default.svc` ClusterIP path for apiserver calls by pointing the controller at the apiserver endpoint directly (`KUBERNETES_SERVICE_HOST/PORT`), or increase local apiserver resources/timeouts so lease updates do not exceed the controller’s `timeout=5s` window.
    - Implementation note: `gateway-helm` v1.3.0 renders the controller config from a merged “base + user” map; ensure user overrides actually win for `provider.kubernetes.*` (otherwise `leaderElection.disable` can be silently dropped during templating).
 
+## Update (2025-12-17): Local `SecretStore/ameide-vault` Degraded (`permission denied`) from Vault Kubernetes auth audience binding
+
+- **Env:** `local` (k3d)
+- **App:** `local-foundation-vault-secret-store` (and any downstream app that depends on ESO secrets)
+- **Symptom:** `SecretStore/ameide-vault` in `ameide-local`, `argocd`, `ameide-system` remains `Degraded` with:
+  - `Code: 403` + `permission denied` from `PUT /v1/auth/kubernetes/login`
+- **Root cause:** Vault Kubernetes auth roles were written with an `audience` that did not match the audience of tokens minted by External Secrets Operator’s TokenRequest flow (local k3s commonly requests an audience such as `vault`). With strict audience binding enabled, Vault rejects the login.
+
+Remediation approach (vendor-aligned, reproducible):
+1. Do not hardcode a cluster-specific service-account audience in local overlays unless all clients mint matching tokens.
+2. Prefer leaving the Vault role `audience` unset (accept all audiences) until a single, explicitly configured token audience is enforced across ESO and any other Vault clients.
+
 ## Update (2025-12-14): ComparisonError flapping + operator leader-election instability (local k3d)
 
 Observed “unhealthy” Argo apps even when the underlying resources were fine (or briefly fine):

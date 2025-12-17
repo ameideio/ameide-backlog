@@ -164,6 +164,7 @@ These are intentionally deferred to later in this backlog (but now tracked expli
    - Ensure Azure Workload Identity client IDs consumed by GitOps stay in sync with Terraform outputs:
      - Vault bootstrap (`vault_bootstrap_identity_client_id`) must be synced into `sources/values/env/*/foundation/foundation-vault-bootstrap.yaml` (and trigger a CronJob update) or AKV reads silently fail and the cluster deadlocks on private image pulls.
    - Prefer fail-fast over silent fixture fallback for bootstrap critical-path secrets (e.g., GHCR pull creds): if Key Vault lookup fails for a required secret, the bootstrap should error so the misconfiguration is obvious and doesn’t degrade into opaque `ImagePullBackOff` loops.
+   - Standardize Vault Kubernetes auth token audiences: avoid setting `audience` on Vault roles unless all clients (ESO + Jobs) request the same TokenRequest audience; otherwise local can regress into `SecretStore` 403s (`permission denied` / `invalid audience`) and cascade into widespread Degraded Apps.
 
 ---
 
