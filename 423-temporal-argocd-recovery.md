@@ -48,6 +48,11 @@
      - `kubectl -n <env-namespace> logs job/temporal-db-preflight`
    - If the operator still creates internal schema Jobs (version-dependent), inspect those as well.
 
+3.1) If schema/preflight Jobs are stuck `Pending` on AKS
+   - Symptom: `Job/temporal-db-schema` (or `temporal-db-preflight`) stays Active with a Pod that never schedules.
+   - Root cause: environment node pools are tainted (e.g., `ameide.io/environment=dev:NoSchedule`), but the hook Jobs lacked the `nodeSelector`/`tolerations` from the node profile.
+   - Fix: ensure the `data-temporal` chart applies `.Values.nodeSelector` and `.Values.tolerations` to hook Jobs so they schedule on the correct env pool (values are provided via `config/node-profiles/<nodeProfile>.yaml`).
+
 4) If the DB has stale cluster metadata (duplicate cluster names)
    - Prefer a GitOps “break-glass” change over manual SQL:
      - Local: enable `preflight.autoFix.clusterMetadataInfo` and allowlist the stale name (e.g. `active`).
