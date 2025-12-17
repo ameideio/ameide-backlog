@@ -66,7 +66,7 @@
 - Enabled it in production via `sources/values/env/production/platform/platform-backstage.yaml` to recover the CrashLoop without manual `kubectl exec` / DB edits.
 - Follow-up: disable the job once production is green again (keep the capability but default `enabled=false`).
 - **Note:** if Argo shows a `ComparisonError` and the job never appears, check for Helm render failures in `templates/migrations-unlock-job.yaml` (a heredoc terminator must remain indented inside the YAML block scalar, or Helm will emit invalid YAML).
-- **Note:** keep `strategy` Kubernetes-valid: if `strategy.type=Recreate`, the chart must not render a `strategy.rollingUpdate` stanza (server-side diff/validation will fail).
+- **Note:** prefer a no-overlap `RollingUpdate` (`maxSurge: 0`, `maxUnavailable: 1`) for steady-state; if using `strategy.type=Recreate`, the chart must not render a `strategy.rollingUpdate` stanza (server-side diff/validation will fail, and SSA transitions can be tricky if `rollingUpdate` is owned by another field manager).
 - **Note:** keep the unlock SQL runner conservative: prefer a `to_regclass(...)` presence check + `UPDATE ...` over a `DO $$ ... $$;` block to avoid quoting/termination pitfalls in minimal `sh` jobs.
 
 ## 1. Executive Summary
