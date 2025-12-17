@@ -315,10 +315,10 @@ Verification:
     - `ERROR CODE: AuthorizationFailed`
     - `does not have authorization to perform action 'Microsoft.Network/publicIPAddresses/write'`
     - client id `ae2a752e-153d-4f61-b7f0-a7d7e3852025` / object id `688bc921-26a0-4417-be3f-cdbc751cf9e9` (AKS cluster user-assigned identity `ameide-aks-mi`)
-- **Root cause:** AKS cluster managed identity lacks **Network** permissions in the `Ameide` resource group, so the cloud provider cannot provision/attach Public IPs and the LoadBalancer never becomes externally reachable.
+- **Root cause:** the Azure cloud provider tries to `CreateOrUpdate` a per-Service Public IP named `kubernetes-<service-uid>` in RG `Ameide` (instead of binding the existing Terraform-managed PIP). With least-privilege scoping, the AKS managed identity cannot write new PIPs in the RG, so the LoadBalancer never provisions and the endpoint times out.
 - **Remediation (Terraform-first, reproducible):**
-  1. Prefer least-privilege: grant the AKS cluster identity (`ameide-aks-mi`) `Network Contributor` on the **specific Terraform-managed Public IP resources** (ArgoCD PIP + per-env Envoy PIPs). Avoid RG-wide permissions unless required.
-  2. Ensure the gateway charts request the Terraform-managed static IP via cloud-provider-supported knobs (e.g., Service `loadBalancerIP` + Azure LB IP annotation), not via `spec.externalIPs`.
+  1. Keep least-privilege: grant `ameide-aks-mi` `Network Contributor` on the **Terraform-managed** Public IP resources (ArgoCD PIP + per-env Envoy PIPs), not RG-wide.
+  2. Bind Services to the Terraform-managed PIPs **by name** (cloud-provider supported): set `service.beta.kubernetes.io/azure-pip-name: <pip-name>` (and `service.beta.kubernetes.io/azure-load-balancer-resource-group`) so the cloud provider attaches the existing PIP and does not attempt to create `kubernetes-*` PIPs.
   3. Re-verify with: `kubectl -n argocd get svc envoy-argocd-cluster-* -o wide` (expect `status.loadBalancer.ingress.ip`), then `curl -I https://argocd.ameide.io/`.
 
 ### Root cause A: all AKS node pools are tainted `NoSchedule`
