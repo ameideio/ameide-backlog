@@ -1,6 +1,6 @@
 # 556 — Comparative Agent Implementation Analysis
 
-**Status:** Reviewed 2025-12-17 (mostly accurate; corrected SRE proto-service status)
+**Status:** Reviewed 2025-12-17 (revalidated vs current working tree; removed stale Transformation AgentDefinition claims; corrected LOC + backlog counts)
 **Created:** 2025-12-16
 **Purpose:** Comparative review of Agent primitive implementations across Sales, Commerce, Transformation, and SRE domains
 
@@ -36,7 +36,7 @@ This analysis reviews the implementation status of Agent primitives across four 
    - ✅ Unit tests (2 pytest tests)
    - ✅ Integration test infrastructure
    - ✅ Persistence-aware architecture
-   - ✅ Comprehensive backlog doc (43 lines)
+   - ✅ Comprehensive backlog doc (42 lines)
    - ❌ No proto service definition
    - ❌ No actual agent logic (stub only)
    - ❌ Empty tools directory
@@ -46,7 +46,7 @@ This analysis reviews the implementation status of Agent primitives across four 
    - ✅ Proto service (CommerceAssistantAgentService)
    - ✅ Unit test (turn count tracking)
    - ✅ Thread-safe state management
-   - ✅ Full TLS support
+   - ✅ Optional TLS/mTLS support
    - ✅ Domain-specific CommerceScope
    - ✅ Comprehensive backlog doc (65 lines)
    - ❌ Minimal README (4 lines)
@@ -57,8 +57,7 @@ This analysis reviews the implementation status of Agent primitives across four 
    - ✅ Go/gRPC handler
    - ✅ Generic echo agent proto
    - ✅ Turn counting mechanism
-   - ✅ AgentDefinition storage system (rich)
-   - ✅ Good backlog doc (66 lines)
+   - ✅ Good backlog doc (87 lines)
    - ❌ No README (missing)
    - ❌ No TLS (insecure by default)
    - ❌ Empty smoke test
@@ -69,7 +68,7 @@ This analysis reviews the implementation status of Agent primitives across four 
    - ✅ Generic echo agent proto
    - ✅ Enforced TLS (better than transformation)
    - ✅ Unit test (turn counting)
-   - ✅ **Most comprehensive backlog doc** (533 lines)
+   - ✅ **Most comprehensive backlog doc** (521 lines)
    - ✅ Multi-agent pattern (SREAgent→SRECoder)
    - ✅ MCP adapter exists (sre-mcp-adapter)
    - ❌ Minimal README (4 lines)
@@ -86,14 +85,14 @@ This analysis reviews the implementation status of Agent primitives across four 
 |--------|-------------------|----------|-----------|-----------|--------------|
 | **Sales-Copilot** | `primitives/agent/sales-copilot/` | Python | LangGraph + FastAPI | 192 | - LangGraph DAG with dev graph<br>- FastAPI HTTP server<br>- Persistence hooks<br>- Prompt template system<br>- Empty tools registry |
 | **Commerce-Assistant** | `primitives/agent/commerce-assistant/` | Go | gRPC | 182 | - Domain-specific proto (CommerceScope)<br>- Thread-safe turn counting<br>- TLS support<br>- Multi-domain scope awareness |
-| **Transformation** | `primitives/agent/transformation/` | Go | gRPC | 95 | - Generic EchoAgentService<br>- Turn counting<br>- Generated service registration<br>- NO TLS (insecure) |
-| **SRE** | `primitives/agent/sre/` | Go | gRPC | 129 | - Generic EchoAgentService<br>- Turn counting<br>- Enforced TLS<br>- Health checks |
+| **Transformation** | `primitives/agent/transformation/` | Go | gRPC | 110 | - Generic EchoAgentService<br>- Turn counting<br>- Generated service registration<br>- NO TLS (insecure) |
+| **SRE** | `primitives/agent/sre/` | Go | gRPC | 143 | - Generic EchoAgentService<br>- Turn counting<br>- Enforced TLS<br>- Health checks |
 
 ### 2. Test Coverage Analysis
 
 | Domain | Test Type | Test LOC | Test Quality | Assertions |
 |--------|-----------|----------|--------------|------------|
-| **Sales-Copilot** | Unit (pytest) | 17 | **Good** - Functional | - test_agent_returns_stub_output<br>- test_persistence_requires_thread_id<br>- Integration test shell script |
+| **Sales-Copilot** | Unit (pytest) | 18 | **Good** - Functional | - test_agent_returns_stub_output<br>- test_persistence_requires_thread_id<br>- Integration test shell script |
 | **Commerce-Assistant** | Unit (Go) | 38 | **Fair** - Basic coverage | - TestInvokeMaintainsTurnCount<br>- Validates scope summary in output |
 | **Transformation** | Smoke (Go) | 6 | **None** - Empty test | - Empty smoke test (no assertions) |
 | **SRE** | Unit (Go) | 22 | **Fair** - Basic coverage | - TestInvoke_IncrementsTurn<br>- Validates turn counting |
@@ -104,7 +103,7 @@ This analysis reviews the implementation status of Agent primitives across four 
 |--------|----------------------|-------------|----------------|-----------------|-----------|--------------|
 | **Sales-Copilot** | ❌ None | Custom Python dataclass | N/A | N/A | No (HTTP) | **MISSING** - No proto service |
 | **Commerce-Assistant** | ✅ CommerceAssistantAgentService | CommerceScope | thread_id, input, scope, hostname | thread_id, turn_count, output | No (unary) | **BETA** - Domain-specific types |
-| **Transformation** | ✅ EchoAgentService | AgentDefinition (rich storage) | thread_id, input | thread_id, turn_count, output | No (unary) | **EARLY** - Generic echo pattern |
+| **Transformation** | ✅ EchoAgentService | InvokeRequest/InvokeResponse | thread_id, input | thread_id, turn_count, output | No (unary) | **EARLY** - Generic echo pattern |
 | **SRE** | ✅ EchoAgentService (generic) | Generic echo | thread_id, input | thread_id, turn_count, output | No (unary) | **EARLY** - Generic echo pattern |
 
 **General Agent Framework Proto** (cross-domain):
@@ -117,10 +116,10 @@ This analysis reviews the implementation status of Agent primitives across four 
 
 | Domain | README | Backlog Doc | Status Line | Implementation Checklist | Clarification Requests | Quality |
 |--------|--------|-------------|-------------|-------------------------|----------------------|---------|
-| **Sales-Copilot** | 69 lines | `540-sales-agent.md` (43 lines) | "Implemented (stub runtime)" | 6 items (1 complete) | 4 questions | **High** - Clear wiring guide |
+| **Sales-Copilot** | 69 lines | `540-sales-agent.md` (42 lines) | "Implemented (stub runtime)" | 6 items (1 complete) | 4 questions | **High** - Clear wiring guide |
 | **Commerce-Assistant** | 4 lines | `523-commerce-agent.md` (65 lines) | "Scaffolded (read-only, tests)" | 3 items (2 complete) | 2 decisions | **Medium** - Good backlog, minimal README |
-| **Transformation** | 0 lines | `527-transformation-agent.md` (66 lines) | "Draft (scaffold with tests)" | 3 items (2 complete) | 3 decisions | **Low** - No README at all |
-| **SRE** | 4 lines | `526-sre-agent.md` (533 lines) | "Draft (production design)" | Multiple detailed | 5 decisions | **Excellent** - Most comprehensive (12x longer) |
+| **Transformation** | 0 lines | `527-transformation-agent.md` (87 lines) | "Draft (scaffold with tests)" | 3 items (2 complete) | 3 decisions | **Low** - No README at all |
+| **SRE** | 4 lines | `526-sre-agent.md` (521 lines) | "Draft (production design)" | Multiple detailed | 5 decisions | **Excellent** - Most comprehensive |
 
 ### 5. Architecture & Patterns
 
@@ -182,7 +181,7 @@ primitives/agent/commerce-assistant/
 - **Domain Types:** CommerceScope (tenant_id, site_id, sales_channel_id, stock_location_id, store_site_id)
 - **State:** In-memory turn count per thread_id (mutex-protected)
 - **Output:** `"commerce-assistant(N): {input} (hostname={host} {scope_summary})"`
-- **Security:** Full TLS with cert/key/CA loading
+- **Security:** Optional TLS/mTLS with cert/key/CA loading
 
 **Completeness:** 20% - Basic handler working, no domain integration
 
@@ -210,7 +209,6 @@ primitives/agent/transformation/
 - **Proto Service:** `EchoAgentService.Invoke()`
 - **Output:** `"transformation(N): {input}"`
 - **Security:** ⚠️ NO TLS (nosemgrep comment on insecure server)
-- **AgentDefinition Storage:** Rich system in transformation proto (lines 175-202)
 
 **Completeness:** 15% - Bare minimum handler, insecure by default
 
@@ -279,16 +277,10 @@ primitives/agent/sre/
 **From:** `527-transformation-agent.md`
 
 - Agents invoked by chat or processes
-- Tool access controlled via stored `AgentDefinition` (risk tiers)
 - One agent per role (SA/TA/PM/etc.)
 - MCP-compatible tool surface
 
-**AgentDefinition Storage** (`transformation.proto` lines 175-202):
-- definition_id, name, description
-- runtime_type (REQUIRED)
-- dag_ref (LangGraph DAG reference)
-- scope, risk_tier (REQUIRED)
-- AgentDefinitionTools: domains, processes, custom tool grants
+**Note:** This is currently a backlog design; the Transformation agent implementation is still the generic `EchoAgentService` and there is no Transformation-specific agent proto/types yet.
 
 ### 3. Copilot Pattern (Sales)
 
@@ -379,7 +371,7 @@ primitives/agent/sre/
 |--------|--------------|---------------|----------|
 | **Sales** | ❌ None | N/A | **MISSING** |
 | **Commerce** | ✅ CommerceAssistantAgentService | CommerceScope (tenant/site/channel context) | **BETA** |
-| **Transformation** | ✅ EchoAgentService (generic) | AgentDefinition (rich storage) | **EARLY** |
+| **Transformation** | ✅ EchoAgentService (generic) | InvokeRequest/InvokeResponse | **EARLY** |
 | **SRE** | ✅ EchoAgentService (generic) | Generic echo | **EARLY** |
 
 **Critical Gap:** Sales and SRE have agent implementations but no dedicated proto service definitions
@@ -539,12 +531,12 @@ pydantic = "*"
 | Metric | Sales-Copilot | Commerce | Transformation | SRE |
 |--------|--------------|----------|----------------|-----|
 | **Code Exists** | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes |
-| **Proto Service** | ❌ None | ✅ CommerceAssistantAgentService | ⚠️ Generic EchoAgentService | ❌ None |
+| **Proto Service** | ❌ None | ✅ CommerceAssistantAgentService | ⚠️ Generic EchoAgentService | ⚠️ Generic EchoAgentService |
 | **Tests Quality** | ✅ Functional | ⚠️ Basic | ❌ Empty | ⚠️ Basic |
 | **Framework** | ✅ LangGraph + FastAPI | ✅ gRPC | ✅ gRPC | ✅ gRPC |
-| **TLS/Security** | N/A (HTTP) | ✅ Full TLS | ❌ Insecure | ✅ Enforced TLS |
+| **TLS/Security** | N/A (HTTP) | ✅ Optional TLS/mTLS | ❌ Insecure | ✅ Enforced TLS |
 | **Documentation** | ✅ Excellent (69 lines) | ⚠️ Minimal (4 lines) | ❌ None | ⚠️ Minimal (4 lines) |
-| **Backlog Docs** | ✅ Good (43 lines) | ✅ Good (65 lines) | ✅ Good (66 lines) | ✅ **Excellent** (533 lines) |
+| **Backlog Docs** | ✅ Good (42 lines) | ✅ Good (65 lines) | ✅ Good (87 lines) | ✅ **Excellent** (521 lines) |
 | **MCP Adapter** | ❌ No | ❌ No | ✅ Yes (shape-only) | ✅ Yes (hand-authored) |
 | **Multi-Agent** | ❌ No | ❌ No | ❌ No | ✅ Designed (not implemented) |
 | **Real Logic** | ❌ Stub | ❌ Echo | ❌ Echo | ❌ Echo |
@@ -572,13 +564,12 @@ pydantic = "*"
   - [`packages/ameide_core_proto/src/ameide_core_proto/agents_runtime/v1/agents_runtime_service.proto`](../packages/ameide_core_proto/src/ameide_core_proto/agents_runtime/v1/agents_runtime_service.proto) - Runtime execution
   - [`packages/ameide_core_proto/src/ameide_core_proto/agents_runtime/v1/agents_runtime_types.proto`](../packages/ameide_core_proto/src/ameide_core_proto/agents_runtime/v1/agents_runtime_types.proto) - Message types
 - Commerce: [`packages/ameide_core_proto/src/ameide_core_proto/commerce/agent/v1/commerce_assistant_agent.proto`](../packages/ameide_core_proto/src/ameide_core_proto/commerce/agent/v1/commerce_assistant_agent.proto)
-- Transformation: [`packages/ameide_core_proto/src/ameide_core_proto/transformation/v1/transformation.proto`](../packages/ameide_core_proto/src/ameide_core_proto/transformation/v1/transformation.proto) (AgentDefinition)
 - Generic: [`packages/ameide_core_proto/src/ameide_core_proto/agent/v1/echo_agent.proto`](../packages/ameide_core_proto/src/ameide_core_proto/agent/v1/echo_agent.proto)
 
 ### Backlog Documentation
 - Sales: [`backlog/540-sales-agent.md`](540-sales-agent.md)
 - Commerce: [`backlog/523-commerce-agent.md`](523-commerce-agent.md)
-- SRE: [`backlog/526-sre-agent.md`](526-sre-agent.md) **← Reference (533 lines)**
+- SRE: [`backlog/526-sre-agent.md`](526-sre-agent.md) **← Reference (521 lines)**
 - Transformation: [`backlog/527-transformation-agent.md`](527-transformation-agent.md)
 
 ### Integration Patterns

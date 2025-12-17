@@ -17,7 +17,7 @@
 This analysis reviews the implementation status of UISurface primitives across four domains: **Sales**, **Commerce** (3 variants), **Transformation**, and **SRE**. The review covers code implementation, GitOps deployment configuration, proto/API contract maturity, and backlog documentation.
 
 **Key Findings:**
-- **Sales**: Most complete UISurface (60-70% ready) - scaffolded with comprehensive development guidance, functional tests, GitOps deployed
+- **Sales**: Most complete UISurface (60-70% ready) - scaffolded with comprehensive development guidance, functional tests, GitOps manifests present
 - **Commerce**: Three variants (admin/pos/storefront) at 20-30% - scaffolded but identical implementations, not yet deployed to GitOps
 - **Transformation**: 25-40% ready - functional placeholder with embedded documentation, not yet deployed to GitOps
 - **SRE**: 0% - No UISurface primitive exists despite complete Domain/Process/Projection/Integration/Agent layers
@@ -31,7 +31,7 @@ This analysis reviews the implementation status of UISurface primitives across f
 1. **Sales: 60-70%** ⭐ Reference Implementation
    - ✅ Comprehensive README with development guidance
    - ✅ Functional integration tests
-   - ✅ GitOps deployed (component + values)
+   - ✅ GitOps manifests present (component + values)
    - ✅ Buf generation configured
    - ✅ Backlog documentation
    - ⚠️ CQRS wiring to Domain/Projection pending
@@ -124,7 +124,7 @@ spec:
 |--------|----------------------|----------------|-------------------|--------------|
 | **Sales** | ✅ 2 services:<br>- SalesQueryService<br>- SalesCommandService | ✅ `buf.gen.uisurface-sales.local.yaml` | `primitives/uisurface/sales/internal/gen/` | **FAIR** - Services defined, UI scaffolded, CQRS wiring pending |
 | **Commerce** | ✅ 2 services:<br>- CommerceQueryService<br>- CommerceStorefrontWriteService<br>*(includes `uisurface_ref` field)* | ❌ None | N/A | **EARLY** - Hostname routing designed, no generation, no UI implementation |
-| **Transformation** | ✅ 1 service:<br>- TransformationService (rich surface) | ❌ None | N/A | **EARLY** - Domain services defined, UI placeholder only |
+| **Transformation** | ✅ Knowledge CQRS services:<br>- TransformationKnowledgeCommandService<br>- TransformationKnowledgeQueryService | ❌ None | N/A | **EARLY** - No UISurface-specific proto; UI placeholder only |
 | **SRE** | ✅ 7 services:<br>- IncidentService<br>- IncidentQueryService<br>- FleetHealthQueryService<br>- AlertQueryService<br>- RunbookQueryService<br>- SLOQueryService<br>- KnowledgeIndexQueryService | ❌ None | N/A | **RICH SERVICES, NO UI** - Most comprehensive service definitions, no UISurface primitive |
 
 **Proto Generation Pattern (Current):**
@@ -147,7 +147,7 @@ plugins:
 | **Sales** | `540-sales-uisurface.md` | "Implemented (scaffolded server; CQRS wiring ready)" | 4 items (1 complete) | 3 questions | **Good** - Clear next steps |
 | **Commerce** | `523-commerce-uisurface.md` | "Scaffolded (minimal Node placeholders + tests; real UX pending)" | 8 items (2 complete) | 3 decisions needed | **Excellent** - Comprehensive scope definition with topology matrix, context model, edge behavior |
 | **Transformation** | `527-transformation-uisurface.md` | "Draft (placeholder UISurface implemented; portal UX pending)" | 2 items (1 complete) | 3 decisions needed | **Good** - Clear UX scope inventory |
-| **SRE** | `526-sre-capability.md` | "In progress (proto + primitives implemented; doc still draft)" | 6 items (3 complete) | 5 decisions needed | **Excellent** - Comprehensive capability definition with value streams, but **no dedicated UISurface section** |
+| **SRE** | `526-sre-capability.md` | "In progress (proto + primitives implemented; doc still draft)" | 6 items (3 complete) | 5 decisions needed | **Excellent** - Comprehensive capability definition; explicitly calls out missing UISurface implementation |
 
 ---
 
@@ -210,7 +210,7 @@ ameide primitive scaffold \
 **Context:**
 - All other primitive layers exist (Domain, Process, Projection, Integration, Agent)
 - Most comprehensive service definitions (7 query/command services)
-- Backlog documents operational value streams but no UISurface specification
+- Backlog documents operational value streams and a UISurface primitive section, but no UISurface implementation
 - Architectural choice required before implementation
 
 ---
@@ -315,7 +315,7 @@ ameide primitive scaffold \
 **Phase 3: CQRS Wiring**
 - [ ] Sales: Connect UI actions to SalesCommandService/SalesQueryService
 - [ ] Commerce: Implement hostname resolution integration (Storefront)
-- [ ] Transformation: Connect workspace browser to TransformationService queries
+- [ ] Transformation: Connect workspace browser to TransformationKnowledgeQueryService (projection) + TransformationKnowledgeCommandService (domain)
 - [ ] SRE: Connect operations console to IncidentQueryService/FleetHealthQueryService
 
 **Phase 4: Real UX Implementation**
@@ -331,16 +331,16 @@ ameide primitive scaffold \
 | Metric | Sales | Commerce | Transformation | SRE |
 |--------|-------|----------|----------------|-----|
 | **Code Exists** | ✅ Yes | ✅ Yes (3 variants) | ✅ Yes | ❌ No |
-| **GitOps Deployed** | ✅ Yes | ❌ No | ❌ No | ❌ No |
+| **GitOps Manifests** | ✅ Present | ❌ No | ❌ No | ❌ No |
 | **Tests Quality** | ✅ Functional | ⚠️ File existence | ⚠️ Trivial | ❌ None |
 | **Buf Gen Config** | ✅ Yes | ❌ No | ❌ No | ❌ No |
-| **Proto Services** | ✅ 2 services | ✅ 2 services | ✅ 1 service | ✅ 7 services |
-| **Backlog Docs** | ✅ Good | ✅ Excellent | ✅ Good | ✅ Excellent* |
+| **Proto Services** | ✅ 2 services | ✅ 2 services | ✅ Knowledge CQRS services | ✅ 7 services |
+| **Backlog Docs** | ✅ Good | ✅ Excellent | ✅ Good | ✅ Excellent |
 | **Real UX** | ❌ No | ❌ No | ❌ No | ❌ No |
 | **CQRS Wiring** | ⚠️ Pending | ❌ No | ❌ No | ❌ No |
 | **Overall Progress** | **60-70%** | **20-30%** | **25-40%** | **0%** |
 
-*SRE backlog is excellent for capability definition but lacks dedicated UISurface section
+*SRE backlog is excellent for capability definition and explicitly calls out the missing UISurface primitive
 
 ---
 
