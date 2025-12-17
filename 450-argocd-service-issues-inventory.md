@@ -382,6 +382,9 @@ Verification:
   - **Symptom:** `Deployment.apps "platform-backstage" is invalid: spec.strategy.rollingUpdate: Forbidden: may not be specified when strategy type is 'Recreate'`
   - **Root cause:** the chart rendered a `strategy.rollingUpdate` stanza even when `strategy.type=Recreate`.
   - **Fix:** render `rollingUpdate` only when `strategy.type=RollingUpdate` (or omit it when type is `Recreate`) so Kubernetes validation passes.
+- **Follow-up issue (unlock job runtime):** the unlock job can fail and block sync if the SQL wrapper is fragile:
+  - **Symptom:** `Job ... has reached the specified backoff limit` with `ERROR: syntax error at or near "$"` from `psql`.
+  - **Fix:** avoid `DO $$ ... $$` blocks in the job; use a `SELECT to_regclass(...)` probe and run a plain `UPDATE` only when the table exists.
 
 ### Root cause B: CoreDNS domain rewrite depends on an Envoy alias Service that is not stable
 
