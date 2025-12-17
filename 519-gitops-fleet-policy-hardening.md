@@ -80,6 +80,8 @@ These are intentionally deferred to later in this backlog (but now tracked expli
   - Add `global.ameide.images.policy.*` and standard translation patterns in wrappers.
   - Add a validation step for “local requires multi-arch (arm64 + amd64)” so we stop discovering arch issues at runtime.
   - Define a standard for hook/ops Jobs that need CLI tooling (curl/jq/kubectl): prefer a pinned multi-arch image by digest (no `apk/apt` downloads at runtime).
+    - Avoid distroless-style CLI images when the Job/initContainer uses a shell script (e.g., `rancher/kubectl`, `registry.k8s.io/kubectl` do not ship `/bin/sh`).
+    - Prefer a toolbox image that explicitly includes `/bin/sh` + required core utils (e.g., `alpine/k8s` for `kubectl`) and can be pinned by digest.
 - **Reduce environment diffs**:
   - Collapse repeated hostname/domain wiring into `global.ameide.network.*` and service-level `httproute.hostname` only when truly needed.
   - Use consistent env/cluster value file ordering and document it once.

@@ -820,6 +820,7 @@ See [426-keycloak-config-map.md §3.2](426-keycloak-config-map.md) for client-pa
 - `azurerm_key_vault_secret.env_secrets[*]`: `ForbiddenByRbac` (403) when Terraform checks/creates secrets (e.g. `github-token`, `ghcr-token`), because the Terraform runner identity has no Key Vault data-plane RBAC on the vault.
 - ArgoCD bootstrap installed Redis from `ghcr.io/ameideio/mirror/redis:7.2.5` and failed with `ImagePullBackOff` because `ghcr-pull` is not present during bootstrap (chicken-and-egg).
 - `foundation-vault-bootstrap` Jobs were stuck `Init:ImagePullBackOff` because the bootstrap chart used GHCR mirror images (`ghcr.io/ameideio/mirror/vault`, `ghcr.io/ameideio/mirror/bitnami-kubectl`) before `ghcr-pull` existed, preventing Vault initialization and leaving all `SecretStore/ameide-vault` resources NotReady.
+- After switching Vault bootstrap to public images, `foundation-vault-bootstrap` Jobs failed `Init:StartError` because the initContainer used `rancher/kubectl` (no `/bin/sh`), but the chart’s initContainer command is a shell script that copies `kubectl` into a shared volume.
 
 **Root cause**
 - **Entra ID directory operations are not least-privilege** for the cluster deployer identity: creating or even checking groups requires tenant-level Microsoft Graph permissions that our subscription-scoped deployer SP does not have.
@@ -836,6 +837,7 @@ See [426-keycloak-config-map.md §3.2](426-keycloak-config-map.md) for client-pa
    - Account for Azure RBAC propagation delays (retry apply or gate secret writes) so the end-to-end `deploy.sh azure` path is stable.
 4. Validate the full external chain after fix: `deploy.sh azure` → Terraform converges → `azure.json` outputs → bootstrap runs → Argo apps converge.
 5. Fix bootstrap env overlay resolution and rerun bootstrap so ArgoCD uses public bootstrap images (especially Redis) until `ghcr-pull` is materialized by External Secrets.
+6. For bootstrap jobs that need `kubectl`, prefer an initContainer image that includes `/bin/sh` (or change the initContainer to avoid shell) and pin the tooling image by digest to keep the bootstrap path deterministic.
 
 ## Validation Commands
 
