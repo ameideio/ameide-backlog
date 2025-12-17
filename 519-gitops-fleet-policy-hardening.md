@@ -45,6 +45,12 @@ Primary outcomes:
   - Per-env infra knobs are expressed via **namespaced** `Gateway.spec.infrastructure.parametersRef` → `EnvoyProxy` (no env-owned `GatewayClass` objects).
   - Static IP is requested via `Gateway.spec.addresses` (rendered from `azure.envoyPublicIpAddress` in env globals when `infrastructure.useStaticIP=true`), not via `EnvoyProxy.spec.provider.kubernetes.envoyService.loadBalancerIP` or Azure `azure-load-balancer-ipv4` annotations.
   - Internal/xDS TLS remains owned by Envoy Gateway `certgen` in `argocd`, while external hostname TLS remains cert-manager-managed in the environment namespace.
+- **Policy: avoid CoreDNS rewrite hacks on managed clusters**:
+  - CoreDNS `rewrite name` rules that map `*.{env}.ameide.io` to in-cluster Services are a **local-only** developer convenience; on AKS prefer Terraform-managed DNS A records + static IPs.
+  - Do not implement “stable Envoy aliasing” by hardcoding controller-generated hashed Service names (e.g., `envoy-<gateway>-<gateway>-<hash>`); treat this as a fleet footgun because the name is not a stable API contract.
+- **Policy: AKS node pool taints must not block operator-managed Jobs**:
+  - Do not taint every user pool `NoSchedule` by default; some vendor operators create setup Jobs without configurable tolerations/nodeSelectors (e.g., Temporal operator schema Jobs).
+  - If taints are required for isolation, ensure at least one schedulable pool remains available for operator-managed setup Jobs, and document any exceptions explicitly.
 - **Backstage stable session secret is operator-managed**: cookie signing secret is sourced from Vault KV and synced via External Secrets Operator (no Helm randomness, no Argo diff ignores).
 - **Postgres credential Secrets are operator-managed**: CNPG user Secrets are now sourced from Vault KV and synced via External Secrets Operator (no Helm `rand*/lookup` loops, no secret payload diff ignores).
 - **Schema guardrails are expanding**: additional internal charts now validate the `global.ameide.*` contract (start with Backstage + CNPG config charts).

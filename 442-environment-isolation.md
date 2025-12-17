@@ -323,6 +323,15 @@ Each environment can be shut down independently:
 
 **Key insight**: User pools can scale to 0 while system pool stays up. PVs (Azure Disks) remain attached to the scale set; when you scale up again, pods reattach.
 
+#### Addendum (2025-12-17): Avoid tainting *all* user pools
+
+We observed that tainting every AKS user pool (`ameide.io/environment=<env>:NoSchedule`) breaks vendor operators that create Pods/Jobs without configurable tolerations/nodeSelectors (e.g., Temporal operator schema setup Jobs). If **all** pools are tainted (including the system pool with `CriticalAddonsOnly=true:NoSchedule`), these operator-managed Jobs can become permanently `Pending`, keeping Argo apps stuck `Progressing/Degraded`.
+
+**Policy adjustment (vendor-aligned):**
+- Keep `CriticalAddonsOnly` taint on the system pool if desired.
+- Do **not** taint dev/staging pools by default; rely on labels + `nodeSelector`/affinity in workloads we control.
+- If production isolation requires taints, validate that all operator-managed workloads can tolerate them (or keep an untainted pool available for setup Jobs).
+
 #### Bicep Implementation (Option B)
 
 **File**: `azure/managed-application/modules/aks.bicep`

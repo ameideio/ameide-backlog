@@ -251,6 +251,49 @@ Verification:
 - `kubectl get nodes --request-timeout=30s`
 - `kubectl -n argocd get pods --request-timeout=30s`
 - `kubectl -n argocd get applications --request-timeout=30s` (should return quickly; any remaining `Progressing` should have an actionable resource health message)
+
+## Update (2025-12-17): AKS non-green apps (taints block operator-managed Jobs, CoreDNS rewrite + Envoy alias drift)
+
+- **Env**: `azure` (AKS)
+- **Symptom**: a small set of apps remain non-green even though most of the fleet is `Synced/Healthy`:
+  - `*-data-temporal` = `Synced/Degraded`
+  - `*-data-nifi` = `Sync=Unknown` (`ComparisonError`)
+  - `*-data-pgadmin` = `Synced/Degraded`
+  - `*-plausible-oauth2-proxy` = `Synced/Degraded` (CrashLoop)
+  - `*-platform-devcontainer-service` = `Synced/Degraded` (Pods Pending)
+  - `*-platform-gitlab` = `OutOfSync/Missing`
+
+### Root cause A: all AKS node pools are tainted `NoSchedule`
+
+- **Evidence**: scheduler events for Pods/Jobs show `0/N nodes are available: ... had untolerated taint {ameide.io/environment: <env>}` and `CriticalAddonsOnly=true:NoSchedule`.
+- **Impact**:
+  - **Temporal operator-managed schema Jobs** (e.g., `temporal-setup-default-schema`) are created without env tolerations/nodeSelectors (CRD does not expose these) → Jobs stay `Pending` → `TemporalCluster` never becomes Ready.
+  - **Devcontainer service** pods (`devcontainer-coder`) cannot schedule (no tolerations) → Deployment fails progress deadline.
+- **Remediation (vendor-aligned)**:
+  - Do **not** taint all user pools in AKS by default. Keep `CriticalAddonsOnly` for the system pool if desired, but ensure at least one pool exists where standard workloads/Jobs can schedule without custom tolerations.
+  - Track and implement this in Terraform (see `infra/terraform/modules/azure-aks/main.tf`).
+
+### Root cause B: CoreDNS domain rewrite depends on an Envoy alias Service that is not stable
+
+- **Evidence**: `kube-system/coredns-custom` rewrites `*.{dev,staging}.ameide.io` and `*.ameide.io` to `envoy.ameide-<env>.svc.cluster.local`.
+- **Problem**: the `envoy` Service is an `ExternalName` alias that currently points to a hardcoded, non-existent/generated Envoy Gateway Service name (hash suffix), so in-cluster resolution for `auth.<env>.ameide.io` becomes unreliable.
+- **Impact**:
+  - oauth2-proxy for Plausible fails OIDC discovery with `dial tcp ...:443: i/o timeout` against the rewritten hostname (`auth.<env>.ameide.io`), causing CrashLoop and `Degraded`.
+- **Remediation (vendor-aligned)**:
+  - Prefer **real DNS** (Terraform-managed A records + static IPs) on managed clusters; treat CoreDNS rewrites as **local-only** developer convenience.
+  - If CoreDNS rewrite remains, the Envoy alias must point to a stable endpoint (not a controller-generated hashed Service name).
+
+### Root cause C: NiFi chart requires a stable sensitive properties key, but values are not provided
+
+- **Evidence**: Argo manifest generation error: `data/nifi: config.sensitivePropsKey is required`.
+- **Remediation (GitOps-aligned)**:
+  - Source the key via Vault KV → ESO → Secret, and configure the NiFi deployment/operator to consume it (avoid committing the plaintext key into Git).
+
+### Root cause D: GitLab is present in the Azure component set but not intended/bootstrapped
+
+- **Evidence**: `*-platform-gitlab` is `OutOfSync/Missing` across envs.
+- **Remediation**:
+  - Make cluster-type component sets explicit: exclude GitLab from Azure unless we are prepared to supply all required secrets, storage classes, and hook semantics (see policy in backlog/519).
 1. Prefer CloudNativePG `managed.roles` (already configured) for role + password reconciliation.
 2. Keep `passwordReconcile` as an escape-hatch feature, but default it **off** (including local) unless we are actively migrating password sources; avoid long-running “self-heal” CronJobs that rely on runtime package installs.
 

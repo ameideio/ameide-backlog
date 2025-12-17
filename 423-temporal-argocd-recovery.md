@@ -53,6 +53,11 @@
    - Root cause: environment node pools are tainted (e.g., `ameide.io/environment=dev:NoSchedule`), but the hook Jobs lacked the `nodeSelector`/`tolerations` from the node profile.
    - Fix: ensure the `data-temporal` chart applies `.Values.nodeSelector` and `.Values.tolerations` to hook Jobs so they schedule on the correct env pool (values are provided via `config/node-profiles/<nodeProfile>.yaml`).
 
+3.2) If the operator creates internal schema Jobs that stay `Pending` on AKS
+   - Symptom: Jobs created by the Temporal operator (e.g., `temporal-setup-default-schema`) are `Pending` with `FailedScheduling: ... had untolerated taint {ameide.io/environment: <env>}`.
+   - Root cause: the Temporal operator’s CRD exposes resources/initContainers/TTL for setup Jobs, but does **not** expose pod scheduling controls (nodeSelector/tolerations). If all node pools are tainted `NoSchedule`, these operator-managed Jobs cannot ever schedule.
+   - Fix (vendor-aligned): adjust AKS node pool taints so there is always at least one schedulable pool for operator-managed Jobs (see backlog/442 addendum and Terraform module `infra/terraform/modules/azure-aks/main.tf`).
+
 4) If the DB has stale cluster metadata (duplicate cluster names)
    - Prefer a GitOps “break-glass” change over manual SQL:
      - Local: enable `preflight.autoFix.clusterMetadataInfo` and allowlist the stale name (e.g. `active`).
