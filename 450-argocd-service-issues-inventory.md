@@ -349,6 +349,19 @@ Verification:
   - Visiting ArgoCD SSO should present the Keycloak login page (no immediate `redirect_uri` error).
   - `curl -fsS 'https://auth.ameide.io/realms/ameide/protocol/openid-connect/auth?...redirect_uri=https%3A%2F%2Fargocd.ameide.io%2Fapi%2Fdex%2Fcallback...'` returns an HTML login page (not an “Invalid parameter” response).
 
+### Update (2025-12-17): ArgoCD SSO fails (Dex/Keycloak `invalid_scope`, missing built-in scopes)
+
+- **Env:** `azure` (AKS) + `local`
+- **Symptom:** ArgoCD login fails with an internal Dex error page:
+  - `Failed to authenticate: invalid_scope: Invalid scopes: openid openid profile email groups`
+  - ArgoCD server logs show it initiating `/api/dex/auth?...scope=openid+profile+email+groups+...` followed by “received error from dex”.
+- **Root cause:** the `ameide` realm is missing built-in OIDC client scopes `profile` and `email` (confirmed by discovery: `scopes_supported` does not include them), so Keycloak rejects OAuth requests that include them.
+  - This happens when realm JSON defines `clientScopes[]` but omits the built-in scopes; Keycloak treats the list as authoritative (no implicit merge).
+- **Remediation (GitOps, reproducible):**
+  1. Ensure realm template includes the built-in `profile`/`email` client scopes (see `backlog/460-keycloak-oidc-scopes.md`).
+  2. Add Keycloak Admin API reconciliation in `client-patcher` so existing realms are corrected deterministically (realm import is create-only).
+  3. Re-run `platform-keycloak-realm-client-patcher` (via Argo sync) and verify `scopes_supported` includes `profile` and `email`.
+
 ### Root cause A: all AKS node pools are tainted `NoSchedule`
 
 - **Evidence**: scheduler events for Pods/Jobs show `0/N nodes are available: ... had untolerated taint {ameide.io/environment: <env>}` and `CriticalAddonsOnly=true:NoSchedule`.
