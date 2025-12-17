@@ -355,6 +355,18 @@ Remediation approach (vendor-aligned, GitOps-idempotent):
 1. Ensure `local-data-temporal` renders a `TemporalNamespace` CR for `ameide` (same `clusterRef` as the env’s `TemporalCluster`) so dependent apps never need imperative “create namespace” logic.
 2. Keep ordering wave-safe: `TemporalCluster` + schema/preflight must converge before apps that require the namespace (use sync-waves and/or Argo health checks, not manual steps).
 
+## Update (2025-12-17): `local-data-temporal` Degraded (TemporalCluster status flaps to `ServicesNotReady`)
+
+- **App:** `local-data-temporal`
+  - **Resource:** `TemporalCluster/ameide-local/temporal`
+  - **Symptom:** Application stays `Degraded` even though Temporal Deployments/Pods are Running and clients can connect.
+  - **Observed evidence:** `TemporalCluster.status.conditions[type=Ready]` reports `status=False` with reason `ServicesNotReady`, and `status.services[].ready=false` for all services.
+  - **Likely root cause:** the `data-temporal` chart renders empty scheduling override stanzas (`...overrides.deployment.spec.template.spec: null`) when `nodeSelector/tolerations` are not set, which can trigger operator reconcile churn and unstable readiness reporting.
+
+Remediation approach (vendor-aligned, GitOps-idempotent):
+1. In `sources/charts/platform/temporal-cluster`, only render `overrides.deployment.spec.template.spec` when at least one of `nodeSelector` or `tolerations` is non-empty.
+2. Keep Argo health customizations strict (do not mask operator readiness); fix the CR spec so the operator reports Ready deterministically.
+
 ## Update (2025-12-15): Local observability + Gateway Progressing (OTEL collector arch + local LoadBalancer)
 
 Observed Argo apps stuck `Progressing`:
