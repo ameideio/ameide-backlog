@@ -602,6 +602,24 @@ ameide-staging   ameide-vault   ...
 
 See [451-secrets-management.md](451-secrets-management.md) for complete secrets architecture
 
+### ImagePullBackOff in `ameide-system` (cluster-scoped operators) (2025-12-17)
+
+**Status**: 🚧 OPEN (blocks `cluster-ameide-operators` health)
+
+**Symptom**
+- `cluster-ameide-operators` is `Degraded`.
+- `ameide-system/ameide-operators-*` pods are `ImagePullBackOff` for images like `ghcr.io/ameideio/*-operator:dev`.
+
+**Root cause**
+- `ghcr-pull` is currently materialized only in **environment namespaces** (`ameide-dev`, `ameide-staging`, `ameide-prod`).
+- Cluster-scoped operator Deployments run in `ameide-system` and already expect `imagePullSecrets: [ghcr-pull]`, but the Secret is missing in that namespace.
+
+**Remediation approach (GitOps-idempotent)**
+1. Extend Vault bootstrap role binding to allow ESO auth from `ameide-system` (add it to `externalSecrets.namespaces`).
+2. Ensure a `SecretStore/ameide-vault` exists in `ameide-system` that targets the stable cluster Vault backend (prefer `vault-core-prod`).
+3. Materialize `ghcr-pull` in `ameide-system` via ExternalSecrets (reuse `foundation-ghcr-pull-secret` with `registry.additionalNamespaces: [ameide-system]`).
+4. Verify operator pods pull successfully and `cluster-ameide-operators` becomes `Healthy`.
+
 ---
 
 ## P2 – OutOfSync Applications
