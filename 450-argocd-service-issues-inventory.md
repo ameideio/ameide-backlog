@@ -334,6 +334,21 @@ Verification:
   2. Keep local clusters on `https://auth.local.ameide.io/realms/ameide` via local ArgoCD bootstrap override.
   3. Upgrade the ArgoCD Helm release (Terraform-driven) so `argocd-cm` + Dex roll out and `/api/dex` becomes reachable.
 
+### Update (2025-12-17): ArgoCD SSO fails in Keycloak (Invalid `redirect_uri`)
+
+- **Env:** `azure` (AKS) + `local`
+- **Symptom:** Keycloak login flow fails immediately with:
+  - `We are sorry... Invalid parameter: redirect_uri`
+  - Example (AKS): `https://auth.ameide.io/realms/ameide/protocol/openid-connect/auth?client_id=argocd&redirect_uri=https%3A%2F%2Fargocd.ameide.io%2Fapi%2Fdex%2Fcallback...`
+  - Example (local): `https://auth.local.ameide.io/realms/ameide/protocol/openid-connect/auth?client_id=argocd&redirect_uri=https%3A%2F%2Fargocd.local.ameide.io%2Fapi%2Fdex%2Fcallback...`
+- **Root cause:** the Keycloak `argocd` client did not include the Dex callback URL(s) in `redirectUris` (it only allowed `/auth/callback`, but Dex uses `/api/dex/callback`), and local hostnames were not registered.
+- **Remediation (GitOps, idempotent):**
+  1. Define the `argocd` client in `platform-keycloak-realm` `clientReconciliation` with explicit `redirectUris` and `webOrigins` for the ArgoCD URL(s).
+  2. Enable “update existing” reconciliation so already-created clients are patched (Keycloak realm import is create-only).
+- **Verification:**
+  - Visiting ArgoCD SSO should present the Keycloak login page (no immediate `redirect_uri` error).
+  - `curl -fsS 'https://auth.ameide.io/realms/ameide/protocol/openid-connect/auth?...redirect_uri=https%3A%2F%2Fargocd.ameide.io%2Fapi%2Fdex%2Fcallback...'` returns an HTML login page (not an “Invalid parameter” response).
+
 ### Root cause A: all AKS node pools are tainted `NoSchedule`
 
 - **Evidence**: scheduler events for Pods/Jobs show `0/N nodes are available: ... had untolerated taint {ameide.io/environment: <env>}` and `CriticalAddonsOnly=true:NoSchedule`.

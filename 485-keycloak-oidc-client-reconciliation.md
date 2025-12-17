@@ -22,6 +22,16 @@ While exercising this flow on local `arm64`, we hit a GitOps failure mode unrela
 
 This is now part of the “fleet policy hardening” surface (519): hook Jobs must be deterministic and multi-arch safe if local requires `arm64`.
 
+## Addendum (2025-12-17): Reconcile drift for existing clients (redirect URIs)
+
+Client reconciliation originally ensured “exists” only. This is insufficient for fixing real-world drift, because:
+- `KeycloakRealmImport` is create-only (realm exists → no updates),
+- some clients (e.g., `argocd`) can exist but be misconfigured (missing redirect URIs), producing runtime auth failures.
+
+Policy:
+- Keep create-only as the safe default.
+- Allow an explicit “update existing” mode that merges the declared spec into the existing client representation (idempotent, avoids deleting unknown fields), for cases where we must correct drift deterministically.
+
 ## 1. Problem Statement
 
 OIDC clients defined in Git are not created in Keycloak when added after initial realm creation.
