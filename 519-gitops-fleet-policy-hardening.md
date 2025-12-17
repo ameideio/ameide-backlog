@@ -207,6 +207,7 @@ global:
 - Azure hosted clusters use `environments/_shared/components/**/component.yaml` as the canonical full set.
 - `environments/local/components/**/component.yaml` is the curated subset for local k3d; either omits unsupported components or points to wrappers with `enabled=false`.
 - If/when Azure needs to diverge from `_shared`, introduce a real `environments/azure/components/**` tree (not a symlink mirror) and document the divergence.
+- Cluster-scoped controllers must not assume environment-scoped service DNS (e.g., `transformation.ameide.svc`). If a controller needs env-specific endpoints, deploy it per environment namespace or make endpoint discovery namespace-aware.
 
 ### 4.5 cert-manager topology (single install per cluster)
 

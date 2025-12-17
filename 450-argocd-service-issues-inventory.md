@@ -622,6 +622,21 @@ See [451-secrets-management.md](451-secrets-management.md) for complete secrets 
 4. Ensure any cluster-scoped controller image tag used on hosted clusters is **multi-arch (at least linux/amd64)**. If we only publish `:dev` today, treat that as a release alias and make it multi-arch; follow up to publish versioned tags and switch away from `:dev`.
 5. Verify operator pods pull successfully and `cluster-ameide-operators` becomes `Healthy`.
 
+### `ameide-operators-agent` CrashLoopBackOff (2025-12-17)
+
+**Status**: 🚧 OPEN (blocks `cluster-ameide-operators` health)
+
+**Symptom**
+- `ameide-system/ameide-operators-agent` starts, then exits with `unable to configure transformation client` / gRPC dial timeout.
+
+**Root cause**
+- Cluster-scoped Agent operator defaulted to `TRANSFORMATION_SERVICE_ADDRESS=transformation.ameide.svc.cluster.local:3007`, but the shared AKS cluster has no `ameide` namespace and no cluster-scoped Transformation service.
+
+**Remediation approach (GitOps-idempotent)**
+- Treat the Agent operator as **environment-scoped** until it supports multi-env endpoint discovery:
+  - Disable `operators.agent` in the Azure cluster values for `cluster-ameide-operators`, keeping it enabled for local where the wiring is known-good.
+  - Follow-up: either deploy one Agent operator per environment namespace (each pointing at `transformation.ameide-<env>...`) or update the operator to derive the Transformation endpoint from the reconciled resource’s namespace.
+
 ---
 
 ## P2 – OutOfSync Applications
