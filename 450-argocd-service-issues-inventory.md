@@ -821,6 +821,7 @@ See [426-keycloak-config-map.md §3.2](426-keycloak-config-map.md) for client-pa
 - ArgoCD bootstrap installed Redis from `ghcr.io/ameideio/mirror/redis:7.2.5` and failed with `ImagePullBackOff` because `ghcr-pull` is not present during bootstrap (chicken-and-egg).
 - `foundation-vault-bootstrap` Jobs were stuck `Init:ImagePullBackOff` because the bootstrap chart used GHCR mirror images (`ghcr.io/ameideio/mirror/vault`, `ghcr.io/ameideio/mirror/bitnami-kubectl`) before `ghcr-pull` existed, preventing Vault initialization and leaving all `SecretStore/ameide-vault` resources NotReady.
 - After switching Vault bootstrap to public images, `foundation-vault-bootstrap` Jobs failed `Init:StartError` because the initContainer used `rancher/kubectl` (no `/bin/sh`), but the chart’s initContainer command is a shell script that copies `kubectl` into a shared volume.
+- `foundation-vault-bootstrap` Jobs also waited forever for Vault because the chart defaulted `vault.serviceName=foundation-vault-core`, but Vault core is deployed per-environment with `fullnameOverride: vault-core-<env>` (e.g., `vault-core-dev`), so `VAULT_ADDR` resolved to a non-existent Service.
 
 **Root cause**
 - **Entra ID directory operations are not least-privilege** for the cluster deployer identity: creating or even checking groups requires tenant-level Microsoft Graph permissions that our subscription-scoped deployer SP does not have.
@@ -838,6 +839,7 @@ See [426-keycloak-config-map.md §3.2](426-keycloak-config-map.md) for client-pa
 4. Validate the full external chain after fix: `deploy.sh azure` → Terraform converges → `azure.json` outputs → bootstrap runs → Argo apps converge.
 5. Fix bootstrap env overlay resolution and rerun bootstrap so ArgoCD uses public bootstrap images (especially Redis) until `ghcr-pull` is materialized by External Secrets.
 6. For bootstrap jobs that need `kubectl`, prefer an initContainer image that includes `/bin/sh` (or change the initContainer to avoid shell) and pin the tooling image by digest to keep the bootstrap path deterministic.
+7. Remove hardcoded cross-chart service name assumptions in bootstrap charts: default to deriving env-scoped service names from the release namespace (e.g., `ameide-dev` → `vault-core-dev`) unless explicitly overridden.
 
 ## Validation Commands
 

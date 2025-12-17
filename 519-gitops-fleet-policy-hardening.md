@@ -157,6 +157,7 @@ These are intentionally deferred to later in this backlog (but now tracked expli
    - A single contract for mirror preference + multi-arch requirement, with wrapper translation to each chart’s image schema.
 7. **Standard bootstrap runner pattern**
    - Consistent wait/retry/idempotency + cleanup semantics for bootstrap Jobs that gate waves.
+   - Avoid hardcoded cross-chart naming assumptions in bootstrap scripts (e.g., Service names): derive env-scoped names from the release namespace or express them via the `global.ameide.*` contract so per-env isolation (`fullnameOverride`) doesn’t silently break bootstrap.
 
 ---
 
