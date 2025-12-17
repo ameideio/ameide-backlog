@@ -385,6 +385,8 @@ Verification:
 - **Follow-up issue (unlock job runtime):** the unlock job can fail and block sync if the SQL wrapper is fragile:
   - **Symptom:** `Job ... has reached the specified backoff limit` with `ERROR: syntax error at or near "$"` from `psql`.
   - **Fix:** avoid `DO $$ ... $$` blocks in the job; use a `SELECT to_regclass(...)` probe and run a plain `UPDATE` only when the table exists.
+- **Follow-up issue (job mutability):** changing a `Job` spec after it exists is not supported (pod template is immutable).
+  - **Fix:** model the unlock as an Argo `PreSync` hook Job (delete before creation), so changing the script results in a fresh Job run without relying on in-place updates.
 
 ### Root cause B: CoreDNS domain rewrite depends on an Envoy alias Service that is not stable
 

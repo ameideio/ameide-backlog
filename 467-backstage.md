@@ -68,6 +68,7 @@
 - **Note:** if Argo shows a `ComparisonError` and the job never appears, check for Helm render failures in `templates/migrations-unlock-job.yaml` (a heredoc terminator must remain indented inside the YAML block scalar, or Helm will emit invalid YAML).
 - **Note:** prefer a no-overlap `RollingUpdate` (`maxSurge: 0`, `maxUnavailable: 1`) for steady-state; if using `strategy.type=Recreate`, the chart must not render a `strategy.rollingUpdate` stanza (server-side diff/validation will fail, and SSA transitions can be tricky if `rollingUpdate` is owned by another field manager).
 - **Note:** keep the unlock SQL runner conservative: prefer a `to_regclass(...)` presence check + `UPDATE ...` over a `DO $$ ... $$;` block to avoid quoting/termination pitfalls in minimal `sh` jobs.
+- **Note:** model the unlock as an Argo CD `PreSync` hook Job (with `hook-delete-policy: BeforeHookCreation,HookSucceeded`) rather than relying on in-place updates of a named `Job` (Job pod templates are immutable; “replace” semantics can be fragile across Kubernetes versions).
 
 ## 1. Executive Summary
 
