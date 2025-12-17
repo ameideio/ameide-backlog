@@ -613,12 +613,14 @@ See [451-secrets-management.md](451-secrets-management.md) for complete secrets 
 **Root cause**
 - `ghcr-pull` is currently materialized only in **environment namespaces** (`ameide-dev`, `ameide-staging`, `ameide-prod`).
 - Cluster-scoped operator Deployments run in `ameide-system` and already expect `imagePullSecrets: [ghcr-pull]`, but the Secret is missing in that namespace.
+- After `ghcr-pull` is present, some operator images still fail with `no match for platform in manifest` when using `:dev` tags (single-arch dev publishes).
 
 **Remediation approach (GitOps-idempotent)**
 1. Extend Vault bootstrap role binding to allow ESO auth from `ameide-system` (add it to `externalSecrets.namespaces`).
 2. Ensure a `SecretStore/ameide-vault` exists in `ameide-system` that targets the stable cluster Vault backend (prefer `vault-core-prod`).
 3. Materialize `ghcr-pull` in `ameide-system` via ExternalSecrets (reuse `foundation-ghcr-pull-secret` with `registry.additionalNamespaces: [ameide-system]`).
-4. Verify operator pods pull successfully and `cluster-ameide-operators` becomes `Healthy`.
+4. Stop using `:dev` tags for cluster-scoped controllers on hosted clusters; use a versioned/CI-built tag (e.g., chart `appVersion`) so amd64 nodes can pull deterministically.
+5. Verify operator pods pull successfully and `cluster-ameide-operators` becomes `Healthy`.
 
 ---
 
