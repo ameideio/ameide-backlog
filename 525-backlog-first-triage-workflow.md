@@ -17,9 +17,10 @@ This document defines the **required order of operations** and the **tooling con
 ## Non-Negotiables
 
 1. **Backlog-first**: search and follow existing backlog guidance *before* deep cluster triage.
-2. **No band-aids by default**: prefer root-cause fixes that improve reproducibility and idempotency.
-3. **Backlog stays current**: update backlog entries for any new incident or meaningful variant of a known incident.
-4. **Time-bounded commands**: do not set command timeouts higher than **5 minutes**.
+2. **Service backlog sweep**: for every service/operator/chart you touch, enumerate *all* related backlog docs (via `rg -l` using the service name + operator/chart name + the exact error string) and read them before proposing changes.
+3. **No band-aids by default**: prefer root-cause fixes that improve reproducibility and idempotency.
+4. **Backlog stays current**: update backlog entries for any new incident or meaningful variant of a known incident.
+5. **Time-bounded commands**: do not set command timeouts higher than **5 minutes**.
 5. **GitOps discipline**: changes land as commits (backlog + gitops repo), then Argo reconciles.
 6. **Don’t delete what you don’t manage**: never delete repo files or cluster resources as “cleanup” unless they are explicitly owned by this repo/change and the deletion is part of the requested work.
 
@@ -39,6 +40,13 @@ This short symptom string becomes the search key for backlog lookup.
 
 Search the backlog using the symptom string:
 - `rg -n "<app>|<resource>|<error substring>" backlog`
+
+Then do a service backlog sweep (required):
+- Enumerate related docs: `rg -l "<service>|<operator>|<chart>|<error substring>" backlog`
+- Read the matches and extract:
+  - What has already been tried
+  - What was accepted as policy vs temporary mitigation
+  - What “vendor-aligned” topology the backlog expects
 
 Then check the canonical backlog anchors:
 - `backlog/450-argocd-service-issues-inventory.md` (incident inventory + known mitigations)
