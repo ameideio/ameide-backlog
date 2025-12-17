@@ -32,6 +32,19 @@ Policy:
 - Keep create-only as the safe default.
 - Allow an explicit “update existing” mode that merges the declared spec into the existing client representation (idempotent, avoids deleting unknown fields), for cases where we must correct drift deterministically.
 
+## Addendum (2025-12-17): Keycloak client-scope linkage must be reconciled via dedicated endpoints
+
+Observed failure mode: OAuth requests fail with `invalid_scope` even when realm discovery advertises the scope (e.g., `profile`, `email`, `groups`).
+
+Root cause:
+- In Keycloak, “client scopes attached to a client” are modeled as separate resources. Updating the client JSON representation is not sufficient to ensure the scope is attached as a default/optional scope for that client.
+
+Remediation (GitOps, vendor-aligned):
+- During reconciliation, after ensuring the client exists, explicitly attach required scopes using the Admin API:
+  - `POST /admin/realms/{realm}/clients/{clientId}/default-client-scopes/{scopeId}`
+  - `POST /admin/realms/{realm}/clients/{clientId}/optional-client-scopes/{scopeId}`
+- Keep realm-scope reconciliation (ensuring `profile`/`email` scopes exist) as a prerequisite for client-scope attachment.
+
 ## Addendum (2025-12-17): client-patcher Keycloak auth must be debuggable and resilient
 
 Observed failure mode: the `client-patcher` can loop on “Token not available yet” and eventually fail authentication while the Keycloak Service is reachable.
