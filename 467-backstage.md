@@ -69,7 +69,7 @@
 - **Note:** prefer a no-overlap `RollingUpdate` (`maxSurge: 0`, `maxUnavailable: 1`) for steady-state; if using `strategy.type=Recreate`, the chart must not render a `strategy.rollingUpdate` stanza (server-side diff/validation will fail, and SSA transitions can be tricky if `rollingUpdate` is owned by another field manager).
 - **Note:** keep the unlock SQL runner conservative: prefer a `to_regclass(...)` presence check + `UPDATE ...` over a `DO $$ ... $$;` block to avoid quoting/termination pitfalls in minimal `sh` jobs.
 - **Note:** model the unlock as an Argo CD `PreSync` hook Job (with `hook-delete-policy: BeforeHookCreation,HookSucceeded`) rather than relying on in-place updates of a named `Job` (Job pod templates are immutable; “replace” semantics can be fragile across Kubernetes versions).
-- **Note:** connect to the same Postgres database Backstage uses (`backend.database.connection.database`, currently `backstage`); do not assume `POSTGRES_URL` points at that DB (prefer `psql -h/-U/-d` with `PGPASSWORD`).
+- **Note:** Backstage/Janus can use **per-plugin databases** (e.g., `backstage_plugin_catalog`, `backstage_plugin_auth`, etc). The unlock job should iterate those DBs and clear `public.knex_migrations_lock.is_locked` wherever present (not just `backstage`).
 
 ## 1. Executive Summary
 

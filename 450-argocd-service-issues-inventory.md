@@ -387,7 +387,7 @@ Verification:
   - **Fix:** avoid `DO $$ ... $$` blocks in the job; use a `SELECT to_regclass(...)` probe and run a plain `UPDATE` only when the table exists.
 - **Follow-up issue (job mutability):** changing a `Job` spec after it exists is not supported (pod template is immutable).
   - **Fix:** model the unlock as an Argo `PreSync` hook Job (delete before creation), so changing the script results in a fresh Job run without relying on in-place updates.
-- **Follow-up issue (DB target):** the unlock job must run against the **same database** Backstage migrates (currently `database: backstage` in `platform-backstage-config`), not a provider-default DB from a generic `POSTGRES_URL`.
+- **Follow-up issue (DB target):** Backstage/Janus can use per-plugin databases (e.g., `backstage_plugin_catalog`). The unlock job must target the DB(s) where `public.knex_migrations_lock` exists and is locked (not just `backstage`, and not a provider-default DB from a generic `POSTGRES_URL`).
 
 ### Root cause B: CoreDNS domain rewrite depends on an Envoy alias Service that is not stable
 
