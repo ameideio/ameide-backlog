@@ -378,6 +378,10 @@ Verification:
   - **Symptom:** `YAML parse error on backstage/templates/migrations-unlock-job.yaml: yaml: line 55: could not find expected ':'`
   - **Root cause:** the unlock job template rendered an unindented heredoc terminator (`SQL`) at column 1, breaking YAML parsing.
   - **Fix:** indent the heredoc terminator within the YAML block scalar and keep the job script POSIX-`sh` compatible so it can run on `postgres:alpine`.
+- **Follow-up issue (server-side diff):** Argo can show `ComparisonError` on the Backstage `Deployment`:
+  - **Symptom:** `Deployment.apps "platform-backstage" is invalid: spec.strategy.rollingUpdate: Forbidden: may not be specified when strategy type is 'Recreate'`
+  - **Root cause:** the chart rendered a `strategy.rollingUpdate` stanza even when `strategy.type=Recreate`.
+  - **Fix:** render `rollingUpdate` only when `strategy.type=RollingUpdate` (or omit it when type is `Recreate`) so Kubernetes validation passes.
 
 ### Root cause B: CoreDNS domain rewrite depends on an Envoy alias Service that is not stable
 
