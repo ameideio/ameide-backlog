@@ -43,6 +43,7 @@ Contributing factors:
 Remediation (GitOps, vendor-aligned):
 - Stop using `curl -f` for the token request; capture the response body and parse `access_token`.
 - If service-account login fails but `KEYCLOAK_ADMIN_USER/PASSWORD` are available, fall back to password grant (`admin-cli`) so the job can still reconcile clients/secrets.
+- Ensure Argo hook cleanup cannot deadlock on failures: include `HookFailed` in `argocd.argoproj.io/hook-delete-policy` so a failed `client-patcher` Job does not leave the Application stuck “waiting for deletion”.
 
 ## 1. Problem Statement
 
