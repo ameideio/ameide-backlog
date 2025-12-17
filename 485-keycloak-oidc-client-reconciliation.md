@@ -32,6 +32,18 @@ Policy:
 - Keep create-only as the safe default.
 - Allow an explicit “update existing” mode that merges the declared spec into the existing client representation (idempotent, avoids deleting unknown fields), for cases where we must correct drift deterministically.
 
+## Addendum (2025-12-17): client-patcher Keycloak auth must be debuggable and resilient
+
+Observed failure mode: the `client-patcher` can loop on “Token not available yet” and eventually fail authentication while the Keycloak Service is reachable.
+
+Contributing factors:
+- `curl -f` suppresses non-2xx response bodies, so an actionable `invalid_client` / `unauthorized_client` payload is lost (appears as empty response).
+- Service-account client-credentials login (`keycloak-admin-sa`) can be temporarily invalid/misconfigured; the Job already has access to the bootstrap admin secret and should be able to fall back to password grant deterministically.
+
+Remediation (GitOps, vendor-aligned):
+- Stop using `curl -f` for the token request; capture the response body and parse `access_token`.
+- If service-account login fails but `KEYCLOAK_ADMIN_USER/PASSWORD` are available, fall back to password grant (`admin-cli`) so the job can still reconcile clients/secrets.
+
 ## 1. Problem Statement
 
 OIDC clients defined in Git are not created in Keycloak when added after initial realm creation.
