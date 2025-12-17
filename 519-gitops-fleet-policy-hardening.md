@@ -279,6 +279,7 @@ Local k3d clusters are capacity-constrained and can exhibit apiserver write late
 **Terraform/DNS/externals impact (local):**
 - Terraform owns the k3d cluster lifecycle (`infra/terraform/local` + `infra/scripts/tf-local.sh`). Avoid ad-hoc `k3d cluster create/delete` outside Terraform unless state is already lost (the wrapper detects and repairs this case).
 - Any Terraform `local-exec` that runs `kubectl`/`helm` must pin the intended kube context (`kubectl --context ...` / `helm --kube-context ...`); never rely on ambient `kubectl config current-context` (prevents accidental writes to AKS while operating “local”).
+- Any Terraform heredoc shell snippet must use Terraform-safe `$` escaping correctly: only escape Terraform interpolation (`${...}`) as `$${...}`. Do not use `$$` for shell variables/arithmetic (`$$((...))`, `$$*`, `$$var`), because `$$` expands to the shell PID and can break scripts at runtime.
 - Recreating the cluster changes ephemeral container IDs/IPs; anything that pins those (e.g., `*.local.ameide.io` host mappings, DNS scripts, port-forwards) must be derived from the current k3d/kube context (or rerun) after recreate.
 
 **Terraform/DNS/externals impact (azure):**
