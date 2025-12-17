@@ -289,6 +289,15 @@ Verification:
 - **Remediation (GitOps-aligned)**:
   - Source the key via Vault KV → ESO → Secret, and configure the NiFi deployment/operator to consume it (avoid committing the plaintext key into Git).
 
+### Root cause E: NetworkPolicy blocks `redis-system` from reaching Redis pods
+
+- **Evidence**: `redis-operator` logs show repeated failures selecting a master with `dial tcp <podIP>:6379: i/o timeout`, while the environment namespace has a default-deny ingress policy (`NetworkPolicy/deny-cross-environment`) that does not allow ingress from `redis-system`.
+- **Impact**:
+  - `RedisFailover/redis` can have `0` masters and never populate `redis-master` endpoints.
+  - Downstream apps that depend on Redis (e.g. Langfuse worker queues) CrashLoop with `ECONNREFUSED/ETIMEDOUT` to `redis-master:6379`.
+- **Remediation**:
+  - Add `redis-system` to the explicit allowlist in `deny-cross-environment` so the cluster-scoped Redis operator can probe/reconcile Redis in each env namespace.
+
 ### Root cause D: GitLab is present in the Azure component set but not intended/bootstrapped
 
 - **Evidence**: `*-platform-gitlab` is `OutOfSync/Missing` across envs.
