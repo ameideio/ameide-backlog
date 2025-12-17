@@ -1,40 +1,35 @@
 # 555 Comparative Projection Primitive Analysis
 
-**Status:** Analysis Complete
+**Status:** Analysis Complete (Updated 2025-12-17)
 **Type:** Cross-cutting Architecture Analysis
 **Scope:** Sales, Commerce, Transformation, SRE projection primitives
 
 ## Executive Summary
 
-Comparative analysis of projection primitive implementation maturity across four domains reveals **asymmetric maturity** with Sales as the gold standard for CQRS read model projections. Commerce implements specialized hostname resolution, while Transformation and SRE use lightweight domain-forwarding patterns rather than traditional read model projections.
+Comparative analysis of projection primitive implementation maturity across four domains reveals **convergence toward the Sales CQRS pattern**. The most significant development is **Transformation projection's architectural shift from a proxy facade to a full PostgreSQL-backed CQRS read model** with event consumption, placing it alongside Sales as a production-ready implementation.
 
-## Maturity Overview
+## Maturity Overview (Updated)
 
 | Domain | Overall Score | Storage | Read Models | Query RPCs | Event Consumption | Tests | GitOps |
 |--------|--------------|---------|-------------|------------|-------------------|-------|--------|
-| **Sales** | ★★★★★ (5/5) | PostgreSQL | 4 tables | 6/6 (100%) | ✅ Inbox pattern | ✅ 308 LOC | ✅ Yes |
+| **Sales** | ★★★★★ (5/5) | PostgreSQL | 5 tables | 6/6 (100%) | ✅ Inbox pattern | ✅ 308 LOC | ✅ Yes |
+| **Transformation** | ★★★★ (4/5) | PostgreSQL | 6 tables | 7/7 (100%) | ✅ Inbox pattern | ✅ 84 LOC | ❌ No |
 | **Commerce** | ★★★ (3/5) | PostgreSQL | 2 tables | 3/3 (100%) | ❌ None | ⚠️ 6 LOC stub | ❌ No |
-| **Transformation** | ★★ (2/5) | None (proxy) | N/A | 9/9 (100%) | N/A | ⚠️ 6 LOC stub | ❌ No |
 | **SRE** | ★½ (1.5/5) | None | N/A | 1/15 (6.7%) | N/A | ⚠️ 67 LOC | ❌ No |
 
 ## Architectural Patterns
 
-### Pattern 1: Traditional CQRS Read Model (Sales)
+### Pattern 1: Traditional CQRS Read Model (Sales, Transformation)
 **Event Sourcing → Denormalized PostgreSQL → Query Service**
 
-Event consumption with idempotency guarantees drives materialized read models optimized for query patterns.
+Event consumption with idempotency guarantees drives materialized read models optimized for query patterns. **Transformation now follows this pattern** with full PostgreSQL-backed read models.
 
 ### Pattern 2: Domain-Specific Read Model (Commerce)
 **Direct State → PostgreSQL → Query Service**
 
 Specialized projection for hostname resolution and domain management, unclear event consumption.
 
-### Pattern 3: Domain Forwarding Proxy (Transformation)
-**Query Service → Domain Service (pass-through)**
-
-API facade/standardization layer with zero local state or transformation logic.
-
-### Pattern 4: Partial Domain Forwarding (SRE)
+### Pattern 3: Partial Domain Forwarding (SRE)
 **Query Service → Domain Service (with filtering)**
 
 Mostly stub implementation with only SearchIncidents functional (in-memory filtering of domain data).
@@ -229,65 +224,109 @@ Examples: DomainVerificationInstructions, DomainOnboardingError
 
 ---
 
-### 3. Transformation Projection
+### 3. Transformation Projection ⚡ **MAJOR ARCHITECTURAL SHIFT**
 
 **Location:** `/workspaces/ameide-core/primitives/projection/transformation`
 
-**Architecture:**
-- **Entry Point:** `cmd/main.go` only
-- **Storage:** None - pure gRPC proxy to transformation-domain:50051
-- **Pattern:** API facade/standardization layer
+**Architecture (Updated 2025-12-17):**
+- **Entry Points:** Dual executable pattern (now matches Sales)
+  - `cmd/main.go` - gRPC query service (port 50051) with PostgreSQL
+  - `cmd/ingress/main.go` - Event consumer (stdin-based)
+- **Storage:** PostgreSQL with embedded migrations
+- **Pattern:** Full CQRS read model (migrated from proxy)
+
+**Previous Architecture (Obsolete):**
+```
+gRPC Request → Handler → Domain Client → Response (pass-through)
+```
+
+**New Architecture (Current):**
+```
+Domain Events → Ingress Handler → Inbox Dedup → PostgreSQL Read Models → Query Service
+```
 
 **Strengths:**
 
-#### Proxy Pattern (Minimal Overhead)
-- Acts as facade to `TransformationArchitectureQueryServiceClient`
-- All handlers are pure passthroughs (zero local logic)
-- No data duplication or storage
-- Efficient - no DB queries
+#### Database Implementation (Production-Ready)
+- **Migration System:** Custom embedded runner with version tracking
+  - File: `migrations/V1__transformation_projection.sql` (100 LOC)
+  - Automatic schema creation with parameterization
+  - Transaction-based with SERIALIZABLE isolation
+  - Schema templating: `{{.Schema}}` placeholder support
 
-**Query API (9 RPCs - All Forwarded):**
-1. **GetArchimateModel** - Enterprise architecture model
-2. **ListArchimateElements** - ArchiMate elements
-3. **ListArchimateRelationships** - ArchiMate relationships
-4. **GetArchimateView** - Named architectural view
-5. **GetArchimateViewRevision** - Version-specific view
-6. **GetBpmnModel** - Business process model
-7. **GetBaseline** - Baseline/target state definition
-8. **ListBaselineItems** - Items in baseline
-9. **GetProcessDefinition** - Process definition
+- **Read Models:** 6 tables for ArchiMate repository
+  1. `projection_inbox` - Idempotency tracking `(tenant_id, message_id)`
+  2. `archimate_model_views` - Model metadata (name, description)
+  3. `archimate_element_views` - Elements with JSONB properties, version tracking
+  4. `archimate_relationship_views` - Source/target element relationships
+  5. `archimate_view_views` - View definitions with head/published revision
+  6. `archimate_view_revision_views` - Full revision snapshots as JSONB
 
-**Storage Pattern:**
-```
-No read models - direct passthrough to domain's queries
-Domain returns: ArchimateModel, ArchimateElement, ArchimateRelationship,
-ArchimateView, BpmnModel, Baseline, ProcessDefinition
-```
+- **Scoping:** All tables include `organization_id` and `repository_id`
+  - Multi-tenant isolation: `(tenant_id, organization_id, repository_id, entity_id)` PKs
+  - Strategic indexes for pagination: `(tenant, org, repo, created_at, id)`
 
-**Test Coverage (Minimal):**
-- **6 LOC** - Empty smoke test stub only
-- No mocking of upstream client
-- No integration scenarios tested
-- No error propagation tests
+#### Event Consumption (Matches Sales Pattern)
+- **Idempotency:** Inbox pattern with `message_id` tracking
+  - `ON CONFLICT DO NOTHING` for exactly-once processing
+  - Transaction spans inbox insert + read model mutations
+
+- **Event Types Supported (13 total):**
+  | Category | Events |
+  |----------|--------|
+  | **Create** | ArchimateModelCreated, ArchimateElementCreated, ArchimateRelationshipCreated, ArchimateViewCreated, ArchimateViewRevisionRecorded |
+  | **Update** | ArchimateModelUpdated, ArchimateElementUpdated, ArchimateRelationshipUpdated, ArchimateViewUpdated |
+  | **Delete** | ArchimateModelDeleted, ArchimateElementDeleted, ArchimateRelationshipDeleted, ArchimateViewDeleted |
+
+- **Application Logic:**
+  ```
+  1. Extract tenant_id and message_id from fact.meta
+  2. Begin transaction
+  3. Insert to inbox (idempotent - ON CONFLICT DO NOTHING)
+  4. If rows_affected == 0, commit and return (already processed)
+  5. Switch on event type and apply mutations (UPSERT/DELETE)
+  6. Commit transaction
+  ```
+
+**Query API (7 RPCs - All Implemented):**
+1. **GetArchimateModel** - Single model retrieval
+2. **ListArchimateModels** - Paginated listing with cursor tokens (NEW)
+3. **ListArchimateElements** - Elements by model
+4. **ListArchimateRelationships** - Relationships by model
+5. **GetArchimateView** - Single view retrieval
+6. **ListArchimateViews** - Paginated listing with cursor tokens (NEW)
+7. **GetArchimateViewRevision** - Specific revision snapshot
+
+**Pagination Strategy:**
+- Cursor-based with `(created_at, id)` keyset pagination
+- Default page size: 50, max: 200
+- Encoded as base64 JSON tokens
+
+**Test Coverage (Good):**
+- **84 LOC** test code in `tests/archimate_projection_apply_test.go`
+- Tests idempotent event application using sqlmock
+- Validates inbox deduplication prevents re-processing
+- Verifies transactional consistency
 
 **Code Quality:**
-- Minimal footprint: 54 LOC handlers
-- Clean delegation pattern
-- Alpine-based Docker (54 LOC Dockerfile)
-- Non-root user for security
-
-**Architectural Insight:**
-This is an **API aggregation/projection facade** rather than a traditional read-model projection. It standardizes query semantics across the system without maintaining local state.
+- Clean separation: handlers → store adapter (matches Sales pattern)
+- Interface-based design enabling mocks
+- Raw SQL with prepared statements (no ORM)
+- Schema name validated via regex: `^[a-zA-Z_][a-zA-Z0-9_]*$`
 
 **Gaps:**
-- ❌ No test coverage (0%)
 - ❌ No GitOps deployment manifest
-- ⚠️ Pattern mismatch: Named "projection" but doesn't project anything
+- ⚠️ Test coverage below Sales (84 LOC vs 308 LOC)
+- ⚠️ Missing integration test runner script
 
 **Critical Files:**
 - Proto: `packages/ameide_core_proto/src/ameide_core_proto/transformation/architecture/v1/transformation_architecture_query.proto`
-- Handlers: `primitives/projection/transformation/internal/handlers/handlers.go` (54 LOC)
-- Tests: `primitives/projection/transformation/tests/smoke_test.go` (empty)
+- Migration: `primitives/projection/transformation/internal/adapters/postgres/migrations/V1__transformation_projection.sql`
+- Store: `primitives/projection/transformation/internal/adapters/postgres/store.go` (447 LOC)
+- Event Handler: `primitives/projection/transformation/internal/adapters/postgres/apply_architecture_fact.go` (500+ LOC)
+- Handlers: `primitives/projection/transformation/internal/handlers/handlers.go` (48 LOC)
+- Event Consumer: `primitives/projection/transformation/cmd/ingress/main.go`
+- Tests: `primitives/projection/transformation/tests/archimate_projection_apply_test.go` (84 LOC)
 
 ---
 
@@ -378,8 +417,8 @@ Stubbed: Fleet health, alerts, runbooks, SLOs, patterns
 | Domain | Database | Migration System | Tables | Event Consumption | Idempotency |
 |--------|----------|------------------|--------|-------------------|-------------|
 | Sales | PostgreSQL | ✅ Embedded | 5 | ✅ Two-stream | ✅ Inbox pattern |
+| Transformation | PostgreSQL | ✅ Embedded | 6 | ✅ Architecture facts | ✅ Inbox pattern |
 | Commerce | PostgreSQL | ❌ External | 2 | ❌ Unclear | ❌ Manual UPSERTs |
-| Transformation | None | N/A | 0 | N/A | N/A |
 | SRE | None | N/A | 0 | N/A | N/A |
 
 ### Query API Completeness
@@ -387,8 +426,8 @@ Stubbed: Fleet health, alerts, runbooks, SLOs, patterns
 | Domain | Total RPCs | Implemented | Stubbed | Implementation Rate |
 |--------|-----------|-------------|---------|---------------------|
 | Sales | 6 | 6 | 0 | 100% ✅ |
+| Transformation | 7 | 7 | 0 | 100% ✅ |
 | Commerce | 3 | 3 | 0 | 100% ✅ |
-| Transformation | 9 | 9 | 0 | 100% ✅ (proxy) |
 | SRE | 15 | 1 | 14 | 6.7% ❌ |
 
 ### Test Coverage
@@ -396,9 +435,9 @@ Stubbed: Fleet health, alerts, runbooks, SLOs, patterns
 | Domain | Test Files | Test LOC | Implementation LOC | Test Ratio | Coverage |
 |--------|-----------|----------|-------------------|------------|----------|
 | Sales | 8 | 308 | 1,100 | 28% | ⭐⭐⭐⭐⭐ |
+| Transformation | 1 | 84 | 1,000+ | 8% | ⭐⭐⭐ |
 | SRE | 1 | 67 | 71 | 94%* | ⭐⭐ (stubs) |
 | Commerce | 1 | 6 | 219 | 2.7% | ⭐ (stub only) |
-| Transformation | 1 | 6 | 54 | 11% | ⭐ (stub only) |
 
 *SRE ratio inflated due to stub implementation
 
@@ -407,8 +446,8 @@ Stubbed: Fleet health, alerts, runbooks, SLOs, patterns
 | Domain | Code LOC | Pattern | Separation | Testability |
 |--------|---------|---------|------------|-------------|
 | Sales | ~1,100 | CQRS Read Model | ✅ Handler + Adapter | ✅ Interface mocks |
+| Transformation | ~1,000 | CQRS Read Model | ✅ Handler + Adapter | ✅ sqlmock |
 | Commerce | ~220 | Domain-Specific | ❌ Monolithic | ⚠️ Direct DB |
-| Transformation | ~54 | Proxy Facade | ✅ Handler + Client | ✅ Client mocks |
 | SRE | ~72 | Partial Proxy | ✅ Handler + Client | ✅ Client mocks |
 
 ### Deployment Readiness
@@ -416,54 +455,52 @@ Stubbed: Fleet health, alerts, runbooks, SLOs, patterns
 | Domain | GitOps Manifest | Docker | Security | Production Ready |
 |--------|----------------|--------|----------|------------------|
 | Sales | ✅ Yes | Multi-stage | Optional TLS | ✅ YES |
+| Transformation | ❌ No | Multi-stage | None | ⚠️ GitOps needed |
 | Commerce | ❌ No | Multi-stage | Optional TLS/mTLS | ⚠️ Tests needed |
-| Transformation | ❌ No | Alpine minimal | None | ⚠️ Tests needed |
 | SRE | ❌ No | Multi-stage | Mandatory TLS | ❌ Incomplete |
 
-### Database Patterns (Sales & Commerce Only)
+### Database Patterns (Sales, Transformation & Commerce)
 
-| Aspect | Sales | Commerce |
-|--------|-------|----------|
-| **ORM** | None (raw SQL) | None (raw SQL) |
-| **SQL Safety** | Prepared statements | Prepared statements |
-| **Schema Validation** | Regex `^[a-zA-Z_][a-zA-Z0-9_]*$` | Regex `^[a-zA-Z_][a-zA-Z0-9_]*$` |
-| **Connection Pool** | 10 max / 10 idle | 10 max / 10 idle |
-| **Transaction Isolation** | READ COMMITTED (events), SERIALIZABLE (migrations) | Default |
-| **Multi-Tenancy** | tenant_id in all tables | tenant_id in all tables |
-| **Denormalization** | 4 read model tables | 2 specialized tables |
-| **Complex Types** | Money (currency, units, nanos) | Protobuf JSON |
-| **Indexes** | Strategic (tenant+stage, tenant+owner, etc.) | Not visible |
+| Aspect | Sales | Transformation | Commerce |
+|--------|-------|----------------|----------|
+| **ORM** | None (raw SQL) | None (raw SQL) | None (raw SQL) |
+| **SQL Safety** | Prepared statements | Prepared statements | Prepared statements |
+| **Schema Validation** | Regex | Regex | Regex |
+| **Connection Pool** | 10 max / 10 idle | 5 max / 5 idle | 10 max / 10 idle |
+| **Transaction Isolation** | READ COMMITTED | Default | Default |
+| **Multi-Tenancy** | tenant_id in all | tenant+org+repo in all | tenant_id in all |
+| **Denormalization** | 5 read model tables | 6 read model tables | 2 specialized tables |
+| **Complex Types** | Money triples | JSONB properties | Protobuf JSON |
+| **Indexes** | Strategic | Pagination-optimized | Not visible |
 
 ---
 
 ## Key Findings
 
-### Architectural Divergence
+### Architectural Convergence (Updated)
 
-**Four distinct patterns emerged:**
+**Three patterns now established** (down from four - Transformation migrated to CQRS):
 
-1. **Traditional CQRS (Sales):**
+1. **Traditional CQRS (Sales, Transformation):**
    - Event consumption → Materialized views → Query optimization
    - Best for complex domains with rich query patterns
+   - **Transformation now follows this pattern** with full PostgreSQL-backed read models
 
 2. **Domain-Specific (Commerce):**
    - Direct state storage → Query API
    - Best for specialized concerns (hostname resolution)
 
-3. **Proxy Facade (Transformation):**
-   - Zero local state → Pass-through to domain
-   - Best for API standardization without duplication
-
-4. **Partial Stub (SRE):**
+3. **Partial Stub (SRE):**
    - Work in progress → Mostly unimplemented
    - Pattern unclear (needs design decision)
 
-### Maturity Gaps
+### Maturity Gaps (Updated)
 
-1. **Test Coverage Crisis** (3 of 4 domains):
-   - Only Sales has comprehensive tests (308 LOC)
-   - Commerce, Transformation: Empty smoke tests (6 LOC each)
-   - SRE: Single test for only implemented method (67 LOC)
+1. **Test Coverage Gap** (2 of 4 domains):
+   - Sales: Comprehensive tests (308 LOC) ✅
+   - Transformation: Good tests (84 LOC) ✅
+   - Commerce: Empty smoke test (6 LOC) ❌
+   - SRE: Single test for only implemented method (67 LOC) ⚠️
 
 2. **GitOps Deployment** (3 of 4 domains):
    - Only Sales has deployment manifest
@@ -565,7 +602,7 @@ Stubbed: Fleet health, alerts, runbooks, SLOs, patterns
 ### P2 (Long-term)
 
 9. **Clarify Projection Semantics**
-   - Transformation: Rename to "query-facade" or clarify projection role
+   - ~~Transformation: Rename to "query-facade" or clarify projection role~~ ✅ Now a proper CQRS projection
    - SRE: Choose pattern (CQRS vs proxy vs remove)
    - Document when to use each pattern
 
@@ -602,13 +639,14 @@ Stubbed: Fleet health, alerts, runbooks, SLOs, patterns
 
 ### Database Migrations
 - Sales: `primitives/projection/sales/internal/adapters/postgres/migrations/V1__sales_projection.sql`
+- Transformation: `primitives/projection/transformation/internal/adapters/postgres/migrations/V1__transformation_projection.sql`
 - Commerce: None (external management)
-- Others: N/A
+- SRE: N/A
 
 ### Test Files
 - Sales: `primitives/projection/sales/internal/tests/*_test.go` (8 files, 308 LOC)
+- Transformation: `primitives/projection/transformation/tests/archimate_projection_apply_test.go` (84 LOC)
 - Commerce: `primitives/projection/commerce/tests/smoke_test.go` (6 LOC)
-- Transformation: `primitives/projection/transformation/tests/smoke_test.go` (6 LOC)
 - SRE: `primitives/projection/sre/internal/handlers/handlers_test.go` (67 LOC)
 
 ### Integration Test Runners
@@ -639,26 +677,28 @@ Stubbed: Fleet health, alerts, runbooks, SLOs, patterns
 
 ---
 
-## Conclusion
+## Conclusion (Updated 2025-12-17)
 
-**Asymmetric maturity** with no convergence on single pattern:
+**Convergence toward CQRS pattern** with Transformation joining Sales:
 
-- **Sales**: Production-ready CQRS read model with idempotent event consumption
-- **Commerce**: Specialized domain projection with unclear event story
-- **Transformation**: Lightweight proxy facade (not a traditional projection)
-- **SRE**: Scaffold with 93% stub rate (needs completion or removal)
+- **Sales**: Production-ready CQRS read model with idempotent event consumption ✅
+- **Transformation**: Now production-ready CQRS with 6 tables, inbox pattern, 13 event types ✅ (MAJOR UPGRADE)
+- **Commerce**: Specialized domain projection with unclear event story ⚠️
+- **SRE**: Scaffold with 93% stub rate (needs completion or removal) ❌
 
-**Three distinct use cases identified:**
-1. Complex domains → Sales CQRS pattern (event sourcing + read models)
-2. Specialized concerns → Commerce pattern (direct state + query API)
-3. API standardization → Transformation proxy pattern (zero local state)
+**Two dominant patterns established:**
+1. **Complex domains → CQRS pattern** (Sales, Transformation) - event sourcing + read models
+2. **Specialized concerns → Domain-specific pattern** (Commerce) - direct state + query API
 
-**Production readiness checklist** (per domain):
-1. ✅ Comprehensive test coverage (like Sales: 28%+)
-2. ✅ GitOps deployment manifests
-3. ✅ Event consumption with idempotency (if CQRS pattern)
-4. ✅ Migration system (if database-backed)
-5. ✅ Clean architecture (handler + adapter separation)
-6. ✅ CI/CD integration
+**Production readiness status:**
+| Domain | Test Coverage | GitOps | Event Consumption | Migration | Architecture | Status |
+|--------|--------------|--------|-------------------|-----------|--------------|--------|
+| Sales | ✅ 28% | ✅ | ✅ | ✅ | ✅ | **READY** |
+| Transformation | ✅ 8% | ❌ | ✅ | ✅ | ✅ | **NEAR-READY** |
+| Commerce | ❌ 0% | ❌ | ❌ | ❌ | ❌ | NEEDS WORK |
+| SRE | ⚠️ 94%* | ❌ | ❌ | N/A | ⚠️ | INCOMPLETE |
 
-**Next step:** Decide SRE projection pattern (CQRS vs proxy vs remove), then implement accordingly.
+**Next steps:**
+1. Add GitOps manifest for Transformation projection
+2. Decide SRE projection pattern (CQRS vs proxy vs remove)
+3. Add tests and event consumption for Commerce
