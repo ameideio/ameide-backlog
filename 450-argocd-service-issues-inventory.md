@@ -321,6 +321,19 @@ Verification:
   2. Bind Services to the Terraform-managed PIPs **by name** (cloud-provider supported): set `service.beta.kubernetes.io/azure-pip-name: <pip-name>` (and `service.beta.kubernetes.io/azure-load-balancer-resource-group`) so the cloud provider attaches the existing PIP and does not attempt to create `kubernetes-*` PIPs.
   3. Re-verify with: `kubectl -n argocd get svc envoy-argocd-cluster-* -o wide` (expect `status.loadBalancer.ingress.ip`), then `curl -I https://argocd.ameide.io/`.
 
+### Update (2025-12-17): ArgoCD SSO broken (Dex upstream Keycloak issuer misconfigured)
+
+- **Env:** `azure` (AKS)
+- **Symptom:** ArgoCD SSO/Dex endpoints return 502 and clients fail to discover OIDC:
+  - `https://argocd.ameide.io/api/dex/.well-known/openid-configuration` returns `502`
+  - Error example:
+    - `failed to query provider "https://argocd.ameide.io/api/dex": Get "https://argocd-dex-server:5556/api/dex/.well-known/openid-configuration": dial tcp 10.0.219.230:5556: connect: connection refused`
+- **Root cause:** `dex.config` pointed at an in-namespace Keycloak hostname (`issuer: http://keycloak:8080/realms/ameide`), but Keycloak runs in the environment namespaces and is exposed externally as `https://auth.ameide.io`. Dex failed to initialize its Keycloak connector → it never bound port `5556` → ArgoCD server proxying `/api/dex` returned 502.
+- **Remediation (GitOps + reproducible bootstrap):**
+  1. Set Dex Keycloak issuer to the canonical external issuer (`https://auth.ameide.io/realms/ameide`) so browser redirects work.
+  2. Keep local clusters on `https://auth.local.ameide.io/realms/ameide` via local ArgoCD bootstrap override.
+  3. Upgrade the ArgoCD Helm release (Terraform-driven) so `argocd-cm` + Dex roll out and `/api/dex` becomes reachable.
+
 ### Root cause A: all AKS node pools are tainted `NoSchedule`
 
 - **Evidence**: scheduler events for Pods/Jobs show `0/N nodes are available: ... had untolerated taint {ameide.io/environment: <env>}` and `CriticalAddonsOnly=true:NoSchedule`.
@@ -336,6 +349,16 @@ Verification:
 - **Symptom:** `Job/<env>/temporal-setup-default-schema` Pods stuck `Pending` with scheduler message: `had untolerated taint {ameide.io/environment: <env>}`.
 - **Evidence:** the Job is `ownerReferences: TemporalCluster/temporal` and the Pod template has **no** `tolerations`/`nodeSelector` (TemporalCluster `services.overrides` does not apply to this schema Job).
 - **Fix strategy:** either (a) introduce a non-tainted pool for operator-managed Jobs, or (b) adopt a policy/mutating layer that injects env scheduling constraints into Jobs created in env namespaces.
+
+**Update (2025-12-17): Staging Temporal remains Degraded (worker Pending due to node pool max)**
+- **Env/app:** `staging-data-temporal`
+- **Symptom:** `temporal-worker` Pod stuck `Pending` with scheduler `Insufficient cpu`, and cluster-autoscaler logs `max node group size reached` for the staging pool.
+- **Root cause:** staging node pool `max_count` is too low for current workload density; Temporal worker requires an additional staging node but autoscaler cannot scale beyond the cap.
+- **Fix (Terraform-first):** increase `staging_pool_max_count` in `infra/terraform/modules/azure-aks/variables.tf` (or override via tfvars) so autoscaler can add capacity.
+
+**Update (2025-12-17): TemporalNamespace can stick `ReconcileError` if created before TemporalCluster**
+- **Symptom:** `TemporalNamespace/ameide` shows `ReconcileError: TemporalCluster ... not found` even after the cluster exists (controller may not requeue on TemporalCluster creation).
+- **Fix (GitOps-idempotent):** add explicit Argo sync-waves so `TemporalCluster` applies before `TemporalNamespace` (and forces a namespace update/reconcile when rolling out the change).
 
 ### Update (2025-12-17): Argo Healthy while workloads are Pending (operator-generated Deployments missing scheduling)
 

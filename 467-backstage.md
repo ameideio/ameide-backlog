@@ -61,6 +61,11 @@
 2. Prevent concurrent migration attempts during rollout (e.g., `maxSurge: 0` for the Deployment, and avoid multiple replicas until migrations are stable).
 3. Avoid “manual unlock” as a runbook step; treat it as a last-resort break-glass only.
 
+**Recovery implemented (GitOps, deterministic)**
+- Added an optional `Job` in `sources/charts/platform/backstage` that clears a stuck Knex migration lock in Postgres (updates `public.knex_migrations_lock.is_locked` when present).
+- Enabled it in production via `sources/values/env/production/platform/platform-backstage.yaml` to recover the CrashLoop without manual `kubectl exec` / DB edits.
+- Follow-up: disable the job once production is green again (keep the capability but default `enabled=false`).
+
 ## 1. Executive Summary
 
 Backstage is designated as the Ameide "platform factory" – the internal developer portal that provides:
