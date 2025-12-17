@@ -25,6 +25,7 @@ Total applications: 200
 - Fixed local “red pod noise” from provisioning/bootstrap jobs:
   - MinIO provisioning Job was stuck `ImagePullBackOff` on `ghcr.io/ameideio/mirror/bitnami-os-shell:latest` due to missing `imagePullSecrets` and a single-arch mirror tag.
   - Vault bootstrap Job had a transient failure due to runtime `kubectl` download TLS flakiness; bootstrap jobs should avoid runtime downloads (track under 519).
+  - Vault bootstrap local overlay briefly regressed after adding digest support: overriding `bootstrap.kubectl.image.repository` without also overriding/unsetting `bootstrap.kubectl.image.digest` can render an invalid `repo@sha256:...` reference. Local now inherits the shared pinned image/digest to avoid value-merge footguns.
 
 ## Update (2025-12-15): Local data-plane smoke “Last Sync Failed” (ClickHouse name + Redis operator crashloop)
 
