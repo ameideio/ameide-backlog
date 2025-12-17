@@ -361,10 +361,10 @@ Remediation approach (vendor-aligned, GitOps-idempotent):
   - **Resource:** `TemporalCluster/ameide-local/temporal`
   - **Symptom:** Application stays `Degraded` even though Temporal Deployments/Pods are Running and clients can connect.
   - **Observed evidence:** `TemporalCluster.status.conditions[type=Ready]` reports `status=False` with reason `ServicesNotReady`, and `status.services[].ready=false` for all services.
-  - **Likely root cause:** the `data-temporal` chart renders empty scheduling override stanzas (`...overrides.deployment.spec.template.spec: null`) when `nodeSelector/tolerations` are not set, which can trigger operator reconcile churn and unstable readiness reporting.
+  - **Likely root cause:** the operator renders `temporal-*-headless` Services with an `http-metrics` port that targets `targetPort: metrics`, but the Temporal Deployments do not expose a container port named `metrics` when `TemporalCluster.spec.metrics` is unset (config shows `global.metrics: null`). This produces Service endpoints that are missing the metrics port, and the operator reports `ServicesNotReady`.
 
 Remediation approach (vendor-aligned, GitOps-idempotent):
-1. In `sources/charts/platform/temporal-cluster`, only render `overrides.deployment.spec.template.spec` when at least one of `nodeSelector` or `tolerations` is non-empty.
+1. Enable metrics exposition in the `TemporalCluster` CR (`spec.metrics.enabled=true` with Prometheus listen port), so Deployments expose a `metrics` port that matches the Service `targetPort`.
 2. Keep Argo health customizations strict (do not mask operator readiness); fix the CR spec so the operator reports Ready deterministically.
 
 ## Update (2025-12-15): Local observability + Gateway Progressing (OTEL collector arch + local LoadBalancer)
