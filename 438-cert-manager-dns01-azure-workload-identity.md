@@ -6,6 +6,15 @@
 - Repo policy moved to **one cert-manager per cluster** (Option A). `argocd-cert-manager` and per-environment `foundation-cert-manager*` installs are deprecated/removed; `cluster-cert-manager` processes both `ClusterIssuer` and namespaced `Issuer` resources.
 - Treat the “multi-identity per-environment” sections below as legacy unless/until we re-introduce identity isolation at the Issuer credential level.
 
+**Update (2025-12-17)**:
+- `argocd.ameide.io` ACME DNS-01 challenges stalled `pending` with Azure token exchange failing (`RESPONSE 400 Bad Request`) when cert-manager attempted to authenticate using a stale/incorrect Workload Identity client ID.
+- Root cause was **GitOps drift between local Terraform outputs and the repo branch Argo CD actually syncs**:
+  - `infra/scripts/sync-globals.sh` updated `sources/values/cluster/globals.yaml` locally, but the change was not committed/pushed yet, so Argo CD continued to apply the values from `main`.
+  - `sources/values/cluster/azure/cert-manager.yaml` also contained a hardcoded `azure.workload.identity/client-id` that was not being kept in sync with Terraform outputs.
+- Remediation: keep the WI client ID **single-sourced and committed**:
+  - extend `sync-globals.sh cluster` to update both `sources/values/cluster/globals.yaml` and `sources/values/cluster/azure/cert-manager.yaml`,
+  - commit/push those changes before expecting cert-manager to solve DNS challenges.
+
 > **Scope:** Applies to dev/staging/prod AKS clusters where Azure DNS + ACME DNS-01 is enabled. Local/offline clusters intentionally disable DNS-01 and rely on self-signed Issuer/CA chains (see [444-terraform.md](444-terraform.md#local-target-safeguards) and the local note in [448-cert-manager-workload-identity.md](448-cert-manager-workload-identity.md#local-offline-environments)).
 
 > **Related backlogs:**

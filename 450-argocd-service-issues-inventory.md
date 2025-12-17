@@ -808,6 +808,34 @@ See [426-keycloak-config-map.md §3.2](426-keycloak-config-map.md) for client-pa
 
 ---
 
+### Azure Terraform deploy failed (2025-12-17)
+
+**Status**: 🚧 OPEN (blocks `infra/scripts/deploy.sh azure` end-to-end)
+
+**Symptom**: Terraform apply exits non-zero, so bootstrap never runs (no ArgoCD install, no root apps).
+
+**Errors observed** (from `artifacts/terraform-outputs/azure-*.deploy.log`):
+- `azuread_group.telepresence_developers`: `Authorization_RequestDenied` (403) while listing groups by `displayName`.
+- `module.keyvault.azurerm_key_vault.main`: Key Vault already exists and must be imported to be managed by Terraform.
+- `azurerm_key_vault_secret.env_secrets[*]`: `ForbiddenByRbac` (403) when Terraform checks/creates secrets (e.g. `github-token`, `ghcr-token`), because the Terraform runner identity has no Key Vault data-plane RBAC on the vault.
+- ArgoCD bootstrap installed Redis from `ghcr.io/ameideio/mirror/redis:7.2.5` and failed with `ImagePullBackOff` because `ghcr-pull` is not present during bootstrap (chicken-and-egg).
+
+**Root cause**
+- **Entra ID directory operations are not least-privilege** for the cluster deployer identity: creating or even checking groups requires tenant-level Microsoft Graph permissions that our subscription-scoped deployer SP does not have.
+- **Out-of-band Key Vault recovery breaks Terraform idempotency**: `deploy.sh` uses `az keyvault recover` before Terraform runs; that turns a soft-deleted vault into an active resource that is not in Terraform state, causing a create conflict.
+- **Bootstrap did not apply the intended env overlay values**: bootstrap looked for `sources/values/<env>/foundation/foundation-argocd.yaml` (missing the `env/` segment), so the “public images during bootstrap” override at `sources/values/env/dev/foundation/foundation-argocd.yaml` was never applied.
+
+**Remediation approach (vendor-aligned, reproducible)**
+1. Keep Key Vault lifecycle logic inside Terraform by enabling Key Vault recovery in the `azurerm` provider (`features.key_vault.recover_soft_deleted_key_vaults=true`) and avoiding out-of-band `az keyvault recover` in the Terraform path.
+2. Decouple Entra ID group provisioning from AKS infrastructure creation:
+   - Default to using **pre-provisioned** Entra group object IDs (pass via `developer_role_assignments`).
+   - Only create Entra groups in a dedicated “directory bootstrap” stack executed with a properly privileged identity.
+3. Ensure the Terraform runner can seed Key Vault secrets deterministically:
+   - Grant the Terraform runner identity `Key Vault Secrets Officer` on the vault (RBAC mode), and order secret creation after role assignment.
+   - Account for Azure RBAC propagation delays (retry apply or gate secret writes) so the end-to-end `deploy.sh azure` path is stable.
+4. Validate the full external chain after fix: `deploy.sh azure` → Terraform converges → `azure.json` outputs → bootstrap runs → Argo apps converge.
+5. Fix bootstrap env overlay resolution and rerun bootstrap so ArgoCD uses public bootstrap images (especially Redis) until `ghcr-pull` is materialized by External Secrets.
+
 ## Validation Commands
 
 ```bash

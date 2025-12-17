@@ -252,6 +252,13 @@ Local k3d clusters are capacity-constrained and can exhibit apiserver write late
 - Terraform owns the k3d cluster lifecycle (`infra/terraform/local` + `infra/scripts/tf-local.sh`). Avoid ad-hoc `k3d cluster create/delete` outside Terraform unless state is already lost (the wrapper detects and repairs this case).
 - Recreating the cluster changes ephemeral container IDs/IPs; anything that pins those (e.g., `*.local.ameide.io` host mappings, DNS scripts, port-forwards) must be derived from the current k3d/kube context (or rerun) after recreate.
 
+**Terraform/DNS/externals impact (azure):**
+- Keep AKS infrastructure provisioning **subscription-scoped and least-privilege**. Tenant-wide Entra ID directory objects (e.g., creating groups) should live in a separate “directory bootstrap” stack run with appropriately privileged credentials.
+- Treat Azure Key Vault as a special-case lifecycle: purge protection + soft delete means “destroy then recreate” is effectively “delete then recover”. Keep recovery behavior inside Terraform (`azurerm` Key Vault features) and avoid out-of-band `az keyvault recover` that creates unmanaged existing resources and breaks idempotency.
+- When Terraform seeds Key Vault secrets, the Terraform runner identity must have **data-plane RBAC** (`Key Vault Secrets Officer` or stricter equivalent) on the vault; otherwise `azurerm_key_vault_secret` will fail during existence checks with `ForbiddenByRbac`.
+- GitOps consumers (Envoy Gateway addresses, DNS hostnames, etc.) must source Azure runtime facts from Terraform outputs (`artifacts/terraform-outputs/azure.json` → `infra/scripts/sync-globals.sh`) rather than hardcoding IPs/hostnames in Helm values.
+- ArgoCD bootstrap must not depend on private registry pull secrets (chicken-and-egg): ensure bootstrap correctly applies `sources/values/env/<env>/foundation/foundation-argocd.yaml` so Redis and other bootstrap images are public until `ghcr-pull` is created by External Secrets.
+
 ### 4.3 Wrappers for vendor charts
 
 Example wrapper conventions:
