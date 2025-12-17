@@ -1,0 +1,188 @@
+# 580 — SSO Verifications (ArgoCD ↔ Dex ↔ Keycloak)
+
+**Status**: 🟡 Draft (operational runbook)  
+**Created**: 2025-12-17  
+**Scope**: `local` + `azure` (`dev`, `staging`, `production`)  
+**Related**: [525-backlog-first-triage-workflow.md](525-backlog-first-triage-workflow.md), [450-argocd-service-issues-inventory.md](450-argocd-service-issues-inventory.md), [485-keycloak-oidc-client-reconciliation.md](485-keycloak-oidc-client-reconciliation.md), [460-keycloak-oidc-scopes.md](460-keycloak-oidc-scopes.md), [451-secrets-management.md](451-secrets-management.md), [519-gitops-fleet-policy-hardening.md](519-gitops-fleet-policy-hardening.md)
+
+---
+
+## Goal
+
+Define the **minimum, deterministic checks** to validate:
+
+1. ArgoCD public endpoints are reachable and correctly routed.
+2. Dex is initialized and can reach Keycloak.
+3. Keycloak accepts ArgoCD’s OIDC request (redirect URIs + scopes).
+4. ArgoCD has the correct Dex client secret (Vault → ESO → `argocd-secret`).
+5. End-to-end SSO login works without manual cluster poking.
+
+This backlog is intentionally “standard/unopinionated”: it verifies vendor-aligned behavior and avoids band-aids.
+
+---
+
+## Environment Model (namespaces)
+
+ArgoCD runs in a **cluster-shared** namespace:
+- `argocd` (ArgoCD + Dex + Envoy for `argocd.*`)
+
+Keycloak is **per environment namespace**:
+- Azure: `ameide-dev`, `ameide-staging`, `ameide-prod`
+- Local: `ameide-local`
+
+SSO endpoints (canonical issuers):
+- Azure prod: `https://auth.ameide.io/realms/ameide`
+- Azure dev: `https://auth.dev.ameide.io/realms/ameide`
+- Azure staging: `https://auth.staging.ameide.io/realms/ameide`
+- Local: `https://auth.local.ameide.io/realms/ameide`
+
+ArgoCD endpoints:
+- Azure prod: `https://argocd.ameide.io`
+- Local: `https://argocd.local.ameide.io`
+
+---
+
+## Primary “All Green” Gate (recommended)
+
+Run the repo-provided end-to-end verifier:
+
+```bash
+infra/scripts/verify-argocd-sso.sh --all
+```
+
+What it validates:
+- OIDC discovery contains expected scopes (`profile`, `email`).
+- Keycloak accepts the ArgoCD auth request for `client_id=argocd` (no `invalid_scope` / `invalid_request`).
+- `SecretStore/ameide-vault` is Ready in `argocd`.
+- `ExternalSecret/argocd-secret-sync` is Ready in `argocd`.
+- `argocd/argocd-secret` contains a **non-placeholder** `dex.keycloak.clientSecret` (printed as sha256 only).
+- Full browser-style login: ArgoCD → Dex → Keycloak → ArgoCD session established.
+
+If this passes, SSO is considered healthy for both local and azure.
+
+---
+
+## Fast Smoke (no browser, no secrets)
+
+### A) ArgoCD + Dex public reachability
+
+Azure:
+```bash
+curl -fsS https://argocd.ameide.io/ >/dev/null
+curl -fsS https://argocd.ameide.io/api/dex/.well-known/openid-configuration >/dev/null
+```
+
+Local (host routing via Envoy LB; use `verify-argocd-sso.sh --local` to avoid manual `--resolve` wiring).
+
+Expected:
+- `200` for `/` and `.../openid-configuration`
+
+Failure mapping:
+- `502` on `/api/dex/...` often means Dex didn’t start or ArgoCD server can’t proxy to Dex. See 450 “Dex upstream Keycloak issuer misconfigured”.
+
+### B) Keycloak accepts ArgoCD auth request (scopes + redirect_uri)
+
+Azure prod example:
+```bash
+curl -fsS -o /dev/null \
+  'https://auth.ameide.io/realms/ameide/protocol/openid-connect/auth?client_id=argocd&redirect_uri=https%3A%2F%2Fargocd.ameide.io%2Fapi%2Fdex%2Fcallback&response_type=code&scope=openid+profile+email+groups'
+```
+
+Expected:
+- HTTP `200` login form (or redirect to login page), not an error page.
+
+Failure mapping:
+- “Invalid parameter: redirect_uri” → Keycloak client `argocd` missing Dex callback URL(s). See 450.
+- `error=invalid_scope` → missing realm/client scope linkage. See 450, 460, 485.
+
+---
+
+## Secret Sync Gate (Dex client secret correctness)
+
+Dex token exchange failures are frequently caused by **mismatched client secrets**.
+
+### Required resources
+
+Both local and azure should have, in namespace `argocd`:
+- `SecretStore/ameide-vault` (Ready)
+- `ExternalSecret/argocd-secret-sync` (Ready)
+- `Secret/argocd-secret` containing:
+  - `dex.keycloak.clientSecret`
+  - `dex.oauth.clientSecret` (same value)
+
+Check readiness (no secret values printed):
+```bash
+kubectl -n argocd get secretstore ameide-vault
+kubectl -n argocd get externalsecret argocd-secret-sync
+kubectl -n argocd describe externalsecret argocd-secret-sync | rg -n 'Ready|SecretSynced|Error'
+```
+
+Failure mapping:
+- `SecretSyncedError could not get secret data from provider` → Vault/ESO wiring issue (451) or missing Vault key.
+- Dex logs: `unauthorized_client` → ArgoCD is using the wrong secret; ensure `argocd-secret-sync` is Ready and restart Dex. See 450.
+
+Dex log check:
+```bash
+kubectl -n argocd logs deploy/argocd-dex-server --tail=200 | rg -n 'unauthorized_client|invalid_client|failed to get token' || true
+```
+
+---
+
+## ArgoCD CLI SSO verification (common pitfall)
+
+Symptom:
+- `http: named cookie not present`
+
+Cause:
+- `argocd login --sso` defaults to an **HTTP** callback (`http://localhost:8085/...`), but session cookies are `Secure`, so the browser won’t send them over HTTP.
+
+Fix (use HTTPS callback; `--callback` is scheme/host/port only):
+```bash
+argocd login argocd.ameide.io --grpc-web --sso --sso-launch-browser=false --callback https://localhost:8085
+```
+
+Local:
+```bash
+argocd login argocd.local.ameide.io --grpc-web --insecure --sso --sso-launch-browser=false --callback https://localhost:8085
+```
+
+---
+
+## What “credentials” are expected (avoid confusion)
+
+There are two independent login paths:
+
+1. **ArgoCD local account** (break-glass): `admin` (password may be random/bootstrapped).
+2. **Keycloak SSO users** (seeded personas, deterministic for verification):
+   - `admin@ameide.io` (admin) — password comes from `Secret/playwright-int-tests-secrets` key `E2E_SSO_PASSWORD`
+   - `user@ameide.io` (readonly) — password comes from `Secret/playwright-int-tests-secrets` key `E2E_VIEWER_PASSWORD`
+
+Prefer SSO for normal use; treat ArgoCD local admin as break-glass.
+
+---
+
+## Troubleshooting Decision Tree (by error string)
+
+1. **`Invalid parameter: redirect_uri`** (Keycloak UI)
+   - Fix Keycloak client `argocd` redirect URIs (`/api/dex/callback`) in reconciliation. See 450.
+
+2. **`invalid_scope`** (Keycloak redirect / Dex error page)
+   - Ensure realm has built-in scopes (`profile`, `email`) and the `argocd` client is linked to them.
+   - Linkage uses dedicated endpoints (see 485). See also 460.
+
+3. **Dex logs `unauthorized_client`**
+   - `argocd/argocd-secret` has wrong `dex.keycloak.clientSecret`.
+   - Verify `argocd-secret-sync` Ready; restart Dex. See 450.
+
+4. **ArgoCD CLI `http: named cookie not present`**
+   - Use HTTPS callback for CLI SSO. See section above.
+
+---
+
+## Acceptance Criteria
+
+SSO is “verified” when:
+- `infra/scripts/verify-argocd-sso.sh --all` succeeds, and
+- Dex logs contain no new `unauthorized_client` / `invalid_scope` errors during a login attempt, and
+- `https://argocd.ameide.io/api/dex/.well-known/openid-configuration` returns `200`.
+
