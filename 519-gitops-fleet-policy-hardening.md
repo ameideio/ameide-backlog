@@ -152,6 +152,7 @@ These are intentionally deferred to later in this backlog (but now tracked expli
    - AppSets install the right component set per cluster type while preserving `rolloutPhase` gating:
      - Azure: uses `environments/_shared/components/**` as the canonical full set.
      - Local: uses `environments/local/components/**` as a curated allowlist/subset.
+   - **No symlinked component definitions:** ApplicationSet git file generators must not rely on git symlinks (or any path that can be refactored out from under them). Broken symlinks cause repo-server file reads to fail and can Degrade `argocd-config` / stop application generation.
 3. **First-class enablement**
    - Every workload we own or wrap supports `enabled: true|false`.
    - For truly unsupported components, prefer “do not generate the Application” over “install disabled placeholder resources”.

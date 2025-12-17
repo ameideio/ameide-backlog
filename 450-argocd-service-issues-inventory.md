@@ -193,6 +193,18 @@ Remediation approach (vendor-aligned, GitOps-idempotent):
 2. Avoid “empty desired state + prune” by having the chart render a deterministic “disabled marker” resource (e.g., a ConfigMap) when `enabled=false`, so Argo can prune previously-created resources without requiring `allowEmpty`.
 3. Keep the disable scoped to local (either omit the component from the local component set, or keep the App visible-but-off via the marker resource).
 
+## Update (2025-12-17): `argocd-config` Degraded from broken local component symlinks
+
+- **Env:** `local` (k3d)
+- **App:** `argocd-config` (specifically `ApplicationSet/ameide`)
+- **Symptom:** ApplicationSet health `Degraded` with repo-server errors like:
+  - `unable to read files... pattern environments/local/components/platform/**/component.yaml: open .../platform/developer/devcontainer-service/component.yaml: no such file or directory`
+- **Root cause:** local curated `component.yaml` entries were committed as **git symlinks** pointing into `environments/_shared/**`. After refactoring optional workloads (e.g., `gitlab`, `devcontainer-service`) out of `_shared` into `environments/_optional/**`, those symlink targets no longer existed. Argo CD repo-server follows symlinks when reading git-generator files, so the generator fails hard and stops producing Applications.
+- **Remediation approach (vendor-aligned, GitOps-idempotent):**
+  1. Keep optional workloads out of the baseline local component set (store them under `environments/_optional/**`).
+  2. Avoid symlink-based component definitions for ApplicationSet git generators; prefer real `component.yaml` files (or stable, non-moving targets) to keep refactors safe.
+  3. Add a CI/pre-commit guard to fail on **broken symlinks** under `environments/**` to prevent a recurrence.
+
 ## Update (2025-12-16): Transient `Progressing` from strict probe timeouts under local load (Strimzi + Loki + Alloy)
 
 - **Env:** `local` (k3d)
