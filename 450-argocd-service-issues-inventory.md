@@ -374,6 +374,10 @@ Verification:
 - **Symptom:** Argo shows `Progressing` (deployment has `0/1 available`); Pod `CrashLoopBackOff`.
 - **Evidence:** logs contain `MigrationLocked: Plugin 'catalog' startup failed; caused by MigrationLocked: Migration table is already locked`.
 - **Remediation (GitOps-idempotent):** see `backlog/467-backstage.md` (keep `replicas: 1` and `strategy: Recreate` to avoid concurrent migrations, and migrate to a controlled, single-run migration path).
+- **Follow-up issue (GitOps regression):** Argo can show `ComparisonError` and fail to render the unlock job:
+  - **Symptom:** `YAML parse error on backstage/templates/migrations-unlock-job.yaml: yaml: line 55: could not find expected ':'`
+  - **Root cause:** the unlock job template rendered an unindented heredoc terminator (`SQL`) at column 1, breaking YAML parsing.
+  - **Fix:** indent the heredoc terminator within the YAML block scalar and keep the job script POSIX-`sh` compatible so it can run on `postgres:alpine`.
 
 ### Root cause B: CoreDNS domain rewrite depends on an Envoy alias Service that is not stable
 

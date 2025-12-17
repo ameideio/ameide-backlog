@@ -65,6 +65,7 @@
 - Added an optional `Job` in `sources/charts/platform/backstage` that clears a stuck Knex migration lock in Postgres (updates `public.knex_migrations_lock.is_locked` when present).
 - Enabled it in production via `sources/values/env/production/platform/platform-backstage.yaml` to recover the CrashLoop without manual `kubectl exec` / DB edits.
 - Follow-up: disable the job once production is green again (keep the capability but default `enabled=false`).
+- **Note:** if Argo shows a `ComparisonError` and the job never appears, check for Helm render failures in `templates/migrations-unlock-job.yaml` (a heredoc terminator must remain indented inside the YAML block scalar, or Helm will emit invalid YAML).
 
 ## 1. Executive Summary
 
