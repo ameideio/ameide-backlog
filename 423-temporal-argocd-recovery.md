@@ -24,6 +24,11 @@
   - Ensure `namespace_metadata(partition_id=54321)` exists (prevents startup crash `Failed to lock namespace metadata. sql: no rows in result set`).
   - Detect stale `cluster_metadata_info` cluster names; it fails-fast by default. Local may opt-in to auto-delete an allowlisted stale name to self-heal previous rename experiments.
 
+`data-temporal` also includes a deterministic Temporal schema setup hook (so preflight never deadlocks on missing tables):
+
+- **Job**: `temporal-db-schema` (Argo `PreSync`)
+- **Does**: run `temporal-sql-tool setup-schema` + `update-schema` using the vendor admin-tools image, matching the upstream Temporal schema tooling.
+
 ## Recovery checklist (no manual SQL)
 
 1) Ensure cert-manager + operator CRDs + controller are Healthy
@@ -38,7 +43,10 @@
 
 3) Inspect the `TemporalCluster` reconcile status and schema Jobs
    - `kubectl -n <env-namespace> get temporalcluster temporal -o yaml`
-   - Check operator-created schema Jobs/pods (usually `temporal-setup-*` / `temporal-update-*`) and their logs.
+   - Check GitOps schema/preflight hook Jobs and logs:
+     - `kubectl -n <env-namespace> logs job/temporal-db-schema`
+     - `kubectl -n <env-namespace> logs job/temporal-db-preflight`
+   - If the operator still creates internal schema Jobs (version-dependent), inspect those as well.
 
 4) If the DB has stale cluster metadata (duplicate cluster names)
    - Prefer a GitOps “break-glass” change over manual SQL:

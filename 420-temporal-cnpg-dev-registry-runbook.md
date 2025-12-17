@@ -23,7 +23,7 @@
 
 ## What we configured
 - **Temporal DB ownership:** CNPG (`platform-postgres-clusters`) owns the `temporal` and `temporal_visibility` roles/secrets. The TemporalCluster config uses the CNPG-managed Secrets `temporal-db-env` / `temporal-visibility-db-env` for Postgres passwords and connection URLs.
-- **Schema ownership:** The Temporal operator owns schema init/updates via its reconcile loop (setup/update Jobs driven by `TemporalCluster.spec.version`).
+- **Schema ownership:** Temporal owns its schema (we do not manage Temporal tables via Flyway). For deterministic GitOps on fresh clusters, `data-temporal` runs a `temporal-db-schema` Argo `PreSync` Job that executes `temporal-sql-tool setup-schema` + `update-schema` using the vendor admin-tools image.
 - **Namespace management:** Temporal namespaces are created declaratively via `TemporalNamespace` CRs (packaged with `data-temporal`).
 - **DB preflight (self-healing):** `data-temporal` runs a `temporal-db-preflight` Argo `PreSync` hook to wait for Postgres and ensure the metadata partition row exists (`namespace_metadata.partition_id=54321`). This removes the need for manual SQL in the normal rollout path.
 - **Webhook CA injection:** The Temporal operator uses admission webhooks and depends on cert-manager CA injection in its namespace (`ameide-system`). This is provided by the cluster-shared cert-manager install (`cluster-cert-manager` in `cert-manager`; CRDs via `cluster-crds-cert-manager`).

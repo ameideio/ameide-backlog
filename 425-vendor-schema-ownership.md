@@ -11,7 +11,7 @@ Now that Temporal’s persistence schemas are handled by the community Temporal 
 
 | Schema domain                      | Owner today                          | Tooling                                     |
 |-----------------------------------|---------------------------------------|---------------------------------------------|
-| Temporal default/visibility DBs   | Temporal operator (`TemporalCluster`) | `temporal-sql-tool` (setup-schema, update)  |
+| Temporal default/visibility DBs   | Temporal (vendor-owned) via `data-temporal` schema hook | `temporal-sql-tool` (setup-schema, update)  |
 | Keycloak, agents, workflows, etc. | `data-db-migrations` Argo app (Flyway) | Custom Flyway SQL under `/flyway/sql/**`    |
 
 Some vendors (Temporal, CNPG) require their own tooling and provide clear “don’t touch” guidance. Others (e.g., third-party apps installed via Helm) may or may not have opinionated schema tooling.
