@@ -367,6 +367,11 @@ Remediation approach (vendor-aligned, GitOps-idempotent):
 1. Enable metrics exposition in the `TemporalCluster` CR (`spec.metrics.enabled=true` with Prometheus listen port), so Deployments expose a `metrics` port that matches the Service `targetPort`.
 2. Keep Argo health customizations strict (do not mask operator readiness); fix the CR spec so the operator reports Ready deterministically.
 
+## Update (2025-12-17): Local bootstrap exports CA cert (Terraform automation)
+
+- **Goal:** eliminate manual steps during local cluster recreation.
+- **Change:** local Terraform bootstrap waits for cert-manager `Certificate/ameide-local-ca` and `Certificate/ameide-wildcard-local` in `ameide-local`, then exports the CA cert to `artifacts/local/ameide-local-ca.crt` (used by `scripts/local/setup.sh` host trust flow).
+
 ## Update (2025-12-15): Local observability + Gateway Progressing (OTEL collector arch + local LoadBalancer)
 
 Observed Argo apps stuck `Progressing`:
