@@ -822,6 +822,7 @@ See [426-keycloak-config-map.md §3.2](426-keycloak-config-map.md) for client-pa
 - `foundation-vault-bootstrap` Jobs were stuck `Init:ImagePullBackOff` because the bootstrap chart used GHCR mirror images (`ghcr.io/ameideio/mirror/vault`, `ghcr.io/ameideio/mirror/bitnami-kubectl`) before `ghcr-pull` existed, preventing Vault initialization and leaving all `SecretStore/ameide-vault` resources NotReady.
 - After switching Vault bootstrap to public images, `foundation-vault-bootstrap` Jobs failed `Init:StartError` because the initContainer used `rancher/kubectl` (no `/bin/sh`), but the chart’s initContainer command is a shell script that copies `kubectl` into a shared volume.
 - `foundation-vault-bootstrap` Jobs also waited forever for Vault because the chart defaulted `vault.serviceName=foundation-vault-core`, but Vault core is deployed per-environment with `fullnameOverride: vault-core-<env>` (e.g., `vault-core-dev`), so `VAULT_ADDR` resolved to a non-existent Service.
+- SecretStores could not authenticate to Vault even after unseal because the Vault Kubernetes auth roles were written with `audience=https://kubernetes.default.svc`, but AKS service account tokens use different `aud` values, resulting in `403 invalid audience (aud) claim`.
 
 **Root cause**
 - **Entra ID directory operations are not least-privilege** for the cluster deployer identity: creating or even checking groups requires tenant-level Microsoft Graph permissions that our subscription-scoped deployer SP does not have.
@@ -840,6 +841,7 @@ See [426-keycloak-config-map.md §3.2](426-keycloak-config-map.md) for client-pa
 5. Fix bootstrap env overlay resolution and rerun bootstrap so ArgoCD uses public bootstrap images (especially Redis) until `ghcr-pull` is materialized by External Secrets.
 6. For bootstrap jobs that need `kubectl`, prefer an initContainer image that includes `/bin/sh` (or change the initContainer to avoid shell) and pin the tooling image by digest to keep the bootstrap path deterministic.
 7. Remove hardcoded cross-chart service name assumptions in bootstrap charts: default to deriving env-scoped service names from the release namespace (e.g., `ameide-dev` → `vault-core-dev`) unless explicitly overridden.
+8. Do not hardcode Kubernetes service account token audiences in Vault roles: make `audience` optional (unset by default) or set it from a cluster-specific value when strict audience binding is desired.
 
 ## Validation Commands
 
