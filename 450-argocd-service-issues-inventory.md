@@ -205,6 +205,33 @@ Remediation approach (vendor-aligned, GitOps-idempotent):
   2. Avoid symlink-based component definitions for ApplicationSet git generators; prefer real `component.yaml` files (or stable, non-moving targets) to keep refactors safe.
   3. Add a CI/pre-commit guard to fail on **broken symlinks** under `environments/**` to prevent a recurrence.
 
+## Update (2025-12-17): AKS `plausible-oauth2-proxy` CrashLoop (OIDC discovery) + RedisFailover auth drift (Langfuse)
+
+### Plausible oauth2-proxy (OIDC discovery timeouts)
+
+- **Apps:** `dev-plausible-oauth2-proxy`, `staging-plausible-oauth2-proxy`, `production-plausible-oauth2-proxy`
+- **Symptom:** oauth2-proxy exits on startup with:
+  - `ERROR: Failed to initialise OAuth2 Proxy ... failed to discover OIDC configuration ... dial tcp <env-public-ip>:443: i/o timeout`
+- **Root causes (combined):**
+  - **In-cluster calls to public env IPs are not reliable** on AKS (hairpin/NAT path). oauth2-proxy must not depend on reaching `auth.<env>.ameide.io` via the public IP from inside the cluster.
+  - `hostAliases` pinned `auth.<env>.ameide.io` to the env public IP, bypassing DNS and forcing the failing network path.
+  - With default `ndots:5`, some clients resolve names via search-domain expansion (e.g., `auth.dev.ameide.io.<ns>.svc.cluster.local`) if the query is not treated as absolute; this can bypass intended rewrite behavior.
+- **Remediation (GitOps, vendor-aligned):**
+  1. Manage CoreDNS `coredns-custom` at cluster scope (backlog/454) with rewrite rules so `*.dev.ameide.io`, `*.staging.ameide.io`, `*.ameide.io`, and `argocd.ameide.io` resolve to in-cluster Envoy Service aliases.
+  2. Remove `hostAliases` from the Plausible oauth2-proxy chart values; rely on CoreDNS rewrites.
+  3. Set `dnsConfig.options.ndots: "1"` and add a startupProbe so oauth2-proxy isn’t killed while doing initial OIDC discovery.
+
+### RedisFailover auth templating (breaks master election → Langfuse worker CrashLoop)
+
+- **Apps:** `staging-platform-langfuse`, `production-platform-langfuse` (worker), plus `*-data-redis-failover`
+- **Symptom (Langfuse):** worker loops with Redis connection failures (`ECONNREFUSED`/`ETIMEDOUT`) because `redis-master` has no endpoints.
+- **Root cause:** RedisFailover master election never succeeds because the operator cannot authenticate to Redis pods:
+  - Operator logs show `Make new master failed ... WRONGPASS invalid username-password pair`.
+  - `Secret/redis-auth` was rendered with a literal string password (`{{ .REDIS_PASSWORD }}`) due to double-templating (Helm template inside ESO template).
+- **Remediation (GitOps):**
+  1. Fix the `redis-auth` ExternalSecret template so it writes the real password value and sets the `default` ACL to require that password.
+  2. Restart Redis pods so the updated auth config is applied (operator-managed StatefulSets can use `OnDelete`, so a pod delete may be required for rollout).
+
 ## Update (2025-12-16): Transient `Progressing` from strict probe timeouts under local load (Strimzi + Loki + Alloy)
 
 - **Env:** `local` (k3d)
@@ -275,6 +302,25 @@ Verification:
   - `*-platform-devcontainer-service` = `Synced/Degraded` (Pods Pending)
   - `*-platform-gitlab` = `OutOfSync/Missing`
 
+### Update (2025-12-17): ArgoCD UI and Gateways unreachable (Azure LB provisioning 403)
+
+- **Env:** `azure` (AKS)
+- **Symptom:** `https://argocd.ameide.io/` is not reachable (TCP connect timeout), even though:
+  - `Gateway/argocd/cluster` reports `Accepted=True` and `Programmed=True`.
+  - `Certificate/argocd-server` is `Ready=True` and `HTTPRoute/argocd` is `Accepted=True`.
+- **Observed evidence:**
+  - `curl -vkI https://argocd.ameide.io/` hangs and times out.
+  - The Envoy data-plane Service is **not provisioned** by Azure; it only has `spec.externalIPs` set (no `status.loadBalancer.ingress`).
+  - `kubectl -n argocd describe svc envoy-argocd-cluster-*` shows repeated cloud-provider errors:
+    - `ERROR CODE: AuthorizationFailed`
+    - `does not have authorization to perform action 'Microsoft.Network/publicIPAddresses/write'`
+    - client id `ae2a752e-153d-4f61-b7f0-a7d7e3852025` / object id `688bc921-26a0-4417-be3f-cdbc751cf9e9` (AKS cluster user-assigned identity `ameide-aks-mi`)
+- **Root cause:** AKS cluster managed identity lacks **Network** permissions in the `Ameide` resource group, so the cloud provider cannot provision/attach Public IPs and the LoadBalancer never becomes externally reachable.
+- **Remediation (Terraform-first, reproducible):**
+  1. Prefer least-privilege: grant the AKS cluster identity (`ameide-aks-mi`) `Network Contributor` on the **specific Terraform-managed Public IP resources** (ArgoCD PIP + per-env Envoy PIPs). Avoid RG-wide permissions unless required.
+  2. Ensure the gateway charts request the Terraform-managed static IP via cloud-provider-supported knobs (e.g., Service `loadBalancerIP` + Azure LB IP annotation), not via `spec.externalIPs`.
+  3. Re-verify with: `kubectl -n argocd get svc envoy-argocd-cluster-* -o wide` (expect `status.loadBalancer.ingress.ip`), then `curl -I https://argocd.ameide.io/`.
+
 ### Root cause A: all AKS node pools are tainted `NoSchedule`
 
 - **Evidence**: scheduler events for Pods/Jobs show `0/N nodes are available: ... had untolerated taint {ameide.io/environment: <env>}` and `CriticalAddonsOnly=true:NoSchedule`.
@@ -284,6 +330,27 @@ Verification:
 - **Remediation (vendor-aligned)**:
   - Do **not** taint all user pools in AKS by default. Keep `CriticalAddonsOnly` for the system pool if desired, but ensure at least one pool exists where standard workloads/Jobs can schedule without custom tolerations.
   - Track and implement this in Terraform (see `infra/terraform/modules/azure-aks/main.tf`).
+
+**Update (2025-12-17): confirmed Temporal schema Job lacks tolerations**
+- **Env/app:** `dev-data-temporal`, `staging-data-temporal`, `production-data-temporal`
+- **Symptom:** `Job/<env>/temporal-setup-default-schema` Pods stuck `Pending` with scheduler message: `had untolerated taint {ameide.io/environment: <env>}`.
+- **Evidence:** the Job is `ownerReferences: TemporalCluster/temporal` and the Pod template has **no** `tolerations`/`nodeSelector` (TemporalCluster `services.overrides` does not apply to this schema Job).
+- **Fix strategy:** either (a) introduce a non-tainted pool for operator-managed Jobs, or (b) adopt a policy/mutating layer that injects env scheduling constraints into Jobs created in env namespaces.
+
+### Update (2025-12-17): Argo Healthy while workloads are Pending (operator-generated Deployments missing scheduling)
+
+- **Env:** `azure` (AKS)
+- **Symptom:** several env workloads show `Pod Pending` / `ProgressDeadlineExceeded`, but their Argo Applications remain `Synced/Healthy`.
+- **Observed example:** `Deployment/ameide-dev/hello-v0-ui` has no tolerations/nodeSelector and is `ProgressDeadlineExceeded`, while the corresponding Application is `Healthy` because Argo health is derived from a higher-level primitive CR.
+- **Impact:** fleet health dashboards can appear “green” while real workloads are not scheduled.
+- **Remediation:** ensure operators propagate scheduling + readiness into their managed workloads (or add health customizations that treat non-ready generated workloads as unhealthy).
+
+### Update (2025-12-17): Backstage Progressing/CrashLoop from Knex migration lock
+
+- **Env/app:** `production-platform-backstage`
+- **Symptom:** Argo shows `Progressing` (deployment has `0/1 available`); Pod `CrashLoopBackOff`.
+- **Evidence:** logs contain `MigrationLocked: Plugin 'catalog' startup failed; caused by MigrationLocked: Migration table is already locked`.
+- **Remediation (GitOps-idempotent):** see `backlog/467-backstage.md` (keep `replicas: 1` and `strategy: Recreate` to avoid concurrent migrations, and migrate to a controlled, single-run migration path).
 
 ### Root cause B: CoreDNS domain rewrite depends on an Envoy alias Service that is not stable
 

@@ -45,8 +45,10 @@ Primary outcomes:
   - Per-env infra knobs are expressed via **namespaced** `Gateway.spec.infrastructure.parametersRef` → `EnvoyProxy` (no env-owned `GatewayClass` objects).
   - Static IP is requested via `Gateway.spec.addresses` (rendered from `azure.envoyPublicIpAddress` in env globals when `infrastructure.useStaticIP=true`), not via `EnvoyProxy.spec.provider.kubernetes.envoyService.loadBalancerIP` or Azure `azure-load-balancer-ipv4` annotations.
   - Internal/xDS TLS remains owned by Envoy Gateway `certgen` in `argocd`, while external hostname TLS remains cert-manager-managed in the environment namespace.
-- **Policy: avoid CoreDNS rewrite hacks on managed clusters**:
-  - CoreDNS `rewrite name` rules that map `*.{env}.ameide.io` to in-cluster Services are a **local-only** developer convenience; on AKS prefer Terraform-managed DNS A records + static IPs.
+- **Policy: CoreDNS rewrites are allowed when needed for in-cluster correctness (AKS)**:
+  - External clients should use Terraform-managed DNS A records + static public IPs.
+  - In-cluster clients (oauth2-proxy, Backstage, etc.) must not depend on reaching those public IPs (hairpin/NAT path). When needed, use the AKS-supported `coredns-custom` mechanism to rewrite `*.{env}.ameide.io` to stable in-cluster Envoy Service aliases.
+  - Avoid `hostAliases` as an OIDC/DNS “fix”; it bypasses DNS and tends to force the public-IP path.
   - Do not implement “stable Envoy aliasing” by hardcoding controller-generated hashed Service names (e.g., `envoy-<gateway>-<gateway>-<hash>`); treat this as a fleet footgun because the name is not a stable API contract.
 - **Policy: AKS node pool taints must not block operator-managed Jobs**:
   - Do not taint every user pool `NoSchedule` by default; some vendor operators create setup Jobs without configurable tolerations/nodeSelectors (e.g., Temporal operator schema Jobs).

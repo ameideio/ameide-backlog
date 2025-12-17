@@ -45,6 +45,22 @@
 **Follow-up**
 - Decide whether we want to keep Janus IDP in hosted environments and, if so, ensure the chosen tag is multi-arch (or publish our own multi-arch mirror).
 
+## Update (2025-12-17): AKS production CrashLoop from DB migration lock
+
+**Symptoms**
+- `production-platform-backstage` stuck `Progressing` with the pod CrashLooping.
+- Logs show Knex migration lock errors:
+  - `Can't take lock to run migrations: Migration table is already locked`
+  - `MigrationLocked: Plugin 'catalog' startup failed`
+
+**Working hypothesis**
+- Backstage runs plugin DB migrations automatically during startup. Under restarts and/or concurrent rollout attempts, the migration lock can remain held and the pod keeps crashing before becoming Ready.
+
+**Fix direction (GitOps-idempotent, vendor-aligned)**
+1. Ensure Backstage DB migrations are executed in a controlled, single-run path (e.g., a dedicated Kubernetes Job or initContainer pattern that runs once per deployment revision).
+2. Prevent concurrent migration attempts during rollout (e.g., `maxSurge: 0` for the Deployment, and avoid multiple replicas until migrations are stable).
+3. Avoid “manual unlock” as a runbook step; treat it as a last-resort break-glass only.
+
 ## 1. Executive Summary
 
 Backstage is designated as the Ameide "platform factory" – the internal developer portal that provides:
