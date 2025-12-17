@@ -150,22 +150,26 @@ These are intentionally deferred to later in this backlog (but now tracked expli
 1. **Collision-safe values layering**
    - Platform/fleet globals live under `global.ameide.*` (Helm-native propagation).
    - Avoid ambiguous root keys like `cluster`, `name`, `type`, `spec` in global values.
-2. **Wave-safe fleet targeting**
+2. **Environment overlays are the source of truth**
+   - `_shared/**` values must not contain environment-specific hostnames, issuers, or per-env defaults (e.g., `*.dev.ameide.io`).
+   - Environment identity comes from env globals (`sources/values/env/*/globals.yaml`), not from shared app values.
+   - Image tags choose code versions only; runtime configuration is injected via Kubernetes (`ConfigMap`/`Secret`), not baked into images.
+3. **Wave-safe fleet targeting**
    - AppSets install the right component set per cluster type while preserving `rolloutPhase` gating:
      - Azure: uses `environments/_shared/components/**` as the canonical full set.
      - Local: uses `environments/local/components/**` as a curated allowlist/subset.
    - **No symlinked component definitions:** ApplicationSet git file generators must not rely on git symlinks (or any path that can be refactored out from under them). Broken symlinks cause repo-server file reads to fail and can Degrade `argocd-config` / stop application generation.
-3. **First-class enablement**
+4. **First-class enablement**
    - Every workload we own or wrap supports `enabled: true|false`.
    - For truly unsupported components, prefer “do not generate the Application” over “install disabled placeholder resources”.
-4. **Operator-first secrets**
+5. **Operator-first secrets**
    - Stable runtime secrets come from Vault KV → ESO → Kubernetes Secret (per 446/452/462).
    - Eliminate Helm-generated stable secrets (no `rand*` + `lookup` loops in runtime charts).
-5. **Wrapper charts for third-party**
+6. **Wrapper charts for third-party**
    - Changes required for fleet policy are implemented in wrappers, not in `sources/charts/third_party/**`.
-6. **Central image policy**
+7. **Central image policy**
    - A single contract for mirror preference + multi-arch requirement, with wrapper translation to each chart’s image schema.
-7. **Standard bootstrap runner pattern**
+8. **Standard bootstrap runner pattern**
    - Consistent wait/retry/idempotency + cleanup semantics for bootstrap Jobs that gate waves.
    - Avoid hardcoded cross-chart naming assumptions in bootstrap scripts (e.g., Service names): derive env-scoped names from the release namespace or express them via the `global.ameide.*` contract so per-env isolation (`fullnameOverride`) doesn’t silently break bootstrap.
    - Avoid hardcoding Kubernetes token audience defaults in Vault Kubernetes auth roles: `aud` varies by cluster type (e.g., AKS includes API server/OIDC issuer audiences), so audience binding must be optional or cluster-derived to keep Vault → ESO auth reproducible.

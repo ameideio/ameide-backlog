@@ -20,6 +20,12 @@ Define the **minimum, deterministic checks** to validate:
 
 This backlog is intentionally “standard/unopinionated”: it verifies vendor-aligned behavior and avoids band-aids.
 
+## Policy (non-negotiable): runtime configuration only
+
+- **Configuration must not be baked into images.** Images must be build-once/run-anywhere across `dev/staging/production` for the same code revision.
+- Environment-specific values (hosts, issuers, redirect URIs, cookie domains) must be injected at runtime via Kubernetes (`ConfigMap`/`Secret`) and must be observable from the running Pods.
+- If `www` renders an incorrect login link while runtime values are correct, treat it as an application build/runtime-config defect (e.g., `NEXT_PUBLIC_*` used only at build time). Fix in the app so runtime config controls the rendered link.
+
 ---
 
 ## Environment Model (namespaces)
