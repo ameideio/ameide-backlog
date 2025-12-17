@@ -1,4 +1,4 @@
-# 580 — SSO Verifications (ArgoCD ↔ Dex ↔ Keycloak)
+# 580 — SSO Verifications (ArgoCD + Platform)
 
 **Status**: 🟡 Draft (operational runbook)  
 **Created**: 2025-12-17  
@@ -16,6 +16,7 @@ Define the **minimum, deterministic checks** to validate:
 3. Keycloak accepts ArgoCD’s OIDC request (redirect URIs + scopes).
 4. ArgoCD has the correct Dex client secret (Vault → ESO → `argocd-secret`).
 5. End-to-end SSO login works without manual cluster poking.
+6. `www.{env}.ameide.io` login routes to `platform.{env}.ameide.io` and Platform Auth.js can reach Keycloak (redirect_uri + scopes + CSRF).
 
 This backlog is intentionally “standard/unopinionated”: it verifies vendor-aligned behavior and avoids band-aids.
 
@@ -59,6 +60,74 @@ What it validates:
 - Full browser-style login: ArgoCD → Dex → Keycloak → ArgoCD session established.
 
 If this passes, SSO is considered healthy for both local and azure.
+
+---
+
+## Platform SSO Gate (www → platform → Keycloak)
+
+This gate validates that the browser flow works for:
+
+- `https://www.{env}.ameide.io/` (login button/link)
+- `https://platform.{env}.ameide.io/login` (Auth.js → Keycloak)
+
+Recommended verifier:
+```bash
+infra/scripts/verify-platform-sso.sh --azure
+```
+
+### A) `www` login link correctness
+
+Expected:
+- `www.{env}` renders a login link to `https://platform.{env}.ameide.io/login`
+
+Smoke:
+```bash
+curl -fsSL "https://www.ameide.io/" | head -c 200000 | rg -o 'href="[^"]*login[^"]*"' | head
+curl -fsSL "https://www.staging.ameide.io/" | head -c 200000 | rg -o 'href="[^"]*login[^"]*"' | head
+curl -fsSL "https://www.dev.ameide.io/" | head -c 200000 | rg -o 'href="[^"]*login[^"]*"' | head
+```
+
+Failure mapping:
+- `href="//login"` → broken link construction in `www-ameide` (often caused by `NEXT_PUBLIC_*` being build-time-only in `next start` images; runtime `ConfigMap` changes won’t affect compiled client code).
+
+### B) Keycloak accepts Platform client request (redirect_uri + scopes)
+
+Expected:
+- Keycloak should not return `invalid_scope` or “Invalid parameter: redirect_uri” for `client_id=platform-app`.
+
+Smoke (prod example):
+```bash
+curl -sS -D - -o /dev/null \
+  'https://auth.ameide.io/realms/ameide/protocol/openid-connect/auth?client_id=platform-app&redirect_uri=https%3A%2F%2Fplatform.ameide.io%2Fapi%2Fauth%2Fcallback%2Fkeycloak&response_type=code&scope=openid+profile+email&state=probe' | \
+  rg -n '^(HTTP/|location:|set-cookie:)'
+```
+
+Failure mapping:
+- `error=invalid_scope` → Platform client scopes not attached to `platform-app` (see 460, 485).
+- “Invalid parameter: redirect_uri” → `platform-app` missing `platform.{env}` callback allowlist (see 485).
+
+### C) Auth.js CSRF + sign-in initiation (Platform)
+
+Expected:
+- `GET /api/auth/csrf` returns `200` and sets CSRF cookies for the correct domain.
+- `POST /api/auth/signin/keycloak` returns `302` to Keycloak auth URL (not `MissingCSRF`).
+
+Smoke (staging example):
+```bash
+tmp="$(mktemp -d)"; jar="$tmp/cookies"; csrf="$tmp/csrf.json"
+curl -sS -c "$jar" -o "$csrf" 'https://platform.staging.ameide.io/api/auth/csrf'
+token="$(jq -r '.csrfToken' <"$csrf")"
+curl -sS -b "$jar" -c "$jar" -D - -o /dev/null \
+  -X POST 'https://platform.staging.ameide.io/api/auth/signin/keycloak' \
+  -H 'content-type: application/x-www-form-urlencoded' \
+  --data-urlencode "csrfToken=$token" \
+  --data-urlencode 'callbackUrl=https://platform.staging.ameide.io/' \
+  --data-urlencode 'json=true' | rg -n '^(HTTP/|location:|set-cookie:)'
+rm -rf "$tmp"
+```
+
+Failure mapping:
+- `.../login?error=MissingCSRF` → `AUTH_COOKIE_DOMAIN` mismatch (cookies ignored by browser). Fix `auth.cookies.domain` in the Platform values for that env.
 
 ---
 
@@ -185,4 +254,3 @@ SSO is “verified” when:
 - `infra/scripts/verify-argocd-sso.sh --all` succeeds, and
 - Dex logs contain no new `unauthorized_client` / `invalid_scope` errors during a login attempt, and
 - `https://argocd.ameide.io/api/dex/.well-known/openid-configuration` returns `200`.
-

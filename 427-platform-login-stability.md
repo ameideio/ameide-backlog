@@ -15,6 +15,26 @@
 
 ---
 
+## Update (2025-12-17): Platform SSO failures (MissingCSRF / invalid_scope / redirect_uri)
+
+Observed while validating `www.{env}.ameide.io` → `platform.{env}.ameide.io` login flows:
+
+- **Staging:** `POST https://platform.staging.ameide.io/api/auth/signin/keycloak` redirects to `/login?error=MissingCSRF`.
+  - Root cause: Platform `auth.cookies.domain` inherited the shared default `.dev.ameide.io`, so CSRF cookies are ignored by the browser for `platform.staging.ameide.io`.
+  - Fix: set `auth.cookies.domain: ".staging.ameide.io"` in `sources/values/env/staging/apps/www-ameide-platform.yaml`.
+- **Prod + Dev:** Keycloak rejects the Platform OAuth request with `error=invalid_scope` / `Invalid scopes: openid profile email` for `client_id=platform-app`.
+  - Root cause: `platform-app` does not have required client scopes (`profile`, `email`, …) attached (Keycloak models client-scope linkage as separate resources; see 485).
+  - Fix: reconcile `platform-app` via the Keycloak `client-patcher` and attach required scopes in the `ameide` realm.
+- **Staging Keycloak:** Keycloak returns “Invalid parameter: redirect_uri” for Platform callbacks (`platform.staging.ameide.io` missing from `platform-app` redirect URIs).
+  - Fix: ensure `platform-app` redirect URI allowlist includes `https://platform.staging.ameide.io/*` (and any `www.staging.*` callbacks if `www-ameide` uses the same client).
+
+Note: `www.ameide.io` and `www.staging.ameide.io` currently render `href=\"//login\"` instead of linking to the platform login page. This is a separate `www-ameide` issue (not an Auth.js backend failure) but blocks end-to-end “click login from www” verification.
+
+Additional observation (dev):
+- `GET /login?error=OAuthCallbackError` still renders the “Preparing sign-in…” page, so when Keycloak rejects the request (invalid scopes) the user can experience an apparent redirect loop (`/login` → Keycloak → `/login?error=...` → `/login` …). Once Keycloak accepts the request, this loop disappears; but it’s still worth ensuring the login UI surfaces error state and stops auto-redirect on failure.
+
+---
+
 ## Root Cause Analysis
 
 ### 1. `/login` Upstream Resets

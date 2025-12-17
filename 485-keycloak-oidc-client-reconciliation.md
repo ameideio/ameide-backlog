@@ -46,6 +46,20 @@ Remediation (GitOps, vendor-aligned):
   - Note: the endpoint uses the **client UUID** (`id`), not the `clientId` string, and updating `defaultClientScopes` / `optionalClientScopes` in the client JSON representation is not sufficient (Keycloak treats scope linkage as separate resources).
 - Keep realm-scope reconciliation (ensuring `profile`/`email` scopes exist) as a prerequisite for client-scope attachment.
 
+## Addendum (2025-12-17): Include `platform-app` in reconciliation (Platform Auth.js depends on it)
+
+Observed failure mode:
+- Platform login fails with `OAuthCallbackError` and Keycloak redirects with `error=invalid_scope` (`Invalid scopes: openid profile email`) for `client_id=platform-app`.
+- Staging Keycloak rejects `platform.staging.ameide.io` callbacks with “Invalid parameter: redirect_uri”.
+
+Root cause:
+- `platform-app` existed from realm import but was not being reconciled for drift (redirect URIs + client-scope attachments), so it diverged from the Auth.js request shape and new env hostnames.
+
+Remediation:
+- Treat `platform-app` like any other OIDC client: include it in `clientPatcher.clientReconciliation.clients` and reconcile:
+  - scope linkage (`profile`, `email`, `groups`, …) via dedicated endpoints
+  - redirect URI allowlist for `platform.{dev,staging,production,local}.ameide.io`
+
 ## Addendum (2025-12-17): client-patcher Keycloak auth must be debuggable and resilient
 
 Observed failure mode: the `client-patcher` can loop on “Token not available yet” and eventually fail authentication while the Keycloak Service is reachable.
