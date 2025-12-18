@@ -37,8 +37,8 @@ This section is a lightweight status tracker against the work packages below.
 
 Gates (currently passing):
 
-- `bin/ameide primitive verify --kind domain --name transformation --mode repo`
-- `bin/ameide primitive verify --kind projection --name transformation --mode repo`
+- `go run ./packages/ameide_core_cli/cmd/ameide primitive verify --kind domain --name transformation --mode repo`
+- `go run ./packages/ameide_core_cli/cmd/ameide primitive verify --kind projection --name transformation --mode repo`
 - `pnpm -C services/www_ameide_platform run typecheck`
 
 ## 1) Alignment to 520 (normative constraints)
@@ -50,7 +50,7 @@ We treat 520 as non-negotiable for this plan:
 - **Proto is the behavior schema.** Services/messages/events are defined in protos; SDKs are generated from protos.
 - **`buf generate` is canonical.** The CLI orchestrates scaffolding/verify; it does not replace Buf plugins.
 - **Generated outputs are clobber-safe.** Implementation-owned code lives outside generated-only roots.
-- **Guardrails are gates.** “Done” means regen-diff is clean, tests are green, and `bin/ameide primitive verify` is meaningful.
+- **Guardrails are gates.** “Done” means regen-diff is clean, tests are green, and `go run ./packages/ameide_core_cli/cmd/ameide primitive verify` is meaningful.
 
 ---
 
@@ -154,21 +154,21 @@ Example:
 
 - [x] Enterprise Knowledge contracts exist and are in use:
   - [x] `packages/ameide_core_proto/src/ameide_core_proto/transformation/knowledge/v1/`
-- [ ] Governance contracts exist:
-  - [ ] `packages/ameide_core_proto/src/ameide_core_proto/transformation/governance/v1/`
-- [ ] Definition Registry contracts exist:
-  - [ ] `packages/ameide_core_proto/src/ameide_core_proto/transformation/registry/v1/`
-- [ ] Transformation process-facts contracts exist:
-  - [ ] `packages/ameide_core_proto/src/ameide_core_proto/process/transformation/v1/`
+- [x] Governance contracts exist:
+  - [x] `packages/ameide_core_proto/src/ameide_core_proto/transformation/governance/v1/`
+- [x] Definition Registry contracts exist:
+  - [x] `packages/ameide_core_proto/src/ameide_core_proto/transformation/registry/v1/`
+- [x] Transformation process-facts contracts exist:
+  - [x] `packages/ameide_core_proto/src/ameide_core_proto/process/transformation/v1/`
 - [ ] Regen-diff gates are enforced repo-wide in CI (codegen drift is a hard error, not “best effort”).
 
 **Deliverables**
 
 - Proto packages exist under `packages/ameide_core_proto/src/ameide_core_proto/transformation/{knowledge,registry,governance}/v1/` (plus `process/transformation/v1/`):
   - [x] `transformation/knowledge/v1`
-  - [ ] `transformation/registry/v1`
-  - [ ] `transformation/governance/v1`
-  - [ ] `process/transformation/v1`
+  - [x] `transformation/registry/v1`
+  - [x] `transformation/governance/v1`
+  - [x] `process/transformation/v1`
 - Repo-wide SDK regeneration is deterministic and checked in.
 
 **DoD (gates)**
@@ -196,7 +196,8 @@ Example:
 
 **Scaffold (required)**
 
-- `bin/ameide primitive scaffold --kind domain --name transformation --lang go --proto-path <knowledge command service proto> --include-test-harness`
+- `go run ./packages/ameide_core_cli/cmd/ameide primitive scaffold --kind domain --name transformation --lang go --proto-path <knowledge command service proto> --include-test-harness`
+- `go run ./packages/ameide_core_cli/cmd/ameide primitive scaffold --kind domain --name transformation --lang go --proto-path <knowledge command service proto> --include-test-harness`
 
 **Progress checklist**
 
@@ -204,7 +205,7 @@ Example:
 - [x] Transactional outbox exists and facts are emitted after persistence (`transformation.knowledge.domain.facts.v1`).
 - [x] Repository scoping is enforced on writes (`{tenant_id, organization_id, repository_id}` everywhere).
 - [ ] Optimistic concurrency is enforced for view head updates (expected head version id / version number).
-- [x] Gate: `bin/ameide primitive verify --kind domain --name transformation --mode repo` passes.
+- [x] Gate: `go run ./packages/ameide_core_cli/cmd/ameide primitive verify --kind domain --name transformation --mode repo` passes.
 
 **Implementation requirements**
 
@@ -222,13 +223,13 @@ Example:
 **DoD (tests + verify)**
 
 - `cd primitives/domain/transformation && ./tests/run_integration_tests.sh`
-- `bin/ameide primitive verify --kind domain --name transformation --mode repo`
+- `go run ./packages/ameide_core_cli/cmd/ameide primitive verify --kind domain --name transformation --mode repo`
 
 #### A2) Projection primitive: TransformationKnowledgeQueryService
 
 **Scaffold (required)**
 
-- `bin/ameide primitive scaffold --kind projection --name transformation --lang go --proto-path <knowledge query service proto> --include-test-harness`
+- `go run ./packages/ameide_core_cli/cmd/ameide primitive scaffold --kind projection --name transformation --lang go --proto-path <knowledge query service proto> --include-test-harness`
 
 **Progress checklist**
 
@@ -237,7 +238,7 @@ Example:
 - [x] Query RPCs exist for MVP browse/list/get.
 - [x] Outbox → projection ingestion loop exists (no broker dependency):
   - [x] `primitives/projection/transformation/cmd/relay` tails the domain outbox and applies facts with durable offsets.
-- [x] Gate: `bin/ameide primitive verify --kind projection --name transformation --mode repo` passes.
+- [x] Gate: `go run ./packages/ameide_core_cli/cmd/ameide primitive verify --kind projection --name transformation --mode repo` passes.
 
 **Ingestion (target-state, minimal infra)**
 
@@ -252,7 +253,7 @@ To avoid introducing a message broker dependency in MVP while still preserving �
 **DoD (tests + verify)**
 
 - `cd primitives/projection/transformation && ./tests/run_integration_tests.sh`
-- `bin/ameide primitive verify --kind projection --name transformation --mode repo`
+- `go run ./packages/ameide_core_cli/cmd/ameide primitive verify --kind projection --name transformation --mode repo`
 
 #### A3) UISurface wiring (existing graphical editor)
 
