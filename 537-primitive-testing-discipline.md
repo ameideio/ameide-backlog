@@ -705,3 +705,60 @@ This section documents gaps between this spec (537) and the current CLI implemen
 | `packages/ameide_core_cli/internal/commands/primitive_commands.go` | `--checks` alias; integration mode via env; scaffold markers fail verification by default |
 | `packages/ameide_core_cli/internal/commands/primitive.go` | Cross-language tests, “no tests found” FAIL, scaffold marker scan, `Codegen` drift check |
 | `packages/ameide_core_cli/internal/commands/templates/integration/mcp_adapter/internal/mcp/http_test.go.tmpl` | RED marker test for integration MCP adapter scaffolds |
+
+---
+
+## 10. Ideal Refactoring Checklist (537 Closeout)
+
+This is the **ideal**, checklist-driven refactor set to bring the repo in line with 537 and eliminate the known gaps (G4/G5/G6/G8/G9).
+
+### 10.1 Integration Mode Contract (G4)
+
+- [ ] Standardize on `INTEGRATION_MODE={repo,local,cluster}` as the canonical contract.
+- [ ] Keep `INTEGRATION_TEST_MODE` as a **compatibility alias only**:
+  - Map `INTEGRATION_TEST_MODE=mock` → `INTEGRATION_MODE=repo`
+  - Map `INTEGRATION_TEST_MODE=cluster` → `INTEGRATION_MODE=cluster`
+  - When `INTEGRATION_MODE` is set, export a derived `INTEGRATION_TEST_MODE` (`cluster` vs `mock`) for older scripts.
+- [ ] Update the shared integration helpers:
+  - `tools/integration-runner/integration-mode.sh`
+  - `tools/integration-runner/integration_mode.py`
+- [ ] Update all generated harness scripts to export `INTEGRATION_MODE` (and the alias):
+  - `primitives/*/*/tests/run_integration_tests.sh` (scaffold output)
+  - SDK/internal scripts that source the helper should tolerate `local` mode (treat as “non-cluster” for required env vars).
+
+### 10.2 Verification Behavior (G4 + discipline enforcement)
+
+- [ ] `ameide primitive verify --check tests` must:
+  - [ ] FAIL when no tests exist.
+  - [ ] FAIL when any test file contains `AMEIDE_SCAFFOLD`.
+  - [ ] Run tests with `INTEGRATION_MODE` exported (and `INTEGRATION_TEST_MODE` for compatibility).
+- [ ] Consolidate all CLI paths that currently read `INTEGRATION_TEST_MODE` to read `INTEGRATION_MODE` first:
+  - `packages/ameide_core_cli/internal/commands/primitive.go`
+  - `packages/ameide_core_cli/internal/commands/primitive_commands.go`
+  - `packages/ameide_core_cli/internal/commands/verify.go`
+
+### 10.3 Per-Primitive Invariants (G5)
+
+- [ ] Process: implement a **static determinism policy** test scaffold (and optionally a verify check):
+  - `internal/tests/determinism_policy_test.go` (no banned imports/calls in workflow code)
+- [ ] Agent: scaffold governance tests required by 537:
+  - `tests/test_tool_grants.py`
+  - `tests/test_risk_tiers.py`
+  - `tests/test_state_discipline.py`
+  - `tests/test_idempotency.py`
+  - `tests/test_state.py`
+  - `tests/test_thread_id.py`
+- [ ] Domain/Process: scaffold the envelope metadata tests required by 537 (G6):
+  - Tenant scope (`tenant_id`)
+  - Idempotency key propagation
+  - W3C trace context (`traceparent` / `tracestate`)
+  - Correlation/causation IDs (where applicable)
+
+### 10.4 Codegen Drift Coverage (G9)
+
+- [ ] Align `Codegen` verification to the **authoritative** generated directories used by the repo today.
+- [ ] Ensure the gate either:
+  - [ ] Diffs generated output against committed artifacts for the authoritative directories, **or**
+  - [ ] Clearly documents which generated trees are authoritative and which are build-only.
+- [ ] Update the `Codegen` gate implementation:
+  - `packages/ameide_coding_helpers/verify/repo_gate.go`
