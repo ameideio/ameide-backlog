@@ -1,0 +1,91 @@
+# 581 – Parallel AI Agents in VS Code Dev Containers
+
+**Status:** Draft  
+**Owner:** Platform / Developer Experience  
+**Related backlogs:** [435-remote-first-development.md](435-remote-first-development.md), [492-telepresence-verification.md](492-telepresence-verification.md), [492-telepresence-reliability.md](492-telepresence-reliability.md), [433-codex-cli-057.md](433-codex-cli-057.md)
+
+## Decision (golden path)
+
+Keep the existing “generic” devcontainer workflow for normal human development on `dev`/`main`.
+
+Add three *additional* agent slots for parallel work; they do not replace the generic workflow:
+
+- Slots: `agent-01`, `agent-02`, `agent-03`
+- One worktree per slot (or separate clones)
+- One VS Code window per slot → “Reopen in Container”
+- One branch per slot (e.g., `agent-01/<topic>`) → PRs merge into `DEV`
+
+## One agent identity everywhere
+
+Canonical variable:
+
+- `AMEIDE_AGENT_ID=agent-01|agent-02|agent-03`
+
+Recommended worktree folder names (so `${localWorkspaceFolderBasename}` carries the slot):
+- `ameide-agent-01`, `ameide-agent-02`, `ameide-agent-03`
+
+## Telepresence + Tilt: same-workload parallelism
+
+### Baseline: unique intercept names per agent
+
+When `AMEIDE_AGENT_ID` is set, dev tooling should create intercepts using:
+
+- intercept name: `${workload}-${AMEIDE_AGENT_ID}`
+- target workload: `--workload ${workload}`
+
+This avoids name collisions when multiple agents are connected at once.
+
+### Recommended (HTTP services): header-filtered intercepts
+
+Unique names are necessary but not sufficient if both intercept “all traffic” for the same service.
+
+For HTTP services, use Telepresence HTTP intercept filtering so each agent only receives matching traffic:
+
+- set `AMEIDE_TELEPRESENCE_HTTP_FILTER=1`
+- tooling adds: `--mechanism http --http-header "X-Ameide-Agent=${AMEIDE_AGENT_ID}"`
+- the caller must send that header for requests to match
+
+## VS Code port-forward collisions
+
+Multiple VS Code windows can’t forward the same container port to the same local port.
+
+Guidance:
+- Prefer remote-first URLs (`https://*.dev.ameide.io`) during intercepts.
+- If forwarding is required, rely on VS Code auto-remap or assign per-agent local ports.
+
+## Codex CLI auth callback collision (`localhost:1455`)
+
+Codex CLI’s “Sign in with ChatGPT” login flow runs a local callback server on `localhost:1455`.
+
+Default recommendation:
+- Authenticate once and share `~/.codex/auth.json` across all agent containers (avoid running concurrent login flows).
+
+Deprecated:
+- Avoid using `OPENAI_API_KEY` / `codex login --with-api-key` for these devcontainers; prefer shared `~/.codex/auth.json` so we don’t multiply long-lived secrets across agent environments.
+
+## Bootstrap side effects (multi-container)
+
+Repeated bootstrap (Azure login, kube context wiring, port-forwards) across N containers creates churn and state coupling.
+
+Recommendation:
+- Use `AMEIDE_BOOTSTRAP_PROFILE=primary|agent`
+  - `primary`: does the full bootstrap.
+  - `agent`: skips side effects and assumes shared state is already present.
+
+## Implementation (repo)
+
+- Devcontainer configs:
+  - `.devcontainer/devcontainer.json`: generic config, mounts shared volumes for `~/.codex`, `~/.azure`, `~/.kube`, `~/.config/ameide`.
+  - `.devcontainer/agent/devcontainer.json`: agent config, sets `AMEIDE_BOOTSTRAP_PROFILE=agent` and derives `AMEIDE_AGENT_ID` from `${localWorkspaceFolderBasename}`.
+- Bootstrap:
+  - `.devcontainer/postCreate.sh` skips `tools/dev/bootstrap-contexts.sh` when `AMEIDE_BOOTSTRAP_PROFILE=agent`.
+- Telepresence wrappers:
+  - `tools/dev/telepresence.sh` and `scripts/telepresence/intercept_service.sh` use agent-aware intercept naming and optional HTTP filtering (`AMEIDE_TELEPRESENCE_HTTP_FILTER=1`).
+
+## Acceptance criteria
+
+1. Generic devcontainer remains the default for `dev`/`main`.
+2. Two+ agent devcontainers run concurrently without working-tree interference.
+3. Same-workload parallelism is supported for HTTP services via header-filtered intercepts.
+4. Codex CLI auth avoids `localhost:1455` collisions by default and deprecates API-key login in devcontainers.
+5. Bootstrap supports an explicit “agent” mode that avoids repeated side effects.
