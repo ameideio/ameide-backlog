@@ -65,12 +65,12 @@ This section is the current repo snapshot of **what is implemented vs what is st
   - [x] Postgres migrations: outbox + enterprise repository substrate.
   - [x] Commands implemented for repositories/nodes/assignments/elements/relationships.
   - [x] Transactional outbox emits `transformation.knowledge.domain.facts.v1` after persistence.
-  - [x] Gate: `bin/ameide primitive verify --kind domain --name transformation --mode repo` passes.
+  - [x] Gate: `go run ./packages/ameide_core_cli/cmd/ameide primitive verify --kind domain --name transformation --mode repo` passes.
 - [x] Projection primitive implemented: `primitives/projection/transformation`.
   - [x] Idempotent ingestion via `projection_inbox(tenant_id,message_id)`.
   - [x] Materialized read model tables for repositories/nodes/assignments/elements/relationships/versions.
   - [x] Query services implemented (MVP browse/list/get).
-  - [x] Gate: `bin/ameide primitive verify --kind projection --name transformation --mode repo` passes.
+  - [x] Gate: `go run ./packages/ameide_core_cli/cmd/ameide primitive verify --kind projection --name transformation --mode repo` passes.
 - [x] Target-state ingestion loop exists (no broker dependency for MVP):
   - [x] `primitives/projection/transformation/cmd/relay` tails the Domain outbox and applies facts to the projection store with durable offsets.
 - [x] WWW portal wired to primitives (MVP “repository editing/viewing” slice):
@@ -82,11 +82,11 @@ This section is the current repo snapshot of **what is implemented vs what is st
 ### Primitives scaffolds (beyond MVP slice)
 
 - [x] Process primitive scaffold exists: `primitives/process/transformation` (workflow logic pending).
-  - [x] Gate: `bin/ameide primitive verify --kind process --name transformation --mode repo` passes (GitOps TODOs remain).
+  - [x] Gate: `go run ./packages/ameide_core_cli/cmd/ameide primitive verify --kind process --name transformation --mode repo` passes (GitOps TODOs remain).
 - [x] Agent primitive scaffold exists: `primitives/agent/transformation` (role definitions/tool grants pending).
-  - [x] Gate: `bin/ameide primitive verify --kind agent --name transformation --mode repo` passes (GitOps TODOs remain).
+  - [x] Gate: `go run ./packages/ameide_core_cli/cmd/ameide primitive verify --kind agent --name transformation --mode repo` passes (GitOps TODOs remain).
 - [x] UISurface primitive scaffold exists: `primitives/uisurface/transformation` (placeholder; MVP portal is `services/www_ameide_platform`).
-  - [x] Gate: `bin/ameide primitive verify --kind uisurface --name transformation --mode repo` passes (GitOps TODOs remain).
+  - [x] Gate: `go run ./packages/ameide_core_cli/cmd/ameide primitive verify --kind uisurface --name transformation --mode repo` passes (GitOps TODOs remain).
 - [x] Integration primitive scaffold exists: `primitives/integration/transformation-mcp-adapter` (connectors/runners pending).
 
 ### Deletion (remove old/new soup)

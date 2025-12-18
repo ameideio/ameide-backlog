@@ -1,6 +1,6 @@
 # 527 Transformation — Proto Contract Specification
 
-**Status:** Draft (partial implementation in repo; core envelope unification pending)  
+**Status:** Draft (core envelope unification pending; legacy UI façade removed)  
 **Parent:** [527-transformation-capability.md](527-transformation-capability.md)
 
 This document specifies the **proto contracts** for the Transformation capability following `backlog/496-eda-principles.md` and `backlog/509-proto-naming-conventions.md`.
@@ -22,32 +22,35 @@ Delivered (today, in repo):
 - [x] Enterprise Knowledge contracts exist and are used by the MVP:
   - [x] `packages/ameide_core_proto/src/ameide_core_proto/transformation/knowledge/v1/` (commands, queries, facts, view layout payloads).
   - [x] Domain emits `transformation.knowledge.domain.facts.v1` and Projection ingests those facts.
-- [x] Legacy UI façade contracts still exist (deprecated; not used by MVP):
-  - [x] `packages/ameide_core_proto/src/ameide_core_proto/transformation/v1/` (`TransformationService` RPCs).
+- [x] Governance/registry packages exist (not in MVP slice yet):
+  - [x] `packages/ameide_core_proto/src/ameide_core_proto/transformation/governance/v1/`
+  - [x] `packages/ameide_core_proto/src/ameide_core_proto/transformation/registry/v1/`
+- [x] Transformation process facts contracts exist (not in MVP slice yet):
+  - [x] `packages/ameide_core_proto/src/ameide_core_proto/process/transformation/v1/`
+- [x] Legacy UI façade removed (deprecated; replaced by split subcontext services):
+  - [x] `packages/ameide_core_proto/src/ameide_core_proto/transformation/v1/` no longer exists.
 - [x] Scrum profile contracts exist (not in MVP slice):
   - [x] `packages/ameide_core_proto/src/ameide_core_proto/transformation/scrum/v1/`
   - [x] Scrum process facts exist under `packages/ameide_core_proto/src/ameide_core_proto/process/scrum/v1/`
 
 Not yet delivered (target state in this spec):
 
-- [ ] Core Transformation envelope unification under `ameide_core_proto.transformation.core.v1` (subject/meta catalogs).
-- [ ] Governance/registry packages (`ameide_core_proto.transformation.governance.v1`, `ameide_core_proto.transformation.registry.v1`).
-- [ ] Transformation process facts proto catalog (topic exists in spec; proto package not yet implemented).
+- [ ] Core Transformation envelope unification under `ameide_core_proto.transformation.core.v1` (subject/meta catalogs; currently partial).
 - [ ] TOGAF/PMI profile contracts and their process facts packages.
 
 ## 1) Packages (authoritative)
 
 - Core Transformation common/meta (partial today; target for full unification): `ameide_core_proto.transformation.core.v1`
 - Enterprise Knowledge substrate (canonical repository model, 303 target-state): `ameide_core_proto.transformation.knowledge.v1`
-- Governance (target): `ameide_core_proto.transformation.governance.v1`
-- Definition Registry (target): `ameide_core_proto.transformation.registry.v1`
+- Governance (exists; target for broadened coverage): `ameide_core_proto.transformation.governance.v1`
+- Definition Registry (exists; target for broadened coverage): `ameide_core_proto.transformation.registry.v1`
 - Scrum profile (exists): `ameide_core_proto.transformation.scrum.v1`
-- Legacy UI façade (exists; deprecated): `ameide_core_proto.transformation.v1`
+- Legacy UI façade (removed): `ameide_core_proto.transformation.v1`
 - TOGAF profile (target): `ameide_core_proto.transformation.togaf.v1`
 - PMI profile (target): `ameide_core_proto.transformation.pmi.v1`
 - Process facts:
   - Scrum: `ameide_core_proto.process.scrum.v1` (exists)
-  - Transformation (target): `ameide_core_proto.process.transformation.v1`
+  - Transformation (exists): `ameide_core_proto.process.transformation.v1`
   - TOGAF: `ameide_core_proto.process.togaf.v1` (target)
   - PMI: `ameide_core_proto.process.pmi.v1` (target)
 
@@ -126,7 +129,7 @@ Minimum required fields (conceptual; exact proto lives under `ameide_core_proto.
   - `message_id`, `correlation_id`, `causation_id` (when available)
   - optional `domain_intent_ref` and `domain_fact_ref` links when an activity triggers/awaits domain changes
 - Tool evidence (for `ToolRunRecorded`):
-  - `tool` (e.g., `bin/ameide`, `buf`, `go test`)
+  - `tool` (e.g., `ameide` (CLI), `buf`, `go test`)
   - `arguments`/`invocation_ref`
   - `result` (exit code, summary)
   - evidence attachment refs (logs/artifacts)
