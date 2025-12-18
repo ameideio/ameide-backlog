@@ -1,6 +1,6 @@
 # 558 — Ameide Coding Helpers (Deterministic Tooling Package)
 
-**Status:** Draft  
+**Status:** In progress (partial implementation landed)  
 **Audience:** CLI implementers, agent/tool implementers, Transformation Process teams  
 **Scope:** Add a shared deterministic tooling package (consumable by humans, agents, and process activities) and move toward a proto-first report contract.
 
@@ -48,9 +48,30 @@ Invokers
   - failures + next steps
   - evidence references (paths/URIs/digests)
 
+## Current implementation (what exists today)
+
+- `packages/ameide_coding_helpers/guardrails` exists and is the canonical home for running Buf guardrails (used by `ameide verify`).
+- `packages/ameide_coding_helpers/doctor` exists and powers `ameide doctor` (fast preflight for toolchain + repo invariants).
+- The CLI surfaces these as first-class commands:
+  - `ameide doctor` (human/agent/process preflight; supports `--json`)
+  - `ameide verify` (repo + primitives gate; invokes coding-helpers guardrails)
+
+## Report contract (now vs next)
+
+- **Now:** deterministic actions return `ameide_core_proto.primitive.v1.CheckResult` (proto type) and can be rendered as JSON (CLI `--json`) for agents/processes.
+- **Next:** map/emit tool evidence as `ameide_core_proto.process.transformation.v1.ToolRunRecorded` (process facts) so orchestration can store immutable evidence and references, and keep the CLI output a view (not the evidence store).
+
+## Next steps (to complete 558)
+
+- Extract more deterministic actions from the CLI into `packages/ameide_coding_helpers`:
+  - `generate` (Buf template invocations + SDK sync helpers)
+  - `verify` (policy scripts + workspace invariants; already partially in CLI)
+  - `scaffold` (pure file generation; avoid coupling to interactive CLI concerns)
+- Add an explicit “no secrets” guardrail for common repo credential files (e.g., `.npmrc`, `.netrc`) to prevent token regressions.
+
 ## Cross-references
 
 - Transformation evidence posture: `backlog/527-transformation-process.md`, `backlog/527-transformation-proto.md`
 - Tool evidence descriptor discussion: `backlog/527-transformation-integration.md`
 - CLI mindmaps (historical): `backlog/557-ameide-cli-runner-mindmaps.md`
-
+ - SDK-only consumption policy: `backlog/300-400/393-ameide-sdk-import-policy.md`

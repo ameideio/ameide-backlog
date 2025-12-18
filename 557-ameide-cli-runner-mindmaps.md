@@ -6,6 +6,8 @@
 
 > **Deprecation notice:** This backlog is superseded by `backlog/558-ameide-coding-helpers.md`, which moves deterministic tooling into a shared package and returns the CLI toward a proto-based platform client posture.
 
+Implementation note: the extraction has started — `packages/ameide_coding_helpers/*` exists and `ameide doctor` is now implemented as a first-class CLI command.
+
 ## Target posture (what “runner-first” means)
 
 Reframe: the CLI is **not** the delivery process — it is a deterministic tool invoked by the IT4IT-aligned Transformation Process.
@@ -51,4 +53,3 @@ ameide (CLI)
 - Verification baselines: `backlog/521e-internal-verification-baseline.md`, `backlog/521f-external-verification-baseline.md`
 - Transformation evidence + facts: `backlog/527-transformation-process.md`, `backlog/527-transformation-proto.md`
 - Coding helpers target: `backlog/558-ameide-coding-helpers.md`
-
