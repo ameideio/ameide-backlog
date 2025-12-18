@@ -1,7 +1,7 @@
 # 444 – Terraform Infrastructure
 
 **Created**: 2025-12-04
-**Updated**: 2025-12-11
+**Updated**: 2025-12-18
 
 > **Status – Maintained:** Remote-first dev (see [435-remote-first-development.md](435-remote-first-development.md)) remains the default workflow. This document is the canonical reference for Terraform-managed environments (cloud + optional local k3d fallback) and is required when offline/air-gapped scenarios demand local infrastructure.
 
@@ -53,6 +53,7 @@ Targets:
   azure-bicep      Bicep for Azure Marketplace only
   aws              Terraform AWS (future)
   local            k3d + Terraform (implemented)
+  all              Deploy both azure + local (parallel) and run verifiers
   bootstrap-azure  ArgoCD bootstrap for an existing Azure cluster
   bootstrap-local  ArgoCD bootstrap for an existing local k3d cluster
 ```
@@ -227,6 +228,50 @@ module "aks" {
 ```
 
 The module always enables workload identity/oidc and exposes taints/labels internally, so consumers do not need feature flags for those settings.
+
+## Update (2025-12-18): “No manual steps” bootstrap + verification gates
+
+### What changed in practice
+
+- **Terraform + GitOps are now the only supported path** to:
+  - create/destroy local k3d and Azure AKS,
+  - install ArgoCD,
+  - apply the root ApplicationSets,
+  - and run end-to-end verification scripts.
+- **Bootstrap is no longer allowed to deadlock** on components that depend on the rest of GitOps (notably Dex depending on Keycloak ingress).
+
+### Deterministic kube contexts (goal: stable names)
+
+- **Azure**: Terraform refreshes kube credentials and renames the context to a stable value (default `ameide-aks`).
+  - See `infra/terraform/azure/main.tf` (`null_resource.aks_credentials` + `var.argocd_kube_context`).
+- **Local**: Terraform creates `k3d-ameide`, then aliases it as `ameide-local` for a stable developer-facing context.
+  - See `infra/terraform/local/main.tf` (`null_resource.kube_context_alias`).
+
+### Bootstrap behavior (don’t wait on Dex)
+
+- Helm `--wait` can fail early on fresh clusters because Dex may not be able to reach `auth.<env>.ameide.io` until the Keycloak stack has converged.
+- The bootstrap logic now treats ArgoCD as “installed” when:
+  - ArgoCD CRDs are established, and
+  - core controllers are rolled out (server, repo-server, application-controller, applicationset-controller, notifications, redis),
+  - **excluding Dex** from readiness gating.
+
+Files implementing this:
+- `infra/terraform/modules/argocd-bootstrap/main.tf`
+- `bootstrap/lib/argocd.sh`
+
+### Verification as a first-class gate
+
+- Local + Azure can be verified via scripts (no manual browser/CLI steps required):
+  - `infra/scripts/verify-argocd-sso.sh`
+  - `infra/scripts/verify-platform-sso.sh`
+- The combined path is exposed as:
+  - `./infra/scripts/deploy.sh all`
+
+### Known CI gate still failing (expected until app image changes)
+
+- Azure CI “apply + verify” currently fails the platform verifier because `www.*` does not render the expected login link:
+  - `https://platform.<env>.ameide.io/login`
+- This is an application image/runtime-config issue (GitOps should not embed env config into images). Once `www-ameide` reads runtime config and is rebuilt, this gate should go green without further Terraform/GitOps changes.
 
 ### azure-identity
 

@@ -2,8 +2,12 @@
 
 **Status**: Partially Resolved (CI/CD blocking staging/prod)
 **Created**: 2025-12-04
-**Updated**: 2025-12-16
-**Commit**: `6c805de fix(446): remove tolerations overrides, inherit from globals`
+**Updated**: 2025-12-18
+**Commits**:
+- `485a3961 fix(sso): make keycloak client-patcher deterministic`
+- `3654788b fix(local): bootstrap argocd without dex blocking`
+- `04915b5a fix(bootstrap): don't block on dex readiness`
+- `3a311a7d fix(argocd): refresh dex secret from vault quickly`
 **Related**: [442-environment-isolation.md](442-environment-isolation.md), [445-argocd-namespace-isolation.md](445-argocd-namespace-isolation.md), [446-namespace-isolation.md](446-namespace-isolation.md), [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md), [451-secrets-management.md](451-secrets-management.md), [456-ghcr-mirror.md](456-ghcr-mirror.md)
 
 ---
@@ -198,6 +202,50 @@ Remediation approach (vendor-aligned, GitOps-idempotent):
 - **Env:** `local` (k3d)
 - **App:** `argocd-config` (specifically `ApplicationSet/ameide`)
 - **Symptom:** ApplicationSet health `Degraded` with repo-server errors like:
+
+## Update (2025-12-18): SSO bootstrap + secret pipeline reliability (local + azure)
+
+### Symptom(s)
+
+- Local ArgoCD SSO intermittently fails after a fresh cluster create with:
+  - `unauthorized_client Invalid client credentials` (Dex ↔ Keycloak)
+  - Or the Dex server crashloops early because `auth.local.ameide.io` isn’t routable yet
+- Local `argocd/argocd-secret` can remain stuck with a placeholder Dex client secret for up to 1 hour.
+- Azure CI was repeatedly failing post-apply verifications despite core components being healthy.
+
+### Root causes
+
+1. **Keycloak-generated secret extraction raced ExternalSecrets**:
+   - `platform-keycloak-realm` `client-patcher` ran as a `PostSync` hook (after resources like `ExternalSecret/keycloak-realm-oidc-clients` were already applied).
+   - With `refreshInterval: 1h`, ExternalSecrets could materialize and cache the placeholder (`keycloak_generated_placeholder`) and keep it for a long time even though Vault had the real secret.
+2. **Bootstrap deadlock on Dex**:
+   - Dex depends on reaching the external Keycloak URL (`https://auth.<env>.ameide.io/...`) which is not guaranteed to exist during first bootstrap.
+   - Helm `--wait` gates the release on Dex readiness, creating a chicken-and-egg loop (ArgoCD can’t reconcile Keycloak until ArgoCD is installed).
+
+### Fix shipped (deterministic + reproducible)
+
+- **Make `client-patcher` run *before* ExternalSecrets**:
+  - `sources/charts/foundation/operators-config/keycloak_realm/templates/client-patcher-job.yaml`
+  - Changed hook from `PostSync` → `Sync` and added a realm availability wait (operator reconciliation gate) before extracting and writing secrets to Vault.
+- **Avoid bootstrap gating on Dex**:
+  - `infra/terraform/modules/argocd-bootstrap/main.tf` now waits for ArgoCD CRDs + core components only (not Dex).
+  - `bootstrap/lib/argocd.sh` does the same for the bootstrap-v2 workflow.
+- **Speed up Dex secret propagation**:
+  - `sources/values/_shared/cluster/vault-secrets-argocd.yaml` changes `ExternalSecret/argocd-secret-sync` refresh from `1h` → `1m`.
+
+### Current status
+
+- **Local**:
+  - `infra/scripts/verify-argocd-sso.sh --local` ✅ passes end-to-end.
+  - `infra/scripts/verify-platform-sso.sh --local` ✅ link check passes; platform flow may `SKIP` if `www-ameide-platform` is not deployed.
+- **Azure**:
+  - `infra/scripts/verify-argocd-sso.sh --azure` ✅ passes across dev/staging/production.
+  - `infra/scripts/verify-platform-sso.sh --azure` ❌ currently fails the `www.*` login link gate (platform itself can complete SSO).
+
+### Remaining blocker (not solvable in GitOps alone)
+
+- `www.*` must render an environment-correct login link to `https://platform.<env>.ameide.io/login` **without baking configuration into the image**.
+- Until the `www-ameide` image reads runtime configuration, CI “Apply + Verify” will keep failing the platform verifier even if cluster + SSO plumbing is correct.
   - `unable to read files... pattern environments/local/components/platform/**/component.yaml: open .../platform/developer/devcontainer-service/component.yaml: no such file or directory`
 - **Root cause:** local curated `component.yaml` entries were committed as **git symlinks** pointing into `environments/_shared/**`. After refactoring optional workloads (e.g., `gitlab`, `devcontainer-service`) out of `_shared` into `environments/_optional/**`, those symlink targets no longer existed. Argo CD repo-server follows symlinks when reading git-generator files, so the generator fails hard and stops producing Applications.
 - **Remediation approach (vendor-aligned, GitOps-idempotent):**
