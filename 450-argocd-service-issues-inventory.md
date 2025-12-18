@@ -261,6 +261,24 @@ Remediation approach (vendor-aligned, GitOps-idempotent):
 ### Remediation
 
 - Add a deterministic CI gate to **wait for the Public IPs to be associated** before running the SSO verifiers (removes timing flakiness without changing cluster configuration).
+
+## Update (2025-12-18): Azure bootstrap could not sync GitOps repo (repo-creds mis-detected public access)
+
+### Symptom(s)
+
+- `argocd-config` app stays `sync=Unknown` with:
+  - `failed to list refs: authentication required: Repository not found.`
+- Only bootstrap apps exist (`argocd-config`, `argocd-tls`); platform apps never get created, so Envoy/Keycloak never deploy and Public IPs remain unassociated.
+
+### Root cause
+
+- The bootstrap `repo_creds` job tested “is the repo public?” by running `git ls-remote` from inside the checked-out workspace.
+- In GitHub Actions, `actions/checkout` injects Git credentials into the workspace repo (e.g. `http.extraheader` in `.git/config`), so the “anonymous” check could succeed even when the repo is private.
+- Result: the bootstrap created `repo-creds-ameide-gitops` **without** username/password, so in-cluster ArgoCD could not fetch the repo.
+
+### Remediation
+
+- Run the anonymous `git ls-remote` probe from a temp directory (not inside the workspace repo) and explicitly ignore global/system git configs.
 2. **Bootstrap deadlock on Dex**:
    - Dex depends on reaching the external Keycloak URL (`https://auth.<env>.ameide.io/...`) which is not guaranteed to exist during first bootstrap.
    - Helm `--wait` gates the release on Dex readiness, creating a chicken-and-egg loop (ArgoCD can’t reconcile Keycloak until ArgoCD is installed).
