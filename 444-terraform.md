@@ -275,6 +275,7 @@ For Azure, “deploy” and “delete” must be reproducible and runnable witho
 - **Apply (manual + confirmation)**: `.github/workflows/terraform-azure-apply.yaml`
   - Triggered only via `workflow_dispatch` with `confirm=apply-azure`.
   - Pulls runtime secrets from Key Vault (no secret values stored in GitHub), applies Terraform, then runs SSO verifiers (optional flag).
+  - Exports Terraform outputs and **syncs generated infrastructure identifiers into GitOps values** (Managed Identity client IDs + Public IPs) via `infra/scripts/sync-globals.sh`, committing/pushing the updated `sources/values/**` files back to `main` so these values are never edited by hand.
 - **Destroy (manual + confirmation)**: `.github/workflows/terraform-azure-destroy.yaml`
   - Triggered only via `workflow_dispatch` with `confirm=destroy-azure`.
   - Pre-deletes **AKS User nodepools** using `az aks nodepool delete --ignore-pdb` (to avoid PDB drain deadlocks), then runs `terraform destroy`.

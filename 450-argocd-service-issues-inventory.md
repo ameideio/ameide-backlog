@@ -14,6 +14,9 @@
 - `3a311a7d fix(argocd): refresh dex secret from vault quickly`
 - `65581180 ci(azure-destroy): block on nodepool delete (avoid --no-wait false positives)`
 - `bed933c2 ci(azure-apply): manual workflow + explicit confirmation`
+- `0af30169 ci(azure-apply): sync globals from terraform outputs`
+- `1bb02048 refactor(azure): treat identity/ip values as generated`
+- `e9400838 chore(azure): sync globals from terraform outputs`
 - `364ca7e8 ci(terraform): queue apply/destroy + add force-unlock workflow`
 **Related**: [442-environment-isolation.md](442-environment-isolation.md), [445-argocd-namespace-isolation.md](445-argocd-namespace-isolation.md), [446-namespace-isolation.md](446-namespace-isolation.md), [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md), [451-secrets-management.md](451-secrets-management.md), [456-ghcr-mirror.md](456-ghcr-mirror.md)
 
@@ -293,6 +296,7 @@ Remediation approach (vendor-aligned, GitOps-idempotent):
   - Default `enable_dns_federated_identity=true` (and backups) so the identities created by Terraform always have the required federated credentials for the cert-manager ServiceAccount.
 - **GitOps values**:
   - Update `sources/values/cluster/azure/cert-manager.yaml` + `sources/values/*/globals.yaml` to match the Terraform-created identity client IDs and Public IPs.
+  - **Stop hardcoding infra identifiers**: treat Managed Identity client IDs and Public IPs as *generated outputs* and sync them from Terraform into GitOps via `infra/scripts/sync-globals.sh` (CI apply runs this and commits/pushes back to git).
 - **CI**:
   - After `terraform apply`, wait for:
     - Public IP association (`ipConfiguration.id`)
