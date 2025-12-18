@@ -221,6 +221,23 @@ Remediation approach (vendor-aligned, GitOps-idempotent):
   2. Remove `hostAliases` from the Plausible oauth2-proxy chart values; rely on CoreDNS rewrites.
   3. Set `dnsConfig.options.ndots: "1"` and add a startupProbe so oauth2-proxy isn’t killed while doing initial OIDC discovery.
 
+## Update (2025-12-17): SSO verification results (Azure + Local)
+
+Using the repo verifiers:
+- `infra/scripts/verify-argocd-sso.sh --all`
+- `infra/scripts/verify-platform-sso.sh --azure`
+- `infra/scripts/verify-platform-sso.sh --local`
+
+Observed:
+- **ArgoCD SSO**: ✅ green for `local` + all Azure envs (Dex ↔ Keycloak wiring, secrets, and session established).
+- **Platform SSO (staging/prod)**: ✅ end-to-end SSO green (CSRF cookies + Keycloak redirect + session established).
+- **`www` login link (staging/prod)**: ❌ `www.staging.ameide.io` and `www.ameide.io` render `href="//login"` instead of `https://platform.{env}.ameide.io/login`. This points to **application build/runtime-config behavior** in `www-ameide` (common root cause: relying on `NEXT_PUBLIC_*` at build time for `next start` images).
+- **Platform dev**: ⚠️ observed intermittent failures while verifying (including `HTTP 500` from `platform.dev.ameide.io`); `verify-platform-sso.sh --azure` still intermittently fails at “session is not established” even when CSRF + Keycloak redirect succeed.
+
+GitOps hardening applied (prepared for rollout):
+- Removed baked environment defaults from shared Keycloak operator values (`_shared/platform/platform-keycloak.yaml`), so env overlays are the source of truth.
+- Keycloak realm: ensured OIDC client reconciliation is defined per env (and fixed the Kubernetes Dashboard client ID mismatch by standardizing on `clientId=kubernetes-dashboard` and adding env-specific redirect URIs).
+
 ### RedisFailover auth templating (breaks master election → Langfuse worker CrashLoop)
 
 - **Apps:** `staging-platform-langfuse`, `production-platform-langfuse` (worker), plus `*-data-redis-failover`

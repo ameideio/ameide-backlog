@@ -134,6 +134,7 @@ rm -rf "$tmp"
 
 Failure mapping:
 - `.../login?error=MissingCSRF` → `AUTH_COOKIE_DOMAIN` mismatch (cookies ignored by browser). Fix `auth.cookies.domain` in the Platform values for that env.
+- `HTTP 500` on `/api/auth/csrf` (or `/login`) → Platform runtime failure (app crash/misconfig). Check `kubectl -n ameide-{env} logs deploy/www-ameide-platform` and `kubectl -n ameide-{env} describe pod` for the failing container, then fix the underlying app/config issue.
 
 ---
 
