@@ -185,7 +185,8 @@ Document any failures (for example, SecretStore DNS mismatches) back in the rele
 
 - **Remote backend bootstrapping** – `deploy.sh` provisions the `ameide-tfstate` resource group/storage/container (override via `TF_BACKEND_*`), so every shell can run `terraform -chdir=infra/terraform/azure destroy -auto-approve` immediately after `az login`. A quick `terraform init` reuses the backend without re-seeding secrets.
 - **Secrets auto-loading** – `infra/scripts/lib/env.sh` uses `set -a` and writes `infra/terraform/azure/env.auto.tfvars.json`, which Terraform auto-loads. There is no reason to pass `TF_VAR_env_secrets` manually or juggle temp JSON exports—the helper keeps the canonical file synced with `.env` and `.env.local`.
-- **Handling PodDisruptionBudgets** – AKS node pool drains can hang on Kafka/Plausible PDBs. Delete the offending PDBs/namespaces before destroy, or shortcut with `az aks nodepool delete --ignore-pdb -g Ameide --cluster-name ameide -n <pool>` to evict dev/staging/prod pools. Once the user pools are gone, Terraform removes the cluster, Key Vault identity, and Log Analytics workspace without timing out.
+- **Handling PodDisruptionBudgets (CI)** – AKS node pool drains can hang when PDBs block evictions (e.g. Postgres primary `minAvailable=1`). The supported path is **CI-driven destroy**, which pre-deletes User nodepools with `--ignore-pdb` and blocks until they are removed before running `terraform destroy`:
+  - `.github/workflows/terraform-azure-destroy.yaml`
 - **State hygiene** – Successful destroy runs leave the remote backend empty (`terraform state list` prints nothing). Local `terraform.tfstate*` artifacts are safe to delete afterward, but keeping the backend RG/SA/container lets future applies remain idempotent.
 
 ## Terraform Modules
@@ -258,6 +259,33 @@ The module always enables workload identity/oidc and exposes taints/labels inter
 Files implementing this:
 - `infra/terraform/modules/argocd-bootstrap/main.tf`
 - `bootstrap/lib/argocd.sh`
+
+## Update (2025-12-18): CI as the Azure control plane (apply/destroy/locks)
+
+### Goal
+
+For Azure, “deploy” and “delete” must be reproducible and runnable without any manual Azure/Kubernetes operations:
+
+- **Delete**: run CI destroy → everything Terraform-created is gone.
+- **Deploy**: run CI apply → everything is created and verifiers run.
+
+### Workflows
+
+- **Apply (manual + confirmation)**: `.github/workflows/terraform-azure-apply.yaml`
+  - Triggered only via `workflow_dispatch` with `confirm=apply-azure`.
+  - Pulls runtime secrets from Key Vault (no secret values stored in GitHub), applies Terraform, then runs SSO verifiers (optional flag).
+- **Destroy (manual + confirmation)**: `.github/workflows/terraform-azure-destroy.yaml`
+  - Triggered only via `workflow_dispatch` with `confirm=destroy-azure`.
+  - Pre-deletes **AKS User nodepools** using `az aks nodepool delete --ignore-pdb` (to avoid PDB drain deadlocks), then runs `terraform destroy`.
+  - Uses a longer `-lock-timeout` so the run waits for any in-flight operation instead of “thrashing” locks.
+- **Plan (PR safety)**: `.github/workflows/terraform-azure-plan.yaml`
+  - Uses `terraform plan -lock=false` so PR plans do not block apply/destroy via backend state locks.
+- **Force unlock (break-glass)**: `.github/workflows/terraform-azure-force-unlock.yaml`
+  - Manual workflow that runs `terraform force-unlock` for a provided `lock_id` (explicit confirmation required).
+
+### Concurrency and cancellation
+
+Azure apply/destroy share a single concurrency lane (`concurrency.group: terraform-azure`) to prevent parallel writers.
 
 ### Verification as a first-class gate
 

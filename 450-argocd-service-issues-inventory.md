@@ -8,6 +8,9 @@
 - `3654788b fix(local): bootstrap argocd without dex blocking`
 - `04915b5a fix(bootstrap): don't block on dex readiness`
 - `3a311a7d fix(argocd): refresh dex secret from vault quickly`
+- `65581180 ci(azure-destroy): block on nodepool delete (avoid --no-wait false positives)`
+- `bed933c2 ci(azure-apply): manual workflow + explicit confirmation`
+- `364ca7e8 ci(terraform): queue apply/destroy + add force-unlock workflow`
 **Related**: [442-environment-isolation.md](442-environment-isolation.md), [445-argocd-namespace-isolation.md](445-argocd-namespace-isolation.md), [446-namespace-isolation.md](446-namespace-isolation.md), [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md), [451-secrets-management.md](451-secrets-management.md), [456-ghcr-mirror.md](456-ghcr-mirror.md)
 
 ---
@@ -218,6 +221,31 @@ Remediation approach (vendor-aligned, GitOps-idempotent):
 1. **Keycloak-generated secret extraction raced ExternalSecrets**:
    - `platform-keycloak-realm` `client-patcher` ran as a `PostSync` hook (after resources like `ExternalSecret/keycloak-realm-oidc-clients` were already applied).
    - With `refreshInterval: 1h`, ExternalSecrets could materialize and cache the placeholder (`keycloak_generated_placeholder`) and keep it for a long time even though Vault had the real secret.
+
+## Update (2025-12-18): Azure CI destroy reliability (PDBs + state locks)
+
+### Symptom(s)
+
+- GitHub Actions “Terraform Azure Destroy (Manual)” would hang or fail in two recurring ways:
+  - **AKS User nodepools failed to delete** due to eviction failures (“would violate PDB”), leaving the cluster Running and keeping Azure Load Balancer / Public IP attachments alive.
+  - **Terraform remote state got stuck locked** (Azure Storage blob lease), causing later runs to sit at `Acquiring state lock` until timeout.
+
+### Root causes
+
+1. **PDBs blocking node drain**: AKS nodepool deletion triggers Kubernetes eviction; restrictive PDBs (e.g., Postgres primary MinAvailable=1) can prevent node drain, and the Azure API returns terminal provisioning state `Failed`.
+2. **Workflow cancellation creating stale locks and drift**: cancelled/aborted CI runs can leave the remote state locked, and can also create partial Azure resources without committing state.
+
+### Remediation (CI-first, no manual cluster operations)
+
+- Azure lifecycle is driven through CI workflows:
+  - `.github/workflows/terraform-azure-destroy.yaml` pre-deletes **User** nodepools with `--ignore-pdb` and blocks until they are actually gone before running Terraform destroy.
+  - `.github/workflows/terraform-azure-force-unlock.yaml` provides an explicit “break glass” mechanism to clear a known lock ID (manual confirmation required).
+  - `.github/workflows/terraform-azure-plan.yaml` runs `terraform plan` with `-lock=false` so PR plans do not block apply/destroy.
+- Apply is **manual-only** and requires explicit confirmation (`apply-azure`) to avoid accidental creation and “cancel mid-apply” drift.
+
+### Current status
+
+- CI destroy is now reproducible end-to-end (cluster + nodepools removed, and attached Public IPs delete cleanly once AKS is gone).
 2. **Bootstrap deadlock on Dex**:
    - Dex depends on reaching the external Keycloak URL (`https://auth.<env>.ameide.io/...`) which is not guaranteed to exist during first bootstrap.
    - Helm `--wait` gates the release on Dex readiness, creating a chicken-and-egg loop (ArgoCD can’t reconcile Keycloak until ArgoCD is installed).
