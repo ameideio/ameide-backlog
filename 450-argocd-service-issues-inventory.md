@@ -246,6 +246,21 @@ Remediation approach (vendor-aligned, GitOps-idempotent):
 ### Current status
 
 - CI destroy is now reproducible end-to-end (cluster + nodepools removed, and attached Public IPs delete cleanly once AKS is gone).
+
+## Update (2025-12-18): Azure CI apply verification race (LB/PIP attach timing)
+
+### Symptom(s)
+
+- `terraform-azure-apply.yaml` completes `terraform apply`, but the first SSO verifier fails with:
+  - `curl: (28) Failed to connect to auth.ameide.io:443 ... Couldn't connect to server`
+
+### Root cause
+
+- The Public IPs exist and DNS points at them, but **AKS has not yet associated them to a Load Balancer frontend** (no `ipConfiguration.id` on the Public IP), because the GitOps layer (Envoy / Keycloak ingress) has not converged yet.
+
+### Remediation
+
+- Add a deterministic CI gate to **wait for the Public IPs to be associated** before running the SSO verifiers (removes timing flakiness without changing cluster configuration).
 2. **Bootstrap deadlock on Dex**:
    - Dex depends on reaching the external Keycloak URL (`https://auth.<env>.ameide.io/...`) which is not guaranteed to exist during first bootstrap.
    - Helm `--wait` gates the release on Dex readiness, creating a chicken-and-egg loop (ArgoCD can’t reconcile Keycloak until ArgoCD is installed).
