@@ -256,6 +256,7 @@ Remediation approach (vendor-aligned, GitOps-idempotent):
 ### Current status
 
 - CI destroy is now reproducible end-to-end (cluster + nodepools removed, and attached Public IPs delete cleanly once AKS is gone).
+- Verification: GitHub Actions run `20344623080` completed successfully; `az aks show -g Ameide -n ameide` returns NotFound and the `MC_Ameide_ameide_westeurope` node resource group is gone. The base resource group `Ameide` still contains shared resources (e.g., tfstate storage / Key Vault / identities / DNS zone) depending on what is managed by Terraform vs treated as shared prerequisites.
 
 ## Update (2025-12-18): Azure CI apply verification race (LB/PIP attach timing)
 
