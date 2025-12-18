@@ -13,16 +13,21 @@ Add three *additional* agent slots for parallel work; they do not replace the ge
 - Slots: `agent-01`, `agent-02`, `agent-03`
 - One worktree per slot (or separate clones)
 - One VS Code window per slot → “Reopen in Container”
-- One branch per slot (e.g., `agent-01/<topic>`) → PRs merge into `DEV`
+- One branch per slot (e.g., `ameide-agent-01`) or per-slot topic branch (e.g., `agent-01/<topic>`) → PRs merge into `dev`
+
+Convenience:
+- `./tools/dev/create-agent-worktrees.sh` creates `ameide-agent-01..03` worktrees (and corresponding per-slot branches).
 
 ## One agent identity everywhere
 
-Canonical variable:
-
-- `AMEIDE_AGENT_ID=agent-01|agent-02|agent-03`
+Devcontainer-provided identity:
+- `AMEIDE_AGENT_ID=${localWorkspaceFolderBasename}` (agent devcontainer)
 
 Recommended worktree folder names (so `${localWorkspaceFolderBasename}` carries the slot):
 - `ameide-agent-01`, `ameide-agent-02`, `ameide-agent-03`
+
+Tooling convention:
+- When an `AMEIDE_AGENT_ID` contains `agent-01|agent-02|agent-03`, scripts should treat that substring as the canonical slot ID (e.g., `ameide-agent-01` → `agent-01`).
 
 ## Telepresence + Tilt: same-workload parallelism
 
@@ -30,7 +35,7 @@ Recommended worktree folder names (so `${localWorkspaceFolderBasename}` carries 
 
 When `AMEIDE_AGENT_ID` is set, dev tooling should create intercepts using:
 
-- intercept name: `${workload}-${AMEIDE_AGENT_ID}`
+- intercept name: `${workload}-${agent_slot}` (where `agent_slot` is derived from `AMEIDE_AGENT_ID`)
 - target workload: `--workload ${workload}`
 
 This avoids name collisions when multiple agents are connected at once.
@@ -42,7 +47,7 @@ Unique names are necessary but not sufficient if both intercept “all traffic�
 For HTTP services, use Telepresence HTTP intercept filtering so each agent only receives matching traffic:
 
 - set `AMEIDE_TELEPRESENCE_HTTP_FILTER=1`
-- tooling adds: `--mechanism http --http-header "X-Ameide-Agent=${AMEIDE_AGENT_ID}"`
+- tooling adds: `--mechanism http --http-header "X-Ameide-Agent=${agent_slot}"`
 - the caller must send that header for requests to match
 
 ## VS Code port-forward collisions
@@ -88,11 +93,12 @@ Reference: [VS Code Dev Containers - Persist bash history](https://code.visualst
 
 - Devcontainer configs:
   - `.devcontainer/devcontainer.json`: generic config, mounts shared volumes for `~/.codex`, `~/.azure`, `~/.kube`, `~/.config/ameide`.
-  - `.devcontainer/agent/devcontainer.json`: agent config, sets `AMEIDE_BOOTSTRAP_PROFILE=agent` and derives `AMEIDE_AGENT_ID` from `${localWorkspaceFolderBasename}`.
+  - `.devcontainer/agent/devcontainer.json`: agent config, sets `AMEIDE_BOOTSTRAP_PROFILE=agent` and sets `AMEIDE_AGENT_ID=${localWorkspaceFolderBasename}`.
 - Bootstrap:
-  - `.devcontainer/postCreate.sh` skips `tools/dev/bootstrap-contexts.sh` when `AMEIDE_BOOTSTRAP_PROFILE=agent`.
+  - `.devcontainer/postCreate.sh` uses `AMEIDE_BOOTSTRAP_PROFILE` (planned: skip `tools/dev/bootstrap-contexts.sh` when `AMEIDE_BOOTSTRAP_PROFILE=agent` to avoid repeated side effects).
 - Telepresence wrappers:
-  - `tools/dev/telepresence.sh` and `scripts/telepresence/intercept_service.sh` use agent-aware intercept naming and optional HTTP filtering (`AMEIDE_TELEPRESENCE_HTTP_FILTER=1`).
+  - `scripts/telepresence/intercept_service.sh` uses agent-aware intercept naming and optional HTTP filtering (`AMEIDE_TELEPRESENCE_HTTP_FILTER=1`).
+  - `tools/dev/telepresence.sh intercept` is the generic helper entrypoint (planned: mirror the same agent-aware naming/filtering behavior).
 
 ## Acceptance criteria
 

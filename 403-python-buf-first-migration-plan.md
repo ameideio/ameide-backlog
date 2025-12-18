@@ -18,7 +18,7 @@
 - Add workspace sources for Python in `tool.uv.sources` (or env toggle) so `uv sync` installs `packages/ameide_sdk_python` (with generated stubs) editable for all modes (dev/CI/prod); services do not import `packages/ameide_core_proto` directly.
 - Update `scripts/ci/prepare_python_env.sh` and Tilt Python resources to run the editable installs after `pnpm --filter @ameide/core-proto build` so regenerated stubs are what tests see.
 - Adjust `scripts/policy/check_lock_hygiene.sh` to allow/expect workspace sources (drop PyPI-only enforcement); tighten drift checks instead.
-- Ensure `packages/ameide_core_proto/buf.gen.sdk-python.yaml` regeneration is part of the standard proto build (already emits to `packages/ameide_sdk_python/src/ameide_sdk/generated`); add a CI check that fails if manifests drift.
+- Ensure `packages/ameide_core_proto/buf.gen.sdk-python.yaml` regeneration is part of the standard proto build (emits to `packages/ameide_sdk_python/src/ameide_sdk/_proto`, followed by import rewrites in `packages/ameide_sdk_python/scripts/postprocess_generated.py`); add a CI check that fails if manifests drift.
 
 **Phase 1 – CI/build flow**
 - `ci-core-quality` (dev + PR CI): run `pnpm --filter @ameide/core-proto build`, install editable `ameide_sdk_python`, and execute a smoke pytest over SDK interceptors to prove the workspace build is used (no PyPI required).
@@ -36,7 +36,7 @@
 - `services/inference`  
   - Replace direct `grpc_aio.server` + raw stubs usage with AmeideClient-based clients (reuse retry/metadata/tracing helpers from `ameide_sdk`).  
   - Wire SDK config (addr/auth/tenant/request-id/timeouts) from env; add integration tests for headers/retries/timeouts/tracing via the SDK.  
-  - Ensure proto imports come from `ameide_core_proto.*` (via the SDK package) so proto edits break tests without a publish; SDK stubs are synced from the BSR module (not generated in services).
+  - Ensure proto imports come from `ameide_sdk.proto.ameide_core_proto.*` so proto edits break tests without a publish; SDK stubs are synced from the BSR module (not generated in services).
 
 **Phase 3 – Locks & artifacts**
 - Single path: `uv.lock` records workspace sources for Ameide SDK; no separate release lock. Ameide images build from repo sources.

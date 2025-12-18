@@ -341,7 +341,7 @@ import (
     "testing"
     "time"
 
-    workflowsv1 "go.packages.dev.ameide.io/ameide-sdk-go/gen/ameide_core_proto/workflows_runtime/v1"
+    workflowsv1 "github.com/ameideio/ameide-sdk-go/proto/ameide_core_proto/workflows_runtime/v1"
     "google.golang.org/grpc"
 )
 

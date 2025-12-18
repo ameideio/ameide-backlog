@@ -588,7 +588,7 @@ plugins:
       - output_file=domain_services.generated.go
       - register_func=RegisterDomainServices
       - interface_name=DomainServices
-      - go_import_prefix=github.com/ameideio/ameide-sdk-go/gen/go
+      - go_import_prefix=github.com/ameideio/ameide-sdk-go/proto
 ```
 
 **buf.gen.integration-sales.local.yaml** - Integration primitive code generation
@@ -609,7 +609,7 @@ managed:
   enabled: true
   override:
     - file_option: go_package_prefix
-      value: github.com/ameideio/ameide-sdk-go/gen/go
+      value: github.com/ameideio/ameide-sdk-go/proto
 clean: true
 inputs:
   - directory: src

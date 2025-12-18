@@ -147,10 +147,10 @@ Every primitive participates in the contract chain described in [472 §2.7](472-
 
 1. **Proto module** (`packages/ameide_core_proto`) defines the API contract.
 2. **Generated SDKs** (Go/TS/Python) are produced from proto via Buf.
-3. **Service implementation** pins to proto version via `go.mod` / `package.json`.
-4. **Docker image** tagged and labelled with proto version metadata.
-5. **GitOps manifest** references exact image tag + proto annotations.
-6. **Backstage catalog** links service to proto module/version.
+3. **Service implementation** pins to an SDK version (or workspace SDK) via `go.mod` / `package.json` / `pyproject.toml` (SDK version ties back to a proto ref/digest).
+4. **Docker image** tagged and labelled with SDK + proto version metadata.
+5. **GitOps manifest** references exact image tag + SDK/proto annotations.
+6. **Backstage catalog** links service to SDK + proto module/version.
 
 Refactors must preserve this chain: proto version bumps trigger SDK regen, image rebuilds, and GitOps manifest updates.
 

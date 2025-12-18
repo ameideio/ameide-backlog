@@ -703,7 +703,7 @@ Enforce that generated code only imports:
 
 …and that human code never edits `build/generated/agent/**`.
 
-Also enforce that runtimes import **generated SDK outputs** (e.g., `packages/ameide_sdk_python/gen/python/**`) rather than importing proto source trees directly.
+Also enforce that runtimes import **generated SDK outputs** (e.g., `packages/ameide_sdk_python/src/ameide_sdk/_proto/**`) rather than importing proto source trees directly.
 
 ### Test scaffolding rules (RED tests)
 

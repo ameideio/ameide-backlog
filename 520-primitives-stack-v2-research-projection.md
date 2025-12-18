@@ -473,12 +473,12 @@ plugins:
   # SDK generation (Go example)
   - remote: buf.build/protocolbuffers/go:v1.36.10
     revision: 1
-    out: packages/ameide_sdk_go/gen/go
+    out: packages/ameide_sdk_go/internal/proto
     opt: paths=source_relative
 
   - remote: buf.build/grpc/go:v1.5.1
     revision: 1
-    out: packages/ameide_sdk_go/gen/go
+    out: packages/ameide_sdk_go/internal/proto
     opt: paths=source_relative
 
   # Projection primitive generator (your custom remote plugin published to BSR)

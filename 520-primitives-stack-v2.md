@@ -60,7 +60,7 @@ These are the lock-in decisions that keep the stack coherent:
 
 - `buf generate` is the canonical generator runner for internal artifacts; the CLI orchestrates external wiring (repo layout, GitOps) and guardrails around it.
 - `clean: true` + regen-diff in CI is mandatory; generation must be clobber-safe and deterministic.
-- Generated outputs are written only to approved generated roots (`packages/ameide_sdk_ts/src/proto/gen/ts/**`, `packages/ameide_sdk_python/gen/python/**`, `packages/ameide_sdk_go/gen/go/**`, `primitives/**/internal/gen/**`, `build/generated/**`); never to `.`.
+- Generated outputs are written only to approved generated roots (`packages/ameide_sdk_ts/src/_proto/**`, `packages/ameide_sdk_python/src/ameide_sdk/_proto/**`, `packages/ameide_sdk_go/internal/proto/**`, `packages/ameide_sdk_go/proto/**`, `primitives/**/internal/gen/**`, `build/generated/**`); never to `.`.
 - Operators are operational only (Kubernetes resources + conditions); behavior/policy stays in runtime code.
 - Protos are contracts, not a behavior DSL; custom options are “intent metadata”, not decision logic.
 - Per-environment bindings (URLs, brokers, topic names, secrets) never live in proto; they live in CRDs/runtime config and are injected at runtime.
@@ -86,9 +86,10 @@ This stack explicitly does not do the following:
 - **`stream_ref`**: a logical stream identifier in proto (e.g., `orders.facts`), bound to actual topics/subjects per environment via CRDs/runtime config.
 - **`binding_ref` / `endpoint_ref`**: logical references in proto used to bind to environment-specific transport configuration (Kafka subscriptions, HTTP endpoints, etc.).
 - **Approved generated root**: any directory that is safe to delete/recreate on regen and enforced by CI. In this repo, CI-enforced generator outputs land only in:
-  - `packages/ameide_sdk_ts/src/proto/gen/ts/**` (TypeScript/ES SDK outputs)
-  - `packages/ameide_sdk_python/gen/python/**` (Python SDK outputs)
-  - `packages/ameide_sdk_go/gen/go/**` (Go SDK outputs)
+  - `packages/ameide_sdk_ts/src/_proto/**` (TypeScript SDK generated stubs; internal)
+  - `packages/ameide_sdk_python/src/ameide_sdk/_proto/**` (Python SDK generated stubs; internal)
+  - `packages/ameide_sdk_go/internal/proto/**` (Go SDK generated stubs; internal)
+  - `packages/ameide_sdk_go/proto/**` (Go SDK public proto surface; generated re-exports)
   - `primitives/**/internal/gen/**` (per-primitive generated glue/tests; clobber-safe)
   - `build/generated/**` (other generated artifacts; clobber-safe)
 - **SDK outputs**: generated language packages consumed by runtimes (the only way runtimes depend on proto contracts).
@@ -213,9 +214,9 @@ Responsibility matrix:
 
 - **Proto sources**: `packages/ameide_core_proto/src/ameide_core_proto/**`.
 - **SDK outputs (Buf)**:
-  - `packages/ameide_sdk_ts/src/proto/gen/ts/**` (TypeScript/ES)
-  - `packages/ameide_sdk_python/gen/python/**` (Python)
-  - `packages/ameide_sdk_go/gen/go/**` (Go)
+  - `packages/ameide_sdk_ts/src/_proto/**` (TypeScript)
+  - `packages/ameide_sdk_python/src/ameide_sdk/_proto/**` (Python)
+  - `packages/ameide_sdk_go/internal/proto/**` + `packages/ameide_sdk_go/proto/**` (Go)
 - **Per-primitive generated glue/tests (codegen)**: `primitives/**/internal/gen/**` (pure generated; safe to delete).
 - **Other generated artifacts (codegen)**: `build/generated/**` (pure generated; safe to delete).
 - **Human primitive implementations**: `primitives/**` (never generated/cleaned).
@@ -230,9 +231,9 @@ This section is the “where does this live?” contract for all implementation 
 - **Design/spec**: `backlog/520-primitives-stack-v2.md` (normative), `backlog/520-primitives-stack-v2-research-*.md` (background).
 - **Proto sources**: `packages/ameide_core_proto/src/ameide_core_proto/**`.
 - **Proto SDK outputs (Buf)**:
-  - TypeScript/ES: `packages/ameide_sdk_ts/src/proto/gen/ts/**`
-  - Python: `packages/ameide_sdk_python/gen/python/**`
-  - Go: `packages/ameide_sdk_go/gen/go/**`
+  - TypeScript: `packages/ameide_sdk_ts/src/_proto/**`
+  - Python: `packages/ameide_sdk_python/src/ameide_sdk/_proto/**`
+  - Go: `packages/ameide_sdk_go/internal/proto/**` + `packages/ameide_sdk_go/proto/**`
 - **Primitive runtime implementations** (implementation-owned): `primitives/**` (per-kind subtrees under `primitives/agent/**`, `primitives/domain/**`, `primitives/process/**`, etc.).
 - **Per-primitive generated glue/tests** (clobber-safe): `primitives/**/internal/gen/**`.
 - **Other generated artifacts** (clobber-safe): `build/generated/**`.
@@ -243,7 +244,7 @@ This section is the “where does this live?” contract for all implementation 
 Flow (required):
 
 1. Edit protos under `packages/ameide_core_proto/src/ameide_core_proto/**`.
-2. Run `buf generate` from `packages/ameide_core_proto/` to refresh SDK outputs under `packages/ameide_sdk_ts/src/proto/gen/ts/**`, `packages/ameide_sdk_python/gen/python/**`, and `packages/ameide_sdk_go/gen/go/**`.
+2. Run `pnpm -F @ameide/core-proto build` to refresh SDK outputs under `packages/ameide_sdk_ts/src/_proto/**`, `packages/ameide_sdk_python/src/ameide_sdk/_proto/**`, and `packages/ameide_sdk_go/internal/proto/**` (and regenerate the Go public re-export surface under `packages/ameide_sdk_go/proto/**`).
 3. Run primitive-kind generators via `buf generate` (or the canonical codegen entrypoint) to refresh `primitives/**/internal/gen/**` (and `build/generated/**` when relevant).
 4. Implement behavior in `primitives/**` and operators in `operators/**` until CI gates pass.
 
@@ -351,7 +352,7 @@ Make the inner loop and CI gates identical across primitives:
 Treat plugin and proto evolution as a first-class operational workflow:
 
 - **Plugin upgrades**: change plugin version/revision in one PR, run `buf generate`, commit the full regen diff, and keep the regen-diff CI gate strict.
-- **Generated/human boundary**: generators only write under generated roots (`packages/ameide_sdk_ts/src/proto/gen/ts/**`, `packages/ameide_sdk_python/gen/python/**`, `packages/ameide_sdk_go/gen/go/**`, `primitives/**/internal/gen/**`, `build/generated/**`); never write to `.` or mixed human directories when `clean: true` is enabled.
+- **Generated/human boundary**: generators only write under generated roots (`packages/ameide_sdk_ts/src/_proto/**`, `packages/ameide_sdk_python/src/ameide_sdk/_proto/**`, `packages/ameide_sdk_go/internal/proto/**`, `packages/ameide_sdk_go/proto/**`, `primitives/**/internal/gen/**`, `build/generated/**`); never write to `.` or mixed human directories when `clean: true` is enabled.
 - **Schema evolution**:
   - additive proto changes are default
   - breaking changes require a major version bump (`…v2`) and/or parallel message variants for replay-safe systems (especially Temporal/Process)
@@ -396,7 +397,7 @@ Remote plugins are a good default for consistency and pinning, but they introduc
 **Guardrails (required)**
 
 - **Never generate into `.` or any implementation-owned directory.** With `clean: true`, Buf deletes the plugin `out` directory before writing; this is only safe when `out` is generated-only.
-- **CI validates generator outputs are safe to delete.** Reject any generation template executed in CI where a plugin `out` is `.` or outside approved generated roots (`packages/ameide_sdk_ts/src/proto/gen/ts/**`, `packages/ameide_sdk_python/gen/python/**`, `packages/ameide_sdk_go/gen/go/**`, `primitives/**/internal/gen/**`, `build/generated/**`).
+- **CI validates generator outputs are safe to delete.** Reject any generation template executed in CI where a plugin `out` is `.` or outside approved generated roots (`packages/ameide_sdk_ts/src/_proto/**`, `packages/ameide_sdk_python/src/ameide_sdk/_proto/**`, `packages/ameide_sdk_go/internal/proto/**`, `packages/ameide_sdk_go/proto/**`, `primitives/**/internal/gen/**`, `build/generated/**`).
 
 **Offline strategy: mirror + pre-warm**
 

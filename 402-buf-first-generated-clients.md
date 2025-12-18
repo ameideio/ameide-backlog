@@ -51,7 +51,7 @@ Let’s define clear rings:
 
 Rule of thumb:
 
-> **Code imports proto/clients from the SDK barrels (`@ameideio/ameide-sdk-ts/proto.js`, `github.com/ameideio/ameide-sdk-go/gen/...`, `ameide_core_proto.*` from the Python SDK package). Rings 1 and 2 resolve those to workspace SDK packages; published SDKs are only for the outer-loop smoke and external consumers. Stubs are synced into SDKs from the BSR module (see 410 – BSR-native SDKs); services never import BSR stub packages directly.**
+> **Code imports proto/clients from the SDK barrels (`@ameideio/ameide-sdk-ts/proto.js`, `github.com/ameideio/ameide-sdk-go/proto/...`, `ameide_sdk.proto.ameide_core_proto.*` from the Python SDK package). Rings 1 and 2 resolve those to workspace SDK packages; published SDKs are only for the outer-loop smoke and external consumers. Stubs are synced into SDKs from the BSR module (see 410 – BSR-native SDKs); services never import BSR stub packages directly.**
 
 ---
 
