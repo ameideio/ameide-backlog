@@ -1,6 +1,6 @@
 # 558 — Ameide Coding Helpers (Deterministic Tooling Package)
 
-**Status:** In progress (partial implementation landed)  
+**Status:** Done (doctor|verify|generate|scaffold implemented)  
 **Audience:** CLI implementers, agent/tool implementers, Transformation Process teams  
 **Scope:** Add a shared deterministic tooling package (consumable by humans, agents, and process activities) and move toward a proto-first report contract.
 
@@ -52,22 +52,25 @@ Invokers
 
 - `packages/ameide_coding_helpers/guardrails` exists and is the canonical home for running Buf guardrails (used by `ameide verify`).
 - `packages/ameide_coding_helpers/doctor` exists and powers `ameide doctor` (fast preflight for toolchain + repo invariants).
+- `packages/ameide_coding_helpers/verify` exists and is the canonical home for the repo-wide gate (Buf + codegen drift + 362 + 430).
+- `packages/ameide_coding_helpers/generate` exists and is the canonical home for SDK generation/sync + docs generation.
+- `packages/ameide_coding_helpers/scaffold` exists and is the canonical home for deterministic repo scaffolding (currently: Integration MCP adapter primitive).
 - The CLI surfaces these as first-class commands:
   - `ameide doctor` (human/agent/process preflight; supports `--json`)
-  - `ameide verify` (repo + primitives gate; invokes coding-helpers guardrails)
+  - `ameide verify` (repo + primitives gate; invokes coding-helpers verify/guardrails)
+  - `ameide generate sdk|docs` (repo-local generation; deterministic; supports `--json`)
+  - `ameide scaffold integration mcp-adapter` (deterministic scaffold; supports `--dry-run` and `--json`)
 
 ## Report contract (now vs next)
 
 - **Now:** deterministic actions return `ameide_core_proto.primitive.v1.CheckResult` (proto type) and can be rendered as JSON (CLI `--json`) for agents/processes.
 - **Next:** map/emit tool evidence as `ameide_core_proto.process.transformation.v1.ToolRunRecorded` (process facts) so orchestration can store immutable evidence and references, and keep the CLI output a view (not the evidence store).
 
-## Next steps (to complete 558)
+## Follow-ups (optional)
 
-- Extract more deterministic actions from the CLI into `packages/ameide_coding_helpers`:
-  - `generate` (Buf template invocations + SDK sync helpers)
-  - `verify` (policy scripts + workspace invariants; already partially in CLI)
-  - `scaffold` (pure file generation; avoid coupling to interactive CLI concerns)
-- Add an explicit “no secrets” guardrail for common repo credential files (e.g., `.npmrc`, `.netrc`) to prevent token regressions.
+- Emit tool evidence as `ameide_core_proto.process.transformation.v1.ToolRunRecorded` (immutable evidence store) and keep CLI output as a view.
+- Add more scaffolds to `packages/ameide_coding_helpers/scaffold` (Domain/Process/Agent/Projection), keeping business templates in data files.
+- Add service-repo lint (TS/Python) forbidding imports from SDK internal `_proto` paths (consistent with 393).
 
 ## Cross-references
 
