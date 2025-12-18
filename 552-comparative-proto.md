@@ -51,7 +51,7 @@ This analysis complements `550-comparative-domain.md` (which focuses on implemen
 
 1. **Event Sourcing Maturity**: ✅ All four domains have message metadata patterns with `message_id`, correlation/causation IDs, and trace context; note Transformation uses multiple meta types (`TransformationMessageMeta`, `TransformationKnowledgeMessageMeta`, `ScrumMessageMeta`)
 2. **CQRS Separation**: Sales is explicit (command + query); Transformation Knowledge is explicit (command + query); SRE splits projection queries into separate services but `IncidentService` mixes read/write; Commerce splits domain write vs projection read
-3. **Code Generation**: Sales has 5 buf configs (domain, integration, process, projection, uisurface); Transformation has 1 (domain); Commerce and SRE have none
+3. **Code Generation**: Sales has 5 buf configs (domain, integration, process, projection, uisurface); Transformation has 2 (domain + projection); Commerce and SRE have none
 4. **API Surface**: Transformation has the largest current RPC surface (40 RPCs across Knowledge command/query + Scrum query); Sales has 24 total RPCs; Commerce has 16 total RPCs; SRE has 17 RPCs across 7 services
 5. **Buf Configuration Gap**: Commerce and SRE need domain buf configs for consistent code generation
 
@@ -141,8 +141,9 @@ transformation/
     └── transformation_scrum_query.proto     # 10 RPCs
 ```
 
-**Buf Configs (1 file):**
+**Buf Configs (2 files):**
 - `buf.gen.domain-transformation.local.yaml` - Domain primitive with managed mode
+- `buf.gen.projection-transformation.local.yaml` - Projection primitive code generation
 
 **Maturity:** ADVANCED/SPECIALIZED
 
@@ -587,7 +588,7 @@ plugins:
       - output_file=domain_services.generated.go
       - register_func=RegisterDomainServices
       - interface_name=DomainServices
-      - go_import_prefix=github.com/ameideio/ameide-sdk-go/gen/go
+      - go_import_prefix=github.com/ameideio/ameide-sdk-go/proto
 ```
 
 **buf.gen.integration-sales.local.yaml** - Integration primitive code generation
@@ -608,7 +609,7 @@ managed:
   enabled: true
   override:
     - file_option: go_package_prefix
-      value: github.com/ameideio/ameide-sdk-go/gen/go
+      value: github.com/ameideio/ameide-sdk-go/proto
 clean: true
 inputs:
   - directory: src
@@ -793,7 +794,7 @@ message EditRepositoryRequest {
 - Gaps:
   - Multiple metadata types across contexts (`TransformationMessageMeta`, `TransformationKnowledgeMessageMeta`, `ScrumMessageMeta`)
   - Knowledge writes are RPC-based (no bus intent envelope), while Scrum uses bus intents/facts; eventing conventions differ by context
-  - Missing buf configs for non-domain primitives (process/projection/integration/uisurface) if generation glue is desired
+  - Missing buf configs for some non-domain primitives (process/integration/uisurface) if generation glue is desired
 
 **SRE Domain**
 1. Missing `buf.gen.domain-sre.local.yaml`
@@ -803,7 +804,7 @@ message EditRepositoryRequest {
 
 ### 8.2 Cross-Domain Gaps (Revised)
 
-1. **Buf Configuration Inconsistency**: Only 2/4 domains have buf configs (Sales has 5, Transformation has 1)
+1. **Buf Configuration Inconsistency**: Only 2/4 domains have buf configs (Sales has 5, Transformation has 2)
 2. **Event Metadata Standardization**: Metadata fields are broadly aligned, but types and conventions vary (notably across Transformation contexts)
 3. **Pagination Consistency**: Pagination is not standardized (Sales uses `page_size/page_token`; SRE/Transformation Knowledge use `PaginationRequest/Response`)
 4. **Field Mask Support**: Only Transformation Knowledge + Scrum use field masks for partial updates
@@ -911,8 +912,9 @@ message EditRepositoryRequest {
 - Projection: `packages/ameide_core_proto/buf.gen.projection-sales.local.yaml`
 - UISurface: `packages/ameide_core_proto/buf.gen.uisurface-sales.local.yaml`
 
-**Transformation (1 file):**
+**Transformation (2 files):**
 - Domain: `packages/ameide_core_proto/buf.gen.domain-transformation.local.yaml`
+- Projection: `packages/ameide_core_proto/buf.gen.projection-transformation.local.yaml`
 
 **Commerce & SRE:**
 - Missing (GAP - needs domain configs)

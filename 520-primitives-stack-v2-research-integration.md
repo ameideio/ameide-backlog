@@ -420,7 +420,7 @@ Generate two layers:
 
 **Generated (clobber-safe)**
 
-* SDK outputs under `packages/ameide_sdk_ts/src/proto/gen/ts/**`, `packages/ameide_sdk_python/gen/python/**`, and `packages/ameide_sdk_go/gen/go/**`
+* SDK outputs under `packages/ameide_sdk_ts/src/_proto/**`, `packages/ameide_sdk_python/src/ameide_sdk/_proto/**`, `packages/ameide_sdk_go/internal/proto/**`, and `packages/ameide_sdk_go/proto/**`
 * `build/generated/integration/<integration>/nifi/flow.snapshot.json`
 * `build/generated/integration/<integration>/nifi/parameter-context.yaml`
 * `build/generated/integration/<integration>/schemas/descriptors.pb`

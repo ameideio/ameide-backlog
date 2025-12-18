@@ -208,7 +208,7 @@ Why this schema works well with your trio:
 Assume repo layout:
 
 * `packages/ameide_core_proto/src/ameide_core_proto/` contains source-of-truth protos
-* `packages/ameide_sdk_go/gen/go/` contains **SDK outputs** (Go pb + grpc bindings + domain metadata code)
+* `packages/ameide_sdk_go/internal/proto/` contains **SDK outputs** (Go pb + grpc/connect bindings; private) and `packages/ameide_sdk_go/proto/` contains the **service-facing proto surface** (generated re-exports).
 * `primitives/domain/` contains runnable domain services (implementation-owned)
 * `build/generated/domain/` contains generated runtime skeletons/tests/harness (safe to delete/recreate)
 
@@ -265,10 +265,10 @@ repo/
 
 ### Naming + ownership rules (so `clean: true` is safe)
 
-* Everything under **`packages/ameide_sdk_go/gen/go/`** and **`build/generated/domain/`** is treated as **generated-only** and can be deleted/recreated (`clean: true`).
+* Everything under **`packages/ameide_sdk_go/internal/proto/`**, **`packages/ameide_sdk_go/proto/`**, and **`build/generated/domain/`** is treated as **generated-only** and can be deleted/recreated (`clean: true`).
 * Human code lives under **`primitives/domain/<name>/...`** only.
 * Generated Go files are suffixed `_gen.go` and include `// Code generated … DO NOT EDIT.` headers (standard protoc style).
-* Human code never imports proto source directories; it imports Go packages from the Go SDK module path (backed by `packages/ameide_sdk_go/gen/go/...`).
+* Human code never imports proto source directories; it imports Go packages from the Go SDK module path (backed by `packages/ameide_sdk_go/proto/...`).
 
 ### How drift becomes a compile failure (not runtime surprise)
 

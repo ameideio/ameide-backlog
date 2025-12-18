@@ -36,9 +36,9 @@ Four domain primitives (Sales, Commerce, Transformation, SRE) exist at varying l
 
 ### Maturity Signals (Current Snapshot)
 
-- **GitOps-deployed domain primitives:** Sales, Transformation
+- **GitOps manifests present for domain primitives:** Sales, Transformation
 - **Code-only (no GitOps manifest):** Commerce, SRE
-- **Largest schema / most complex repository model:** Transformation (7 migrations, 1,364 LOC SQL)
+- **Largest domain schema (by SQL LOC):** Transformation (2 migrations, 209 LOC SQL)
 - **Most complete “primitive ecosystem” coverage:** Sales and Commerce (Domain + Integration + Process + Projection + UISurface + Agent present; Commerce UISurface has 3 variants)
 
 ### Implementation Strategy Variance
@@ -50,22 +50,22 @@ Four domain primitives (Sales, Commerce, Transformation, SRE) exist at varying l
    - **Code-first:** Commerce, SRE (no GitOps manifests yet)
 
 2. **CQRS separation**
-   - **Strict CQRS binaries:** Sales (domain write, projection read), Commerce (domain write, projection read)
-   - **Mixed read+write in domain binary:** SRE (IncidentService includes reads), Transformation (domain binary serves query services)
+   - **Strict CQRS binaries:** Sales, Commerce, Transformation (domain write; projection read)
+   - **Mixed read+write in domain binary:** SRE (IncidentService includes reads)
 
 ## 2) Implementation Completeness Matrix
 
 | Aspect | Sales | Commerce | Transformation | SRE |
 |--------|-------|----------|----------------|-----|
-| **Domain RPCs served** | 18 (SalesCommandService) | 8 (CommerceStorefrontWriteService) | 22 (1 write + 21 read/query) | 10 (mixed read+write) |
+| **Domain RPCs served** | 18 (SalesCommandService) | 8 (CommerceStorefrontWriteService) | 15 (TransformationKnowledgeCommandService) | 10 (IncidentService) |
 | **Handler coverage** | All 18 RPCs implemented | All 8 RPCs implemented | All registered RPCs implemented | All 10 RPCs implemented |
-| **Database Schema** | 135 LOC SQL (2 migrations) | 76 LOC SQL (2 migrations) | 1,364 LOC SQL (7 migrations) | 80 LOC SQL (2 migrations) |
-| **Aggregates** | 3 types (Leads, Opportunities, Quotes) | 2 types (Claims, Mappings) | 5+ types (Models, BPMN, Baselines, etc.) | 1 type (Incidents) |
-| **GitOps Deployment** | ✓ Active | ✗ Missing | ✓ Active + Smoke Test | ✗ Missing |
+| **Database Schema** | 135 LOC SQL (2 migrations) | 76 LOC SQL (2 migrations) | 209 LOC SQL (2 migrations) | 80 LOC SQL (2 migrations) |
+| **Aggregates** | 3 types (Leads, Opportunities, Quotes) | 2 types (Claims, Mappings) | 5 types (Repositories, Nodes, Elements, Relationships, Assignments) | 1 type (Incidents) |
+| **GitOps Deployment** | ✓ Manifests present | ✗ Missing | ✓ Manifests present | ✗ Missing |
 | **Ecosystem Primitives** | Integration + Process + Projection + UISurface + Agent | Integration + Process + Projection + 3× UISurface + Agent | Process + Projection + UISurface + Agent (+ MCP adapter integration) | Integration + Process + Projection + Agent (no UISurface) |
 | **Tests (go test)** | PASS | PASS | PASS | PASS |
 | **Event Dispatcher** | Log-only publisher (no broker wiring) | Log-only publisher (no broker wiring) | Log-only publisher (no broker wiring) | Log-only publisher (no broker wiring) |
-| **Documentation** | 58-line README | 18-line README | 48-line README | 4-line README |
+| **Documentation** | 58-line README | 18-line README | 58-line README | 4-line README |
 
 ## 3) Domain-by-Domain Analysis
 
@@ -98,38 +98,33 @@ Four domain primitives (Sales, Commerce, Transformation, SRE) exist at varying l
 - Timeline entries as immutable audit trail
 - Terminal state validation (cannot transition from RESOLVED/CLOSED)
 
-### 3.2 Transformation Domain - Architecture Repository (GitOps-deployed)
+### 3.2 Transformation Domain - Knowledge Repository (GitOps manifests present)
 
-**Status:** Implemented architecture repository domain (SubmitIntent + query services) with GitOps deployment
+**Status:** Implemented knowledge repository write domain (TransformationKnowledgeCommandService); reads are served by the Transformation projection
 
 **Strengths:**
-- Largest schema: 7 migrations totaling 1,364 LOC SQL (most comprehensive)
-- Complex domain model: ArchiMate, BPMN, Baselines, Process Definitions, Agent Definitions
-- Architecture write API is a single RPC (`SubmitIntent`) carrying 20+ intent variants (oneof) with per-intent handling
-- Version/revision tracking: head_version, published_version, version history snapshots
-- Lifecycle management: DRAFT → IN_REVIEW → APPROVED → RETIRED
-- Active deployment: GitOps config + smoke test harness
+- Clean write boundary: 15 explicit write RPCs (repositories, nodes, elements, relationships, assignments)
+- Transactional inbox/outbox pattern: idempotent processing via `domain_inbox` + facts written to `domain_outbox`
+- Enterprise repository schema: repositories + tree nodes + elements + relationships + assignments (element-centric canonical store)
+- Emits strongly typed facts: `TransformationKnowledgeDomainFact` (topic `transformation.knowledge.domain.facts.v1`)
 
 **Implementation Details:**
 - **Location:** `primitives/domain/transformation/`
-- **Proto Files:** 16 files in `packages/ameide_core_proto/src/ameide_core_proto/transformation/`
-- **Database:** 7 migrations - initial schema, agent defs, scrum, architecture repo (includes outbox tables), outbox metadata, aggregate/baseline defaults, repository scoping
-- **Handler:** `internal/handlers/handlers.go` + `internal/handlers/scrum_query.go`
-- **GitOps:** `gitops/ameide-gitops/sources/values/_shared/apps/domain-transformation-v0.yaml` + smoke test config
+- **Proto Files:** 12 files in `packages/ameide_core_proto/src/ameide_core_proto/transformation/` (domain registers Knowledge command only)
+- **Database:** 2 migrations (209 lines) - `V1__domain_outbox.sql`, `V2__enterprise_repository.sql`
+- **Handler:** `internal/handlers/handlers.go`
+- **GitOps:** `gitops/ameide-gitops/sources/values/_shared/apps/domain-transformation-v0.yaml` (+ smoke values file present)
 
 **Gaps:**
-- `TransformationService` (from `transformation/v1/transformation_service.proto`) exists in proto but is not registered by the domain server (current server registers architecture + scrum services)
-- Domain binary serves query services (not strict CQRS separation)
+- No domain query service registered in the domain binary (reads are projection responsibility)
 - Database config missing in GitOps (spec.db not populated)
 - Resource limits not defined
 - Dispatcher is log-only (not wired to Kafka/Watermill)
 
 **Key Patterns:**
-- Aggregate versioning with FOR UPDATE locks (optimistic concurrency)
-- Baseline item references with kind mapping
-- BPMN payload attachments
-- Workspace hierarchy with graph elements
-- Field mask support for partial updates
+- FOR UPDATE locking + monotonic `version` increments for optimistic concurrency
+- Node hierarchy stored with `path` and `order` for deterministic tree queries
+- FieldMask support for partial updates in edit operations
 
 ### 3.3 Commerce Domain - Storefront Domains (Code-only)
 
@@ -164,7 +159,7 @@ Four domain primitives (Sales, Commerce, Transformation, SRE) exist at varying l
 - Fact emission on state changes (CommerceDomainFact)
 - Transactional outbox with metadata extraction
 
-### 3.4 Sales Domain - CQRS Command Service (GitOps-deployed)
+### 3.4 Sales Domain - CQRS Command Service (GitOps manifests present)
 
 **Status:** Implemented SalesCommandService (18 RPCs) with full primitive ecosystem; GitOps deployed
 
@@ -278,7 +273,7 @@ All domains have skeleton dispatcher:
 |--------|-----------|-----------|----------------|----------------|------------|
 | **SRE** | 10 (IncidentService, mixed read+write) | 7 (projection query RPCs) | 6 query services | Yes (Incidents) | Yes |
 | **Sales** | 18 (SalesCommandService) | 6 (SalesQueryService via projection) | 1 | Yes (Opp/Quote) | Yes |
-| **Transformation** | 1 (SubmitIntent) | 21 (domain-served query RPCs) | 2 query services | Yes (Baselines/Definitions) | Yes |
+| **Transformation** | 15 (TransformationKnowledgeCommandService) | 15 (TransformationKnowledgeQueryService via projection) | 1 | Yes (versioned resources) | Yes |
 | **Commerce** | 8 (CommerceStorefrontWriteService) | 3 (CommerceQueryService via projection) | 1 | Yes (Claims/Mappings) | No |
 
 ### 5.2 Event Sourcing Maturity
@@ -295,13 +290,13 @@ All domains have skeleton dispatcher:
 | Domain | Best Feature | Competitive Advantage |
 |--------|-------------|----------------------|
 | **SRE** | 6 specialized query services | Most mature CQRS/ES implementation |
-| **Transformation** | 7 migrations, complex schema | Most sophisticated domain model |
+| **Transformation** | Enterprise repository primitives | Rich knowledge repo model with inbox/outbox + versioned resources |
 | **Sales** | 18 write RPCs + full ecosystem | Best deployment + ecosystem coverage |
 | **Commerce** | 10 error codes, production logic | Most production-ready business logic |
 
-## 6) GitOps Deployment Status
+## 6) GitOps Manifest Status
 
-### 6.1 Deployed Domains
+### 6.1 Manifests Present
 
 **Sales:**
 - File: `gitops/ameide-gitops/sources/values/_shared/apps/domain-sales-v0.yaml`
@@ -314,11 +309,11 @@ All domains have skeleton dispatcher:
 - File: `gitops/ameide-gitops/sources/values/_shared/apps/domain-transformation-v0.yaml`
 - Image: `ghcr.io/ameideio/transformation-domain:dev`
 - Replicas: 1
-- Smoke Test: `gitops/ameide-gitops/sources/values/_shared/apps/domain-transformation-v0-smoke.yaml` with gRPC health check
+- Smoke Test values: `gitops/ameide-gitops/sources/values/_shared/apps/domain-transformation-v0-smoke.yaml` (gRPC health check harness)
 - Config: Minimal (image + log level only)
 - Gaps: No database config, no resource limits
 
-### 6.2 Not Deployed (Code Only)
+### 6.2 Missing Manifests (Code Only)
 
 - **Commerce:** Implementation exists, no GitOps config
 - **SRE:** Implementation exists, no GitOps config
@@ -368,10 +363,10 @@ All current deployments use only: `image`, `replicas`, `strategy`, `logLevel`
 4. **Expand test coverage:** Add integration and E2E tests
 
 ### 8.3 For Transformation Domain
-1. **Clarify served APIs:** Domain server registers architecture+scrum services; decide whether to also serve `TransformationService`
-2. **Rationalize CQRS boundary:** Decide whether architecture queries are served by domain, projection, or both (avoid duplicated implementations)
-3. **Add database config:** Wire CNPG integration
-4. **Wire dispatcher:** Connect to Kafka
+1. **Lock in CQRS boundary:** Keep domain as write-only; serve reads from the projection (avoid duplicated query implementations)
+2. **Close the projection loop:** Ensure all knowledge query RPCs compile/are implemented in projection handlers and exercised by tests
+3. **Add database config:** Wire CNPG integration in GitOps `spec.db` (schema + migration job)
+4. **Wire dispatcher/relay:** Decide the canonical outbox consumption path (Kafka/Watermill vs brokerless relay) and make it consistent
 
 ### 8.4 For All Domains
 1. **Database operator integration:** Implement CNPG cluster ref + Flyway migration jobs
@@ -394,7 +389,7 @@ All current deployments use only: `image`, `replicas`, `strategy`, `logLevel`
 - **Migrations:** `primitives/domain/commerce/migrations/`
 
 ### Transformation Domain
-- **Proto:** `packages/ameide_core_proto/src/ameide_core_proto/transformation/architecture/v1/transformation_architecture_intents.proto`
+- **Proto:** `packages/ameide_core_proto/src/ameide_core_proto/transformation/knowledge/v1/transformation_knowledge_command_service.proto`
 - **Handler:** `primitives/domain/transformation/internal/handlers/handlers.go`
 - **GitOps:** `gitops/ameide-gitops/sources/values/_shared/apps/domain-transformation-v0.yaml`
 - **Migrations:** `primitives/domain/transformation/migrations/`
@@ -408,7 +403,7 @@ All current deployments use only: `image`, `replicas`, `strategy`, `logLevel`
 
 The four domain primitives demonstrate varying levels of maturity:
 - **SRE** leads in CQRS/ES implementation quality with complete event sourcing
-- **Transformation** has the most complex domain model with sophisticated versioning
+- **Transformation** has the richest knowledge repository patterns (tree + element graph + assignments) with inbox/outbox + versioning
 - **Sales** has strong CQRS design, GitOps deployment, and full primitive ecosystem coverage
 - **Commerce** has the most production-ready business logic but narrow functional scope
 

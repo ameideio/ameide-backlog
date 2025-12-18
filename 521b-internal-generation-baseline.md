@@ -18,9 +18,10 @@ Generated-only outputs (safe to delete/regenerate):
 
 | Output | Template | Location |
 |--------|----------|----------|
-| SDK Go stubs | `buf.gen.sdk-go.yaml` | `packages/ameide_sdk_go/gen/go/` |
-| SDK TS stubs | `buf.gen.ts.yaml` | `packages/ameide_core_proto/gen/ts/` |
-| SDK Python stubs | `buf.gen.yaml` | `packages/ameide_core_proto/gen/python/` |
+| SDK Go stubs (internal) | `buf.gen.sdk-go.yaml` | `packages/ameide_sdk_go/internal/proto/` |
+| SDK Go proto surface (public) | `go run ./tools/gen_public_protos` | `packages/ameide_sdk_go/proto/` |
+| SDK TS stubs (internal) | `buf.gen.sdk-ts.yaml` / `buf.gen.sdk-ts.local.yaml` | `packages/ameide_sdk_ts/src/_proto/` |
+| SDK Python stubs (internal) | `buf.gen.sdk-python.yaml` | `packages/ameide_sdk_python/src/ameide_sdk/_proto/` |
 | Per-primitive registration | `buf.gen.{kind}-{name}.local.yaml` | `primitives/{kind}/{name}/internal/gen/` |
 
 **Not included:**
@@ -64,11 +65,12 @@ This keeps “proto-first” real in practice: scaffolding creates repo-owned st
 │  - buf.build/proto/go       │  │  - grpc/go                      │  │    register-go                  │
 │  - buf.build/grpc/go        │  │  - connectrpc/go                │  │                                 │
 │  - buf.build/connectrpc/go  │  │                                 │  │  Or for UISurface:              │
-│  - buf.build/proto/python   │  │  Out: ameide_sdk_go/gen/go/     │  │  - protoc-gen-ameide-           │
+│  - buf.build/proto/python   │  │  Out: ameide_sdk_go/internal/   │  │  - protoc-gen-ameide-           │
+│                             │  │       proto/                    │  │                                 │
 │  - buf.build/grpc/python    │  │                                 │  │    uisurface-static             │
 │                             │  │                                 │  │                                 │
-│  Out: gen/ts, gen/python,   │  │                                 │  │  Out: primitives/{kind}         │
-│       ameide_sdk_go         │  │                                 │  │       /{name}/internal/gen/     │
+│  Out: (publish artifacts),  │  │                                 │  │  Out: primitives/{kind}         │
+│       plus SDK generation   │  │                                 │  │       /{name}/internal/gen/     │
 └─────────────────────────────┘  └─────────────────────────────────┘  └─────────────────────────────────┘
 ```
 
@@ -80,12 +82,13 @@ This keeps “proto-first” real in practice: scaffolding creates repo-owned st
 
 | Template | Purpose | Output Location |
 |----------|---------|-----------------|
-| `buf.gen.yaml` | BSR publish (ES, Go, Python) | `gen/ts`, `gen/python`, `ameide_sdk_go` |
-| `buf.gen.sdk-go.yaml` | SDK Go stubs | `packages/ameide_sdk_go/gen/go/` |
-| `buf.gen.sdk-ts.local.yaml` | SDK TS stubs (local) | `packages/ameide_sdk_ts/src/proto/` |
-| `buf.gen.sdk-go.local.yaml` | SDK Go stubs (local) | `packages/ameide_sdk_go/gen/go/` |
-| `buf.gen.ts.yaml` | TypeScript stubs | `packages/ameide_core_proto/gen/ts/` |
-| `buf.gen.ts-only.yaml` | TypeScript only (no Go/Python) | `gen/ts/` |
+| `buf.gen.yaml` | BSR publish (descriptor/image + language publish outputs) | (varies; see `packages/ameide_core_proto/buf.gen.yaml`) |
+| `buf.gen.sdk-go.yaml` | SDK Go stubs (internal) | `packages/ameide_sdk_go/internal/proto/` |
+| `buf.gen.sdk-go.local.yaml` | SDK Go stubs (internal, local plugins) | `packages/ameide_sdk_go/internal/proto/` |
+| `go run ./tools/gen_public_protos` | Go public proto surface (re-exports) | `packages/ameide_sdk_go/proto/` |
+| `buf.gen.sdk-ts.yaml` | SDK TS stubs (internal) | `packages/ameide_sdk_ts/src/_proto/` |
+| `buf.gen.sdk-ts.local.yaml` | SDK TS stubs (internal, local plugins) | `packages/ameide_sdk_ts/src/_proto/` |
+| `buf.gen.sdk-python.yaml` | SDK Python stubs (internal) | `packages/ameide_sdk_python/src/ameide_sdk/_proto/` |
 
 ### Per-Primitive Templates
 
@@ -116,7 +119,7 @@ Generates typed service registration glue (interface + register function) withou
 - `output_file=domain_services.generated.go` — Output filename
 - `register_func=RegisterDomainServices` — Register function name
 - `interface_name=DomainServices` — Interface name
-- `go_import_prefix=github.com/ameideio/ameide-sdk-go/gen/go` — Import prefix for relative `go_package`
+- `go_import_prefix=github.com/ameideio/ameide-sdk-go/proto` — Import prefix for service-facing SDK proto surface packages
 
 **Example template:**
 ```yaml
@@ -128,7 +131,7 @@ managed:
   enabled: true
   override:
     - file_option: go_package_prefix
-      value: github.com/ameideio/ameide-sdk-go/gen/go
+      value: github.com/ameideio/ameide-sdk-go/proto
 plugins:
   - local: protoc-gen-ameide-register-go
     out: ../../primitives/domain/transformation/internal/gen

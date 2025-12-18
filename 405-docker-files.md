@@ -21,11 +21,11 @@ TypeScript:
 
 Go:
 - Copy `packages/ameide_sdk_go`; set `GOPROXY=off`; use a shared helper (e.g., `scripts/ci/go_use_workspace_sdk.sh`) to prime the SDK module, apply `go mod edit -replace` to the workspace SDK, and `go mod download` before build/test.
-- Services import `ameide-sdk-go/gen/...` only; no `buf.build/gen/...` modules.
+- Services import `ameide-sdk-go/proto/...` only; no `buf.build/gen/...` modules.
 
 Python:
 - Copy `packages/ameide_sdk_python`; use `tool.uv.sources` + editable installs; `uv sync` (non-frozen) ok.
-- Imports must use `ameide_core_proto.*` from the SDK package; no workspace `ameide_core_proto` alias.
+- Imports must use `ameide_sdk.proto.ameide_core_proto.*`; no workspace `ameide_core_proto` alias.
 
 ## CI / Prod Dockerfiles (`Dockerfile.release`)
 

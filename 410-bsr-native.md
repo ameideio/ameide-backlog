@@ -16,7 +16,7 @@ Option A (workspace-first SDKs): BSR is the source of truth for the proto module
 ### Phase 0 – Prep
 - Confirm BSR module and labels (e.g., `buf.build/ameide/core-proto` with `main/dev/etc.`).
 - Add `proto-source.json` to each SDK repo noting the BSR module/ref it syncs from.
-- Keep SDK naming stable (Go: `github.com/ameideio/ameide-sdk-go`; TS: `@ameideio/ameide-sdk-ts`; Py: `ameide-sdk-python` with `ameide_core_proto.*` imports).
+- Keep SDK naming stable (Go: `github.com/ameideio/ameide-sdk-go`; TS: `@ameideio/ameide-sdk-ts`; Py: `ameide-sdk-python` with `ameide_sdk.proto.ameide_core_proto.*` imports).
 **Status:** proto-source.json added for Go/TS/Py (module `buf.build/ameideio/ameide:main`). Strategy: SDKs sync and bundle stubs from BSR; services consume SDKs only.
 **Done:** proto-source.json added (Go/TS/Py); BSR endpoints identified for TS/Go/Py; strategy locked to “sync + bundle stubs in SDKs; services never import BSR stubs.”
 **Gaps:** ensure all SDKs consistently sync from BSR with a no-diff check; keep stubs committed in the SDKs.
@@ -37,7 +37,7 @@ Option A (workspace-first SDKs): BSR is the source of truth for the proto module
 - Imports:
   - Go: `github.com/ameideio/ameide-sdk-go/...`
   - TS: `@ameideio/ameide-sdk-ts/...` (or barrels)
-  - Py: `ameide_sdk.*` / `ameide_core_proto.*` exposed by the SDK package (never from `packages/ameide_core_proto`).
+  - Py: `ameide_sdk.*` / `ameide_sdk.proto.ameide_core_proto.*` exposed by the SDK package (never from `packages/ameide_core_proto`).
 - Internal rings resolve SDKs from workspace copies:
   - Go: `go.work` + `replace` to `packages/ameide_sdk_go`.
   - TS: workspace/paths to `packages/ameide_sdk_ts`.
@@ -54,7 +54,7 @@ Option A (workspace-first SDKs): BSR is the source of truth for the proto module
 - Add TS dist scans to fail on workspace proto paths; similar guards for Go/Py sources.
 - Keep “no-diff after sync” checks in SDK repos.
 **Status:** core policy script updated to new Python import rules; TS policy now blocks `@buf/...` in services; Docker policy blocks @buf/buf.build/gen/go/Python BSR wheels in images; generation guardrails enforce a single Buf module without rebuilding core_proto dist. Bundled stubs remain.
-**Done:** Python import policy updated to prefer `ameide_core_proto.*` from SDK; SDK sync CI added; TS policy blocks `@buf/...` in services; Docker policy blocks BSR stub installs; TS dist scan blocks @buf/... in build outputs; generation policy now focuses on Buf module placement only.
+**Done:** Python import policy updated to prefer `ameide_sdk.proto.ameide_core_proto.*` from SDK; SDK sync CI added; TS policy blocks `@buf/...` in services; Docker policy blocks BSR stub installs; TS dist scan blocks @buf/... in build outputs; generation policy now focuses on Buf module placement only.
 **Gaps:** add scans to block `buf.build/gen/...` imports in services (Go/Py); add TS/Go/Py dist scans for BSR/core_proto paths where missing; keep policies aligned with bundled-stub SDKs.
 
 ### Phase 4 – Clean up and docs

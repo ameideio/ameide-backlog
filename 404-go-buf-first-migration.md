@@ -32,7 +32,7 @@ Move **all Go services (agents, inference_gateway, future templates)** to the 40
 ## Plan
 
 1) **Stub source pivot (packages/ameide_core_proto → BSR)**
-   - Add a Go codegen template (e.g., `buf.gen.go.local.yaml`) that writes stubs into `packages/ameide_sdk_go/gen/go` with module path `github.com/ameideio/ameide-sdk-go/gen/...` (or equivalent) by targeting the BSR module (`buf.build/ameide/core-proto:<label>`).
+   - Add a Go codegen template that writes stubs into `packages/ameide_sdk_go/internal/proto` (private) with module path `github.com/ameideio/ameide-sdk-go/internal/proto/...`, then regenerate the service-facing SDK proto surface under `packages/ameide_sdk_go/proto` (imports for services: `github.com/ameideio/ameide-sdk-go/proto/...`).
    - Wire `pnpm --filter @ameide/core-proto build` (and CI proto job) to run Go generation against the BSR ref and fail if `git status` shows dirty SDK `gen/go`.
    - Export Go package docs showing the import path pattern for services and SDK (connect + grpc packages) from the SDK module.
 
@@ -48,7 +48,7 @@ Move **all Go services (agents, inference_gateway, future templates)** to the 40
 
 4) **Service migrations**
    - **agents**
-     - Update imports from `buf.build/gen/...` (or core_proto paths) to `github.com/ameideio/ameide-sdk-go/gen/...`.
+     - Update imports from `buf.build/gen/...` (or core_proto paths) to `github.com/ameideio/ameide-sdk-go/proto/...`.
      - Drop Buf modules from go.mod; rely on workspace SDK stubs. Ensure integration tests (bufconn) still run under `GOWORK=auto`.
      - Simplify Dockerfile/Dockerfile.dev to remove Buf GOPROXY/GONOSUMDB; dev/Tilt images copy `go.work` + workspace SDK, prod images keep `GOWORK=off` pointed at the copied SDK (no GO_SDK_VERSION/proxy).
    - **inference_gateway**
@@ -69,10 +69,10 @@ Move **all Go services (agents, inference_gateway, future templates)** to the 40
 
 ## Status (2025-02-22)
 
-- Workspace Go stubs are committed under `packages/ameide_sdk_go/gen/go/...`; `pnpm --filter @ameide/core-proto build` emits Go outputs into the SDK.
+- Workspace Go stubs are committed under `packages/ameide_sdk_go/internal/proto/...`; `pnpm --filter @ameide/core-proto build` emits Go outputs into the SDK and regenerates the public proto surface under `packages/ameide_sdk_go/proto/...`.
 - Go SDK imports the workspace stubs (no `buf.build` modules).
 - `go.work` includes `packages/ameide_sdk_go`, `services/agents`, and `services/inference_gateway`; service Dockerfiles/dev images now set `GOWORK=auto` and build from workspace sources (no Buf GOPROXY).
-- Services (`agents`, `inference_gateway`) import stubs from `ameide-sdk-go/gen/...`; integration/test binaries are built from local stubs.
+- Services (`agents`, `inference_gateway`) import stubs from `ameide-sdk-go/proto/...`; integration/test binaries are built from local stubs.
 - Remaining gaps: CI guard for `buf.build` imports/stub drift is still needed; root `go.mod` still carries buf.build module deps for tooling and should be folded into the workspace story or isolated. Outer-loop publish smoke with `GOWORK=off` is still required.
 
 ## Acceptance Checklist
@@ -80,7 +80,7 @@ Move **all Go services (agents, inference_gateway, future templates)** to the 40
 - [x] `packages/ameide_core_proto` generates and commits Go stubs into the SDK; `pnpm --filter @ameide/core-proto build` is green and leaves a clean tree.
 - [x] `packages/ameide_sdk_go` imports only workspace stubs; go.mod/go.sum contain no `buf.build` entries.
 - [x] `go.work` includes agents + inference_gateway; `go test ./...` at repo root works without GOPROXY overrides.
-- [x] `services/agents` and `services/inference_gateway` import stubs from `ameide-sdk-go/gen/...` and build without Buf registry access.
+- [x] `services/agents` and `services/inference_gateway` import stubs from `ameide-sdk-go/proto/...` and build without Buf registry access.
 - [x] Dockerfiles drop Buf GOPROXY and rely on workspace SDK for dev/prod in-repo; tag-smoke runs use `GOWORK=off` + tagged SDK for external consumers.
 - [ ] CI enforces no `buf.build` imports in services, validates stub freshness, and runs inner-loop tests with workspace deps; publish jobs smoke `GOWORK=off` with tagged SDK.
 

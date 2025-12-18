@@ -107,7 +107,7 @@ This refactor aligns all languages with 407: services only see proto through SDK
 
 **Ring 1 (`Dockerfile.dev`)**
 
-- `uv sync` with workspace `ameide-sdk-python` via `tool.uv.sources`; no PyPI required. Remove any `ameide_core_proto` alias so imports are `ameide_core_proto.*` (from the SDK package) only.
+- `uv sync` with workspace `ameide-sdk-python` via `tool.uv.sources`; no PyPI required. Remove any `ameide_core_proto` alias so imports are `ameide_sdk.proto.ameide_core_proto.*` only.
 
 **Ring 2 (`Dockerfile.release`) - workspace SDK, no core_proto copies**
 
@@ -127,7 +127,7 @@ This refactor aligns all languages with 407: services only see proto through SDK
   - Goal: prod images also use workspace `@ameideio/ameide-sdk-ts`; no `@ameide/core-proto` references in code or dist.
   - Publish/release path: stamped lockfile for third-party deps + `workspace:*` for SDK; add SDK publish + smoke subsection.
 - **403 - Python**:
-  - Make `Dockerfile.release` the Ring 2 Dockerfile; services import `ameide_core_proto.*` from the SDK package; no workspace core_proto alias; no PyPI wheel in Ring 2.
+  - Make `Dockerfile.release` the Ring 2 Dockerfile; services import `ameide_sdk.proto.ameide_core_proto.*`; no workspace core_proto alias; no PyPI wheel in Ring 2.
 - **404 - Go**:
   - Remove proxy/`GO_SDK_VERSION` guidance for service images; services import SDK-generated stubs; stamping only for SDK smoke tests.
 - **405 - Dockerfiles**:
@@ -143,7 +143,7 @@ This refactor aligns all languages with 407: services only see proto through SDK
 
 - TS: CI fails if `pnpm why @ameideio/ameide-sdk-ts` in Ring 2 resolves off workspace or if imports/Dockerfiles reference `packages/ameide_core_proto`.
 - Go: CI lints that Ring 2 Dockerfiles omit GOPROXY/`GO_SDK_VERSION`, `go.mod` has no tagged SDK requirements, and no code imports `packages/ameide_core_proto`.
-- Python: CI checks Ring 2 resolves `ameide-sdk-python` via `tool.uv.sources` and imports are `ameide_core_proto.*` from the SDK package.
+- Python: CI checks Ring 2 resolves `ameide-sdk-python` via `tool.uv.sources` and imports are `ameide_sdk.proto.ameide_core_proto.*`.
 - Buf/validate: CI confirms buf/validate outputs exist inside each SDK package tree for TS/Go/Python.
 
 **Acceptance criteria**

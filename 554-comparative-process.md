@@ -8,8 +8,8 @@
 
 | Process | Workflows (LOC) | Activities (LOC) | Ingress Router (LOC) | Tests (LOC) | Proto Facts |
 |---------|-----------------|------------------|----------------------|-------------|-------------|
-| **Sales** | 306 | 118 | 111 | 101 | 6 events (78 LOC) |
-| **SRE** | 209 | 50 | 76 | 69 | 14 events (148 LOC) |
+| **Sales** | 306 | 118 | 111 | 77 | 6 events (78 LOC) |
+| **SRE** | 209 | 50 | 76 | 69 | 16 events (148 LOC) |
 | **Commerce** | 22 (placeholder) | 0 | 25 (scaffold) | 63 | 0 (no process proto) |
 | **Transformation** | 4 (constant only) | 0 | 4 (empty struct) | 63 | 0 events |
 
@@ -75,8 +75,8 @@ Four process primitives (Sales, Commerce, Transformation, SRE) exist at varying 
 | **Activities** | 3 | 1 | 0 | 0 |
 | **Ingress Router** | Full (SignalWithStart) | Full (SignalWithStart) | Scaffold | None |
 | **Worker Bootstrap** | Full | Full | Scaffold | Placeholder |
-| **Process Facts** | 9 event types | 14 event types | 1 event type | 0 |
-| **Proto Contract** | 60% (events only) | 65% (events only) | 25% (minimal) | 0% (no process contract) |
+| **Process Facts** | 6 event types | 16 event types | 0 | 0 |
+| **Proto Contract** | 60% (events only) | 65% (events only) | 0% (no process contract) | 0% (no process contract) |
 | **Event Handling** | Full | Full | Defined only | Not implemented |
 | **Test Coverage** | Basic | Intermediate | None | None |
 | **Idempotency** | Implemented (version tracking) | Implemented (version tracking) | Not started | Not started |
@@ -88,7 +88,7 @@ Four process primitives (Sales, Commerce, Transformation, SRE) exist at varying 
 
 ### 3.1 Sales Process - Production-Ready Deployed (80%)
 
-**Status:** Production-ready with active GitOps deployment; dual workflow implementation
+**Status:** Production-ready with GitOps manifests present; dual workflow implementation
 
 **Strengths:**
 - **Two production workflows implemented:**
@@ -97,7 +97,7 @@ Four process primitives (Sales, Commerce, Transformation, SRE) exist at varying 
 - **Three activities:** PublishProcessFact, FetchOpportunityIDForQuote, CreateErpOrder
 - **Full ingress router:** Deterministic workflow ID derivation, SignalWithStart pattern for idempotency
 - **Dual-binary architecture:** Worker and ingress built separately for scaling
-- **Process fact emission:** 9 event types covering quote approval and ERP handoff flows
+- **Process fact emission:** 6 event types covering quote approval and ERP handoff flows
 - **Version tracking:** lastSeenVersion in workflow state for idempotency
 - **Active deployment:** GitOps config with Temporal connection
 
@@ -120,7 +120,7 @@ Four process primitives (Sales, Commerce, Transformation, SRE) exist at varying 
 - **Timeout management:** Timer-based approval timeout with escalation
 - **Cross-domain coordination:** Integration service calls for ERP order creation
 
-**Process Facts (9 events):**
+**Process Facts (6 events):**
 1. **Quote Approval Flow:**
    - QuoteApprovalRequested
    - QuoteApprovalTimedOut
@@ -152,7 +152,7 @@ Four process primitives (Sales, Commerce, Transformation, SRE) exist at varying 
 
 **Strengths:**
 - **One sophisticated workflow:** `IncidentTriageWorkflow` with multi-phase orchestration
-- **14 process fact types:** Most comprehensive event catalog across all domains
+- **16 process fact types:** Most comprehensive event catalog across all domains
 - **Full ingress router:** Signal-based routing with validation
 - **Incident lifecycle management:** Created → Resolved → Closed state tracking
 - **W3C trace context support:** Full distributed tracing integration
@@ -176,7 +176,7 @@ Four process primitives (Sales, Commerce, Transformation, SRE) exist at varying 
 - **State tracking:** IncidentTriageState with IncidentID, Phase, UpdatedAt
 - **Outcome tracking:** "resolved" or "closed" workflow completion
 
-**Process Facts (14 events - most comprehensive):**
+**Process Facts (16 events - most comprehensive):**
 1. **Incident Triage Workflow:**
    - IncidentTriageStarted
    - PatternLookupCompleted (matched backlog items)
@@ -213,21 +213,20 @@ Four process primitives (Sales, Commerce, Transformation, SRE) exist at varying 
 
 ### 3.3 Commerce Process - Minimal Scaffold (30%)
 
-**Status:** Scaffold with placeholder workflow; minimal proto contract; not deployed
+**Status:** Scaffold with placeholder workflow; no commerce-specific process proto contract; not deployed
 
 **Strengths:**
 - **Worker + ingress architecture:** Dual-binary structure in place
 - **Temporal SDK integration:** Dependencies properly configured
 - **Process fact topic defined:** `commerce.process.facts.v1`
-- **Single event type:** DomainMappingStatusChanged for BYOD onboarding
 
 **Implementation Details:**
 - **Location:** `primitives/process/commerce/`
-- **Proto Files:** `packages/ameide_core_proto/src/ameide_core_proto/process/commerce/v1/commerce_process_facts.proto`
 - **Workflow:** `internal/workflows/workflow.go` - DomainOnboardingWorkflow (PLACEHOLDER)
-- **Ingress Router:** `internal/ingress/router.go` - Skeleton with TODO comments
+- **Ingress Router:** `internal/ingress/router.go` - Skeleton with TODO comments (not yet wired)
 - **Worker:** `cmd/worker/main.go` - Scaffold with placeholder registration
-- **Topics:** `commerce.process.facts.v1`
+- **Ingress:** `cmd/ingress/main.go` - Scaffold (connects to Temporal; TODO broker subscription)
+- **Topics:** `commerce.process.facts.v1` (constant only; no proto schema yet)
 
 **Workflow Patterns:**
 - **Placeholder workflow:** DomainOnboardingWorkflow logs start/completion, sleeps 1s, no logic
@@ -235,8 +234,8 @@ Four process primitives (Sales, Commerce, Transformation, SRE) exist at varying 
 - **Parameters:** tenantID, hostname
 - **No workflow ID derivation implemented**
 
-**Process Facts (1 event only):**
-- DomainMappingStatusChanged (hostname, claim_status, mapping_status, last_error)
+**Process Facts:**
+- None defined (no commerce process facts proto contract exists)
 
 **Gaps:**
 - **No real workflow implementation** (placeholder only)
@@ -244,8 +243,8 @@ Four process primitives (Sales, Commerce, Transformation, SRE) exist at varying 
 - No ingress router logic (complete skeleton)
 - No workflow ID derivation
 - No process state tracking
-- Minimal proto contract (1 event vs 9-14 in Sales/SRE)
-- No test coverage (empty smoke test only)
+- No process fact schema (no events contract vs Sales/SRE)
+- Stub-only tests (smoke test + harness script; no workflow assertions)
 - Missing explicit workflow context (no workflow_id/workflow_type in subject)
 - No GitOps deployment config
 
@@ -259,21 +258,21 @@ Four process primitives (Sales, Commerce, Transformation, SRE) exist at varying 
 
 ### 3.4 Transformation Process - Placeholder Only (10%)
 
-**Status:** Minimal placeholder; no Temporal integration; no process contract
+**Status:** Placeholder; gRPC Ping server + worker/ingress stubs; no process facts contract; no Temporal SDK integration (yet)
 
 **Strengths:**
 - **gRPC server implemented:** Health checks and reflection working
 - **Basic infrastructure:** Dockerfile and build process ready
-- **Service definition exists:** TransformationService with CRUD operations
+- **Temporal reachability check:** Main binary requires `TEMPORAL_ADDRESS` to be reachable at startup
 
 **Implementation Details:**
 - **Location:** `primitives/process/transformation/`
-- **Proto Files:** No dedicated process contract (domain service only in `transformation/v1/transformation_service.proto`)
+- **Proto Files:** Shared `process/v1` ping service only (no transformation process facts proto)
 - **Workflow:** `internal/workflows/workflow.go` - Constant only (`RefinementWorkflowName`)
 - **Worker:** `cmd/worker/main.go` - PLACEHOLDER (single log statement)
 - **Ingress:** `cmd/ingress/main.go` - PLACEHOLDER (single log statement)
-- **gRPC Server:** `cmd/main.go` - Production-ready with health checks
-- **No Temporal SDK:** Missing from go.mod dependencies
+- **gRPC Server:** `cmd/main.go` - Ping + health checks; requires Temporal reachability
+- **No Temporal SDK:** Missing from `go.mod` dependencies (worker/ingress are placeholders)
 
 **Workflow Patterns:**
 - **Workflow name constant defined:** `transformation.refinement.v0`
@@ -292,16 +291,10 @@ Four process primitives (Sales, Commerce, Transformation, SRE) exist at varying 
 - No ingress router
 - No worker logic
 - No process state
-- No test coverage
+- Stub-only tests (smoke test + harness script; no workflow assertions)
 - No documentation (no README, no catalog-info.yaml)
 - No GitOps deployment config
-- **Architectural mismatch:** Uses gRPC direct calls instead of event-driven processes
-
-**Key Observation:**
-- Transformation lifecycle managed via direct TransformationService gRPC calls
-- Not event-driven; no process primitive contract
-- Would require architectural shift to implement event-driven process layer
-- Current implementation: Single binary gRPC service, not worker+ingress pattern
+- No event ingestion path (no broker subscription; no SignalWithStart routing)
 
 ---
 
@@ -470,10 +463,10 @@ primitives/process/{domain}/
 
 | Process | Process Facts | Workflow Types | Service API | Query Capability | Idempotency |
 |---------|--------------|----------------|-------------|------------------|-------------|
-| **SRE** | 14 events | 3+ workflows | None | None | ✓ (message_id) |
-| **Sales** | 9 events | 2 workflows | None | None | ✓ (message_id) |
-| **Commerce** | 1 event | 1 placeholder | None | None | Partial |
-| **Transformation** | 0 events | 0 | Yes (CRUD only) | Yes (domain only) | N/A |
+| **SRE** | 16 events | 1 workflow | None | None | ✓ (message_id) |
+| **Sales** | 6 events | 2 workflows | None | None | ✓ (message_id) |
+| **Commerce** | 0 | 1 placeholder | None | None | N/A |
+| **Transformation** | 0 | 0 | Ping only | None | N/A |
 
 ### 5.2 Workflow Context Maturity
 
@@ -486,19 +479,19 @@ primitives/process/{domain}/
 
 ### 5.3 Event Catalog Completeness
 
-**SRE (14 events - most comprehensive):**
+**SRE (16 events - most comprehensive):**
 - Incident triage: 9 events covering full lifecycle
 - Change verification: 2 events
 - SLO burn evaluation: 2 events
+- Alert correlation: 1 event
 - Runbook execution: 2 events (scaffolded)
 
-**Sales (9 events):**
+**Sales (6 events):**
 - Quote approval: 3 events (request, timeout, escalation)
 - ERP handoff: 3 events (request, complete, fail)
-- Additional flows: 3 events
 
-**Commerce (1 event only):**
-- Domain onboarding: 1 event (DomainMappingStatusChanged)
+**Commerce (0 events):**
+- No process fact definitions (no commerce process proto)
 
 **Transformation (0 events):**
 - No process fact definitions

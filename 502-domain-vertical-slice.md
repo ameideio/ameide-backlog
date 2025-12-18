@@ -589,8 +589,8 @@ Proto definitions in `packages/ameide_core_proto/src/ameide_core_proto/primitive
 | `primitive_service.proto` | `PrimitiveService` with all RPCs |
 
 Generated code in:
-- Go: `packages/ameide_sdk_go/gen/ameide_core_proto/primitive/v1/`
-- TypeScript: `packages/ameide_core_proto/gen/ts/ameide_core_proto/primitive/v1/`
+- Go: `packages/ameide_sdk_go/proto/ameide_core_proto/primitive/v1/`
+- TypeScript: `packages/ameide_sdk_ts/src/_proto/ameide_core_proto/primitive/v1/`
 
 ### 8.2 Phase I: CLI Commands
 
