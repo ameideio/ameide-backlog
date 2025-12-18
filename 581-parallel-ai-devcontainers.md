@@ -72,6 +72,18 @@ Recommendation:
   - `primary`: does the full bootstrap.
   - `agent`: skips side effects and assumes shared state is already present.
 
+### Volume permissions
+
+Named Docker volumes are initialized with root ownership when first created. The `.devcontainer/postCreate.sh` script fixes ownership for all shared volumes (`~/.codex`, `~/.kube`, `~/.azure`, `~/.config/ameide`) using the VS Code Dev Containers recommended approach:
+
+- Ensures mount points exist with `sudo mkdir -p`
+- Fixes ownership with `sudo chown -R $(id -u):$(id -g)`
+- Runs early in container startup (before pnpm install and bootstrap)
+
+This prevents "Permission denied" errors when Codex CLI, kubectl, Azure CLI, or other tools try to write configuration files.
+
+Reference: [VS Code Dev Containers - Persist bash history](https://code.visualstudio.com/remote/advancedcontainers/persist-bash-history)
+
 ## Implementation (repo)
 
 - Devcontainer configs:
