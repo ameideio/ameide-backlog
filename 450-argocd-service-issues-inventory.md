@@ -5,6 +5,10 @@
 **Updated**: 2025-12-18
 **Commits**:
 - `485a3961 fix(sso): make keycloak client-patcher deterministic`
+- `e6dd0f32 fix(keycloak): ensure client specs exist before patcher hook`
+- `a73eabe6 fix(sso): make keycloak secret extraction deterministic`
+- `d7abdbea fix(registry): ensure default SA uses ghcr-pull`
+- `1164cac7 fix(foundation-namespaces): restore manifests list`
 - `3654788b fix(local): bootstrap argocd without dex blocking`
 - `04915b5a fix(bootstrap): don't block on dex readiness`
 - `3a311a7d fix(argocd): refresh dex secret from vault quickly`
@@ -218,9 +222,15 @@ Remediation approach (vendor-aligned, GitOps-idempotent):
 
 ### Root causes
 
-1. **Keycloak-generated secret extraction raced ExternalSecrets**:
-   - `platform-keycloak-realm` `client-patcher` ran as a `PostSync` hook (after resources like `ExternalSecret/keycloak-realm-oidc-clients` were already applied).
-   - With `refreshInterval: 1h`, ExternalSecrets could materialize and cache the placeholder (`keycloak_generated_placeholder`) and keep it for a long time even though Vault had the real secret.
+1. **Client reconciliation ordering bug (dev/staging redirect_uri rejected)**:
+   - `platform-keycloak-realm-client-specs` is the input for the `client-patcher` hook Job, but it was not explicitly ordered before the hook.
+   - In first-sync scenarios, the hook could run before the ConfigMap existed, so `platform-app` was created without redirect URIs → Keycloak returned `Invalid parameter: redirect_uri`.
+2. **Secret extraction silently skipped due to insufficient Keycloak token permissions**:
+   - The `client-patcher` authenticated via client credentials (from `keycloak-admin-sa`) first; that token can patch clients but may not have access to the `/client-secret` endpoint.
+   - `get_client_secret()` returned empty → extraction treated the client as “public” and skipped writing the real secret to Vault, leaving bootstrap placeholders in place.
+3. **Slow secret convergence window (1h) + env-var injection requires restart**:
+   - With `refreshInterval: 1h`, ExternalSecrets could sync placeholder values for a long time after a fresh bootstrap or a Keycloak secret rotation.
+   - Apps consuming secrets via env vars require a pod restart to pick up updated Secrets; without quick refresh + restart, users see `unauthorized_client` until convergence.
 
 ## Update (2025-12-18): Azure CI destroy reliability (PDBs + state locks)
 
