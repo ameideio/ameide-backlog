@@ -752,3 +752,25 @@ secrets:
     usernameEnv: GHCR_USERNAME
     tokenEnv: GHCR_TOKEN
 ```
+
+## Update (2025-12-18): Azure Workload Identity is a hard dependency for TLS + SSO
+
+### What happened
+
+- Azure apply “looked green” (AKS + Public IPs + ArgoCD bootstrap), but HTTPS endpoints (`argocd.ameide.io`, `auth.ameide.io`) were not reachable on `443`.
+- Root cause was **not** DNS or Public IP association: it was **missing TLS secrets**, which kept Envoy Gateway HTTPS listeners invalid and prevented AKS from creating LB rules for port `443`.
+
+### Why this matters for workflows
+
+- SSO is HTTPS-only (OIDC redirect URIs are `https://...`), so “SSO verification” implicitly requires:
+  - cert-manager DNS-01 challenges succeed,
+  - TLS Secrets are created,
+  - Envoy exposes `443`,
+  - and only then verifiers can pass.
+
+### Required configuration (no band-aids)
+
+- Terraform must create **federated identity credentials** for the DNS managed identities used by cert-manager, otherwise cert-manager cannot solve DNS-01 challenges:
+  - `enable_dns_federated_identity=true` should be the default.
+- Helm values must reference the **Terraform-created** client IDs (same tenant/subscription), otherwise cert-manager fails with `AADSTS700016`.
+- CI apply must **wait on TLS + 443** (not just “terraform apply finished”) before running end-to-end verifiers.

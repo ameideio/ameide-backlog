@@ -258,6 +258,37 @@ Remediation approach (vendor-aligned, GitOps-idempotent):
 
 - The Public IPs exist and DNS points at them, but **AKS has not yet associated them to a Load Balancer frontend** (no `ipConfiguration.id` on the Public IP), because the GitOps layer (Envoy / Keycloak ingress) has not converged yet.
 
+## Update (2025-12-18): Azure HTTPS missing (no 443 LB rules) due to cert-manager DNS-01 auth failure
+
+### Symptom(s)
+
+- DNS `A` records resolve correctly to the Terraform-managed Public IPs (e.g. `auth.ameide.io -> <envoy-prod-pip>`), but:
+  - `curl https://auth.ameide.io/...` returns `HTTP 000` / connect timeout
+  - Azure `kubernetes` Load Balancer rules exist for `80/8000/9000`, but **no rule for `443`**
+- Envoy Gateway `Gateway` resources show `Programmed=True`, but individual **HTTPS listeners are not programmed**.
+
+### Root cause
+
+- HTTPS listeners were invalid because required TLS Secrets were missing:
+  - `argocd/argocd-ameide-io-tls` (ArgoCD)
+  - `ameide-*/ameide-wildcard-tls` (platform)
+- Those Secrets were missing because cert-manager ACME DNS-01 challenges failed with Entra ID auth errors:
+  - `AADSTS700016: Application with identifier '<clientId>' was not found in the directory ...`
+- The cluster was using **stale / wrong** Azure Workload Identity client IDs in Helm values, and (separately) Terraform had DNS federated identity credentials behind a flag (`enable_dns_federated_identity=false`), so even the correct identities were not federated.
+
+### Remediation (Terraform + GitOps, no manual cluster poking)
+
+- **Terraform**:
+  - Default `enable_dns_federated_identity=true` (and backups) so the identities created by Terraform always have the required federated credentials for the cert-manager ServiceAccount.
+- **GitOps values**:
+  - Update `sources/values/cluster/azure/cert-manager.yaml` + `sources/values/*/globals.yaml` to match the Terraform-created identity client IDs and Public IPs.
+- **CI**:
+  - After `terraform apply`, wait for:
+    - Public IP association (`ipConfiguration.id`)
+    - Certificates `Ready=True`
+    - Envoy LoadBalancer Services to expose port `443`
+  - Only then run the SSO verifiers.
+
 ### Remediation
 
 - Add a deterministic CI gate to **wait for the Public IPs to be associated** before running the SSO verifiers (removes timing flakiness without changing cluster configuration).
