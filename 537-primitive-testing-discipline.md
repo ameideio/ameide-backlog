@@ -665,7 +665,7 @@ This section documents gaps between this spec (537) and the current CLI implemen
 
 | ID | Gap | Current State | Required by 537 |
 |----|-----|---------------|-----------------|
-| **G4** | Integration mode semantics inconsistent | Both `INTEGRATION_MODE` and `INTEGRATION_TEST_MODE` are in use; not all tests consistently skip based on `repo`/`local`/`cluster` semantics | Three modes: `repo`, `local`, `cluster` |
+| **G4** | Integration mode semantics inconsistent | Legacy `INTEGRATION_TEST_MODE` references and `mock`-mode assumptions cause drift; not all tests consistently skip based on `repo`/`local`/`cluster` semantics | Three modes: `repo`, `local`, `cluster` |
 | **G5** | No per-primitive invariant checks | Generic test check runs, but no invariant validation | Static determinism policy for Process, reducer annotation checks for Agent |
 | **G6** | No cross-cutting envelope tests | No validation of event metadata | Envelope tests required (tenant_id, traceparent, idempotency_key) for Domain/Process |
 | **G8** | No agent governance tests | No tool grants enforcement, no risk-tier validation | Tool grants, risk-tier, state discipline tests required |
@@ -680,7 +680,7 @@ This section documents gaps between this spec (537) and the current CLI implemen
 - `Codegen` check validates generated output freshness (TS via temp-tree generation+diff; Go/Python via proto vs generated-file timestamps).
 
 **Still needed (to make tests “meaningful”, not just present):**
-- **Integration mode discipline**: consolidate on `INTEGRATION_MODE` (keep `INTEGRATION_TEST_MODE` only as compatibility) and ensure tests consistently skip/require infra based on `repo`/`local`/`cluster`.
+- **Integration mode discipline**: consolidate on `INTEGRATION_MODE` and remove `INTEGRATION_TEST_MODE` entirely; ensure tests consistently skip/require infra based on `repo`/`local`/`cluster`.
 - **Per-primitive invariants** (tests + optional verify checks):
   - Process: determinism policy (static) + idempotency behaviors (Temporal testsuite).
   - Domain/Process: envelope metadata tests (tenant/idempotency/trace context).
@@ -715,14 +715,12 @@ This is the **ideal**, checklist-driven refactor set to bring the repo in line w
 ### 10.1 Integration Mode Contract (G4)
 
 - [ ] Standardize on `INTEGRATION_MODE={repo,local,cluster}` as the canonical contract.
-- [ ] Keep `INTEGRATION_TEST_MODE` as a **compatibility alias only**:
-  - Map `INTEGRATION_TEST_MODE=mock` → `INTEGRATION_MODE=repo`
-  - Map `INTEGRATION_TEST_MODE=cluster` → `INTEGRATION_MODE=cluster`
-  - When `INTEGRATION_MODE` is set, export a derived `INTEGRATION_TEST_MODE` (`cluster` vs `mock`) for older scripts.
+- [ ] Remove `INTEGRATION_TEST_MODE` completely (no fallbacks, no aliases, no exports).
+- [ ] Replace any legacy `mock` integration-mode comparisons with `mode !== "cluster"` (or explicit `repo|local` checks) to keep semantics intact.
 - [ ] Update the shared integration helpers:
   - `tools/integration-runner/integration-mode.sh`
   - `tools/integration-runner/integration_mode.py`
-- [ ] Update all generated harness scripts to export `INTEGRATION_MODE` (and the alias):
+- [ ] Update all generated harness scripts to export `INTEGRATION_MODE`:
   - `primitives/*/*/tests/run_integration_tests.sh` (scaffold output)
   - SDK/internal scripts that source the helper should tolerate `local` mode (treat as “non-cluster” for required env vars).
 
@@ -731,8 +729,8 @@ This is the **ideal**, checklist-driven refactor set to bring the repo in line w
 - [ ] `ameide primitive verify --check tests` must:
   - [ ] FAIL when no tests exist.
   - [ ] FAIL when any test file contains `AMEIDE_SCAFFOLD`.
-  - [ ] Run tests with `INTEGRATION_MODE` exported (and `INTEGRATION_TEST_MODE` for compatibility).
-- [ ] Consolidate all CLI paths that currently read `INTEGRATION_TEST_MODE` to read `INTEGRATION_MODE` first:
+  - [ ] Run tests with `INTEGRATION_MODE` exported.
+- [ ] Ensure no CLI paths read `INTEGRATION_TEST_MODE`:
   - `packages/ameide_core_cli/internal/commands/primitive.go`
   - `packages/ameide_core_cli/internal/commands/primitive_commands.go`
   - `packages/ameide_core_cli/internal/commands/verify.go`
