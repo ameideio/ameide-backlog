@@ -235,6 +235,14 @@ Remediation approach (vendor-aligned, GitOps-idempotent):
    - With `refreshInterval: 1h`, ExternalSecrets could sync placeholder values for a long time after a fresh bootstrap or a Keycloak secret rotation.
    - Apps consuming secrets via env vars require a pod restart to pick up updated Secrets; without quick refresh + restart, users see `unauthorized_client` until convergence.
 
+### Local follow-up (2025-12-18): enable platform SSO verifier end-to-end
+
+- `infra/scripts/verify-platform-sso.sh --local` was previously skipping the full platform SSO flow because `www-ameide-platform` was disabled in the local overlay (no `Service`/`Deployment` rendered).
+- Local enablement required:
+  - Fixing the devcontainer kubecontext: `ameide-local` must target `https://host.docker.internal:6550` (not `https://127.0.0.1:6550`) or `kubectl`/Terraform operations intermittently fail.
+  - Running Redis in Sentinel mode locally (and enabling `redis-operator`) because `www-ameide-platform` uses Sentinel discovery for session storage.
+- Current status: `www-ameide-platform` is enabled locally and `infra/scripts/verify-platform-sso.sh --local` passes end-to-end.
+
 ## Update (2025-12-18): Azure CI destroy reliability (PDBs + state locks)
 
 ### Symptom(s)
