@@ -11,23 +11,32 @@ Keep the existing “generic” devcontainer workflow for normal human developme
 Add three *additional* agent slots for parallel work; they do not replace the generic workflow:
 
 - Slots: `agent-01`, `agent-02`, `agent-03`
-- One worktree per slot (or separate clones)
+- One clone per slot (recommended) or one worktree per slot (advanced)
 - One VS Code window per slot → “Reopen in Container”
 - One branch per slot (e.g., `ameide-agent-01`) or per-slot topic branch (e.g., `agent-01/<topic>`) → PRs merge into `dev`
 
 Convenience:
 - `./tools/dev/create-agent-worktrees.sh` creates `ameide-agent-01..03` worktrees (and corresponding per-slot branches).
+- `./tools/dev/create-agent-clones.sh` creates `ameide-agent-01..03` clones (simpler with Dev Containers + Git).
 
 ## One agent identity everywhere
 
 Devcontainer-provided identity:
 - `AMEIDE_AGENT_ID=${localWorkspaceFolderBasename}` (agent devcontainer)
 
-Recommended worktree folder names (so `${localWorkspaceFolderBasename}` carries the slot):
+Recommended agent folder names (clone or worktree) so `${localWorkspaceFolderBasename}` carries the slot:
 - `ameide-agent-01`, `ameide-agent-02`, `ameide-agent-03`
 
 Tooling convention:
 - When an `AMEIDE_AGENT_ID` contains `agent-01|agent-02|agent-03`, scripts should treat that substring as the canonical slot ID (e.g., `ameide-agent-01` → `agent-01`).
+
+## Git layout recommendation (Dev Containers)
+
+Preferred for reliability: **three separate clones**.
+
+Rationale: Git worktrees store a `.git` *file* that points at the “real” git dir under the main repo (often an absolute host path). In a devcontainer, that path may not exist, and Git inside the container can look “not initialized”.
+
+Worktrees can still work, but require careful mounts so the container can see the main repo’s `.git/` directory at the referenced path.
 
 ## Telepresence + Tilt: same-workload parallelism
 
@@ -74,7 +83,7 @@ Repeated bootstrap (Azure login, kube context wiring, port-forwards) across N co
 
 Recommendation:
 - Use `AMEIDE_BOOTSTRAP_PROFILE=primary|agent`
-  - `primary`: does the full bootstrap.
+  - `primary`: human devcontainer; bootstrap is typically run manually because `az login --use-device-code` is interactive (set `AMEIDE_AUTO_BOOTSTRAP=1` to run it automatically during postCreate).
   - `agent`: skips side effects and assumes shared state is already present.
 
 ### Volume permissions
