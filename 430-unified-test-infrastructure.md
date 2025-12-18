@@ -122,13 +122,13 @@ services/<service>/
 ### Environment Variable
 
 ```bash
-INTEGRATION_TEST_MODE=mock|cluster
+INTEGRATION_MODE=repo|local|cluster
 ```
 
 **Rules:**
-- Default: `mock` (safe for local development)
+- Default: `repo` (safe for local development)
 - Unknown values: **Exit 1** (never fallback)
-- Case-insensitive: `MOCK`, `Mock`, `mock` all valid
+- Case-insensitive: `REPO`, `Repo`, `repo` all valid
 
 ### Service-Specific Inputs
 
@@ -159,12 +159,12 @@ source "tools/integration-runner/integration-mode.sh"
 
 # 2. Resolve and export mode (required)
 MODE="$(integration_mode)"
-export INTEGRATION_TEST_MODE="${MODE}"
+export INTEGRATION_MODE="${MODE}"
 
 # 3. Mode-specific setup (required)
-if [[ "${MODE}" == "mock" ]]; then
-  # Mock mode: no env var requirements
-  echo "[service] INTEGRATION_TEST_MODE=mock"
+if [[ "${MODE}" != "cluster" ]]; then
+  # Non-cluster mode: no env var requirements
+  echo "[service] INTEGRATION_MODE=${MODE}"
 else
   # Cluster mode: validate required env vars
   require_cluster_mode "${MODE}"
@@ -200,7 +200,7 @@ The verifier fails when a pack exists but does not satisfy:
 - **Services**: `__tests__/integration/run_integration_tests.sh` exists and is executable
 - **Primitives**: `tests/run_integration_tests.sh` exists and is executable
 - Runner sources `tools/integration-runner/integration-mode.sh` and `tools/integration-runner/junit-path.sh`
-- Runner resolves mode via `MODE="$(integration_mode)"` (or equivalent) and exports `INTEGRATION_TEST_MODE`
+- Runner resolves mode via `MODE="$(integration_mode)"` (or equivalent) and exports `INTEGRATION_MODE`
 - Runner declares a `required_vars=(...)` (or `required_env_vars=(...)`) array and every entry (when present) starts with the expected prefix (`SERVICEPREFIX_FIELD`)
 - Runner emits an `integration_test_started` structured log event
 - Runner contains no inline `resolve_junit_path()` fallback
@@ -304,7 +304,7 @@ E2E tests in mock mode use MSW to intercept API calls:
 // playwright.config.ts
 export default defineConfig({
   webServer: {
-    command: process.env.INTEGRATION_TEST_MODE === 'mock'
+    command: process.env.INTEGRATION_MODE !== 'cluster'
       ? 'pnpm dev:mock'    // MSW-enabled dev server
       : undefined,         // Cluster deployment
   },
@@ -348,7 +348,7 @@ JUNIT_PATH="$(resolve_junit_path service-name)"
 
 | Target | Mode | Purpose |
 |--------|------|---------|
-| `test-all-mock` | mock | All integration tests, in-memory |
+| `test-all-repo` | repo | All integration tests, in-memory |
 | `test-all-cluster` | cluster | All integration tests, AKS (`ameide-dev`) |
 | `e2e-playwright-run` | cluster | Playwright E2E suite |
 | `integration-<service>` | cluster | Per-service integration job |
@@ -395,19 +395,19 @@ test-e2e-playwright:
 
 | Variable | Replacement |
 |----------|-------------|
-| `RUN_INTEGRATION_TESTS` | `INTEGRATION_TEST_MODE=cluster` |
-| `*_USE_LIVE_DB` | `INTEGRATION_TEST_MODE=cluster` |
-| `*_INTEGRATION_ENABLED` | `INTEGRATION_TEST_MODE=cluster` |
+| `RUN_INTEGRATION_TESTS` | `INTEGRATION_MODE=cluster` |
+| `*_USE_LIVE_DB` | `INTEGRATION_MODE=cluster` |
+| `*_INTEGRATION_ENABLED` | `INTEGRATION_MODE=cluster` |
 | `SKIP_*_TESTS` | Remove; fail if dependencies missing |
 
 ### Anti-Patterns
 
 ```typescript
 // FORBIDDEN: Conditional skip
-test.skipIf(mode === 'mock')('requires cluster', () => {});
+test.skipIf(mode !== 'cluster')('requires cluster', () => {});
 
 // FORBIDDEN: Different behavior per mode
-const expected = mode === 'mock' ? 'mock-response' : 'real-response';
+const expected = mode !== 'cluster' ? 'mock-response' : 'real-response';
 
 // FORBIDDEN: Swallowing errors
 try { await client.call(); } catch { /* ignore in mock */ }
@@ -432,7 +432,7 @@ Every test run emits:
   "service": "platform",
   "mode": "cluster",
   "env": {
-    "INTEGRATION_TEST_MODE": "cluster",
+    "INTEGRATION_MODE": "cluster",
     "GRPC_ADDRESS": "envoy.ameide.svc:443"
   }
 }

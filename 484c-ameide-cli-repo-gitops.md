@@ -178,7 +178,7 @@ set -euo pipefail
 
 source "tools/integration-runner/integration-mode.sh"
 MODE="$(integration_mode)"
-export INTEGRATION_TEST_MODE="${MODE}"
+export INTEGRATION_MODE="${MODE}"
 
 if [[ "${MODE}" == "cluster" ]]; then
   require_cluster_mode "${MODE}"

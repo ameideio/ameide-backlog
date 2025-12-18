@@ -120,9 +120,9 @@ This document tracks implementation progress against the target state defined in
 **Status:** Compliant
 
 **Notes:**
-- Jest integration config now exercises the full suite in both modes; `getServerClient()` automatically routes to the mock transport when `INTEGRATION_TEST_MODE=mock`.
+- Jest integration config now exercises the full suite in both modes; `getServerClient()` automatically routes to the mock transport when `INTEGRATION_MODE` is not `cluster`.
 - Added a hardened `pnpm dev:mock` entry point plus Playwright webServer orchestration so mock-mode E2E runs bootstrap a Next dev server with MSW interceptors and seeded fixtures.
-- `tests/scripts/run-playwright-e2e.mjs` enforces the mode contract (defaulting to mock), injects deterministic credentials, and fail-fast validates base URLs per backlog 430.
+- `tests/scripts/run-playwright-e2e.mjs` enforces the mode contract (defaulting to `repo`), injects deterministic credentials, and fail-fast validates base URLs per backlog 430.
 
 ---
 
@@ -131,7 +131,7 @@ This document tracks implementation progress against the target state defined in
 **Status:** Compliant
 
 **Notes:**
-- `services/repository/__mocks__` exposes mock handlers plus fixture seeding so the entire metamodel stack runs in memory when `INTEGRATION_TEST_MODE=mock`.
+- `services/repository/__mocks__` exposes mock handlers plus fixture seeding so the entire metamodel stack runs in memory when `INTEGRATION_MODE` is not `cluster`.
 - `createIntegrationHarness()` (helpers.ts) loads the same test cases in both modes by swapping the backing handlers/client only.
 - Runner validates database env vars only when `MODE=cluster`, so local developers default to mock mode safely.
 
@@ -154,7 +154,7 @@ This document tracks implementation progress against the target state defined in
 **Status:** Compliant
 
 **Notes:**
-- `createThreadsClient()` pulls from `chat/__mocks__` whenever the mode helper returns `mock`, exposing the same API surface as the production gRPC service.
+- `createThreadsClient()` pulls from `chat/__mocks__` whenever the mode helper returns `repo` or `local`, exposing the same API surface as the production gRPC service.
 - Runner only enforces `CHAT_SERVICE_URL` et al in cluster mode; mock mode works with zero external dependencies.
 - Fixtures ensure deterministic IDs, so the assertions in `threads.integration.test.ts` execute identically in both modes.
 
@@ -167,7 +167,7 @@ This document tracks implementation progress against the target state defined in
 **Notes:**
 - Added mock FastAPI + gRPC layer under `services/inference/__mocks__/` with fixtures and downstream service doubles.
 - Integration helpers/conftest provide shared dual-mode clients; assertions run identically in mock/cluster.
-- `run_integration_tests.sh` now defaults to mock mode and validates cluster env vars; mock suite passes.
+- `run_integration_tests.sh` now defaults to `repo` mode and validates cluster env vars; non-cluster suite passes.
 
 ---
 
@@ -176,7 +176,7 @@ This document tracks implementation progress against the target state defined in
 **Status:** Compliant
 
 **Notes:**
-- `services/agents_runtime/__mocks__` ships a full gRPC twin (agents + runtime services) plus MinIO stubs; pytest fixtures spin it up when `integration_mode()` resolves to `mock`.
+- `services/agents_runtime/__mocks__` ships a full gRPC twin (agents + runtime services) plus MinIO stubs; pytest fixtures spin it up when `integration_mode()` resolves to `repo` or `local`.
 - Runner enforces the MinIO + GRPC env vars only for cluster, while mock mode dumps structured log output and proceeds with in-memory transports.
 - Tests share helpers that return mode-aware SDK clients, so the same assertions cover both transports without branching.
 
@@ -187,7 +187,7 @@ This document tracks implementation progress against the target state defined in
 **Status:** Compliant
 
 **Notes:**
-- `services/workflows_runtime/__mocks__/temporal.py` exposes `run_mock_platform_workflow`, letting the pytest helpers execute the Temporal workflows entirely in-process when `INTEGRATION_TEST_MODE=mock`.
+- `services/workflows_runtime/__mocks__/temporal.py` exposes `run_mock_platform_workflow`, letting the pytest helpers execute the Temporal workflows entirely in-process when `INTEGRATION_MODE` is not `cluster`.
 - Cluster mode still verifies Temporal env vars and exercises the real worker via `Client.connect()`, but the test harness is identical.
 - Runner emits the structured start log and only fails fast when cluster env vars are missing.
 
@@ -198,8 +198,8 @@ This document tracks implementation progress against the target state defined in
 **Status:** Compliant
 
 **Notes:**
-- The integration harness swaps between `createMockTransformationClient()` and the live service via `getServerClient()` based on `INTEGRATION_TEST_MODE`, ensuring single implementation / dual execution.
-- Runner enforces database env vars only when `MODE=cluster`, so the default (`mock`) requires no backing Postgres.
+- The integration harness swaps between `createMockTransformationClient()` and the live service via `getServerClient()` based on `INTEGRATION_MODE`, ensuring single implementation / dual execution.
+- Runner enforces database env vars only when `MODE=cluster`, so the default (`repo`) requires no backing Postgres.
 - `services/transformation/__mocks__` contains typed fixtures plus handler reset utilities to keep tests deterministic.
 
 ---
@@ -240,7 +240,7 @@ This document tracks implementation progress against the target state defined in
 
 ### Violations
 
-1. **None** - Playwright now honors `INTEGRATION_TEST_MODE` and boots a mock dev server when requested.
+1. **None** - Playwright now honors `INTEGRATION_MODE` and boots a mock dev server when requested.
 
 ### Required Work
 
@@ -287,7 +287,7 @@ None. Every service-level integration suite now has a co-located `__mocks__/` di
 All 18 active runners:
 - Source `tools/integration-runner/integration-mode.sh`
 - Source `tools/integration-runner/junit-path.sh`
-- Export `INTEGRATION_TEST_MODE`
+- Export `INTEGRATION_MODE`
 - Emit structured JSON log
 
 ### Non-Compliant Patterns (Fix Required)

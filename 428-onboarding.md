@@ -392,14 +392,14 @@ When multiple identity sources are configured, the following precedence applies:
 | 1.4 Add `pending_onboarding` → `active` status automation | ✅ Implemented | `services/platform/src/tenants/service.ts` creates tenants with status `pending_onboarding`; `IdentityOrchestrator.completeRegistration` (`services/www_ameide_platform/features/identity/lib/orchestrator.ts`) calls `client.tenants.updateTenant` with `status: TenantStatus.ACTIVE` and slug/realm metadata once organization + owner membership are created. |
 | 1.5 Add rate limiting to `/api/v1/registrations/bootstrap` | ✅ Implemented | `services/www_ameide_platform/app/api/v1/registrations/bootstrap/route.ts` now enforces a per-user in-memory limit of **10 bootstrap attempts per hour**, returning `429` with `Retry-After` and a structured JSON error. Covered by a new integration test in `features/onboarding/__tests__/integration/registration-api.test.ts`. |
 | 1.6 Add instrumentation/metrics to bootstrap endpoint | ✅ Implemented | The bootstrap route was already wrapped in `withRequestTelemetry` and now also records OpenTelemetry metrics via `services/www_ameide_platform/lib/onboarding-metrics.ts` (`onboarding_bootstrap_requests_total`, `onboarding_bootstrap_errors_total`, `onboarding_bootstrap_rate_limit_hits_total`, `onboarding_bootstrap_duration_seconds`) with status + HTTP code tags. |
-| 1.7 E2E test: complete signup flow with healthy backend | ✅ Test suite implemented; cluster-only E2E | A full onboarding journey is covered in Playwright (`services/www_ameide_platform/features/onboarding/__tests__/e2e/onboarding-flow.spec.ts` and `new-user-redirect.spec.ts`) including tenant bootstrap, organization creation, redirect behavior, and post-onboarding access. These suites are designed as **cluster-only UI E2Es** (they require live Keycloak + platform and seeded data) and run whenever `INTEGRATION_TEST_MODE=cluster` is set for the Playwright job. Dual-mode (`INTEGRATION_TEST_MODE=mock|cluster`) applies to backend integration packs; the onboarding UI flows are exercised only in cluster environments, not in mocked mode. |
+| 1.7 E2E test: complete signup flow with healthy backend | ✅ Test suite implemented; cluster-only E2E | A full onboarding journey is covered in Playwright (`services/www_ameide_platform/features/onboarding/__tests__/e2e/onboarding-flow.spec.ts` and `new-user-redirect.spec.ts`) including tenant bootstrap, organization creation, redirect behavior, and post-onboarding access. These suites are designed as **cluster-only UI E2Es** (they require live Keycloak + platform and seeded data) and run whenever `INTEGRATION_MODE=cluster` is set for the Playwright job. Dual-mode (`INTEGRATION_MODE=repo|local|cluster`) applies to backend integration packs; the onboarding UI flows are exercised only in cluster environments, not in mocked mode. |
 
 **Integration Test Dual-Mode Alignment (376)**
 
 - Onboarding E2E tests explicitly follow the dual-mode contract:
-  - Cluster runs use `INTEGRATION_TEST_MODE=cluster` and point at the in-cluster `www-ameide-platform` service (`gitops/ameide-gitops/sources/values/env/local/integration-tests/playwright.yaml`), exercising real Keycloak + platform flows end-to-end.
-  - Mocked-mode integration for onboarding remains limited to unit/integration tests that stub gRPC and database dependencies; no attempt is made to run the Playwright signup journey in `mock` mode.
-- `tools/integration-runner` and the Playwright integration values ensure `INTEGRATION_TEST_MODE` is always set explicitly; unknown values fail fast per #376, and cluster-mode tests are never run implicitly from local/devcontainer workflows.
+  - Cluster runs use `INTEGRATION_MODE=cluster` and point at the in-cluster `www-ameide-platform` service (`gitops/ameide-gitops/sources/values/env/local/integration-tests/playwright.yaml`), exercising real Keycloak + platform flows end-to-end.
+  - Mocked-mode integration for onboarding remains limited to unit/integration tests that stub gRPC and database dependencies; no attempt is made to run the Playwright signup journey in non-cluster mode (`repo`/`local`).
+- `tools/integration-runner` and the Playwright integration values ensure `INTEGRATION_MODE` is always set explicitly; unknown values fail fast per #376, and cluster-mode tests are never run implicitly from local/devcontainer workflows.
 
 **Additional Work Completed (Beyond Initial Phase 1 Tasks)**
 
@@ -532,7 +532,7 @@ Verified Phase 1 implementation status against requirements defined in this back
 **Findings**:
 - ✅ `onboarding-flow.spec.ts`: Full wizard journey
 - ✅ `new-user-redirect.spec.ts`: Middleware redirect behavior
-- ✅ Cluster-only mode (`INTEGRATION_TEST_MODE=cluster`)
+- ✅ Cluster-only mode (`INTEGRATION_MODE=cluster`)
 - ✅ Covers: tenant bootstrap, org creation, redirect, post-onboarding access
 
 ### Audit Action Items

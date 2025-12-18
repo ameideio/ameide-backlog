@@ -16,10 +16,9 @@ External verification answers: “Do repo-owned scaffolds and test packs satisfy
 - Scaffold markers (`AMEIDE_SCAFFOLD`) are not present in test files.
 
 ### Integration-pack contract (430)
-430 defines requirements like `INTEGRATION_TEST_MODE=mock|cluster`, `run_integration_tests.sh`, `__mocks__/`, and JUnit/structured logging expectations.
+430 defines requirements like `INTEGRATION_MODE=repo|local|cluster`, `run_integration_tests.sh`, `__mocks__/`, and JUnit/structured logging expectations.
 
 This baseline is where we define which parts are enforced by:
 - the CLI (`ameide primitive verify`)
 - CI workflows
 - shared tooling (e.g., `tools/integration-runner/**`)
-
