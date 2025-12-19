@@ -160,6 +160,7 @@ Telepresence can inject Traffic Agents without changing GitOps manifests, which 
 1. **Services use named `targetPort`** (avoid numeric `targetPort`)
    - Contract: container port is named (e.g. `http`), Service port is named `http`, and Service `targetPort` is the **string** `http`.
    - We enforce this in app charts so Telepresence can avoid the iptables init-container path that can interfere with Pod-IP probes.
+   - Caveat: avoid intercepting **headless Services** (`clusterIP: None`) as Telepresence may still need the iptables init-container path for those targets.
 2. **Baseline workloads disable injection by default**
    - Contract: Argo-managed releases set `telepresence.io/inject-traffic-agent: disabled` on the pod template.
    - Tilt-only releases (`*-tilt`) omit the annotation so Telepresence can inject on-demand during intercepts.

@@ -53,6 +53,8 @@ kubectl -n ${TELEPRESENCE_NAMESPACE:-ameide-dev} get svc ${TELEPRESENCE_VERIFY_W
 
 Expected for the primary HTTP port: `http targetPort=http` (not `http targetPort=3000`).
 
+Also confirm the Service is not headless (`clusterIP: None`). Headless Services may still trigger Telepresence’s iptables init-container path.
+
 ## Workload policy (baseline vs Tilt)
 
 Argo-managed baseline workloads render `telepresence.io/inject-traffic-agent: disabled` on the pod template. Intercepts should target `*-tilt` workloads so Telepresence can inject on-demand without destabilizing baseline pods.
