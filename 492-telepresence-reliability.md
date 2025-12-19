@@ -164,6 +164,19 @@ Telepresence can inject Traffic Agents without changing GitOps manifests, which 
    - Contract: Argo-managed releases set `telepresence.io/inject-traffic-agent: disabled` on the pod template.
    - Tilt-only releases (`*-tilt`) omit the annotation so Telepresence can inject on-demand during intercepts.
 
+### ArgoCD enforcement gotcha: `ignoreDifferences` + `RespectIgnoreDifferences`
+
+If ArgoCD is configured to ignore pod template annotations globally (e.g. `resource.customizations.ignoreDifferences.apps_Deployment` includes `/spec/template/metadata/annotations`) and Applications set `RespectIgnoreDifferences=true`, Argo will also skip applying changes to those fields during sync. That breaks the “baseline injection disabled” contract because the vendor-required annotation never lands on existing workloads.
+
+**GitOps contract:** do not ignore the entire template annotations map. If Argo needs to ignore drift, narrow it to specific keys, not `/spec/template/metadata/annotations`.
+
+**Where this is enforced:** `ameide-gitops` sets empty ignore rules in `sources/values/common/argocd.yaml` so template annotations remain enforceable.
+
+### Expected noise (not a Telepresence failure)
+
+- **Redis Sentinel auth warning:** `default user does not require a password, but a password was supplied` can occur if Sentinel itself is unauthenticated while Redis master requires auth. Treat as noise unless you also see Redis connection failures (`NOAUTH`, `ECONNREFUSED`, timeouts).
+- **Next.js `NODE_ENV` warning during intercept:** if you source env vars from a production-like baseline workload but run `next dev`, Next may warn about inconsistent env. Intercept `*-tilt` workloads so dev servers get dev-friendly env.
+
 ## Telepresence verification checklist
 
 The quick-hit list below mirrors the detailed playbook in [492-telepresence-verification.md](492-telepresence-verification.md):

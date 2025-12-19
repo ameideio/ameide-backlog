@@ -57,6 +57,25 @@ Expected for the primary HTTP port: `http targetPort=http` (not `http targetPort
 
 Argo-managed baseline workloads render `telepresence.io/inject-traffic-agent: disabled` on the pod template. Intercepts should target `*-tilt` workloads so Telepresence can inject on-demand without destabilizing baseline pods.
 
+## GitOps enforcement check (ArgoCD config)
+
+If baseline workloads are still interceptable (or never show the `disabled` annotation), verify ArgoCD is not configured to ignore pod template annotations globally.
+
+ArgoCD `argocd-cm` should **not** ignore `/spec/template/metadata/annotations` for Deployments/StatefulSets:
+
+```bash
+kubectl -n argocd get cm argocd-cm -o jsonpath='{.data.resource\.customizations\.ignoreDifferences\.apps_Deployment}{"\n"}'
+kubectl -n argocd get cm argocd-cm -o jsonpath='{.data.resource\.customizations\.ignoreDifferences\.apps_StatefulSet}{"\n"}'
+```
+
+In our setup, Applications typically include `RespectIgnoreDifferences=true`, so ignored fields are also skipped during sync. If template annotations are ignored, GitOps cannot enforce `telepresence.io/inject-traffic-agent: disabled`.
+
+If you’re in the `ameide-gitops` repo, you can run the guardrail script:
+
+```bash
+NAMESPACE=ameide-local WORKLOAD=www-ameide-platform ./scripts/verify-telepresence-gitops-guardrails.sh
+```
+
 ## Environment variables
 
 | Variable | Default | Purpose |
