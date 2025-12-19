@@ -58,7 +58,7 @@ Remote-first on the shared AKS cluster (backlog 435) remains the default workf
 ```
 
 - **Traffic Manager**: Deploys in each environment namespace via `argocd/{env}-traffic-manager`. Chart pinned at `sources/charts/third_party/telepresence/telepresence/2.25.1`.
-- **Traffic Agent**: Injected into workloads during intercept (Tilt targets `apps-*-tilt` releases to avoid Argo drift).
+- **Traffic Agent**: Injected into workloads during intercept (GitOps policy controls whether injection is allowed in each environment).
 - **Registry**: Tilt pushes images to `ghcr.io/ameideio/...` when `TILT_REMOTE=1`.
 
 ### RBAC verification & documentation
@@ -98,7 +98,7 @@ Remote-first on the shared AKS cluster (backlog 435) remains the default workf
   - `get/list/watch` on workloads/services
   - `patch/update` on workloads (for Traffic Agent injection)
   - `list` `networking.k8s.io/servicecidrs` (Kubernetes 1.33+)
-- Workloads targeted by Tilt use the `*-tilt` releases to avoid Argo drift and keep Telepresence annotations isolated.
+- In local/dev, baseline workloads are intentionally interceptable (Option A). In staging/prod, baseline workloads keep injection disabled by default.
 
 ### Security & networking
 
@@ -120,9 +120,8 @@ On k3d/k3s the Kubernetes API server runs as a host process (not a pod). With a 
 **What’s left to do (GitOps-side):**
 - Make the `allow-control-plane-webhooks` policy part of the local environment GitOps base so Argo owns it (no manual/bootstrap patching).
 - Decide how local GitOps should treat Telepresence traffic-agent injection drift:
-  - Local-only `argocd-cm` ignoreDifferences (preferred over bootstrap patching), or
-  - Ensure all intercept targets are `*-tilt` workloads not reconciled by Argo, or
-  - Disable self-heal for the specific Argo apps that back intercept targets (local only).
+  - Keep the default `RespectIgnoreDifferences=true` and allow Telepresence injection via env overlays (Option A), or
+  - Disable self-heal for the specific Argo apps used as intercept targets (local only).
 - Decide whether to:
   - Extend `deny-cross-environment` (local only) with an `ipBlock` allow for the control-plane CIDR, or
   - Keep `deny-cross-environment` as-is and add explicit allow policies for webhook servers (Telepresence + Vault injector).
@@ -149,7 +148,7 @@ On k3d/k3s the Kubernetes API server runs as a host process (not a pod). With a 
 | **CAP-NET-ADMIN** | `telepresence connect …` fails immediately with `connector.Connect: NewTunnelVIF: netlink.RuleAdd: operation not permitted` | DevContainer lacks the `CAP_NET_ADMIN` capability Telepresence needs to install routing rules, so even `sudo` fails. | Run the runbook from the host (or any shell with NET_ADMIN), or switch Telepresence to Docker mode once `docker` is available. Keep using `kubectl` + traffic-manager logs for validation when containerized tooling is constrained. |
 | **TP-PORT-1** | Intercepts cause readiness/liveness probes to hang (especially when `curl 127.0.0.1` works but `curl <podIP>` times out). This can show up as ArgoCD **Synced** but **Progressing**. | Argo health flaps; intercepts appear “randomly broken”. | Ensure intercepted Services use **named `targetPort`** (not numeric) so Telepresence can avoid the iptables redirect path; see the “named ports” contract in the GitOps refactor section below. |
 | **RBAC fallback** | Namespaces using namespaced RBAC must also include the `pods/eviction` rule (added, but monitor). | Without it, intercept fails with RBAC errors. | Keep ArgoCD apps in sync; add regression test in the helper (detect RBAC failure vs session failure). |
-| **Traffic-agent drift** | Some workloads (e.g., `kafka-entity-operator`) report `unable to engage (traffic-agent not installed): Unknown`. | Noise in Tilt CLI; may hide legitimate issues. | Document safe intercept targets (only `*-tilt` workloads) and ensure baseline workloads ignore Telepresence annotations (backlog 455). |
+| **Traffic-agent drift** | Some workloads (e.g., `kafka-entity-operator`) report `unable to engage (traffic-agent not installed): Unknown`. | Noise in Tilt CLI; may hide legitimate issues. | Document safe intercept targets (local/dev where injection is allowed) and keep staging/prod injection disabled by default. |
 | **LINUX-IPTABLES** | `connector.CreateIntercept: ... no active session` paired with daemon logs `exec: "iptables": executable file not found in $PATH`. | Root daemon cannot configure DNS/routing inside DevContainer, so sessions immediately die. | Install the `iptables` package inside the DevContainer (`sudo apt-get install -y iptables`) and re-run `./tools/dev/telepresence.sh verify`. The helper now checks for the binary up front. |
 | **CLIENT-CONFIG** | Traffic-manager logs print `client.yaml: ... unknown object member name "connectionTTL"` on every connect. | Cosmetic warning; intercepts still work, but we need confirmation from Telepresence maintainers. | `kubectl -n ameide-dev logs deploy/traffic-manager --since=30m | grep connectionTTL` captures the error. We confirmed our chart only sets `CLIENT_CONNECTION_TTL` via env vars (`kubectl -n ameide-dev get deploy traffic-manager -o jsonpath='{range ... }'`) and there is no `connectionTTL` string in this repo. Share the log + env list with the Telepresence team for follow-up. |
 
@@ -162,8 +161,9 @@ Telepresence can inject Traffic Agents without changing GitOps manifests, which 
    - We enforce this in app charts so Telepresence can avoid the iptables init-container path that can interfere with Pod-IP probes.
    - Caveat: avoid intercepting **headless Services** (`clusterIP: None`) as Telepresence may still need the iptables init-container path for those targets.
 2. **Baseline workloads disable injection by default**
-   - Contract: Argo-managed releases set `telepresence.io/inject-traffic-agent: disabled` on the pod template.
-   - Tilt-only releases (`*-tilt`) omit the annotation so Telepresence can inject on-demand during intercepts.
+   - Contract: shared defaults set `telepresence.io/inject-traffic-agent: disabled` on the pod template so production-like environments stay protected by default.
+   - Local + dev overlays intentionally **unset** this annotation so Telepresence can intercept the existing baseline Deployment (Option A), without introducing `*-tilt` copies.
+   - Staging/prod keep the default `disabled` unless there is an explicit, reviewed reason to override.
 
 ### ArgoCD enforcement gotcha: `ignoreDifferences` + `RespectIgnoreDifferences`
 
@@ -176,7 +176,7 @@ If ArgoCD is configured to ignore pod template annotations globally (e.g. `resou
 ### Expected noise (not a Telepresence failure)
 
 - **Redis Sentinel auth warning:** `default user does not require a password, but a password was supplied` can occur if Sentinel itself is unauthenticated while Redis master requires auth. Treat as noise unless you also see Redis connection failures (`NOAUTH`, `ECONNREFUSED`, timeouts).
-- **Next.js `NODE_ENV` warning during intercept:** if you source env vars from a production-like baseline workload but run `next dev`, Next may warn about inconsistent env. Intercept `*-tilt` workloads so dev servers get dev-friendly env.
+- **Next.js `NODE_ENV` warning during intercept:** if you intercept a production-like workload but run `next dev`, Next may warn about inconsistent env. Ensure your target environment sets `NODE_ENV=development` (or unset it) when running dev servers.
 
 ## Telepresence verification checklist
 

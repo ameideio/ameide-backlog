@@ -57,7 +57,12 @@ Also confirm the Service is not headless (`clusterIP: None`). Headless Services 
 
 ## Workload policy (baseline vs Tilt)
 
-Argo-managed baseline workloads render `telepresence.io/inject-traffic-agent: disabled` on the pod template. Intercepts should target `*-tilt` workloads so Telepresence can inject on-demand without destabilizing baseline pods.
+Telepresence intercepts require Traffic Agent injection, which can be disabled per workload via the pod-template annotation `telepresence.io/inject-traffic-agent: disabled`.
+
+Our GitOps contract is environment-specific:
+
+- **Local + dev:** overlays unset the annotation so the baseline workload is interceptable (Option A; no `*-tilt` copies required).
+- **Staging + prod:** baseline workloads keep `disabled` so they are not interceptable by default.
 
 ## GitOps enforcement check (ArgoCD config)
 
@@ -114,8 +119,8 @@ If either command fails, sync `*-traffic-manager`, fix the RBAC templates under 
 | `kube context 'ameide-dev' not found` | Logged during `ensure_context_exists` | DevContainer lost AKS credentials | Run `tools/dev/bootstrap-contexts.sh` or `az aks get-credentials --resource-group Ameide --name ameide`. |
 | `telepresence connect verification failed` | Connect step exits non-zero | Azure credentials expired / traffic-manager unreachable | `az login --use-device-code`, then re-run verify. Inspect `kubectl -n ameide-dev logs deploy/traffic-manager`. |
 | `telepresence status command failed` + `list` fails | Telepresence daemon stuck | `telepresence quit --all` (host) then retry; escalate if daemon keeps crashing. |
-| `intercept ... failed (context=X, namespace=Y)` | Intercept error block with `status/list` dumps | RBAC regression, workload missing traffic-agent, traffic-manager bug | `kubectl auth can-i --as <telepresence SA> create pods/eviction -n <ns>`, verify the `*-tilt` workload exists, capture traffic-manager logs. |
-| `curl 127.0.0.1:<port>/healthz` works but `curl <podIP>:<port>/healthz` hangs (or probes flap after intercept) | Often surfaces as ArgoCD **Synced** but **Progressing** | Service `targetPort` is numeric and Telepresence uses iptables redirects that catch Pod-IP probe traffic | Convert the Service to `targetPort: <portName>` (named), restart the workload, and re-run the intercept against the `*-tilt` release. |
+| `intercept ... failed (context=X, namespace=Y)` | Intercept error block with `status/list` dumps | RBAC regression, workload not interceptable in this env, traffic-manager bug | `kubectl auth can-i --as <telepresence SA> create pods/eviction -n <ns>`, verify the workload does not have `telepresence.io/inject-traffic-agent: disabled` in this namespace, capture traffic-manager logs. |
+| `curl 127.0.0.1:<port>/healthz` works but `curl <podIP>:<port>/healthz` hangs (or probes flap after intercept) | Often surfaces as ArgoCD **Synced** but **Progressing** | Service `targetPort` is numeric and Telepresence uses iptables redirects that catch Pod-IP probe traffic | Convert the Service to `targetPort: <portName>` (named), restart the workload, and re-run the intercept. |
 | `connector.CreateIntercept: ... no active session` + daemon logs `exec: "iptables": executable file not found in $PATH` | DevContainer doesn’t have `iptables`, so the root daemon can’t program DNS/routing | Install `iptables` (e.g., `sudo apt-get update && sudo apt-get install -y iptables`) inside the DevContainer; re-run verify once packages are present. |
 | `telepresence intercept: error: unknown flag: --namespace` | Happens immediately after the CLI upgrade | Telepresence >=2.25 removed `--namespace` (and `--context`) flags from `intercept` | Update to the latest `tools/dev/telepresence.sh`, which now re-establishes the session via `telepresence connect --context ... --namespace ...` before starting the intercept. |
 | `no active session` | `rpc error: code = Unavailable desc = no active session` | Known upstream bug tracked in reliability backlog | Collect logs, reference NO-SESSION-1 in [492-telepresence-reliability.md](492-telepresence-reliability.md#known-issues-dec-2025). |
