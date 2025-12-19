@@ -12,25 +12,26 @@ This backlog covers the full Telepresence experience for the remote-first dev wo
 - **Intercepts** – keeping RBAC, workloads, and Tilt resources in sync so `telepresence intercept` works for `svc-*` targets without manual tweaks.
 - **Verification & Troubleshooting** – automated health checks, logging, and runbooks so issues surface quickly in both developer workflows and CI. (See [492-telepresence-verification.md](492-telepresence-verification.md) for the step-by-step playbook.)
 
-Teleporting the inner loop to the shared AKS cluster is now the only supported workflow (see backlog 435). This backlog tracks the verification tooling, observability, and troubleshooting required to keep Telepresence healthy for every developer session. It consolidates the improvements we made to `tools/dev/telepresence.sh` and enumerates the remaining gaps (intercept failures, RBAC regressions, session handling).
+Remote-first on the shared AKS cluster (backlog 435) remains the default workflow. Local k3d (`ameide-local`) is also supported for local GitOps convergence, but requires extra cluster-side networking allowances for admission webhooks (see “Local k3d notes” below). This backlog tracks the verification tooling, observability, and troubleshooting required to keep Telepresence healthy for every developer session.
 
 ## Components & responsibilities
 
 | Component | Location | Responsibility |
 |-----------|----------|----------------|
-| **DevContainer** | `.devcontainer/` | Installs Telepresence CLI (pinned v2.25.1), fetches AKS credentials, seeds environment variables. |
-| **Helper script** | `tools/dev/telepresence.sh` | Opinionated wrapper for connect/intercept/status/quit/verify with logging and AZ context bootstrap. |
+| **DevContainer** | `.devcontainer/` | Installs Telepresence CLI (pinned v2.25.1), plus prerequisites (iptables/sshfs) and Tilt defaults. |
+| **Helper script** | `tools/dev/telepresence.sh` | Opinionated wrapper for connect/intercept/status/quit/verify with logging and target-aware bootstrap. |
 | **Traffic Manager** | `argocd/{env}-traffic-manager` (chart `sources/charts/third_party/telepresence/telepresence/2.25.1`) | Handles session negotiation, intercept orchestration, Traffic Agent injection. |
 | **Tilt resources** | `Tiltfile` (`verify-telepresence`, `svc-*`) | Invokes helper script, starts dev servers, ensures Telepresence env files are sourced automatically. |
 | **RBAC & GitOps** | `ameide-gitops` repo | ClusterRole/Role/Bindings for the traffic-manager (`pods/eviction`, serviceCIDRs), namespace defaults, Helm values. |
 
 ## Prerequisites & configuration
 
-- Azure login (`az login --use-device-code`) and `kubelogin` conversion are required before Telepresence runs (wired in `.devcontainer/postCreate.sh`).
-- Contexts `ameide-dev`, `ameide-staging`, `ameide-prod` all point at the same AKS API server; defaults are stored in `~/.devcontainer-mode.env`.
+- Target selection is explicit via `TILT_TELEPRESENCE_TARGET` (`ameide-aks` or `ameide-local`).
+- AKS: Azure login (`az login --use-device-code`) and `kubelogin` conversion are required before Telepresence runs; `tools/dev/bootstrap-contexts.sh --target ameide-aks` establishes kube contexts.
+- Local: `tools/dev/bootstrap-contexts.sh --target ameide-local` establishes the local kube context.
 - Telepresence environment variables:
   - `TELEPRESENCE_CONTEXT`, `TELEPRESENCE_NAMESPACE` (default `ameide-dev`, override for staging/prod).
-  - `TELEPRESENCE_VERIFY_WORKLOAD`, `TELEPRESENCE_VERIFY_PORT`, `TELEPRESENCE_SKIP_INTERCEPT`, `TELEPRESENCE_VERIFY_script`.
+  - `TELEPRESENCE_VERIFY_WORKLOAD`, `TELEPRESENCE_VERIFY_PORT`, `TELEPRESENCE_SKIP_INTERCEPT`, `TELEPRESENCE_VERIFY_SCRIPT`.
 - Tilt sets `DEV_REMOTE_CONTEXT`, `TILT_REMOTE=1`, `TELEPRESENCE_ENV_ROOT=.telepresence-envs`.
 
 ## Architecture snapshot
@@ -78,7 +79,7 @@ Teleporting the inner loop to the shared AKS cluster is now the only supported w
 
 1. **Context bootstrap** – `.devcontainer/postCreate.sh` and `tools/dev/bootstrap-contexts.sh` refresh `ameide-{dev,staging,prod}` contexts and set Telepresence defaults (backlog 491).
 2. **Telepresence helper** – `tools/dev/telepresence.sh` wraps `connect`, `intercept`, `status`, `quit`, and `verify`.  
-   - `verify` is now idempotent, timestamped, and auto-creates missing kube contexts via `az aks get-credentials`.  
+   - `verify` is idempotent, timestamped, and target-aware. Missing contexts are handled via `tools/dev/bootstrap-contexts.sh` (auto-bootstrap for `ameide-aks`, hard error for `ameide-local`).  
    - By default it runs a full intercept using `TELEPRESENCE_VERIFY_WORKLOAD` (defaults to `www-ameide`) and logs `telepresence status/list` automatically when failures occur. Set `TELEPRESENCE_SKIP_INTERCEPT=1` for connectivity-only checks.
 3. **Tilt integration** – The Tiltfile exposes a `verify-telepresence` local resource so developers (or CI) can trigger the scripted health check (backlog 429 § Telepresence mode).
 
@@ -104,6 +105,27 @@ Teleporting the inner loop to the shared AKS cluster is now the only supported w
 - Telepresence uses Azure AD authentication via `kubelogin` and inherits the developer’s `kubectl` permissions.
 - Connect commands run inside the DevContainer; no host-level VPN is needed.
 - Traffic Manager pods run in the same namespace as the workloads (per environment) and respect the namespace’s network policies.
+
+## Local k3d notes (ameide-local)
+
+On k3d/k3s the Kubernetes API server runs as a host process (not a pod). With a default-deny ingress policy like `NetworkPolicy/deny-cross-environment`, admission webhooks can fail because the control-plane source IP does not match any namespaceSelector allowlist. Telepresence traffic-agent injection is an admission webhook (`agent-injector-webhook-*`), so intercepts can fail with:
+
+- Telepresence: `connector.CreateIntercept ... DeadlineExceeded`
+- k3s server logs: `Failed calling webhook ... agent-injector-*.getambassador.io ... dial tcp <podIP>:8443: connect: connection refused` (often surfaced as a 502 via the apiserver proxy)
+
+**Stopgap (bootstrap-side):**
+- `tools/dev/bootstrap-contexts.sh --target ameide-local` applies a narrow `NetworkPolicy/allow-control-plane-webhooks` to allow the k3d/k3s pod CIDR (default `10.42.0.0/16`, override via `AMEIDE_LOCAL_CONTROL_PLANE_WEBHOOK_CIDR`) to reach the Telepresence webhook port (`8443`).
+- The same bootstrap script can patch `argocd-cm` ignoreDifferences for `Deployment`/`StatefulSet` pod templates so ArgoCD self-heal doesn’t instantly revert Telepresence traffic-agent injection (toggle via `AMEIDE_LOCAL_CONFIGURE_ARGO_FOR_TELEPRESENCE=0`).
+
+**What’s left to do (GitOps-side):**
+- Make the `allow-control-plane-webhooks` policy part of the local environment GitOps base so Argo owns it (no manual/bootstrap patching).
+- Decide how local GitOps should treat Telepresence traffic-agent injection drift:
+  - Local-only `argocd-cm` ignoreDifferences (preferred over bootstrap patching), or
+  - Ensure all intercept targets are `*-tilt` workloads not reconciled by Argo, or
+  - Disable self-heal for the specific Argo apps that back intercept targets (local only).
+- Decide whether to:
+  - Extend `deny-cross-environment` (local only) with an `ipBlock` allow for the control-plane CIDR, or
+  - Keep `deny-cross-environment` as-is and add explicit allow policies for webhook servers (Telepresence + Vault injector).
 
 ## Recent improvements
 
