@@ -36,7 +36,7 @@
 
 The Agent operator manages the lifecycle of **Agent primitives** – LLM-powered autonomous actors with tool access. Each `Agent` CR results in:
 
-- AgentDefinition fetched from Transformation Domain
+- A **definition reference** recorded for the runtime (ConfigMap + env vars; runtime fetches the definition)
 - ExternalSecrets for LLM API keys and tool credentials
 - Tool grants ConfigMap (allowed tools per security policy)
 - Agent runtime Deployment (LangGraph, custom framework, etc.)
@@ -47,7 +47,7 @@ The Agent operator manages the lifecycle of **Agent primitives** – LLM-powered
 
 Target behavior is that `Ready` must be **impossible** unless all required runtime artifacts exist and are policy-compliant:
 
-- `DefinitionResolved` (AgentDefinition fetched and mounted)
+- `DefinitionResolved` (definitionRef recorded and available to the runtime)
 - `SecretsReady` (all required ExternalSecrets synced; mountable)
 - `ToolingReady` / `DependenciesReady` (tool grants + prompt/profile/config are reconciled and available to the workload)
 - `PolicyCompliant` (runtimeRole/riskTier/model/tools validated)
@@ -224,10 +224,9 @@ type AgentStatus struct {
 
 | Task | Description | Acceptance Criteria |
 |------|-------------|---------------------|
-| **Transformation client** | ✅ gRPC client to fetch AgentDefinition | Operator dials Transformation via the Go SDK with env-configurable address/token (`operators/agent-operator/cmd/main.go`). |
-| **Definition fetching** | ✅ `reconcileDefinition()` fetches by ID | `internal/controller/agent_controller.go` fetches definitions per reconcile. |
-| **Definition as ConfigMap** | ✅ Store definition for agent runtime | Definition metadata + serialized proto stored under `definition.json` for runtime mounts. |
-| **DefinitionResolved condition** | ✅ Set based on fetch success | Condition now reflects Transformation sync outcome. |
+| **DefinitionRef recording** | ✅ Record `spec.definitionRef` for the runtime | Operator creates/updates a ConfigMap (e.g. `*-definition`) containing `definitionId`, `tenantId`, optional `version`, plus `definition.json` (serialized reference). |
+| **DefinitionResolved condition** | ✅ Set once the reference is recorded | `DefinitionResolved=True` means “runtime has enough info to fetch/resolve the definition”, not “operator fetched it from Transformation”. |
+| **Transformation prefetch (optional)** | ⏳ Fetch/validate AgentDefinition in-controller | When implemented, failures should set `DefinitionResolved=False` with a stable reason; until then, runtime owns fetch/validation. |
 
 ### Phase 5: Production Readiness
 

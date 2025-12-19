@@ -21,6 +21,20 @@ All primitive operators share the same skeleton:
 
 Think of each operator as a **compiler from a Primitive CRD to a bundle of K8s + external infra objects**, with *no* business logic inside (that lives in the primitive's own service).
 
+## Testing & acceptance
+
+Operators must be testable at two levels:
+
+- **Layer A (envtest):** controller correctness (rendering, ownership/labels, conditions logic) without a real cluster control-plane (no Deployment controller).
+- **Layer B (kind + Helm + KUTTL):** end-to-end install + reconcile in a real cluster (CRDs install, Helm deploy works, Deployments become Available, CRs go Ready).
+
+In-repo entrypoints:
+
+- `make test-operators-envtest`
+- `make test-acceptance` (smoke + negative)
+
+The suite layout and fixtures live under `tests/acceptance/`.
+
 > **Scaffolding context**: For how operator patterns relate to Ameide's overall code generation philosophy (vs Kubebuilder, Backstage, Buf), see [484-ameide-cli-overview.md](484-ameide-cli-overview.md).
 >
 > **Implementation patterns**: For Go-level reconciler design, controller-runtime usage, and testing strategies, see [497-operator-implementation-patterns.md](497-operator-implementation-patterns.md).

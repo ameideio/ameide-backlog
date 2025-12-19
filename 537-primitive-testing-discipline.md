@@ -19,6 +19,20 @@ This document is the **normative testing discipline** for all primitive types (D
 
 ---
 
+## Operators (control plane) testing discipline
+
+Operators are part of the primitive delivery contract: if a primitive cannot reliably go `Ready=True` in a cluster, it is not “shippable”.
+
+Minimum CI-gated requirements for primitive operators:
+
+- **Controller correctness (envtest):** render children + ownership + conditions logic (fast, deterministic).
+- **Cluster acceptance (kind + Helm + KUTTL):** install chart, apply known-good CRs, wait for `Ready=True`, and assert child resources/rollouts; include negative cases (e.g., missing secrets, policy deny).
+
+In this repo these are wired as:
+
+- `make test-operators-envtest`
+- `make test-acceptance`
+
 ## Cross-References
 
 - [510-domain-primitive-scaffolding.md](510-domain-primitive-scaffolding.md) – Domain scaffold shape (§4 handler/test semantics)

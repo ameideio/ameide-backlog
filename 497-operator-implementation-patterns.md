@@ -218,6 +218,33 @@ Kubebuilder maintainers recommend handling "resource changed while you were reco
 Pattern:
 
 * Read CR
+
+---
+
+## 9. Testing strategy (envtest + kind acceptance)
+
+Operators need two complementary test layers:
+
+1. **envtest** (fast, deterministic): verify reconciliation logic:
+   - renders expected child resources (Deployment/Service/ConfigMap/Job)
+   - sets controller OwnerReferences correctly
+   - sets stable `status.conditions` + `observedGeneration`
+   - handles negative cases (missing secrets, policy violations) without creating unintended workloads
+
+   Constraint: envtest does not run built-in controllers (Deployment controller, Job controller), so tests that gate Ready on child status must patch child `status.*` in the test.
+
+2. **kind + Helm + KUTTL** (slower, “cluster truth”): verify what users actually do:
+   - install CRDs/operators via Helm
+   - apply CR fixtures
+   - wait for Ready and assert children exist/roll out
+   - verify negative cases and recovery paths
+
+In this repo, these are wired as:
+
+- `make test-operators-envtest`
+- `make test-acceptance` (smoke + negative)
+
+Fixtures and KUTTL suites live under `tests/acceptance/`.
 * Compute status
 * Patch status with `client.Status().Patch(ctx, obj, patch)`
 * Retry on conflict
