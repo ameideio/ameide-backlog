@@ -105,6 +105,16 @@ KEDA-scheduled Jobs MUST run a runtime image derived from the repo’s `.devcont
 
 This does not imply “VS Code devcontainer” in-cluster; it means the **same containerized toolchain** is used for deterministic runs.
 
+#### Debug/admin mode (workbench pod; not a processor)
+
+For investigations and emergency operations, the platform MAY provide a long-lived “workbench” pod that runs the same devcontainer-derived runtime image and exists solely for **human attach/exec** (e.g., `kubectl exec`) and controlled reproduction of a failing WorkRequest.
+
+Hard rules:
+
+- The workbench pod MUST NOT consume `WorkRequested` facts and MUST NOT act as a WorkRequest processor. **All WorkRequests are processed by KEDA-scheduled Jobs.**
+- Any “manual rerun” performed from the workbench must still record outcomes/evidence back into Domain using the same idempotent write surfaces, so audits and Process gates do not depend on ephemeral shell history.
+- Workbench access must be treated as **admin-only** and tightly scoped (ServiceAccount/RBAC + external credentials) because it is an interactive escape hatch.
+
 Operational constraints (normative defaults; tune per capability):
 
 - `parallelism = 1`, `completions = 1` (one WorkRequest per Job)

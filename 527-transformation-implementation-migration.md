@@ -251,6 +251,10 @@ We implement WP‑B using a strict “small → large” ladder per `backlog/537
 7. **Headless end-to-end (no UISurface)**
    - Full slice: Process → Domain WorkRequest → KEDA Job → Domain evidence/outcome → Process facts → Projection timeline; assertions run via APIs/queries only.
 
+Optional (debug/admin; not part of normal processing):
+
+- Provide a long-lived “workbench” pod for human attach/exec using the same devcontainer-derived runtime image. It MUST NOT consume WorkRequested and exists only to reproduce failures and run controlled “manual reruns” that still write outcomes/evidence back into Domain idempotently.
+
 **DoD (gates)**
 
 - A single end-to-end run exists: Process creates WorkRequest → runner executes → Domain records evidence → Process emits `ToolRunRecorded` → Projection shows timeline with citations.
