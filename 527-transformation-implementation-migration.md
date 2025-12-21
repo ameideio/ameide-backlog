@@ -52,6 +52,20 @@ We treat 520 as non-negotiable for this plan:
 - **Generated outputs are clobber-safe.** Implementation-owned code lives outside generated-only roots.
 - **Guardrails are gates.** “Done” means regen-diff is clean, tests are green, and `go run ./packages/ameide_core_cli/cmd/ameide primitive verify` is meaningful.
 
+## 1.1) Testing posture (normative): 537 RED→GREEN discipline
+
+Cross-reference: `backlog/537-primitive-testing-discipline.md`.
+
+This implementation plan is **test-driven by default**:
+
+- Every primitive scaffold begins in **RED** with `AMEIDE_SCAFFOLD` markers; “progress” means replacing those tests with real assertions (GREEN) and keeping them green while refactoring.
+- “Done” for any work package requires:
+  - tests for the affected primitive(s) are present and green (unit + integration where applicable),
+  - `ameide primitive verify` passes for the affected primitive(s),
+  - repo-wide regen-diff gates remain clean (520 posture).
+
+Implication: any new primitive/workflow surface MUST land with a failing test first (or as part of the same PR) so we never create “implementation without a harness”.
+
 ---
 
 ## 2) Target ownership (primitives)
@@ -220,6 +234,11 @@ Example:
 
 - A single end-to-end run exists: Process creates WorkRequest → runner executes → Domain records evidence → Process emits `ToolRunRecorded` → Projection shows timeline with citations.
 - Duplicate delivery is safe: replaying the same WorkRequested message produces one canonical outcome (idempotency proven by tests/logs).
+- The end-to-end run is covered by tests at the correct boundary layers (per 537):
+  - Domain tests prove `WorkRequest` idempotency and fact emission-after-persistence.
+  - Runner tests prove “ack only after durable outcome recorded” (at-least-once safe).
+  - Process tests prove “await facts then continue” and emit process facts deterministically.
+  - Projection tests prove join/materialization for the execution timeline.
 
 #### A1) Domain primitive: TransformationKnowledgeCommandService
 
