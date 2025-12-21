@@ -6,18 +6,28 @@
 
 ## Decision (golden path)
 
-Keep the existing “generic” devcontainer workflow for normal human development on `dev`/`main`.
+Keep the existing “generic” devcontainer workflow for normal human development, and add parallel “agent slot” devcontainers for isolated work.
 
 Add three *additional* agent slots for parallel work; they do not replace the generic workflow:
 
 - Slots: `agent-01`, `agent-02`, `agent-03`
 - One clone per slot (recommended) or one worktree per slot (advanced)
 - One VS Code window per slot → “Reopen in Container”
-- One branch per slot (e.g., `ameide-agent-01`) or per-slot topic branch (e.g., `agent-01/<topic>`) → PRs merge into `dev`
+- One branch per slot (recommended namespace pattern: `agent/dev/<agent_slot>/<topic>`) → PRs merge into `dev` (protected; PR-only)
+  - Never push directly to `dev`/`main`; always land changes via PR (see `backlog/400-agentic-development.md`).
 
 Convenience:
 - `./tools/dev/create-agent-worktrees.sh` creates `ameide-agent-01..03` worktrees (and corresponding per-slot branches).
 - `./tools/dev/create-agent-clones.sh` creates `ameide-agent-01..03` clones (simpler with Dev Containers + Git).
+
+### Scope: developer mode vs platform mode
+
+This backlog is the **developer mode** story: a human (or an interactive coding agent) runs inside VS Code Dev Containers and iterates locally.
+
+The **platform mode** story (role-based ephemeral jobs from a queue, durable evidence, and a WorkRequest lifecycle) is specified in the 527 suite; devcontainers are one possible execution substrate, but not the canonical orchestration mechanism:
+- `backlog/527-transformation-capability.md`
+- `backlog/527-transformation-integration.md`
+- `backlog/527-transformation-process.md`
 
 ## One agent identity everywhere
 
