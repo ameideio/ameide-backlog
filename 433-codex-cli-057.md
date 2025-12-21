@@ -24,6 +24,13 @@ To prevent new containers from drifting back to the extension-provided CLI:
 - `ensure_codex_config()` writes `~/.codex/config.toml` with `model = "gpt-5-codex"` and `model_reasoning_effort = "high"` (overridable via `DEVCONTAINER_CODEX_MODEL` and `DEVCONTAINER_CODEX_REASONING_EFFORT`). Both the CLI and the VS Code extension read this file, so their model settings stay in lockstep.
 - Updated `.devcontainer/postCreate.sh` to source that helper and run it with `DEVCONTAINER_CODEX_VERSION` (defaults to `0.57.0`). Reopening the container now guarantees `codex --version` reports 0.57.0 before any bootstrap work begins.
 
+## Auth policy (devcontainers; v1)
+
+Canonical devcontainer auth uses a shared Codex home:
+
+- Authenticate once and share/mount `~/.codex/auth.json` across parallel devcontainers to avoid callback collisions on `localhost:1455` (see `backlog/581-parallel-ai-devcontainers.md`).
+- Defer `OPENAI_API_KEY` / API-key login to a future automation/headless track; do not treat API keys as the default devcontainer auth mechanism.
+
 ## Operator checklist
 
 - **Verify local CLI** – `codex --version` should always output `codex-cli 0.57.0`.

@@ -81,11 +81,11 @@ Guidance:
 
 Codex CLI’s “Sign in with ChatGPT” login flow runs a local callback server on `localhost:1455`.
 
-Default recommendation:
+Policy (v1; canonical):
 - Authenticate once and share `~/.codex/auth.json` across all agent containers (avoid running concurrent login flows).
+- Do not use `OPENAI_API_KEY` / `codex login --with-api-key` in devcontainers (defer to a future “automation/headless auth” track).
 
-Deprecated:
-- Avoid using `OPENAI_API_KEY` / `codex login --with-api-key` for these devcontainers; prefer shared `~/.codex/auth.json` so we don’t multiply long-lived secrets across agent environments.
+Rationale: shared `~/.codex/auth.json` avoids local callback server contention and keeps auth handling consistent across parallel agent slots.
 
 ## Bootstrap side effects (multi-container)
 
@@ -124,5 +124,5 @@ Reference: [VS Code Dev Containers - Persist bash history](https://code.visualst
 1. Generic devcontainer remains the default for `dev`/`main`.
 2. Two+ agent devcontainers run concurrently without working-tree interference.
 3. Same-workload parallelism is supported for HTTP services via header-filtered intercepts.
-4. Codex CLI auth avoids `localhost:1455` collisions by default and deprecates API-key login in devcontainers.
+4. Codex CLI auth avoids `localhost:1455` collisions by default and defers API-key login in devcontainers (future automation track).
 5. Bootstrap supports an explicit “agent” mode that avoids repeated side effects.
