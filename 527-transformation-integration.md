@@ -3,7 +3,7 @@
 **Status:** Draft (MCP adapter scaffold implemented; connectors pending)  
 **Parent:** [527-transformation-capability.md](527-transformation-capability.md)
 
-This document specifies the **Transformation Integration primitives** — adapters for external systems (git/CI/scaffolding/ticketing) used to realize and govern transformation initiatives.
+This document specifies the **Transformation Integration primitives** — adapters for external systems (git providers, CI/status surfaces, registries, interoperability bindings) used to realize and govern transformation initiatives.
 
 ---
 
@@ -18,11 +18,12 @@ This document specifies the **Transformation Integration primitives** — adapte
 Scope identity (required everywhere): `{tenant_id, organization_id, repository_id}` (integration never invents alternate repository identifiers; no separate `graph_id`).
 
 - External connectors:
-    - Backstage scaffolder / scaffolding runners,
     - GitHub/GitLab and container registries,
-    - ticketing/work item systems where required.
+    - CI/status surfaces (required checks, artifacts) for merge-time quality gates.
 - Strict idempotency for inbound webhooks and retries.
 - Emit intents/commands into domains (never facts); domains remain the only fact emitters.
+
+Work items are **Transformation-domain owned** (initiative/work/work request). External ticketing systems are out of scope for v1.
 
 ### 1.0 CLI posture (tool, not orchestrator)
 
@@ -42,11 +43,11 @@ Implications:
 
 Integration runners exist to bridge “definition-driven process steps” to deterministic tool execution:
 
-- **Scaffold:** run existing CLI scaffolding to create repo-owned primitive skeletons (Domain/Process/Projection/Integration/UISurface/Agent) driven by promoted decomposition/scaffolding plans.
+- **Scaffold:** run deterministic scaffolding from `packages/ameide_coding_helpers/scaffold` (invoked via the repo’s `ameide` CLI) to create repo-owned primitive skeletons (Domain/Process/Projection/Integration/UISurface/Agent) driven by promoted decomposition/scaffolding plans.
 - **Generate:** run `buf generate` (SDKs/stubs) deterministically from protos/templates.
 - **Verify:** run `ameide primitive verify` (and tests/build/lint as required) and return machine-readable results for process gates.
 
-The runner does not decide policy; it executes tools, captures outputs, and emits intents/commands when external systems must be updated (GitOps/CI/ticketing), while Domain/Process facts remain the authoritative evidence streams.
+The runner does not decide policy; it executes tools, captures outputs, and emits intents/commands when external systems must be updated (Git provider/registry/CI), while Domain/Process facts remain the authoritative evidence streams.
 
 ### 1.0.2 Runner interface contract (normative; v1)
 
@@ -98,6 +99,7 @@ Hard rule (v1): queue-triggered Jobs MUST consume **WorkRequested** facts (expli
 KEDA-scheduled Jobs MUST run a runtime image derived from the repo’s `.devcontainer` toolchain so local (developer-mode) and platform (job-mode) executions use the same pinned environment:
 
 - Base image is built from `.devcontainer/Dockerfile` (or an equivalent published image that is provably derived from it).
+- The runtime image MUST include the repo-native `ameide` CLI (which embeds `packages/ameide_coding_helpers/**` for `doctor`/`verify`/`generate`/`scaffold`; see `backlog/558-ameide-coding-helpers.md`).
 - The Job entrypoint executes the runner/agent work loop (checkout repo at `commit_sha` → run tool(s) → upload artifacts → record evidence/outcome in Domain).
 - Toolchain pins that matter for evidence (e.g., Codex CLI) are inherited from the devcontainer pin (see `backlog/433-codex-cli-057.md`).
 
@@ -240,7 +242,7 @@ Not yet delivered (integration meaning):
 
 Confirm/decide:
 
-- Which external connectors are in the v1 acceptance slice (Git provider, CI, ticketing) and what “evidence bundle” minimally contains (logs, links, elements, attestations).
+- Which external connectors are in the v1 acceptance slice (Git provider, registry, CI status) and what “evidence bundle” minimally contains (logs, links, elements, attestations).
 - Whether integration-side facts (`transformation.integration.facts.v1`) are needed vs relying solely on domain/process facts for outcomes.
 - The required MCP adapter posture for v1 (which tools/resources are exposed, what auth scopes are required, and what is query-vs-command split).
 

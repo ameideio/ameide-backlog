@@ -7,7 +7,7 @@ Transformation is meant to act like an **IT4IT-aligned value-stream capability**
 * **System of record** = **Transformation Domain** (design-time truth + baselines/promotions/approvals + Definition Registry).  
 * **Process of record** = **Transformation Process** (Temporal workflows executing **promoted ProcessDefinitions**, emitting **process facts**, not owning canonical state). 
 * **Read model of record** = **Transformation Projection** (idempotent consumer of domain facts + process facts; query services for UI/agents). 
-* **External orchestration hooks** = **Transformation Integration** (git/CI/scaffolding/ticketing connectors; idempotent; emits commands/intents only, never facts). 
+* **External orchestration hooks** = **Transformation Integration** (git provider/registry/CI status connectors + transport bindings; idempotent; emits commands/intents only, never facts). 
 * **Agentic work** = **Transformation Agents** (read via projection; write via governed commands/intents; tool grants + risk tiers stored as AgentDefinitions). 
 * **Human UX** = **Transformation UISurface** (thin: reads via projection, writes via commands/intents only). 
 * **Contract spine** = proto topic families + envelope invariants (tenant/org/repo + traceability). 
