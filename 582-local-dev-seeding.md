@@ -1,9 +1,14 @@
 # 582 – Local Dev Seeding (Dev Data Contract)
 
-**Status:** In progress  
+**Status:** Implemented (local/dev GitOps)  
 **Owner:** Platform / Developer Experience  
 **Motivation:** Local k3d + remote-first dev must have deterministic, reproducible “dev data” without code-level fallbacks (“magic”).  
 **Related:** [444-terraform.md](444-terraform.md), [492-telepresence-reliability.md](492-telepresence-reliability.md), [492-telepresence-verification.md](492-telepresence-verification.md), [300-400/330-dynamic-tenant-resolution.md](300-400/330-dynamic-tenant-resolution.md), [427-platform-login-stability.md](427-platform-login-stability.md), `../gitops/ameide-gitops/backlog/485-keycloak-oidc-client-reconciliation.md`, `../db/flyway/sql/platform/*`, `../gitops/ameide-gitops/sources/values/**`
+
+**Implementation summary (GitOps):**
+
+- Chart: `../gitops/ameide-gitops/sources/charts/platform/dev-data/` (PostSync seed + PostSync verify Jobs).
+- Local ArgoCD app: `local-platform-dev-data` (validated in `ameide-local` cluster; seed + verify succeed and are idempotent across re-syncs).
 
 ---
 
@@ -50,7 +55,7 @@ Today, “dev data” is split across multiple places with drift risk:
 - Shared realm import defines realms/groups/roles and service accounts, but **does not** ship test personas anymore:  
   `../gitops/ameide-gitops/sources/values/_shared/platform/platform-keycloak-realm.yaml`
 - Personas are seeded/reconciled via a GitOps hook Job (local/dev only):  
-  `../gitops/ameide-gitops/environments/_shared/components/platform/auth/dev-data/component.yaml`
+  `../gitops/ameide-gitops/environments/local/components/platform/auth/dev-data/component.yaml`
 - Keycloak Operator realm import is **create-only**; existing realms are not updated. We already had to add a reconciler pattern for OIDC clients (see 485):  
   `../gitops/ameide-gitops/backlog/485-keycloak-oidc-client-reconciliation.md`
 
