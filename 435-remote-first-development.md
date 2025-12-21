@@ -23,6 +23,23 @@ Pivot from dual-mode (offline-full k3d + online-telepresence) to a single **AKS 
 - **Faster inner loop** - Telepresence intercepts bypass image build/push/deploy cycle
 - **Reduced divergence** - No more k3d vs AKS configuration drift
 
+## Parallel agent slots (DevContainers)
+
+When you need multiple developers (or multiple interactive coding agents) working concurrently, use the standardized “agent slot” pattern:
+
+- `backlog/581-parallel-ai-devcontainers.md` (clones/worktrees + one VS Code window per slot + Telepresence collision avoidance)
+- `backlog/400-agentic-development.md` (PR funnel into protected `dev`, then `dev`→`main` promotion)
+
+For same-workload parallelism, prefer Telepresence HTTP intercept filtering where supported (see 581 for the exact conventions and headers).
+
+## Where automation runs (platform vs developer mode)
+
+DevContainers are a **developer execution substrate** (interactive loop). Platform automation should not “open more devcontainers”; it should request work and record evidence via the WorkRequest substrate defined in the 527 suite:
+
+- `backlog/527-transformation-capability.md` (execution substrate invariants)
+- `backlog/527-transformation-integration.md` (runner contract + evidence)
+- `backlog/527-transformation-process.md` (send intents / await facts; no hidden RPC coupling)
+
 ## Bootstrap ownership
 
 Remote-first means two purpose-built bootstraps:
@@ -572,6 +589,9 @@ Telepresence can import the intercepted pod's environment into your local proces
 - **373** (Argo + Tilt + Helm North Star v4) - Defines two-path architecture (Argo baseline + Tilt overlay)
 - **424** (Tilt-only releases) - `apps-*-tilt` isolation pattern
 - **[434](434-unified-environment-naming.md)** (Unified Environment Naming) - Domain matrix, static IP flow, ArgoCD at `argocd.ameide.io`
+- **[581](581-parallel-ai-devcontainers.md)** (Parallel DevContainers) - Agent slots, collision avoidance, parallel Telepresence patterns
+- **[400](400-agentic-development.md)** (Agentic PR funnel) - Topic branches → PR to `dev` → promotion to `main`
+- **[444](444-terraform.md)** (Terraform Infrastructure) - Local k3d fallback (offline/air-gapped)
 - **[436](436-envoy-gateway-observability.md)** (Envoy Gateway Observability) - EnvoyProxy telemetry and static IP config
 - **[438](438-cert-manager-dns01-azure-workload-identity.md)** (cert-manager DNS-01) - Certificate issuance per environment
 

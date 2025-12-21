@@ -2,7 +2,7 @@
 
 **Status:** Draft  
 **Owner:** Platform / Developer Experience  
-**Related backlogs:** [429-devcontainer-bootstrap.md](429-devcontainer-bootstrap.md), [434-unified-environment-naming.md](434-unified-environment-naming.md), [435-remote-first-development.md](435-remote-first-development.md), [491-auto-contexts.md](491-auto-contexts.md), [492-telepresence-reliability.md](492-telepresence-reliability.md)
+**Related backlogs:** [435-remote-first-development.md](435-remote-first-development.md), [434-unified-environment-naming.md](434-unified-environment-naming.md), [491-auto-contexts.md](491-auto-contexts.md), [492-telepresence-reliability.md](492-telepresence-reliability.md), [581-parallel-ai-devcontainers.md](581-parallel-ai-devcontainers.md)
 
 ## Problem
 
@@ -156,6 +156,7 @@ Attaching these files to the incident (or linking them in #platform-devx) gives 
 ## References
 
 - `tools/dev/telepresence.sh` (verify implementation)
-- [429-devcontainer-bootstrap.md](429-devcontainer-bootstrap.md#current-bootstrap-split-2025-12)
+- [435-remote-first-development.md](435-remote-first-development.md) (canonical DevContainer + Telepresence workflow)
 - [491-auto-contexts.md](491-auto-contexts.md)
 - [492-telepresence-reliability.md](492-telepresence-reliability.md)
+- [581-parallel-ai-devcontainers.md](581-parallel-ai-devcontainers.md) (parallel “agent slots” + collision avoidance)

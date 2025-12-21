@@ -3,6 +3,8 @@
 > **Note:** This document remains relevant for environment naming conventions.
 > The telepresence wiring and remote development workflow has been further refined in
 > [435-remote-first-development.md](435-remote-first-development.md).
+>
+> **Status note:** References to [429](429-devcontainer-bootstrap.md) and [432](432-devcontainer-modes-offline-online.md) in this document are historical context only. The canonical workflow is [435](435-remote-first-development.md) (remote-first) with [444](444-terraform.md) as the offline/local fallback.
 
 > **Related documents:**
 > - [443-tenancy-models.md](443-tenancy-models.md) – **Tenancy model overview (single source of truth)**
@@ -10,11 +12,21 @@
 > - [367-bootstrap-v2.md](367-bootstrap-v2.md) – Bootstrap design (moved to ameide-gitops)
 > - [429-devcontainer-bootstrap.md](429-devcontainer-bootstrap.md) – DevContainer bootstrap (superseded)
 > - [432-devcontainer-modes-offline-online.md](432-devcontainer-modes-offline-online.md) – DevContainer modes (retired)
+> - [581-parallel-ai-devcontainers.md](581-parallel-ai-devcontainers.md) – Parallel agent slots (DevContainers + Telepresence)
 
 ## Goals
 - Standardize environment naming across all contexts: local devcontainer, remote AKS namespaces, and GitOps configurations.
 - Enable seamless switching between local inner-loop development and remote cluster work via telepresence.
 - Migrate domain naming from `tilt.ameide.io` to `local.ameide.io` for consistency.
+
+## Agent identity axis (parallel work)
+
+When multiple developers (or multiple interactive agents) work in parallel against the same shared cluster/workload, add an explicit **agent identity axis** so names do not collide.
+
+- **Agent ID environment variable:** `AMEIDE_AGENT_ID` (recommended values: `agent-01`, `agent-02`, `agent-03`), as used by `backlog/581-parallel-ai-devcontainers.md`.
+- **Telepresence intercept name:** `<workload>-<agent_id>` (example: `www-ameide-platform-agent-01`).
+- **Telepresence HTTP routing key (when using header filtering):** `X-Ameide-Agent: <agent_id>`.
+- **Tilt image tag suffix (optional):** `:dev-<agent_id>` for locally built images when parallel builds are required.
 
 ## Environment Matrix
 
@@ -317,7 +329,7 @@ Tenants only add new `list.elements` and per-tenant values under `sources/values
 
 > **This migration is a blocker for:**
 > - Bootstrap v2 targeting AKS clusters ([367 Phase 2](367-bootstrap-v2.md#phase-2-remote-cluster-support-in-progress))
-> - Telepresence mode ([432 DC-4](432-devcontainer-modes-offline-online.md#epic-dc-4--online-telepresence-mode))
+> - Remote-first Telepresence inner-loop ([435-remote-first-development.md](435-remote-first-development.md))
 
 To align with the new structure, the remote cluster needs:
 
@@ -518,7 +530,7 @@ To align with the new structure, the remote cluster needs:
 
 | Dependency | Status | Notes |
 |------------|--------|-------|
-| [432](432-devcontainer-modes-offline-online.md) – Devcontainer modes | ✅ Complete | Provides mode framework |
+| [435](435-remote-first-development.md) – Remote-first dev workflow | ✅ Active | Canonical day-to-day DevContainer + Telepresence flow |
 | [367](367-bootstrap-v2.md) – Bootstrap v2 | ✅ Phase 1 complete | Local dev working |
 | Azure subscription access for AKS | ✅ Available | Both clusters accessible |
 | Remote GitOps migration | ⏳ Pending | Blocker for telepresence |

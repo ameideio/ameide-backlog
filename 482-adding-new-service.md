@@ -31,7 +31,7 @@ Use this checklist whenever you create a net-new service under `services/` or `s
 | **Observability & SLOs** | What metrics/logging/tracing does the service emit? Are dashboards updated? | `platform observability backlogs`, `services/README.md`, service-specific SLO docs |
 | **Security & governance** | Does the service follow risk-tier rules, host-call policies, and secrets governance? | `476-security-and-trust.md`, `362-unified-secret-guardrails-v2.md`, `479-ameide-extensibility-wasm.md` (for Tier 1 runtime specifics) |
 | **Documentation & ownership** | README, runbooks, rotation steps, owners? Has Backstage catalog info been created? | `service_catalog/.../README.md`, `backlog/481-service-catalog.md` (Backstage integration), `services/README.md` |
-| **Tooling & developer experience** | Tilt target, devcontainer wiring, scripts? | `429-devcontainer-bootstrap.md`, `367-bootstrap-v2.md`, `tools/*` docs |
+| **Tooling & developer experience** | Tilt target, devcontainer wiring, scripts? | `backlog/435-remote-first-development.md`, `backlog/581-parallel-ai-devcontainers.md`, `tools/*` docs |
 | **CI/CD & release automation** | Are GitHub workflows/cd-service pipelines building, testing, and packaging Docker images? | `395-sdk-build-docker-tilt-north-star.md`, `405-docker-files.md`, repo-specific workflows |
 
 ---
@@ -101,7 +101,7 @@ Use this checklist whenever you create a net-new service under `services/` or `s
 | Environment naming & networking | `backlog/434-unified-environment-naming.md`, `backlog/441-networking.md`, `backlog/442-environment-isolation.md` |
 | Extensibility/Tier1 runtime | `backlog/479-ameide-extensibility-wasm.md`, `backlog/480-ameide-extensibility-wasm-service.md` |
 | Service catalog patterns | `backlog/481-service-catalog.md`, `service_catalog/domains/_primitive/skeleton/*` |
-| Bootstrap/devcontainer | `backlog/429-devcontainer-bootstrap.md`, `backlog/367-bootstrap-v2.md`, `435-remote-first-development.md` |
+| Bootstrap/devcontainer | `backlog/435-remote-first-development.md`, `backlog/444-terraform.md` (fallback), `backlog/491-auto-contexts.md` |
 
 ---
 

@@ -12,7 +12,7 @@
 > **Related**:
 > - [423-temporal-argocd-recovery.md](423-temporal-argocd-recovery.md) – ArgoCD recovery procedures
 > - [425-vendor-schema-ownership.md](425-vendor-schema-ownership.md) – Vendor schema patterns
-> - [429-devcontainer-bootstrap.md](429-devcontainer-bootstrap.md) – DevContainer bootstrap
+> - [435-remote-first-development.md](435-remote-first-development.md) – Canonical DevContainer + Telepresence workflow
 > - [456-ghcr-mirror.md](456-ghcr-mirror.md) – GHCR mirroring for Temporal images
 
 > ⚠️ **Legacy workflow:** References to the k3d dev registry (`k3d-ameide.localhost:5001`) describe the previous local-cluster model. With the remote-first pivot (backlog/435), dev builds push directly to ACR and run on AKS; keep these notes only for historical incident context.
@@ -33,7 +33,7 @@
   - `cluster-crds-temporal-operator` + `cluster-temporal-operator` (CRDs + controller), and
   - `{env}-data-temporal` (TemporalCluster + TemporalNamespace CRs per environment namespace).
 
-In dev, the **normal path** is now: open the DevContainer, let the GitOps bootstrap (`ameide-gitops/bootstrap/bootstrap.sh`) converge the cluster (see `backlog/429-devcontainer-bootstrap.md` for legacy context), and rely on Argo’s automated sync + retry + RollingSync to bring Temporal apps healthy. The CLI `argocd app sync` steps below remain the manual recovery path when something is stuck (see also `backlog/423-temporal-argocd-recovery.md`).
+In dev, the **normal path** is now: open the DevContainer (per `backlog/435-remote-first-development.md`), let the GitOps bootstrap (`ameide-gitops/bootstrap/bootstrap.sh`) converge the cluster, and rely on Argo’s automated sync + retry + RollingSync to bring Temporal apps healthy. The CLI `argocd app sync` steps below remain the manual recovery path when something is stuck (see also `backlog/423-temporal-argocd-recovery.md`).
 
 ## Issues we hit and fixes
 - **Temporal CrashLoopBackOff (schema compatibility check / schema missing):**
@@ -75,5 +75,5 @@ For related design and runbooks, see:
 
 - `backlog/425-vendor-schema-ownership.md` – vendor vs Flyway schema ownership (Temporal pattern).
 - `backlog/423-temporal-argocd-recovery.md` – detailed recovery flows when Temporal or namespace bootstrap fail in Argo.
-- `backlog/429-devcontainer-bootstrap.md` – how the DevContainer + `bootstrap-v2.sh` orchestrate k3d, Argo, and GitOps end-to-end.
+- `backlog/429-devcontainer-bootstrap.md` – legacy local k3d bootstrap context (`bootstrap-v2.sh`) retained for historical incident notes.
 - `backlog/456-ghcr-mirror.md` – GHCR mirroring for Docker Hub rate limiting (Temporal uses GHCR mirrors for server, admin-tools, and UI images).

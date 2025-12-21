@@ -2,7 +2,7 @@
 
 **Status:** In Progress  
 **Owner:** Platform / Developer Experience  
-**Related backlogs:** [429-devcontainer-bootstrap.md](429-devcontainer-bootstrap.md), [434-unified-environment-naming.md](434-unified-environment-naming.md), [435-remote-first-development.md](435-remote-first-development.md), [491-auto-contexts.md](491-auto-contexts.md)
+**Related backlogs:** [435-remote-first-development.md](435-remote-first-development.md), [434-unified-environment-naming.md](434-unified-environment-naming.md), [491-auto-contexts.md](491-auto-contexts.md), [492-telepresence-verification.md](492-telepresence-verification.md), [581-parallel-ai-devcontainers.md](581-parallel-ai-devcontainers.md)
 
 ## Scope & Purpose
 
@@ -195,9 +195,9 @@ The quick-hit list below mirrors the detailed playbook in [492-telepresence-veri
 
 ## References
 
-- [429-devcontainer-bootstrap.md](429-devcontainer-bootstrap.md) – Telepresence mode description and helper wiring in Tilt.
 - [434-unified-environment-naming.md](434-unified-environment-naming.md) – Single AKS cluster, namespace naming rules, migration status.
 - [435-remote-first-development.md](435-remote-first-development.md) – Remote-first architecture and Telepresence rationale.
 - [491-auto-contexts.md](491-auto-contexts.md) – Auto context script details; referenced by `postCreate.sh`.
 - [492-telepresence-verification.md](492-telepresence-verification.md) – Full verification flow and failure remediation steps.
+- [581-parallel-ai-devcontainers.md](581-parallel-ai-devcontainers.md) – Parallel slot conventions (intercept naming, collision avoidance).
 - `tools/dev/telepresence.sh` – Helper script (see git history for `telepresence verification` commits).
