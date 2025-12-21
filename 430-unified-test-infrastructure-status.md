@@ -93,6 +93,44 @@ This document tracks implementation progress against the target state defined in
 
 ---
 
+## Operators / Control Plane Testing (out-of-scope for 430 metrics)
+
+This status doc (430) tracks **application integration and E2E suites** that follow the `INTEGRATION_MODE` contract (mock vs cluster) and use `__mocks__/` where applicable.
+
+Primitive **operators** (Domain/Process/Agent/UISurface) are a different surface:
+
+- They are **control-plane components** that reconcile Kubernetes resources and update CR `status.conditions`.
+- Their “cluster truth” depends on Kubernetes controllers (Deployments, Jobs, GC, etc.), which is not represented by `INTEGRATION_MODE` or service `__mocks__/`.
+
+### Current operator testing state
+
+We treat operator testing as a two-layer acceptance model:
+
+1. **Layer A (envtest):** fast, deterministic reconciler correctness (rendering/ownership/conditions logic).
+2. **Layer B (kind + Helm + KUTTL):** real cluster acceptance (CRDs install, Helm deploy works, Deployments become Available, CRs reach `Ready=True`, negative cases behave correctly).
+
+These are intentionally **not counted** in the “Total integration test suites” metric above, because they are not service integration suites and do not use `integration-mode.sh`.
+
+### Why we use kind (even if k3d exists)
+
+We introduced **kind** for operator acceptance because the goal is a **portable, CI-friendly, deterministic** Kubernetes cluster for tests:
+
+- **CI standardization:** kind is widely used and stable in GitHub Actions for ephemeral test clusters.
+- **Upstream Kubernetes behavior:** kind runs upstream Kubernetes components; k3d runs k3s. For operator/CRD edge-cases, kind reduces “passes on k3s, fails elsewhere” risk.
+- **No local registry requirement:** the acceptance suite uses `kind load docker-image` to inject locally-built operator images; k3d usually requires `k3d image import` or a registry workflow.
+- **Remote-first compatibility:** this repo’s day-to-day dev model is AKS + Telepresence; any local k3d cluster is legacy/optional, while kind is used only as a self-contained test harness.
+
+### Mapping to the 430 “dual-mode” intent
+
+Although operators don’t use `INTEGRATION_MODE`, the intent is analogous:
+
+- 430 “mock mode” ⇢ operator **envtest** (fast, deterministic, no external dependencies).
+- 430 “cluster mode” ⇢ operator **kind acceptance** (real Kubernetes controllers + Helm install).
+
+### Follow-ups (optional)
+
+- Add a cluster-provider switch so the same KUTTL suites can run against an existing `k3d-ameide` cluster for developer convenience, while keeping kind as the CI default.
+
 ## Detailed Gaps by Service
 
 ### `platform` (P1)

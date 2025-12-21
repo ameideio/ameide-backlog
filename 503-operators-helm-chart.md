@@ -35,6 +35,15 @@ The operators Helm chart provides a unified deployment mechanism for the current
 
 **Key insight**: Single chart, shared RBAC, independent enable/disable per operator.
 
+## Acceptance tests (CI + local)
+
+This repo ships a CI-friendly acceptance suite that installs this chart into a kind cluster, loads locally-built operator images, and runs KUTTL assertions against the CRDs/operators:
+
+- `make test-acceptance` (smoke + negative)
+- `make test-operators-envtest` (controller correctness via envtest)
+
+The suite layout and fixtures live under `tests/acceptance/` and are wired in CI via `.github/workflows/ci-operators-acceptance.yml` and `.github/workflows/ci-operators-envtest.yml`.
+
 ---
 
 ## 2. Chart Location
