@@ -22,6 +22,16 @@ Scope identity (required everywhere): `{tenant_id, organization_id, repository_i
 - Emit commands/intents only through governed seams (no bypassing writer boundaries).
 - Operate under definition-stored tool grants and risk tiers (AgentDefinitions), using a **generic role taxonomy** (Product Owner/Solution Architect/Executor) with profile-specific specializations.
 
+### 1.0.1 Execution substrate (ephemeral agent work; WorkRequests)
+
+Agent work that has meaningful side effects (repo changes, external writes, long-running tool use) SHOULD run on the same execution substrate as tool runners:
+
+- Process (or an authorized actor) creates a Domain-owned `WorkRequest` for `work_kind = agent_work`.
+- Domain emits `WorkRequested` facts; an ephemeral execution backend (CI-like runner or in-cluster Job) consumes those facts and runs the agent/runtime with role-scoped credentials.
+- Outcomes are recorded back into Domain idempotently with linked evidence bundles; Process emits process facts for the run timeline.
+
+This keeps “agent invoked by Process” event-driven and audit-grade without adding hidden RPC coupling.
+
 ### 1.0 Role taxonomy (generic, real-world aligned)
 
 Transformation’s agent roles should not be Scrum-only. Scrum/TOGAF/PMI profiles map their accountabilities onto these generic delivery roles.
@@ -67,6 +77,16 @@ Tool grants are expressed as tool identifiers (e.g., `<capability>.<operation>`)
 Inter-role delegation (Product Owner→Solution Architect, Solution Architect→Executor) should be **event-driven first** so external tools can integrate without coupling to a specific in-cluster HTTP interface.
 
 Canonical posture (cross-reference): `backlog/505-agent-developer-v2.md` defines the bus-native work handover semantics and how optional interactive transports (A2A) map onto them.
+
+### 1.3 Role enforcement (defense in depth; tri-axis)
+
+Role safety requires three independent enforcement axes:
+
+1. **Semantic permissions**: AgentDefinitions (tool grants + risk tiers).
+2. **Cluster permissions**: Kubernetes identity (ServiceAccount/RBAC/namespace isolation).
+3. **External permissions**: provider identities (e.g., GitHub App/token) + server-side rulesets/branch protections.
+
+No single layer is sufficient on its own; the system is designed so branch switching locally (or Job rescheduling) cannot increase authority.
 
 ## 2) “Agent drives tenants through 524” (future behavior)
 

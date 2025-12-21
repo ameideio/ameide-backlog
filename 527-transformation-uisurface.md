@@ -28,6 +28,17 @@ This document specifies the **Transformation UISurface primitive** — the porta
   - read via projection query services,
   - mutate via commands/intents only.
 
+### 1.1 Execution timeline views (audit-grade; v1)
+
+UISurface must make the execution substrate observable without relying on “pods still exist”:
+
+- Show **WorkRequests** (tool runs and agent work) per initiative/process instance, including status transitions (`requested/started/succeeded/failed`) and linked evidence bundles.
+- Show the **Process run timeline** (process facts) joined with correlated Domain facts (work requests, promotions, approvals) using `correlation_id` and/or `work_request_id` citations (see `backlog/527-transformation-projection.md` §4.3).
+- Display external actor identity for side effects (defense-in-depth):
+  - semantic role (AgentDefinition/runtime role),
+  - Kubernetes identity (ServiceAccount/namespace),
+  - external identity (e.g., GitHub App/user) when applicable.
+
 ### 1.1 Metamodel profiles (standards-compliant vs extended)
 
 The UI treats modeling as a **generic editor** over Elements, configured by a **notation (metamodel) profile** selected in diagram/model properties:

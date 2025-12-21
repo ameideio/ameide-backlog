@@ -176,12 +176,14 @@ This is where the CLI becomes “a tool inside the process”.
 
 ### Actions (what happens)
 
-7. **Scaffolding / codegen is triggered**
-   The Transformation Process requests external automation via **Integration**:
+7. **Scaffolding / codegen is triggered (WorkRequest → ephemeral execution → evidence)**
+   The Transformation Process requests execution via the **WorkRequest seam** (Domain-owned), then Integration executes:
 
-   * a scaffolding runner (Backstage-style, or “run in CI”) checks out the repo, runs the scaffolder/codegen, and opens a PR.
-   * Integration is explicitly scoped to git/CI/scaffolding/ticketing connectors and must be idempotent. 
-   * Tool runs are recorded as process facts (`ToolRunRecorded`) and linked as evidence (see `backlog/527-transformation-proto.md` §3.1 and `backlog/527-transformation-integration.md` §1.0.2–§1.0.4).
+   * Process issues a Domain intent to create a `WorkRequest` (`work_kind=tool_run`, `action_kind=scaffold|generate`, repo coordinates, plan refs, idempotency key).
+   * Domain persists the WorkRequest and emits `WorkRequested` as a domain fact (outbox).
+   * A runner backend (CI-like runner or in-cluster ephemeral Job; KEDA ScaledJob is the reference) consumes `WorkRequested`, checks out the repo, runs the scaffolder/codegen, and stores artifacts.
+   * The Job records outcomes back into Domain idempotently (evidence bundle + terminal status).
+   * Process awaits the resulting domain facts and emits `ToolRunRecorded` process facts referencing the evidence (see `backlog/527-transformation-proto.md` §3.1 and `backlog/527-transformation-integration.md` §1.0.5).
 
 8. **Agentic coding step (implementation)**
    A coding agent (or a human) applies the checklist and implements:
@@ -229,7 +231,7 @@ This is where the CLI becomes “a tool inside the process”.
 * Stay thin: read via projection, mutate via commands/intents only. 
 
 9. **Verification is run (as a gate, not advice)**
-   The Transformation Process invokes verification and captures its output as evidence:
+   Verification is also requested and executed via the WorkRequest seam so it is replay-safe and auditable:
 
 * This is part of the “scaffold → verify → promote” delivery loop. 
 * Verification should validate:

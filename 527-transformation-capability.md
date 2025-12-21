@@ -193,7 +193,8 @@ The chain is:
 
 3. **Tool runners (Integration executes; CLI is a tool)**
    - Some steps require deterministic tool execution (existing CLI scaffolding, `buf generate`, `ameide primitive verify`, tests/build/publish).
-   - These are invoked as workflow activities via Integration “runner” adapters (CI-like or in-cluster jobs); outputs are captured as evidence attachments and referenced from promotions/baselines.
+   - Tool/agent execution is requested via a **WorkRequest** recorded in Domain (see “Execution substrate” below). The reference implementation is **ephemeral, queue-driven execution** (CI-like or in-cluster Jobs via KEDA ScaledJob): Domain emits `WorkRequested` facts after persistence; Jobs consume those facts, execute, and record evidence back into Domain idempotently; Process awaits domain facts and emits process facts for the audit timeline.
+   - Outputs are captured as evidence bundles (attachments + structured summaries) and referenced from promotions/baselines and process facts.
 
 4. **Ameide primitives (realization outputs)**
    - `CapabilityPrimitiveDecomposition` + scaffolding plans drive repo-owned skeletons for Domain/Process/Projection/Integration/UISurface/Agent primitives.
@@ -227,6 +228,26 @@ Value streams (refine via `backlog/524-transformation-capability-decomposition.m
 7. Multi-methodology by profile (Scrum/TOGAF/PMI as profiles).
 8. Profiles govern; they don’t redefine the repository (no forked canonical models).
 9. Metamodel conformance is profile-driven: “standards-compliant” vs “extended” notation profiles constrain `type_key` and exports; canonical storage remains element-centric.
+
+## 2.1 Execution substrate (normative): WorkRequest → evidence → timelines
+
+To make “ephemeral jobs from a queue” safe and interoperable without turning KEDA (or a CLI wrapper) into the orchestrator, v1 standardizes a single seam:
+
+1. **Process decides** a tool/agent step is needed (policy + orchestration).
+2. **Process requests execution** via a **Domain intent** that creates a `WorkRequest` record (idempotent).
+3. **Domain persists** the WorkRequest and emits a **domain fact** (`WorkRequested`) after commit (outbox).
+4. **Execution backend runs** (CI-like runner or in-cluster ephemeral Job) by consuming `WorkRequested` facts:
+   - it executes exactly what was requested (no extra policy),
+   - writes artifacts to object storage,
+   - records outcomes back into Domain via a Domain intent (idempotent).
+5. **Domain emits** `WorkCompleted`/`WorkFailed` (and links evidence bundles).
+6. **Process awaits** those domain facts, emits `ToolRunRecorded` / `GateDecisionRecorded` / `ActivityTransitioned` as process facts, and continues.
+7. **Projection materializes** the joined run timeline (process facts + correlated domain facts) with citations.
+
+Hard rules (v1):
+
+- Queue-triggered execution MUST consume **WorkRequested** facts (explicitly requested by Process/Domain), not raw external webhooks/events.
+- Job TTL/cleanup is hygiene only; audit correctness comes from Domain-persisted evidence + process facts + projection citations.
 
 ## 3) Capability boundaries and nouns
 

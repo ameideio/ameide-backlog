@@ -81,6 +81,11 @@ Agent handover note (event-driven first):
 - Inter-agent/role delegation for delivery work (Product Owner→Solution Architect→Executor) is intentionally treated as a **separate handover seam** from the Transformation/Scrum domain/process seams above.
 - Canonical semantics live in `backlog/505-agent-developer-v2.md` (work intents/facts + evidence refs). Any interactive transport (e.g., A2A) is a binding over that seam, not a competing contract.
 
+Execution substrate note (WorkRequests; event-driven first):
+
+- Long-running tool runs and agent work are represented as Domain-owned `WorkRequest` records: Process requests work via Domain intents; Domain emits `WorkRequested` facts after persistence; ephemeral execution backends consume those facts and record outcomes back into Domain idempotently.
+- Process workflows await the resulting domain facts and emit `ToolRunRecorded` (and other orchestration evidence) as process facts for projection timelines.
+
 ## 3) Envelope invariants (per 496)
 
 All envelopes (domain intents, domain facts, process facts) must include:
@@ -91,6 +96,10 @@ All envelopes (domain intents, domain facts, process facts) must include:
 - Traceability: `message_id`, `correlation_id`, `causation_id` (when available), timestamps
 - Producer identity and schema/version metadata
 - Aggregate/process subject with stable identity and monotonic versioning where applicable
+
+Execution invariants (additional; v1):
+
+- Work execution messages MUST include a stable `work_request_id` and a stable `client_request_id` / `idempotency_key` so retries and at-least-once delivery converge to one canonical outcome.
 
 ## 3.0.1 Transport bindings: CloudEvents (optional; Integration-owned)
 

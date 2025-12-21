@@ -138,6 +138,49 @@ Minimum conceptual model:
   - scope refs: `{tenant_id, organization_id, repository_id}` and optionally `{initiative_id, baseline_id, promotion_id, process_instance_id}`
   - provenance: `produced_by` (tool/runner/actor), timestamps
   - `items[]`: logs, links, attestations, artifacts (attachments)
+
+### 3.5 Work requests (execution substrate; v1)
+
+To avoid treating “a queue message exists” or “a Job ran” as canonical truth, execution is modeled as a Domain-owned governance object:
+
+- `WorkRequest` is a canonical Domain record representing **explicitly requested** tool/agent work initiated by a Process workflow (or an authorized actor).
+- Runners/ephemeral Jobs are execution backends that consume `WorkRequested` facts and record outcomes back into Domain idempotently.
+- Kubernetes Job TTL/cleanup is hygiene only; audit/evidence correctness comes from Domain-persisted `WorkRequest` status + linked `EvidenceBundle` + Process facts + Projection citations.
+
+Minimum v1 conceptual shape (schema-backed; do not embed proto text here):
+
+- Identity/scope: `{tenant_id, organization_id, repository_id}`, `work_request_id`
+- Provenance:
+  - `requested_by`: `{process_instance_id, activity_id}` (required for workflow-driven requests)
+  - `requested_at`, `requested_by_actor` (optional: human/agent identity)
+- Type:
+  - `work_kind` ∈ `{tool_run, agent_work}`
+  - `action_kind` (for tool runs): `preflight|scaffold|generate|verify|build|publish|deploy|smoke`
+- Idempotency:
+  - `client_request_id` / `idempotency_key` (required; stable across retries)
+- Execution binding:
+  - `queue_ref` (logical; environment binds to actual broker subject/topic)
+  - `timeout_policy` / `retry_policy` (bounded)
+- Inputs (subset as applicable):
+  - repo checkout: `repo_url`, `commit_sha`, `workdir`
+  - plan refs: `scaffolding_plan_ref` / definition refs
+  - constraints: `allowed_paths`/`deny_paths`, tool allowlist, policy refs
+- Status:
+  - `status` ∈ `{requested, started, succeeded, failed, canceled}`
+  - `started_at`, `finished_at`, `attempt`
+- Outcomes:
+  - `evidence_bundle_id` (optional until completion; required for success/failure)
+  - `summary`, `result` (exit code/status) and/or `artifact_refs[]` (URIs + hashes)
+
+Domain intents/facts (conceptual; v1):
+
+- Intent: `RequestWorkRequested` (create WorkRequest; idempotent)
+- Facts: `WorkRequested`, `WorkStarted`, `WorkCompleted`, `WorkFailed` (emitted after persistence)
+- Intent: `RecordWorkOutcomeRequested` (attach evidence + terminal status; idempotent on `client_request_id`)
+
+Correlation rules (required):
+
+- Process must propagate `correlation_id` across: Process instance → RequestWork intent → WorkRequested fact → RecordWorkOutcome intent → WorkCompleted/Failed fact.
   - citations/trace links back to the underlying facts/versions that the evidence supports
 
 Evidence bundles are stored as attachments/blobs and referenced from baselines/promotions/definitions using REFERENCE relationships; projection surfaces them in audit views.

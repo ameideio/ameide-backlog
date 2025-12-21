@@ -126,11 +126,12 @@ Projection queries must be reproducible and auditable. v1 standardizes two cross
 
 A citation references the precise inputs used to compute a read-model field:
 
-- `kind`: `domain_fact | process_fact | element_version | attachment | external_link`
+- `kind`: `domain_fact | process_fact | element_version | attachment | evidence_bundle | work_request | external_link`
 - `ref`:
   - for facts: `{topic_family, message_id}` (and optionally a content hash)
   - for element versions: `{element_id, version_id}`
   - for attachments/evidence: `{attachment_id}` / `{evidence_bundle_id}`
+  - for work execution: `{work_request_id}`
 - optional `note` (human-readable)
 
 **Rules**
@@ -154,7 +155,8 @@ Minimum read model expectations (v1):
   - `ToolRunRecorded` (scaffold/generate/verify/build outputs)
   - `ReadPerformed` (projection reads used for decisions, including `read_context` + citations)
 - Deterministic correlations:
-  - join step evidence to domain facts using `correlation_id`/`causation_id` links (and/or explicit intent/fact refs on the process fact)
+  - join step evidence to domain facts using `correlation_id`/`causation_id` links (and/or explicit refs on the process fact)
+  - join tool-run process facts (`ToolRunRecorded`) to Domain-owned WorkRequest lifecycle facts (`WorkRequested`/`WorkCompleted`/`WorkFailed`) using `work_request_id` when available
 - Citations:
   - each timeline row carries citations referencing the underlying process fact (and any joined domain fact), suitable for audit replay
 

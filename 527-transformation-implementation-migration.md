@@ -192,6 +192,35 @@ Example:
 - Scrum/TOGAF/PMI workflows
 - Stored AgentDefinitions / agentic approvals
 
+### WP-B (v1 substrate) — Work execution substrate (WorkRequests + evidence + timelines)
+
+**Goal:** make the execution substrate a first-class, event-driven seam so “runner invocation pending” does not persist as a long-term architecture gap.
+
+**Outcome:** Process can request a tool/agent step via a Domain-owned `WorkRequest`, an ephemeral execution backend runs it, Domain records evidence, Process emits process facts, and Projection/UISurface can show an audit-grade run timeline.
+
+**Deliverables**
+
+- Domain:
+  - `WorkRequest` record + idempotency posture (`client_request_id`)
+  - Domain facts: `WorkRequested`/`WorkCompleted`/`WorkFailed` (after persistence)
+  - Intent to record outcomes with evidence bundle linking (idempotent)
+- Integration (runner backend):
+  - reference runner implementation that consumes `WorkRequested` facts and executes one WorkRequest per run (CI-like or in-cluster Job)
+  - evidence bundle creation (logs + artifacts) + idempotent outcome recording in Domain
+  - KEDA ScaledJob (reference) with timeouts/retries/history limits (cleanup via Job TTL only)
+- Process:
+  - at least one workflow that requests a WorkRequest and awaits completion
+  - emits `ToolRunRecorded` + step transitions (`ActivityTransitioned`) with correlation to the WorkRequest
+- Projection:
+  - materialize a run timeline that joins process facts to WorkRequest lifecycle facts with citations
+- UISurface:
+  - minimal “Execution timeline” view: WorkRequests + evidence links + gate decisions
+
+**DoD (gates)**
+
+- A single end-to-end run exists: Process creates WorkRequest → runner executes → Domain records evidence → Process emits `ToolRunRecorded` → Projection shows timeline with citations.
+- Duplicate delivery is safe: replaying the same WorkRequested message produces one canonical outcome (idempotency proven by tests/logs).
+
 #### A1) Domain primitive: TransformationKnowledgeCommandService
 
 **Scaffold (required)**

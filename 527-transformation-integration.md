@@ -49,12 +49,15 @@ The runner does not decide policy; it executes tools, captures outputs, and emit
 
 ### 1.0.2 Runner interface contract (normative; v1)
 
-Integration runners exist so the Process primitive can invoke deterministic tool steps without turning the CLI into an orchestrator.
+Integration runners exist so deterministic tool steps can run without turning the CLI (or a scaling layer) into the orchestrator.
 
 **Inputs (minimum; required)**
 
 - Scope: `{tenant_id, organization_id, repository_id}`
 - Traceability: `process_instance_id`, `activity_id` (or step name), `correlation_id` (+ `causation_id` when available)
+- Work identity:
+  - `work_request_id` (stable)
+  - `client_request_id` / `idempotency_key` (stable; used for end-to-end dedupe across retries)
 - Repo checkout:
   - `repo_url` (or equivalent fetch reference)
   - `commit_sha` (exact revision)
@@ -63,13 +66,13 @@ Integration runners exist so the Process primitive can invoke deterministic tool
   - `scaffolding_plan_ref` → a promoted `ScaffoldingPlanDefinition` version (Definition Registry id + version), or a fetched plan artifact path provided by the Process primitive
 - Requested action:
   - `action_kind` ∈ `{preflight, scaffold, generate, verify, build, publish, deploy, smoke}` (v1 set; expand later)
-  - `execution_scope` ∈ `{slice, repo}` (see §1.0.3)
+  - `execution_scope` ∈ `{slice, repo}` (see §1.0.4)
 - Idempotency:
-  - `idempotency_key` (stable per {process_instance_id, activity_id, attempt}) so replays do not duplicate side effects (e.g., “open PR”)
+  - `idempotency_key` (stable per WorkRequest) so replays do not duplicate side effects (e.g., “open PR”)
 
 **Outputs (minimum; required)**
 
-- `tool_run_evidence` descriptor (machine-readable; see §1.0.4) that the Process primitive can:
+- `tool_run_evidence` descriptor (machine-readable; see §1.0.5) that the Process primitive can:
   - attach as evidence,
   - cite in `ToolRunRecorded`,
   - and show in projection-backed audit timelines.
@@ -80,7 +83,32 @@ Integration runners exist so the Process primitive can invoke deterministic tool
 - The runner MUST NOT become a policy engine (approval logic, promotion decisions, contract rules).
 - The runner MUST NOT infer scope identifiers (it is always called with explicit `{tenant_id, organization_id, repository_id}`).
 
-### 1.0.3 Execution scopes (verify posture; v1)
+### 1.0.3 Runner execution backend (ephemeral Jobs; KEDA reference implementation)
+
+Reference implementation for long-running tool runs is **queue-driven ephemeral execution**:
+
+- A KEDA `ScaledJob` consumes `WorkRequested` facts and schedules a **Kubernetes Job per message** (one WorkRequest per Job).
+- The Job executes the requested tool run, produces evidence artifacts, and records outcomes back into Domain via a Domain intent.
+
+Hard rule (v1): queue-triggered Jobs MUST consume **WorkRequested** facts (explicitly requested by Process/Domain), not raw external webhooks/events.
+
+Operational constraints (normative defaults; tune per capability):
+
+- `parallelism = 1`, `completions = 1` (one WorkRequest per Job)
+- `activeDeadlineSeconds` set (hard timeout)
+- `backoffLimit` set (bounded retries)
+- history limits for completed/failed Jobs
+- optional `ttlSecondsAfterFinished` for cleanup (not correctness)
+
+Idempotency + ack discipline (required):
+
+- Treat the queue as **at-least-once** delivery: duplicates are normal.
+- A Job MUST NOT ack/delete its message until it has durably recorded the outcome in Domain (idempotently) and persisted/linked evidence artifacts.
+- Domain MUST treat `client_request_id` as an idempotency key for result recording so duplicate Job runs converge to one canonical outcome record.
+
+Recommendation: use “one queue per role/class of work” (e.g., `toolrun.verify`, `toolrun.generate`, `agentwork.coder`) so Kubernetes ServiceAccounts and external credentials can be scoped tightly per workload.
+
+### 1.0.4 Execution scopes (verify posture; v1)
 
 Runners must support two explicit execution scopes so “work on one slice” does not silently depend on unrelated repo health:
 
@@ -92,13 +120,14 @@ Runners must support two explicit execution scopes so “work on one slice” do
 
 The ProcessDefinition decides which scope applies to each step; the runner only executes what it is instructed to run.
 
-### 1.0.4 Tool-run evidence descriptor (maps to `ToolRunRecorded`)
+### 1.0.5 Tool-run evidence descriptor (maps to `ToolRunRecorded`)
 
 Runners must return a stable evidence descriptor that can be attached and referenced by process facts (`ToolRunRecorded`) without scraping logs.
 
 Minimum required fields (conceptual; keep stable and diff-friendly):
 
 - Identity and scope: `{tenant_id, organization_id, repository_id}`, `process_instance_id`, `activity_id`, `attempt`
+- Work identity: `work_request_id`, `idempotency_key`
 - Tool identity:
   - `tool_name` (e.g., `bin/ameide`, `buf`, `go test`, `pnpm`)
   - `tool_version` (and `tool_git_sha` if applicable)
@@ -116,7 +145,7 @@ Minimum required fields (conceptual; keep stable and diff-friendly):
 
 The Process primitive uses this descriptor to emit `ToolRunRecorded` and to link evidence attachments to the relevant baseline/definition promotion (via REFERENCE relationships).
 
-### 1.0.5 Verification output posture (agent-grade; “no band aids”)
+### 1.0.6 Verification output posture (agent-grade; “no band aids”)
 
 When the runner executes verification (`action_kind = verify`), the returned `tool_run_evidence` SHOULD include structured, actionable failures (not just raw logs) so agents and humans can repair the correct layer.
 
@@ -135,7 +164,7 @@ Each failure SHOULD include:
 
 Cross-reference: external verification baseline for test expectations lives in `backlog/521f-external-verification-baseline.md`.
 
-### 1.0.6 Tool identity and “doctor” posture
+### 1.0.7 Tool identity and “doctor” posture
 
 Runners must record tool identity deterministically:
 

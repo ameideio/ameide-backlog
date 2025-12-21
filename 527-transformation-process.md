@@ -54,6 +54,13 @@ Workflow steps often require deterministic tool execution (scaffolding, codegen,
 - An **Integration runner** performs external side effects (run `bin/ameide`, `buf`, tests/builds) and captures outputs as evidence.
 - The **CLI is a tool**, not the orchestrator; it is invoked by workflow activities and by humans locally, but the process-of-record is always the Process primitive executing a stored ProcessDefinition.
 
+**Execution substrate (normative; v1):** long-running tool/agent steps run on an event-driven WorkRequest seam:
+
+- Process requests execution via a Domain intent that creates a Domain-owned `WorkRequest` (idempotent).
+- Domain emits `WorkRequested` facts after persistence (outbox).
+- A runner backend (CI-like or in-cluster ephemeral Jobs; KEDA ScaledJob is the reference implementation) consumes `WorkRequested`, executes, and records results back to Domain (idempotent).
+- Process awaits the resulting domain facts, then emits `ToolRunRecorded` / `GateDecisionRecorded` / `ActivityTransitioned` process facts for the audit timeline.
+
 ## 3) BPMN ProcessDefinitions (executable + scaffolding driver)
 
 This capability treats **BPMN as the canonical authoring source** for governance/delivery workflows. To make BPMN simultaneously:
@@ -161,6 +168,11 @@ Execution profile requirements (conceptual shape; do not embed proto text):
   - `emit_process_facts`: which step transitions MUST be emitted (see `backlog/527-transformation-proto.md` §3.1)
   - `send_domain_intent` (optional): intent type + topic family + subject scope + idempotency key strategy
   - `await_domain_facts` (optional): which facts (by type/subject) unblock the workflow and how correlation is computed
+  - `run_work_request` (optional): request execution via a Domain-owned WorkRequest (tool run or agent work) and define how the workflow waits for completion:
+    - `work_kind` ∈ `{tool_run, agent_work}`
+    - `queue_ref` (logical; environment binds actual broker/subject)
+    - `timeout_policy` / `retry_policy` (bounded; retries rely on idempotency)
+    - correlation rules: how `work_request_id` / `correlation_id` is propagated into domain intents/facts
   - `allowed_reads` (optional): projection queries allowed for decisions (timeouts/retry posture)
   - `timeout_policy` / `retry_policy` (optional)
 
@@ -287,7 +299,7 @@ Not yet delivered (process meaning):
 
 - [ ] BPMN → (bindings) → compiled Workflow IR → Temporal execution (end-to-end).
 - [ ] BPMN-derived `ScaffoldingPlanDefinition` generation + “fail closed” verification gates.
-- [ ] Integration runner invocation from workflow activities (CLI/buf/test runs recorded as `ToolRunRecorded`).
+- [ ] WorkRequest-based runner invocation from workflow activities (domain facts trigger ephemeral runner Jobs; outcomes recorded to Domain; process emits `ToolRunRecorded`).
 - [ ] Deterministic governance workflows (Scrum/TOGAF/PMI) and continuous refinement loop.
 - [ ] Full process-facts emission semantics per workflow node transition (ActivityTransitioned/GateDecisionRecorded/ToolRunRecorded/ReadPerformed) correlated to domain facts.
 
