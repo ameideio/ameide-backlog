@@ -209,7 +209,7 @@ Add a small chart (or manifests via shared-values) in `ameide-gitops`, e.g.:
 **Preferred:** seed business state via platform APIs.  
 **Reality today:** platform lacks a “create membership” endpoint; we only have list/update. Options:
 
-1. **Short-term:** Seed via SQL (psql) using a DB admin/maintenance credential (scoped to local/dev namespaces).
+1. **Short-term:** Seed via SQL (psql) using a DB admin/maintenance credential (scoped to local/dev namespaces). **Implemented** in `platform-dev-data` (seed + verify hooks).
 2. **Mid-term:** Add platform service APIs for:
    - `upsertUser`
    - `createOrganizationMembership`
@@ -242,8 +242,8 @@ If we must keep a production “break-glass” account, treat it as a separate, 
 
 **Status update (GitOps):**
 - Test personas removed from realm import; `platform-dev-data` seeds/verifies Keycloak personas in `local`/`dev`.
+- `platform-dev-data` also seeds/verifies **platform DB**: tenant/org, users, and org memberships for the contract personas (local/dev only).
 - `playwright-int-tests-secrets` is now env-scoped (empty in `_shared`, only present in `env/local` + `env/dev`).
-- Platform DB membership seeding/verification remains TBD (see sections 6/11/12).
 
 ---
 
