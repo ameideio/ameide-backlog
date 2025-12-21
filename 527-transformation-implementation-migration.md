@@ -230,6 +230,27 @@ Example:
 - UISurface:
   - minimal “Execution timeline” view: WorkRequests + evidence links + gate decisions
 
+**Test ladder (TDD: small → large)**
+
+We implement WP‑B using a strict “small → large” ladder per `backlog/537-primitive-testing-discipline.md`. Each rung becomes a gate for the next rung; do not jump ahead to cluster E2E until the lower layers are deterministic and green.
+
+1. **Library unit tests (fast, deterministic)**
+   - `packages/ameide_coding_helpers/**` returns stable, structured results for `doctor/verify/generate/scaffold` and never depends on VS Code/UISurface.
+2. **CLI contract tests**
+   - `packages/ameide_core_cli/**` proves the CLI invokes coding helpers and emits stable, machine-readable outputs suitable for evidence bundles.
+3. **Domain integration tests (WorkRequest as SoR)**
+   - Domain can create `WorkRequest` with `client_request_id` idempotency.
+   - Domain emits `WorkRequested` / `WorkCompleted` / `WorkFailed` **after persistence** (outbox discipline).
+4. **Runner component tests (no Kubernetes yet)**
+   - A runner “job main” consumes a `WorkRequested` envelope (or looks up `work_request_id`), checks out a repo fixture, runs `ameide` actions, and records outcomes/evidence back to Domain.
+   - Proves “ack only after durable outcome recorded” (at-least-once safe) without requiring KEDA or a real broker.
+5. **Process workflow tests (Temporal test env)**
+   - Workflow requests a WorkRequest (domain intent), awaits completion facts, emits `ToolRunRecorded` / `GateDecisionRecorded` deterministically.
+6. **Kubernetes substrate test (KEDA + Job)**
+   - In a kind-style acceptance environment, a KEDA ScaledJob schedules exactly one devcontainer-derived Job for one `WorkRequested`, and the Job records completion/evidence in Domain.
+7. **Headless end-to-end (no UISurface)**
+   - Full slice: Process → Domain WorkRequest → KEDA Job → Domain evidence/outcome → Process facts → Projection timeline; assertions run via APIs/queries only.
+
 **DoD (gates)**
 
 - A single end-to-end run exists: Process creates WorkRequest → runner executes → Domain records evidence → Process emits `ToolRunRecorded` → Projection shows timeline with citations.
