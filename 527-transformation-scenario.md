@@ -181,7 +181,7 @@ This is where the CLI becomes “a tool inside the process”.
 
    * Process issues a Domain intent to create a `WorkRequest` (`work_kind=tool_run`, `action_kind=scaffold|generate`, repo coordinates, plan refs, idempotency key).
    * Domain persists the WorkRequest and emits `WorkRequested` as a domain fact (outbox).
-   * A runner backend (CI-like runner or in-cluster ephemeral Job; KEDA ScaledJob is the reference) consumes `WorkRequested`, checks out the repo, runs the scaffolder/codegen, and stores artifacts.
+   * KEDA ScaledJobs consume `WorkRequested`, schedule a devcontainer-derived Kubernetes Job, check out the repo, run the scaffolder/codegen, and store artifacts.
    * The Job records outcomes back into Domain idempotently (evidence bundle + terminal status).
    * Process awaits the resulting domain facts and emits `ToolRunRecorded` process facts referencing the evidence (see `backlog/527-transformation-proto.md` §3.1 and `backlog/527-transformation-integration.md` §1.0.5).
 

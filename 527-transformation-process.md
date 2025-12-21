@@ -58,7 +58,7 @@ Workflow steps often require deterministic tool execution (scaffolding, codegen,
 
 - Process requests execution via a Domain intent that creates a Domain-owned `WorkRequest` (idempotent).
 - Domain emits `WorkRequested` facts after persistence (outbox).
-- A runner backend (CI-like or in-cluster ephemeral Jobs; KEDA ScaledJob is the reference implementation) consumes `WorkRequested`, executes, and records results back to Domain (idempotent).
+- KEDA ScaledJobs consume `WorkRequested`, schedule devcontainer-derived Kubernetes Jobs, and record results back to Domain (idempotent).
 - Process awaits the resulting domain facts, then emits `ToolRunRecorded` / `GateDecisionRecorded` / `ActivityTransitioned` process facts for the audit timeline.
 
 ## 3) BPMN ProcessDefinitions (executable + scaffolding driver)

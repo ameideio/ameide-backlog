@@ -205,9 +205,9 @@ Example:
   - Domain facts: `WorkRequested`/`WorkCompleted`/`WorkFailed` (after persistence)
   - Intent to record outcomes with evidence bundle linking (idempotent)
 - Integration (runner backend):
-  - reference runner implementation that consumes `WorkRequested` facts and executes one WorkRequest per run (CI-like or in-cluster Job)
+  - runner implementation that consumes `WorkRequested` facts and executes one WorkRequest per run (KEDA ScaledJob → devcontainer-derived Kubernetes Job)
   - evidence bundle creation (logs + artifacts) + idempotent outcome recording in Domain
-  - KEDA ScaledJob (reference) with timeouts/retries/history limits (cleanup via Job TTL only)
+  - KEDA ScaledJob (normative) with timeouts/retries/history limits (cleanup via Job TTL only)
 - Process:
   - at least one workflow that requests a WorkRequest and awaits completion
   - emits `ToolRunRecorded` + step transitions (`ActivityTransitioned`) with correlation to the WorkRequest

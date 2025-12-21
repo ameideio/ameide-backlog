@@ -18,9 +18,9 @@ This document specifies the **Transformation Integration primitives** — adapte
 Scope identity (required everywhere): `{tenant_id, organization_id, repository_id}` (integration never invents alternate repository identifiers; no separate `graph_id`).
 
 - External connectors:
-  - Backstage scaffolder / scaffolding runners,
-  - GitHub/GitLab, CI systems, container registries,
-  - ticketing/work item systems where required.
+    - Backstage scaffolder / scaffolding runners,
+    - GitHub/GitLab and container registries,
+    - ticketing/work item systems where required.
 - Strict idempotency for inbound webhooks and retries.
 - Emit intents/commands into domains (never facts); domains remain the only fact emitters.
 
@@ -29,13 +29,14 @@ Scope identity (required everywhere): `{tenant_id, organization_id, repository_i
 The CLI is not the delivery process. In an IT4IT-aligned posture:
 
 - **Process primitives** are the orchestrators (execute promoted ProcessDefinitions; emit process facts).
-- **Integrations** provide “runner” capabilities for external side effects, including invoking deterministic tools (CLI, `buf`, test runners) in a controlled environment (CI-like or in-cluster job).
+- **Integrations** provide “runner” capabilities for external side effects, including invoking deterministic tools (CLI, `buf`, test runners) in a controlled environment.
 - The CLI remains a **tool** used by workflow steps (and by humans locally), not a long-lived service boundary.
 
 Implications:
 
 - Any CLI invocation that matters for promotion must produce structured outputs that can be recorded as evidence (attachments) and linked to the governing baseline/definition promotion.
 - The Process primitive is responsible for sequencing (preflight → scaffold → generate → verify → promote → deploy), retries, and emitting process facts; the Integration primitive is responsible for actually running external commands and capturing outputs.
+  - CI can still exist as a repo-level quality gate for PR merges, but it is not the canonical substrate for WorkRequest execution in v1 (WorkRequests run as KEDA-scheduled Jobs).
 
 ### 1.0.1 “Runner” responsibilities (scaffolding/codegen/verify)
 
@@ -83,14 +84,24 @@ Integration runners exist so deterministic tool steps can run without turning th
 - The runner MUST NOT become a policy engine (approval logic, promotion decisions, contract rules).
 - The runner MUST NOT infer scope identifiers (it is always called with explicit `{tenant_id, organization_id, repository_id}`).
 
-### 1.0.3 Runner execution backend (ephemeral Jobs; KEDA reference implementation)
+### 1.0.3 Runner execution backend (normative): KEDA ScaledJob → devcontainer-derived Jobs
 
-Reference implementation for long-running tool runs is **queue-driven ephemeral execution**:
+In v1, long-running tool runs execute via **queue-driven ephemeral execution** in Kubernetes:
 
 - A KEDA `ScaledJob` consumes `WorkRequested` facts and schedules a **Kubernetes Job per message** (one WorkRequest per Job).
 - The Job executes the requested tool run, produces evidence artifacts, and records outcomes back into Domain via a Domain intent.
 
 Hard rule (v1): queue-triggered Jobs MUST consume **WorkRequested** facts (explicitly requested by Process/Domain), not raw external webhooks/events.
+
+#### Runtime image (normative): `.devcontainer` parity
+
+KEDA-scheduled Jobs MUST run a runtime image derived from the repo’s `.devcontainer` toolchain so local (developer-mode) and platform (job-mode) executions use the same pinned environment:
+
+- Base image is built from `.devcontainer/Dockerfile` (or an equivalent published image that is provably derived from it).
+- The Job entrypoint executes the runner/agent work loop (checkout repo at `commit_sha` → run tool(s) → upload artifacts → record evidence/outcome in Domain).
+- Toolchain pins that matter for evidence (e.g., Codex CLI) are inherited from the devcontainer pin (see `backlog/433-codex-cli-057.md`).
+
+This does not imply “VS Code devcontainer” in-cluster; it means the **same containerized toolchain** is used for deterministic runs.
 
 Operational constraints (normative defaults; tune per capability):
 

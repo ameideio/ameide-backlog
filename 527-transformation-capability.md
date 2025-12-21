@@ -193,7 +193,7 @@ The chain is:
 
 3. **Tool runners (Integration executes; CLI is a tool)**
    - Some steps require deterministic tool execution (existing CLI scaffolding, `buf generate`, `ameide primitive verify`, tests/build/publish).
-   - Tool/agent execution is requested via a **WorkRequest** recorded in Domain (see “Execution substrate” below). The reference implementation is **ephemeral, queue-driven execution** (CI-like or in-cluster Jobs via KEDA ScaledJob): Domain emits `WorkRequested` facts after persistence; Jobs consume those facts, execute, and record evidence back into Domain idempotently; Process awaits domain facts and emits process facts for the audit timeline.
+   - Tool/agent execution is requested via a **WorkRequest** recorded in Domain (see “Execution substrate” below). In v1, WorkRequests are executed via **KEDA ScaledJob → Kubernetes Job per WorkRequested**, using a devcontainer-derived runtime image for toolchain parity: Domain emits `WorkRequested` facts after persistence; Jobs consume those facts, execute, and record evidence back into Domain idempotently; Process awaits domain facts and emits process facts for the audit timeline.
    - Outputs are captured as evidence bundles (attachments + structured summaries) and referenced from promotions/baselines and process facts.
 
 4. **Ameide primitives (realization outputs)**
@@ -236,7 +236,7 @@ To make “ephemeral jobs from a queue” safe and interoperable without turning
 1. **Process decides** a tool/agent step is needed (policy + orchestration).
 2. **Process requests execution** via a **Domain intent** that creates a `WorkRequest` record (idempotent).
 3. **Domain persists** the WorkRequest and emits a **domain fact** (`WorkRequested`) after commit (outbox).
-4. **Execution backend runs** (CI-like runner or in-cluster ephemeral Job) by consuming `WorkRequested` facts:
+4. **Execution backend runs** (KEDA ScaledJob schedules an in-cluster ephemeral Job) by consuming `WorkRequested` facts:
    - it executes exactly what was requested (no extra policy),
    - writes artifacts to object storage,
    - records outcomes back into Domain via a Domain intent (idempotent).
@@ -377,7 +377,7 @@ MCP is a **compatibility interface**, not the canonical tool runtime. Tool defin
 - Guardrails must be expressed as evidence-producing gates (verify/test/lint/codegen drift) so promotions can be policy-driven and auditable (see `backlog/527-transformation-integration.md` runner evidence contract).
 - Execution environments should be explicit and swappable:
   - interactive devcontainer (human/agent in loop; pinned tooling, e.g. Codex CLI pin in `backlog/433-codex-cli-057.md`; developer workflow in `backlog/435-remote-first-development.md`; parallel agent slots in `backlog/581-parallel-ai-devcontainers.md`),
-  - CI-like runner / in-cluster job (deterministic tool runs, structured evidence),
+  - KEDA-scheduled in-cluster Jobs (devcontainer-derived toolchain; deterministic tool runs, structured evidence),
   - local dev (human) as a convenience, never a promotion authority without evidence capture.
 
 ## 4.2) Clarification requests (next steps)

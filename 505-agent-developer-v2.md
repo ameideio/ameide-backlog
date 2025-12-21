@@ -87,7 +87,7 @@ These are **methodology-agnostic delivery roles**. Scrum/TOGAF/PMI profiles map 
 ## 2. Non-goals
 
 - Multi-tenant, customer-facing “self-serve AI dev env UI” (separate initiative).
-- Auto-scaling ephemeral devcontainers “one pod per task” (future step).
+- Auto-scaling ephemeral devcontainers “one pod per task” (superseded by the 527 WorkRequest substrate; in-cluster execution is KEDA ScaledJob scheduling devcontainer-derived Jobs).
 - Replacing Git provider workflows / CI pipelines (we integrate, we do not replace).
 - Encoding business rules for domains into the operator layer.
 
