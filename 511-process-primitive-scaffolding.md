@@ -112,10 +112,24 @@ Process scaffolds assume:
     - boolean flags for “already emitted” process facts (`SprintBacklogReadyForExecution`, etc.).  
   - Emit **process facts** (e.g., `ScrumProcessFact`) via an injected port or Activity that writes to an outbox / event bus, not via direct broker clients in workflow code.
 
+- **Tool/agent execution boundary (WorkRequests; normative posture)**:
+  - Workflows MUST NOT “call a runner service” synchronously to execute tools (no hidden write coupling).
+  - Long-running work is requested by emitting a **domain intent** that creates a Domain-owned `WorkRequest` (idempotent).
+  - Execution backends (CI runners or in-cluster ephemeral Jobs, e.g., KEDA ScaledJobs) consume `WorkRequested` domain facts and record outcomes back to Domain idempotently (evidence bundles + terminal status).
+  - Workflow advancement is driven by **awaiting correlated domain facts** (`WorkCompleted`/`WorkFailed` or equivalent), not by a direct runner response.
+  - KEDA is a scaling backend, not an orchestrator: queue messages must represent **explicitly requested work** decided by Process/Domain, not raw external events.
+
 - **Idempotency**:
   - Workflows must ignore domain facts where `aggregate_version <= lastSeenAggregateVersion`.  
   - Activities that emit process facts must be **idempotent** (e.g., accept a stable idempotency key per fact), because Temporal may retry Activities.  
   - Process facts are emitted exactly once per logical condition by checking “already emitted” flags and using idempotent Activities/ports.
+
+- **Envelope + trace propagation (EDA spine; required)**:
+  - Ingress must treat all consumed facts as at-least-once and must propagate required metadata into workflow signals and downstream intents:
+    - scope: `tenant_id` (and any other capability-defined scope ids),
+    - traceability: `message_id`, `correlation_id`, `causation_id`,
+    - tracing: `traceparent` (and optional `tracestate`).
+  - Process facts emitted as orchestration evidence must carry the same correlation/trace context so projections can materialize audit-grade timelines.
 
 - **Determinism and definitions**:
   - BPMN / ProcessDefinition artifacts from Transformation are **design knowledge only**; they are not compiled into Temporal at runtime. The Process primitive’s code, typically authored via agentic development, implements workflows that follow these designs.
@@ -170,6 +184,7 @@ Implementers (humans or coding agents) are expected to:
 1. Fill in workflow logic (timers, derived state, process fact emissions) in a way that respects Temporal determinism and idempotent Activities.  
 2. Wire ingress router to call workflow signals based on domain facts using a Temporal client and deterministic workflow IDs.  
 3. Update tests to assert correct behavior, idempotency, and (where appropriate) Continue‑As‑New behavior.
+4. For any tool/agent execution step, implement the WorkRequest pattern (domain intent → domain fact → execution backend → domain intent → domain fact) rather than synchronous “runner RPC”.
 
 ---
 
@@ -182,6 +197,7 @@ Implementers (humans or coding agents) are expected to:
 - Ingress router using deterministic workflow IDs and `SignalWithStart`.  
 - Idempotency state present in workflow code (`lastSeenAggregateVersion`, flags).  
 - Process facts published via a port or activity (not directly from workflows), consistent with EDA rules in `496-eda-principles.md`.
+- Work execution posture is explicit in scaffold docs and stubs: tool/agent steps must be requested via domain intents and advanced by awaiting domain facts (WorkRequest pattern), not by direct runner calls.
 
 Vertical slices like `506-scrum-vertical-v2.md` remain authoritative for **which workflows and facts** exist; this backlog only constrains the **scaffold shape and Temporal/EDA pattern** for Process primitives.
 
