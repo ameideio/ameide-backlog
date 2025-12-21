@@ -36,6 +36,14 @@ Transformation is Ameide’s change-the-business capability. In the future state
 - Scope identity is `{tenant_id, organization_id, repository_id}`.
 - `repository_id` is the only repository identifier exposed in contracts and APIs (no separate `graph_id`).
 
+## Layered big picture (ArchiMate-aligned; agentic delivery/coding)
+
+This capability is Strategy/Business-led and realized via Application/Technology layers. For agentic delivery/coding, the topics stack as:
+
+- **Strategy/Business (what/why + governance):** delivery roles (Product Owner, Solution Architect), approval gates, promotion policy, and evidence requirements; profiles (Scrum/TOGAF/PMI) map their accountabilities onto the same role taxonomy.
+- **Application (how it is executed):** primitives as components/services/events — Domain as system-of-record + facts, Process as orchestration + gate decisions + process facts, Agent as role-based assistants (LangGraph DAGs), Integration as runners/connectors returning evidence, UISurface as thin UI over projections.
+- **Technology (where it runs):** execution substrates (devcontainer, CI/in-cluster runners), pinned toolchains, secrets/network isolation, and observability; these are swappable but must always produce auditable evidence.
+
 ## 0) Problem
 
 Today “Transformation” exists as:
@@ -321,6 +329,35 @@ See [534-mcp-protocol-adapter.md](534-mcp-protocol-adapter.md) §5 for full OAut
 | External AI tools (Claude Code, Cursor, Copilot) | MCP (Streamable HTTP) | Compatibility binding for devtools |
 
 MCP is a **compatibility interface**, not the canonical tool runtime. Tool definitions live in proto with `(ameide.mcp.expose)` annotations; MCP schemas are generated, never hand-authored.
+
+**Event-driven first handover (agents + tools):**
+
+- The canonical integration posture for **handover** (Product Owner→Solution Architect→Executor) is **messages/events**, not direct RPC chaining. Process primitives and LangGraph DAGs remain the orchestration layers; eventing is the integration boundary.
+- For agentic coding specifically, align to `backlog/505-agent-developer-v2.md`: work delegation is bus-native; interactive transports (e.g., A2A) are optional bindings over the same semantics, not parallel state machines.
+
+**Agentic coding guardrails: enforcement plane vs evidence plane:**
+
+- **Git provider (e.g., GitHub) is the hard enforcement plane (“what is possible”):** protected branches, rulesets, push rulesets (path restrictions), merge queue; agent identities must be unable to push/merge outside their declared namespace even if they branch-switch locally.
+- **Transformation is the policy + orchestration + evidence plane (“what is allowed”):** AgentDefinitions (tool grants + risk tiers), approval policies, and required evidence bundles; Process gates consume runner evidence and record decisions as facts for audit/replay.
+
+**Interoperability posture (CloudEvents):**
+
+- Canonical semantics remain Ameide’s proto-defined envelopes + topic families.
+- CloudEvents is supported only as an optional **transport binding** at Integration boundaries (webhooks, external audit/event buses). A versioned mapping is defined in `backlog/527-transformation-proto.md`.
+
+**Definitions to prevent drift (v1):**
+
+- `CloudEventsBindingDefinition`: the canonical→CloudEvents mapping version (attributes + required extensions) used by Integration adapters.
+- `GitProviderPolicyDefinition`: branch namespace patterns, protected branch posture, push ruleset path blocks, required checks; used by Process gates and recorded in evidence snapshots.
+- `AgentPermissionMatrixDefinition`: who can do what (push, open PR, merge, approve, bypass) across agent roles and human roles; used to enforce separation-of-duties in workflows.
+
+**Agentic coding guardrails + execution environments:**
+
+- Guardrails must be expressed as evidence-producing gates (verify/test/lint/codegen drift) so promotions can be policy-driven and auditable (see `backlog/527-transformation-integration.md` runner evidence contract).
+- Execution environments should be explicit and swappable:
+  - interactive devcontainer (human/agent in loop; pinned tooling, e.g. Codex CLI pin in `backlog/433-codex-cli-057.md`),
+  - CI-like runner / in-cluster job (deterministic tool runs, structured evidence),
+  - local dev (human) as a convenience, never a promotion authority without evidence capture.
 
 ## 4.2) Clarification requests (next steps)
 

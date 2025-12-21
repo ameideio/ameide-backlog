@@ -7,7 +7,7 @@ This document specifies the **SRE agent primitives** — the LangGraph-based age
 
 > **Architecture alignment:** This follows the same pattern as Transformation (505-agent-developer-v2.md):
 > - **SREAgent** makes operational decisions (analogous to AmeidePO/AmeideSA)
-> - **SRECoder** executes changes via A2A (analogous to AmeideCoder)
+> - **SRECoder** executes changes via event-driven work handover (optional A2A transport binding), analogous to AmeideCoder
 > - SRE agents never shell into repos or run CLI directly
 
 ---
@@ -35,10 +35,10 @@ This document specifies the **SRE agent primitives** — the LangGraph-based age
           │ Process facts (sre.process.facts.v1)
           │ IncidentTriageStarted / PatternLookupCompleted / RemediationProposed
           ▼
-┌─────────────────────┐   A2A (standard)   ┌─────────────────────────┐
+┌─────────────────────┐  work handover     ┌─────────────────────────┐
 │      SREAgent       │ ──────────────────▶│       SRECoder          │
 │  Agent primitive    │ ◀──────────────────│  Devcontainer A2A Server│
-│   LangGraph DAG     │    (streaming)     │  Ops execution + tools  │
+│   LangGraph DAG     │ (optional stream)  │  Ops execution + tools  │
 └─────────────────────┘                    └─────────────────────────┘
 ```
 
@@ -53,7 +53,7 @@ This document specifies the **SRE agent primitives** — the LangGraph-based age
 | Decide "what to investigate" | ❌ | ❌ | ✅ | ❌ |
 | Backlog search & pattern matching | ❌ | ❌ | ✅ | ❌ |
 | Propose remediation approach | ❌ | ❌ | ✅ | ❌ |
-| Delegate to coder (A2A) | ❌ | ❌ | ✅ | ❌ |
+| Delegate to coder (work handover; optional A2A binding) | ❌ | ❌ | ✅ | ❌ |
 | Execute kubectl/argocd commands | ❌ | ❌ | ❌ | ✅ |
 | Update backlog documentation | ❌ | ❌ | ❌ | ✅ |
 | Commit GitOps changes | ❌ | ❌ | ❌ | ✅ |

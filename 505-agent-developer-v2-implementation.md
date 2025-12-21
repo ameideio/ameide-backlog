@@ -23,8 +23,8 @@
 
 1. **Process primitive(s)** own the sprint/ADM lifecycle and follow the Scrum event model in `506-scrum-vertical-v2.md` and `508-scrum-protos.md`: they consume **Scrum domain facts** (e.g., `SprintStarted`, `SprintBacklogCommitted`, `ProductBacklogItemDoneRecorded`, `IncrementUpdated`) from `scrum.domain.facts.v1`, emit **process facts** (`SprintBacklogReadyForExecution`, `SprintBacklogItemReadyForWork`, etc.) on `scrum.process.facts.v1`, and issue **Scrum domain intents** on `scrum.domain.intents.v1`. They never write Transformation state directly.
 2. **AmeidePO** becomes a LangGraph AgentDefinition that consumes process facts, normalizes Dev Briefs, and issues Scrum domain intents (`CommitSprintBacklogRequested`, `RefineProductBacklogItemRequested`, `RecordProductBacklogItemDoneRequested`, `RecordIncrementRequested`).
-3. **AmeideSA** becomes a separate LangGraph AgentDefinition that handles technical decomposition, repo digest requests, and delegates to AmeideCoder via A2A (REST binding).
-4. **AmeideCoder** is the devcontainer A2A server exposing `/v1/message:send`, `/v1/message:stream`, `/v1/tasks/*`, running the OBSERVE→ACT loop internally with Ameide CLI + editors.
+3. **AmeideSA** becomes a separate LangGraph AgentDefinition that handles technical decomposition, repo digest requests, and delegates to the executor via canonical work handover messages (bus-native; optional A2A transport binding).
+4. **AmeideCoder** is the executor runtime (devcontainer service and/or CI-like runner) that consumes work intents, runs the OBSERVE→ACT loop internally with Ameide CLI + editors, and publishes work facts + evidence.
 5. **Operators, CLI, GitOps, security, evidencing, observability, and migration docs** are updated to support the split roles and new protocols.
 
 This backlog is successful when:
@@ -42,7 +42,7 @@ This backlog is successful when:
 | **P1 – Transformation contracts** | New commands + event schemas, SDK regen | Transformation domain | 496, packages/ameide_core_proto | 🟡 In progress (proto draft) |
 | **P2 – AmeidePO Agent** | LangGraph DAG refactor + prompts | Agent runtime team | primitives/agent/ameide-coder, 504 guardrails | 🔴 Not started |
 | **P3 – AmeideSA Agent** | New LangGraph DAG + repo digest tool | Agent runtime team | SA DAG assets new work | 🔴 Not started |
-| **P4 – AmeideCoder A2A server** | Devcontainer service, REST binding, Agent Card | DevX/Infracore | 504, Ameide CLI, A2A spec | 🟡 Partial (devcontainer service exists w/ develop_in_container) |
+| **P4 – Executor runtime (AmeideCoder)** | Devcontainer service/runner, work handover consumption, evidence production (optional A2A binding) | DevX/Infracore | 504, Ameide CLI, 505-v2 handover | 🟡 Partial (devcontainer service exists w/ develop_in_container) |
 | **P5 – Operator / CRD support** | `runtime_role`, REST binding annotations, tool grants | Operator team | 500 backlog | 🟡 Partial (runtime_type done) |
 | **P6 – CLI & tooling** | Repo bootstrap + codegen gates, prompt updates, `primitive verify` coverage | CLI team | 504, 505-v2 norms, 520 | 🟡 Partial |
 | **P7 – GitOps & env rollout** | CR manifests, ApplicationSet wiring | Platform SRE | 503, GitOps repo | 🔴 Not started |
@@ -120,50 +120,54 @@ Legend: 🟢 complete · 🟡 in progress · 🔴 not started
 
 ### 2.4 Track P3 – AmeideSA AgentDefinition
 
-**Goal:** implement the Solution Architect DAG, including repo digest requests, technical plans, and A2A client interactions.
+**Goal:** implement the Solution Architect DAG, including repo digest requests, technical plans, and work handover delegation (optional A2A transport binding).
 
 *Tasks*
 1. **New DAG bootstrap**
    - `primitives/agent/ameide-sa` with nodes SA1–SA7 (bootstrapped via Backstage template or equivalent repo template).
 2. **Repo digest interface**
-   - Define `intent=repo_digest` payload; update AmeideCoder to serve it.
-   - Implement LangGraph tool wrapper for the digest call.
+   - Define `WorkRequested(work_kind=REPO_DIGEST)` payload; update the executor runtime to produce a read-only digest artifact.
+   - Optional: keep an A2A binding for interactive tooling, mapping taskId ⇄ work_id.
 3. **Skill invocation**
    - Add `skill=develop_product_backlog_item` invocation node with guardrail plan.
 4. **Streaming handling**
-   - Implement SSE client in DAG to stream updates and feed review decisions.
+   - Implement work-fact consumption in the DAG (progress + completion), feeding review decisions.
+   - Optional: if A2A binding is enabled, consume SSE as a transport binding for the same work facts.
 5. **Result packaging**
    - Node to collate `prUrl`, artifacts, risk summary for PO.
 
 *Acceptance criteria*
-- Integration test: SA calls mock Coder A2A endpoint, handles repo digest + follow-up iteration.
-- No repo access occurs outside the A2A HTTP calls.
+- Integration test: SA publishes mock work intent, consumes work facts, handles repo digest + follow-up iteration.
+- No repo access occurs outside the executor runtime.
 
-### 2.5 Track P4 – AmeideCoder A2A server
+### 2.5 Track P4 – Executor runtime (AmeideCoder)
 
-**Goal:** evolve the devcontainer service into a fully compliant A2A server per 505-v2 §5.3/§7.4.
+**Goal:** evolve the devcontainer service into an executor runtime that consumes work intents, produces work facts + evidence, and (optionally) exposes an A2A transport binding.
 
 *Tasks*
-1. **REST binding implementation**
-   - Implement `POST /v1/message:send` (task creation, `intent` routing).
-   - Implement `POST /v1/message:stream` (SSE), `GET /v1/tasks/{id}`, `...:cancel`, `...:subscribe`.
-   - Stand up a **proto-defined gRPC/Connect service** that handles the same operations; REST handlers should call this service so the platform remains proto-driven while satisfying the A2A REST binding.
-2. **Agent Card**
-   - Serve `/.well-known/agent-card.json` (and legacy `agent.json`).
+1. **Work handover consumption + publication**
+   - Consume `agent.work.intents.v1` messages idempotently (work_id keyed).
+   - Publish `agent.work.facts.v1` for `WorkProgressed`/`WorkCompleted`/`WorkFailed` with evidence references.
+2. **Optional A2A binding**
+   - If enabled, implement `POST /v1/message:send` / `POST /v1/message:stream` / task endpoints as a transport binding over `work_id`.
+   - Optional: stand up a **proto-defined gRPC/Connect service** that handles the same operations so internal systems can stay proto-driven even while honoring the public REST binding.
+3. **Agent Card (optional)**
+   - Serve `/.well-known/agent-card.json` (and legacy `agent.json`) only when A2A is enabled.
    - Include `skills`, `transport.rest`, `auth` metadata.
-3. **Repo digest support**
-   - Add internal handler for `intent=repo_digest` to summarize repo state (read-only).
-4. **Workspace manager**
+4. **Repo digest support**
+   - Add internal handler for `work_kind=REPO_DIGEST` to summarize repo state (read-only).
+5. **Workspace manager**
    - Support both persistent pool and per-task ephemeral volumes (feature flag).
-5. **Auth & rate limiting**
-   - Validate JWT/service accounts from AmeideSA (per risk tier policy).
-6. **Observability**
+6. **Auth & rate limiting**
+   - Validate auth for Solution Architect → Executor delegation (per risk tier policy).
+7. **Observability**
    - Emit metrics: task lifecycle durations, phase timings, failure reasons.
-7. **CLI integration**
+8. **CLI integration**
    - Keep Ameide CLI available as internal tool, remove reliance on `develop_in_container` entrypoint.
 
 *Acceptance criteria*
-- Contract tests (per A2A spec) pass; include negative cases.
+- Contract tests pass for the work handover contract (including idempotency + evidence references).
+- If A2A is enabled, contract tests (per A2A spec) pass; include negative cases.
 - End-to-end run (PO→SA→Coder) completes inside dev cluster.
 
 ### 2.6 Track P5 – Operator / CRD changes
@@ -181,12 +185,12 @@ Legend: 🟢 complete · 🟡 in progress · 🔴 not started
    - For PO/SA, limit tools to Process/Transformation APIs.
    - For Coder, allow the `develop_product_backlog_item` skill + Ameide CLI internal tools.
 4. **Status**
-   - Report `A2AEndpointReady`, `AgentCardPublished` conditions.
+   - Report `WorkHandoverReady` condition; optionally `A2AEndpointReady`, `AgentCardPublished` if A2A is enabled.
 5. **Helm & GitOps**
    - Update `operators/helm` and GitOps overlays to include new CRD fields.
 
 *Acceptance criteria*
-- `kubectl get agent` shows runtime role + A2A endpoint status.
+- `kubectl get agent` shows runtime role + work handover readiness (and A2A endpoint status if enabled).
 - Admission webhook rejects misconfigured roles (e.g., Coder without high risk tier).
 
 ### 2.7 Track P6 – CLI & tooling
@@ -200,9 +204,9 @@ Legend: 🟢 complete · 🟡 in progress · 🔴 not started
    - Repo skeletons for PO/SA/Coder are created via Backstage templates (or equivalent repo templates).
    - Proto-derived wiring/tests are produced via `buf generate` into generated roots; the CLI may wrap `buf` as an orchestrator but must not become a parallel generator system.
 3. **Verify enhancements**
-   - `primitive verify` checks for `runtimeRole`, `a2a` annotations, Process event subscriptions.
+   - `primitive verify` checks for `runtimeRole`, optional `a2a` annotations, and required event subscriptions.
 4. **Docs**
-   - Update `packages/ameide_core_cli/internal/commands/primitive_prompt.go` to mention A2A boundaries.
+   - Update `packages/ameide_core_cli/internal/commands/primitive_prompt.go` to mention work handover boundaries (and optional A2A binding).
 5. **Tests**
    - Add golden tests for each role.
 
@@ -226,7 +230,7 @@ Legend: 🟢 complete · 🟡 in progress · 🔴 not started
 
 *Acceptance criteria*
 - `argocd app sync` can bring up all four runtime components in dev.
-- Runbook includes how to rotate A2A auth keys.
+- Runbook includes how to rotate work handover credentials (and A2A auth keys if the optional A2A binding is enabled).
 
 ### 2.9 Track P8 – Security & observability
 
@@ -236,9 +240,9 @@ Legend: 🟢 complete · 🟡 in progress · 🔴 not started
 1. **Secrets rotation**
    - Ensure AmeideCoder git tokens are scoped to repos/branches per requirement.
 2. **NetworkPolicies**
-   - Only allow SA → Coder, Coder → Git/CI/outbound.
+   - Only allow explicitly declared delegation/integration paths (e.g., Solution Architect → Executor if an A2A binding is enabled), plus Executor → Git/CI/outbound.
 3. **Audit logging**
-   - Centralized logging of A2A messages (metadata only, not prompts).
+   - Centralized logging of work intents/facts (metadata only, not prompts); if A2A is enabled, log A2A transport metadata as a derived view.
 4. **Telemetry**
    - Prometheus metrics for Process events, PO decisions, SA delegation, Coder tasks.
 5. **Runbooks**
@@ -250,11 +254,11 @@ Legend: 🟢 complete · 🟡 in progress · 🔴 not started
 
 ### 2.10 Track P9 – Migration & demos
 
-**Goal:** transition from the interim `develop_in_container` tool to the A2A server and provide demos/documentation of the new workflow.
+**Goal:** transition from the interim `develop_in_container` tool to the event-driven work handover contract (with optional A2A binding) and provide demos/documentation of the new workflow.
 
 *Tasks*
 1. **Compatibility layer**
-   - Keep `develop_in_container` tool as thin shim over `/v1/message:send` until all DAGs updated.
+   - Keep `develop_in_container` tool as a thin shim that publishes `agent.work.intents.v1` messages (and optionally uses A2A if enabled) until all DAGs are updated.
 2. **Docs**
    - Update backlog 505 (legacy) and README entries to point to v2 components.
 3. **Demo script**
@@ -273,13 +277,13 @@ Legend: 🟢 complete · 🟡 in progress · 🔴 not started
 | Sprint | Key Deliverables |
 |--------|------------------|
 | **S1** | Proto/SDK updates (Tracks P0, P1), Process workflow skeleton, Operator CRD extension PR opened. |
-| **S2** | AmeidePO DAG MVP, AmeideCoder REST endpoints (message:send/stream), CLI codegen/verify updates. |
+| **S2** | AmeidePO DAG MVP, executor work-handover consumption + evidence publishing (optional A2A binding), CLI codegen/verify updates. |
 | **S3** | AmeideSA DAG, Process events hitting PO/SA, dev cluster GitOps deployment, NetworkPolicies. |
 | **S4** | Observability dashboards, demo run, migration docs, begin removing develop_in_container dependency. |
 
 Dependencies:
 - P0 + P1 must land before P2/P3 can integrate with real events.
-- P4 (Coder REST binding) must land before P3 can be validated.
+- P4 (executor runtime + work handover) must land before P3 can be validated (A2A binding is optional).
 - P5 (operator support) must land before GitOps rollout.
 
 ---
@@ -288,11 +292,11 @@ Dependencies:
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| A2A server latency / workspace contention | PO/SA runs stall, timeouts | Implement per-task workspace queue w/ backpressure; expose metrics + autoscaling |
+| Executor work handover latency / workspace contention | PO/SA runs stall, timeouts | Implement per-task workspace queue w/ backpressure; expose metrics + autoscaling (optional A2A binding must not add hidden latency) |
 | Transformation contract drift | Product Backlog Items stuck in Process | Version events, keep compatibility escort endpoints until all consumers upgraded |
 | Security regression (SA accidentally gets repo write) | Data loss | Enforce NetworkPolicy + tool grants, run automated tests verifying no repo binaries in SA image |
 | CLI drift | Agents rely on outdated prompts | Add integration test invoking prompts for each role; gating release on CLI alignment |
-| Observability gap | Hard to debug multi-agent flow | Instrument each stage with consistent correlation IDs (`productBacklogItemId`, `sprintId`, `taskId`) |
+| Observability gap | Hard to debug multi-agent flow | Instrument each stage with consistent correlation IDs (`productBacklogItemId`, `sprintId`, `work_id`) |
 
 ---
 
@@ -302,7 +306,7 @@ Dependencies:
 - [ ] Transformation command/event implementation + SDK regeneration
 - [ ] AmeidePO AgentDefinition + prompts
 - [ ] AmeideSA AgentDefinition + prompts + repo digest tool
-- [ ] AmeideCoder A2A server (REST binding, Agent Card, repo digest)
+- [ ] AmeideCoder executor runtime (work handover consumption + evidence; optional A2A binding)
 - [ ] Operator CRD updates + Helm/GitOps overlays
 - [ ] CLI codegen/verify/prompt updates
 - [ ] GitOps ApplicationSets for Process/PO/SA/Coder
@@ -328,6 +332,6 @@ Dependencies:
 - [504-agent-vertical-slice.md](504-agent-vertical-slice.md) – CLI/operator guardrails
 - [496-eda-principles.md](496-eda-principles.md) – event contracts
 - [477-primitive-stack.md](477-primitive-stack.md) – placement of primitives
-- [A2A Protocol](https://a2a-protocol.org/latest/specification/) – interoperability reference
+- [A2A Protocol](https://a2a-protocol.org/latest/specification/) – optional transport binding reference
 
 --- 

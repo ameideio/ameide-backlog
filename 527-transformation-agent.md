@@ -20,7 +20,17 @@ Scope identity (required everywhere): `{tenant_id, organization_id, repository_i
 - Invoked interactively (chat in the UISurface) or non-interactively (by Process workflows).
 - Read transformation context (projections, definitions) and propose/prepare changes.
 - Emit commands/intents only through governed seams (no bypassing writer boundaries).
-- Operate under definition-stored tool grants and risk tiers (AgentDefinitions), typically one per role (SA/TA/PM/etc.).
+- Operate under definition-stored tool grants and risk tiers (AgentDefinitions), using a **generic role taxonomy** (Product Owner/Solution Architect/Executor) with profile-specific specializations.
+
+### 1.0 Role taxonomy (generic, real-world aligned)
+
+Transformation’s agent roles should not be Scrum-only. Scrum/TOGAF/PMI profiles map their accountabilities onto these generic delivery roles.
+
+| Role | Primary responsibility | Default inputs | Default outputs | Repo execution | Notes |
+|------|------------------------|----------------|-----------------|---------------|------|
+| Product Owner | decide what/why/priority/scope | process facts + projection reads | intents, Dev Briefs, acceptance constraints | ❌ | maps to “product leadership” roles; Scrum PO is one mapping |
+| Solution Architect | decide how/plan/risks | Dev Briefs + repo digest + projection reads | technical plans, proposals, gate requirements | ❌ | maps to solution/enterprise/technical architect roles |
+| Executor | execute in constrained environment | repo coordinates + plan refs | PRs + evidence bundles | ✅ (constrained) | can be implemented as an executor runtime or an integration runner (tool-runner) |
 
 ### 1.0 Write posture (validate → propose → approve/apply)
 
@@ -52,6 +62,12 @@ Examples (illustrative; authoritative exposure comes from proto annotations):
 
 Tool grants are expressed as tool identifiers (e.g., `<capability>.<operation>`) and enforced by AgentDefinitions/risk tiers; agents may invoke via SDK clients (preferred for in-platform agents) or via MCP adapters (external/devtool compatibility).
 
+### 1.2 Work handover (event-driven first)
+
+Inter-role delegation (Product Owner→Solution Architect, Solution Architect→Executor) should be **event-driven first** so external tools can integrate without coupling to a specific in-cluster HTTP interface.
+
+Canonical posture (cross-reference): `backlog/505-agent-developer-v2.md` defines the bus-native work handover semantics and how optional interactive transports (A2A) map onto them.
+
 ## 2) “Agent drives tenants through 524” (future behavior)
 
 In the future state, a role-based agent guides a tenant through `backlog/524-transformation-capability-decomposition.md` inside a Transformation initiative:
@@ -69,14 +85,14 @@ Delivered (scaffold + guardrails):
 
 Not yet delivered (agent meaning):
 
-- [ ] Role-based AgentDefinitions (tool grants + risk tiers) stored/promoted in Transformation.
+- [ ] Role-based AgentDefinitions (tool grants + risk tiers) stored/promoted in Transformation, aligned to the generic role taxonomy above.
 - [ ] Agent lifecycle (validate → propose → approve/apply) implemented end-to-end with audit evidence.
 
 ## 2.2) Clarification requests (next steps)
 
 Confirm/decide:
 
-- The initial role taxonomy (SA/TA/PM/etc.) and which tools each role is allowed to invoke by default.
+- Which profile-specific specializations ship first (e.g., “Transformation Product Owner”, “Transformation Solution Architect”) and which tools each is allowed to invoke by default.
 - What “small persisted agent state” means operationally (what is allowed to be stored on the Agent primitive vs attached as Transformation elements/evidence).
 - Whether agents can initiate process workflows directly, or must do so only via domain commands that trigger processes.
 

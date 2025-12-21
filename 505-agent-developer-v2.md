@@ -8,7 +8,7 @@
 
 **Authority & supersession**
 
-- This backlog is **authoritative for the Agent Developer architecture**: AmeidePO/AmeideSA/AmeideCoder roles, A2A contracts, and how agents consume/produce messages.  
+- This backlog is **authoritative for the Agent Developer architecture**: role taxonomy, inter-role handover contracts, and how agents consume/produce messages.
 - **Scrum data model and domain facts/intents** are owned by `300-400/367-1-scrum-transformation.md`, `506-scrum-vertical-v2.md`, and `508-scrum-protos.md`. This file must conform to those contracts (topics, event names, envelope fields).  
 - **Operator responsibilities and condition vocabulary** are owned by `495-ameide-operators.md`, `499-process-operator.md`, `500-agent-operator.md`, and `502-domain-vertical-slice.md`.  
 - The earlier `505-agent-developer.md` file is **historical / implementation tracking**; if it contradicts this v2 architecture or the 506-v2/508 event model, **this file wins**.
@@ -17,14 +17,16 @@
 
 - **Domain intents** (commands) on `scrum.domain.intents.v1` and **domain facts** on `scrum.domain.facts.v1` (defined in 506-v2/508).  
 - **Process facts** on `scrum.process.facts.v1` (defined in 506-v2).  
-- **A2A REST binding + Agent Card** (`/.well-known/agent-card.json`, `/v1/message:send`, `/v1/message:stream`, `/v1/tasks/*`) shared with other agents and owned by the A2A proto/backlog series.  
+- **Agent work handover** (canonical): event-driven work delegation between roles (defined in this backlog; must follow 496 envelope invariants).
+- **A2A REST binding + Agent Card** (optional transport binding): `/.well-known/agent-card.json`, `/v1/message:send`, `/v1/message:stream`, `/v1/tasks/*` shared with other agents and owned by the A2A proto/backlog series; when used, it MUST map to the canonical work handover semantics rather than introducing a parallel state machine.
 - **Coder-internal CLI/tooling contracts** are defined in `504-agent-vertical-slice.md` and the 484a–484f CLI backlogs; AmeideCoder treats those as internal tools.
 - **MCP (agentic access) compatibility layer:** MCP servers are Integration primitives that expose capability-owned tools/resources; agents do not require MCP internally and should prefer Ameide SDK clients for typed calls. See `backlog/534-mcp-protocol-adapter.md`.
 
-### MCP vs A2A (clarification)
+### Protocols (clarification)
 
 - **MCP (capability tools/resources):** Agent → Capability (Domain/Projection). Tool identifiers are capability-scoped (`<capability>.<operation>`) and can be invoked via SDK clients (preferred in-platform) or via MCP protocol adapters (external/devtool compatibility).
-- **A2A (agent-to-agent):** Agent → Agent delegation (e.g., AmeideSA → AmeideCoder). A2A transports tasks/messages; it is not the capability API surface.
+- **Agent work handover (canonical, event-driven):** Role → Role delegation (Product Owner/Solution Architect/Executor), suitable for integrating external tools without coupling to a specific HTTP/SDK boundary.
+- **A2A (optional transport binding):** Agent → Agent delegation transport (often interactive/streaming). If present, it publishes/consumes the same canonical work handover messages and returns the same evidence artifacts.
 
 ## Grounding & cross-references
 
@@ -36,18 +38,19 @@
 
 ## 0. Executive summary
 
-We standardize Ameide's "agentic coding" into a **Process primitive + Agent** system:
+We standardize Ameide's "agentic coding" into a **Process primitive + Agents + event-driven handover** system:
 
 - **Agile/TOGAF ADM Process primitive(s) (Temporal-based)** own the **governance lifecycle** (sprint/ADM/PI state machine, timebox tracking, phase gates). They consume **Scrum domain facts** from `scrum.domain.facts.v1`, emit **process facts** on `scrum.process.facts.v1`, and issue **Scrum domain intents** on `scrum.domain.intents.v1`, but do NOT embed agent logic.
 - **Transformation (Domain primitive)** remains the **source of truth** for Scrum artifacts (Product Backlog, Product Backlog Items, Sprints, Sprint Backlogs, Increments).
-- **AmeidePO (Product Owner)** is an **Agent primitive (LangGraph-based)** deployed by the Agent operator. It makes **product decisions** (priority, acceptance, scope) and subscribes primarily to **process facts** on `scrum.process.facts.v1` (e.g., `SprintBacklogReadyForExecution`, `SprintBacklogItemReadyForWork`).
-- **AmeideSA (Solution Architect)** is an **Agent primitive (LangGraph-based)** deployed by the Agent operator. It makes **technical decisions** (approach, decomposition) and delegates to AmeideCoder via **A2A**.
-- **AmeideCoder** is a **devcontainer service** deployed in the cluster that exposes a **standard A2A Server** endpoint. It owns the **code lifecycle** (checkout → edit → test → commit → PR).
+- **Agents implement role-specific reasoning** (LangGraph DAGs) and communicate work handovers via events:
+  - **Product Owner** (AmeidePO) makes product/scope decisions and produces Dev Briefs.
+  - **Solution Architect** (AmeideSA) makes technical decisions and produces execution-ready plans.
+  - **Executor** (AmeideCoder) performs coding/tool runs in a constrained execution environment and returns evidence.
 
 **Key boundaries:**
 - Process primitive(s) track state and emit **process facts** / **domain intents**; they never make product or technical decisions.
 - AmeidePO and AmeideSA never shell into repos, never run Ameide CLI, never run Codex/Claude CLIs.
-- AmeideCoder does all code execution, using **Ameide CLI as an internal tool** (guardrails + repo intelligence).
+- AmeideCoder does all code execution, using **Ameide CLI as an internal tool** (guardrails + repo intelligence), and returns structured evidence suitable for promotion gates.
 
 ---
 
@@ -57,12 +60,23 @@ We standardize Ameide's "agentic coding" into a **Process primitive + Agent** sy
 
 2) Ensure we have a **clear separation of responsibilities**:
 - **Agile/Scrum/TOGAF ADM Process primitive(s)** = governance lifecycle state machine (no decisions)
-- **AmeidePO** = product decisions (priority, acceptance, scope)
-- **AmeideSA** = technical decisions (approach, decomposition, delegation)
-- **AmeideCoder** = coding execution + evidence generation
+- **Product Owner** (AmeidePO) = product decisions (priority, acceptance, scope)
+- **Solution Architect** (AmeideSA) = technical decisions (approach, decomposition, delegation)
+- **Executor** (AmeideCoder) = coding execution + evidence generation
 
-3) Use **standard Agent-to-Agent interoperability** for **AmeideSA ↔ AmeideCoder**:
-- **A2A protocol** for technical delegation, including streaming progress updates.
+### 1.1 Role taxonomy (generic; methodology mappings live in profiles)
+
+These are **methodology-agnostic delivery roles**. Scrum/TOGAF/PMI profiles map their accountabilities to these roles; the platform enforces tool grants + risk tiers per role via AgentDefinitions.
+
+| Role | Primary decisions | Canonical outputs | Repo execution | Default write posture |
+|------|-------------------|------------------|---------------|-----------------------|
+| Product Owner | What/why/priority/scope | Dev Brief + acceptance constraints | ❌ | Propose via intents/drafts only |
+| Solution Architect | How/plan/risks | Technical plan + guardrail plan | ❌ | Propose via intents/drafts only |
+| Executor | How to implement safely | PR + evidence bundle (tests/lint/verify) | ✅ (constrained) | Implements in repo; domain writes only via governed intents |
+
+3) Prefer **event-driven handover** between roles (bus-first):
+- Delegation is expressed as canonical work messages (see §5.2–§5.3), so external tools can integrate without coupling to an HTTP-specific agent runtime.
+- If an interactive transport is required, A2A can be used as a transport binding that maps to the same canonical work messages.
 
 4) Keep operators “wiring only”:
 - Operators deploy and secure runtimes (images, secrets, policies).
@@ -83,8 +97,8 @@ We standardize Ameide's "agentic coding" into a **Process primitive + Agent** sy
 
 - **Product Backlog Item (PBI)**: A Scrum work item owned by Transformation (ID, description, attributes such as estimate/value) that lives in the Product Backlog; when it meets the Definition of Done it can be included in an Increment. In legacy wording this was sometimes called a “Requirement”; that term is deprecated in the canonical contract.
 - **Dev Brief**: A normalized execution-ready description produced by AmeidePO (what/why/done, constraints).
-- **A2A Task**: A stateful unit of work created/owned by the A2A server (AmeideCoder).
-- **Artifacts**: PR URL, logs, test outputs, summaries, diffs — returned by AmeideCoder through A2A.
+- **Work Task**: A unit of delegated work (Product Owner→Solution Architect or Solution Architect→Executor) represented canonically as event-driven handover messages; may optionally be exposed/streamed via A2A.
+- **Artifacts / evidence**: PR URL, logs, test outputs, summaries, diffs, and structured verification results — returned by Executor and attached to promotions/approvals as evidence.
 - **`thread_id` (agent persisted identity)**: Required identity for any Agent that enables persistence/checkpointing; mapped to LangGraph `configurable.thread_id`. Recommended scheme: `<tenant>/<capability>/<work_item_id>`, with a separate `run_id` for concurrent executions under the same business identity. Agent state stores “resume essentials” and keeps large outputs as out-of-band artifact references.
 
 ---
@@ -112,13 +126,13 @@ We standardize Ameide's "agentic coding" into a **Process primitive + Agent** sy
 │  Agent primitive    │
 │   LangGraph DAG     │
 └─────────┬───────────┘
-          │ EDA / direct invocation
+          │ work handover (canonical events; optional A2A transport)
           ▼
-┌─────────────────────┐   A2A (standard)   ┌─────────────────────────┐
-│      AmeideSA       │ ──────────────────▶│      AmeideCoder        │
-│  Agent primitive    │ ◀──────────────────│ Devcontainer A2A Server │
-│   LangGraph DAG     │    (streaming)     │  Code lifecycle + tools │
-└─────────────────────┘                    └─────────────────────────┘
+┌─────────────────────┐                   ┌─────────────────────────┐
+│      AmeideSA       │ ────────────────▶ │      AmeideCoder        │
+│  Agent primitive    │   work intents     │  Executor runtime       │
+│   LangGraph DAG     │ ◀───────────────  │  (repo tools + evidence) │
+└─────────────────────┘    work facts      └─────────────────────────┘
 ```
 
 
@@ -127,10 +141,10 @@ We standardize Ameide's "agentic coding" into a **Process primitive + Agent** sy
 - **Process primitive(s)** run as **Temporal workers** (Process CRD) managed by the **Process operator**.
 - **AmeidePO** runs in the **Agent Runtime Plane** (Agent primitive) managed by the **Agent operator**.
 - **AmeideSA** runs in the **Agent Runtime Plane** (Agent primitive) managed by the **Agent operator**.
-- **AmeideCoder** runs as a **Devcontainer Coder Service** in the cluster:
-  - A2A Server endpoint (HTTP/S)
+- **AmeideCoder** runs as an **Executor runtime** (Devcontainer Coder Service or CI-like runner):
   - Workspace volume (persistent or ephemeral)
-  - Tooling installed: `git`, build/test, Ameide CLI, and one or more "code editor backends" (Claude Code CLI / Codex CLI)
+  - Tooling installed: `git`, build/test, `bin/ameide`, `buf`, and one or more "code editor backends" (Codex CLI / Claude Code CLI)
+  - Optional A2A Server endpoint (HTTP/S) for interactive delegation/streaming (transport binding only)
 
 ### 4.3 Responsibility split
 
@@ -141,7 +155,7 @@ We standardize Ameide's "agentic coding" into a **Process primitive + Agent** sy
 | Decide "what to build next" | ❌ | ❌ | ✅ | ❌ | ❌ |
 | Own product DAG | ❌ | ❌ | ✅ | ❌ | ❌ |
 | Technical approach/decomposition | ❌ | ❌ | ❌ | ✅ | ❌ |
-| Delegate to coder (A2A) | ❌ | ❌ | ❌ | ✅ | ❌ |
+| Delegate to executor (work handover) | ❌ | ❌ | ❌ | ✅ | ❌ |
 | Checkout/edit/test/push | ❌ | ❌ | ❌ | ❌ | ✅ |
 | Run Ameide CLI | ❌ | ❌ | ❌ | ❌ | ✅ (internal tool) |
 | Talk to Codex/Claude CLI | ❌ | ❌ | ❌ | ❌ | ✅ |
@@ -202,45 +216,61 @@ Process primitives never emit domain-scoped facts; they only publish intents and
 
 AmeidePO subscribes to process facts, makes product decisions, and issues Scrum domain intents (e.g., `CommitSprintBacklogRequested`, `RefineProductBacklogItemRequested`, `RecordProductBacklogItemDoneRequested`, `RecordIncrementRequested`) once work is accepted. Process workflows complete when they observe the corresponding domain facts (`ProductBacklogItemDoneRecorded`, `IncrementUpdated`, `SprintEnded`).
 
-### 5.2 AmeidePO ↔ AmeideSA: EDA / direct invocation
+### 5.2 Product Owner ↔ Solution Architect: work handover (canonical, event-driven)
 
-AmeidePO delegates technical work to AmeideSA:
+Product Owner delegates technical work to Solution Architect via a bus-native work contract.
 
-| Event/Call | Direction | Payload |
-|------------|-----------|---------|
-| `TechnicalWorkRequested` | PO → SA | productBacklogItemId, devBrief, constraints |
-| `TechnicalWorkCompleted` | SA → PO | productBacklogItemId, prUrl, summary, risks |
-| `TechnicalWorkFailed` | SA → PO | productBacklogItemId, reason, logs |
+**Topics (target):**
 
-AmeideSA receives work requests, makes technical decisions (approach, decomposition), and delegates to AmeideCoder.
+- `agent.work.intents.v1` (requests)
+- `agent.work.facts.v1` (status + outcomes)
 
-### 5.3 AmeideSA ↔ AmeideCoder: A2A (standard)
+**Minimal work kinds (v1):**
 
-AmeideCoder MUST implement an A2A Server that conforms to the current A2A REST binding:
+- `PLAN_TECHNICAL_WORK` (Product Owner → Solution Architect)
+- `DELIVER_IMPLEMENTATION` (Solution Architect → Executor)
+- `REPO_DIGEST` (Solution Architect → Executor; read-only)
 
-- **Agent discovery:** `GET /.well-known/agent-card.json` returns the Agent Card. For legacy clients we mirror identical content at `/.well-known/agent.json`.
-- **Task initiation/continuation:** `POST /v1/message:send`
-- **Streaming updates (SSE):** `POST /v1/message:stream`
-- **Polling fallback:** `GET /v1/tasks/{taskId}`
-- **Optional controls:** `POST /v1/tasks/{taskId}:cancel`, `POST /v1/tasks/{taskId}:subscribe`
+Product Owner → Solution Architect handover (conceptual event set):
 
-AmeideSA is an A2A Client:
+| Message | Direction | Payload (core fields only) |
+|---------|-----------|----------------------------|
+| `WorkRequested` | Product Owner → Solution Architect | `work_id`, `work_kind=PLAN_TECHNICAL_WORK`, `product_backlog_item_id`, `dev_brief_ref`, constraints |
+| `WorkCompleted` | Solution Architect → Product Owner | `work_id`, outcome refs (plan ref), risks |
+| `WorkFailed` | Solution Architect → Product Owner | `work_id`, reason, evidence refs |
 
-1) Discover coder via AgentCard (Agent.json)
-2) Send Task message (Dev Brief + repo target)
-3) Stream progress, collect artifacts
-4) Review technical output, decide: accept / request changes / cancel
-5) Report results back to AmeidePO
+Solution Architect MUST treat these messages as the source of truth for delegation state; any interactive transport (A2A) is an optional binding that must map to the same messages and outcomes.
 
-### 5.4 "Skill" definition: what AmeideCoder exposes
+### 5.3 Solution Architect ↔ Executor: work handover (canonical, event-driven; optional A2A binding)
 
-AmeideCoder exposes one primary skill:
+Solution Architect delegates repo execution to Executor via the same work contract.
 
-- **Skill ID:** `develop_product_backlog_item`
+Solution Architect → Executor handover (conceptual event set):
+
+| Message | Direction | Payload (core fields only) |
+|---------|-----------|----------------------------|
+| `WorkRequested` | Solution Architect → Executor | `work_id`, `work_kind=DELIVER_IMPLEMENTATION`, repo coordinates, `allowed_paths`/`deny_paths`, Dev Brief + plan refs |
+| `WorkProgressed` | Executor → Solution Architect | `work_id`, phase (`checkout`/`edit`/`verify`/`pr`), short status |
+| `WorkCompleted` | Executor → Solution Architect | `work_id`, `artifact.pr_url`, summary, evidence bundle refs |
+| `WorkFailed` | Executor → Solution Architect | `work_id`, reason, evidence bundle refs |
+
+**Optional binding (interactive/streaming): A2A**
+
+If A2A is enabled for interactive tooling, it is a transport binding for the same semantics:
+
+- A2A `taskId` MUST map 1:1 to `work_id`.
+- A2A streaming events MUST be derivable from `WorkProgressed` / `WorkCompleted` / `WorkFailed`.
+- A2A artifacts MUST reference the same evidence bundles referenced in facts.
+
+### 5.4 Executor capability (“deliver implementation”)
+
+Executor exposes one primary capability:
+
+- **Capability ID:** `deliver_implementation`
 - **Input:** productBacklogItemId + repo coordinates + constraints + Dev Brief
 - **Output artifacts:** PR URL + summary + evidence (tests/lints/logs)
 
-The A2A message payload format:
+If an A2A binding is used, the task payload should include:
 
 - `TextPart`: human-readable Dev Brief (what/why/done)
 - `DataPart`: structured JSON:
@@ -252,15 +282,15 @@ The A2A message payload format:
   - `definitionOfDoneRef` (or equivalent Definition of Done context)
   - `policy`: allowed tools, timeouts, repo allowlist key
 
-### 5.5 Coder task lifecycle (A2A Task state machine)
+### 5.5 Work lifecycle (canonical; transport-independent)
 
-AmeideCoder tasks MUST follow a clear lifecycle:
+Work MUST follow a clear lifecycle:
 
 - `submitted` → `working`
 - `input-required` (only if coder needs clarification)
 - terminal: `completed` / `failed` / `canceled`
 
-SA continues a task by sending a follow-up A2A message with the same task ID until a terminal state is reached.
+If A2A is used, follow-up messages MUST target the same `work_id` and only refine inputs (never mutate outcomes retroactively).
 
 ### 5.6 Artifacts contract (minimum set)
 
@@ -274,11 +304,10 @@ AmeideCoder MUST return, on completion:
 
 ### 5.7 Normative decisions
 
-- **Agent discovery** is canonical at `/.well-known/agent-card.json` (with `/.well-known/agent.json` mirrored for backwards compatibility).
-- **A2A transport** uses the REST binding first (`/v1/message:send`, `/v1/message:stream`, `/v1/tasks/...`). JSON-RPC bindings can be added later but are not required for v2.
-- **Proto-first implementation:** The REST handlers wrap a gRPC/Connect service whose proto lives in the Ameide SDKs so internal systems can stay proto-driven even while honoring the public REST binding.
+- **Event-driven first:** role handover is bus-native (see §5.2–§5.3); this is the integration boundary for external tools.
+- **Optional A2A binding:** when enabled, it is a transport binding for the same work semantics (taskId = work_id), not a parallel workflow system.
 - **Scrum artifact state** changes only through Scrum domain intents/facts defined in `508-scrum-protos.md` (e.g., `CreateProductBacklogItemRequested`, `CommitSprintBacklogRequested`, `RecordProductBacklogItemDoneRequested`, `RecordIncrementRequested`, and their corresponding facts). All downstream systems rely on these emitted domain events; there are no “accept/reject requirement” RPCs in the core Scrum contract.
-- **Repo access** outside the devcontainer is prohibited. AmeideSA always requests any repo digest or evidence from AmeideCoder over A2A instead of touching git directly.
+- **Repo access** outside the executor environment is prohibited. Solution Architect obtains repo digest/evidence by delegating work, not by running git directly.
 
 ---
 
@@ -296,33 +325,33 @@ AmeideCoder MUST return, on completion:
 | PO6: Accept/reject | SA result (prUrl, summary) | decision | accept / request changes / escalate |
 | PO7: Close loop | final decision | Scrum domain intents | call `RecordProductBacklogItemDoneRequested` and, if applicable, `RecordIncrementRequested` in Transformation; Process workflows observe the resulting `ProductBacklogItemDoneRecorded` / `IncrementUpdated` domain facts and complete without a separate “item completed” process event. |
 
-**Guarantee:** PO DAG does not run CLI guardrails, repo commands, or A2A to Coder directly.
+**Guarantee:** PO DAG does not run CLI guardrails or repo commands, and does not delegate to the executor directly (handover always goes through the Solution Architect role).
 
 ### 6.2 AmeideSA LangGraph DAG (technical orchestration)
 
 | Node | Input | Output | Notes |
 |------|-------|--------|------|
 | SA1: Receive work request | Dev Brief from PO | technical context | from AmeidePO |
-| SA2: Request repo digest (A2A) | Dev Brief + repo target | repo digest (read-only) | `POST /v1/message:send` with `intent=repo_digest`; AmeideCoder returns summary + key files |
+| SA2: Request repo digest (work intent) | Dev Brief + repo target | repo digest (read-only) | publish `WorkRequested(work_kind=REPO_DIGEST)`; executor returns summary + key files |
 | SA3: Analyze approach | Dev Brief + repo digest | technical plan | decomposition, risks, guardrail plan |
-| SA4: Delegate implementation (A2A) | technical plan + repo target | A2A taskId | starts task via `POST /v1/message:send` (`skill=develop_product_backlog_item`) |
-| SA5: Observe + review | SSE status + artifacts | decision | accept / request changes / cancel |
-| SA6: Iterate | decision + feedback | follow-up A2A message | same taskId until done |
+| SA4: Delegate implementation (work intent) | technical plan + repo target | work_id | publish `WorkRequested(work_kind=DELIVER_IMPLEMENTATION)` |
+| SA5: Observe + review | work facts + artifacts | decision | accept / request changes / cancel |
+| SA6: Iterate | decision + feedback | follow-up work intent | same `work_id` until done |
 | SA7: Report to PO | final artifacts | work result | prUrl, summary, risks |
 
-**Guarantee:** SA DAG does not run CLI guardrails or repo commands directly; even read-only repo context is obtained through AmeideCoder's A2A APIs.
+**Guarantee:** SA DAG does not run CLI guardrails or repo commands directly; even read-only repo context is obtained through delegated work results.
 
 ### 6.3 AmeideCoder devcontainer execution loop (internal)
 
 | Phase | Input | Output | Internal tooling |
 |------|-------|--------|------------------|
-| C1: Authorize | A2A request | accepted/rejected | auth + repo allowlist |
+| C1: Authorize | work intent | accepted/rejected | auth + repo allowlist |
 | C2: Workspace prep | repoUrl + baseRef | worktree + branch | git clone/checkout |
 | C3: Guardrails | repo + Dev Brief | plan + risks | **Ameide CLI** (internal) |
 | C4: Edit implementation | plan | code changes | Claude/Codex CLI + file ops |
 | C5: Verify | code changes | pass/fail evidence | build/test/lint + Ameide verify |
 | C6: Package result | evidence | commit + PR | git + provider API |
-| C7: Respond | PR + evidence | A2A artifacts | stream + final completion |
+| C7: Respond | PR + evidence | work facts (+ optional A2A artifacts) | publish outcomes; stream if enabled |
 
 ---
 
@@ -349,25 +378,23 @@ Deployed as a normal Agent CR (managed by Agent operator):
 Deployed as a normal Agent CR (managed by Agent operator):
 - Loads its AgentDefinition from Transformation
 - Runs LangGraph DAG for technical orchestration
-- Has **A2A client capability** (HTTP out) to call AmeideCoder
+- Publishes/consumes work handover messages (bus) for delegation
+- Optional: A2A client (HTTP out) for interactive delegation/streaming when enabled
 
-### 7.4 AmeideCoder (Devcontainer coder service)
+### 7.4 AmeideCoder (Executor runtime)
 
 Deployed as a platform component (Helm/GitOps):
 - Deployment/Service
 - Workspace PV (or per-task ephemeral)
 - ExternalSecret for:
   - Git token (scoped)
-  - A2A auth keys / JWT verification keys
+  - bus credentials (publish/consume work intents/facts)
+  - optional A2A auth keys / JWT verification keys (if A2A transport is enabled)
   - Optional: provider keys for Claude/Codex CLIs
 
-AmeideCoder exposes:
-- `GET /.well-known/agent-card.json` (mirrors to `/.well-known/agent.json` for legacy clients)
-- `POST /v1/message:send`
-- `POST /v1/message:stream` (SSE)
-- `GET /v1/tasks/{taskId}`
-- `POST /v1/tasks/{taskId}:cancel`
-- `POST /v1/tasks/{taskId}:subscribe`
+Executor consumes work intents, produces work facts, and emits evidence artifacts suitable for promotion gates.
+
+Optional (interactive/streaming binding): expose an A2A server surface that maps to the same `work_id` lifecycle.
 
 ---
 
@@ -376,8 +403,8 @@ AmeideCoder exposes:
 ### 8.1 Risk tiers
 
 - Process primitive(s): LOW (pure state machine, no external calls)
-- AmeidePO: MEDIUM (no repo shell, no git push, no A2A to Coder)
-- AmeideSA: MEDIUM (A2A client only, no direct repo shell)
+- AmeidePO: MEDIUM (no repo shell, no git push, no executor credentials)
+- AmeideSA: MEDIUM (no direct repo shell; delegates via work handover)
 - AmeideCoder: HIGH (repo write + PR creation)
 
 ### 8.2 Policy enforcement points
@@ -387,9 +414,13 @@ AmeideCoder enforces:
 - allowedPaths / denyPaths (optional but strongly recommended)
 - timeouts per phase
 - tool allowlist (e.g., "Claude allowed, but no kubectl")
+- guardrail execution with evidence capture:
+  - `bin/ameide primitive verify` (per `backlog/484a-ameide-cli-primitive-workflows.md`)
+  - repo workflow constraints (dev→PR→main posture per `backlog/400-agentic-development.md` and repo CI policy)
+  - pinned toolchain where applicable (e.g., Codex CLI pin in `backlog/433-codex-cli-057.md`)
 
 Cluster enforces:
-- NetworkPolicy: SA may call Coder; Coder cannot laterally access internal services except what is explicitly allowed.
+- NetworkPolicy: only allow explicitly declared delegation/integration paths (e.g., Solution Architect → Executor if an A2A binding is enabled); Executor cannot laterally access internal services except what is explicitly allowlisted.
 - No cluster credentials inside coder workspace.
 
 ---
@@ -399,7 +430,7 @@ Cluster enforces:
 - Correlation IDs:
   - productBacklogItemId (Transformation)
   - sprintId / cycleId (Process primitive)
-  - A2A taskId (AmeideCoder)
+  - work_id (work handover)
 - Logs and metrics emitted by Process primitive:
   - sprint/phase state transitions
   - timebox tracking
@@ -408,8 +439,7 @@ Cluster enforces:
   - success rate
   - failure reasons
 - Streaming:
-  - status updates and log artifacts streamed to SA via SSE.
-  - SA aggregates and reports to PO.
+  - if enabled, interactive transport streams must be derivable from work facts and evidence artifacts (no “secret extra state”).
 
 ---
 
@@ -426,9 +456,9 @@ This is now considered a **compatibility bridge** only.
 ### 10.2 Migration goal
 
 End-state:
-- The devcontainer exposes **A2A server** directly (AmeideCoder).
+- Work handover is bus-native (`agent.work.*`); external tools integrate by publishing intents and consuming facts.
 - `develop_in_container` becomes internal-only or disappears.
-- AmeideSA is the A2A client that delegates to AmeideCoder.
+- Optional A2A surfaces (when present) are adapters over the same work handover.
 - AmeidePO focuses on product decisions and delegates to AmeideSA.
 - Process primitive(s) own governance lifecycle (sprint/ADM).
 
@@ -441,16 +471,13 @@ End-state:
    - Deploy Process CRs via Process operator
    - Emit **process facts** on `scrum.process.facts.v1` (e.g., `SprintBacklogReadyForExecution`, `SprintBacklogItemReadyForWork`) based on the Scrum domain facts they consume from `scrum.domain.facts.v1`
 
-2) **AmeideCoder A2A server**
-   - Serve Agent Card at `/.well-known/agent-card.json` (mirror to `agent.json`)
-   - Implement `/v1/message:send`, `/v1/message:stream`, `/v1/tasks/*`
-   - Implement task store (single-replica first; shared store later)
+2) **Work handover topics + semantics**
+   - Publish `agent.work.intents.v1` / `agent.work.facts.v1` contracts (envelope invariants, required fields, evidence references)
+   - Implement idempotent consumption and evidence attachment for executor outcomes
 
-3) **AmeideSA A2A client**
-   - Discover coder via Agent Card
-   - Stream progress and collect artifacts
-   - Make technical decisions (approach, decomposition)
-   - Report results to AmeidePO
+3) **Executor runtime**
+   - Consume work intents, perform repo execution with guardrails, publish work facts + evidence
+   - Optional: add A2A transport binding for interactive streaming
 
 4) **AmeidePO product orchestration**
    - Subscribe to **process facts** on `scrum.process.facts.v1`
@@ -461,7 +488,7 @@ End-state:
 5) **Remove coding tools from PO and SA**
    - No CLI guardrails in PO or SA DAGs
    - PO only makes product decisions
-   - SA only makes technical decisions and delegates via A2A
+   - SA only makes technical decisions and delegates via work handover
 
 6) **Security hardening**
    - repo allowlist
@@ -478,8 +505,8 @@ End-state:
 - Code backend: standardize on Claude Code CLI vs Codex CLI, or keep pluggable
 - Artifact retention: what do we store long-term vs ephemeral logs
 - Process primitive granularity: one Process per methodology or one per active sprint/cycle?
-- PO ↔ SA communication: EDA events vs direct invocation vs message queue?
-- SA decomposition: how fine-grained should task breakdown be before A2A to Coder?
+- PO ↔ SA communication: keep it bus-native (work handover) vs allow direct invocation in-cluster?
+- SA decomposition: how fine-grained should task breakdown be before delegating to the executor?
 
 ---
 
@@ -487,5 +514,5 @@ End-state:
 
 | Document | Purpose |
 |----------|---------|
-| [505-agent-developer.md](505-agent-developer.md) | Implementation status, A2A protocol examples, ASCII diagrams |
+| [505-agent-developer.md](505-agent-developer.md) | Historical notes (may reference deprecated A2A-first posture) |
 | [496 EDA Principles](496-eda-principles.md) | Event-driven architecture patterns for domain↔agent |

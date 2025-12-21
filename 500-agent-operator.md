@@ -60,7 +60,7 @@ Rule:
 
 `RouteReady` is optional only when the agent is not meant to be reachable (e.g., outbound-only agents).
 
-> **505 alignment:** The Process + AmeidePO + AmeideSA + AmeideCoder architecture in [505-agent-developer-v2.md](505-agent-developer-v2.md) introduces an explicit split between A2A clients (PO/SA) and an A2A server (Coder). This backlog now tracks the operator work required to host all three Agent primitives plus the devcontainer runtime surfaces they depend on.
+> **505 alignment:** The Process + AmeidePO + AmeideSA + AmeideCoder architecture in `backlog/505-agent-developer-v2.md` uses bus-native work handover between roles (Product Owner/Solution Architect/Executor), with an optional A2A transport binding. This backlog tracks the operator work required to host the PO/SA Agent primitives plus the executor runtime surfaces they depend on.
 
 ---
 

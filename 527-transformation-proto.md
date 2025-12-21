@@ -76,6 +76,11 @@ Current implementations may still emit/consume `transformation.architecture.*` w
 | `pmi.domain.facts.v1` | `PmiDomainFact` | PMI facts emitted after persistence |
 | `pmi.process.facts.v1` | `PmiProcessFact` | PMI governance workflow facts |
 
+Agent handover note (event-driven first):
+
+- Inter-agent/role delegation for delivery work (Product Owner→Solution Architect→Executor) is intentionally treated as a **separate handover seam** from the Transformation/Scrum domain/process seams above.
+- Canonical semantics live in `backlog/505-agent-developer-v2.md` (work intents/facts + evidence refs). Any interactive transport (e.g., A2A) is a binding over that seam, not a competing contract.
+
 ## 3) Envelope invariants (per 496)
 
 All envelopes (domain intents, domain facts, process facts) must include:
@@ -86,6 +91,28 @@ All envelopes (domain intents, domain facts, process facts) must include:
 - Traceability: `message_id`, `correlation_id`, `causation_id` (when available), timestamps
 - Producer identity and schema/version metadata
 - Aggregate/process subject with stable identity and monotonic versioning where applicable
+
+## 3.0.1 Transport bindings: CloudEvents (optional; Integration-owned)
+
+Canonical semantics for Ameide EDA remain proto-defined envelopes + topic families. CloudEvents is an optional **transport binding** implemented by Integration adapters for interoperability with external systems.
+
+Normative mapping (canonical → CloudEvents v1.0):
+
+| Canonical field | CloudEvents attribute | Notes |
+|---|---|---|
+| `message_id` | `id` | Stable per message; may be derived from canonical idempotency key when applicable |
+| producer identity | `source` | Must be a URI-reference; prefer a controlled URN scheme (e.g., `urn:ameide:domain:<name>` / `urn:ameide:process:<name>` / `urn:ameide:agent:<id>`) |
+| canonical message kind | `type` | Prefer a stable identifier derived from `event_fact.type` or equivalent stable type key (not raw proto package/type names) |
+| subject identity | `subject` | Aggregate/process subject identifier (when meaningful) |
+| occurred timestamp | `time` | |
+| payload bytes/object | `data` | If publishing protobuf bytes, use `datacontenttype=application/protobuf` |
+| schema reference | `dataschema` | Optional but recommended when integrating across heterogeneous stacks |
+
+Required Ameide invariants that do not fit core CloudEvents attributes MUST be carried as CloudEvents extension attributes (lowercase alphanumeric; no underscores). Minimum recommended set:
+
+- scope: `tenantid`, `orgid`, `repositoryid`
+- traceability: `correlationid`, `causationid`
+- tracing: `traceparent` (and optional `tracestate`) via W3C Trace Context conventions
 
 ## 3.1 Process-facts catalog (step events; to define)
 

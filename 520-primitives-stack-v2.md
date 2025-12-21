@@ -291,12 +291,19 @@ Hard rule: do not place per-environment topic names/broker URLs in proto; bind t
 
 **CloudEvents compatibility**
 
-To reduce bespoke “event envelope” design and improve interoperability, align emitted facts/events with **CloudEvents**:
+CloudEvents is an optional **transport binding** for interoperability at system boundaries. It is not a second canonical semantic model: canonical semantics remain Ameide’s proto-defined envelopes + topic families (per `backlog/496-eda-principles.md`).
+
+To reduce bespoke “event envelope” design and improve interoperability, Integration adapters MAY map emitted facts/events to **CloudEvents**:
 
 - Map `event_fact.type` → CloudEvents `type` (stable identifier).
 - Emit a CloudEvents `id` (derived from the idempotency key or an explicit event id), `source` (producer identity), `time`, and (when relevant) `subject`.
 - Carry schema pointers via CloudEvents `dataschema` and content type via `datacontenttype` where applicable.
 - Keep `stream_ref` as a *logical routing identifier* (topic/subject binding) outside the CloudEvents attribute set.
+
+When mapping to CloudEvents, Ameide-required invariants that do not fit core CloudEvents attributes MUST be carried as CloudEvents extension attributes (naming: lowercase alphanumeric; no underscores). Minimum recommended set:
+
+- `tenantid`, `orgid`, `repositoryid`
+- `correlationid`, `causationid`
 
 **Trace context**
 

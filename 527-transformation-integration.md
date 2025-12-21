@@ -143,6 +143,40 @@ Runners must record tool identity deterministically:
 - capture `tool_version`/`tool_git_sha` for every run
 - run a `preflight/doctor` step early in workflows to avoid “wrong binary” / “missing tool” cascades (the process decides; the runner executes)
 
+### 1.0.7 Git provider enforcement posture (agentic coding)
+
+For coding guardrails, the git provider (e.g., GitHub) is the **hard enforcement plane**. Transformation policies must be expressible as server-side controls, not “local rules”.
+
+- **Protected branches are PR-only:** merges require checks/reviews; agents cannot push directly.
+- **Branch namespaces are identity-scoped:** agent credentials can only push to their own `agent/<role>/<agent_id>/*` (or equivalent) namespace; switching branches locally must not grant new write authority.
+- **Sensitive paths are server-blocked:** push rulesets block `.github/workflows/**`, `CODEOWNERS`, and infra/release directories except for explicit human bypass actors.
+- **Evidence is captured:** runner outputs SHOULD include the relevant git provider policy snapshot (required checks, ruleset ids, branch namespace) so approvals and audits can prove “what was possible”.
+
+### 1.0.8 Transport bindings: CloudEvents (optional; boundary-only)
+
+Canonical semantics for Ameide EDA remain proto-defined envelopes + topic families (per `backlog/496-eda-principles.md`). CloudEvents is supported only as an optional **transport binding** at Integration boundaries (webhooks, external audit/event buses, partner integrations).
+
+Normative mapping (canonical → CloudEvents v1.0):
+
+- `message_id` → `id`
+- producer identity → `source` (URI-reference; recommend controlled URNs like `urn:ameide:<kind>:<name>`)
+- stable message type (`event_fact.type` or equivalent) → `type`
+- subject identity → `subject`
+- occurred timestamp → `time`
+- payload → `data` with `datacontenttype` (`application/protobuf` or `application/json`)
+- schema reference → `dataschema` (optional)
+
+Ameide-required invariants that do not fit core CloudEvents attributes MUST be carried as extension attributes (lowercase alphanumeric; no underscores). Minimum recommended set:
+
+- `tenantid`, `orgid`, `repositoryid`
+- `correlationid`, `causationid`
+- `traceparent` (and optional `tracestate`)
+
+**Execution substrate (coding/tool runs):**
+
+- Prefer a single “executor toolchain” image/profile for all runner executions (so verification results are comparable across CI/in-cluster/local).
+- If the runner uses an LLM coding backend (e.g., Codex CLI), pin and record the version as part of `tool_run_evidence` (see Codex pin rationale in `backlog/433-codex-cli-057.md`).
+
 **Metamodel interoperability:** import/export and downstream tool integration is profile-driven:
 
 - Standards-compliant profiles (e.g., ArchiMate 3.2, BPMN 2.0) export in standard formats and must validate that the source element graph uses only standard `type_key` namespaces.
@@ -154,7 +188,7 @@ Delivered (scaffold):
 
 - [x] MCP adapter scaffold exists at `primitives/integration/transformation-mcp-adapter` (transport skeleton + tests).
 - [x] Scaffold tests run: `cd primitives/integration/transformation-mcp-adapter && go test ./...`.
-- [ ] Gate parity: `bin/ameide primitive verify` does not yet support `--kind integration` (CLI guardrails for Integration are pending).
+- [x] Repo guardrails run for Integration primitives (shape + checks): `bin/ameide primitive verify --kind integration --name transformation-mcp-adapter --mode repo` (warnings may remain until transport/security conformance is complete).
 
 Not yet delivered (integration meaning):
 
