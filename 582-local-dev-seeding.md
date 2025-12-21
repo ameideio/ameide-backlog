@@ -1,6 +1,6 @@
 # 582 – Local Dev Seeding (Dev Data Contract)
 
-**Status:** Draft  
+**Status:** In progress  
 **Owner:** Platform / Developer Experience  
 **Motivation:** Local k3d + remote-first dev must have deterministic, reproducible “dev data” without code-level fallbacks (“magic”).  
 **Related:** [444-terraform.md](444-terraform.md), [492-telepresence-reliability.md](492-telepresence-reliability.md), [492-telepresence-verification.md](492-telepresence-verification.md), [300-400/330-dynamic-tenant-resolution.md](300-400/330-dynamic-tenant-resolution.md), [427-platform-login-stability.md](427-platform-login-stability.md), `../gitops/ameide-gitops/backlog/485-keycloak-oidc-client-reconciliation.md`, `../db/flyway/sql/platform/*`, `../gitops/ameide-gitops/sources/values/**`
@@ -47,10 +47,10 @@ Today, “dev data” is split across multiple places with drift risk:
 
 ### Keycloak (personas + create-only import)
 
-- Shared realm import defines default users/personas (admin/user + Playwright personas):  
+- Shared realm import defines realms/groups/roles and service accounts, but **does not** ship test personas anymore:  
   `../gitops/ameide-gitops/sources/values/_shared/platform/platform-keycloak-realm.yaml`
-- Production overlay still references the persona secret defaults (implies personas are available unless explicitly removed):  
-  `../gitops/ameide-gitops/sources/values/env/production/platform/platform-keycloak-realm.yaml`
+- Personas are seeded/reconciled via a GitOps hook Job (local/dev only):  
+  `../gitops/ameide-gitops/environments/_shared/components/platform/auth/dev-data/component.yaml`
 - Keycloak Operator realm import is **create-only**; existing realms are not updated. We already had to add a reconciler pattern for OIDC clients (see 485):  
   `../gitops/ameide-gitops/backlog/485-keycloak-oidc-client-reconciliation.md`
 
@@ -202,8 +202,7 @@ Argo CD supports deterministic ordering via sync waves and explicit hook phases.
 
 Add a small chart (or manifests via shared-values) in `ameide-gitops`, e.g.:
 
-- `../gitops/ameide-gitops/sources/charts/data/dev-data/` (preferred), or
-- a `shared-values` manifest pack applied only in `env/local` + `env/dev`.
+- `../gitops/ameide-gitops/sources/charts/platform/dev-data/` (implemented), applied as `platform-dev-data` in `env/local` + `env/dev`.
 
 ### Seed strategy (DB vs API)
 
@@ -240,6 +239,11 @@ Realm import is create-only, so “declared users” in the import are not a rec
 3. **Production:** do not include the persona secret or persona users by default.
 
 If we must keep a production “break-glass” account, treat it as a separate, explicitly managed path (not shared defaults).
+
+**Status update (GitOps):**
+- Test personas removed from realm import; `platform-dev-data` seeds/verifies Keycloak personas in `local`/`dev`.
+- `playwright-int-tests-secrets` is now env-scoped (empty in `_shared`, only present in `env/local` + `env/dev`).
+- Platform DB membership seeding/verification remains TBD (see sections 6/11/12).
 
 ---
 
