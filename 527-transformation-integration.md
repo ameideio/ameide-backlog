@@ -107,7 +107,23 @@ This does not imply “VS Code devcontainer” in-cluster; it means the **same c
 
 #### Debug/admin mode (workbench pod; not a processor)
 
-For investigations and emergency operations, the platform MAY provide a long-lived “workbench” pod that runs the same devcontainer-derived runtime image and exists solely for **human attach/exec** (e.g., `kubectl exec`) and controlled reproduction of a failing WorkRequest.
+For investigations and emergency operations, the platform MUST provide a long-lived “workbench” pod that runs the same devcontainer-derived runtime image and exists solely for **human attach/exec** (e.g., `kubectl exec`) and controlled reproduction of a failing WorkRequest.
+
+Environment scoping (normative):
+
+- The workbench pod MUST be deployed only in `local` and `dev` environments.
+- The workbench pod MUST NOT be deployed in `staging` or `production` environments.
+
+Agent slots (normative; `local`/`dev` only):
+
+- Provide three long-lived workbench instances as cluster-native “agent slots”: `agent-01`, `agent-02`, `agent-03`.
+- Each slot MUST be attachable for humans (debug/admin) and MUST run the same devcontainer-derived runtime image used by KEDA Jobs.
+- Each slot MUST have a stable identity for audit and correlation (e.g., `AMEIDE_AGENT_ID=agent-01` injected as an env var).
+
+Attach expectations:
+
+- Minimum: `kubectl exec` is sufficient for an operator to reproduce and diagnose a failing WorkRequest.
+- If an IDE attach is required, expose the workbench via a dedicated remote access mechanism (e.g., `code-server` or SSH) in `local`/`dev` only. Do not assume VS Code Dev Containers can “Reopen in Container” against a Kubernetes pod.
 
 Hard rules:
 

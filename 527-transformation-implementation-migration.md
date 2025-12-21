@@ -251,9 +251,12 @@ We implement WP‑B using a strict “small → large” ladder per `backlog/537
 7. **Headless end-to-end (no UISurface)**
    - Full slice: Process → Domain WorkRequest → KEDA Job → Domain evidence/outcome → Process facts → Projection timeline; assertions run via APIs/queries only.
 
-Optional (debug/admin; not part of normal processing):
+Debug/admin mode (required in `local`/`dev`; not a processor):
 
-- Provide a long-lived “workbench” pod for human attach/exec using the same devcontainer-derived runtime image. It MUST NOT consume WorkRequested and exists only to reproduce failures and run controlled “manual reruns” that still write outcomes/evidence back into Domain idempotently.
+- Provide long-lived “workbench” pods for human attach/exec using the same devcontainer-derived runtime image.
+- It MUST be deployed only in `local` and `dev`, and MUST NOT be deployed in `staging`/`production`.
+- It MUST NOT consume `WorkRequested` and exists only to reproduce failures and run controlled “manual reruns” that still write outcomes/evidence back into Domain idempotently.
+- It MUST be deployed as three cluster-native “agent slot” instances: `agent-01`, `agent-02`, `agent-03` (stable identity; attachable by admins).
 
 **DoD (gates)**
 

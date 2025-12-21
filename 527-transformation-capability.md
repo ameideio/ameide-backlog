@@ -248,6 +248,7 @@ Hard rules (v1):
 
 - Queue-triggered execution MUST consume **WorkRequested** facts (explicitly requested by Process/Domain), not raw external webhooks/events.
 - Job TTL/cleanup is hygiene only; audit correctness comes from Domain-persisted evidence + process facts + projection citations.
+- A debug/admin “workbench” pod MUST exist in `local` and `dev` for human attach/exec and reproduction; it MUST NOT process WorkRequests and MUST NOT be deployed in `staging`/`production`. In `local`/`dev`, the workbench MUST be provided as three cluster-native “agent slots” (`agent-01`, `agent-02`, `agent-03`) with stable identity.
 
 ## 3) Capability boundaries and nouns
 
