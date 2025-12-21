@@ -212,6 +212,15 @@ Example:
 
 **Outcome:** Process can request a tool/agent step via a Domain-owned `WorkRequest`, an ephemeral execution backend runs it, Domain records evidence, Process emits process facts, and Projection/UISurface can show an audit-grade run timeline.
 
+**Proto-first workflow (required)**
+
+WP‑B is implemented **proto-first** so orchestration and evidence do not drift from the contract spine:
+
+1. Update protos first (intents/facts/process facts + evidence references), then run regen-diff gates (520).
+2. Implement Domain write surfaces + outbox facts for the new messages; add Domain tests for idempotency and “facts after persistence” (537).
+3. Implement runner/job behavior that consumes `WorkRequested` and records outcomes/evidence via Domain commands (idempotent).
+4. Implement Process orchestration (send intent → await facts → emit process facts) and Projection joins for timelines/citations.
+
 **Deliverables**
 
 - Domain:
