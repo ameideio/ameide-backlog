@@ -8,6 +8,12 @@
 
 ---
 
+## ⚙️ PLATFORM UPDATE (2025-12-22)
+
+Transport/routing determinism is now tracked in `backlog/589-rpc-transport-determinism.md`. This does not change authz policy goals, but it is a prerequisite for validating authz and tenant isolation with confidence (failures should come from authorization decisions and data scoping, not protocol misrouting).
+
+---
+
 ## ⚠️ ARCHITECTURE UPDATE (2025-10-30)
 
 **Long-term architecture is changing to realm-per-tenant.** See [backlog/333-realms.md](./333-realms.md) for full details.

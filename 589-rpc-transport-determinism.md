@@ -3,7 +3,7 @@
 **Status:** In progress  
 **Created:** 2025-12-22  
 **Owner:** Platform Architecture / DX  
-**Related:** `backlog/300-400/306-rpc-runtime-alignment.md`, `backlog/300-400/393-ameide-sdk-import-policy.md`, `backlog/428-onboarding.md`, `backlog/300-400/329-authz.md`, `backlog/300-400/333-realms.md`
+**Related:** `backlog/300-400/306-rpc-runtime-alignment.md`, `backlog/300-400/393-ameide-sdk-import-policy.md`, `backlog/428-onboarding.md`, `backlog/300-400/329-authz.md`, `backlog/300-400/333-realms.md`, `backlog/582-local-dev-seeding.md`, `backlog/540-sales-domain.md`, `backlog/527-transformation-agent.md`
 
 ---
 
@@ -16,6 +16,19 @@ We standardize RPC in Ameide so that **clients and gateways are deterministic** 
 - **No runtime auto-detection** in SDKs. Environment guessing creates non-deterministic failures in modern ESM/Next.js runtimes.
 
 This backlog item captures the end-state architecture and the required repo + GitOps changes to land it cleanly (no compatibility shims).
+
+---
+
+## Relationship to other backlogs (scope)
+
+This item is intentionally a **runtime + GitOps “make it real” slice** across existing architectural backlogs. It is mostly additive and should avoid conflicts.
+
+- `backlog/300-400/306-rpc-runtime-alignment.md`: umbrella for selecting runtimes, migrating services, and adding guardrails; this item is the concrete determinism + gateway/routing part.
+- `backlog/300-400/393-ameide-sdk-import-policy.md`: defines deterministic import surfaces (`/node` vs `/browser`) and bans runtime auto-detection; this item ensures GitOps and runtimes actually satisfy those constraints.
+- `backlog/428-onboarding.md`: names the symptom (`ConnectError: [unimplemented] HTTP 404`) and ties it to routing/protocol mismatch; this item is a P0 unblocker for onboarding stability.
+- `backlog/300-400/329-authz.md` + `backlog/300-400/333-realms.md`: orthogonal in purpose (authz + tenancy model), but depend on a deterministic RPC boundary so failures are “real” (not misrouting).
+- `backlog/582-local-dev-seeding.md`: same philosophy (“deterministic envs”), different layer (data vs transport/routing); they reinforce each other.
+- Domain slices (`backlog/540-sales-domain.md`, `backlog/527-transformation-agent.md`): mostly separate; when they expose or consume RPC, they must comply with this item’s deterministic transport + gateway boundary rules.
 
 ---
 
@@ -70,12 +83,30 @@ This is consistent with the direction in `backlog/300-400/306-rpc-runtime-alignm
 
 > Source of truth: `ameideio/ameide-gitops` (this repo vendors it as the `gitops/ameide-gitops/` submodule).
 
+### 3.0 Which GitOps files are authoritative?
+
+The Envoy Gateway that fronts platform services is the **`platform-gateway` component**.
+
+- Component definition (what chart + values are used):
+  - `gitops/ameide-gitops/environments/_shared/components/platform/control-plane/gateway/component.yaml`
+- Values layering (6-layer composition used by ArgoCD ApplicationSet):
+  - `gitops/ameide-gitops/argocd/applicationsets/ameide.yaml`
+- Values files that actually apply to `platform-gateway`:
+  - `gitops/ameide-gitops/sources/values/_shared/platform/platform-gateway.yaml`
+  - `gitops/ameide-gitops/sources/values/env/<env>/platform/platform-gateway.yaml`
+
+There are similarly named values files under `sources/values/env/<env>/apps/` (for app workloads) that are **not wired** into `platform-gateway` and should not be treated as the source of truth for platform gateway routing.
+
 ### 3.1 Gateway routing
 
 1. **gRPC internal traffic**
    - Keep `GRPCRoute` rules for internal services (platform, threads, workflows, etc.).
    - Ensure the referenced Gateway listener section is an HTTP/2-capable listener (commonly `grpc-internal`).
    - Prefer `Exact` service matches to avoid regex portability problems.
+   - Ensure `grpc-internal` listener exists everywhere and is stable:
+     - `port: 9000`
+     - `hostname: envoy-grpc`
+   - Do not set `GRPCRoute.spec.hostnames` to `api.*` when attaching to `grpc-internal` (listener hostname is `envoy-grpc`); routes will not attach.
    - Ensure all required platform APIs are routed (for example, add `ameide_core_proto.platform.v1.InvitationService` if/when SDK callers use it via the gateway).
    - Concrete references (gitops repo):
      - `gitops/ameide-gitops/sources/charts/apps/gateway/templates/grpcroute-platform.yaml`
@@ -89,21 +120,43 @@ This is consistent with the direction in `backlog/300-400/306-rpc-runtime-alignm
 We must stop mixing “public” and “server-only” endpoints.
 
 - **Server-only gRPC base URL** (BFF + service-to-service):
-  - Provide a dedicated env var (example: `AMEIDE_GRPC_BASE_URL`) via ConfigMap/Secret.
-  - Do not rely on `NEXT_PUBLIC_*` variables for internal gRPC routing.
-  - Concrete references (gitops repo):
-    - `gitops/ameide-gitops/sources/charts/apps/www-ameide-platform/templates/configmap.yaml` currently wires `NEXT_PUBLIC_ENVOY_URL` with a comment that server routes depend on it; this should be split into:
-      - `AMEIDE_GRPC_BASE_URL` (server-only) for gRPC upstream calls
+   - Provide a dedicated env var (example: `AMEIDE_GRPC_BASE_URL`) via ConfigMap/Secret.
+   - Do not rely on `NEXT_PUBLIC_*` variables for internal gRPC routing.
+   - Concrete references (gitops repo):
+     - `gitops/ameide-gitops/sources/charts/apps/www-ameide-platform/templates/configmap.yaml` currently wires `NEXT_PUBLIC_ENVOY_URL` with a comment that server routes depend on it; this should be split into:
+      - `AMEIDE_GRPC_BASE_URL` (server-only) for gRPC upstream calls (internal gateway / DNS)
       - `NEXT_PUBLIC_*` only for browser-facing configuration (or removed if not needed client-side)
 
 - **Browser base URL**:
-  - Browser should target `/api` (BFF) unless a dedicated public RPC route exists.
+   - Browser should target `/api` (BFF) unless a dedicated public RPC route exists.
 
 ### 3.3 Platform service deployment toggle
 
 Onboarding and org resolution depend on platform RPC availability. Ensure the platform Helm release is enabled and routable through the intended gRPC listener (see also `backlog/428-onboarding.md` blockers).
 
-### 3.4 Service port semantics (recommended)
+### 3.4 Concrete GitOps deltas (P0/P1)
+
+P0 — make gRPC-internal deterministically usable by server callers:
+
+1. Ensure `grpc-internal` listener exists everywhere (port 9000, hostname `envoy-grpc`) and `grpcRoutes.*.sectionName` attaches to it.
+2. Ensure platform routing is enabled in `platform-gateway` values for each environment:
+   - `gitops/ameide-gitops/sources/values/env/dev/platform/platform-gateway.yaml` already enables `grpcRoutes.platformService.enabled: true`
+   - Add equivalent `grpcRoutes.platformService.enabled: true` (and required ports) to:
+     - `gitops/ameide-gitops/sources/values/env/staging/platform/platform-gateway.yaml`
+     - `gitops/ameide-gitops/sources/values/env/production/platform/platform-gateway.yaml`
+3. For internal routes (`sectionName: grpc-internal`), omit `grpcRoutes.*.hostname` (or set it to `envoy-grpc`); do not set it to `api.<env>.ameide.io`.
+4. Split Next.js env vars so server calls do not depend on `NEXT_PUBLIC_ENVOY_URL`:
+   - Add `AMEIDE_GRPC_BASE_URL` to `gitops/ameide-gitops/sources/charts/apps/www-ameide-platform/templates/configmap.yaml`
+   - Update app/server code to require server-only base URL and remove implicit reliance on `NEXT_PUBLIC_*` for internal gRPC.
+
+P1 — preempt route gaps and improve clarity:
+
+1. Add `ameide_core_proto.platform.v1.InvitationService` to:
+   - `gitops/ameide-gitops/sources/charts/apps/gateway/templates/grpcroute-platform.yaml`
+2. Rename platform service port semantics to reflect gRPC:
+   - `gitops/ameide-gitops/sources/charts/apps/platform/templates/service.yaml` (`name: grpc` and/or `appProtocol: grpc`)
+
+### 3.5 Service port semantics (recommended)
 
 To make gRPC intent obvious to proxies and humans, update service port naming/appProtocol where applicable:
 
@@ -131,13 +184,15 @@ Transport determinism fixes routing failures, but org/onboarding correctness sti
 1. SDK: deterministic entrypoints and removal of runtime auto-detection
 2. Next.js: server-side calls use Node/gRPC entrypoint; browser uses browser/Connect entrypoint
 3. Platform service: migrate to connect-node HTTP/2 server runtime
-4. Gateway: confirm gRPC `GRPCRoute` is present for platform org methods and matches the listener used by server callers
+4. Gateway/GitOps: ensure `platform-gateway` enables platform GRPCRoutes and attaches to `grpc-internal` deterministically (no hostname mismatch)
+5. Next/GitOps: split server-only RPC base URL (`AMEIDE_GRPC_BASE_URL`) from any `NEXT_PUBLIC_*` config; server must not depend on public vars
 
 ### P1 (follow-up hardening)
 
-1. Standardize server-only env vars for gRPC base URLs (remove `NEXT_PUBLIC_*` usage for internal gRPC endpoints)
-2. Add integration tests that fail loudly on protocol mismatch (no more “mysterious unimplemented 404”)
-3. Tighten org listing semantics and membership gating (align with authz policy)
+1. Add `InvitationService` to platform GRPCRoute (preempt onboarding route gaps)
+2. Rename platform service port semantics to reflect gRPC (`name: grpc` and/or `appProtocol: grpc`)
+3. Add integration tests that fail loudly on protocol mismatch (no more “mysterious unimplemented 404”)
+4. Tighten org listing semantics and membership gating (align with authz policy)
 
 ---
 
