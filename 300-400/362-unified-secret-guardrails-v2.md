@@ -62,7 +62,7 @@ The doc also calls out vendor recommendations (HashiCorp and Big Bang) so review
 | inference / inference-gateway / www surface / etc. | ✅ (Mar-Apr 2026) | Each README references Vault store + CronJob flow. |
 | pgadmin | ✅ (Nov 2025 refresh) | Chart uses the same Vault-managed ExternalSecret + bootstrap guardrails as every other service; no local overrides or inline credentials remain. |
 | minio | ✅ (Nov 2025) | Chart-owned ExternalSecrets pull root creds + service-user configs from `ameide-vault`; provisioning job now waits on `minio-service-users` instead of inline secrets. |
-| workrequests-runner | ✅ (Dec 2025) | Service-owned ExternalSecrets: `workrequests-github-token` (`ghcr-token`), `workrequests-domain-token`, `workrequests-minio-credentials`; Vault fixtures: `workrequests-domain-token`, `workrequests-minio-access-key`, `workrequests-minio-secret-key`. |
+| workrequests-runner | ✅ (Dec 2025) | Service-owned ExternalSecrets templates: `workrequests-github-token` (`ghcr-token`), `workrequests-domain-token`, `workrequests-minio-credentials`; Vault fixtures: `workrequests-domain-token`, `workrequests-minio-access-key`, `workrequests-minio-secret-key`. Note: `local`/`dev` overlays currently set `secrets.enabled=false` for the workbench scaffolding; enable when we want Vault-synced creds in-cluster. |
 | Remaining (list new services here) | ⏳ | Triage new services as they onboard. |
 
 ### 2. Foundation Secret Boundary

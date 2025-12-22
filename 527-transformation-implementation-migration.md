@@ -271,7 +271,7 @@ WP‑B is implemented **proto-first** so orchestration and evidence do not drift
   - Domain facts: `WorkRequested`/`WorkCompleted`/`WorkFailed` (after persistence)
   - Command surface to record outcomes with evidence bundle linking (idempotent)
 - Integration (runner/job code):
-  - a devcontainer-derived runner entrypoint that executes exactly one WorkRequest per run (checkout `commit_sha` → run `ameide` actions → persist evidence → record outcome idempotently)
+  - a WorkRequest **executor** entrypoint that executes exactly one WorkRequest per run (checkout `commit_sha` → run `ameide` actions → persist evidence → record outcome idempotently); this executor image is distinct from the devcontainer workbench image
   - evidence descriptor shape that Process can cite in `ToolRunRecorded` (no log scraping)
 - Process:
   - at least one workflow that requests a WorkRequest and awaits completion facts
@@ -297,7 +297,7 @@ WP‑B is implemented **proto-first** so orchestration and evidence do not drift
 - Kubernetes security + runtime wiring:
   - ServiceAccounts/RBAC + NetworkPolicy for runner Jobs (least privilege)
   - secrets/config injection required for repo checkout, evidence upload, and Domain callbacks
-  - devcontainer-derived runtime image deployment references (image name/tag/values contract)
+  - image deployment references (values contract): devcontainer workbench image + executor image for queue-driven Jobs
 - Debug/admin workbench (local/dev only; not a processor):
   - deploy workbench pod(s) only in `local`/`dev` with admin-only access
   - verify workbench cannot consume WorkRequested and cannot become an orchestrator
@@ -306,9 +306,9 @@ WP‑B is implemented **proto-first** so orchestration and evidence do not drift
 
 - [x] KEDA installed cluster-scoped (see `backlog/585-keda.md`).
 - [x] Work-queue topics provisioned via `data-kafka-workrequests-topics` (enabled in `local` + `dev`; disabled elsewhere).
-- [x] Workbench + ExternalSecrets contract provisioned via `workrequests-runner` (enabled in `local` + `dev`; disabled elsewhere).
+- [x] Workbench provisioned via `workrequests-runner` (enabled in `local` + `dev`; disabled elsewhere). ExternalSecrets templates exist, but `local` + `dev` currently set `secrets.enabled=false` so the workbench can start without Vault/ExternalSecrets.
 - [x] MinIO service-user scaffolding for WorkRequests (Vault-backed) exists (enabled in `local` + `dev`; disabled elsewhere).
-- [x] KEDA `ScaledJob` resources enabled in `local` (disabled elsewhere). **Note:** the Job entrypoint is still a placeholder (`exit 1`) until the real WorkRequest consumer is implemented.
+- [x] KEDA `ScaledJob` resources enabled in `local` + `dev` (disabled elsewhere). **Note:** `scaledJobs.maxReplicaCount: 0` by default and the Job entrypoint is still a placeholder (`exit 1`) until the real WorkRequest consumer is implemented.
 - [ ] Runtime hardening: RBAC/NetworkPolicy per executor class (toolrun vs agentwork) and staging/production rollout posture.
 
 ### GitOps artifact inventory (what exists in `ameide-gitops`)
@@ -331,7 +331,7 @@ Values (layered per 434):
 - Runner/workbench/ScaledJobs (shared + env toggles):
   - `sources/values/_shared/apps/workrequests-runner.yaml`
   - `sources/values/env/local/apps/workrequests-runner.yaml` (enabled + ScaledJobs enabled)
-  - `sources/values/env/dev/apps/workrequests-runner.yaml` (enabled; ScaledJobs disabled)
+  - `sources/values/env/dev/apps/workrequests-runner.yaml` (enabled + ScaledJobs enabled)
 
 Secrets + bootstrap fixtures:
 
@@ -405,13 +405,13 @@ We implement WP‑B using a strict “small → large” ladder per `backlog/537
 5. **Process workflow tests (Temporal test env)**
    - Workflow requests a WorkRequest (domain intent), awaits completion facts, emits `ToolRunRecorded` / `GateDecisionRecorded` deterministically.
 6. **Kubernetes substrate test (KEDA + Job)**
-   - In a kind-style acceptance environment, a KEDA ScaledJob schedules a devcontainer-derived Job for a `WorkRequested`, and the Job records completion/evidence in Domain; duplicates are tolerated and converge via idempotency keys.
+   - In a kind-style acceptance environment, a KEDA ScaledJob schedules an executor-image Job for a `WorkRequested`, and the Job records completion/evidence in Domain; duplicates are tolerated and converge via idempotency keys.
 7. **Headless end-to-end (no UISurface)**
    - Full slice: Process → Domain WorkRequest → KEDA Job → Domain evidence/outcome → Process facts → Projection timeline; assertions run via APIs/queries only.
 
 Debug/admin mode (required in `local`/`dev`; not a processor):
 
-- Provide long-lived “workbench” pods for human attach/exec using the same devcontainer-derived runtime image.
+- Provide long-lived “workbench” pods for human attach/exec using the devcontainer toolchain image (`ghcr.io/ameideio/devcontainer:<tag>`).
 - It MUST be deployed only in `local` and `dev`, and MUST NOT be deployed in `staging`/`production`.
 - It MUST NOT consume `WorkRequested` and exists only to reproduce failures and run controlled “manual reruns” that still write outcomes/evidence back into Domain idempotently.
 - It MUST NOT be conflated with external “agent slots” (`agent-01`, `agent-02`, `agent-03`) used for parallel developer-mode DevContainers (clones) (see `backlog/581-parallel-ai-devcontainers.md`).

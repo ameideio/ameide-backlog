@@ -195,7 +195,7 @@ The chain is:
 
 3. **Tool runners (Integration executes; CLI is a tool)**
    - Some steps require deterministic tool execution (existing CLI scaffolding, `buf generate`, `ameide primitive verify`, tests/build/publish).
-   - Tool/agent execution is requested via a **WorkRequest** recorded in Domain (see “Execution substrate” below). In v1, WorkRequests are executed via **KEDA ScaledJob → Kubernetes Job per WorkRequested**, using a devcontainer-derived runtime image for toolchain parity: Domain emits `WorkRequested` facts after persistence; Jobs consume those facts, execute, and record evidence back into Domain idempotently; Process awaits domain facts and emits process facts for the audit timeline.
+   - Tool/agent execution is requested via a **WorkRequest** recorded in Domain (see “Execution substrate” below). In v1, WorkRequests are executed via **KEDA ScaledJob → Kubernetes Job per WorkRequested**, using a dedicated **executor** image (not the workbench/devcontainer): Domain emits `WorkRequested` facts after persistence; Jobs consume those facts, execute, and record evidence back into Domain idempotently; Process awaits domain facts and emits process facts for the audit timeline. For parity/debugging, a separate long-lived workbench runs the devcontainer toolchain image (human attach/exec only; never consumes the queue).
    - Outputs are captured as evidence bundles (attachments + structured summaries) and referenced from promotions/baselines and process facts.
 
 4. **Ameide primitives (realization outputs)**
@@ -404,7 +404,7 @@ MCP is a **compatibility interface**, not the canonical tool runtime. Tool defin
 - Guardrails must be expressed as evidence-producing gates (verify/test/lint/codegen drift) so promotions can be policy-driven and auditable (see `backlog/527-transformation-integration.md` runner evidence contract).
 - Execution environments should be explicit and swappable:
   - interactive devcontainer (human/agent in loop; pinned tooling, e.g. Codex CLI pin in `backlog/433-codex-cli-057.md`; developer workflow in `backlog/435-remote-first-development.md`; parallel agent slots in `backlog/581-parallel-ai-devcontainers.md`),
-  - KEDA-scheduled in-cluster Jobs (devcontainer-derived toolchain; deterministic tool runs, structured evidence),
+  - KEDA-scheduled in-cluster Jobs (executor image; deterministic tool runs, structured evidence),
   - local dev (human) as a convenience, never a promotion authority without evidence capture.
 
 ## 4.2) Clarification requests (next steps)

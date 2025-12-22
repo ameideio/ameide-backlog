@@ -58,7 +58,7 @@ Workflow steps often require deterministic tool execution (scaffolding, codegen,
 
 - Process requests execution via a Domain intent that creates a Domain-owned `WorkRequest` (idempotent).
 - Domain emits `WorkRequested` facts after persistence (outbox).
-- KEDA ScaledJobs schedule devcontainer-derived Kubernetes Jobs based on Kafka consumer group lag on `WorkRequested` (Jobs consume and record results back to Domain idempotently).
+- KEDA ScaledJobs schedule Kubernetes Jobs (running the WorkRequest **executor** image) based on Kafka consumer group lag on `WorkRequested` (Jobs consume and record results back to Domain idempotently).
 - Process awaits the resulting domain facts, then emits `ToolRunRecorded` / `GateDecisionRecorded` / `ActivityTransitioned` process facts for the audit timeline.
 
 Kafka note (normative):

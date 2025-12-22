@@ -85,7 +85,7 @@ Integration runners exist so deterministic tool steps can run without turning th
 - The runner MUST NOT become a policy engine (approval logic, promotion decisions, contract rules).
 - The runner MUST NOT infer scope identifiers (it is always called with explicit `{tenant_id, organization_id, repository_id}`).
 
-### 1.0.3 Runner execution backend (normative): KEDA ScaledJob → devcontainer-derived Jobs
+### 1.0.3 Runner execution backend (normative): KEDA ScaledJob → executor Jobs
 
 In v1, long-running tool runs execute via **queue-driven ephemeral execution** in Kubernetes:
 
@@ -153,7 +153,7 @@ Implemented (and enabled in `local` + `dev`, disabled elsewhere):
 - KEDA installed cluster-scoped (see `backlog/585-keda.md`).
 - Kafka topics created: `transformation.work.queue.toolrun.verify.v1`, `transformation.work.queue.toolrun.generate.v1`, `transformation.work.queue.agentwork.coder.v1`.
 - Workbench pod (`workrequests-workbench`) deployed for admin attach/exec (not a processor).
-- Secrets are synced via ExternalSecrets:
+- Secrets contract is defined in GitOps (ExternalSecrets templates exist) but is currently **disabled by default** in `local` + `dev` overlays (`secrets.enabled=false`) so the workbench can be brought up without depending on Vault/ExternalSecrets; enable it when we want the workbench/executors to fetch credentials declaratively from Vault:
   - `workrequests-github-token` (`token`)
   - `workrequests-domain-token` (`token`)
   - `workrequests-minio-credentials` (`accessKey`, `secretKey`)
@@ -162,13 +162,14 @@ Implemented (and enabled in `local` + `dev`, disabled elsewhere):
   - bucket: `artifacts`
   - prefix: `workrequests/`
 
-Scaffolded but intentionally disabled until a real WorkRequest consumer exists:
+ScaledJobs are rendered/enabled in `local` + `dev`, but intentionally “idle” until a real WorkRequest consumer exists:
 
-- KEDA `ScaledJob` resources for `transformation.work.queue.toolrun.verify.v1`, `transformation.work.queue.toolrun.generate.v1`, `transformation.work.queue.agentwork.coder.v1`.
+- KEDA `ScaledJob` resources exist for `transformation.work.queue.toolrun.verify.v1`, `transformation.work.queue.toolrun.generate.v1`, `transformation.work.queue.agentwork.coder.v1`.
+- `scaledJobs.maxReplicaCount: 0` by default to avoid continuous Job churn/noise until a real producer emits valid `WorkRequested` messages onto the queue topics.
 
 #### Debug/admin mode (workbench pod; not a processor)
 
-For investigations and emergency operations, the platform MUST provide a long-lived “workbench” pod that runs the same devcontainer-derived runtime image and exists solely for **human attach/exec** (e.g., `kubectl exec`) and controlled reproduction of a failing WorkRequest.
+For investigations and emergency operations, the platform MUST provide a long-lived “workbench” pod that runs the devcontainer toolchain image (`ghcr.io/ameideio/devcontainer:<tag>`) and exists solely for **human attach/exec** (e.g., `kubectl exec`) and controlled reproduction of a failing WorkRequest.
 
 Environment scoping (normative):
 
