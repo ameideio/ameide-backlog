@@ -42,6 +42,11 @@ Gates (currently passing):
 - `go run ./packages/ameide_core_cli/cmd/ameide primitive verify --kind projection --name transformation --mode repo`
 - `pnpm -C services/www_ameide_platform run typecheck`
 
+Quick verification (GitOps / cluster truth):
+
+- `local-data-data-plane-smoke` asserts WorkRequests execution queue topics and WorkRequests runner KEDA `ScaledJob` objects (gated; enabled in `local` + `dev`).
+- `local-foundation-operators-smoke` asserts KEDA operator deployments and the external metrics `APIService` (when KEDA is installed).
+
 ## 1) Alignment to 520 (normative constraints)
 
 Cross-reference: `backlog/520-primitives-stack-v2.md`.

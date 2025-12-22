@@ -117,6 +117,8 @@ In `ameide-gitops`, we also run ArgoCD **PostSync hook Jobs** (“smokes”) to 
 
 Inventory: `backlog/588-smoke-tests-inventory.md`
 
+Operational note: a **sync** re-runs hook Jobs; a refresh updates status only. For local testing (in `ameide-gitops`) we use `./scripts/argocd-force-sync.sh <app>`.
+
 ### Why we use kind (even if k3d exists)
 
 We introduced **kind** for operator acceptance because the goal is a **portable, CI-friendly, deterministic** Kubernetes cluster for tests:
