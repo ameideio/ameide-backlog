@@ -140,6 +140,28 @@ Cluster-mode capability packs may be executed:
 
 Regardless of where the pack runs, the assertions remain the same: verify correctness via Domain/Process/Projection state and evidence, not via “pods existed” heuristics.
 
+**Default guidance:**
+
+- **Developer inner loop:** run cluster-mode packs from a DevContainer using Telepresence (fast iteration).
+- **CI / remote execution:** prefer running the pack as a headless Kubernetes Job when you want network parity and fewer port-forward assumptions.
+
+---
+
+## 5.4 Golden catalog (WorkRequests-based capabilities)
+
+Capability owners should start with a small standard set of end-to-end tests (headless; no UI required) and then extend as needed:
+
+- **E2E‑0: WorkRequest lifecycle smoke (no Process)**  
+  Domain creates a deterministic WorkRequest → executor runs → Domain records outcome/evidence → Projection shows completion. Assert idempotency + evidence descriptor present + citations/timeline.
+- **E2E‑1: Process orchestration slice (Temporal)**  
+  Start the workflow that requests work and awaits completion. Assert it emits `ToolRunRecorded` (and/or `GateDecisionRecorded`) referencing the WorkRequest/evidence.
+- **E2E‑2: At-least-once + retry tolerance**  
+  Simulate duplicate deliveries / retries. Assert one canonical outcome per idempotency key and stable timeline materialization.
+- **E2E‑3: Guardrails slice (optional / nightly)**  
+  Validate repo “physics plane” policies (PR-only, branch namespace permissions, path restrictions) where feasible; keep this isolated because it depends on external systems.
+
+This catalog keeps E2E stable under KEDA retries and Kubernetes Job cleanup, because correctness is asserted on durable facts/evidence rather than transient Pods.
+
 ---
 
 ## 6) How to run “headless E2E” without a UI

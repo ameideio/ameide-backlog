@@ -28,6 +28,8 @@ Introduce a **top-level `capabilities/` directory** as the canonical “capabili
 **Capabilities are composition + definition artifacts + tests.**  
 **Primitives remain the runtime substrate.**
 
+**Ownership rule:** capabilities own **vertical slice tests** (cross-primitive flows); primitives own **kind invariants** (per-kind correctness and operator readiness). See `backlog/591-capabilities-tests.md` and `backlog/537-primitive-testing-discipline.md`.
+
 ### 2.1 Non-goals (explicit)
 
 This backlog does **not** propose moving:
