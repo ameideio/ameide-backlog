@@ -448,6 +448,8 @@ Files to update:
 - ❌ Remove `orgKeys` parameter from `ListOrganizationsRequest`
 - ❌ Remove Keycloak group creation functions
 
+> **Update (2025-12-22):** `orgKeys` is still used in some flows as a pragmatic org “lookup by key/slug” filter. The target end-state is to add an explicit resolver RPC (for example `GetOrganizationByKey` / `ResolveOrganizationIdentifier`) and then remove `orgKeys` from `ListOrganizationsRequest` entirely. Transport + routing determinism is tracked in `backlog/589-rpc-transport-determinism.md`, and onboarding dependencies are tracked in `backlog/428-onboarding.md`.
+
 #### 4.2 Data Migration
 ```sql
 -- Migrate existing organizations to realms
