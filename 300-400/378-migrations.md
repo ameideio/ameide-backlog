@@ -2,16 +2,18 @@
 
 Summary: how database migrations are delivered in the dev GitOps flow, when they run, and how to verify/fix them.
 
+> **Update (2025-12-22):** In `ameide-local`, the Application is `local-data-db-migrations` and the migration hook Job runs in namespace `ameide-local` (not `ameide`).
+
 ## Flow overview
 - AppSet: `environments/dev/argocd/apps/data-services.yaml` generates `data-db-migrations` (wave `24`, dependencyPhase `state`).
-- Chart: `sources/charts/platform-layers/db-migrations` is hook-only (pre-install/pre-upgrade Job via Helm hook).
+- Chart: migrations are delivered via `sources/charts/platform/db-migrations` (hook-only Job via Helm hook).
 - Values: `_shared` + `dev` value files feed image/secrets and Flyway settings; schema setup in other charts is disabled in favor of this Job.
 - Ordering: RollingSync waves run CNPG (wave 20) → migrations (wave 24) → Temporal (wave 26) → the rest of data services.
 - Automation: AppSet template + templatePatch set `syncPolicy.automated` (prune/selfHeal + CreateNamespace/RespectIgnoreDifferences) and the AppProject allows auto-sync (manualSync=false), so migrations can auto-fire with the wave when the spec reflects automation.
 
 ## What to expect on a healthy sync
 - `Application/data-db-migrations` carries `spec.syncPolicy.automated` and wave label `24`.
-- A sync creates a Job named `data-db-migrations` (hook) in `ameide`; pod runs Flyway then exits Completed.
+- A sync creates a Job named `data-db-migrations` (hook) in the app namespace; pod runs Flyway then exits Completed.
 - No other schema setup jobs should run in Temporal charts (those are disabled).
 
 ## Verifying quickly

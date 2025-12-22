@@ -12,6 +12,18 @@
 
 ---
 
+## 0. Verification (Evidence, 2025-12-22)
+
+Validated in `ameide-local`:
+
+- Argo apps sync green: `local-data-db-migrations`, `local-platform-dev-data`.
+- Hook jobs succeed:
+  - `data-db-migrations` (PreSync) completes successfully.
+  - `platform-dev-data-dev-data-seed` then `platform-dev-data-dev-data-verify` (PostSync) both succeed and remain idempotent across repeated re-syncs.
+- Platform DB contract check: seeded personas exist in `platform.users` and have expected role codes in `platform.organization_memberships` for org `atlas`.
+
+**Migration note:** environments created before “Flyway schema-only” may retain legacy demo rows (e.g. `atlas-org` tenant/users) from historical Flyway seeds. To fully converge to the target-state dataset, wipe/recreate the local Postgres volumes/cluster once, then let `platform-dev-data` seed from scratch.
+
 ## 1. Problem
 
 We want **fully deterministic developer environments** (local k3d + shared AKS namespaces) where:
