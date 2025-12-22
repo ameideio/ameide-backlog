@@ -275,8 +275,79 @@ WP‑B is implemented **proto-first** so orchestration and evidence do not drift
 - [x] Work-queue topics provisioned via `data-kafka-workrequests-topics` (enabled in `local` + `dev`; disabled elsewhere).
 - [x] Workbench + ExternalSecrets contract provisioned via `workrequests-runner` (enabled in `local` + `dev`; disabled elsewhere).
 - [x] MinIO service-user scaffolding for WorkRequests (Vault-backed) exists (enabled in `local` + `dev`; disabled elsewhere).
-- [ ] KEDA `ScaledJob` resources enabled and wired to a real WorkRequest consumer (currently scaffolded but intentionally disabled to prevent runaway failing Jobs).
+- [x] KEDA `ScaledJob` resources enabled in `local` (disabled elsewhere). **Note:** the Job entrypoint is still a placeholder (`exit 1`) until the real WorkRequest consumer is implemented.
 - [ ] Runtime hardening: RBAC/NetworkPolicy per executor class (toolrun vs agentwork) and staging/production rollout posture.
+
+### GitOps artifact inventory (what exists in `ameide-gitops`)
+
+Components (ApplicationSet-rendered):
+
+- Topics:
+  - `environments/_shared/components/data/core/kafka-workrequests-topics/component.yaml`
+  - `environments/local/components/data/core/kafka-workrequests-topics/component.yaml`
+- Runner/workbench + ScaledJobs:
+  - `environments/_shared/components/apps/runtime/workrequests-runner/component.yaml`
+  - `environments/local/components/apps/runtime/workrequests-runner/component.yaml`
+
+Values (layered per 434):
+
+- Topics (shared + env toggles):
+  - `sources/values/_shared/data/data-kafka-workrequests-topics.yaml`
+  - `sources/values/env/local/data/data-kafka-workrequests-topics.yaml` (enabled)
+  - `sources/values/env/dev/data/data-kafka-workrequests-topics.yaml` (enabled)
+- Runner/workbench/ScaledJobs (shared + env toggles):
+  - `sources/values/_shared/apps/workrequests-runner.yaml`
+  - `sources/values/env/local/apps/workrequests-runner.yaml` (enabled + ScaledJobs enabled)
+  - `sources/values/env/dev/apps/workrequests-runner.yaml` (enabled; ScaledJobs disabled)
+
+Secrets + bootstrap fixtures:
+
+- Vault bootstrap fixtures (local/dev):
+  - `sources/values/_shared/foundation/foundation-vault-bootstrap.yaml` includes:
+    - `workrequests-domain-token` (`__generate__`)
+    - `workrequests-minio-access-key` (`workrequests-runner`)
+    - `workrequests-minio-secret-key` (`__generate__`)
+- WorkRequests runner ExternalSecrets contract:
+  - `workrequests-github-token` (Vault key: `ghcr-token`, property: `value`)
+  - `workrequests-domain-token` (Vault key: `workrequests-domain-token`, property: `value`)
+  - `workrequests-minio-credentials` (Vault keys: `workrequests-minio-access-key` / `workrequests-minio-secret-key`, property: `value`)
+- MinIO service-user provisioning integration:
+  - `sources/values/_shared/data/data-minio.yaml` supports a `workrequests` service user (enabled per env in `sources/values/env/{local,dev}/data/data-minio.yaml`)
+
+### Concrete execution queue decisions (v1)
+
+Kafka topics (dedicated per executor class so scaling does not react to non-WorkRequested facts):
+
+- `toolrun.verify.v1`
+- `toolrun.generate.v1`
+- `agentwork.coder.v1`
+
+Consumer groups (current GitOps scaffolding; subject to future naming convention finalization):
+
+- `workrequests-toolrun-verify-v1`
+- `workrequests-toolrun-generate-v1`
+- `workrequests-agentwork-coder-v1`
+
+### Implementation gotchas captured (so we don’t regress)
+
+- Strimzi topic config values MUST be rendered as strings for numeric fields like `retention.ms` to avoid scientific-notation formatting (`6.048e+08`) that Kafka rejects. See `sources/values/_shared/data/data-kafka-workrequests-topics.yaml` (`retentionMs: "604800000"`).
+- KEDA’s Kafka scaler runs in `keda-system`; `bootstrapServers` MUST be namespace-qualified (e.g., `kafka-kafka-bootstrap.ameide-local:9092`) so the scaler can resolve the broker Service.
+- Local k3d scheduling: Kafka may require tolerations for control-plane/master taints due to PVC/node pinning in single-node clusters.
+
+### Quick verification (ameide-local)
+
+- Argo apps:
+  - `kubectl -n argocd get application local-data-kafka-workrequests-topics local-workrequests-runner`
+- Topics ready:
+  - `kubectl -n ameide-local get kafkatopic.kafka.strimzi.io | rg 'toolrun|agentwork'`
+- KEDA ScaledJobs present/ready:
+  - `kubectl -n ameide-local get scaledjob.keda.sh | rg 'workrequests'`
+- Workbench deployed:
+  - `kubectl -n ameide-local get deploy workrequests-workbench`
+
+### Current limitation (explicit)
+
+Enabling ScaledJobs in `local` proves the GitOps substrate and KEDA/Kafka wiring, but the runner containers intentionally do not yet implement the WorkRequest consume/ack discipline; if you publish any messages to these topics, Jobs will start and fail until the consumer code is implemented.
 
 **Test ladder (TDD: small → large)**
 
