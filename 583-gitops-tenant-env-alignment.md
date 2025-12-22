@@ -1,6 +1,6 @@
 # 583 – GitOps Tenant Env Alignment (`AMEIDE_TENANT_ID`)
 
-**Status:** Draft  
+**Status:** Implemented (fail-fast target-state)  
 **Owner:** GitOps  
 **Motivation:** Align GitOps-rendered environment variables with the repo-wide tenant env standardization so cluster deployments fail fast (no “tenant magic”) and dev data seeding can be deterministic.  
 **Related:** [582-local-dev-seeding.md](582-local-dev-seeding.md), [300-400/329-auth.md](300-400/329-auth.md), [300-400/330-dynamic-tenant-resolution.md](300-400/330-dynamic-tenant-resolution.md)
@@ -12,64 +12,37 @@
 Non-GitOps code is converging on a single canonical tenant env var:
 
 - **Canonical:** `AMEIDE_TENANT_ID`
-- **Goal:** remove scattered fallbacks like `DEFAULT_TENANT_ID`, `TENANT_ID`, `WORKFLOWS_TENANT_ID`, etc.
+- **Goal:** remove scattered legacy vars like `DEFAULT_TENANT_ID`, `TENANT_ID`, `WORKFLOWS_TENANT_ID`, etc.
 
-Today GitOps still emits the legacy vars in several charts and does **not** emit `AMEIDE_TENANT_ID`. Once the application changes land, this becomes a hard break: bootstrap/system calls will error because `AMEIDE_TENANT_ID` is missing.
-
-This backlog is the GitOps-side work to keep cluster sync green while we eliminate tenant defaults in code.
+GitOps now emits **only** `AMEIDE_TENANT_ID` and requires explicit values so the cluster fails fast at render/sync time if tenant context is missing.
 
 ---
 
 ## 2) Policy (keep it lean)
 
 - `AMEIDE_TENANT_ID` is the **only** tenant env var GitOps should set going forward.
-- Any legacy tenant env vars are **temporary compatibility shims** only (one rollout window), then removed.
 - User-driven traffic must continue to use **JWT/session tenant context**; `AMEIDE_TENANT_ID` exists for **bootstrap/system contexts** (realm discovery/bootstrap jobs/background calls) where there is no user session.
+- Canonical dev tenant ID format is `tenant-<slug>` (e.g. `tenant-atlas`) to align with platform validation.
 
 ---
 
-## 3) Required GitOps changes (Phase A: compat)
+## 3) GitOps changes (implemented)
 
-For one release window, emit **both**:
+### A. Remove legacy env vars
 
-- `AMEIDE_TENANT_ID` (new)
-- the existing legacy var (old) so older images still work
+- Removed `DEFAULT_TENANT_ID` from charts and standardized on `AMEIDE_TENANT_ID` only.
+- Removed `WORKFLOWS_TENANT_ID` from `workflows-runtime` and standardized on `AMEIDE_TENANT_ID` only.
 
-### A. `platform` chart
+### B. Fail fast on missing tenant config
 
-**File (gitops repo):** `sources/charts/apps/platform/templates/configmap.yaml`  
-**Current:** emits `DEFAULT_TENANT_ID`  
-**Change:** also emit `AMEIDE_TENANT_ID` from the same value (`.Values.config.defaultTenant`).
+- `platform`: `AMEIDE_TENANT_ID` is required (`config.defaultTenant`).
+- `graph`: `AMEIDE_TENANT_ID` is required (`config.defaultTenant`).
+- `workflows-runtime`: `AMEIDE_TENANT_ID` is required (`config.workflowsService.tenantId`).
+- `www-ameide-platform`: `AMEIDE_TENANT_ID` is required (`tenant.defaultId`).
 
-### B. `www-ameide-platform` chart
+### C. Observability tenant header
 
-**File (gitops repo):** `sources/charts/apps/www-ameide-platform/templates/configmap.yaml`  
-**Current:** emits `DEFAULT_TENANT_ID`  
-**Change:** also emit `AMEIDE_TENANT_ID` from the same value (`.Values.tenant.defaultId`).
-
-### C. `workflows-runtime` chart
-
-**File (gitops repo):** `sources/charts/apps/workflows-runtime/templates/configmap.yaml`  
-**Current:** emits `WORKFLOWS_TENANT_ID`  
-**Change:** also emit `AMEIDE_TENANT_ID` from the same value (`.Values.config.workflowsService.tenantId`).
-
-### D. `alloy-gateway` shared values (telemetry tenant header)
-
-**File (gitops repo):** `sources/charts/shared-values/infrastructure/alloy-gateway.yaml`  
-**Current:** uses `DEFAULT_TENANT_ID` to set Tempo `X-Scope-OrgID` header  
-**Change (recommended):**
-- emit `AMEIDE_TENANT_ID` env (same value as today), and
-- update the header to read `AMEIDE_TENANT_ID` (or coalesce `AMEIDE_TENANT_ID` then `DEFAULT_TENANT_ID`) during the compat window.
-
----
-
-## 4) Cleanup (Phase B: remove legacy vars)
-
-After all environments are running images that read `AMEIDE_TENANT_ID`:
-
-- Remove `DEFAULT_TENANT_ID` from `platform` and `www-ameide-platform` charts.
-- Remove `WORKFLOWS_TENANT_ID` from `workflows-runtime` chart.
-- Remove `DEFAULT_TENANT_ID` from `alloy-gateway` and standardize Tempo tenant header on `AMEIDE_TENANT_ID`.
+- `alloy-gateway` now uses `AMEIDE_TENANT_ID` exclusively for Tempo `X-Scope-OrgID`.
 
 ---
 
@@ -84,11 +57,7 @@ After all environments are running images that read `AMEIDE_TENANT_ID`:
 
 ## 6) Tracking
 
-- [ ] Phase A: add `AMEIDE_TENANT_ID` to `platform` chart
-- [ ] Phase A: add `AMEIDE_TENANT_ID` to `www-ameide-platform` chart
-- [ ] Phase A: add `AMEIDE_TENANT_ID` to `workflows-runtime` chart
-- [ ] Phase A: align `alloy-gateway` Tempo header env var
-- [ ] Phase B: remove `DEFAULT_TENANT_ID` from charts
-- [ ] Phase B: remove `WORKFLOWS_TENANT_ID` from charts
-- [ ] Phase B: update docs/backlogs still referencing legacy vars (e.g., 582)
-
+- [x] Remove `DEFAULT_TENANT_ID` from charts
+- [x] Remove `WORKFLOWS_TENANT_ID` from charts
+- [x] Standardize on `AMEIDE_TENANT_ID` only
+- [x] Require explicit tenant values (fail fast)

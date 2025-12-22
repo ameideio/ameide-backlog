@@ -73,7 +73,7 @@ Today, “dev data” is split across multiple places with drift risk:
 
 ### Code “magic” defaults still exist
 
-- TypeScript SDK uses `DEFAULT_TENANT_ID ?? 'atlas-org'`:  
+- TypeScript SDK uses `DEFAULT_TENANT_ID ?? 'tenant-atlas'`:  
   `../packages/ameide_sdk_ts/src/platform/organization-client.ts`
 - Inference service falls back to `DEFAULT_TENANT_ID="default"`:  
   `../services/inference/src/inference_service/context.py`
@@ -111,7 +111,7 @@ Contract should specify:
 
 Keep the baseline dataset intentionally boring and stable:
 
-- **Tenant:** `atlas-org`
+- **Tenant:** `tenant-atlas`
 - **Org:** `atlas` (must match `services.www_ameide_platform.organization.defaultOrg`)
 - **Canonical role codes:** `admin`, `contributor`, `viewer`, `guest`, `service` (avoid introducing `owner/member`)
 - **Deterministic platform user IDs:** use `user_id=email` for seeded personas so platform memberships stay stable and `www-ameide-platform` can match memberships reliably.
@@ -120,7 +120,7 @@ Keep the baseline dataset intentionally boring and stable:
 
 Each persona that should “work” must exist in **both** systems:
 
-- **Keycloak**: user exists, has `tenantId=atlas-org`, is in `/orgs/atlas` (org hints), and has a known password (via ExternalSecret).
+- **Keycloak**: user exists, has `tenantId=tenant-atlas`, is in `/orgs/atlas` (org hints), and has a known password (via ExternalSecret).
 - **Platform DB**: user exists (deterministic ID) and has the expected membership state + role codes in org `atlas`.
 
 Recommended personas:
@@ -147,7 +147,7 @@ If we later need org-switching coverage, add a second org (same tenant) and one 
 Keep it under ~30 lines and store it in Git (rendered into the verify Job).
 
 ```yaml
-tenantId: atlas-org
+tenantId: tenant-atlas
 organization:
   id: atlas
   slug: atlas
@@ -258,7 +258,7 @@ Principle: **cluster mode must fail fast** if tenant/org context is missing. Rep
 
 Targets to remove/restrict:
 
-- SDK tenant fallback (`'atlas-org'`) → require explicit tenantId in calls or derive from session context; keep test helpers for mocks.
+- SDK tenant fallback (`'tenant-atlas'`) → require explicit tenantId in calls or derive from session context; keep test helpers for mocks.
 - Inference default tenant (`"default"`) → require env var or explicit context; missing config should fail at startup (with a clear error).
 
 Related policy: [300-400/330-dynamic-tenant-resolution.md](300-400/330-dynamic-tenant-resolution.md) already describes the migration goal: “no hardcoded tenant defaults anywhere”.
