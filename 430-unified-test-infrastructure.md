@@ -31,11 +31,11 @@ This backlog defines the **target state** for all automated tests in the codebas
 
 ### 1. Two Modes, No Exceptions
 
-Every test suite supports exactly two modes:
+Every integration suite supports exactly two dependency profiles:
 
 | Mode | Environment | Dependencies |
 |------|-------------|--------------|
-| `mock` | Local, DevContainer, CI pre-merge | In-memory stubs only |
+| `repo` | Local, DevContainer, CI pre-merge | In-memory stubs only |
 | `cluster` | AKS (`ameide-dev` namespace for dev profiles, staging/prod clusters in CI) | Real Kubernetes services |
 
 **Forbidden:**
@@ -119,7 +119,7 @@ services/<service>/
 
 ## Mode Contract
 
-### Environment Variable
+### Environment Variable (tests only)
 
 ```bash
 INTEGRATION_MODE=repo|local|cluster
@@ -127,8 +127,11 @@ INTEGRATION_MODE=repo|local|cluster
 
 **Rules:**
 - Default: `repo` (safe for local development)
+- `local` is treated as non-cluster and is not used for new suites
 - Unknown values: **Exit 1** (never fallback)
 - Case-insensitive: `REPO`, `Repo`, `repo` all valid
+
+**Scope rule:** `INTEGRATION_MODE` is a **test runner / harness variable only**. Application runtime (including `www_ameide_platform`) must not branch behavior on `INTEGRATION_MODE` or `NEXT_PUBLIC_INTEGRATION_MODE`.
 
 ### Service-Specific Inputs
 
@@ -296,20 +299,9 @@ services/www_ameide_platform/
         *.spec.ts
 ```
 
-### Mock Mode (Target State)
+### Cluster Mode Only
 
-E2E tests in mock mode use MSW to intercept API calls:
-
-```typescript
-// playwright.config.ts
-export default defineConfig({
-  webServer: {
-    command: process.env.INTEGRATION_MODE !== 'cluster'
-      ? 'pnpm dev:mock'    // MSW-enabled dev server
-      : undefined,         // Cluster deployment
-  },
-});
-```
+E2E runs against the real environment (AKS `ameide-dev` reached via Telepresence). We do not support "mock E2E" because it requires the application runtime to branch on test-only configuration, which drifts.
 
 ### Personas
 

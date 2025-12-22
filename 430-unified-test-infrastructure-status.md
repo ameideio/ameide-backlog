@@ -22,7 +22,7 @@ This document tracks implementation progress against the target state defined in
 | Dual-mode compliant | 18 | 100% |
 | Cluster-only (violations) | 0 | 0% |
 | Services with `__mocks__/` | 15 | 100% |
-| E2E mock mode support | 1 | 100% |
+| E2E cluster-only (by design) | 1 | 100% |
 
 ---
 
@@ -95,7 +95,7 @@ This document tracks implementation progress against the target state defined in
 
 ## Operators / Control Plane Testing (out-of-scope for 430 metrics)
 
-This status doc (430) tracks **application integration and E2E suites** that follow the `INTEGRATION_MODE` contract (mock vs cluster) and use `__mocks__/` where applicable.
+This status doc (430) tracks **application integration suites** that follow the `INTEGRATION_MODE` contract (non-cluster vs cluster) and use `__mocks__/` where applicable. E2E is tracked here, but E2E runs **cluster-only**.
 
 Primitive **operators** (Domain/Process/Agent/UISurface) are a different surface:
 
@@ -158,8 +158,8 @@ Although operators don’t use `INTEGRATION_MODE`, the intent is analogous:
 **Status:** Compliant
 
 **Notes:**
-- Jest integration config now exercises the full suite in both modes; `getServerClient()` automatically routes to the mock transport when `INTEGRATION_MODE` is not `cluster`.
-- Added a hardened `pnpm dev:mock` entry point plus Playwright webServer orchestration so mock-mode E2E runs bootstrap a Next dev server with MSW interceptors and seeded fixtures.
+- Jest integration config exercises the full suite in both modes; tests select mock vs live clients in the harness layer.
+- `getServerClient()` does not branch on `INTEGRATION_MODE`; runtime always uses the live transport.
 - `tests/scripts/run-playwright-e2e.mjs` enforces the mode contract (defaulting to `repo`), injects deterministic credentials, and fail-fast validates base URLs per backlog 430.
 
 ---
@@ -268,25 +268,21 @@ Although operators don’t use `INTEGRATION_MODE`, the intent is analogous:
 
 ### Current State
 
-| Feature | Spec Files | Mock Mode | Status |
+| Feature | Spec Files | Mode | Status |
 |---------|-----------|-----------|--------|
-| `auth` | 2 | **Yes** | Dual-mode |
-| `navigation` | 5 | **Yes** | Dual-mode |
-| `graphs` | 1 | **Yes** | Dual-mode |
-| `onboarding` | 2 | **Yes** | Dual-mode |
-| `invitations` | 1 | **Yes** | Dual-mode |
+| `auth` | 2 | **Cluster** | Running |
+| `navigation` | 5 | **Cluster** | Running |
+| `graphs` | 1 | **Cluster** | Running |
+| `onboarding` | 2 | **Cluster** | Running |
+| `invitations` | 1 | **Cluster** | Running |
 
 ### Violations
 
-1. **None** - Playwright now honors `INTEGRATION_MODE` and boots a mock dev server when requested.
+1. **None** - E2E is cluster-only by design.
 
 ### Required Work
 
-- [x] Add MSW to dev server for mock mode
-- [x] Create `pnpm dev:mock` script
-- [x] Configure Playwright to use mock dev server
-- [x] Create mock fixtures for all E2E scenarios
-- [x] Ensure E2E tests pass without cluster
+- None.
 
 ---
 
@@ -363,7 +359,7 @@ None. All runners follow the five-step contract from backlog 430.
 |------|---------|--------|
 | Create `__mocks__/` for transformation | `transformation` | **Done** |
 | Python mock layer for workflows_runtime | `workflows_runtime` | **Done** |
-| E2E mock mode (MSW) | `www_ameide_platform` | **Done** |
+| E2E cluster-only (no mock mode) | `www_ameide_platform` | **Done** |
 
 ---
 
@@ -375,7 +371,6 @@ None. All runners follow the five-step contract from backlog 430.
 |--------|---------|--------|
 | Services with `__mocks__/` | 15/15 | 100% |
 | Dual-mode compliant runners | 18/18 | 100% |
-| E2E mock mode coverage | 100% | 100% |
 | `JEST_EXTRA_ARGS` usage | 0 | 0 |
 | Cluster-only services | 0 | 0 |
 
