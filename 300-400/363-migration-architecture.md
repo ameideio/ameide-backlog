@@ -23,6 +23,8 @@ This backlog is the canonical reference for how migrations work today and where 
 
 ## Architecture Overview
 
+> **Update (2025-12-22):** GitOps now treats Flyway as **schema-only**. Baseline/demo data is owned by GitOps seed Jobs (e.g. `platform-dev-data`), and the GitOps `db-migrations` chart neutralizes legacy seed SQL so new environments don’t get tenant/org/demo rows from Flyway.
+
 ### Components
 
 | Component | Responsibility |

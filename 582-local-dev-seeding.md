@@ -66,10 +66,8 @@ Today, “dev data” is split across multiple places with drift risk:
 
 ### DB baseline seed ambiguity
 
-- V1 seeds tenant/org + roles `admin/contributor/viewer/guest/service` and membership for `admin@ameide.io`:  
-  `../db/flyway/sql/platform/V1__initial_schema.sql`
-- Repeatable seed introduces roles `owner/member` and rewrites membership:  
-  `../db/flyway/sql/platform/R__seed_baseline_data.sql`
+- (Historical) Flyway `V1__initial_schema.sql` and `R__seed_baseline_data.sql` seeded a default tenant/org/roles/memberships (and additional demo data), which created drift against the GitOps dev-data contract.
+- **Update (2025-12-22):** GitOps now treats Flyway as **schema-only**; baseline/persona data is owned by `platform-dev-data` seed/verify Jobs (local/dev only).
 
 ### Code “magic” defaults still exist
 

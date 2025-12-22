@@ -47,9 +47,8 @@ kubectl -n ameide logs -f job/data-db-migrations
 - These are manual-trigger local_resources (auto_init=false); use Tilt UI or `tilt trigger <resource>` when you need to rerun migrations outside the Argo wave.
 
 ## Alignment with Flyway layout
-- Schema files live in `db/flyway/sql` (versioned `V__` files) and `db/flyway/repeatable` (`R__` files); documented in `db/flyway/README.md`.
-- The Flyway image (`migrations/Dockerfile.dev` for Tilt/local helpers, `migrations/Dockerfile.release` for GitOps/CI) copies those directories; both paths stay in sync.
-- Local value `migrations.seedDemoData` controls the demo seed repeatable; the Job sets the placeholder when enabled (see Flyway README and chart values).
+- (Historical) Flyway scripts were split between versioned (`V__`) and repeatable (`R__`) migrations under `db/flyway/**`, copied into the migrations image.
+- **Update (2025-12-22):** GitOps now treats Flyway as **schema-only**. Any baseline/demo data belongs to GitOps seed Jobs (e.g. `platform-dev-data`), not Flyway repeatables or versioned migrations.
 
 ## No Helmfile layers
 - The legacy Helmfile “layer 42” flow no longer exists; migrations deploy via the Argo Application (`data-db-migrations`) or the direct script `infra/kubernetes/scripts/run-migrations.sh` (Helm install from `gitops/ameide-gitops/sources/charts/platform-layers/db-migrations`).

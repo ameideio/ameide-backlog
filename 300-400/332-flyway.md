@@ -6,6 +6,8 @@
 **Date:** 2025-10-30
 **Related Issues:** Agents service database connectivity, schema drift prevention
 
+> **Update (2025-12-22):** Flyway is now treated as **schema-only** in GitOps; baseline/demo data (tenant/org/roles/repositories/personas) is owned by GitOps seed Jobs (e.g. `platform-dev-data`), not Flyway `V__`/`R__` scripts.
+
 ---
 
 ## 2025-11-05 Follow-up

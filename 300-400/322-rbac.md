@@ -104,7 +104,7 @@ Below is a concrete plan and copy‑pasteable examples.
 **Canonical role alignment – implementation touchpoints**:
 - Platform proto (`packages/ameide_core_proto/src/ameide_core_proto/platform/v1/roles.proto`): `ROLE_ADMIN`, `ROLE_CONTRIBUTOR`, `ROLE_SERVICE`, `ROLE_GUEST`, and `ROLE_VIEWER` should emit `admin`, `contributor`, `service`, `guest`, and `viewer` respectively.
 - Keycloak seeding (`services/www_ameide_platform/lib/keycloak-admin.ts`): tenant bootstrap must create and expose the five canonical roles only.
-- Database defaults (`db/flyway/sql/platform/V2__seed_baseline_data.sql`) and onboarding orchestration (`services/www_ameide_platform/features/identity/lib/orchestrator.ts`): seed all five canonical roles, including the `service` role for automation accounts, and surface assignment APIs/tests so automation clients round-trip through membership, middleware, and token issuance.
+- Database seeding (GitOps contract): seed all five canonical roles, including the `service` role for automation accounts, and surface assignment APIs/tests so automation clients round-trip through membership, middleware, and token issuance. (Flyway should remain schema-only; local/dev uses `platform-dev-data` seed/verify Jobs.)
 
 ---
 
