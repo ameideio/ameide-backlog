@@ -122,7 +122,7 @@ Contract should specify:
 Keep the baseline dataset intentionally boring and stable:
 
 - **Tenant:** `tenant-atlas`
-- **Org:** `atlas` (must match `services.www_ameide_platform.organization.defaultOrg`)
+- **Org:** `atlas` (must match Keycloak group `/orgs/atlas` and platform organization key)
 - **Canonical role codes:** `admin`, `contributor`, `viewer`, `guest`, `service` (avoid introducing `owner/member`)
 - **Deterministic platform user IDs:** use `user_id=email` for seeded personas so platform memberships stay stable and `www-ameide-platform` can match memberships reliably.
 

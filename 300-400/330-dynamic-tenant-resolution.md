@@ -334,40 +334,14 @@ export async function GET(request: Request) {
 
 ### Phase 3: Infrastructure Changes
 
-#### 3.1. Provide organization defaults through `services.*`
+#### 3.1. Organization context is session-only (no default-org env)
 
-Environment fallbacks were removed from the application code, but Helm must still emit the _organization slug_ that middleware/auth expose to the browser, Telepresence env files, and the ConfigMap. Instead of relying on the deprecated `tenant.defaultOrg` block, wire the slug through `services.www_ameide_platform.organization.defaultOrg` so the chart can fail fast when it is missing.
+`www-ameide-platform` must derive **tenant + org** exclusively from the auth session (JWT claims + middleware headers), not from environment defaults.
 
-**Files**:
+- Dev data determinism comes from **GitOps seeding + verification** (see [582 – Local Dev Seeding](../582-local-dev-seeding.md)), not app fallbacks.
+- Telepresence should only require connectivity-critical env vars (e.g., `AMEIDE_ENVOY_URL`, `NEXT_PUBLIC_ENVOY_URL`). Org defaults are deprecated/test-only.
 
-- `sources/values/_shared/values.yaml`
-- `sources/values/{dev,staging,production}/apps/www-ameide-platform*.yaml`
-- `sources/charts/apps/www-ameide-platform/templates/configmap.yaml`
-
-Required structure:
-
-```yaml
-services:
-  www_ameide_platform:
-    envoy:
-      url: http://envoy-grpc:9000
-    organization:
-      defaultOrg: atlas
-```
-
-The ConfigMap template must emit **all three** organization env vars from this block:
-
-```yaml
-AUTH_DEFAULT_ORG: {{ $defaultOrg | quote }}
-NEXT_PUBLIC_DEFAULT_ORG: {{ $defaultOrg | quote }}
-WWW_AMEIDE_PLATFORM_ORG_ID: {{ $defaultOrg | quote }}
-```
-
-- `AUTH_DEFAULT_ORG` – read by Auth.js middleware / server components
-- `NEXT_PUBLIC_DEFAULT_ORG` – exposed to the browser (fallback routing, telemetry)
-- `WWW_AMEIDE_PLATFORM_ORG_ID` – Telepresence env files + scripts expect this value to match the slug in Keycloak
-
-Any environment missing the `services.www_ameide_platform.organization.defaultOrg` block should fail `helm template`/`argocd` sync. Keep `tenant.defaultId` only for the temporary `DEFAULT_TENANT_ID` env var until the SDK work in this backlog removes it entirely.
+If tests need an explicit org ID/slug, use a **test-only entrypoint/fixture** rather than runtime fallbacks (e.g. `WWW_AMEIDE_PLATFORM_ORG_ID` for integration tests).
 
 #### 3.2. Update Type Definitions
 

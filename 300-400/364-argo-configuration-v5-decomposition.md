@@ -42,7 +42,7 @@ gitops/
 
 > **Values + charts layout:** environment overrides and charts now live inside the GitOps repo (`sources/values/<env>/{foundation,platform,apps,tests}` and `sources/charts/{foundation,platform-layers,apps,...}`). Component metadata references those paths via the `chart` block, so Argo needs only the GitOps repo to render everything.
 
-> **New required value (Dec 2025):** the `www-ameide-platform` chart now emits `NEXT_PUBLIC_DEFAULT_ORG`, `AUTH_DEFAULT_ORG`, and `WWW_AMEIDE_PLATFORM_ORG_ID` from its ConfigMap. GitOps environments **must** set `services.www_ameide_platform.organization.defaultOrg` (see `services/www_ameide_platform/values.example.yaml`) or Helm rendering will fail via `required(...)`. This keeps pod + Telepresence env files in sync and avoids runtime crashes during login.
+> **Required value (Dec 2025):** the `www-ameide-platform` chart must emit Envoy endpoints used by Telepresence/local dev (e.g. `AMEIDE_ENVOY_URL`, `NEXT_PUBLIC_ENVOY_URL`). Tenant/org defaults must come from the auth session; legacy org-default env vars are deprecated/test-only and should not gate Helm rendering.
 
 ---
 
