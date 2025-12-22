@@ -50,7 +50,7 @@ Run all service packs (repo mode):
 INTEGRATION_MODE=repo bash -lc 'for f in services/*/__tests__/integration/run_integration_tests.sh; do echo "==> $f"; bash "$f"; done'
 ```
 
-For target-state rules (folder structure, `__mocks__/`, runner script contract), see `backlog/430-unified-test-infrastructure.md`.
+For target-state rules (folder structure, `__mocks__/`, runner script contract), see `430-unified-test-infrastructure.md`.
 
 ## Operators (control plane)
 
