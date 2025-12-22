@@ -89,7 +89,7 @@ Integration runners exist so deterministic tool steps can run without turning th
 
 In v1, long-running tool runs execute via **queue-driven ephemeral execution** in Kubernetes:
 
-- A KEDA `ScaledJob` consumes `WorkRequested` facts and schedules a **Kubernetes Job per message** (one WorkRequest per Job).
+- A KEDA `ScaledJob` schedules **Kubernetes Jobs** based on Kafka consumer group lag on `WorkRequested` (KEDA is the scaler/scheduler; Jobs are the consumers).
 - The Job executes the requested tool run, produces evidence artifacts, and records outcomes back into Domain via a Domain intent.
 
 Hard rule (v1): queue-triggered Jobs MUST consume **WorkRequested** facts (explicitly requested by Process/Domain), not raw external webhooks/events.

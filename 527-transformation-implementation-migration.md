@@ -255,7 +255,7 @@ WP‑B is implemented **proto-first** so orchestration and evidence do not drift
   - set retention/cleanup to reflect “Kafka is transport, not evidence” (short retention + delete policy; evidence is persisted in Domain and object storage)
 - KEDA:
   - install/configure KEDA in `local`/`dev` (and any required broker scaler wiring)
-  - KEDA ScaledJob (normative) with a Kafka trigger that consumes `WorkRequested` and schedules one Kubernetes Job per WorkRequest (Job is the Kafka consumer; scale is by consumer group lag)
+  - KEDA ScaledJob (normative) with a Kafka trigger that schedules Kubernetes Jobs based on consumer group lag on `WorkRequested` (Job is the Kafka consumer; scale is by consumer group lag)
 - Kubernetes security + runtime wiring:
   - ServiceAccounts/RBAC + NetworkPolicy for runner Jobs (least privilege)
   - secrets/config injection required for repo checkout, evidence upload, and Domain callbacks
@@ -281,7 +281,7 @@ We implement WP‑B using a strict “small → large” ladder per `backlog/537
 5. **Process workflow tests (Temporal test env)**
    - Workflow requests a WorkRequest (domain intent), awaits completion facts, emits `ToolRunRecorded` / `GateDecisionRecorded` deterministically.
 6. **Kubernetes substrate test (KEDA + Job)**
-   - In a kind-style acceptance environment, a KEDA ScaledJob schedules exactly one devcontainer-derived Job for one `WorkRequested`, and the Job records completion/evidence in Domain.
+   - In a kind-style acceptance environment, a KEDA ScaledJob schedules a devcontainer-derived Job for a `WorkRequested`, and the Job records completion/evidence in Domain; duplicates are tolerated and converge via idempotency keys.
 7. **Headless end-to-end (no UISurface)**
    - Full slice: Process → Domain WorkRequest → KEDA Job → Domain evidence/outcome → Process facts → Projection timeline; assertions run via APIs/queries only.
 

@@ -237,7 +237,7 @@ To make “ephemeral jobs from a queue” safe and interoperable without turning
 1. **Process decides** a tool/agent step is needed (policy + orchestration).
 2. **Process requests execution** via a **Domain intent** that creates a `WorkRequest` record (idempotent).
 3. **Domain persists** the WorkRequest and emits a **domain fact** (`WorkRequested`) after commit (outbox).
-4. **Execution backend runs** (KEDA ScaledJob schedules an in-cluster ephemeral Job) by consuming `WorkRequested` facts:
+4. **Execution backend runs**: KEDA ScaledJob schedules in-cluster ephemeral Jobs based on Kafka consumer group lag on `WorkRequested` (KEDA schedules; the Job consumes):
    - it executes exactly what was requested (no extra policy),
    - writes artifacts to object storage,
    - records outcomes back into Domain via a Domain intent (idempotent).
