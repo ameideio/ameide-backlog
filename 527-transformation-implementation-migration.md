@@ -35,6 +35,7 @@ This section is a lightweight status tracker against the work packages below.
 - [ ] WP-0 Repo health: confirm repo-wide codegen drift gates are green and enforceable in CI (regen-diff).
 - [x] GitOps parity (execution substrate): KEDA + Kafka work-queue topics + workbench + secret wiring exist in `ameide-gitops` (enabled in `local` + `dev`; disabled elsewhere).
 - [x] GitOps parity (runtimes): Process/Agent/Projection/UISurface runtime components exist in `ameide-gitops` and local has a minimal “stacktest” set enabled (`process-ping-v0`, `agent-echo-v0`, `projection-foo-v0`, `uisurface-hello-v0`) to validate the substrate end-to-end.
+- [x] GitOps parity (images): primitive images published by CI are `ghcr.io/ameideio/primitive-<suffix>:<tag>` (e.g. `primitive-process-transformation:dev`), so GitOps MUST use the `primitive-` prefix for primitives.
 
 Gates (currently passing):
 
@@ -47,6 +48,32 @@ Quick verification (GitOps / cluster truth):
 - `local-data-data-plane-smoke` asserts WorkRequests execution queue topics and WorkRequests runner KEDA `ScaledJob` objects (gated; enabled in `local` + `dev`).
 - `local-foundation-operators-smoke` asserts KEDA operator deployments and the external metrics `APIService` (when KEDA is installed).
 - Primitive runtime apps: ArgoCD Applications `local-process-ping-v0`, `local-agent-echo-v0`, `local-projection-foo-v0`, `local-uisurface-hello-v0` should be `Synced/Healthy`, and the corresponding `ameide.io/*` CRs should report `Ready=True`.
+
+### Operational gotcha: primitive image naming
+
+`ameide` publishes primitive images from `primitives/**/Dockerfile.main` with the name:
+
+- `primitive-` + `primitives/<kind>/<capability>` path (slashes become `-`)
+
+Examples:
+
+- `primitives/process/transformation` → `ghcr.io/ameideio/primitive-process-transformation:dev`
+- `primitives/projection/transformation` → `ghcr.io/ameideio/primitive-projection-transformation:dev`
+
+If GitOps references `ghcr.io/ameideio/process-transformation:dev` (missing `primitive-`), Kubernetes will hit `ImagePullBackOff` even when the CI build is green.
+
+### Recent failure mode (local): projection migrations CrashLoop
+
+If `transformation-v0-projection` is `CrashLoopBackOff` with:
+
+- `failed to ensure migrations ... syntax error at or near \"//\" (SQLSTATE 42601)`
+
+…the `primitive-projection-transformation:dev` image is older than `ameide` PR **#348** (the fix removes an accidental `// nosemgrep...` prefix inside the SQL string literal).
+
+Operational note: with `imagePullPolicy: IfNotPresent`, k3d/k3s may keep a cached `:dev` image; delete the cached image on the node and restart the pod to force a pull:
+
+- `docker exec k3d-ameide-agent-0 sh -lc 'crictl rmi ghcr.io/ameideio/primitive-projection-transformation:dev || true'`
+- `kubectl -n ameide-local delete pod -l app.kubernetes.io/name=projection,app.kubernetes.io/instance=transformation-v0`
 
 ## 1) Alignment to 520 (normative constraints)
 

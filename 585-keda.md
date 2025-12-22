@@ -72,6 +72,14 @@ From a kube context pointing at `ameide-local`:
 
 ## 5) Follow-ups (not yet implemented here)
 
-- Add a first in-repo example `ScaledObject`/`ScaledJob` (e.g., for 527 WorkRequest runner prototypes).
-- Add dedicated KEDA smoke checks (CRDs + APIService ready) alongside other cluster/data smokes if desired.
-- 527 substrate note: `workrequests-runner` scaffolds `ScaledJob` resources for `transformation.work.queue.toolrun.verify.v1`, `transformation.work.queue.toolrun.generate.v1`, and `transformation.work.queue.agentwork.coder.v1` (local enabled; placeholder container until the real WorkRequest consumer exists).
+- Add a first `ScaledObject` example (Deployment autoscaling) if we need it.
+- Keep evolving the WorkRequests `ScaledJob` scaffolding into a real consumer runtime (currently placeholder container; local/dev enabled).
+- Optional: add *cluster-scoped* KEDA smoke checks (CRDs + APIService ready) alongside other control-plane smokes if we want earlier failure signals than “first ScaledJob reconcile”.
+
+### Current in-repo ScaledJob example (implemented)
+
+For 527’s execution substrate, `ameide-gitops` already provisions:
+
+- WorkRequests queue topics: `sources/values/_shared/data/data-kafka-workrequests-topics.yaml` (enabled in `local` + `dev`).
+- WorkRequests `ScaledJob` objects: `sources/values/_shared/apps/workrequests-runner.yaml` (enabled in `local` + `dev`).
+- GitOps validation: `local-data-data-plane-smoke` checks both KafkaTopics and ScaledJobs when enabled (see `sources/values/_shared/data/data-data-plane-smoke.yaml`).
