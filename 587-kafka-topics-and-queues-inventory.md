@@ -17,9 +17,9 @@ Topic names are logical and must remain stable across environments.
   - `<capability>.<class>.<kind>.v<major>`
   - where `class ∈ {domain, process}`, `kind ∈ {intents, facts}`
   - examples: `scrum.domain.facts.v1`, `transformation.knowledge.domain.facts.v1`
-- **Execution queues** (recommended; to avoid collisions across capabilities):
-  - `<capability>.<executor_class>.<executor_kind>.v<major>`
-  - examples (Transformation): `transformation.toolrun.verify.v1`, `transformation.agentwork.coder.v1`
+- **Execution queues** (recommended; 509-aligned extension):
+  - `<capability>.work.queue.<executor_class>.<executor_kind>.v<major>`
+  - examples (Transformation): `transformation.work.queue.toolrun.verify.v1`, `transformation.work.queue.agentwork.coder.v1`
 
 Hard rule: execution queues MUST NOT be “mixed streams” of unrelated facts; they should contain only `WorkRequested`-class work items so scaling reacts only to explicit work requests.
 
@@ -29,9 +29,9 @@ This table is the **actual** set of topics created by GitOps (Strimzi Topic Oper
 
 | Topic | Category | GitOps source | Enabled envs | Notes |
 |---|---|---|---|---|
-| `toolrun.verify.v1` | execution queue | `sources/values/_shared/data/data-kafka-workrequests-topics.yaml` | `local`, `dev` | WorkRequests queue (verify class); see 586 |
-| `toolrun.generate.v1` | execution queue | `sources/values/_shared/data/data-kafka-workrequests-topics.yaml` | `local`, `dev` | WorkRequests queue (generate class); see 586 |
-| `agentwork.coder.v1` | execution queue | `sources/values/_shared/data/data-kafka-workrequests-topics.yaml` | `local`, `dev` | WorkRequests queue (agent work); see 586 |
+| `transformation.work.queue.toolrun.verify.v1` | execution queue | `sources/values/_shared/data/data-kafka-workrequests-topics.yaml` | `local`, `dev` | WorkRequests queue (verify class); see 586 |
+| `transformation.work.queue.toolrun.generate.v1` | execution queue | `sources/values/_shared/data/data-kafka-workrequests-topics.yaml` | `local`, `dev` | WorkRequests queue (generate class); see 586 |
+| `transformation.work.queue.agentwork.coder.v1` | execution queue | `sources/values/_shared/data/data-kafka-workrequests-topics.yaml` | `local`, `dev` | WorkRequests queue (agent work); see 586 |
 
 Capability inventories:
 
@@ -75,4 +75,4 @@ When a PR adds/renames any Kafka topic (either as a Strimzi `KafkaTopic` or as a
 
 - Update this backlog (587) to keep the fleet index correct.
 - Update the relevant capability backlog (e.g., 586 for WorkRequests queues).
-- If namespacing changes (e.g., `toolrun.verify.v1` → `transformation.toolrun.verify.v1`), capture a migration plan and timebox the old names.
+- If namespacing changes, capture a migration plan and timebox the old names.

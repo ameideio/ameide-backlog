@@ -28,15 +28,15 @@ We should keep queue topics **namespaced by capability** (or by a shared `workre
 Recommended pattern for execution queues:
 
 ```text
-<capability>.<executor_class>.<executor_kind>.v<major>
+<capability>.work.queue.<executor_class>.<executor_kind>.v<major>
 ```
 
 Example (Transformation):
-- `transformation.toolrun.verify.v1`
-- `transformation.toolrun.generate.v1`
-- `transformation.agentwork.coder.v1`
+- `transformation.work.queue.toolrun.verify.v1`
+- `transformation.work.queue.toolrun.generate.v1`
+- `transformation.work.queue.agentwork.coder.v1`
 
-**Current state (implemented today):** the topics are global/un-prefixed (`toolrun.verify.v1`, …). This inventory tracks them and the eventual rename plan.
+**Current state (implemented today):** the topics are capability-prefixed and 509-aligned (`transformation.work.queue.*.v1`).
 
 ## 3) Inventory (current GitOps implementation)
 
@@ -47,9 +47,9 @@ Enabled environments:
 
 | Queue purpose | Kafka topic (current) | KafkaTopic resource | KEDA ScaledJob | Consumer group | Notes |
 |---|---|---|---|---|---|
-| Tool runs (verify) | `toolrun.verify.v1` | `KafkaTopic/toolrun-verify-v1` | `ScaledJob/workrequests-toolrun-verify` | `workrequests-toolrun-verify-v1` | Placeholder container until real consumer exists |
-| Tool runs (generate) | `toolrun.generate.v1` | `KafkaTopic/toolrun-generate-v1` | `ScaledJob/workrequests-toolrun-generate` | `workrequests-toolrun-generate-v1` | Placeholder container until real consumer exists |
-| Agent work (coder) | `agentwork.coder.v1` | `KafkaTopic/agentwork-coder-v1` | `ScaledJob/workrequests-agentwork-coder` | `workrequests-agentwork-coder-v1` | Placeholder container until real consumer exists |
+| Tool runs (verify) | `transformation.work.queue.toolrun.verify.v1` | `KafkaTopic/transformation-work-queue-toolrun-verify-v1` | `ScaledJob/workrequests-toolrun-verify` | `transformation-work-queue-toolrun-verify-v1` | Placeholder container until real consumer exists |
+| Tool runs (generate) | `transformation.work.queue.toolrun.generate.v1` | `KafkaTopic/transformation-work-queue-toolrun-generate-v1` | `ScaledJob/workrequests-toolrun-generate` | `transformation-work-queue-toolrun-generate-v1` | Placeholder container until real consumer exists |
+| Agent work (coder) | `transformation.work.queue.agentwork.coder.v1` | `KafkaTopic/transformation-work-queue-agentwork-coder-v1` | `ScaledJob/workrequests-agentwork-coder` | `transformation-work-queue-agentwork-coder-v1` | Placeholder container until real consumer exists |
 
 GitOps sources (authoritative):
 
@@ -69,22 +69,16 @@ GitOps sources (authoritative):
   - `bootstrapServers`: namespace-qualified (e.g., `kafka-kafka-bootstrap.ameide-local:9092`) because scaler runs in `keda-system`
   - `lagThreshold="1"`, `offsetResetPolicy=latest`
 
-## 5) Rename plan (when we choose to namespace)
+## 5) Rename plan (if we ever change names again)
 
-We can rename without data migration concerns because these queues are transport-only and are currently not fed by any production consumer.
+We can rename without data migration concerns because these queues are transport-only; correctness is backed by Domain persistence + evidence storage.
 
-Suggested migration steps:
+If we rename again:
 
-1. Create new KafkaTopic resources for the namespaced topics.
-2. Update ScaledJobs to point at the new topics (and keep old topics temporarily if any producers exist).
-3. Update producers to publish to the new topics.
+1. Create new KafkaTopic resources for the new names.
+2. Update ScaledJobs/producers to point at the new topics.
+3. Keep old topics temporarily only if there are active producers/consumers.
 4. Delete old topics when empty + unused.
-
-Mapping (proposal):
-
-- `toolrun.verify.v1` → `transformation.toolrun.verify.v1`
-- `toolrun.generate.v1` → `transformation.toolrun.generate.v1`
-- `agentwork.coder.v1` → `transformation.agentwork.coder.v1`
 
 ## 6) Follow-ups (to track explicitly)
 

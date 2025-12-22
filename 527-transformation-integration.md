@@ -111,14 +111,14 @@ Kafka consumer rules (required):
 GitOps wiring expectation (normative):
 
 - Dedicated Kafka work-queue topics exist for WorkRequests (do not share with unrelated domain facts).
-- Prefer “one topic per role/class of work” (e.g., `toolrun.verify`, `toolrun.generate`, `agentwork.coder`) so scaling, ServiceAccounts, and external credentials can be scoped tightly per executor.
+- Prefer “one topic per role/class of work” (e.g., `transformation.work.queue.toolrun.verify.v1`, `transformation.work.queue.toolrun.generate.v1`, `transformation.work.queue.agentwork.coder.v1`) so scaling, ServiceAccounts, and external credentials can be scoped tightly per executor.
 
 GitOps baseline (normative; Kafka + KEDA):
 
 - Kafka topics:
-  - `toolrun.verify.v1`
-  - `toolrun.generate.v1`
-  - `agentwork.coder.v1`
+  - `transformation.work.queue.toolrun.verify.v1`
+  - `transformation.work.queue.toolrun.generate.v1`
+  - `transformation.work.queue.agentwork.coder.v1`
   - payload is a `WorkRequested` envelope (or equivalent reference) suitable for at-least-once delivery; evidence/outcomes are persisted elsewhere (Domain + object storage)
   - partitions: size for expected parallelism (recommend ≥ 12 for bursty tool runs; tune later)
   - retention: short (e.g., 1–7 days); Kafka is not the evidence store
@@ -128,7 +128,7 @@ GitOps baseline (normative; Kafka + KEDA):
   - avoid sharing groups across executor images/roles (least privilege + predictable scaling)
 - KEDA ScaledJob trigger (Kafka):
   - `bootstrapServers`: the Strimzi bootstrap service for the cluster (e.g., `kafka-kafka-bootstrap:9092` within the namespace)
-  - `topic`: the WorkRequest queue topic (e.g., `toolrun.verify.v1`)
+  - `topic`: the WorkRequest queue topic (e.g., `transformation.work.queue.toolrun.verify.v1`)
   - `consumerGroup`: the executor class group name
   - `lagThreshold`/`activationLagThreshold`: tune per role (low for verify, higher for heavy builds)
   - authentication:
@@ -151,7 +151,7 @@ This does not imply “VS Code devcontainer” in-cluster; it means the **same c
 Implemented (and enabled in `local` + `dev`, disabled elsewhere):
 
 - KEDA installed cluster-scoped (see `backlog/585-keda.md`).
-- Kafka topics created: `toolrun.verify.v1`, `toolrun.generate.v1`, `agentwork.coder.v1`.
+- Kafka topics created: `transformation.work.queue.toolrun.verify.v1`, `transformation.work.queue.toolrun.generate.v1`, `transformation.work.queue.agentwork.coder.v1`.
 - Workbench pod (`workrequests-workbench`) deployed for admin attach/exec (not a processor).
 - Secrets are synced via ExternalSecrets:
   - `workrequests-github-token` (`token`)
@@ -164,7 +164,7 @@ Implemented (and enabled in `local` + `dev`, disabled elsewhere):
 
 Scaffolded but intentionally disabled until a real WorkRequest consumer exists:
 
-- KEDA `ScaledJob` resources for `toolrun.verify.v1`, `toolrun.generate.v1`, `agentwork.coder.v1`.
+- KEDA `ScaledJob` resources for `transformation.work.queue.toolrun.verify.v1`, `transformation.work.queue.toolrun.generate.v1`, `transformation.work.queue.agentwork.coder.v1`.
 
 #### Debug/admin mode (workbench pod; not a processor)
 
@@ -202,7 +202,7 @@ Idempotency + ack discipline (required):
 - A Job MUST NOT ack/delete its message until it has durably recorded the outcome in Domain (idempotently) and persisted/linked evidence artifacts.
 - Domain MUST treat `client_request_id` as an idempotency key for result recording so duplicate Job runs converge to one canonical outcome record.
 
-Recommendation: use “one queue per role/class of work” (e.g., `toolrun.verify`, `toolrun.generate`, `agentwork.coder`) so Kubernetes ServiceAccounts and external credentials can be scoped tightly per workload.
+Recommendation: use “one queue per role/class of work” (e.g., `transformation.work.queue.toolrun.verify.v1`, `transformation.work.queue.toolrun.generate.v1`, `transformation.work.queue.agentwork.coder.v1`) so Kubernetes ServiceAccounts and external credentials can be scoped tightly per workload.
 
 ### 1.0.4 Execution scopes (verify posture; v1)
 

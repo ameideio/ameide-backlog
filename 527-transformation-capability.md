@@ -66,7 +66,7 @@ This section is the current repo snapshot of **what is implemented vs what is st
 - [x] Scope identity is required everywhere: `{tenant_id, organization_id, repository_id}`.
 - [x] `repository_id` is the only repository identifier in contracts/APIs (no separate `graph_id`).
 - [x] Legacy backends are removed; all flows must go through primitives (see “Deletion”).
-- [x] Work execution scales only on dedicated work-queue topics (`toolrun.verify.v1`, `toolrun.generate.v1`, `agentwork.coder.v1`), not on canonical domain fact streams.
+- [x] Work execution scales only on dedicated work-queue topics (`transformation.work.queue.toolrun.verify.v1`, `transformation.work.queue.toolrun.generate.v1`, `transformation.work.queue.agentwork.coder.v1`), not on canonical domain fact streams.
 
 ### Transformation Knowledge (Domain + Projection + UISurface wiring)
 
@@ -265,9 +265,9 @@ Hard rules (v1):
 
 Queue topics (v1; dedicated per class of work to avoid scaling on non-WorkRequested facts):
 
-- `toolrun.verify.v1`
-- `toolrun.generate.v1`
-- `agentwork.coder.v1`
+- `transformation.work.queue.toolrun.verify.v1`
+- `transformation.work.queue.toolrun.generate.v1`
+- `transformation.work.queue.agentwork.coder.v1`
 
 Implementation status (GitOps; `ameide-gitops`):
 

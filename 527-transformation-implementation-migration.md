@@ -252,9 +252,9 @@ WP‑B is implemented **proto-first** so orchestration and evidence do not drift
 
 - Kafka (broker wiring; normative):
   - create the WorkRequest execution queue topics (dedicated per executor class) so KEDA scales only on WorkRequested lag (not on unrelated domain facts):
-    - `toolrun.verify.v1`
-    - `toolrun.generate.v1`
-    - `agentwork.coder.v1`
+    - `transformation.work.queue.toolrun.verify.v1`
+    - `transformation.work.queue.toolrun.generate.v1`
+    - `transformation.work.queue.agentwork.coder.v1`
   - note: these queue topics are distinct from canonical domain fact streams (e.g., `transformation.*.facts.v1`) which exist for persistence/projection; scaling MUST NOT depend on them
   - define the consumer group naming convention per executor class/role (e.g., `transformation-workrequest-executor.v1.<kind>`) and bind it in KEDA trigger metadata
   - set retention/cleanup to reflect “Kafka is transport, not evidence” (short retention + delete policy; evidence is persisted in Domain and object storage)
@@ -318,9 +318,9 @@ Secrets + bootstrap fixtures:
 
 Kafka topics (dedicated per executor class so scaling does not react to non-WorkRequested facts):
 
-- `toolrun.verify.v1`
-- `toolrun.generate.v1`
-- `agentwork.coder.v1`
+- `transformation.work.queue.toolrun.verify.v1`
+- `transformation.work.queue.toolrun.generate.v1`
+- `transformation.work.queue.agentwork.coder.v1`
 
 Inventory + naming follow-up:
 
@@ -328,9 +328,9 @@ Inventory + naming follow-up:
 
 Consumer groups (current GitOps scaffolding; subject to future naming convention finalization):
 
-- `workrequests-toolrun-verify-v1`
-- `workrequests-toolrun-generate-v1`
-- `workrequests-agentwork-coder-v1`
+- `transformation-work-queue-toolrun-verify-v1`
+- `transformation-work-queue-toolrun-generate-v1`
+- `transformation-work-queue-agentwork-coder-v1`
 
 ### Implementation gotchas captured (so we don’t regress)
 

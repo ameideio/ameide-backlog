@@ -63,7 +63,7 @@ Workflow steps often require deterministic tool execution (scaffolding, codegen,
 
 Kafka note (normative):
 
-- The WorkRequest queue uses dedicated Kafka topics per executor class (v1: `toolrun.verify.v1`, `toolrun.generate.v1`, `agentwork.coder.v1`); KEDA scales by consumer group lag and the Job is the Kafka consumer.
+- The WorkRequest queue uses dedicated Kafka topics per executor class (v1: `transformation.work.queue.toolrun.verify.v1`, `transformation.work.queue.toolrun.generate.v1`, `transformation.work.queue.agentwork.coder.v1`); KEDA scales by consumer group lag and the Job is the Kafka consumer.
 - WorkRequest processors must disable auto-commit and only commit offsets after outcomes/evidence are durably recorded in Domain.
 
 ## 3) BPMN ProcessDefinitions (executable + scaffolding driver)
