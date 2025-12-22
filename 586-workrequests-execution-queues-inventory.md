@@ -6,6 +6,8 @@
 1) keep names consistent with `backlog/509-proto-naming-conventions.md`, and  
 2) avoid accidental collisions as additional capabilities add their own WorkRequests queues.
 
+**Fleet index:** `backlog/587-kafka-topics-and-queues-inventory.md` (all Kafka topics/queues)
+
 > **Not in scope:** canonical domain/process fact streams (e.g., `transformation.*.facts.v1`) and their envelopes; those remain specified in 527 docs and protos.
 
 ## 1) Background (why these exist)
