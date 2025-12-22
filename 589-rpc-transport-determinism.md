@@ -139,6 +139,8 @@ Onboarding and org resolution depend on platform RPC availability. Ensure the pl
 P0 — make gRPC-internal deterministically usable by server callers:
 
 1. Ensure `grpc-internal` listener exists everywhere (port 9000, hostname `envoy-grpc`) and `grpcRoutes.*.sectionName` attaches to it.
+   - **Security requirement:** `grpc-internal` must be non-public (no port 9000 on a public LB). In GitOps this is implemented as a **separate internal Gateway** running in the control-plane namespace (`argocd`) with a **ClusterIP** data plane Service.
+   - In-cluster callers use `http://envoy-grpc:9000` (an `ExternalName` alias in the environment namespace) which resolves to the stable ClusterIP service in `argocd`.
 2. Ensure platform routing is enabled in `platform-gateway` values for each environment:
    - `gitops/ameide-gitops/sources/values/env/dev/platform/platform-gateway.yaml` already enables `grpcRoutes.platformService.enabled: true`
    - Add equivalent `grpcRoutes.platformService.enabled: true` (and required ports) to:
@@ -209,6 +211,8 @@ Transport determinism fixes routing failures, but org/onboarding correctness sti
 
 ### Landed
 
+- **`grpc-internal` is non-public**: internal Gateway (`<env-ns>-grpc-internal`) runs in `argocd` with a ClusterIP data plane, so port `9000` is never exposed on the public LB. `envoy-grpc` in the environment namespace is an `ExternalName` alias to `argocd/envoy-<env-ns>-grpc-internal`.
+- **Key Gateway templates** (for review / diffs): `gitops/ameide-gitops/sources/charts/apps/gateway/templates/gateway.yaml`, `gitops/ameide-gitops/sources/charts/apps/gateway/templates/envoyproxy-internal.yaml`, `gitops/ameide-gitops/sources/charts/apps/gateway/templates/envoy-grpc-internal-service.yaml`, `gitops/ameide-gitops/sources/charts/apps/gateway/templates/envoy-grpc-service.yaml`.
 - **Gateway routes enabled for staging/prod**: `grpcRoutes.platformService/workflowsService/inferenceService` enabled and attached to `grpc-internal` (no hostnames) in:
   - `gitops/ameide-gitops/sources/values/env/staging/platform/platform-gateway.yaml`
   - `gitops/ameide-gitops/sources/values/env/production/platform/platform-gateway.yaml`
@@ -234,7 +238,13 @@ To run locally:
 ### ArgoCD verification (example: local)
 
 - `local-platform-gateway` is `Synced`, and `GRPCRoute/platform` contains `ameide_core_proto.platform.v1.InvitationService`.
+- Public Envoy Service does not expose port `9000`; `envoy-<env-ns>-grpc-internal` exists as ClusterIP in `argocd`.
 - Confirm `www-ameide-platform-config` has both vars:
   - `AMEIDE_GRPC_BASE_URL=http://envoy-grpc:9000`
   - `NEXT_PUBLIC_ENVOY_URL=https://api.<env>.ameide.io`
 - Confirm platform Service port is `grpc` and has `appProtocol: grpc`.
+
+### Remaining TODOs (non-GitOps)
+
+- `ameideio/ameide` (`services/www_ameide_platform`): remove server-side dependency on `NEXT_PUBLIC_ENVOY_URL`; require `AMEIDE_GRPC_BASE_URL` for server gRPC upstream; keep browser on Connect/BFF (`/api`).
+- CI/release: ensure images used by staging/prod integration jobs include the Next.js env-var change, then keep the test-job env wiring aligned (`AMEIDE_GRPC_BASE_URL` internal; `NEXT_PUBLIC_ENVOY_URL` public).
