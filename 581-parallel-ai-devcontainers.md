@@ -13,7 +13,8 @@ Add three *additional* agent slots for parallel work; they do not replace the ge
 - Slots: `agent-01`, `agent-02`, `agent-03`
 - One clone per slot (recommended) or one worktree per slot (advanced)
 - One VS Code window per slot → “Reopen in Container”
-- One branch per slot (recommended namespace pattern: `agent/dev/<agent_slot>/<topic>`) → PRs merge into `dev` (protected; PR-only)
+- One workspace checkout branch per slot (created by the helper scripts): `ameide-agent-01|02|03`
+- One PR branch per change (recommended namespace pattern): `agent/dev/<agent_slot>/<topic>` → PRs merge into `dev` (protected; PR-only)
   - Never push directly to `dev`/`main`; always land changes via PR (see `backlog/400-agentic-development.md`).
 
 Convenience:
@@ -47,6 +48,8 @@ Preferred for reliability: **three separate clones**.
 Rationale: Git worktrees store a `.git` *file* that points at the “real” git dir under the main repo (often an absolute host path). In a devcontainer, that path may not exist, and Git inside the container can look “not initialized”.
 
 Worktrees can still work, but require careful mounts so the container can see the main repo’s `.git/` directory at the referenced path.
+
+Note: `./tools/dev/create-agent-worktrees.sh` mitigates common Dev Container worktree pitfalls by defaulting to a workspace-local `.worktrees/` folder when run inside a container and syncing `.devcontainer/` into each worktree.
 
 ## Telepresence + Tilt: same-workload parallelism
 
@@ -114,10 +117,10 @@ Reference: [VS Code Dev Containers - Persist bash history](https://code.visualst
   - `.devcontainer/devcontainer.json`: generic config, mounts shared volumes for `~/.codex`, `~/.azure`, `~/.kube`, `~/.config/ameide`.
   - `.devcontainer/agent/devcontainer.json`: agent config, sets `AMEIDE_BOOTSTRAP_PROFILE=agent` and sets `AMEIDE_AGENT_ID=${localWorkspaceFolderBasename}`.
 - Bootstrap:
-  - `.devcontainer/postCreate.sh` uses `AMEIDE_BOOTSTRAP_PROFILE` (planned: skip `tools/dev/bootstrap-contexts.sh` when `AMEIDE_BOOTSTRAP_PROFILE=agent` to avoid repeated side effects).
+  - `.devcontainer/postCreate.sh` uses `AMEIDE_BOOTSTRAP_PROFILE` and skips remote context bootstrapping when `AMEIDE_BOOTSTRAP_PROFILE=agent` to avoid repeated side effects.
 - Telepresence wrappers:
   - `scripts/telepresence/intercept_service.sh` uses agent-aware intercept naming and optional HTTP filtering (`AMEIDE_TELEPRESENCE_HTTP_FILTER=1`).
-  - `tools/dev/telepresence.sh intercept` is the generic helper entrypoint (planned: mirror the same agent-aware naming/filtering behavior).
+  - `tools/dev/telepresence.sh intercept` mirrors the same agent-aware naming/filtering behavior.
 
 ## Acceptance criteria
 
