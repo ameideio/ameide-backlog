@@ -5,7 +5,7 @@
 **Status:** Production Ready (Nov 2025) - ChatService integration complete with error recovery and telemetry
 **Priority:** High
 **Complexity:** Medium
-**Related:** gRPC architecture (completed), database schema (exists)
+**Related:** gRPC architecture (completed), database schema (exists), [589-rpc-transport-determinism.md](../589-rpc-transport-determinism.md), [428-onboarding.md](../428-onboarding.md), [417-envoy-route-tracking.md](../417-envoy-route-tracking.md)
 **Last Updated:** November 25, 2025
 
 ## Overview
@@ -1286,6 +1286,7 @@ export async function POST(request: Request) {
 **www-ameide-platform:**
 - [ ] `AMEIDE_GRPC_BASE_URL` (server-only internal gRPC endpoint; `http://envoy-grpc:9000`)
 - [ ] `NEXT_PUBLIC_ENVOY_URL` (public/browser config; typically `https://api.<env>.ameide.io`)
+  - Cross-reference: see [589-rpc-transport-determinism.md](../589-rpc-transport-determinism.md) for the deterministic Connect (browser) vs gRPC (server) boundary and why `grpc-internal` must be non-public.
 
 ### Gateway Configuration
 

@@ -1,6 +1,6 @@
 # Backlog 417: Envoy Gateway route coverage
 
-> **Related**: See [386-envoy-gateway-cert-tls-docs.md](386-envoy-gateway-cert-tls-docs.md) for TLS/cert-manager PKI, [436-envoy-gateway-observability.md](436-envoy-gateway-observability.md) for telemetry, and [459-httproute-ownership.md](459-httproute-ownership.md) for HTTPRoute ownership migration (apps own their routes).
+> **Related**: See [386-envoy-gateway-cert-tls-docs.md](386-envoy-gateway-cert-tls-docs.md) for TLS/cert-manager PKI, [436-envoy-gateway-observability.md](436-envoy-gateway-observability.md) for telemetry, [459-httproute-ownership.md](459-httproute-ownership.md) for HTTPRoute ownership migration (apps own their routes), and [589-rpc-transport-determinism.md](589-rpc-transport-determinism.md) for deterministic Connect vs gRPC boundary and the non-public `grpc-internal` listener.
 
 > ⚠️ **Remote-first note:** The inventories below previously referred to a local k3d cluster. After [435-remote-first-development.md](435-remote-first-development.md), "dev" means the shared AKS namespace (`ameide-dev`) reached via Telepresence; treat any residual k3d wording as historical context.
 

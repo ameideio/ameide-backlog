@@ -12,6 +12,8 @@ superseded_by: 430-unified-test-infrastructure.md
 > **DEPRECATED**: This backlog has been superseded by [430-unified-test-infrastructure.md](./430-unified-test-infrastructure.md).
 >
 > The content below is retained for historical reference. All new work should follow backlog 430.
+>
+> RPC transport/env-var determinism for cluster-mode tests is tracked in [589-rpc-transport-determinism.md](../589-rpc-transport-determinism.md).
 
 ---
 

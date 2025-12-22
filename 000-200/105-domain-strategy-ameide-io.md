@@ -7,6 +7,8 @@
 **Gateway**: ✅ Envoy Gateway v1.5.0 supporting both .test and .io domains
 **DevContainer**: ✅ Fully configured with .test domains and port mappings
 
+**Related backlogs**: [589-rpc-transport-determinism.md](../589-rpc-transport-determinism.md), [417-envoy-route-tracking.md](../417-envoy-route-tracking.md), [454-coredns-cluster-scoped.md](../454-coredns-cluster-scoped.md)
+
 ## Executive Summary
 
 Implement consistent domain naming across all environments. Local development uses `.test` domains for safety, while staging/production use `.io` domains. This ensures OAuth flows work correctly in each environment.

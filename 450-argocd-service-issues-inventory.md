@@ -18,7 +18,7 @@
 - `1bb02048 refactor(azure): treat identity/ip values as generated`
 - `e9400838 chore(azure): sync globals from terraform outputs`
 - `364ca7e8 ci(terraform): queue apply/destroy + add force-unlock workflow`
-**Related**: [442-environment-isolation.md](442-environment-isolation.md), [445-argocd-namespace-isolation.md](445-argocd-namespace-isolation.md), [446-namespace-isolation.md](446-namespace-isolation.md), [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md), [451-secrets-management.md](451-secrets-management.md), [456-ghcr-mirror.md](456-ghcr-mirror.md)
+**Related**: [442-environment-isolation.md](442-environment-isolation.md), [445-argocd-namespace-isolation.md](445-argocd-namespace-isolation.md), [446-namespace-isolation.md](446-namespace-isolation.md), [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md), [451-secrets-management.md](451-secrets-management.md), [456-ghcr-mirror.md](456-ghcr-mirror.md), [589-rpc-transport-determinism.md](589-rpc-transport-determinism.md)
 
 ---
 
