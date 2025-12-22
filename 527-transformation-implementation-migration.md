@@ -322,6 +322,10 @@ Kafka topics (dedicated per executor class so scaling does not react to non-Work
 - `toolrun.generate.v1`
 - `agentwork.coder.v1`
 
+Inventory + naming follow-up:
+
+- `backlog/586-workrequests-execution-queues-inventory.md` (canonical inventory + rename plan if we choose capability-namespaced topics)
+
 Consumer groups (current GitOps scaffolding; subject to future naming convention finalization):
 
 - `workrequests-toolrun-verify-v1`
