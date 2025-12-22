@@ -155,7 +155,7 @@ Attach expectations:
 - Minimum: `kubectl exec` is sufficient for an operator to reproduce and diagnose a failing WorkRequest.
 - If an IDE attach is required, expose the workbench via a dedicated remote access mechanism (e.g., `code-server` or SSH) in `local`/`dev` only. Do not assume VS Code Dev Containers can “Reopen in Container” against a Kubernetes pod.
 
-Note: `agent-01`/`agent-02`/`agent-03` refer to **external developer-mode workspaces** (parallel DevContainers/worktrees) per `backlog/581-parallel-ai-devcontainers.md`, not to cluster-native workbench instances.
+Note: `agent-01`/`agent-02`/`agent-03` refer to **external developer-mode workspaces** (parallel DevContainers using clones) per `backlog/581-parallel-ai-devcontainers.md`, not to cluster-native workbench instances.
 
 Hard rules:
 

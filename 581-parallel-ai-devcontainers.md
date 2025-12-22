@@ -11,15 +11,16 @@ Keep the existing “generic” devcontainer workflow for normal human developme
 Add three *additional* agent slots for parallel work; they do not replace the generic workflow:
 
 - Slots: `agent-01`, `agent-02`, `agent-03`
-- One clone per slot (recommended) or one worktree per slot (advanced)
+- One clone per slot (required; Git worktrees are deprecated for this repo’s Dev Container workflow)
 - One VS Code window per slot → “Reopen in Container”
 - One workspace checkout branch per slot (created by the helper scripts): `ameide-agent-01|02|03`
 - One PR branch per change (recommended namespace pattern): `agent/dev/<agent_slot>/<topic>` → PRs merge into `dev` (protected; PR-only)
   - Never push directly to `dev`/`main`; always land changes via PR (see `backlog/400-agentic-development.md`).
 
 Convenience:
-- `./tools/dev/create-agent-worktrees.sh` creates `ameide-agent-01..03` worktrees (and corresponding per-slot branches).
-- `./tools/dev/create-agent-clones.sh` creates `ameide-agent-01..03` clones (simpler with Dev Containers + Git).
+- `./tools/dev/create-agent-clones.sh` creates:
+  - a dedicated `ameide-dev` clone (optional “integrator seat” on `dev` for merging PRs), and
+  - `ameide-agent-01..03` clones (parallel agent slots).
 
 ### Scope: developer mode vs platform mode
 
@@ -35,7 +36,7 @@ The **platform mode** story (role-based ephemeral jobs from a queue, durable evi
 Devcontainer-provided identity:
 - `AMEIDE_AGENT_ID=${localWorkspaceFolderBasename}` (agent devcontainer)
 
-Recommended agent folder names (clone or worktree) so `${localWorkspaceFolderBasename}` carries the slot:
+Recommended agent folder names (clones) so `${localWorkspaceFolderBasename}` carries the slot:
 - `ameide-agent-01`, `ameide-agent-02`, `ameide-agent-03`
 
 Tooling convention:
@@ -43,13 +44,9 @@ Tooling convention:
 
 ## Git layout recommendation (Dev Containers)
 
-Preferred for reliability: **three separate clones**.
+We standardize on **separate clones** for parallel agent slots.
 
-Rationale: Git worktrees store a `.git` *file* that points at the “real” git dir under the main repo (often an absolute host path). In a devcontainer, that path may not exist, and Git inside the container can look “not initialized”.
-
-Worktrees can still work, but require careful mounts so the container can see the main repo’s `.git/` directory at the referenced path.
-
-Note: `./tools/dev/create-agent-worktrees.sh` mitigates common Dev Container worktree pitfalls by defaulting to a workspace-local `.worktrees/` folder when run inside a container and syncing `.devcontainer/` into each worktree.
+Rationale: Git worktrees store a `.git` *file* that points at a shared “real” git directory. In Dev Containers, that path frequently becomes invalid across host/container boundaries and leads to “repo not initialized” / missing-index style failures. Clones avoid that entire class of issues.
 
 ## Telepresence + Tilt: same-workload parallelism
 
