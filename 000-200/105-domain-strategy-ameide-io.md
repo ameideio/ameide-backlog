@@ -202,8 +202,9 @@ env:
   # Internal URLs for direct service calls (no CoreDNS needed)
   - name: KEYCLOAK_INTERNAL_URL
     value: "http://keycloak.ameide.svc.cluster.local:4000"
-  - name: API_INTERNAL_URL
-    value: "http://envoy.ameide.svc.cluster.local:8000"
+  # Server-only in-cluster gRPC endpoint (non-public).
+  - name: AMEIDE_GRPC_BASE_URL
+    value: "http://envoy-grpc:9000"
 ```
 
 **If CoreDNS override is required:**
@@ -664,7 +665,7 @@ global:
   # Static internal URLs (these don't change)
   internal:
     auth: "http://keycloak.ameide.svc.cluster.local:4000"
-    api: "http://envoy.ameide.svc.cluster.local:8000"
+    api: "http://envoy-grpc:9000"
     cache: "redis://redis-node-1.redis-headless.ameide.svc.cluster.local:6379"
 
 # values-local.yaml

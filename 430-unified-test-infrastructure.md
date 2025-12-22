@@ -425,7 +425,7 @@ Every test run emits:
   "mode": "cluster",
   "env": {
     "INTEGRATION_MODE": "cluster",
-    "GRPC_ADDRESS": "envoy.ameide.svc:443"
+    "AMEIDE_GRPC_BASE_URL": "http://envoy-grpc:9000"
   }
 }
 ```

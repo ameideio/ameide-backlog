@@ -39,7 +39,7 @@ Introduce explicit execution modes for all integration suites:
 - Default to `repo` whenever the variable is absent so laptops/devcontainers stay safe by default, but once a value is provided the helper must obey it exactly.
 - Local/devcontainer runs should stay on `repo`/`local`; cluster mode is reserved for CI/in-cluster runners with real dependencies. Don’t expect cluster mode to work locally.
 - Each integration helper inspects the parsed mode once and configures clients accordingly. Business tests remain untouched.
-- `mode=cluster` is “live integration”: assert **all** required env vars (`WORKFLOWS_DATABASE_URL`, `NEXT_PUBLIC_ENVOY_URL`, Temporal namespaces, etc.) and fail immediately if any dependency is missing. Never fall back to mocks in this path.
+- `mode=cluster` is “live integration”: assert **all** required env vars (`WORKFLOWS_DATABASE_URL`, `AMEIDE_GRPC_BASE_URL`, Temporal namespaces, etc.) and fail immediately if any dependency is missing. Never fall back to mocks in this path.
 - `mode=repo|local` is “mocked integration”: all external calls swap to deterministic stubs. Missing mock fixtures/config should also fail loudly—no partial/implicit behavior.
 
 ### Mode semantics & naming

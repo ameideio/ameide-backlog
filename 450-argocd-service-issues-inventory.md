@@ -629,6 +629,7 @@ Verification:
 
 - **Evidence**: `kube-system/coredns-custom` rewrites `*.{dev,staging}.ameide.io` and `*.ameide.io` to `envoy.ameide-<env>.svc.cluster.local`.
 - **Problem**: the `envoy` Service is an `ExternalName` alias that currently points to a hardcoded, non-existent/generated Envoy Gateway Service name (hash suffix), so in-cluster resolution for `auth.<env>.ameide.io` becomes unreliable.
+- **Update (2025-12-22)**: the `envoy` alias is now rendered as a stable `ExternalName` to `envoy-<env-namespace>.<control-plane-namespace>.svc.cluster.local` (no hash suffix). Also, server-side gRPC callers should use the dedicated internal gateway endpoint (`http://envoy-grpc:9000`) per `backlog/589-rpc-transport-determinism.md`.
 - **Impact**:
   - oauth2-proxy for Plausible fails OIDC discovery with `dial tcp ...:443: i/o timeout` against the rewritten hostname (`auth.<env>.ameide.io`), causing CrashLoop and `Degraded`.
 - **Remediation (vendor-aligned)**:

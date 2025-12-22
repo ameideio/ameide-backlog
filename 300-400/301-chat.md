@@ -1284,7 +1284,8 @@ export async function POST(request: Request) {
 - [ ] `CHAT_RATE_LIMIT` (default: 50)
 
 **www-ameide-platform:**
-- [ ] `NEXT_PUBLIC_ENVOY_URL` (internal gRPC endpoint)
+- [ ] `AMEIDE_GRPC_BASE_URL` (server-only internal gRPC endpoint; `http://envoy-grpc:9000`)
+- [ ] `NEXT_PUBLIC_ENVOY_URL` (public/browser config; typically `https://api.<env>.ameide.io`)
 
 ### Gateway Configuration
 
@@ -2350,7 +2351,8 @@ kubectl get svc -n ameide | grep threads
 **Environment Variables:**
 ```bash
 # www-ameide-platform
-NEXT_PUBLIC_ENVOY_URL=http://envoy.ameide.svc.cluster.local:8000
+AMEIDE_GRPC_BASE_URL=http://envoy-grpc:9000
+NEXT_PUBLIC_ENVOY_URL=https://api.<env>.ameide.io
 NEXT_PUBLIC_TENANT_ID=atlas-org
 
 # threads-service
