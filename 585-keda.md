@@ -72,9 +72,11 @@ From a kube context pointing at `ameide-local`:
 
 ## 5) Follow-ups (not yet implemented here)
 
-- Add a first `ScaledObject` example (Deployment autoscaling) if we need it.
-- Keep evolving the WorkRequests `ScaledJob` scaffolding into a real consumer runtime (currently placeholder container; local/dev enabled).
-- Optional: add *cluster-scoped* KEDA smoke checks (CRDs + APIService ready) alongside other control-plane smokes if we want earlier failure signals than “first ScaledJob reconcile”.
+These follow-ups are now implemented in `ameide-gitops`:
+
+- A minimal `ScaledObject` example (CPU-based autoscaling) is included for reference (disabled by default; local-only component).
+- WorkRequests `ScaledJob` scaffolding now points at a dedicated **executor image** (not the devcontainer).
+- A **cluster-scoped** KEDA smoke check runs early (cluster rolloutPhase `030`), before environment apps.
 
 ### Current in-repo ScaledJob example (implemented)
 
@@ -83,3 +85,20 @@ For 527’s execution substrate, `ameide-gitops` already provisions:
 - WorkRequests queue topics: `sources/values/_shared/data/data-kafka-workrequests-topics.yaml` (enabled in `local` + `dev`).
 - WorkRequests `ScaledJob` objects: `sources/values/_shared/apps/workrequests-runner.yaml` (enabled in `local` + `dev`).
 - GitOps validation: `local-data-data-plane-smoke` checks both KafkaTopics and ScaledJobs when enabled (see `sources/values/_shared/data/data-data-plane-smoke.yaml`).
+
+Implementation notes:
+
+- The ScaledJobs run `ghcr.io/ameideio/primitive-integration-transformation-work-executor:<tag>` (a dedicated integration primitive image).
+- Local/dev set `scaledJobs.maxReplicaCount: 0` by default to avoid continuous Job churn until a real producer emits valid `WorkRequested` messages onto the queue topics.
+
+### ScaledObject example (CPU trigger; local-only)
+
+- Component: `environments/local/components/apps/examples/keda-scaledobject-demo/component.yaml`
+- Values: `sources/values/_shared/apps/keda-scaledobject-demo.yaml` + `sources/values/env/local/apps/keda-scaledobject-demo.yaml`
+- Status: disabled by default (`enabled: false`) so it doesn’t pull any new images or affect clusters unless explicitly enabled.
+
+### Cluster-scoped KEDA smoke (early failure signal)
+
+- Component: `environments/_shared/components/cluster/smokes/keda-smoke/component.yaml`
+- Values: `sources/values/_shared/cluster/keda-smoke.yaml`
+- Checks: KEDA deployments, KEDA CRDs, and external metrics `APIService` availability.

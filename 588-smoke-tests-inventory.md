@@ -14,6 +14,7 @@ Related:
 
 | Smoke | Component | Values | Chart |
 |---|---|---|---|
+| `keda-smoke` | `environments/_shared/components/cluster/smokes/keda-smoke/component.yaml` | `sources/values/_shared/cluster/keda-smoke.yaml` | `sources/charts/foundation/helm-test-jobs` |
 | `agent-echo-v0-smoke` | `environments/_shared/components/apps/primitives/agent-echo-v0-smoke/component.yaml` | `sources/values/_shared/apps/agent-echo-v0-smoke.yaml` | `sources/charts/foundation/helm-test-jobs` |
 | `domain-transformation-v0-smoke` | `environments/_shared/components/apps/primitives/domain-transformation-v0-smoke/component.yaml` | `sources/values/_shared/apps/domain-transformation-v0-smoke.yaml` | `sources/charts/foundation/helm-test-jobs` |
 | `integration-echo-v0-smoke` | `environments/_shared/components/apps/primitives/integration-echo-v0-smoke/component.yaml` | `sources/values/_shared/apps/integration-echo-v0-smoke.yaml` | `sources/charts/foundation/helm-test-jobs` |
