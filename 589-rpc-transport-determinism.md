@@ -202,3 +202,32 @@ Transport determinism fixes routing failures, but org/onboarding correctness sti
 - Browser continues to function via BFF `/api` without needing direct gRPC access.
 - SDK usage is deterministic (import path makes the protocol choice explicit).
 - GitOps gateway listener/routing is documented and matches the SDK transport choice.
+
+---
+
+## GitOps Implementation Status (landed in `ameide-gitops`)
+
+### Landed
+
+- **Gateway routes enabled for staging/prod**: `grpcRoutes.platformService/workflowsService/inferenceService` enabled and attached to `grpc-internal` (no hostnames) in:
+  - `gitops/ameide-gitops/sources/values/env/staging/platform/platform-gateway.yaml`
+  - `gitops/ameide-gitops/sources/values/env/production/platform/platform-gateway.yaml`
+- **Platform GRPCRoute coverage**: added `ameide_core_proto.platform.v1.InvitationService` match in `gitops/ameide-gitops/sources/charts/apps/gateway/templates/grpcroute-platform.yaml`.
+- **Server-only vs public Envoy env vars**:
+  - `www-ameide-platform` now renders `AMEIDE_GRPC_BASE_URL` from `envoy.url` and requires `NEXT_PUBLIC_ENVOY_URL` from `envoy.publicUrl` in `gitops/ameide-gitops/sources/charts/apps/www-ameide-platform/templates/configmap.yaml`.
+  - `www-ameide` now follows the same split and adds `envoy.publicUrl` to env value files (`gitops/ameide-gitops/sources/charts/apps/www-ameide/templates/configmap.yaml` + `gitops/ameide-gitops/sources/values/env/*/apps/www-ameide.yaml`).
+- **Service port semantics**: platform Service/container port renamed to `grpc` and `appProtocol: grpc` in `gitops/ameide-gitops/sources/charts/apps/platform/templates/service.yaml`.
+
+### Tests added
+
+- Helm unit coverage for determinism and env separation:
+  - `gitops/ameide-gitops/sources/charts/apps/gateway/tests/rpc_determinism_env_test.yaml`
+  - `gitops/ameide-gitops/sources/charts/apps/www-ameide-platform/tests/rpc_env_test.yaml`
+  - `gitops/ameide-gitops/sources/charts/apps/www-ameide/tests/configmap_test.yaml`
+
+### ArgoCD verification (example: local)
+
+- Confirm `www-ameide-platform-config` has both vars:
+  - `AMEIDE_GRPC_BASE_URL=http://envoy-grpc:9000`
+  - `NEXT_PUBLIC_ENVOY_URL=https://api.<env>.ameide.io`
+- Confirm platform Service port is `grpc` and has `appProtocol: grpc`.
