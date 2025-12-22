@@ -34,7 +34,7 @@ This section is a lightweight status tracker against the work packages below.
 - [x] WP-Z Deletion: legacy `services/*` backends removed (`services/graph`, `services/repository`, `services/transformation`).
 - [ ] WP-0 Repo health: confirm repo-wide codegen drift gates are green and enforceable in CI (regen-diff).
 - [x] GitOps parity (execution substrate): KEDA + Kafka work-queue topics + workbench + secret wiring exist in `ameide-gitops` (enabled in `local` + `dev`; disabled elsewhere).
-- [ ] GitOps parity (runtimes): ensure GitOps-owned components for Process/Agent/UISurface exist in `ameide-gitops`, and update guardrails to reference them consistently.
+- [x] GitOps parity (runtimes): Process/Agent/Projection/UISurface runtime components exist in `ameide-gitops` and are enabled in `ameide-local` (via `environments/local/components/apps/primitives/*-transformation-v0/`) for parity with shared environments.
 
 Gates (currently passing):
 
@@ -46,6 +46,7 @@ Quick verification (GitOps / cluster truth):
 
 - `local-data-data-plane-smoke` asserts WorkRequests execution queue topics and WorkRequests runner KEDA `ScaledJob` objects (gated; enabled in `local` + `dev`).
 - `local-foundation-operators-smoke` asserts KEDA operator deployments and the external metrics `APIService` (when KEDA is installed).
+- Primitive runtime apps: ArgoCD Applications `local-{process,agent,projection,uisurface}-transformation-v0` should be `Synced/Healthy`, and the CRs in `ameide-local` should report `READY=True`.
 
 ## 1) Alignment to 520 (normative constraints)
 
