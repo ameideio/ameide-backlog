@@ -35,9 +35,11 @@ This backlog consolidates all onboarding-related requirements from prior specifi
 | Blocker | Impact | Remediation |
 |---------|--------|-------------|
 | Keycloak realm provisioning (403) | Self-serve tenant creation fails | Restore `realm-admin` + `create-realm` roles to `platform-app-master` |
-| Platform service disabled | Organization creation throws `ConnectError` | Enable platform Helm release |
+| Platform service unavailable or misrouted | Organization creation/lookup throws `ConnectError` | Ensure platform release is enabled **and** the caller uses the correct RPC protocol/route |
 | Tenant catalog automation | No `pending_onboarding` → `active` transition | Implement status workflow job |
 | Admin token cache invalidation | Provisioned realms lack scoped permissions | Refresh token cache after realm creation |
+
+> **Update (2025-12-22):** `ConnectError: [unimplemented] HTTP 404` during org fetch is frequently a **routing / protocol mismatch** (Connect vs gRPC) rather than an application-level “method missing” error. The target transport architecture and GitOps routing boundaries are tracked in `backlog/589-rpc-transport-determinism.md`.
 
 ### Not Implemented (Gaps)
 

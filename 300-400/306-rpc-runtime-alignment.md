@@ -1,8 +1,15 @@
 # RPC Runtime Alignment Plan
 
-**Status**: Draft  
+**Status**: In progress (partially implemented)  
 **Owner**: Platform Architecture  
-**Last Updated**: 2025-10-26
+**Last Updated**: 2025-12-22
+
+> **Update (2025-12-22):** The core repo (`ameideio/ameide`) now enforces deterministic transports and has begun consolidating runtimes:
+> - TypeScript SDK exports explicit entrypoints: `@ameideio/ameide-sdk-ts/node` (gRPC) and `@ameideio/ameide-sdk-ts/browser` (Connect).
+> - Runtime auto-detection / transport fallback is removed (ESM/Next-safe, fail-fast).
+> - `services/platform` migrated from `@grpc/grpc-js` server to `@connectrpc/connect-node` on HTTP/2.
+>
+> Tracking backlog: `backlog/589-rpc-transport-determinism.md`
 
 ---
 
@@ -52,9 +59,9 @@ Our services currently mix Connect-based servers/clients (Node/TypeScript, Go ga
 | `services/graph` | Connect (`@connectrpc/connect-node`) | Already serves gRPC & gRPC-Web via Connect. |
 | `services/threads` | Connect (`@connectrpc/connect-node`) | Streams inference via Connect clients. |
 | `services/inference_gateway` (Go) | Connect (connectrpc.com) | Wraps Python inference. |
-| `services/platform` | Plain gRPC (`@grpc/grpc-js`) | Needs migration if Connect chosen. |
-| `services/workflows` | REST/Express | Not directly affected. |
-| `packages/ameide_sdk_ts` | Connect transports | Align once decision made. |
+| `services/platform` | Connect (`@connectrpc/connect-node`) | Migrated to Connect runtime; internal protocol is gRPC over HTTP/2. |
+| `services/workflows` | Connect (`@connectrpc/connect-node`) | Uses Connect runtime; internal protocol is gRPC over HTTP/2. |
+| `packages/ameide_sdk_ts` | Connect-ES v2 | Deterministic entrypoints: `/node` (gRPC) and `/browser` (Connect). |
 | `packages/ameide_sdk_go` | Plain gRPC (`google.golang.org/grpc`) | Requires adapters or regeneration. |
 | `packages/ameide_sdk_python` | Plain gRPC (`grpcio`) | Requires regeneration. |
 

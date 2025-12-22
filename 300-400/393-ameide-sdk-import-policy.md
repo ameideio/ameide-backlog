@@ -4,6 +4,8 @@
 **Owner:** Platform DX / SDK maintainers  
 **Updated:** 2025-12-18
 
+> **Update (2025-12-22):** The TypeScript SDK now ships deterministic runtime entrypoints (`/node`, `/browser`) to remove all runtime transport auto-detection. See `backlog/589-rpc-transport-determinism.md`.
+
 ## Goal
 
 Align the repo to a **proto-first** workflow (Buf + `.proto` as the contract source of truth) while making **SDKs the only supported import surface for services**.
@@ -36,6 +38,10 @@ Generated artifacts must land inside the SDK packages in **generated-only** dire
 - Services import proto namespaces only via their local barrel (e.g. `services/<svc>/src/proto/index.ts`).
 - The barrel must re-export from `@ameideio/ameide-sdk-ts/proto.js`.
 - Services must not import `@buf/*` or `packages/ameide_core_proto/**`.
+- Runtime-specific client construction is explicit:
+  - Node/server code imports client factories from `@ameideio/ameide-sdk-ts/node` (defaults to gRPC).
+  - Browser/client code imports client factories from `@ameideio/ameide-sdk-ts/browser` (defaults to Connect).
+  - `@ameideio/ameide-sdk-ts` root export may be used for types/helpers and for `createAmeideClient({ transport })` when an explicit transport is provided.
 
 ### Go
 
