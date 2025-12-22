@@ -33,7 +33,7 @@ This section is a lightweight status tracker against the work packages below.
 - [x] WP-A3 UISurface: existing ArchiMate editor wired to primitives (`services/www_ameide_platform`).
 - [x] WP-Z Deletion: legacy `services/*` backends removed (`services/graph`, `services/repository`, `services/transformation`).
 - [ ] WP-0 Repo health: confirm repo-wide codegen drift gates are green and enforceable in CI (regen-diff).
-- [ ] GitOps parity: add checked-in GitOps components for Process/Agent/UISurface primitives in `gitops/primitives/**` and update guardrails to reference them consistently.
+- [ ] GitOps parity: ensure GitOps-owned components for Process/Agent/UISurface and execution substrate exist in `ameide-gitops`, and update guardrails to reference them consistently.
 
 Gates (currently passing):
 
@@ -87,6 +87,15 @@ Transformation is IT4IT-aligned by default (Transformation *is* the IT value-str
   Thin: reads via projection query services; writes via domain command/intents.
 
 ---
+
+## 2.1) Delivery ownership (CODE vs GITOPS)
+
+This plan intentionally separates:
+
+- **CODE (this repo: `ameide`)** — protos, service implementations, runner/job code, tests, and `ameide primitive verify` gates.
+- **GITOPS (`ameide-gitops`)** — Kubernetes deployment manifests/charts (including KEDA, ServiceAccounts/RBAC, secrets wiring, env scoping), and environment-specific enablement (`local`/`dev` only where required).
+
+Rule: a work package is not “done” unless **both** the CODE and GITOPS deliverables (where applicable) are complete and their respective gates pass.
 
 ## 3) Identity and storage model (locked decisions)
 
@@ -221,23 +230,35 @@ WP‑B is implemented **proto-first** so orchestration and evidence do not drift
 3. Implement runner/job behavior that consumes `WorkRequested` and records outcomes/evidence via Domain commands (idempotent).
 4. Implement Process orchestration (send intent → await facts → emit process facts) and Projection joins for timelines/citations.
 
-**Deliverables**
+**Deliverables (CODE — `ameide` repo)**
 
 - Domain:
   - `WorkRequest` record + idempotency posture (`client_request_id`)
   - Domain facts: `WorkRequested`/`WorkCompleted`/`WorkFailed` (after persistence)
-  - Intent to record outcomes with evidence bundle linking (idempotent)
-- Integration (runner backend):
-  - runner implementation that consumes `WorkRequested` facts and executes one WorkRequest per run (KEDA ScaledJob → devcontainer-derived Kubernetes Job)
-  - evidence bundle creation (logs + artifacts) + idempotent outcome recording in Domain
-  - KEDA ScaledJob (normative) with timeouts/retries/history limits (cleanup via Job TTL only)
+  - Command surface to record outcomes with evidence bundle linking (idempotent)
+- Integration (runner/job code):
+  - a devcontainer-derived runner entrypoint that executes exactly one WorkRequest per run (checkout `commit_sha` → run `ameide` actions → persist evidence → record outcome idempotently)
+  - evidence descriptor shape that Process can cite in `ToolRunRecorded` (no log scraping)
 - Process:
-  - at least one workflow that requests a WorkRequest and awaits completion
+  - at least one workflow that requests a WorkRequest and awaits completion facts
   - emits `ToolRunRecorded` + step transitions (`ActivityTransitioned`) with correlation to the WorkRequest
 - Projection:
   - materialize a run timeline that joins process facts to WorkRequest lifecycle facts with citations
 - UISurface:
-  - minimal “Execution timeline” view: WorkRequests + evidence links + gate decisions
+  - minimal “Execution timeline” view (optional for v1 substrate proof; headless E2E is the default proof)
+
+**Deliverables (GITOPS — `ameide-gitops` repo)**
+
+- KEDA:
+  - install/configure KEDA in `local`/`dev` (and any required broker scaler wiring)
+  - KEDA ScaledJob (normative) that consumes `WorkRequested` and schedules one Kubernetes Job per WorkRequest
+- Kubernetes security + runtime wiring:
+  - ServiceAccounts/RBAC + NetworkPolicy for runner Jobs (least privilege)
+  - secrets/config injection required for repo checkout, evidence upload, and Domain callbacks
+  - devcontainer-derived runtime image deployment references (image name/tag/values contract)
+- Debug/admin workbench (local/dev only; not a processor):
+  - deploy workbench pod(s) only in `local`/`dev` with admin-only access
+  - verify workbench cannot consume WorkRequested and cannot become an orchestrator
 
 **Test ladder (TDD: small → large)**
 
