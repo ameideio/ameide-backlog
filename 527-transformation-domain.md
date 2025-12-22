@@ -181,6 +181,7 @@ Domain intents/facts (conceptual; v1):
 Kafka transport binding (normative):
 
 - `WorkRequested` is emitted (outbox) onto a dedicated Kafka topic bound from `queue_ref` so the WorkRequest queue is not mixed with unrelated domain facts.
+  - v1 queue topics (examples): `toolrun.verify.v1`, `toolrun.generate.v1`, `agentwork.coder.v1`
 - WorkRequest processors (KEDA-scheduled Jobs) are Kafka consumers and MUST use “ack only after durable outcome recorded” semantics:
   - disable auto-commit,
   - write outcome + evidence linkage into Domain idempotently,

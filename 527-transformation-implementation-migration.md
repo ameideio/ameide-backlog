@@ -33,7 +33,8 @@ This section is a lightweight status tracker against the work packages below.
 - [x] WP-A3 UISurface: existing ArchiMate editor wired to primitives (`services/www_ameide_platform`).
 - [x] WP-Z Deletion: legacy `services/*` backends removed (`services/graph`, `services/repository`, `services/transformation`).
 - [ ] WP-0 Repo health: confirm repo-wide codegen drift gates are green and enforceable in CI (regen-diff).
-- [ ] GitOps parity: ensure GitOps-owned components for Process/Agent/UISurface and execution substrate exist in `ameide-gitops`, and update guardrails to reference them consistently.
+- [x] GitOps parity (execution substrate): KEDA + Kafka work-queue topics + workbench + secret wiring exist in `ameide-gitops` (enabled in `local` + `dev`; disabled elsewhere).
+- [ ] GitOps parity (runtimes): ensure GitOps-owned components for Process/Agent/UISurface exist in `ameide-gitops`, and update guardrails to reference them consistently.
 
 Gates (currently passing):
 
@@ -250,7 +251,11 @@ WP‑B is implemented **proto-first** so orchestration and evidence do not drift
 **Deliverables (GITOPS — `ameide-gitops` repo)**
 
 - Kafka (broker wiring; normative):
-  - create the WorkRequest queue topic family as a dedicated Kafka topic (v1: `transformation.work.domain.facts.v1`) with partitions sized for expected WorkRequest parallelism
+  - create the WorkRequest execution queue topics (dedicated per executor class) so KEDA scales only on WorkRequested lag (not on unrelated domain facts):
+    - `toolrun.verify.v1`
+    - `toolrun.generate.v1`
+    - `agentwork.coder.v1`
+  - note: these queue topics are distinct from canonical domain fact streams (e.g., `transformation.*.facts.v1`) which exist for persistence/projection; scaling MUST NOT depend on them
   - define the consumer group naming convention per executor class/role (e.g., `transformation-workrequest-executor.v1.<kind>`) and bind it in KEDA trigger metadata
   - set retention/cleanup to reflect “Kafka is transport, not evidence” (short retention + delete policy; evidence is persisted in Domain and object storage)
 - KEDA:
@@ -263,6 +268,15 @@ WP‑B is implemented **proto-first** so orchestration and evidence do not drift
 - Debug/admin workbench (local/dev only; not a processor):
   - deploy workbench pod(s) only in `local`/`dev` with admin-only access
   - verify workbench cannot consume WorkRequested and cannot become an orchestrator
+
+**Implementation status (GitOps; repo snapshot)**
+
+- [x] KEDA installed cluster-scoped (see `backlog/585-keda.md`).
+- [x] Work-queue topics provisioned via `data-kafka-workrequests-topics` (enabled in `local` + `dev`; disabled elsewhere).
+- [x] Workbench + ExternalSecrets contract provisioned via `workrequests-runner` (enabled in `local` + `dev`; disabled elsewhere).
+- [x] MinIO service-user scaffolding for WorkRequests (Vault-backed) exists (enabled in `local` + `dev`; disabled elsewhere).
+- [ ] KEDA `ScaledJob` resources enabled and wired to a real WorkRequest consumer (currently scaffolded but intentionally disabled to prevent runaway failing Jobs).
+- [ ] Runtime hardening: RBAC/NetworkPolicy per executor class (toolrun vs agentwork) and staging/production rollout posture.
 
 **Test ladder (TDD: small → large)**
 

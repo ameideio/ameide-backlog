@@ -110,25 +110,30 @@ Kafka consumer rules (required):
 
 GitOps wiring expectation (normative):
 
-- A dedicated Kafka topic exists for the WorkRequest queue (do not share with unrelated domain facts).
-- Prefer “one topic per role/class of work” (e.g., `toolrun.verify`, `toolrun.generate`) so scaling, ServiceAccounts, and external credentials can be scoped tightly per executor.
+- Dedicated Kafka work-queue topics exist for WorkRequests (do not share with unrelated domain facts).
+- Prefer “one topic per role/class of work” (e.g., `toolrun.verify`, `toolrun.generate`, `agentwork.coder`) so scaling, ServiceAccounts, and external credentials can be scoped tightly per executor.
 
 GitOps baseline (normative; Kafka + KEDA):
 
 - Kafka topics:
-  - `transformation.work.domain.facts.v1` (WorkRequested/Started/Completed/Failed; KEDA scales from lag on this topic)
+  - `toolrun.verify.v1`
+  - `toolrun.generate.v1`
+  - `agentwork.coder.v1`
+  - payload is a `WorkRequested` envelope (or equivalent reference) suitable for at-least-once delivery; evidence/outcomes are persisted elsewhere (Domain + object storage)
   - partitions: size for expected parallelism (recommend ≥ 12 for bursty tool runs; tune later)
   - retention: short (e.g., 1–7 days); Kafka is not the evidence store
   - cleanup: `delete`
 - Consumer groups:
-  - one group per executor class/role (e.g., `transformation-workexecutor.v1.toolrun.verify`)
+  - one group per executor class/role (e.g., `workrequests-toolrun-verify-v1`, `workrequests-agentwork-coder-v1`)
   - avoid sharing groups across executor images/roles (least privilege + predictable scaling)
 - KEDA ScaledJob trigger (Kafka):
   - `bootstrapServers`: the Strimzi bootstrap service for the cluster (e.g., `kafka-kafka-bootstrap:9092` within the namespace)
-  - `topic`: the WorkRequest queue topic (e.g., `transformation.work.domain.facts.v1`)
+  - `topic`: the WorkRequest queue topic (e.g., `toolrun.verify.v1`)
   - `consumerGroup`: the executor class group name
   - `lagThreshold`/`activationLagThreshold`: tune per role (low for verify, higher for heavy builds)
-  - authentication: use KEDA `TriggerAuthentication` to reference a Kubernetes `Secret` containing Kafka credentials (SASL/TLS per cluster policy)
+  - authentication:
+    - `local`: Strimzi internal plaintext bootstrap (no SASL/TLS) is acceptable for the dev cluster
+    - managed clusters: use KEDA `TriggerAuthentication` and cluster policy (SASL/TLS) as required
 
 #### Runtime image (normative): `.devcontainer` parity
 
@@ -140,6 +145,26 @@ KEDA-scheduled Jobs MUST run a runtime image derived from the repo’s `.devcont
 - Toolchain pins that matter for evidence (e.g., Codex CLI) are inherited from the devcontainer pin (see `backlog/433-codex-cli-057.md`).
 
 This does not imply “VS Code devcontainer” in-cluster; it means the **same containerized toolchain** is used for deterministic runs.
+
+#### GitOps implementation status (local/dev; `ameide-gitops`)
+
+Implemented (and enabled in `local` + `dev`, disabled elsewhere):
+
+- KEDA installed cluster-scoped (see `backlog/585-keda.md`).
+- Kafka topics created: `toolrun.verify.v1`, `toolrun.generate.v1`, `agentwork.coder.v1`.
+- Workbench pod (`workrequests-workbench`) deployed for admin attach/exec (not a processor).
+- Secrets are synced via ExternalSecrets:
+  - `workrequests-github-token` (`token`)
+  - `workrequests-domain-token` (`token`)
+  - `workrequests-minio-credentials` (`accessKey`, `secretKey`)
+- Evidence storage baseline:
+  - endpoint: `data-minio:9000`
+  - bucket: `artifacts`
+  - prefix: `workrequests/`
+
+Scaffolded but intentionally disabled until a real WorkRequest consumer exists:
+
+- KEDA `ScaledJob` resources for `toolrun.verify.v1`, `toolrun.generate.v1`, `agentwork.coder.v1`.
 
 #### Debug/admin mode (workbench pod; not a processor)
 

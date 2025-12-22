@@ -66,6 +66,7 @@ This section is the current repo snapshot of **what is implemented vs what is st
 - [x] Scope identity is required everywhere: `{tenant_id, organization_id, repository_id}`.
 - [x] `repository_id` is the only repository identifier in contracts/APIs (no separate `graph_id`).
 - [x] Legacy backends are removed; all flows must go through primitives (see “Deletion”).
+- [x] Work execution scales only on dedicated work-queue topics (`toolrun.verify.v1`, `toolrun.generate.v1`, `agentwork.coder.v1`), not on canonical domain fact streams.
 
 ### Transformation Knowledge (Domain + Projection + UISurface wiring)
 
@@ -249,7 +250,7 @@ To make “ephemeral jobs from a queue” safe and interoperable without turning
 
 Kafka is the event broker for runtime seams. In the execution substrate:
 
-- `WorkRequested` is published to a **dedicated Kafka topic** (work queue) so KEDA can scale on lag without mixing unrelated domain facts.
+- `WorkRequested` is published to **dedicated Kafka work-queue topics** so KEDA can scale on lag without mixing unrelated domain facts.
 - KEDA scales **by consumer group lag**; it does not “hand a specific message to a pod”. The Job/pod is the Kafka consumer.
 - A WorkRequest processor MUST treat Kafka as **at-least-once** delivery:
   - disable auto-commit,
@@ -261,6 +262,19 @@ Hard rules (v1):
 - Queue-triggered execution MUST consume **WorkRequested** facts (explicitly requested by Process/Domain), not raw external webhooks/events.
 - Job TTL/cleanup is hygiene only; audit correctness comes from Domain-persisted evidence + process facts + projection citations.
 - A debug/admin “workbench” pod MUST exist in `local` and `dev` for human attach/exec and reproduction; it MUST NOT process WorkRequests and MUST NOT be deployed in `staging`/`production`. Workbench is an admin/debug surface and must not be conflated with external parallel dev “agent slots” (`agent-01`, `agent-02`, `agent-03`) described in `backlog/581-parallel-ai-devcontainers.md`.
+
+Queue topics (v1; dedicated per class of work to avoid scaling on non-WorkRequested facts):
+
+- `toolrun.verify.v1`
+- `toolrun.generate.v1`
+- `agentwork.coder.v1`
+
+Implementation status (GitOps; `ameide-gitops`):
+
+- KEDA is installed cluster-scoped (see `backlog/585-keda.md`).
+- Work-queue topics are provisioned in `local` and `dev` via `data-kafka-workrequests-topics` (disabled elsewhere).
+- A debug/admin workbench + ExternalSecrets contract is deployed in `local` and `dev` via `workrequests-runner` (disabled elsewhere).
+- KEDA `ScaledJob` resources are scaffolded but intentionally disabled until a real WorkRequest consumer exists (to prevent runaway failing Jobs).
 
 ## 3) Capability boundaries and nouns
 

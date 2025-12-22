@@ -27,7 +27,9 @@ Scope identity (required everywhere): `{tenant_id, organization_id, repository_i
 Agent work that has meaningful side effects (repo changes, external writes, long-running tool use) MUST run on the same execution substrate as tool runners:
 
 - Process (or an authorized actor) creates a Domain-owned `WorkRequest` for `work_kind = agent_work`.
-- Domain emits `WorkRequested` facts onto the Kafka work-queue topic family (`transformation.work.domain.facts.v1`); KEDA ScaledJobs scale by consumer group lag and schedule devcontainer-derived Kubernetes Jobs that run the agent/runtime with role-scoped credentials.
+- Domain emits `WorkRequested` facts onto dedicated Kafka work-queue topics; KEDA ScaledJobs scale by consumer group lag and schedule devcontainer-derived Kubernetes Jobs that run the agent/runtime with role-scoped credentials.
+  - v1 queue topic: `agentwork.coder.v1` (agent work)
+  - note: queue topics are distinct from canonical domain fact streams used for persistence/projection; scaling MUST NOT depend on non-WorkRequested facts
 - Outcomes are recorded back into Domain idempotently with linked evidence bundles; Process emits process facts for the run timeline.
 
 This keeps “agent invoked by Process” event-driven and audit-grade without adding hidden RPC coupling.

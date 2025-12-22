@@ -74,4 +74,4 @@ From a kube context pointing at `ameide-local`:
 
 - Add a first in-repo example `ScaledObject`/`ScaledJob` (e.g., for 527 WorkRequest runner prototypes).
 - Add dedicated KEDA smoke checks (CRDs + APIService ready) alongside other cluster/data smokes if desired.
-
+- 527 substrate note: `workrequests-runner` scaffolds `ScaledJob` resources for `toolrun.verify.v1`, `toolrun.generate.v1`, and `agentwork.coder.v1`, but they are intentionally disabled until a real WorkRequest consumer exists.
