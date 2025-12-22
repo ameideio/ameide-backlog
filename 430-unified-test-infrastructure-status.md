@@ -111,6 +111,12 @@ We treat operator testing as a two-layer acceptance model:
 
 These are intentionally **not counted** in the “Total integration test suites” metric above, because they are not service integration suites and do not use `integration-mode.sh`.
 
+## GitOps smoke tests (out-of-scope for 430 metrics)
+
+In `ameide-gitops`, we also run ArgoCD **PostSync hook Jobs** (“smokes”) to validate **cluster truth after reconciliation** (CRDs ready, operators healthy, secrets present, data-plane dependencies ready, etc.).
+
+Inventory: `backlog/588-smoke-tests-inventory.md`
+
 ### Why we use kind (even if k3d exists)
 
 We introduced **kind** for operator acceptance because the goal is a **portable, CI-friendly, deterministic** Kubernetes cluster for tests:

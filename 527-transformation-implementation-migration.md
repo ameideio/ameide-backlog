@@ -348,6 +348,8 @@ Consumer groups (current GitOps scaffolding; subject to future naming convention
   - `kubectl -n ameide-local get scaledjob.keda.sh | rg 'workrequests'`
 - Workbench deployed:
   - `kubectl -n ameide-local get deploy workrequests-workbench`
+- Smoke coverage:
+  - `local-data-data-plane-smoke` asserts the WorkRequests execution queue KafkaTopics are present/Ready when enabled (see `backlog/588-smoke-tests-inventory.md`).
 
 ### Current limitation (explicit)
 
