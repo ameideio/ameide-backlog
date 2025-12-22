@@ -249,9 +249,13 @@ WP‑B is implemented **proto-first** so orchestration and evidence do not drift
 
 **Deliverables (GITOPS — `ameide-gitops` repo)**
 
+- Kafka (broker wiring; normative):
+  - create the WorkRequest queue topic family as a dedicated Kafka topic (v1: `transformation.work.domain.facts.v1`) with partitions sized for expected WorkRequest parallelism
+  - define the consumer group naming convention per executor class/role (e.g., `transformation-workrequest-executor.v1.<kind>`) and bind it in KEDA trigger metadata
+  - set retention/cleanup to reflect “Kafka is transport, not evidence” (short retention + delete policy; evidence is persisted in Domain and object storage)
 - KEDA:
   - install/configure KEDA in `local`/`dev` (and any required broker scaler wiring)
-  - KEDA ScaledJob (normative) that consumes `WorkRequested` and schedules one Kubernetes Job per WorkRequest
+  - KEDA ScaledJob (normative) with a Kafka trigger that consumes `WorkRequested` and schedules one Kubernetes Job per WorkRequest (Job is the Kafka consumer; scale is by consumer group lag)
 - Kubernetes security + runtime wiring:
   - ServiceAccounts/RBAC + NetworkPolicy for runner Jobs (least privilege)
   - secrets/config injection required for repo checkout, evidence upload, and Domain callbacks
@@ -342,19 +346,25 @@ Debug/admin mode (required in `local`/`dev`; not a processor):
 - [x] Materialized read model tables exist (repositories/nodes/assignments/elements/relationships/versions).
 - [x] Idempotency is enforced (`projection_inbox(tenant_id,message_id)`).
 - [x] Query RPCs exist for MVP browse/list/get.
-- [x] Outbox → projection ingestion loop exists (no broker dependency):
+- [x] Outbox → projection ingestion loop exists (bridge mode; Kafka is the normative transport):
   - [x] `primitives/projection/transformation/cmd/relay` tails the domain outbox and applies facts with durable offsets.
+  - [ ] Replace bridge mode with Kafka consumers per topic family once the broker wiring is the system-of-record runtime transport.
 - [x] Gate: `go run ./packages/ameide_core_cli/cmd/ameide primitive verify --kind projection --name transformation --mode repo` passes.
 
-**Ingestion (target-state, minimal infra)**
+**Ingestion (bridge mode today; Kafka target-state)**
 
-To avoid introducing a message broker dependency in MVP while still preserving “projection consumes facts”:
+While Kafka is the normative broker for runtime seams, the current repo uses a bridge-mode ingestion loop to preserve “projection consumes facts” before the full Kafka wiring is complete:
 
 - Domain writes append to a **domain outbox** table in the same Postgres cluster.
 - Projection maintains:
   - `projection_inbox(tenant_id, message_id)` for idempotency
   - read models (`*_views`) for browse/search
 - Projection runs an ingestion loop (poll outbox → apply → mark inbox) and exposes query RPCs from its read models.
+
+Target-state:
+
+- Domain outbox is published to Kafka topic families.
+- Projection consumes Kafka topics with idempotency (`projection_inbox`) and durable offsets.
 
 **DoD (tests + verify)**
 

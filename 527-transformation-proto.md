@@ -64,6 +64,7 @@ Current implementations may still emit/consume `transformation.architecture.*` w
 | `transformation.domain.intents.v1` | `TransformationDomainIntent` | Requests to mutate core Transformation state |
 | `transformation.domain.facts.v1` | `TransformationDomainFact` | Facts emitted after persistence |
 | `transformation.process.facts.v1` | `TransformationProcessFact` | IT4IT-aligned value-stream workflow facts (Temporal); evidence of orchestration (distinct from domain facts) |
+| `transformation.work.domain.facts.v1` | `TransformationWorkDomainFact` | **WorkRequest queue facts** (`WorkRequested/Started/Completed/Failed`) used for KEDA-scaled execution; dedicated so lag-based scaling is not polluted by unrelated facts |
 | `transformation.knowledge.domain.intents.v1` | `TransformationKnowledgeDomainIntent` | Requests to mutate Enterprise Knowledge (elements/relationships/versions) |
 | `transformation.knowledge.domain.facts.v1` | `TransformationKnowledgeDomainFact` | Enterprise Knowledge facts emitted after persistence |
 | `scrum.domain.intents.v1` | `ScrumDomainIntent` | Requests to mutate Scrum profile state |
@@ -83,7 +84,7 @@ Agent handover note (event-driven first):
 
 Execution substrate note (WorkRequests; event-driven first):
 
-- Long-running tool runs and agent work are represented as Domain-owned `WorkRequest` records: Process requests work via Domain intents; Domain emits `WorkRequested` facts after persistence; ephemeral execution backends consume those facts and record outcomes back into Domain idempotently.
+- Long-running tool runs and agent work are represented as Domain-owned `WorkRequest` records: Process requests work via Domain intents; Domain emits `WorkRequested` facts after persistence; KEDA-scaled execution backends consume those facts from a dedicated Kafka topic family (`transformation.work.domain.facts.v1`) and record outcomes back into Domain idempotently.
 - Process workflows await the resulting domain facts and emit `ToolRunRecorded` (and other orchestration evidence) as process facts for projection timelines.
 
 ## 3) Envelope invariants (per 496)

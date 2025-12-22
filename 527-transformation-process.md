@@ -61,6 +61,11 @@ Workflow steps often require deterministic tool execution (scaffolding, codegen,
 - KEDA ScaledJobs consume `WorkRequested`, schedule devcontainer-derived Kubernetes Jobs, and record results back to Domain (idempotent).
 - Process awaits the resulting domain facts, then emits `ToolRunRecorded` / `GateDecisionRecorded` / `ActivityTransitioned` process facts for the audit timeline.
 
+Kafka note (normative):
+
+- The WorkRequest queue is a dedicated Kafka topic; KEDA scales by consumer group lag and the Job is the Kafka consumer.
+- WorkRequest processors must disable auto-commit and only commit offsets after outcomes/evidence are durably recorded in Domain.
+
 ## 3) BPMN ProcessDefinitions (executable + scaffolding driver)
 
 This capability treats **BPMN as the canonical authoring source** for governance/delivery workflows. To make BPMN simultaneously:
