@@ -89,10 +89,46 @@ Integration runners exist so deterministic tool steps can run without turning th
 
 In v1, long-running tool runs execute via **queue-driven ephemeral execution** in Kubernetes:
 
-- A KEDA `ScaledJob` consumes `WorkRequested` facts and schedules a **Kubernetes Job per message** (one WorkRequest per Job).
+- A KEDA `ScaledJob` schedules **Kubernetes Jobs** based on Kafka consumer group lag on `WorkRequested` (KEDA is the scaler/scheduler; Jobs are the consumers).
 - The Job executes the requested tool run, produces evidence artifacts, and records outcomes back into Domain via a Domain intent.
 
 Hard rule (v1): queue-triggered Jobs MUST consume **WorkRequested** facts (explicitly requested by Process/Domain), not raw external webhooks/events.
+
+#### Kafka (normative): what KEDA does vs what the Job does
+
+Kafka is the event broker for `WorkRequested`. In this model:
+
+- KEDA scales the number of Jobs based on **Kafka consumer group lag** for a configured `{topic, consumerGroup}`.
+- KEDA does **not** pass a message payload into the Job. The Job is the Kafka consumer and must fetch/commit its own record(s).
+- For “one WorkRequest per Job”, the Job consumes **one Kafka record**, executes, commits, and exits.
+
+Kafka consumer rules (required):
+
+- `enable.auto.commit=false` (no implicit ack).
+- Commit offsets only **after** the Job has durably recorded outcome + evidence in Domain (idempotent).
+- Configure `max.poll.interval.ms`/timeouts so long-running tool runs do not get kicked out of the consumer group mid-execution.
+
+GitOps wiring expectation (normative):
+
+- A dedicated Kafka topic exists for the WorkRequest queue (do not share with unrelated domain facts).
+- Prefer “one topic per role/class of work” (e.g., `toolrun.verify`, `toolrun.generate`) so scaling, ServiceAccounts, and external credentials can be scoped tightly per executor.
+
+GitOps baseline (normative; Kafka + KEDA):
+
+- Kafka topics:
+  - `transformation.work.domain.facts.v1` (WorkRequested/Started/Completed/Failed; KEDA scales from lag on this topic)
+  - partitions: size for expected parallelism (recommend ≥ 12 for bursty tool runs; tune later)
+  - retention: short (e.g., 1–7 days); Kafka is not the evidence store
+  - cleanup: `delete`
+- Consumer groups:
+  - one group per executor class/role (e.g., `transformation-workexecutor.v1.toolrun.verify`)
+  - avoid sharing groups across executor images/roles (least privilege + predictable scaling)
+- KEDA ScaledJob trigger (Kafka):
+  - `bootstrapServers`: the Strimzi bootstrap service for the cluster (e.g., `kafka-kafka-bootstrap:9092` within the namespace)
+  - `topic`: the WorkRequest queue topic (e.g., `transformation.work.domain.facts.v1`)
+  - `consumerGroup`: the executor class group name
+  - `lagThreshold`/`activationLagThreshold`: tune per role (low for verify, higher for heavy builds)
+  - authentication: use KEDA `TriggerAuthentication` to reference a Kubernetes `Secret` containing Kafka credentials (SASL/TLS per cluster policy)
 
 #### Runtime image (normative): `.devcontainer` parity
 
@@ -119,7 +155,7 @@ Attach expectations:
 - Minimum: `kubectl exec` is sufficient for an operator to reproduce and diagnose a failing WorkRequest.
 - If an IDE attach is required, expose the workbench via a dedicated remote access mechanism (e.g., `code-server` or SSH) in `local`/`dev` only. Do not assume VS Code Dev Containers can “Reopen in Container” against a Kubernetes pod.
 
-Note: `agent-01`/`agent-02`/`agent-03` refer to **external developer-mode workspaces** (parallel DevContainers/worktrees) per `backlog/581-parallel-ai-devcontainers.md`, not to cluster-native workbench instances.
+Note: `agent-01`/`agent-02`/`agent-03` refer to **external developer-mode workspaces** (parallel DevContainers using clones) per `backlog/581-parallel-ai-devcontainers.md`, not to cluster-native workbench instances.
 
 Hard rules:
 

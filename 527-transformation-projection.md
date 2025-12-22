@@ -84,8 +84,9 @@ Delivered (MVP slice):
 - [x] Idempotent domain-fact ingestion is implemented:
   - [x] `Store.ApplyDomainFact` applies `TransformationKnowledgeDomainFact` events into materialized tables.
   - [x] Idempotency enforced via `projection_inbox(tenant_id,message_id)`.
-- [x] Ingestion runner exists (target-state MVP posture, no broker dependency):
+- [x] Ingestion runner exists (bridge mode; Kafka is the normative transport):
   - [x] `primitives/projection/transformation/cmd/relay` tails the Domain outbox and applies facts with durable offsets.
+  - [ ] Replace bridge mode with a Kafka consumer that subscribes to the relevant topic families (per `backlog/527-transformation-proto.md`) once the Kafka wiring is the system-of-record transport.
 - [x] Gate: `bin/ameide primitive verify --kind projection --name transformation --mode repo` passes.
 
 Not yet delivered (full projection meaning):

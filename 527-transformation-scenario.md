@@ -180,9 +180,10 @@ This is where the CLI becomes “a tool inside the process”.
    The Transformation Process requests execution via the **WorkRequest seam** (Domain-owned), then Integration executes:
 
    * Process issues a Domain intent to create a `WorkRequest` (`work_kind=tool_run`, `action_kind=scaffold|generate`, repo coordinates, plan refs, idempotency key).
-   * Domain persists the WorkRequest and emits `WorkRequested` as a domain fact (outbox).
-   * KEDA ScaledJobs consume `WorkRequested`, schedule a devcontainer-derived Kubernetes Job, check out the repo, run the scaffolder/codegen, and store artifacts.
+   * Domain persists the WorkRequest and emits `WorkRequested` as a domain fact (outbox) onto the dedicated Kafka work-queue topic family (`transformation.work.domain.facts.v1`).
+   * KEDA ScaledJobs scale by Kafka consumer group lag and schedule a devcontainer-derived Kubernetes Job; the Job consumes one `WorkRequested` record from Kafka, checks out the repo, runs the scaffolder/codegen, and stores artifacts.
    * The Job records outcomes back into Domain idempotently (evidence bundle + terminal status).
+   * The Job commits its Kafka offset only after the Domain outcome/evidence is durably recorded (at-least-once safe).
    * Process awaits the resulting domain facts and emits `ToolRunRecorded` process facts referencing the evidence (see `backlog/527-transformation-proto.md` §3.1 and `backlog/527-transformation-integration.md` §1.0.5).
 
 8. **Agentic coding step (implementation)**

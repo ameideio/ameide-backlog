@@ -79,8 +79,9 @@ This section is the current repo snapshot of **what is implemented vs what is st
   - [x] Materialized read model tables for repositories/nodes/assignments/elements/relationships/versions.
   - [x] Query services implemented (MVP browse/list/get).
   - [x] Gate: `go run ./packages/ameide_core_cli/cmd/ameide primitive verify --kind projection --name transformation --mode repo` passes.
-- [x] Target-state ingestion loop exists (no broker dependency for MVP):
+- [x] Ingestion loop exists (bridge mode; Kafka is the normative transport):
   - [x] `primitives/projection/transformation/cmd/relay` tails the Domain outbox and applies facts to the projection store with durable offsets.
+  - [ ] Replace bridge mode with Kafka consumers per topic family once the broker is the system-of-record transport for runtime seams.
 - [x] WWW portal wired to primitives (MVP “repository editing/viewing” slice):
   - [x] `services/www_ameide_platform` reads via `TransformationKnowledgeQueryService` and writes via `TransformationKnowledgeCommandService`.
   - [x] Existing ArchiMate editor is wired end-to-end via primitives (create/edit views; create elements/relationships; persist layout).
@@ -236,13 +237,24 @@ To make “ephemeral jobs from a queue” safe and interoperable without turning
 1. **Process decides** a tool/agent step is needed (policy + orchestration).
 2. **Process requests execution** via a **Domain intent** that creates a `WorkRequest` record (idempotent).
 3. **Domain persists** the WorkRequest and emits a **domain fact** (`WorkRequested`) after commit (outbox).
-4. **Execution backend runs** (KEDA ScaledJob schedules an in-cluster ephemeral Job) by consuming `WorkRequested` facts:
+4. **Execution backend runs**: KEDA ScaledJob schedules in-cluster ephemeral Jobs based on Kafka consumer group lag on `WorkRequested` (KEDA schedules; the Job consumes):
    - it executes exactly what was requested (no extra policy),
    - writes artifacts to object storage,
    - records outcomes back into Domain via a Domain intent (idempotent).
 5. **Domain emits** `WorkCompleted`/`WorkFailed` (and links evidence bundles).
 6. **Process awaits** those domain facts, emits `ToolRunRecorded` / `GateDecisionRecorded` / `ActivityTransitioned` as process facts, and continues.
 7. **Projection materializes** the joined run timeline (process facts + correlated domain facts) with citations.
+
+### Kafka transport (normative)
+
+Kafka is the event broker for runtime seams. In the execution substrate:
+
+- `WorkRequested` is published to a **dedicated Kafka topic** (work queue) so KEDA can scale on lag without mixing unrelated domain facts.
+- KEDA scales **by consumer group lag**; it does not “hand a specific message to a pod”. The Job/pod is the Kafka consumer.
+- A WorkRequest processor MUST treat Kafka as **at-least-once** delivery:
+  - disable auto-commit,
+  - record outcomes/evidence durably in Domain,
+  - only then commit offsets.
 
 Hard rules (v1):
 

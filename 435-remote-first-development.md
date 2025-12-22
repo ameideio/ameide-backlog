@@ -27,7 +27,7 @@ Pivot from dual-mode (offline-full k3d + online-telepresence) to a single **AKS 
 
 When you need multiple developers (or multiple interactive coding agents) working concurrently, use the standardized “agent slot” pattern:
 
-- `backlog/581-parallel-ai-devcontainers.md` (clones/worktrees + one VS Code window per slot + Telepresence collision avoidance)
+- `backlog/581-parallel-ai-devcontainers.md` (clones + one VS Code window per slot + Telepresence collision avoidance)
 - `backlog/400-agentic-development.md` (PR funnel into protected `dev`, then `dev`→`main` promotion)
 
 For same-workload parallelism, prefer Telepresence HTTP intercept filtering where supported (see 581 for the exact conventions and headers).

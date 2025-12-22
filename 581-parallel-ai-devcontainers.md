@@ -11,14 +11,16 @@ Keep the existing “generic” devcontainer workflow for normal human developme
 Add three *additional* agent slots for parallel work; they do not replace the generic workflow:
 
 - Slots: `agent-01`, `agent-02`, `agent-03`
-- One clone per slot (recommended) or one worktree per slot (advanced)
+- One clone per slot (required; Git worktrees are deprecated for this repo’s Dev Container workflow)
 - One VS Code window per slot → “Reopen in Container”
-- One branch per slot (recommended namespace pattern: `agent/dev/<agent_slot>/<topic>`) → PRs merge into `dev` (protected; PR-only)
+- One workspace checkout branch per slot (created by the helper scripts): `ameide-agent-01|02|03`
+- One PR branch per change (recommended namespace pattern): `agent/dev/<agent_slot>/<topic>` → PRs merge into `dev` (protected; PR-only)
   - Never push directly to `dev`/`main`; always land changes via PR (see `backlog/400-agentic-development.md`).
 
 Convenience:
-- `./tools/dev/create-agent-worktrees.sh` creates `ameide-agent-01..03` worktrees (and corresponding per-slot branches).
-- `./tools/dev/create-agent-clones.sh` creates `ameide-agent-01..03` clones (simpler with Dev Containers + Git).
+- `./tools/dev/create-agent-clones.sh` creates:
+  - a dedicated `ameide-dev` clone (optional “integrator seat” on `dev` for merging PRs), and
+  - `ameide-agent-01..03` clones (parallel agent slots).
 
 ### Scope: developer mode vs platform mode
 
@@ -34,7 +36,7 @@ The **platform mode** story (role-based ephemeral jobs from a queue, durable evi
 Devcontainer-provided identity:
 - `AMEIDE_AGENT_ID=${localWorkspaceFolderBasename}` (agent devcontainer)
 
-Recommended agent folder names (clone or worktree) so `${localWorkspaceFolderBasename}` carries the slot:
+Recommended agent folder names (clones) so `${localWorkspaceFolderBasename}` carries the slot:
 - `ameide-agent-01`, `ameide-agent-02`, `ameide-agent-03`
 
 Tooling convention:
@@ -42,11 +44,9 @@ Tooling convention:
 
 ## Git layout recommendation (Dev Containers)
 
-Preferred for reliability: **three separate clones**.
+We standardize on **separate clones** for parallel agent slots.
 
-Rationale: Git worktrees store a `.git` *file* that points at the “real” git dir under the main repo (often an absolute host path). In a devcontainer, that path may not exist, and Git inside the container can look “not initialized”.
-
-Worktrees can still work, but require careful mounts so the container can see the main repo’s `.git/` directory at the referenced path.
+Rationale: Git worktrees store a `.git` *file* that points at a shared “real” git directory. In Dev Containers, that path frequently becomes invalid across host/container boundaries and leads to “repo not initialized” / missing-index style failures. Clones avoid that entire class of issues.
 
 ## Telepresence + Tilt: same-workload parallelism
 
@@ -57,7 +57,8 @@ When `AMEIDE_AGENT_ID` is set, dev tooling should create intercepts using:
 - intercept name: `${workload}-${agent_slot}` (where `agent_slot` is derived from `AMEIDE_AGENT_ID`)
 - target workload: `--workload ${workload}`
 
-This avoids name collisions when multiple agents are connected at once.
+This avoids **name collisions** when multiple agents are connected at once.
+Important: unique names alone do **not** guarantee true parallel intercepts to the same workload; you still need request routing separation.
 
 ### Recommended (HTTP services): header-filtered intercepts
 
@@ -69,13 +70,24 @@ For HTTP services, use Telepresence HTTP intercept filtering so each agent only 
 - tooling adds: `--mechanism http --http-header "X-Ameide-Agent=${agent_slot}"`
 - the caller must send that header for requests to match
 
+Support check (practical):
+
+- `telepresence intercept --help` should include `--http-header` (or a similar HTTP filter flag). If you are not using the repo-pinned Telepresence toolchain, verify the feature exists before relying on parallel intercept routing.
+
+### Fallback: coordination (single-owner intercept)
+
+If HTTP header filtering is not available, or the service is not HTTP:
+
+- Keep unique intercept names (to prevent collisions), but treat the intercept as **single-owner per workload**.
+- Coordinate so only one agent at a time intercepts a given workload; other agents should use remote-first URLs or work on different services/slices.
+
 ## VS Code port-forward collisions
 
 Multiple VS Code windows can’t forward the same container port to the same local port.
 
 Guidance:
 - Prefer remote-first URLs (`https://*.dev.ameide.io`) during intercepts.
-- If forwarding is required, rely on VS Code auto-remap or assign per-agent local ports.
+- If forwarding is required (application ports), rely on VS Code auto-remap or assign per-agent local ports. Do not forward Codex auth on `1455`; share `~/.codex/auth.json` instead.
 
 ## Codex CLI auth callback collision (`localhost:1455`)
 
@@ -84,6 +96,10 @@ Codex CLI’s “Sign in with ChatGPT” login flow runs a local callback server
 Policy (v1; canonical):
 - Authenticate once and share `~/.codex/auth.json` across all agent containers (avoid running concurrent login flows).
 - Do not use `OPENAI_API_KEY` / `codex login --with-api-key` in devcontainers (defer to a future “automation/headless auth” track).
+
+Notes:
+
+- Treat `localhost:1455` as fixed for this login flow; avoid “per-window remap” guidance. The supported posture is “authenticate once, then share `auth.json`”.
 
 Rationale: shared `~/.codex/auth.json` avoids local callback server contention and keeps auth handling consistent across parallel agent slots.
 
@@ -114,15 +130,15 @@ Reference: [VS Code Dev Containers - Persist bash history](https://code.visualst
   - `.devcontainer/devcontainer.json`: generic config, mounts shared volumes for `~/.codex`, `~/.azure`, `~/.kube`, `~/.config/ameide`.
   - `.devcontainer/agent/devcontainer.json`: agent config, sets `AMEIDE_BOOTSTRAP_PROFILE=agent` and sets `AMEIDE_AGENT_ID=${localWorkspaceFolderBasename}`.
 - Bootstrap:
-  - `.devcontainer/postCreate.sh` uses `AMEIDE_BOOTSTRAP_PROFILE` (planned: skip `tools/dev/bootstrap-contexts.sh` when `AMEIDE_BOOTSTRAP_PROFILE=agent` to avoid repeated side effects).
+  - `.devcontainer/postCreate.sh` uses `AMEIDE_BOOTSTRAP_PROFILE` and skips remote context bootstrapping when `AMEIDE_BOOTSTRAP_PROFILE=agent` to avoid repeated side effects.
 - Telepresence wrappers:
   - `scripts/telepresence/intercept_service.sh` uses agent-aware intercept naming and optional HTTP filtering (`AMEIDE_TELEPRESENCE_HTTP_FILTER=1`).
-  - `tools/dev/telepresence.sh intercept` is the generic helper entrypoint (planned: mirror the same agent-aware naming/filtering behavior).
+  - `tools/dev/telepresence.sh intercept` mirrors the same agent-aware naming/filtering behavior.
 
 ## Acceptance criteria
 
 1. Generic devcontainer remains the default for `dev`/`main`.
 2. Two+ agent devcontainers run concurrently without working-tree interference.
-3. Same-workload parallelism is supported for HTTP services via header-filtered intercepts.
+3. Same-workload parallelism is supported for HTTP services via header-filtered intercepts when supported; otherwise, single-owner coordination per workload is the fallback.
 4. Codex CLI auth avoids `localhost:1455` collisions by default and defers API-key login in devcontainers (future automation track).
 5. Bootstrap supports an explicit “agent” mode that avoids repeated side effects.

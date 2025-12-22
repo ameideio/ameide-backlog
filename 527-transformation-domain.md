@@ -159,7 +159,7 @@ Minimum v1 conceptual shape (schema-backed; do not embed proto text here):
 - Idempotency:
   - `client_request_id` / `idempotency_key` (required; stable across retries)
 - Execution binding:
-  - `queue_ref` (logical; environment binds to actual broker subject/topic)
+  - `queue_ref` (logical; environment binds to Kafka `{topic, consumer_group}` + scaling config)
   - `timeout_policy` / `retry_policy` (bounded)
 - Inputs (subset as applicable):
   - repo checkout: `repo_url`, `commit_sha`, `workdir`
@@ -177,6 +177,14 @@ Domain intents/facts (conceptual; v1):
 - Intent: `RequestWorkRequested` (create WorkRequest; idempotent)
 - Facts: `WorkRequested`, `WorkStarted`, `WorkCompleted`, `WorkFailed` (emitted after persistence)
 - Intent: `RecordWorkOutcomeRequested` (attach evidence + terminal status; idempotent on `client_request_id`)
+
+Kafka transport binding (normative):
+
+- `WorkRequested` is emitted (outbox) onto a dedicated Kafka topic bound from `queue_ref` so the WorkRequest queue is not mixed with unrelated domain facts.
+- WorkRequest processors (KEDA-scheduled Jobs) are Kafka consumers and MUST use “ack only after durable outcome recorded” semantics:
+  - disable auto-commit,
+  - write outcome + evidence linkage into Domain idempotently,
+  - only then commit the Kafka offset.
 
 Correlation rules (required):
 
