@@ -32,13 +32,13 @@ Remote-first development depends on Telepresence for every inner-loop. When it b
 
 | Step | Command | Notes |
 |------|---------|-------|
-| 1 | `telepresence quit` | Ensures a clean slate; ignore errors. |
+| 1 | `telepresence quit -s` | Ensures a clean slate; ignore errors. |
 | 2 | `telepresence connect --context <ctx> --namespace <ns>` | Uses defaults from `TELEPRESENCE_CONTEXT/TELEPRESENCE_NAMESPACE` or overrides. |
 | 3 | `telepresence status` | First health probe; failure increments the internal counter but does not abort. |
 | 4 | `telepresence list` | Ensures workloads are visible before attempting intercepts. |
 | 5 | `telepresence intercept <svc> --port <mapping> --env-file <tmp> -- bash -lc "$TELEPRESENCE_VERIFY_SCRIPT"` | Skipped when `TELEPRESENCE_SKIP_INTERCEPT=1`. The helper re-runs `telepresence connect --context <ctx> --namespace <ns>` first so the session inherits the correct namespace, and retries once before failing. |
 | 6 | `telepresence leave <svc>` | Best-effort cleanup via a “safe leave” wrapper; “already removed” errors are treated as success. |
-| 7 | `telepresence quit` | Disconnect once verification completes. |
+| 7 | `telepresence quit -s` | Disconnect once verification completes. |
 
 All stdout/stderr gets prefixed with `[telepresence-helper] <timestamp>` so multiple runs are easy to correlate.
 
@@ -118,7 +118,8 @@ If either command fails, sync `*-traffic-manager`, fix the RBAC templates under 
 |-----------|---------------|-------------------|---------|
 | `kube context 'ameide-dev' not found` | Logged during `ensure_context_exists` | DevContainer lost AKS credentials | Run `tools/dev/bootstrap-contexts.sh` or `az aks get-credentials --resource-group Ameide --name ameide`. |
 | `telepresence connect verification failed` | Connect step exits non-zero | Azure credentials expired / traffic-manager unreachable | `az login --use-device-code`, then re-run verify. Inspect `kubectl -n ameide-dev logs deploy/traffic-manager`. |
-| `telepresence status command failed` + `list` fails | Telepresence daemon stuck | `telepresence quit --all` (host) then retry; escalate if daemon keeps crashing. |
+| `dial to socket /var/run/telepresence-daemon.socket failed ... permission denied` | Connect step fails before status/list | Stale Telepresence daemon socket in `/var/run` (locked-up root daemon, often after container restarts) | Run `sudo rm -f /var/run/telepresence-daemon.socket` (DevContainer) then retry. The helper also attempts this recovery automatically when it detects the signature. |
+| `telepresence status command failed` + `list` fails | Telepresence daemon stuck | `telepresence quit -s` then retry; escalate if daemon keeps crashing. |
 | `intercept ... failed (context=X, namespace=Y)` | Intercept error block with `status/list` dumps | RBAC regression, workload not interceptable in this env, traffic-manager bug | `kubectl auth can-i --as <telepresence SA> create pods/eviction -n <ns>`, verify the workload does not have `telepresence.io/inject-traffic-agent: disabled` in this namespace, capture traffic-manager logs. |
 | `curl 127.0.0.1:<port>/healthz` works but `curl <podIP>:<port>/healthz` hangs (or probes flap after intercept) | Often surfaces as ArgoCD **Synced** but **Progressing** | Service `targetPort` is numeric and Telepresence uses iptables redirects that catch Pod-IP probe traffic | Convert the Service to `targetPort: <portName>` (named), restart the workload, and re-run the intercept. |
 | `connector.CreateIntercept: ... no active session` + daemon logs `exec: "iptables": executable file not found in $PATH` | DevContainer doesn’t have `iptables`, so the root daemon can’t program DNS/routing | Install `iptables` (e.g., `sudo apt-get update && sudo apt-get install -y iptables`) inside the DevContainer; re-run verify once packages are present. |
