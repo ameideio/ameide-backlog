@@ -57,7 +57,8 @@ When `AMEIDE_AGENT_ID` is set, dev tooling should create intercepts using:
 - intercept name: `${workload}-${agent_slot}` (where `agent_slot` is derived from `AMEIDE_AGENT_ID`)
 - target workload: `--workload ${workload}`
 
-This avoids name collisions when multiple agents are connected at once.
+This avoids **name collisions** when multiple agents are connected at once.
+Important: unique names alone do **not** guarantee true parallel intercepts to the same workload; you still need request routing separation.
 
 ### Recommended (HTTP services): header-filtered intercepts
 
@@ -69,13 +70,24 @@ For HTTP services, use Telepresence HTTP intercept filtering so each agent only 
 - tooling adds: `--mechanism http --http-header "X-Ameide-Agent=${agent_slot}"`
 - the caller must send that header for requests to match
 
+Support check (practical):
+
+- `telepresence intercept --help` should include `--http-header` (or a similar HTTP filter flag). If you are not using the repo-pinned Telepresence toolchain, verify the feature exists before relying on parallel intercept routing.
+
+### Fallback: coordination (single-owner intercept)
+
+If HTTP header filtering is not available, or the service is not HTTP:
+
+- Keep unique intercept names (to prevent collisions), but treat the intercept as **single-owner per workload**.
+- Coordinate so only one agent at a time intercepts a given workload; other agents should use remote-first URLs or work on different services/slices.
+
 ## VS Code port-forward collisions
 
 Multiple VS Code windows can’t forward the same container port to the same local port.
 
 Guidance:
 - Prefer remote-first URLs (`https://*.dev.ameide.io`) during intercepts.
-- If forwarding is required, rely on VS Code auto-remap or assign per-agent local ports.
+- If forwarding is required (application ports), rely on VS Code auto-remap or assign per-agent local ports. Do not forward Codex auth on `1455`; share `~/.codex/auth.json` instead.
 
 ## Codex CLI auth callback collision (`localhost:1455`)
 
@@ -84,6 +96,10 @@ Codex CLI’s “Sign in with ChatGPT” login flow runs a local callback server
 Policy (v1; canonical):
 - Authenticate once and share `~/.codex/auth.json` across all agent containers (avoid running concurrent login flows).
 - Do not use `OPENAI_API_KEY` / `codex login --with-api-key` in devcontainers (defer to a future “automation/headless auth” track).
+
+Notes:
+
+- Treat `localhost:1455` as fixed for this login flow; avoid “per-window remap” guidance. The supported posture is “authenticate once, then share `auth.json`”.
 
 Rationale: shared `~/.codex/auth.json` avoids local callback server contention and keeps auth handling consistent across parallel agent slots.
 
@@ -123,6 +139,6 @@ Reference: [VS Code Dev Containers - Persist bash history](https://code.visualst
 
 1. Generic devcontainer remains the default for `dev`/`main`.
 2. Two+ agent devcontainers run concurrently without working-tree interference.
-3. Same-workload parallelism is supported for HTTP services via header-filtered intercepts.
+3. Same-workload parallelism is supported for HTTP services via header-filtered intercepts when supported; otherwise, single-owner coordination per workload is the fallback.
 4. Codex CLI auth avoids `localhost:1455` collisions by default and defers API-key login in devcontainers (future automation track).
 5. Bootstrap supports an explicit “agent” mode that avoids repeated side effects.
