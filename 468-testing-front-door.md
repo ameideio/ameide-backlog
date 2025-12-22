@@ -27,11 +27,12 @@ ALLOW_MYPY_FAIL=0 ./scripts/ci/run_core_quality_local.sh
 
 ## Integration packs (unified contract / 430)
 
-Integration packs are **service-owned** and live alongside the service:
+Integration packs are **owned by the component they test** and live alongside it:
 
 - `services/<service>/__tests__/integration/run_integration_tests.sh`
 - `packages/<package>/__tests__/integration/run_integration_tests.sh` (when present)
 - `primitives/<kind>/<name>/tests/run_integration_tests.sh` (when present)
+- `capabilities/<capability>/__tests__/integration/run_integration_tests.sh` (when present; see `591-capabilities-tests.md`)
 
 They all honor:
 

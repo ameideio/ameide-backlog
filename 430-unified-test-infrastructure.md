@@ -5,7 +5,7 @@ owners:
   - platform
   - test-infra
 created: 2025-12-01
-updated: 2025-12-02
+updated: 2025-12-22
 supersedes:
   - 371-e2e-playwright.md
   - 376-integration-test-dual-modes.md
@@ -446,6 +446,8 @@ Every test run emits:
 | [362-unified-secret-guardrails](./362-unified-secret-guardrails.md) | Test credentials via ExternalSecrets |
 | [428-onboarding](./428-onboarding.md) | E2E requirements for onboarding |
 | [484-ameide-cli](./484-ameide-cli.md) | CLI `verify` command implements test modes, scaffolds 430-compliant test structure |
+| [590-capabilities](./590-capabilities.md) | Defines `capabilities/` as the repo-level composition boundary (where capability-owned tests live) |
+| [591-capabilities-tests](./591-capabilities-tests.md) | Capability-owned integration packs (vertical slice tests) aligned to the 430 runner contract |
 
 ### Superseded
 

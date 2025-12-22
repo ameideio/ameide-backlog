@@ -41,6 +41,7 @@ In this repo these are wired as:
 - [520-primitives-stack-v2.md](520-primitives-stack-v2.md) – Guardrails plane (§CI gate checklist)
 - [533-capability-implementation-playbook.md](533-capability-implementation-playbook.md) – Node 8 (Verify & Package)
 - [520-primitives-stack-v2-research-agent.md](520-primitives-stack-v2-research-agent.md) – LangGraph invariants research
+- [591-capabilities-tests.md](591-capabilities-tests.md) – Capability-owned vertical slice tests (integration packs at the capability boundary)
 
 ---
 
