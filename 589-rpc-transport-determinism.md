@@ -225,8 +225,15 @@ Transport determinism fixes routing failures, but org/onboarding correctness sti
   - `gitops/ameide-gitops/sources/charts/apps/www-ameide-platform/tests/rpc_env_test.yaml`
   - `gitops/ameide-gitops/sources/charts/apps/www-ameide/tests/configmap_test.yaml`
 
+To run locally:
+
+- `helm unittest sources/charts/apps/gateway`
+- `helm unittest sources/charts/apps/www-ameide-platform`
+- `helm unittest sources/charts/apps/www-ameide`
+
 ### ArgoCD verification (example: local)
 
+- `local-platform-gateway` is `Synced`, and `GRPCRoute/platform` contains `ameide_core_proto.platform.v1.InvitationService`.
 - Confirm `www-ameide-platform-config` has both vars:
   - `AMEIDE_GRPC_BASE_URL=http://envoy-grpc:9000`
   - `NEXT_PUBLIC_ENVOY_URL=https://api.<env>.ameide.io`
