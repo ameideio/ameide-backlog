@@ -33,6 +33,9 @@ This section is a lightweight status tracker against the work packages below.
 - [x] WP-A3 UISurface: existing ArchiMate editor wired to primitives (`services/www_ameide_platform`).
 - [x] WP-Z Deletion: legacy `services/*` backends removed (`services/graph`, `services/repository`, `services/transformation`).
 - [ ] WP-0 Repo health: confirm repo-wide codegen drift gates are green and enforceable in CI (regen-diff).
+- [x] WP-B (CODE) WorkRequests substrate: Domain WorkRequest record + facts + queue-topic fanout implemented; executor implemented (`primitives/integration/transformation-work-executor`).
+- [x] WP-B (TEST) Capability pack exists (`capabilities/transformation/__tests__/integration`) with repo-mode + cluster-mode WorkRequest seam coverage (E2E‑0) and repo-mode Process orchestration seam (E2E‑1).
+- [ ] WP-B (CLUSTER) Process orchestration in cluster is end-to-end (ingress → Temporal signals → projection timeline assertions enabled).
 - [x] GitOps parity (execution substrate): KEDA + Kafka work-queue topics + workbench + secret wiring exist in `ameide-gitops` (enabled in `local` + `dev`; disabled elsewhere).
 - [x] GitOps parity (runtimes): Process/Agent/Projection/UISurface runtime components exist in `ameide-gitops` and local has a minimal “stacktest” set enabled (`process-ping-v0`, `agent-echo-v0`, `projection-foo-v0`, `uisurface-hello-v0`) to validate the substrate end-to-end.
 - [x] GitOps parity (images): primitive images published by CI are `ghcr.io/ameideio/primitive-<suffix>:<tag>` (e.g. `primitive-process-transformation:dev`), so GitOps MUST use the `primitive-` prefix for primitives.
@@ -302,13 +305,33 @@ WP‑B is implemented **proto-first** so orchestration and evidence do not drift
   - deploy workbench pod(s) only in `local`/`dev` with admin-only access
   - verify workbench cannot consume WorkRequested and cannot become an orchestrator
 
+**Implementation status (CODE; repo snapshot)**
+
+- [x] Domain owns WorkRequests (SoR + facts-after-persistence + queue-topic fanout):
+  - `RequestWork` persists a `WorkRequest` and emits:
+    - canonical `transformation.work.domain.facts.v1`
+    - a KEDA queue topic (`transformation.work.queue.*`) based on `WorkKind` + `ActionKind`
+  - `RecordWorkStarted` / `RecordWorkOutcome` update status + emit `WorkStarted` / `WorkCompleted|WorkFailed`
+- [x] Executor consumes WorkRequested and records outcomes durably:
+  - `primitives/integration/transformation-work-executor` processes one `WorkRequested` per Kubernetes Job, records `started/outcome`, and commits Kafka offsets only after `RecordWorkOutcome` succeeds
+- [x] Process workflow exists (Temporal):
+  - `ToolRunWorkflow` requests a WorkRequest, waits for completion signal, and emits `ToolRunRecorded` + `ActivityTransitioned`
+- [x] Capability integration pack exists (front-door tests; 430 contract):
+  - `capabilities/transformation/__tests__/integration` provides:
+    - E2E‑0 WorkRequest seam tests (repo-mode + cluster-mode)
+    - E2E‑1 Process orchestration seam test (repo-mode)
+- [ ] Process ingress is Kafka-native (cluster E2E):
+  - current ingress is `stdin://` only (dev); cluster orchestration remains gated until facts drive workflow completion
+- [ ] Projection “timeline assertions” are enabled in cluster mode:
+  - projection must ingest process facts + work facts reliably and expose query services without Telepresence port-name collisions (see gotchas)
+
 **Implementation status (GitOps; repo snapshot)**
 
 - [x] KEDA installed cluster-scoped (see `backlog/585-keda.md`).
 - [x] Work-queue topics provisioned via `data-kafka-workrequests-topics` (enabled in `local` + `dev`; disabled elsewhere).
 - [x] Workbench provisioned via `workrequests-runner` (enabled in `local` + `dev`; disabled elsewhere). ExternalSecrets templates exist, but `local` + `dev` currently set `secrets.enabled=false` so the workbench can start without Vault/ExternalSecrets.
 - [x] MinIO service-user scaffolding for WorkRequests (Vault-backed) exists (enabled in `local` + `dev`; disabled elsewhere).
-- [x] KEDA `ScaledJob` resources enabled in `local` + `dev` (disabled elsewhere). **Note:** `scaledJobs.maxReplicaCount: 0` by default and the Job entrypoint is still a placeholder (`exit 1`) until the real WorkRequest consumer is implemented.
+- [x] KEDA `ScaledJob` resources enabled in `local` + `dev` (disabled elsewhere). **Note:** `scaledJobs.maxReplicaCount: 0` by default (safety); raise it in `local`/`dev` when ready for active processing. Executor image is `ghcr.io/ameideio/primitive-integration-transformation-work-executor:<tag>`.
 - [ ] Runtime hardening: RBAC/NetworkPolicy per executor class (toolrun vs agentwork) and staging/production rollout posture.
 
 ### GitOps artifact inventory (what exists in `ameide-gitops`)
@@ -370,6 +393,9 @@ Consumer groups (current GitOps scaffolding; subject to future naming convention
 - Strimzi topic config values MUST be rendered as strings for numeric fields like `retention.ms` to avoid scientific-notation formatting (`6.048e+08`) that Kafka rejects. See `sources/values/_shared/data/data-kafka-workrequests-topics.yaml` (`retentionMs: "604800000"`).
 - KEDA’s Kafka scaler runs in `keda-system`; `bootstrapServers` MUST be namespace-qualified (e.g., `kafka-kafka-bootstrap.ameide-local:9092`) so the scaler can resolve the broker Service.
 - Local k3d scheduling: Kafka may require tolerations for control-plane/master taints due to PVC/node pinning in single-node clusters.
+- Telepresence sidecars can accidentally “steal” a Service `targetPort` name:
+  - if the `traffic-agent` container exposes a port named `grpc`, and the Service targets `targetPort: grpc`, gRPC traffic can route to the sidecar (e.g., port `9900`) instead of the intended app container (e.g., port `50051`)
+  - fix: ensure the app container port name and Service `targetPort` name match and do not conflict with the sidecar (use unique names like `tm-grpc` consistently)
 
 ### Quick verification (ameide-local)
 
@@ -384,9 +410,29 @@ Consumer groups (current GitOps scaffolding; subject to future naming convention
 - Smoke coverage:
   - `local-data-data-plane-smoke` asserts the WorkRequests execution queue KafkaTopics are present/Ready when enabled (see `backlog/588-smoke-tests-inventory.md`).
 
+WorkRequest seam tests (developer workflow):
+
+- repo mode (fast): `pnpm test:integration -- --filter capability-transformation --mode=repo`
+- cluster mode (headless; Domain must be reachable and a verify ScaledJob must be enabled in `local`):
+  - `kubectl -n ameide-local port-forward svc/transformation-v0-domain 15051:50051`
+  - `INTEGRATION_MODE=cluster TRANSFORMATION_DOMAIN_GRPC_ADDRESS=localhost:15051 go test -v ./capabilities/transformation/__tests__/integration`
+
 ### Current limitation (explicit)
 
-Enabling ScaledJobs in `local` proves the GitOps substrate and KEDA/Kafka wiring, but the runner containers intentionally do not yet implement the WorkRequest consume/ack discipline; if you publish any messages to these topics, Jobs will start and fail until the consumer code is implemented.
+Enabling ScaledJobs in `local` proves the GitOps substrate and KEDA/Kafka wiring. The executor image now implements the WorkRequest consume/record/commit discipline (Kafka offsets are committed only after durable outcomes are recorded in Domain).
+
+The remaining “end-to-end” gaps are now wiring gaps (not missing code primitives):
+
+- Process ingress is not Kafka-native yet (workflows are not completed by facts; cluster orchestration remains gated).
+- Projection service port naming can route gRPC traffic to the Telepresence sidecar instead of the app container (blocking reliable projection assertions in cluster tests).
+- ScaledJobs default to `maxReplicaCount: 0` (safety); enable at least the verify queue in `local`/`dev` to run cluster-mode WorkRequest seam tests.
+
+**Remaining activities (WP‑B completion; checklists)**
+
+- [ ] GitOps: enable `workrequests-toolrun-verify` ScaledJob in `local`/`dev` (set `maxReplicaCount > 0`) and remove any ad-hoc “*-test” ScaledJob once stable.
+- [ ] GitOps: fix Projection Service port naming so `transformation-v0-projection:50051` routes to the projection container (not the Telepresence sidecar).
+- [ ] CODE+GitOps: implement Process ingress for Kafka (`transformation.work.domain.facts.v1` / queue topics) and deploy it so workflows are signaled by facts (not by test-only helpers).
+- [ ] Tests: un-gate cluster Process orchestration tests (`TRANSFORMATION_ENABLE_PROCESS_CLUSTER_TESTS=1`) and require Projection timeline assertions (ProcessQuery + WorkQuery) in cluster mode once projection wiring is fixed.
 
 **Test ladder (TDD: small → large)**
 
