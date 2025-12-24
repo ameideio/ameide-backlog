@@ -153,6 +153,7 @@ Azure overlay remains unchanged (cluster appset only reads `_shared/components/c
 ## Risks / Gotchas
 
 - **CRD upgrades:** some ARC upgrades require remove/replace per release notes; treat upgrades as a change window.
+- **Job container requirement:** ARC Kubernetes modes can enforce “job must define `container:`” via `ACTIONS_RUNNER_REQUIRE_JOB_CONTAINER=true`. Local config overrides this to allow standard workflows without a job container.
 - **Metrics footgun:** if enabling controller metrics, also configure listener metrics or listeners may fail to start.
 - **Egress:** runners require outbound access to GitHub + DNS; if default-deny egress is introduced later, add explicit allowances for `arc-runners`.
 
