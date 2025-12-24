@@ -57,16 +57,16 @@ Also confirm the Service is not headless (`clusterIP: None`). Headless Services 
 
 ## Workload policy (baseline vs Tilt)
 
-Telepresence intercepts require Traffic Agent injection, which can be disabled per workload via the pod-template annotation `telepresence.io/inject-traffic-agent: disabled`.
+Telepresence intercepts require Traffic Agent injection. In our GitOps posture, injection is **opt-in**: the traffic-manager uses `agentInjector.injectPolicy=WhenEnabled`, so traffic-agent sidecars are only injected when the workload is explicitly annotated.
 
 Our GitOps contract is environment-specific:
 
-- **Local + dev:** overlays unset the annotation so the baseline workload is interceptable (Option A; no `*-tilt` copies required).
-- **Staging + prod:** baseline workloads keep `disabled` so they are not interceptable by default.
+- **Local + dev:** pick explicit intercept targets (preferred: `*-tilt` Deployments) and set `telepresence.io/inject-traffic-agent: enabled` (or the chart’s `telepresence.injectTrafficAgent: enabled`) only on those targets.
+- **Staging + prod:** keep workloads non-interceptable by default; if a workload is explicitly interceptable, it must be reviewed and time-bounded.
 
 ## GitOps enforcement check (ArgoCD config)
 
-If baseline workloads are still interceptable (or never show the `disabled` annotation), verify ArgoCD is not configured to ignore pod template annotations globally.
+If your intercept target never becomes interceptable (or you see unexpected injection behavior), verify ArgoCD is not configured to ignore pod template annotations globally.
 
 ArgoCD `argocd-cm` should **not** ignore `/spec/template/metadata/annotations` for Deployments/StatefulSets:
 
@@ -75,7 +75,7 @@ kubectl -n argocd get cm argocd-cm -o jsonpath='{.data.resource\.customizations\
 kubectl -n argocd get cm argocd-cm -o jsonpath='{.data.resource\.customizations\.ignoreDifferences\.apps_StatefulSet}{"\n"}'
 ```
 
-In our setup, Applications typically include `RespectIgnoreDifferences=true`, so ignored fields are also skipped during sync. If template annotations are ignored, GitOps cannot enforce `telepresence.io/inject-traffic-agent: disabled`.
+In our setup, Applications typically include `RespectIgnoreDifferences=true`, so ignored fields are also skipped during sync. If template annotations are ignored, GitOps cannot enforce `telepresence.io/inject-traffic-agent` policy (`enabled`/`disabled`) for explicit intercept targets.
 
 If you’re in the `ameide-gitops` repo, you can run the guardrail script:
 
@@ -127,7 +127,7 @@ If either command fails, sync `*-traffic-manager`, fix the RBAC templates under 
 | `telepresence connect verification failed` | Connect step exits non-zero | Azure credentials expired / traffic-manager unreachable | `az login --use-device-code`, then re-run verify. Inspect `kubectl -n ameide-dev logs deploy/traffic-manager`. |
 | `dial to socket /var/run/telepresence-daemon.socket failed ... permission denied` | Connect step fails before status/list | Stale Telepresence daemon socket in `/var/run` (locked-up root daemon, often after container restarts) | Run `sudo rm -f /var/run/telepresence-daemon.socket` (DevContainer) then retry. The helper also attempts this recovery automatically when it detects the signature. |
 | `telepresence status command failed` + `list` fails | Telepresence daemon stuck | `telepresence quit -s` then retry; escalate if daemon keeps crashing. |
-| `intercept ... failed (context=X, namespace=Y)` | Intercept error block with `status/list` dumps | RBAC regression, workload not interceptable in this env, traffic-manager bug | `kubectl auth can-i --as <telepresence SA> create pods/eviction -n <ns>`, verify the workload does not have `telepresence.io/inject-traffic-agent: disabled` in this namespace, capture traffic-manager logs. |
+| `intercept ... failed (context=X, namespace=Y)` | Intercept error block with `status/list` dumps | RBAC regression, workload not interceptable in this env, traffic-manager bug | `kubectl auth can-i --as <telepresence SA> create pods/eviction -n <ns>`, verify the workload is explicitly interceptable (`telepresence.io/inject-traffic-agent: enabled`) and not force-disabled, capture traffic-manager logs. |
 | `curl 127.0.0.1:<port>/healthz` works but `curl <podIP>:<port>/healthz` hangs (or probes flap after intercept) | Often surfaces as ArgoCD **Synced** but **Progressing** | Service `targetPort` is numeric and Telepresence uses iptables redirects that catch Pod-IP probe traffic | Convert the Service to `targetPort: <portName>` (named), restart the workload, and re-run the intercept. |
 | `connector.CreateIntercept: ... no active session` + daemon logs `exec: "iptables": executable file not found in $PATH` | DevContainer doesn’t have `iptables`, so the root daemon can’t program DNS/routing | Install `iptables` (e.g., `sudo apt-get update && sudo apt-get install -y iptables`) inside the DevContainer; re-run verify once packages are present. |
 | `telepresence intercept: error: unknown flag: --namespace` | Happens immediately after the CLI upgrade | Telepresence >=2.25 removed `--namespace` (and `--context`) flags from `intercept` | Update to the latest `tools/dev/telepresence.sh`, which now re-establishes the session via `telepresence connect --context ... --namespace ...` before starting the intercept. |

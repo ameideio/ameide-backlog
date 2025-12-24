@@ -98,7 +98,7 @@ Remote-first on the shared AKS cluster (backlog 435) remains the default workf
   - `get/list/watch` on workloads/services
   - `patch/update` on workloads (for Traffic Agent injection)
   - `list` `networking.k8s.io/servicecidrs` (Kubernetes 1.33+)
-- In local/dev, baseline workloads are intentionally interceptable (Option A). In staging/prod, baseline workloads keep injection disabled by default.
+- In local/dev, only explicit intercept targets should be interceptable. In staging/prod, keep workloads non-interceptable by default.
 
 ### Security & networking
 
@@ -115,13 +115,11 @@ On k3d/k3s the Kubernetes API server runs as a host process (not a pod). With a 
 
 **Stopgap (bootstrap-side):**
 - `tools/dev/bootstrap-contexts.sh --target ameide-local` applies a narrow `NetworkPolicy/allow-control-plane-webhooks` to allow the k3d/k3s pod CIDR (default `10.42.0.0/16`, override via `AMEIDE_LOCAL_CONTROL_PLANE_WEBHOOK_CIDR`) to reach the Telepresence webhook port (`8443`).
-- The same bootstrap script can patch `argocd-cm` ignoreDifferences for `Deployment`/`StatefulSet` pod templates so ArgoCD self-heal doesn’t instantly revert Telepresence traffic-agent injection (toggle via `AMEIDE_LOCAL_CONFIGURE_ARGO_FOR_TELEPRESENCE=0`).
+- If you rely on Telepresence mutating pod templates for injection, ArgoCD self-heal can revert those mutations. Prefer dedicated intercept targets that are explicitly annotated for injection in GitOps; otherwise use the bootstrap toggles only as a stopgap.
 
 **What’s left to do (GitOps-side):**
 - Make the `allow-control-plane-webhooks` policy part of the local environment GitOps base so Argo owns it (no manual/bootstrap patching).
-- Decide how local GitOps should treat Telepresence traffic-agent injection drift:
-  - Keep the default `RespectIgnoreDifferences=true` and allow Telepresence injection via env overlays (Option A), or
-  - Disable self-heal for the specific Argo apps used as intercept targets (local only).
+- Decide (and document) the explicit intercept targets per environment, and ensure they are annotated for injection (`telepresence.io/inject-traffic-agent: enabled`) without requiring Telepresence to patch pod templates.
 - Decide whether to:
   - Extend `deny-cross-environment` (local only) with an `ipBlock` allow for the control-plane CIDR, or
   - Keep `deny-cross-environment` as-is and add explicit allow policies for webhook servers (Telepresence + Vault injector).
@@ -161,10 +159,11 @@ Telepresence can inject Traffic Agents without changing GitOps manifests, which 
    - Contract: container port is named (e.g. `http`), Service port is named `http`, and Service `targetPort` is the **string** `http`.
    - We enforce this in app charts so Telepresence can avoid the iptables init-container path that can interfere with Pod-IP probes.
    - Caveat: avoid intercepting **headless Services** (`clusterIP: None`) as Telepresence may still need the iptables init-container path for those targets.
-2. **Baseline workloads disable injection by default**
-   - Contract: shared defaults set `telepresence.io/inject-traffic-agent: disabled` on the pod template so production-like environments stay protected by default.
-   - Local + dev overlays intentionally **unset** this annotation so Telepresence can intercept the existing baseline Deployment (Option A), without introducing `*-tilt` copies.
-   - Staging/prod keep the default `disabled` unless there is an explicit, reviewed reason to override.
+2. **Traffic-agent injection is opt-in (GitOps posture)**
+   - Contract: the traffic-manager uses `agentInjector.injectPolicy=WhenEnabled`, so workloads only receive traffic-agent sidecars when they are explicitly annotated.
+   - Baseline workloads may still set `telepresence.io/inject-traffic-agent: disabled` as an explicit guardrail (even though injection is already opt-in).
+   - Local + dev should enable injection only on dedicated intercept targets (preferred: `*-tilt` deployments) or via per-app values that set `telepresence.injectTrafficAgent: enabled` for the specific workload.
+   - Staging/prod keep injection disabled unless there is an explicit, reviewed reason to enable it.
 
 ### ArgoCD enforcement gotcha: `ignoreDifferences` + `RespectIgnoreDifferences`
 

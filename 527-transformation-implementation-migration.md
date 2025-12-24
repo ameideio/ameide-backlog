@@ -35,7 +35,7 @@ This section is a lightweight status tracker against the work packages below.
 - [x] WP-Z GitOps cleanup: legacy `graph`/`transformation` app components removed and gateway no longer routes non-graph proto traffic through `graph`.
 - [ ] WP-0 Repo health: confirm repo-wide codegen drift gates are green and enforceable in CI (regen-diff).
 - [x] WP-B (CODE) WorkRequests substrate: Domain WorkRequest record + facts + queue-topic fanout implemented; executor implemented (`primitives/integration/transformation-work-executor`).
-- [x] WP-B (CODE) Process ingress can consume Kafka domain facts (`PROCESS_INGRESS_SOURCE=kafka://`) and signal workflows (no manual signal required).
+- [ ] WP-B (CODE) Process ingress consumes Kafka domain facts (`PROCESS_INGRESS_SOURCE=kafka://`) and signals workflows (target-state; currently stdin-only).
 - [x] WP-B (CODE) Domain dispatcher publishes outbox topics to Kafka by default (no topic prefix filter).
 - [x] WP-B (TEST) Capability pack exists (`capabilities/transformation/__tests__/integration`) with repo-mode + cluster-mode WorkRequest seam coverage (E2E‑0) and repo-mode Process orchestration seam (E2E‑1).
 - [ ] WP-B (CLUSTER) Process orchestration in cluster is end-to-end (ingress → Temporal signals → projection timeline assertions enabled).
@@ -338,7 +338,7 @@ WP‑B is implemented **proto-first** so orchestration and evidence do not drift
 - [x] Work-queue topics provisioned via `data-kafka-workrequests-topics` (enabled in `local` + `dev`; disabled elsewhere).
 - [x] Workbench provisioned via `workrequests-runner` (enabled in `local` + `dev`; disabled elsewhere). ExternalSecrets templates exist, but `local` + `dev` currently set `secrets.enabled=false` so the workbench can start without Vault/ExternalSecrets.
 - [x] MinIO service-user scaffolding for WorkRequests (Vault-backed) exists (enabled in `local` + `dev`; disabled elsewhere).
-- [x] KEDA `ScaledJob` resources enabled in `local` + `dev` (disabled elsewhere). **Note:** `scaledJobs.maxReplicaCount: 0` by default (safety); raise it in `local`/`dev` when ready for active processing. Executor image is `ghcr.io/ameideio/primitive-integration-transformation-work-executor:<tag>`.
+- [x] KEDA `ScaledJob` resources enabled in `local` + `dev` (disabled elsewhere). **Note:** `scaledJobs.maxReplicaCount: 0` is the shared default (safety); `local` + `dev` set `maxReplicaCount: 1` to allow cluster-mode WorkRequest seam tests without enabling uncontrolled fan-out. Executor image is `ghcr.io/ameideio/primitive-integration-transformation-work-executor:<tag>`.
 - [ ] Runtime hardening: RBAC/NetworkPolicy per executor class (toolrun vs agentwork) and staging/production rollout posture.
 
 ### GitOps artifact inventory (what exists in `ameide-gitops`)
@@ -432,15 +432,15 @@ Enabling ScaledJobs in `local` proves the GitOps substrate and KEDA/Kafka wiring
 
 The remaining “end-to-end” gaps are now wiring gaps (not missing code primitives):
 
-- Process ingress is Kafka-native in CODE (kafka consumer for `transformation.work.domain.facts.v1` + `transformation.governance.domain.facts.v1`), but is not deployed/wired in cluster yet (workflows are not completed by facts; cluster orchestration remains gated).
-- Projection service port naming can route gRPC traffic to the Telepresence sidecar instead of the app container (blocking reliable projection assertions in cluster tests).
-- ScaledJobs default to `maxReplicaCount: 0` (safety); enable at least the verify queue in `local`/`dev` to run cluster-mode WorkRequest seam tests.
+- Process ingress is not yet Kafka-backed in CODE (`PROCESS_INGRESS_SOURCE=kafka://` not implemented), so cluster orchestration remains gated.
+- Telepresence traffic-agent injection is now opt-in (`agentInjector.injectPolicy=WhenEnabled`) so baseline workloads and operator-managed primitives do not get sidecars by default.
+- WorkRequests runner ScaledJobs are now enabled in `local` + `dev` with `maxReplicaCount: 1` for cluster-mode seam tests.
 
 **Remaining activities (WP‑B completion; checklists)**
 
-- [ ] GitOps: enable `workrequests-toolrun-verify` ScaledJob in `local`/`dev` (set `maxReplicaCount > 0`) and remove any ad-hoc “*-test” ScaledJob once stable.
-- [ ] GitOps: fix Projection Service port naming so `transformation-v0-projection:50051` routes to the projection container (not the Telepresence sidecar).
-- [ ] GitOps: deploy Process ingress for Kafka (`PROCESS_INGRESS_SOURCE=kafka://`, `KAFKA_BROKERS`, `KAFKA_GROUP_ID`, optional `KAFKA_TOPICS`) so workflows are signaled by facts (not by test-only helpers).
+- [x] GitOps: enable `workrequests-toolrun-verify` ScaledJob in `local`/`dev` (set `maxReplicaCount > 0`) and remove any ad-hoc “*-test” ScaledJob once stable.
+- [x] GitOps: make Telepresence injection opt-in (`agentInjector.injectPolicy=WhenEnabled`) so `transformation-v0-projection:50051` does not route to a sidecar by default.
+- [ ] GitOps: deploy Process ingress for Kafka (`PROCESS_INGRESS_SOURCE=kafka://`, `KAFKA_BROKERS`, `KAFKA_GROUP_ID`, optional `KAFKA_TOPICS`) so workflows are signaled by facts (not by test-only helpers). (Blocked: kafka:// not implemented in CODE yet, and the Process ingress binary/image is not shipped as a separate runtime today.)
 - [ ] Tests: un-gate cluster Process orchestration tests (`TRANSFORMATION_ENABLE_PROCESS_CLUSTER_TESTS=1`) and require Projection timeline assertions (ProcessQuery + WorkQuery) in cluster mode once projection wiring is fixed.
 
 **Test ladder (TDD: small → large)**
@@ -493,7 +493,7 @@ Debug/admin mode (required in `local`/`dev`; not a processor):
 - [x] Schema/migrations exist for the enterprise repository substrate (repositories, nodes, assignments, elements, relationships, versions).
 - [x] Transactional outbox exists and facts are emitted after persistence (`transformation.knowledge.domain.facts.v1`).
 - [x] Repository scoping is enforced on writes (`{tenant_id, organization_id, repository_id}` everywhere).
-- [ ] Optimistic concurrency is enforced for view head updates (expected head version id / version number).
+- [x] Optimistic concurrency is enforced for view head updates (expected head version id / version number).
 - [x] Gate: `go run ./packages/ameide_core_cli/cmd/ameide primitive verify --kind domain --name transformation --mode repo` passes.
 
 **Implementation requirements**
