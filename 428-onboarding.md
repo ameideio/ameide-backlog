@@ -22,7 +22,7 @@ This backlog consolidates all onboarding-related requirements from prior specifi
 | Component | Status | Implementation |
 |-----------|--------|----------------|
 | Frontend Wizard | ✅ | 3-step onboarding UI in `app/(app)/onboarding/page.tsx` |
-| Middleware Gate | ✅ | Forces new users to complete onboarding before app access |
+| Middleware Gate | 🔄 | Removed auto-onboarding gating from Edge middleware; the signed-in portal renders explicit access state (see `backlog/597-login-onboarding-primitives.md`) |
 | Registration API | ✅ | `POST /api/v1/registrations/complete` with tenant validation |
 | Identity Orchestrator | ✅ | `features/identity/lib/orchestrator.ts` - atomic org/membership creation |
 | Invitation System | ✅ | 7 endpoints: create, validate, accept, revoke, resend, list |
