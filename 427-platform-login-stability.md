@@ -3,6 +3,8 @@
 **Status:** Phase 1–3 complete; layouts split, `/login` uses a public layout with no server-side auth, and middleware-only session validation (with `safeAuth` fully removed) is in place for protected routes.
 **Intent:** Fix the upstream connection resets on `/login`, reduce 70+ second SSR compilation times, and eliminate `/healthz` JSON parse errors. Root causes are blocking Redis/RPC operations in the SSR path, missing error handling, and layout coupling.
 
+> **Update (597):** Tenant routing for user traffic is issuer-first (OIDC `iss` issuer URL → server-side `issuer → tenant_id` mapping). Do not treat org discovery TIMEOUT as EMPTY (no `return []` on timeout); surface TIMEOUT/ERROR explicitly to avoid misrouting users into onboarding.
+
 ---
 
 ## Symptoms
@@ -149,8 +151,8 @@ The `/login` page doesn't need organization context — it just redirects to Key
 File: `services/www_ameide_platform/app/(auth)/auth.ts`
 
 ```typescript
-// Early return if no tenantId (unauthenticated or pre-signin)
-if (!enrichedToken.tenantId) {
+// Early return if no issuer (unauthenticated or pre-signin)
+if (!enrichedToken.issuer) {
   return;
 }
 ```
@@ -161,13 +163,13 @@ File: `services/www_ameide_platform/app/(auth)/auth.ts`
 
 Replace:
 ```typescript
-const { extractRealmFromIssuer } = await import('@/lib/auth/realm-discovery');
+const { resolveTenantForIssuer } = await import('@/lib/tenancy/routing');
 const { upsertUserFromKeycloak } = await import('@/lib/users');
 ```
 
 With top-level imports:
 ```typescript
-import { extractRealmFromIssuer } from '@/lib/auth/realm-discovery';
+import { resolveTenantForIssuer } from '@/lib/tenancy/routing';
 import { upsertUserFromKeycloak } from '@/lib/users';
 ```
 
@@ -222,19 +224,21 @@ app/
 If the platform service is slow/down, don't block auth:
 
 ```typescript
+type OrgFetchResult = { status: 'OK' | 'TIMEOUT' | 'ERROR'; orgs: OrganizationContext[] };
+
 async function fetchOrganizationsWithTimeout(
   tenantId: string, userId: string, orgSlugs: string[], timeoutMs = 5000
-): Promise<OrganizationContext[]> {
+): Promise<OrgFetchResult> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    return await fetchOrganizationContexts(tenantId, userId, orgSlugs);
+    return { status: 'OK', orgs: await fetchOrganizationContexts(tenantId, userId, orgSlugs) };
   } catch (err) {
     if (err.name === 'AbortError') {
       console.warn('[auth] Organization fetch timed out, continuing without org context');
-      return [];
+      return { status: 'TIMEOUT', orgs: [] };
     }
-    throw err;
+    return { status: 'ERROR', orgs: [] };
   } finally {
     clearTimeout(timeoutId);
   }
@@ -245,9 +249,9 @@ async function fetchOrganizationsWithTimeout(
 
 Current state:
 - Middleware (Edge) validates the session and enforces access control for protected routes; RootLayout no longer performs any server-side session validation and simply hydrates client-side providers.
-- Middleware injects `x-pathname`, `x-tenant-id`, `x-user-id`, `x-user-kc-sub`, and `x-org-home` headers derived from the Edge session so server components can avoid re-running heavy auth logic.
-- The authenticated app layout (`app/(app)/layout.tsx`) reads `x-pathname` and `x-tenant-id` to resolve the navigation descriptor instead of calling `auth()`/`safeAuth()`.
-- The organization layout (`app/(app)/org/[orgId]/layout.tsx`) uses `x-tenant-id`, `x-user-kc-sub`, and `x-user-id` to resolve and load organizations without invoking `auth()`/`safeAuth()`.
+- Middleware injects `x-pathname`, `x-issuer`, `x-user-id`, `x-user-kc-sub`, and `x-org-home` headers derived from the Edge session so server components can avoid re-running heavy auth logic.
+- The authenticated app layout (`app/(app)/layout.tsx`) reads `x-pathname` and `x-issuer` to resolve the navigation descriptor instead of calling `auth()`/`safeAuth()`.
+- The organization layout (`app/(app)/org/[orgId]/layout.tsx`) uses `x-issuer`, `x-user-kc-sub`, and `x-user-id` to resolve and load organizations without invoking `auth()`/`safeAuth()`.
 - The home redirect (`app/page.tsx`) uses `x-org-home` for the target organization/home route and falls back to `/login` when middleware context is missing, instead of calling `safeAuth()`.
 - The `safeAuth` helper has been removed entirely. Session introspection now happens only where strictly required:
   - Navigation access control (`getUserAccess`) via `getSession()` in `app/(auth)/auth.ts`.
@@ -285,7 +289,7 @@ curl -vk --resolve platform.local.ameide.io:443:172.18.0.5 \
 | File | Purpose |
 |------|---------|
 | `app/layout.tsx` | RootLayout — no server-side session validation; hydrates global providers with `session = null` and relies on middleware + client-side session for auth state |
-| `app/(app)/layout.tsx` | Authenticated app layout — uses `x-pathname` and `x-tenant-id` headers from middleware to resolve navigation, never calls `auth()`/`safeAuth()` |
+| `app/(app)/layout.tsx` | Authenticated app layout — uses `x-pathname` and `x-issuer` headers from middleware to resolve navigation, never calls `auth()`/`safeAuth()` |
 | `app/page.tsx` | Home redirect — uses `x-org-home` header from middleware to route users to their org home or onboarding; falls back to `/login` when middleware context is missing (no server-side session lookup) |
 | `app/(auth)/auth.ts` | NextAuth config — JWT callback, token refresh, org fetch |
 | `lib/cache/redis.ts` | Redis client — connection and JSON parsing |
