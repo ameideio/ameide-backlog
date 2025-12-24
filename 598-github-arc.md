@@ -136,6 +136,17 @@ Azure overlay remains unchanged (cluster appset only reads `_shared/components/c
 - `controllerServiceAccount` is set explicitly (required for GitOps / cross-namespace installs)
 - Local default container mode: `kubernetes-novolume`
 
+### WP-6: Runner scale set (env, local-only, docker-capable)
+
+Some repos (e.g. image publishing workflows) require a working `docker` daemon (`docker buildx`, `docker/build-push-action`, `kind`, etc). For local ARC, provide a second scale set using **dind**:
+
+- Component: `environments/local/components/apps/runtime/github-arc-runner-set-dind/component.yaml`
+- Values:
+  - `sources/values/_shared/apps/github-arc-runner-set-dind.yaml`
+  - `sources/values/env/local/apps/github-arc-runner-set-dind.yaml`
+- Scale set name / `runs-on`: `arc-local-dind`
+- Container mode: `dind`
+
 ---
 
 ## Definition of Done (local)
@@ -160,6 +171,12 @@ Set the job `runs-on` to the ARC scale set name:
 runs-on: arc-local
 ```
 
+For workflows that require `docker` (buildx, kind, etc), route to the dind scale set:
+
+```yaml
+runs-on: arc-local-dind
+```
+
 Recommended pattern (allows overriding per-repo with a GitHub **Variable**):
 
 ```yaml
@@ -168,7 +185,7 @@ runs-on: ${{ vars.AMEIDE_RUNS_ON || 'arc-local' }}
 
 Then, in each repo:
 
-- Create GitHub variable `AMEIDE_RUNS_ON=arc-local`
+- Create GitHub variable `AMEIDE_RUNS_ON=arc-local` (or `arc-local-dind` if the repo needs docker)
 - Ensure the repo is in the `ameideio` org (this local ARC install is org-attached via `githubConfigUrl: https://github.com/ameideio`)
 
 ### 2) Runner group access (optional but recommended)
