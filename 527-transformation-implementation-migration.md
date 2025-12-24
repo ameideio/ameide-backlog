@@ -40,6 +40,7 @@ This section is a lightweight status tracker against the work packages below.
 - [x] GitOps parity (execution substrate): KEDA + Kafka work-queue topics + workbench + secret wiring exist in `ameide-gitops` (enabled in `local` + `dev`; disabled elsewhere).
 - [x] GitOps parity (runtimes): Process/Agent/Projection/UISurface runtime components exist in `ameide-gitops` and local has a minimal “stacktest” set enabled (`process-ping-v0`, `agent-echo-v0`, `projection-foo-v0`, `uisurface-hello-v0`) to validate the substrate end-to-end.
 - [x] GitOps parity (images): primitive images published by CI are `ghcr.io/ameideio/primitive-<suffix>:<tag>` (e.g. `primitive-process-transformation:dev`), so GitOps MUST use the `primitive-` prefix for primitives.
+- [x] GitOps parity (gateway routing): platform gateway routes Transformation gRPC services to primitives (Domain CommandServices → `transformation-v0-domain`; Projection QueryServices → `transformation-v0-projection`) across environments.
 
 Gates (currently passing):
 
