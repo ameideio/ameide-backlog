@@ -122,9 +122,9 @@ Azure overlay remains unchanged (cluster appset only reads `_shared/components/c
 
 - Component: `environments/local/components/cluster/secrets/github-arc-auth/component.yaml`
 - Values: `sources/values/_shared/cluster/github-arc-auth.yaml`
-- Materializes `Secret/arc-github-auth` in `arc-runners` from Vault key `ghcr-token` (local bootstrap convenience).
+- Materializes `Secret/arc-github-auth` in `arc-runners` from local Vault key `ghcr-token` (derived from `.env` `GHCR_TOKEN`; bootstrap convenience).
 - Local: `.env` secrets are seeded into local Vault by `infra/scripts/seed-local-secrets.sh` (invoked by `infra/scripts/deploy.sh local`); `GHCR_TOKEN` becomes Vault key `ghcr-token`.
-- Azure: `.env` secrets are materialized into Azure Key Vault via Terraform/Bicep; this ARC auth wiring is local-only (revisit if promoting).
+- Azure: Terraform can reconcile `.env` → Key Vault secrets when running `infra/scripts/deploy.sh azure` locally; GitHub Actions CI typically reads secrets from Key Vault (no `.env` in CI). ARC auth wiring remains local-only (revisit if promoting).
 
 ### WP-5: Runner scale set (env, local-only)
 
