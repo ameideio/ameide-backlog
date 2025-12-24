@@ -147,6 +147,16 @@ Some repos (e.g. image publishing workflows) require a working `docker` daemon (
 - Scale set name / `runs-on`: `arc-local-dind`
 - Container mode: `dind`
 
+### WP-7: Runner scale set (env, local-only, docker-capable, amd64)
+
+Local k3d clusters are often `arm64`. Some repos/dependencies still require `amd64` (example: `wasmtime-go` on certain versions). Provide an optional scale set that runs `amd64` images via emulation:
+
+- Component: `environments/local/components/apps/runtime/github-arc-runner-set-dind-amd64/component.yaml`
+- Values:
+  - `sources/values/_shared/apps/github-arc-runner-set-dind-amd64.yaml`
+  - `sources/values/env/local/apps/github-arc-runner-set-dind-amd64.yaml`
+- Scale set name / `runs-on`: `arc-local-dind-amd64`
+
 ---
 
 ## Definition of Done (local)
@@ -185,7 +195,7 @@ runs-on: ${{ vars.AMEIDE_RUNS_ON || 'arc-local' }}
 
 Then, in each repo:
 
-- Create GitHub variable `AMEIDE_RUNS_ON=arc-local` (or `arc-local-dind` if the repo needs docker)
+- Create GitHub variable `AMEIDE_RUNS_ON=arc-local` (or `arc-local-dind` if the repo needs docker; or `arc-local-dind-amd64` for maximum compatibility on arm64 hosts)
 - Ensure the repo is in the `ameideio` org (this local ARC install is org-attached via `githubConfigUrl: https://github.com/ameideio`)
 
 ### 2) Runner group access (optional but recommended)
