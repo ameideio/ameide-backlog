@@ -27,6 +27,19 @@ This backlog defines:
 
 ---
 
+## GitOps implications (ameide-gitops)
+
+This backlog is mostly **runtime primitive + contract** work, but it has a few concrete **cluster/GitOps** implications:
+
+- **Keycloak realm provisioning model:** GitOps currently provisions a single realm (`ameide`) via `KeycloakRealmImport` (`platform-keycloak-realm` → `sources/charts/foundation/operators-config/keycloak_realm`). Realm-per-tenant implies either:
+  - runtime-owned provisioning (preferred): `tenancy-realm-provisioner` uses Keycloak Admin to create realms + validate invariants, or
+  - GitOps-owned provisioning (only for demos/seeding): GitOps declares a small set of tenant realms explicitly.
+- **Client secret + redirect URI contract:** multi-realm means OIDC clients (and secrets) exist per realm; the current `clientPatcher.targetRealm=ameide` is intentionally single-realm and would need extending before GitOps can “manage N realms”.
+- **Smokes:** the cluster should fail fast when realm imports break. We now assert `KeycloakRealmImport/ameide-realm` reaches `Done=True` in `platform-auth-smoke` (in addition to Keycloak CR readiness).
+- **Gateway/DNS:** realm-per-tenant typically increases reliance on pre-login tenant selection (subdomain/invite/tenant picker). The platform gateway already supports wildcard hostnames; DNS + www routing is the remaining concern (usually outside this repo).
+
+---
+
 ## Definitions
 
 ### Login / Logout (authn + session + access resolution)
