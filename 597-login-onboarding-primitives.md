@@ -31,12 +31,13 @@ This backlog defines:
 
 This backlog is mostly **runtime primitive + contract** work, but it has a few concrete **cluster/GitOps** implications:
 
-- **Keycloak realm provisioning model:** GitOps currently provisions a single realm (`ameide`) via `KeycloakRealmImport` (`platform-keycloak-realm` → `sources/charts/foundation/operators-config/keycloak_realm`). Realm-per-tenant implies either:
-  - runtime-owned provisioning (preferred): `tenancy-realm-provisioner` uses Keycloak Admin to create realms + validate invariants, or
-  - GitOps-owned provisioning (only for demos/seeding): GitOps declares a small set of tenant realms explicitly.
-- **Client secret + redirect URI contract:** multi-realm means OIDC clients (and secrets) exist per realm; the current `clientPatcher.targetRealm=ameide` is intentionally single-realm and would need extending before GitOps can “manage N realms”.
-- **Smokes:** the cluster should fail fast when realm imports break. We now assert `KeycloakRealmImport/ameide-realm` reaches `Done=True` in `platform-auth-smoke` (in addition to Keycloak CR readiness).
-- **Gateway/DNS:** realm-per-tenant typically increases reliance on pre-login tenant selection (subdomain/invite/tenant picker). The platform gateway already supports wildcard hostnames; DNS + www routing is the remaining concern (usually outside this repo).
+- **Recommended GitOps model (baseline):** GitOps owns **platform Keycloak infrastructure** + **exactly one platform realm** import (`KeycloakRealmImport/ameide-realm`). Tenant SSO configuration is expressed as **N Identity Provider configs in one realm**, written by runtime onboarding/support (not GitOps overlays).
+- **No tenant-specific GitOps overlays/apps:** GitOps must not manage per-tenant Keycloak IdPs or tenant secrets via PR flow; tenants are runtime state.
+- **Secrets posture:** Git stores only `ExternalSecret` references; Keycloak client secrets (and any tenant IdP secrets) are never committed.
+- **Smokes as enforcement:** `platform-auth-smoke` is the GitOps gate. It must fail fast if the realm import breaks *or* if the realm is missing the minimum knobs needed for login routing safety:
+  - OIDC discovery serves for the realm
+  - `kc_idp_hint` plumbing exists (Identity Provider Redirector is enabled in the Browser flow)
+  - `idp_alias` is emitted in tokens (mapper from session note `identity_provider` → claim `idp_alias`)
 
 ---
 
