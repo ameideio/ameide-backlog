@@ -626,22 +626,38 @@ func mutateDeploymentFromDomain(deploy *appsv1.Deployment, domain *amv1.Domain) 
     deploy.Spec.Selector = &metav1.LabelSelector{
         MatchLabels: map[string]string{"app": domain.Name},
     }
-    deploy.Spec.Template.ObjectMeta.Labels = map[string]string{
-        "app":                   domain.Name,
-        "ameide.io/primitive":   "domain",
-        "ameide.io/domain-name": domain.Name,
+    // NOTE: Avoid overwriting whole PodSpec/DeploymentSpec (defaulted fields will cause endless updates).
+    if deploy.Spec.Template.ObjectMeta.Labels == nil {
+        deploy.Spec.Template.ObjectMeta.Labels = map[string]string{}
     }
-    deploy.Spec.Template.Spec = corev1.PodSpec{
-        ServiceAccountName: domain.Spec.Security.ServiceAccountName,
-        Containers: []corev1.Container{{
-            Name:      "app",
-            Image:     domain.Spec.Image,
-            Env:       domain.Spec.Env,
-            Resources: domain.Spec.Resources,
-        }},
+    deploy.Spec.Template.ObjectMeta.Labels["app"] = domain.Name
+    deploy.Spec.Template.ObjectMeta.Labels["ameide.io/primitive"] = "domain"
+    deploy.Spec.Template.ObjectMeta.Labels["ameide.io/domain-name"] = domain.Name
+
+    if domain.Spec.Security.ServiceAccountName != "" {
+        deploy.Spec.Template.Spec.ServiceAccountName = domain.Spec.Security.ServiceAccountName
     }
+
+    // Mutate the container in-place (preserves API-defaulted fields).
+    idx := -1
+    for i := range deploy.Spec.Template.Spec.Containers {
+        if deploy.Spec.Template.Spec.Containers[i].Name == "app" {
+            idx = i
+            break
+        }
+    }
+    if idx == -1 {
+        deploy.Spec.Template.Spec.Containers = append(deploy.Spec.Template.Spec.Containers, corev1.Container{Name: "app"})
+        idx = len(deploy.Spec.Template.Spec.Containers) - 1
+    }
+    c := &deploy.Spec.Template.Spec.Containers[idx]
+    c.Image = domain.Spec.Image
+    c.Env = domain.Spec.Env
+    c.Resources = domain.Spec.Resources
 }
 ```
+
+> **Common pitfall:** avoid assigning `deploy.Spec = appsv1.DeploymentSpec{...}` / `deploy.Spec.Template.Spec = corev1.PodSpec{...}` / `svc.Spec = corev1.ServiceSpec{...}` inside `CreateOrUpdate`. These types are heavily defaulted (and Services have immutables like `clusterIP`). Resetting them to zero values forces perpetual updates and can create tight reconcile loops that burn control-plane CPU.
 
 ### 10.7 Status Update
 

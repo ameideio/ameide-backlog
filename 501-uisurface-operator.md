@@ -280,26 +280,34 @@ type UISurfaceReconciler struct {
 
 ```go
 func mutateNextDeployment(deploy *appsv1.Deployment, surface *amv1.UISurface, configMapName string) {
-    deploy.Spec.Template.Spec = corev1.PodSpec{
-        Containers: []corev1.Container{{
-            Name:  "nextjs",
-            Image: surface.Spec.Image,
-            Ports: []corev1.ContainerPort{{ContainerPort: 3000}},
-            Env: []corev1.EnvVar{
-                {Name: "NEXT_PUBLIC_API_URL", Value: "https://api.ameide.com"},
-                {Name: "KEYCLOAK_CLIENT_ID", Value: surface.Name},
-                // Scopes and feature flags from ConfigMap
-            },
-            EnvFrom: []corev1.EnvFromSource{{
-                ConfigMapRef: &corev1.ConfigMapEnvSource{
-                    LocalObjectReference: corev1.LocalObjectReference{Name: configMapName},
-                },
-            }},
-            LivenessProbe:  &corev1.Probe{/* Next.js health check */},
-            ReadinessProbe: &corev1.Probe{/* Next.js health check */},
-            Resources:      surface.Spec.Resources,
-        }},
+    // NOTE: avoid overwriting whole PodSpec (defaulted fields will cause endless updates).
+    idx := -1
+    for i := range deploy.Spec.Template.Spec.Containers {
+        if deploy.Spec.Template.Spec.Containers[i].Name == "nextjs" {
+            idx = i
+            break
+        }
     }
+    if idx == -1 {
+        deploy.Spec.Template.Spec.Containers = append(deploy.Spec.Template.Spec.Containers, corev1.Container{Name: "nextjs"})
+        idx = len(deploy.Spec.Template.Spec.Containers) - 1
+    }
+    c := &deploy.Spec.Template.Spec.Containers[idx]
+    c.Image = surface.Spec.Image
+    c.Ports = []corev1.ContainerPort{{ContainerPort: 3000}}
+    c.Env = []corev1.EnvVar{
+        {Name: "NEXT_PUBLIC_API_URL", Value: "https://api.ameide.com"},
+        {Name: "KEYCLOAK_CLIENT_ID", Value: surface.Name},
+        // Scopes and feature flags from ConfigMap
+    }
+    c.EnvFrom = []corev1.EnvFromSource{{
+        ConfigMapRef: &corev1.ConfigMapEnvSource{
+            LocalObjectReference: corev1.LocalObjectReference{Name: configMapName},
+        },
+    }}
+    c.LivenessProbe = &corev1.Probe{/* Next.js health check */}
+    c.ReadinessProbe = &corev1.Probe{/* Next.js health check */}
+    c.Resources = surface.Spec.Resources
 }
 ```
 

@@ -31,6 +31,11 @@ Recommended:
 - If you are temporarily using **mutable** tags (e.g. `:dev`), set `spec.imagePullPolicy: Always` (tracked as transitional under `backlog/603-image-pull-policy.md`).
 - For **pinned** tags/digests (e.g. `:<sha>`, `:v1.2.3`, `@sha256:...`), omit it (defaults to `IfNotPresent`) or set `IfNotPresent`.
 
+GitOps wiring (until digest pinning is universal):
+
+- Primitive CR `spec.image` should be rendered from a single value key (e.g. `global.ameide.primitives.imageTag`) so “new build” implies “new Git change” implies “new rollout”.
+- `imagePullPolicy` affects pull-on-start only; it does **not** trigger a rollout by itself.
+
 ## Testing & acceptance
 
 Operators must be testable at two levels:
