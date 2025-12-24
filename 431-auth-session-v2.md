@@ -35,17 +35,17 @@ This backlog captures that **v2 auth/session architecture** so future work stays
 ### 2.1 Flow Overview
 
 ```text
-Keycloak (tenantId user attribute)
+Keycloak (realm-per-tenant; issuer URL `iss`)
   ↓
-JWT Token (tenantId + roles claims via protocol mappers)
+JWT Token (issuer URL + roles)
   ↓
-NextAuth Session (session.user.tenantId, roles, org context)
+NextAuth Session (session.user.issuer, roles)
   ↓
 Proxy Auth Gate (`proxy.ts`, using an edge-compatible NextAuth config, running in the Node runtime)
   ↓
 Trusted headers for server components:
   - x-pathname
-  - x-tenant-id
+  - x-issuer
   - x-user-id
   - x-user-kc-sub
   - x-org-home
@@ -60,8 +60,8 @@ App Routes
 
 - **Proxy Auth Gate (`services/www_ameide_platform/proxy.ts`):**
   - Runs in the **Node runtime**, using an **edge-compatible** NextAuth configuration (JWT sessions, no DB adapter) to validate cookies and decode the session token.
-  - Enforces optimistic access control for protected routes (redirects unauthenticated users to `/login` with `callbackUrl` and applies onboarding rules like `hasRealOrganization` → `/onboarding`).
-  - Injects `x-pathname`, `x-tenant-id`, `x-user-id`, `x-user-kc-sub`, `x-org-home` for downstream server components and layouts.
+  - Enforces optimistic access control for protected routes (redirects unauthenticated users to `/login` with `callbackUrl` and applies issuer-first access routing per `backlog/597-login-onboarding-primitives.md`).
+  - Injects `x-pathname`, `x-issuer`, `x-user-id`, `x-user-kc-sub`, `x-org-home` for downstream server components and layouts.
   - Does **not** perform Redis or org-fetch operations; all heavy/authoritative checks happen in Node-only API routes and backend services.
 
 - **Root Layout (`app/layout.tsx`):**
@@ -83,7 +83,7 @@ App Routes
   - Assume middleware has already enforced auth and onboarding rules.
   - Use headers:
     - `x-pathname` to resolve navigation descriptors.
-    - `x-tenant-id`, `x-user-id`, `x-user-kc-sub`, `x-org-home` for org/tenant context.
+    - `x-issuer`, `x-user-id`, `x-user-kc-sub`, `x-org-home` for org/tenant context (issuer-first routing).
   - Must **not** call `auth()` / `getSession()` in layouts for gating.
 
 > **Security note:** The middleware-injected headers are a **convenience mechanism** for layouts and server components, not a security boundary. All sensitive operations (e.g. tenant/org membership, role checks, data reads/writes) must still be enforced in Node-only API routes and backend services using authenticated session/JWT context.
@@ -96,7 +96,7 @@ App Routes
 
 Server components and layouts should preferentially use headers injected by middleware:
 
-- `x-tenant-id` – primary tenant identifier.
+- `x-issuer` – primary tenant routing identifier (OIDC issuer URL).
 - `x-user-id` / `x-user-kc-sub` – user identity, realm-aware.
 - `x-org-home` – resolved home org route for the current user.
 - `x-pathname` – canonical request pathname for navigation.
@@ -104,9 +104,9 @@ Server components and layouts should preferentially use headers injected by midd
 Examples:
 
 - `app/(app)/layout.tsx`:
-  - Reads `x-pathname`, `x-tenant-id` and calls `getNavigationDescriptor(pathname, tenantId)`.
+  - Reads `x-pathname`, `x-issuer` and calls `getNavigationDescriptor(pathname, issuer)`.
 - `app/(app)/org/[orgId]/layout.tsx`:
-  - Reads `x-tenant-id`, `x-user-id`, `x-user-kc-sub` to resolve the organization via gRPC.
+  - Reads `x-issuer`, `x-user-id`, `x-user-kc-sub` to resolve the organization via gRPC.
 
 **Rule:** If the information you need is already in headers, do not call `getSession()`.
 
@@ -200,7 +200,7 @@ For new routes under `app/(app)/` or `app/(onboarding)/`:
 
 - Assume middleware has gated access.
 - Use:
-  - `x-tenant-id` to parameterize SDK clients and RPC calls.
+  - `x-issuer` to resolve canonical tenant context for SDK clients and RPC calls.
   - `x-user-id` / `x-user-kc-sub` for user- or org-specific data fetches.
 - Avoid calling `getSession()` unless:
   - You need detailed session fields that are not represented in headers (and those fields cannot reasonably be added to middleware headers).
