@@ -57,7 +57,7 @@
 - Runtime configuration for `apps-www-ameide-platform-tilt` (e.g., `AUTH_URL`, `AUTH_KEYCLOAK_ISSUER`, `AUTH_SECRET`, Redis/DB URLs) is derived from the same Helm values/ExternalSecrets chain as the Argo baseline. The devcontainer must not be treated as a source of truth for these app env vars.
 - If you need external access for other tilt services, add unique hosts in their tilt values and ensure DNS covers them.
 - Cleanup of `*-tilt` releases on Tilt stop is not automated (optional follow-up).
-- Keycloak client (`platform-app`) must allow local host callbacks: `platform.local.ameide.io` is present in redirect/web origins in the shared realm values (see 426-keycloak-config-map.md), and the Next.js dev server allows the local origin via `allowedDevOrigins`.
+- Keycloak client (`platform-app`) must allow local host callbacks: `platform.local.ameide.io` is present in redirect/web origins in the realm values (see 426-keycloak-config-map.md), and the Next.js dev server allows the local origin via `allowedDevOrigins`.
 
 ---
 
