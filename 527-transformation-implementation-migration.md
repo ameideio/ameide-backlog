@@ -33,7 +33,7 @@ This section is a lightweight status tracker against the work packages below.
 - [x] WP-A3 UISurface: existing ArchiMate editor wired to primitives (`services/www_ameide_platform`).
 - [x] WP-Z Deletion: legacy `services/*` backends removed (`services/graph`, `services/repository`, `services/transformation`).
 - [x] WP-Z GitOps cleanup: legacy `graph`/`transformation` app components removed and gateway no longer routes non-graph proto traffic through `graph`.
-- [ ] WP-0 Repo health: confirm repo-wide codegen drift gates are green and enforceable in CI (regen-diff).
+- [x] WP-0 Repo health: confirm repo-wide codegen drift gates are green and enforceable in CI (regen-diff).
 - [x] WP-B (CODE) WorkRequests substrate: Domain WorkRequest record + facts + queue-topic fanout implemented; executor implemented (`primitives/integration/transformation-work-executor`).
 - [x] WP-B (CODE) Process ingress can consume Kafka domain facts (`PROCESS_INGRESS_SOURCE=kafka://`) and signal workflows (no manual signal required).
 - [x] WP-B (CODE) Domain dispatcher publishes outbox topics to Kafka by default (no topic prefix filter).
@@ -281,7 +281,7 @@ WP‑B is implemented **proto-first** so orchestration and evidence do not drift
   - Domain facts: `WorkRequested`/`WorkCompleted`/`WorkFailed` (after persistence)
   - Command surface to record outcomes with evidence bundle linking (idempotent)
 - Integration (runner/job code):
-  - a WorkRequest **executor** entrypoint that executes exactly one WorkRequest per run (checkout `commit_sha` → run `ameide` actions → persist evidence → record outcome idempotently); this executor image is distinct from the devcontainer workbench image
+  - a WorkRequest **executor** entrypoint that executes exactly one WorkRequest per run (checkout `commit_sha` → run `ameide` actions → persist evidence → record outcome idempotently); this executor image is **devcontainer-derived** (full toolchain) and separate from the debug/admin workbench deployment
   - evidence descriptor shape that Process can cite in `ToolRunRecorded` (no log scraping)
 - Process:
   - at least one workflow that requests a WorkRequest and awaits completion facts
@@ -321,16 +321,19 @@ WP‑B is implemented **proto-first** so orchestration and evidence do not drift
   - `RecordWorkStarted` / `RecordWorkOutcome` update status + emit `WorkStarted` / `WorkCompleted|WorkFailed`
 - [x] Executor consumes WorkRequested and records outcomes durably:
   - `primitives/integration/transformation-work-executor` processes one `WorkRequested` per Kubernetes Job, records `started/outcome`, and commits Kafka offsets only after `RecordWorkOutcome` succeeds
+  - Evidence durability: when `WORKREQUESTS_MINIO_*` is configured, evidence is uploaded to object storage and recorded as stable `s3://...` refs (no pod-local paths as truth)
+  - Execution substrate: the executor image runtime is devcontainer-derived (toolchain parity with developer mode)
 - [x] Process workflow exists (Temporal):
   - `ToolRunWorkflow` requests a WorkRequest, waits for completion signal, and emits `ToolRunRecorded` + `ActivityTransitioned`
 - [x] Capability integration pack exists (front-door tests; 430 contract):
   - `capabilities/transformation/__tests__/integration` provides:
     - E2E‑0 WorkRequest seam tests (repo-mode + cluster-mode)
     - E2E‑1 Process orchestration seam test (repo-mode)
-- [ ] Process ingress is Kafka-native (cluster E2E):
-  - current ingress is `stdin://` only (dev); cluster orchestration remains gated until facts drive workflow completion
+- [x] Process ingress supports Kafka (cluster E2E wiring pending):
+  - `PROCESS_INGRESS_SOURCE=kafka://` consumes domain fact topics and signals workflows; cluster orchestration remains gated until GitOps deploys ingress + dispatcher + topics
 - [ ] Projection “timeline assertions” are enabled in cluster mode:
   - projection must ingest process facts + work facts reliably and expose query services without Telepresence port-name collisions (see gotchas)
+  - `primitive-projection-transformation` image now includes `projection-transformation-relay` for deployment as a standalone ingestion workload in cluster
 
 **Implementation status (GitOps; repo snapshot)**
 
