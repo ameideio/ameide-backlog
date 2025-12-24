@@ -52,6 +52,8 @@ Quick verification (GitOps / cluster truth):
 - `local-data-data-plane-smoke` asserts WorkRequests execution queue topics and WorkRequests runner KEDA `ScaledJob` objects (gated; enabled in `local` + `dev`).
 - `local-foundation-operators-smoke` asserts KEDA operator deployments and the external metrics `APIService` (when KEDA is installed).
 - Primitive runtime apps: ArgoCD Applications `local-process-ping-v0`, `local-agent-echo-v0`, `local-projection-foo-v0`, `local-uisurface-hello-v0` should be `Synced/Healthy`, and the corresponding `ameide.io/*` CRs should report `Ready=True`.
+- Platform Gateway should route Transformation primitive gRPC services internally (no legacy `graph` routing):
+  - `kubectl -n ameide-local get grpcroute.gateway.networking.k8s.io transformation`
 
 ### Operational gotcha: primitive image naming
 
@@ -408,6 +410,8 @@ Consumer groups (current GitOps scaffolding; subject to future naming convention
   - `kubectl -n ameide-local get scaledjob.keda.sh | rg 'workrequests'`
 - Workbench deployed:
   - `kubectl -n ameide-local get deploy workrequests-workbench`
+- Transformation primitive routing present:
+  - `kubectl -n ameide-local get grpcroute.gateway.networking.k8s.io transformation`
 - Smoke coverage:
   - `local-data-data-plane-smoke` asserts the WorkRequests execution queue KafkaTopics are present/Ready when enabled (see `backlog/588-smoke-tests-inventory.md`).
 
