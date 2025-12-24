@@ -39,6 +39,15 @@ This backlog is mostly **runtime primitive + contract** work, but it has a few c
   - `kc_idp_hint` plumbing exists (Identity Provider Redirector is enabled in the Browser flow)
   - `idp_alias` is emitted in tokens (mapper from session note `identity_provider` → claim `idp_alias`)
 
+### GitOps implementation progress (current)
+
+Implemented in `ameide-gitops` (local + dev parity):
+
+- [x] **Realm config baseline:** one platform realm import; `kc_idp_hint` redirector and `idp_alias` mapper are present and validated by `platform-auth-smoke`.
+- [x] **No `tenantId` claim:** legacy `tenant` client scope removed from desired realm import and purged from Keycloak (no compatibility shims).
+- [x] **Seed correctness (597 identity):** dev/local seeds create canonical platform user ids (opaque ids) and external identity links `(issuer, subject) → user_id`, so login never depends on provisioning.
+- [x] **Tenant routing (issuer-first):** dev/local seeds write `issuer → tenant_id` into platform DB, so access resolution has an authoritative routing key.
+
 ---
 
 ## Definitions
@@ -608,12 +617,12 @@ The checklist below is ordered to deliver value early (login stability) while in
 
 ### Phase 6 — Seeds + repair (make the seeded persona story deterministic)
 
-- [ ] Dev/local seeding must satisfy (no login-time provisioning):
-  - [ ] every seeded tenant has `issuer` and Keycloak `realm_name` (ops attribute)
-  - [ ] tenant routing has `issuer → tenant_id`
-  - [ ] seeded personas exist in Keycloak and in platform DB
-  - [ ] seeded personas have external identity links `(issuer,subject) → user_id`
-  - [ ] seeded memberships reference canonical `user_id`
+- [x] Dev/local seeding must satisfy (no login-time provisioning):
+  - [x] every seeded tenant has `issuer` and Keycloak `realm_name` (ops attribute)
+  - [x] tenant routing has `issuer → tenant_id`
+  - [x] seeded personas exist in Keycloak and in platform DB
+  - [x] seeded personas have external identity links `(issuer,subject) → user_id`
+  - [x] seeded memberships reference canonical `user_id`
 - [ ] Provide support-only repair commands (for drift/migrations; never on login):
   - [ ] upsert/repair tenant issuer routing (`TenantRoutingView`)
   - [ ] link external identity to existing user
