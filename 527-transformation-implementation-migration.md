@@ -55,6 +55,7 @@ Quick verification (GitOps / cluster truth):
 - Primitive runtime apps: ArgoCD Applications `local-process-ping-v0`, `local-agent-echo-v0`, `local-projection-foo-v0`, `local-uisurface-hello-v0` should be `Synced/Healthy`, and the corresponding `ameide.io/*` CRs should report `Ready=True`.
 - Platform Gateway should route Transformation primitive gRPC services internally (no legacy `graph` routing):
   - `kubectl -n ameide-local get grpcroute.gateway.networking.k8s.io transformation`
+  - Smoke: `local-platform-transformation-routing-smoke` asserts the `GRPCRoute/transformation` is `Accepted=True` and `ResolvedRefs=True`.
 
 ### Operational gotcha: primitive image naming
 

@@ -29,6 +29,7 @@ Related:
 | `platform-observability-smoke` | `environments/_shared/components/observability/observability-smoke/component.yaml` | `sources/values/_shared/observability/platform-observability-smoke.yaml` | `sources/charts/foundation/helm-test-jobs` |
 | `platform-auth-smoke` | `environments/_shared/components/platform/auth/auth-smoke/component.yaml` | `sources/values/_shared/platform/platform-auth-smoke.yaml` | `sources/charts/foundation/helm-test-jobs` |
 | `platform-control-plane-smoke` | `environments/_shared/components/platform/control-plane/control-plane-smoke/component.yaml` | `sources/values/_shared/platform/platform-control-plane-smoke.yaml` | `sources/charts/foundation/helm-test-jobs` |
+| `platform-transformation-routing-smoke` | `environments/_shared/components/platform/control-plane/transformation-routing-smoke/component.yaml` | `sources/values/_shared/platform/platform-transformation-routing-smoke.yaml` | `sources/charts/foundation/helm-test-jobs` |
 | `platform-secrets-smoke` | `environments/_shared/components/platform/secrets/secrets-smoke/component.yaml` | `sources/values/_shared/platform/platform-secrets-smoke.yaml` | `sources/charts/foundation/helm-test-jobs` |
 
 ## How to run (any env)
