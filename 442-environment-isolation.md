@@ -781,6 +781,8 @@ logLevel: debug
 imagePullPolicy: Always
 ```
 
+Note: `imagePullPolicy` is a Kubernetes runtime behavior knob; the GitOps rollout/determinism policy (pin by digest/SHA, avoid floating tags) is tracked separately under `backlog/602-image-pull-policy.md` / `backlog/603-image-pull-policy.md`.
+
 **File**: `sources/values/env/staging/globals.yaml`
 
 ```yaml

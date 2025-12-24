@@ -60,7 +60,7 @@ For this activity, treat CI image publishing as disabled.
 - Every push to `dev` uses commit messages containing `[skip ci]`.
 - No PR to `main` is opened for this activity.
 - Images are pushed manually with the credentials in `.env`.
-- Because `:dev` tags are mutable, ensure workload CRs use `spec.imagePullPolicy: Always` (local/dev defaults may set this globally).
+- Because `:dev` tags are mutable, ensure workload CRs use `spec.imagePullPolicy: Always` (transitional; see `backlog/602-image-pull-policy.md` + `backlog/603-image-pull-policy.md` for the target-state digest pinning policy).
 
 ### Smoke probes in ArgoCD (GitOps team feedback)
 

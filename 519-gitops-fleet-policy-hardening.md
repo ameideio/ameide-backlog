@@ -113,7 +113,8 @@ These are intentionally deferred to later in this backlog (but now tracked expli
   - Helm hook artifacts can persist and block convergence:
     - GitLab’s `upgrade-check` hook ConfigMap can remain in-cluster with `argocd.argoproj.io/hook-finalizer` even after the hook is disabled, preventing pruning and leaving applications `OutOfSync` while workloads are healthy.
     - Fix direction: disable Helm hooks (or wrap charts to remove hooks), and avoid depending on Argo hook finalizers for long-lived resources.
-  - Disabling Argo controller server-side diff for local stability increases client-side diff sensitivity to Kubernetes-defaulted fields (e.g. gRPC probe `service: ""`, `imagePullPolicy: IfNotPresent`), requiring targeted `ignoreDifferences` to keep GitOps noise-free without reintroducing apiserver pressure.
+- Disabling Argo controller server-side diff for local stability increases client-side diff sensitivity to Kubernetes-defaulted fields (e.g. gRPC probe `service: ""`, `imagePullPolicy: IfNotPresent`), requiring targeted `ignoreDifferences` to keep GitOps noise-free without reintroducing apiserver pressure.
+  - See `backlog/602-image-pull-policy.md` / `backlog/603-image-pull-policy.md` for the complementary image reference policy (digest pinning) that avoids relying on `imagePullPolicy` to force convergence.
   - Hook/bootstrap race windows can leave “Last Sync Failed” residue even when the system self-heals:
     - `foundation-vault-bootstrap` seeds keys on a schedule, while consuming apps (e.g., `platform-langfuse-bootstrap`) can sync immediately and temporarily observe missing Vault keys → ESO errors → Argo sync failures.
     - Smoke hooks (e.g., `helm-test-jobs`) can fail fast if backoff/timeouts are too aggressive for first-rollout readiness.

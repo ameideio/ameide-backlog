@@ -36,6 +36,8 @@ In this repo these are wired as:
 
 ## Cross-References
 
+- [602-image-pull-policy.md](602-image-pull-policy.md) – Target-state image reference policy (digest pinning) for GitOps-managed environments
+- [603-image-pull-policy.md](603-image-pull-policy.md) – Refactoring plan to implement 602 across GitOps + operators
 - [510-domain-primitive-scaffolding.md](510-domain-primitive-scaffolding.md) – Domain scaffold shape (§4 handler/test semantics)
 - [511-process-primitive-scaffolding.md](511-process-primitive-scaffolding.md) – Process scaffold shape (§4 workflow/test semantics)
 - [512-agent-primitive-scaffolding.md](512-agent-primitive-scaffolding.md) – Agent scaffold shape (§3.4 LangGraph discipline, §4 test semantics)

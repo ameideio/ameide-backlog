@@ -27,8 +27,9 @@ All primitive CRDs MAY specify `spec.imagePullPolicy` (`Always` | `IfNotPresent`
 
 Recommended:
 
-- Local/dev + **mutable** tags (e.g. `:dev`) → set `spec.imagePullPolicy: Always`.
-- Staging/prod + **pinned** tags/digests (e.g. `:<sha>`, `:v1.2.3`, `@sha256:...`) → omit it (defaults to `IfNotPresent`) or set `IfNotPresent`.
+- GitOps-managed environments should deploy **immutable image references** (digest or unique SHA tag) per `backlog/602-image-pull-policy.md`.
+- If you are temporarily using **mutable** tags (e.g. `:dev`), set `spec.imagePullPolicy: Always` (tracked as transitional under `backlog/603-image-pull-policy.md`).
+- For **pinned** tags/digests (e.g. `:<sha>`, `:v1.2.3`, `@sha256:...`), omit it (defaults to `IfNotPresent`) or set `IfNotPresent`.
 
 ## Testing & acceptance
 

@@ -435,6 +435,8 @@ spec:
           emptyDir: {}
 ```
 
+Note: `imagePullPolicy` here is a test-runner concern; GitOps-managed environment workloads should follow `backlog/602-image-pull-policy.md` (pin by digest/SHA).
+
 Default `values.yaml` sets sensible resources (256Mi/200m) and calls `/app/tests/run_integration_tests.sh` when available (falling back to `/app/services/<service>/tests/run_integration_tests.sh`). Add optional sidecar for Prometheus exporter when needed.
 
 ### 6. Tilt Integration

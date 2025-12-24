@@ -83,7 +83,7 @@ If `transformation-v0-projection` is `CrashLoopBackOff` with:
 
 …the `primitive-projection-transformation:dev` image is older than `ameide` PR **#348** (the fix removes an accidental `// nosemgrep...` prefix inside the SQL string literal).
 
-Operational note: with `imagePullPolicy: IfNotPresent`, k3d/k3s may keep a cached `:dev` image; delete the cached image on the node and restart the pod to force a pull:
+Operational note (local): if you are using a mutable `:dev` image tag with `imagePullPolicy: IfNotPresent`, k3d/k3s may keep a cached image. Preferred target-state is digest pinning (see `backlog/602-image-pull-policy.md`). Transitional workaround: delete the cached image on the node and restart the pod to force a pull:
 
 - `docker exec k3d-ameide-agent-0 sh -lc 'crictl rmi ghcr.io/ameideio/primitive-projection-transformation:dev || true'`
 - `kubectl -n ameide-local delete pod -l app.kubernetes.io/name=projection,app.kubernetes.io/instance=transformation-v0`

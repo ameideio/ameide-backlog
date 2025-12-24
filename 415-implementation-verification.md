@@ -103,7 +103,7 @@ The k3d dev registry end-to-end flow has been successfully implemented with most
     - [apps-www-ameide-platform.yaml:35](../gitops/ameide-gitops/sources/values/env/dev/apps/apps-www-ameide-platform.yaml#L35)
     - [apps-inference.yaml:15](../gitops/ameide-gitops/sources/values/env/dev/apps/apps-inference.yaml#L15)
 
-- **Pull Policy:** ✅ `pullPolicy: IfNotPresent`
+- **Pull Policy:** ✅ `pullPolicy: IfNotPresent` (legacy k3d registry flow; current target-state policy is `backlog/602-image-pull-policy.md`)
 - **Pull Secrets:** ✅ Empty/none (as expected for local registry)
 - **Service Names:** ✅ All hyphenated (matching build script)
 

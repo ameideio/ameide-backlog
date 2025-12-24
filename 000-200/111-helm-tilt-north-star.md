@@ -44,12 +44,14 @@ Logs/ports/live-update            â†’      Store + pass digest/env            â†
 
 * Keep simple YAML (or a kustomize overlay) per app:
 
-  ```yaml
-  containers:
-    - name: www-ameide
-      image: www-ameide   # no tag, no registry
-      imagePullPolicy: IfNotPresent
-  ```
+	  ```yaml
+	  containers:
+	    - name: www-ameide
+	      image: www-ameide   # no tag, no registry
+	      imagePullPolicy: IfNotPresent
+	  ```
+
+Note: this is Tilt-only inner-loop guidance. GitOps-managed environments should follow `backlog/602-image-pull-policy.md` (digest/SHA pinning) rather than relying on `imagePullPolicy` tricks.
 * Tiltfile:
 
   ```python

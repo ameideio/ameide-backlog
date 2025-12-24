@@ -273,6 +273,8 @@ image:
   tag: "1.35.0"
   pullPolicy: IfNotPresent
 
+# Note: `pullPolicy` is not a rollout trigger for GitOps-managed environments; see `backlog/602-image-pull-policy.md`.
+
 imagePullSecrets:
   - name: ghcr-pull
 

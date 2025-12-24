@@ -30,7 +30,7 @@
   - Argo CD path: uses the bootstrap-built images pushed to `k3d-ameide.localhost:5001/ameide` and deploys them in-cluster.
   - Tilt path: inner-loop builds run from the devcontainer and can push/tag independently (still expected to use the same registry/values); Argo does not consume Tilt-built artifacts.
 - GitOps apply:
-  - Dev/local values already point to `k3d-ameide.localhost:5001/ameide/...:dev` with `pullPolicy: IfNotPresent`, no pull secrets.
+  - Dev/local values already point to `k3d-ameide.localhost:5001/ameide/...:dev` with `pullPolicy: IfNotPresent`, no pull secrets. (Legacy flow; current GitOps image reference policy is tracked in `backlog/602-image-pull-policy.md` / `backlog/603-image-pull-policy.md`.)
   - Argo applies apps; kubelet pulls from the registry directly.
 
 ## Expected steady state

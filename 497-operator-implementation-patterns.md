@@ -4,7 +4,10 @@
 **Audience:** Go developers implementing primitive operators (Domain/Process/Agent/UISurface/Projection/Integration)
 **Scope:** controller-runtime patterns, reconciler design, testing strategies
 
-> **Related**: [495-ameide-operators.md](495-ameide-operators.md) for CRD shapes and responsibilities
+> **Related**:
+> - [495-ameide-operators.md](495-ameide-operators.md) for CRD shapes and responsibilities
+> - [602-image-pull-policy.md](602-image-pull-policy.md) for the target-state image reference policy
+> - [603-image-pull-policy.md](603-image-pull-policy.md) for the refactoring plan
 
 ## Grounding & contract alignment
 

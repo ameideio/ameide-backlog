@@ -106,7 +106,7 @@ If CI publishing is unavailable, publish manually from the repo root:
 
 | Environment | Tag | Mutability | Use Case |
 |------------|-----------|----------|
-| local / dev | `:dev` | mutable | Fast iteration; paired with `spec.imagePullPolicy: Always` on primitive CRs |
+| local | `:dev` (transitional) | mutable | Fast iteration only; prefer digest/SHA pinning per `backlog/602-image-pull-policy.md` |
 | staging | `:<sha>` (from main) | pinned | Pre-production validation |
 | prod | `:vX.Y.Z` (from main) | pinned | Releases |
 
@@ -222,7 +222,7 @@ global:
   imagePullPolicy: IfNotPresent
 ```
 
-Note: `global.imagePullPolicy` controls the **operator Deployment** pull policy. Primitive workloads rendered by operators use `spec.imagePullPolicy` on the primitive CRs.
+Note: `global.imagePullPolicy` controls the **operator Deployment** pull policy. Primitive workloads rendered by operators use `spec.imagePullPolicy` on the primitive CRs. See `backlog/602-image-pull-policy.md` and `backlog/603-image-pull-policy.md` for the target-state deployment policy (digest pinning) vs transitional `:dev` behavior.
 
 ### Phase 3: Production Hardening
 

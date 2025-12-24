@@ -39,7 +39,7 @@ metadata:
   name: orders
 spec:
   image: ghcr.io/ameide/orders-domain:1.12.3
-  imagePullPolicy: IfNotPresent # set Always for mutable tags (e.g. :dev)
+  imagePullPolicy: IfNotPresent # set Always only for mutable tags (transitional; see 602/603)
   db:
     clusterRef: cnpg/orders
     schema: orders

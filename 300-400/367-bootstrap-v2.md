@@ -181,7 +181,7 @@ The CLI can accept `--config` to load overrides per environment while still allo
 - **Login/health validation:** The CLI prints the admin password when requested but does not validate OIDC/ExternalSecret health or Dex client wiring post-install.
 - **Exit codes / summaries:** Exit codes are generic `1` on failure paths and the JSON summary omits applied AppSets because no names are recorded during the run.
 - **GHCR seeding behavior:** GHCR logic has been removed; only Docker Hub env strategy remains.
-- **Image availability:** Dev aligns on the k3d registry (`k3d-ameide.localhost:5001/ameide`). `scripts/build-all-images-dev.sh` defaults to pushing images there (and bootstrap passes `--build-images` to push before Argo applies). GitOps dev values point at that registry with `tag: dev`, `pullPolicy: IfNotPresent`, and no pull secrets. Prod/staging remain unchanged (GHCR/ACR).
+- **Image availability:** Legacy k3d flow aligns on the k3d registry (`k3d-ameide.localhost:5001/ameide`) and uses `tag: dev` + `pullPolicy: IfNotPresent` in dev values. Current target-state image reference policy for GitOps-managed environments is tracked in `backlog/602-image-pull-policy.md` / `backlog/603-image-pull-policy.md`.
 
 ### 3.8 Domain naming
 
