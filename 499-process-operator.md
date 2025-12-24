@@ -226,29 +226,38 @@ type ProcessReconciler struct {
 
 ```go
 func mutateWorkerDeployment(deploy *appsv1.Deployment, process *amv1.Process, configMapName string) {
-    deploy.Spec.Template.Spec = corev1.PodSpec{
-        Containers: []corev1.Container{{
-            Name:  "worker",
-            Image: process.Spec.Image,
-            Env: []corev1.EnvVar{
-                {Name: "TEMPORAL_NAMESPACE", Value: process.Spec.Temporal.Namespace},
-                {Name: "TASK_QUEUE", Value: process.Spec.Temporal.TaskQueue},
-                {Name: "PROCESS_DEFINITION_ID", Value: process.Spec.DefinitionRef.ID},
+    // NOTE: avoid overwriting whole PodSpec (defaulted fields will cause endless updates).
+    deploy.Spec.Template.Spec.Volumes = []corev1.Volume{{
+        Name: "definition",
+        VolumeSource: corev1.VolumeSource{
+            ConfigMap: &corev1.ConfigMapVolumeSource{
+                LocalObjectReference: corev1.LocalObjectReference{Name: configMapName},
             },
-            VolumeMounts: []corev1.VolumeMount{{
-                Name:      "definition",
-                MountPath: "/etc/process-definition",
-            }},
-        }},
-        Volumes: []corev1.Volume{{
-            Name: "definition",
-            VolumeSource: corev1.VolumeSource{
-                ConfigMap: &corev1.ConfigMapVolumeSource{
-                    LocalObjectReference: corev1.LocalObjectReference{Name: configMapName},
-                },
-            },
-        }},
+        },
+    }}
+
+    idx := -1
+    for i := range deploy.Spec.Template.Spec.Containers {
+        if deploy.Spec.Template.Spec.Containers[i].Name == "worker" {
+            idx = i
+            break
+        }
     }
+    if idx == -1 {
+        deploy.Spec.Template.Spec.Containers = append(deploy.Spec.Template.Spec.Containers, corev1.Container{Name: "worker"})
+        idx = len(deploy.Spec.Template.Spec.Containers) - 1
+    }
+    c := &deploy.Spec.Template.Spec.Containers[idx]
+    c.Image = process.Spec.Image
+    c.Env = []corev1.EnvVar{
+        {Name: "TEMPORAL_NAMESPACE", Value: process.Spec.Temporal.Namespace},
+        {Name: "TASK_QUEUE", Value: process.Spec.Temporal.TaskQueue},
+        {Name: "PROCESS_DEFINITION_ID", Value: process.Spec.DefinitionRef.ID},
+    }
+    c.VolumeMounts = []corev1.VolumeMount{{
+        Name:      "definition",
+        MountPath: "/etc/process-definition",
+    }}
 }
 ```
 

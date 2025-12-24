@@ -91,24 +91,25 @@ Operator images are published to GHCR via `cd-service-images.yml`:
 
 | Image | Tags |
 |-------|------|
-| `ghcr.io/ameideio/domain-operator` | `dev`, `main`, `v1.2.3`, `<sha>` |
-| `ghcr.io/ameideio/process-operator` | `dev`, `main`, `v1.2.3`, `<sha>` |
-| `ghcr.io/ameideio/agent-operator` | `dev`, `main`, `v1.2.3`, `<sha>` |
-| `ghcr.io/ameideio/uisurface-operator` | `dev`, `main`, `v1.2.3`, `<sha>` |
-| `ghcr.io/ameideio/projection-operator` | `dev`, `main`, `v1.2.3`, `<sha>` |
-| `ghcr.io/ameideio/integration-operator` | `dev`, `main`, `v1.2.3`, `<sha>` |
+| `ghcr.io/ameideio/domain-operator` | `dev` (floating), `dev-<sha>` (unique), `main` (floating), `main-<sha>` (unique), `vX.Y.Z` |
+| `ghcr.io/ameideio/process-operator` | `dev` (floating), `dev-<sha>` (unique), `main` (floating), `main-<sha>` (unique), `vX.Y.Z` |
+| `ghcr.io/ameideio/agent-operator` | `dev` (floating), `dev-<sha>` (unique), `main` (floating), `main-<sha>` (unique), `vX.Y.Z` |
+| `ghcr.io/ameideio/uisurface-operator` | `dev` (floating), `dev-<sha>` (unique), `main` (floating), `main-<sha>` (unique), `vX.Y.Z` |
+| `ghcr.io/ameideio/projection-operator` | `dev` (floating), `dev-<sha>` (unique), `main` (floating), `main-<sha>` (unique), `vX.Y.Z` |
+| `ghcr.io/ameideio/integration-operator` | `dev` (floating), `dev-<sha>` (unique), `main` (floating), `main-<sha>` (unique), `vX.Y.Z` |
 
 If CI publishing is unavailable, publish manually from the repo root:
 
 - `./scripts/build-all-images.sh dev operators/domain-operator` (repeat for each operator)
+- `./scripts/build-all-images-dev-sha.sh operators/domain-operator` (publish a unique `dev-<sha>` tag)
 
 ### Tag Strategy
 
 | Environment | Tag | Mutability | Use Case |
 |------------|-----------|----------|
-| local | `:dev` (transitional) | mutable | Fast iteration only; prefer digest/SHA pinning per `backlog/602-image-pull-policy.md` |
-| staging | `:<sha>` (from main) | pinned | Pre-production validation |
-| prod | `:vX.Y.Z` (from main) | pinned | Releases |
+| local / dev | `:dev` | mutable | Fast iteration only; prefer digest/SHA pinning per `backlog/602-image-pull-policy.md` |
+| staging | `:main-<sha>` (or digest) | pinned | Pre-production validation |
+| prod | `:vX.Y.Z` (or digest) | pinned | Releases |
 
 ---
 
