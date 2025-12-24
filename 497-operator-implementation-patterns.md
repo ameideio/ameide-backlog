@@ -321,7 +321,7 @@ Unlike primitives (Domain/Process/Agent/UISurface services), operators are **not
 
 | Factor | Primitives | Operators |
 |--------|------------|-----------|
-| **Count** | Unbounded (many domains, processes, agents) | Fixed at 4 (Domain, Process, Agent, UISurface) |
+| **Count** | Unbounded (many domains, processes, agents) | Fixed at 6 (Domain, Process, Agent, UISurface, Projection, Integration) |
 | **Variation** | High structural similarity | Each operator has unique reconciliation logic |
 | **Boilerplate ratio** | ~80% mechanical structure | ~20% structure, ~80% domain-specific logic |
 | **Creation frequency** | Often (new features = new primitives) | Rarely (operators are platform infrastructure) |
@@ -335,7 +335,7 @@ Unlike primitives (Domain/Process/Agent/UISurface services), operators are **not
 
 3. **Security sensitivity**: Operators run with elevated RBAC. Code review is mandatory; no auto-generation.
 
-4. **Fixed count**: We will only ever have 4 primitive operators. The cost of writing them manually is bounded and one-time.
+4. **Fixed count**: We will only ever have 6 primitive operators. The cost of writing them manually is bounded and one-time.
 
 5. **Reference implementation model**: This document (§10) provides a concrete Domain operator skeleton. The other three operators clone this pattern with their own `reconcile*` helpers.
 

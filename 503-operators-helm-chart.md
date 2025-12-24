@@ -17,14 +17,14 @@
 
 ## Grounding & cross-references
 
-- **Architecture grounding:** Packages the currently implemented primitive operators (Domain/Process/Agent/UISurface) described in `470-ameide-vision.md`, `471-ameide-business-architecture.md`, `472-ameide-information-application.md`, `473-ameide-technology.md`, `475-ameide-domains.md`, `477-primitive-stack.md`, `495-ameide-operators.md`, and the Domain vertical slice (`502-domain-vertical-slice.md`) into a unified Helm chart (Projection/Integration operators are v2 per `backlog/520-primitives-stack-v2.md`).  
+- **Architecture grounding:** Packages the AMEIDE primitive operators (Domain/Process/Agent/UISurface/Projection/Integration) described in `470-ameide-vision.md`, `471-ameide-business-architecture.md`, `472-ameide-information-application.md`, `473-ameide-technology.md`, `475-ameide-domains.md`, `477-primitive-stack.md`, `495-ameide-operators.md`, and the Domain vertical slice (`502-domain-vertical-slice.md`) into a unified Helm chart (Projection/Integration are part of the v2 stack per `backlog/520-primitives-stack-v2.md`).  
 - **Operator relationships:** Deploys the Domain, Process, Agent, and UISurface operators tracked in `498-domain-operator.md`, `499-process-operator.md`, `500-agent-operator.md`, and `501-uisurface-operator.md`; status/condition semantics are aligned via `502-domain-vertical-slice.md`.  
 - **GitOps integration:** Ties directly into the ArgoCD/ApplicationSet patterns described in `446-namespace-isolation.md`, `447-waves-v3-cluster-scoped-operators.md`, and the GitOps repo structure referenced by the 484a–484f CLI backlogs and `504-agent-vertical-slice.md`.  
 - **Scrum stack usage:** Provides the control-plane foundation for the Scrum stack defined in `506-scrum-vertical-v2.md`, `508-scrum-protos.md`, `505-agent-developer-v2.md`, and `505-agent-developer-v2-implementation.md` by ensuring their operators are installed consistently across clusters.
 
 ## 1. Overview
 
-The operators Helm chart provides a unified deployment mechanism for the currently implemented AMEIDE primitive operators (Domain/Process/Agent/UISurface):
+The operators Helm chart provides a unified deployment mechanism for the AMEIDE primitive operators (Domain/Process/Agent/UISurface/Projection/Integration):
 
 | Operator | CRD | Purpose |
 |----------|-----|---------|
@@ -32,6 +32,8 @@ The operators Helm chart provides a unified deployment mechanism for the current
 | **process-operator** | `processes.ameide.io` | Manages Process primitives (Temporal workers) |
 | **agent-operator** | `agents.ameide.io` | Manages Agent primitives (LLM-powered actors) |
 | **uisurface-operator** | `uisurfaces.ameide.io` | Manages UISurface primitives (Next.js apps) |
+| **projection-operator** | `projections.ameide.io` | Manages Projection primitives (query/read-model workloads) |
+| **integration-operator** | `integrations.ameide.io` | Manages Integration primitives (integration runtimes) |
 
 **Key insight**: Single chart, shared RBAC, independent enable/disable per operator.
 
@@ -57,7 +59,9 @@ operators/helm/
 │   ├── ameide.io_domains.yaml
 │   ├── ameide.io_processes.yaml
 │   ├── ameide.io_agents.yaml
-│   └── ameide.io_uisurfaces.yaml
+│   ├── ameide.io_uisurfaces.yaml
+│   ├── ameide.io_projections.yaml
+│   └── ameide.io_integrations.yaml
 ├── templates/
 │   ├── _helpers.tpl
 │   ├── serviceaccount.yaml
@@ -67,12 +71,16 @@ operators/helm/
 │   ├── process-operator-deployment.yaml
 │   ├── agent-operator-deployment.yaml
 │   ├── uisurface-operator-deployment.yaml
+│   ├── projection-operator-deployment.yaml
+│   ├── integration-operator-deployment.yaml
 │   └── NOTES.txt
 └── examples/               # Sample CRs for testing
     ├── domain-sample.yaml
-    ├── process-sample.yaml
-    ├── agent-sample.yaml
-    └── uisurface-sample.yaml
+	    ├── process-sample.yaml
+	    ├── agent-sample.yaml
+	    ├── uisurface-sample.yaml
+	    ├── projection-sample.yaml
+	    └── integration-sample.yaml
 ```
 
 ---
@@ -87,6 +95,8 @@ Operator images are published to GHCR via `cd-service-images.yml`:
 | `ghcr.io/ameideio/process-operator` | `dev`, `main`, `v1.2.3`, `<sha>` |
 | `ghcr.io/ameideio/agent-operator` | `dev`, `main`, `v1.2.3`, `<sha>` |
 | `ghcr.io/ameideio/uisurface-operator` | `dev`, `main`, `v1.2.3`, `<sha>` |
+| `ghcr.io/ameideio/projection-operator` | `dev`, `main`, `v1.2.3`, `<sha>` |
+| `ghcr.io/ameideio/integration-operator` | `dev`, `main`, `v1.2.3`, `<sha>` |
 
 ### Tag Strategy
 
@@ -109,7 +119,7 @@ Operator images are published to GHCR via `cd-service-images.yml`:
 | **values.yaml** | Default values for all operators | ✅ |
 | **CRDs** | Copy from operator config/crd/bases | ✅ |
 | **ServiceAccount** | Shared ServiceAccount for all operators | ✅ |
-| **ClusterRole** | RBAC for all four CRDs + owned resources | ✅ |
+| **ClusterRole** | RBAC for all six CRDs + owned resources | ✅ |
 | **ClusterRoleBinding** | Bind ClusterRole to ServiceAccount | ✅ |
 | **Deployments** | One Deployment per operator | ✅ |
 | **NOTES.txt** | Post-install instructions | ✅ |
@@ -122,7 +132,7 @@ Operator images are published to GHCR via `cd-service-images.yml`:
 
 The chart integrates with the ameide-gitops **cluster-scoped ApplicationSet** architecture. Per [446-namespace-isolation.md](446-namespace-isolation.md) and [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md), AMEIDE operators are **cluster-scoped** – deployed **once per cluster** to watch all namespaces.
 
-> **Key principle**: Operators deploy ONCE per cluster (like CNPG, Strimzi, Keycloak operators), not per-environment. CRs (Domain, Process, Agent, UISurface) are environment-scoped.
+> **Key principle**: Operators deploy ONCE per cluster (like CNPG, Strimzi, Keycloak operators), not per-environment. CRs are environment-scoped.
 
 | Task | Description | Status |
 |------|-------------|--------|
@@ -187,13 +197,13 @@ syncOptions:
 
 ```
 Phase 010: cluster-crds-ameide
-    └─ Installs ameide.io CRDs (Domain, Process, Agent, UISurface)
+    └─ Installs ameide.io CRDs (Domain, Process, Agent, UISurface, Projection, Integration)
               ↓
 Phase 020: cluster-ameide-operators
     └─ Installs operator Deployments to ameide-system namespace
               ↓
 Phase 100+: Environment workloads (dev, staging, production)
-    └─ Primitive CRs in ameide-{env} namespaces (Domain/Process/Agent/UISurface today; Projection/Integration planned)
+    └─ Primitive CRs in ameide-{env} namespaces (Domain/Process/Agent/UISurface/Projection/Integration)
 ```
 
 #### Helm Chart Values (Implemented)
@@ -310,7 +320,9 @@ helm install ameide ./operators/helm \
   --create-namespace \
   --set operators.process.enabled=false \
   --set operators.agent.enabled=false \
-  --set operators.uisurface.enabled=false
+  --set operators.uisurface.enabled=false \
+  --set operators.projection.enabled=false \
+  --set operators.integration.enabled=false
 ```
 
 ### Use Dev Images
@@ -323,7 +335,9 @@ helm install ameide ./operators/helm \
   --set operators.domain.image.tag=dev \
   --set operators.process.image.tag=dev \
   --set operators.agent.image.tag=dev \
-  --set operators.uisurface.image.tag=dev
+  --set operators.uisurface.image.tag=dev \
+  --set operators.projection.image.tag=dev \
+  --set operators.integration.image.tag=dev
 ```
 
 ### Verify Installation
@@ -351,14 +365,13 @@ The shared ClusterRole covers:
 
 | API Group | Resources | Verbs |
 |-----------|-----------|-------|
-| `ameide.io` | domains, processes, agents, uisurfaces | * |
+| `ameide.io` | domains, processes, agents, uisurfaces, projections, integrations | * |
 | `ameide.io` | */status, */finalizers | * |
 | `apps` | deployments | * |
 | `core` | services, configmaps, secrets | * |
-| `batch` | jobs, cronjobs | * |
+| `batch` | jobs | * |
 | `networking.k8s.io` | networkpolicies | * |
 | `gateway.networking.k8s.io` | httproutes | * |
-| `external-secrets.io` | externalsecrets | * |
 | `coordination.k8s.io` | leases | * |
 | `core` | events | create, patch |
 

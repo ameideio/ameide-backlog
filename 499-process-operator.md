@@ -41,6 +41,11 @@ The Process operator manages the lifecycle of **Process primitives** – long-ru
 
 **Key insight**: The operator wires Temporal workers to definitions and exposes them as configuration; the Process image implements workflow/activity logic and is where BPMN‑inspired designs are translated into Temporal workflows via agentic development, not by the operator at runtime.
 
+### Scope boundaries (non-negotiable)
+
+- The Process operator reconciles **only** the `Process` kind.
+- It must not reconcile `Integration` or `Projection` workloads; those are owned by their dedicated operators.
+
 ---
 
 ## 2. CRD Summary
