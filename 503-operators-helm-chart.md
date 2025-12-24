@@ -98,14 +98,17 @@ Operator images are published to GHCR via `cd-service-images.yml`:
 | `ghcr.io/ameideio/projection-operator` | `dev`, `main`, `v1.2.3`, `<sha>` |
 | `ghcr.io/ameideio/integration-operator` | `dev`, `main`, `v1.2.3`, `<sha>` |
 
+If CI publishing is unavailable, publish manually from the repo root:
+
+- `./scripts/build-all-images.sh dev operators/domain-operator` (repeat for each operator)
+
 ### Tag Strategy
 
-| Branch/Tag | Image Tag | Use Case |
+| Environment | Tag | Mutability | Use Case |
 |------------|-----------|----------|
-| `dev` branch | `:dev` | Development environments |
-| `main` branch | `:main` | Staging / pre-production |
-| `v*` tags | `:1.2.3`, `:1.2` | Production releases |
-| Any commit | `:<sha>` | Pinned deployments |
+| local / dev | `:dev` | mutable | Fast iteration; paired with `spec.imagePullPolicy: Always` on primitive CRs |
+| staging | `:<sha>` (from main) | pinned | Pre-production validation |
+| prod | `:vX.Y.Z` (from main) | pinned | Releases |
 
 ---
 
@@ -218,6 +221,8 @@ global:
   imageRegistry: ghcr.io/ameideio
   imagePullPolicy: IfNotPresent
 ```
+
+Note: `global.imagePullPolicy` controls the **operator Deployment** pull policy. Primitive workloads rendered by operators use `spec.imagePullPolicy` on the primitive CRs.
 
 ### Phase 3: Production Hardening
 

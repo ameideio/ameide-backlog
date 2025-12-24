@@ -38,4 +38,4 @@ Complete all unchecked items in this document for this vertical primitive to be 
 ### Manual Image Publish
 
 - [x] Publish the runtime image `ghcr.io/ameideio/integration-echo:dev` (use `ameide primitive publish --kind integration --name echo`).
-- [x] Publish the operator image `ghcr.io/ameideio/integration-operator:dev` (use `ameide primitive publish --image ghcr.io/ameideio/integration-operator:dev --dockerfile operators/integration-operator/Dockerfile.dev`).
+- [x] Publish the operator image `ghcr.io/ameideio/integration-operator:dev` (use `./scripts/build-all-images.sh dev operators/integration-operator` or `ameide primitive publish --image ghcr.io/ameideio/integration-operator:dev --dockerfile operators/integration-operator/Dockerfile.dev`).

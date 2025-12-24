@@ -21,6 +21,15 @@ All primitive operators share the same skeleton:
 
 Think of each operator as a **compiler from a Primitive CRD to a bundle of K8s + external infra objects**, with *no* business logic inside (that lives in the primitive's own service).
 
+### Image tags & `spec.imagePullPolicy`
+
+All primitive CRDs MAY specify `spec.imagePullPolicy` (`Always` | `IfNotPresent` | `Never`). Operators must copy it onto generated Pod templates (and Jobs where applicable).
+
+Recommended:
+
+- Local/dev + **mutable** tags (e.g. `:dev`) → set `spec.imagePullPolicy: Always`.
+- Staging/prod + **pinned** tags/digests (e.g. `:<sha>`, `:v1.2.3`, `@sha256:...`) → omit it (defaults to `IfNotPresent`) or set `IfNotPresent`.
+
 ## Testing & acceptance
 
 Operators must be testable at two levels:
@@ -60,6 +69,7 @@ metadata:
   name: orders
 spec:
   image: ghcr.io/ameide/orders-domain:1.12.3
+  imagePullPolicy: IfNotPresent # set Always for mutable tags (e.g. :dev)
   proto:
     module: github.com/ameide/apis/domains/orders
     version: v1.5.0
@@ -112,7 +122,7 @@ status:
 
    * Build a **Deployment** spec:
 
-     * Image from `spec.image`
+     * Image from `spec.image` (pull policy from `spec.imagePullPolicy` if set)
      * Env from `spec.env` + platform standard env (tenant headers, tracing, etc.)
      * DB connection injected from `ExternalSecret` / CNPG secret
      * Resource requests/limits from `spec.resources`
@@ -162,6 +172,7 @@ metadata:
   name: l2o
 spec:
   image: ghcr.io/ameide/l2o-process:0.7.0
+  imagePullPolicy: IfNotPresent # set Always for mutable tags (e.g. :dev)
   definitionRef:
     id: L2O_v3
     tenantId: t123
@@ -208,7 +219,7 @@ status:
 
    * Create a **Deployment** for Temporal workers:
 
-     * Image from `spec.image`
+     * Image from `spec.image` (pull policy from `spec.imagePullPolicy` if set)
      * Env:
 
        * `AMEIDE_PROCESS_DEFINITION_ID`
@@ -267,6 +278,7 @@ metadata:
   name: core-platform-coder
 spec:
   image: ghcr.io/ameide/agent-runtime-langgraph:2.1.0
+  imagePullPolicy: IfNotPresent # set Always for mutable tags (e.g. :dev)
   definitionRef:
     id: core-platform-coder-v4
     tenantId: t123
@@ -308,7 +320,7 @@ status:
 
 3. **Reconcile agent runtime Deployment**
 
-   * Container image from `spec.image`
+   * Container image from `spec.image` (pull policy from `spec.imagePullPolicy` if set)
    * Env:
 
      * `AGENT_DEFINITION_ID`, `TENANT_ID`, model config
@@ -359,6 +371,7 @@ metadata:
   name: www-ameide-platform
 spec:
   image: ghcr.io/ameide/www_ameide_platform:3.0.1
+  imagePullPolicy: IfNotPresent # set Always for mutable tags (e.g. :dev)
   host: app.ameide.com
   pathPrefix: /
   auth:
@@ -392,7 +405,7 @@ status:
 
    * Standard runtime for Next.js:
 
-     * Image from `spec.image`
+     * Image from `spec.image` (pull policy from `spec.imagePullPolicy` if set)
      * Config for Ameide TS SDK (base URLs, env, etc.)
    * Ensure `Service` and whichever ingress model you use (Gateway API / Ingress)
 
@@ -634,6 +647,10 @@ Operators are built via the standard `cd-service-images.yml` workflow:
   # ...
 - name: uisurface-operator
   # ...
+- name: projection-operator
+  # ...
+- name: integration-operator
+  # ...
 ```
 
 Published to:
@@ -677,6 +694,8 @@ use (
     ./operators/process-operator
     ./operators/agent-operator
     ./operators/uisurface-operator
+    ./operators/projection-operator
+    ./operators/integration-operator
 )
 ```
 

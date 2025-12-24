@@ -42,6 +42,7 @@ metadata:
   name: www-ameide-platform
 spec:
   image: ghcr.io/ameide/www_ameide_platform:3.0.1
+  imagePullPolicy: IfNotPresent # set Always for mutable tags (e.g. :dev)
   host: app.ameide.com
   pathPrefix: /
   auth:
@@ -91,6 +92,7 @@ status:
 ```go
 type UISurfaceSpec struct {
     Image        string                      `json:"image"`
+    ImagePullPolicy corev1.PullPolicy        `json:"imagePullPolicy,omitempty"`
     Host         string                      `json:"host"`
     PathPrefix   string                      `json:"pathPrefix,omitempty"`
     Auth         UISurfaceAuthConfig         `json:"auth,omitempty"`

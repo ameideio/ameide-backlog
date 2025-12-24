@@ -57,6 +57,7 @@ metadata:
   name: l2o
 spec:
   image: ghcr.io/ameide/l2o-process:0.7.0
+  imagePullPolicy: IfNotPresent # set Always for mutable tags (e.g. :dev)
   definitionRef:
     id: L2O_v3
     tenantId: t123

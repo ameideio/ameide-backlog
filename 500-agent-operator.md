@@ -73,6 +73,7 @@ metadata:
   name: core-platform-coder
 spec:
   image: ghcr.io/ameide/agent-runtime-langgraph:2.1.0
+  imagePullPolicy: IfNotPresent # set Always for mutable tags (e.g. :dev)
   definitionRef:
     id: core-platform-coder-v4
     tenantId: t123
