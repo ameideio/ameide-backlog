@@ -40,6 +40,8 @@ This section is a lightweight status tracker against the work packages below.
 - [x] WP-B (TEST) Capability pack exists (`capabilities/transformation/__tests__/integration`) with repo-mode + cluster-mode WorkRequest seam coverage (E2E‑0) and repo-mode Process orchestration seam (E2E‑1).
 - [ ] WP-B (CLUSTER) Process orchestration in cluster is end-to-end (ingress → Temporal signals → projection timeline assertions enabled).
 - [x] GitOps parity (execution substrate): KEDA + Kafka work-queue topics + workbench + secret wiring exist in `ameide-gitops` (enabled in `local` + `dev`; disabled elsewhere).
+- [x] GitOps parity (contract topics): Transformation fact-stream KafkaTopics exist as a dedicated component (`data-kafka-transformation-contract-topics`) and are asserted by `data-data-plane-smoke` (enabled in `local` + `dev`).
+- [x] GitOps parity (runtime wiring): dispatcher/ingress/relay workloads exist and are enabled in `local` + `dev` (`domain-transformation-v0-dispatcher`, `process-transformation-v0-ingress`, `projection-transformation-v0-relay`).
 - [x] GitOps parity (runtimes): Process/Agent/Projection/UISurface runtime components exist in `ameide-gitops` and local has a minimal “stacktest” set enabled (`process-ping-v0`, `agent-echo-v0`, `projection-foo-v0`, `uisurface-hello-v0`) to validate the substrate end-to-end.
 - [x] GitOps parity (images): primitive images published by CI are `ghcr.io/ameideio/primitive-<suffix>:<tag>` (e.g. `primitive-process-transformation:dev`), so GitOps MUST use the `primitive-` prefix for primitives.
 - [x] GitOps parity (gateway routing): platform gateway routes Transformation gRPC services to primitives (Domain CommandServices → `transformation-v0-domain`; Projection QueryServices → `transformation-v0-projection`) across environments.
@@ -52,9 +54,10 @@ Gates (currently passing):
 
 Quick verification (GitOps / cluster truth):
 
-- `local-data-data-plane-smoke` asserts WorkRequests execution queue topics and WorkRequests runner KEDA `ScaledJob` objects (gated; enabled in `local` + `dev`).
+- `local-data-data-plane-smoke` asserts WorkRequests execution queue topics, Transformation contract topics, and WorkRequests runner KEDA `ScaledJob` objects (gated; enabled in `local` + `dev`).
 - `local-foundation-operators-smoke` asserts KEDA operator deployments and the external metrics `APIService` (when KEDA is installed).
 - Primitive runtime apps: ArgoCD Applications `local-process-ping-v0`, `local-agent-echo-v0`, `local-projection-foo-v0`, `local-uisurface-hello-v0` should be `Synced/Healthy`, and the corresponding `ameide.io/*` CRs should report `Ready=True`.
+- `local-transformation-v0-runtime-wiring-smoke` asserts the Transformation runtime wiring deployments are `Available` (dispatcher, ingress, projection relay; enabled in `local` + `dev`).
 - Platform Gateway should route Transformation primitive gRPC services internally (no legacy `graph` routing):
   - `kubectl -n ameide-local get grpcroute.gateway.networking.k8s.io transformation`
   - Smoke: `local-platform-transformation-routing-smoke` asserts the `GRPCRoute/transformation` is `Accepted=True` and `ResolvedRefs=True`.

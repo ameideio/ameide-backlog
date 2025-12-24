@@ -83,6 +83,11 @@ If you’re in the `ameide-gitops` repo, you can run the guardrail script:
 NAMESPACE=ameide-local WORKLOAD=www-ameide-platform ./scripts/verify-telepresence-gitops-guardrails.sh
 ```
 
+GitOps posture reference (traffic-agent injection is opt-in):
+
+- `sources/values/_shared/platform/platform-telepresence.yaml`: `agentInjector.injectPolicy: WhenEnabled`
+- `sources/values/_shared/platform/traffic-manager.yaml`: legacy shim with the same setting
+
 ## Environment variables
 
 | Variable | Default | Purpose |

@@ -164,6 +164,9 @@ Telepresence can inject Traffic Agents without changing GitOps manifests, which 
    - Baseline workloads may still set `telepresence.io/inject-traffic-agent: disabled` as an explicit guardrail (even though injection is already opt-in).
    - Local + dev should enable injection only on dedicated intercept targets (preferred: `*-tilt` deployments) or via per-app values that set `telepresence.injectTrafficAgent: enabled` for the specific workload.
    - Staging/prod keep injection disabled unless there is an explicit, reviewed reason to enable it.
+   - GitOps implementation:
+     - `sources/values/_shared/platform/platform-telepresence.yaml` sets `agentInjector.injectPolicy: WhenEnabled`.
+     - `sources/values/_shared/platform/traffic-manager.yaml` mirrors the same setting (legacy shim; also pins `agentInjector.webhook.port: 8443`).
 
 ### ArgoCD enforcement gotcha: `ignoreDifferences` + `RespectIgnoreDifferences`
 
