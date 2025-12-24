@@ -118,7 +118,7 @@ Good controller design:
 For Ameide:
 
 * Domain CRD:
-  * `spec.image`, `spec.db`, `spec.rollout…`
+  * `spec.image`, `spec.imagePullPolicy`, `spec.db`, `spec.rollout…`
   * `status.conditions`, `status.db.migrationVersion`, etc.
 * Process CRD:
   * `spec.definitionRef`, `spec.temporal…`
@@ -228,6 +228,7 @@ Operators need two complementary test layers:
 1. **envtest** (fast, deterministic): verify reconciliation logic:
    - renders expected child resources (Deployment/Service/ConfigMap/Job)
    - sets controller OwnerReferences correctly
+   - propagates `spec.imagePullPolicy` into child Pod templates when set
    - sets stable `status.conditions` + `observedGeneration`
    - handles negative cases (missing secrets, policy violations) without creating unintended workloads
 
@@ -375,6 +376,7 @@ type Domain struct {
 
 type DomainSpec struct {
     Image     string                       `json:"image"`
+    ImagePullPolicy corev1.PullPolicy      `json:"imagePullPolicy,omitempty"`
     Version   string                       `json:"version,omitempty"`
     DB        DomainDBSpec                 `json:"db"`
     Env       []corev1.EnvVar              `json:"env,omitempty"`

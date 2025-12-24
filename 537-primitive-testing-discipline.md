@@ -26,6 +26,7 @@ Operators are part of the primitive delivery contract: if a primitive cannot rel
 Minimum CI-gated requirements for primitive operators:
 
 - **Controller correctness (envtest):** render children + ownership + conditions logic (fast, deterministic).
+- **Coverage:** envtest must cover all 6 primitive operators (Domain/Process/Agent/UISurface/Projection/Integration), including `spec.imagePullPolicy` propagation when set.
 - **Cluster acceptance (kind + Helm + KUTTL):** install chart, apply known-good CRs, wait for `Ready=True`, and assert child resources/rollouts; include negative cases (e.g., missing secrets, policy deny).
 
 In this repo these are wired as:

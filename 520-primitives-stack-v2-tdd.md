@@ -36,7 +36,8 @@ Internal generation:
 
 External wiring:
 - Use the CLI (`ameide primitive scaffold`) for repo wiring (runtime skeleton, GitOps components/values).
-- Use the CLI (`ameide primitive publish`) for dev image build/push when CI publishing is skipped.
+- Use the CLI (`ameide primitive publish`) for dev runtime image build/push when CI publishing is skipped.
+- Use `./scripts/build-all-images.sh dev operators/<operator>` for manual operator image build/push.
 
 ## One TDD Outer Loop
 
@@ -59,6 +60,7 @@ For this activity, treat CI image publishing as disabled.
 - Every push to `dev` uses commit messages containing `[skip ci]`.
 - No PR to `main` is opened for this activity.
 - Images are pushed manually with the credentials in `.env`.
+- Because `:dev` tags are mutable, ensure workload CRs use `spec.imagePullPolicy: Always` (local/dev defaults may set this globally).
 
 ### Smoke probes in ArgoCD (GitOps team feedback)
 

@@ -37,4 +37,4 @@ Complete all unchecked items in this document for this vertical primitive to be 
 ### Manual Image Publish
 
 - [x] Publish the runtime image `ghcr.io/ameideio/projection-foo:dev` (use `ameide primitive publish --kind projection --name foo`).
-- [x] Publish the operator image `ghcr.io/ameideio/projection-operator:dev` (use `ameide primitive publish --image ghcr.io/ameideio/projection-operator:dev --dockerfile operators/projection-operator/Dockerfile.dev`).
+- [x] Publish the operator image `ghcr.io/ameideio/projection-operator:dev` (use `./scripts/build-all-images.sh dev operators/projection-operator` or `ameide primitive publish --image ghcr.io/ameideio/projection-operator:dev --dockerfile operators/projection-operator/Dockerfile.dev`).
