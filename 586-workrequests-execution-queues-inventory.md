@@ -42,14 +42,14 @@ Example (Transformation):
 
 Enabled environments:
 - `local`: ✅ topics + workbench + ScaledJobs enabled
-- `dev`: ✅ topics + workbench enabled, ScaledJobs disabled
+- `dev`: ✅ topics + workbench + ScaledJobs enabled (currently capped: `maxReplicaCount: 1`)
 - `staging`/`production`: ❌ disabled (no rollout posture defined yet)
 
 | Queue purpose | Kafka topic (current) | KafkaTopic resource | KEDA ScaledJob | Consumer group | Notes |
 |---|---|---|---|---|---|
-| Tool runs (verify) | `transformation.work.queue.toolrun.verify.v1` | `KafkaTopic/transformation-work-queue-toolrun-verify-v1` | `ScaledJob/workrequests-toolrun-verify` | `transformation-work-queue-toolrun-verify-v1` | Placeholder container until real consumer exists |
-| Tool runs (generate) | `transformation.work.queue.toolrun.generate.v1` | `KafkaTopic/transformation-work-queue-toolrun-generate-v1` | `ScaledJob/workrequests-toolrun-generate` | `transformation-work-queue-toolrun-generate-v1` | Placeholder container until real consumer exists |
-| Agent work (coder) | `transformation.work.queue.agentwork.coder.v1` | `KafkaTopic/transformation-work-queue-agentwork-coder-v1` | `ScaledJob/workrequests-agentwork-coder` | `transformation-work-queue-agentwork-coder-v1` | Placeholder container until real consumer exists |
+| Tool runs (verify) | `transformation.work.queue.toolrun.verify.v1` | `KafkaTopic/transformation-work-queue-toolrun-verify-v1` | `ScaledJob/workrequests-toolrun-verify` | `transformation-work-queue-toolrun-verify-v1` | KEDA schedules an executor-image Job that consumes `WorkRequested` from this queue and records outcomes/evidence back to Domain |
+| Tool runs (generate) | `transformation.work.queue.toolrun.generate.v1` | `KafkaTopic/transformation-work-queue-toolrun-generate-v1` | `ScaledJob/workrequests-toolrun-generate` | `transformation-work-queue-toolrun-generate-v1` | KEDA schedules an executor-image Job that consumes `WorkRequested` from this queue and records outcomes/evidence back to Domain |
+| Agent work (coder) | `transformation.work.queue.agentwork.coder.v1` | `KafkaTopic/transformation-work-queue-agentwork-coder-v1` | `ScaledJob/workrequests-agentwork-coder` | `transformation-work-queue-agentwork-coder-v1` | KEDA schedules an executor-image Job that consumes `WorkRequested` from this queue and records outcomes/evidence back to Domain |
 
 GitOps sources (authoritative):
 
