@@ -32,6 +32,7 @@ This section is a lightweight status tracker against the work packages below.
 - [x] WP-A2 Ingestion: outbox → projection relay implemented (`primitives/projection/transformation/cmd/relay`).
 - [x] WP-A3 UISurface: existing ArchiMate editor wired to primitives (`services/www_ameide_platform`).
 - [x] WP-Z Deletion: legacy `services/*` backends removed (`services/graph`, `services/repository`, `services/transformation`).
+- [x] WP-Z GitOps cleanup: legacy `graph`/`transformation` app components removed and gateway no longer routes non-graph proto traffic through `graph`.
 - [ ] WP-0 Repo health: confirm repo-wide codegen drift gates are green and enforceable in CI (regen-diff).
 - [x] WP-B (CODE) WorkRequests substrate: Domain WorkRequest record + facts + queue-topic fanout implemented; executor implemented (`primitives/integration/transformation-work-executor`).
 - [x] WP-B (TEST) Capability pack exists (`capabilities/transformation/__tests__/integration`) with repo-mode + cluster-mode WorkRequest seam coverage (E2E‑0) and repo-mode Process orchestration seam (E2E‑1).
@@ -583,7 +584,11 @@ Target-state:
   - [x] `services/repository`
   - [x] `services/transformation`
 - [x] Workspace tooling updated (remove deleted workspaces).
-- [ ] GitOps no longer deploys/routs the deleted services anywhere under `gitops/ameide-gitops/**`.
+- [x] GitOps no longer deploys/routs the deleted services anywhere under `gitops/ameide-gitops/**`:
+  - Removed the legacy app components (no more `local-graph` / `local-transformation` Applications).
+  - Tightened the Gateway routing so only `ameide_core_proto.graph.*` is routed to the `graph` Service; `ameide_core_proto.transformation.*` is no longer routed through `graph`.
+  - Disabled legacy graph routes by default in the platform gateway values (environments must explicitly opt back in if ever needed).
+  - Legacy charts remain in-tree but are documented as legacy for historical reference only.
 - [ ] Portal has no `/api/*` routes that proxy to deleted services.
 
 **Delete (required)**
