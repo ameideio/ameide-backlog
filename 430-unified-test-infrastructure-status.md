@@ -39,6 +39,16 @@ This document tracks implementation progress against the target state defined in
 
 ---
 
+### Capability Packs
+
+Capability packs are first-class integration packs (same `INTEGRATION_MODE` contract) and are discovered/executed by the unified runner (`pnpm test:integration`).
+
+| Capability | Mode Helper | Mock Mode | `__mocks__/` | Violations | Priority |
+|------------|-------------|-----------|--------------|------------|----------|
+| `capability-transformation` | Yes | **Compliant** | N/A (capability pack) | None | P1 |
+
+---
+
 ### TypeScript Services
 
 | Service | Mode Helper | Mock Mode | `__mocks__/` | Violations | Priority |

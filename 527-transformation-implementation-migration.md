@@ -35,7 +35,7 @@ This section is a lightweight status tracker against the work packages below.
 - [x] WP-Z GitOps cleanup: legacy `graph`/`transformation` app components removed and gateway no longer routes non-graph proto traffic through `graph`.
 - [x] WP-0 Repo health: confirm repo-wide codegen drift gates are green and enforceable in CI (regen-diff).
 - [x] WP-B (CODE) WorkRequests substrate: Domain WorkRequest record + facts + queue-topic fanout implemented; executor implemented (`primitives/integration/transformation-work-executor`).
-- [ ] WP-B (CODE) Process ingress consumes Kafka domain facts (`PROCESS_INGRESS_SOURCE=kafka://`) and signals workflows (target-state; currently stdin-only).
+- [x] WP-B (CODE) Process ingress consumes Kafka domain facts (`PROCESS_INGRESS_SOURCE=kafka://`) and signals workflows (Temporal signals; deploy/wiring is a GitOps concern).
 - [x] WP-B (CODE) Domain dispatcher publishes outbox topics to Kafka by default (no topic prefix filter).
 - [x] WP-B (TEST) Capability pack exists (`capabilities/transformation/__tests__/integration`) with repo-mode + cluster-mode WorkRequest seam coverage (E2E‑0) and repo-mode Process orchestration seam (E2E‑1).
 - [ ] WP-B (CLUSTER) Process orchestration in cluster is end-to-end (ingress → Temporal signals → projection timeline assertions enabled).
@@ -438,7 +438,7 @@ Enabling ScaledJobs in `local` proves the GitOps substrate and KEDA/Kafka wiring
 
 The remaining “end-to-end” gaps are now wiring gaps (not missing code primitives):
 
-- Process ingress is not yet Kafka-backed in CODE (`PROCESS_INGRESS_SOURCE=kafka://` not implemented), so cluster orchestration remains gated.
+- Process ingress supports Kafka in CODE (`PROCESS_INGRESS_SOURCE=kafka://`), but cluster orchestration remains gated until GitOps deploys ingress + dispatcher and wires Kafka env vars.
 - Telepresence traffic-agent injection is now opt-in (`agentInjector.injectPolicy=WhenEnabled`) so baseline workloads and operator-managed primitives do not get sidecars by default.
 - WorkRequests runner ScaledJobs are now enabled in `local` + `dev` with `maxReplicaCount: 1` for cluster-mode seam tests.
 
@@ -446,7 +446,8 @@ The remaining “end-to-end” gaps are now wiring gaps (not missing code primit
 
 - [x] GitOps: enable `workrequests-toolrun-verify` ScaledJob in `local`/`dev` (set `maxReplicaCount > 0`) and remove any ad-hoc “*-test” ScaledJob once stable.
 - [x] GitOps: make Telepresence injection opt-in (`agentInjector.injectPolicy=WhenEnabled`) so `transformation-v0-projection:50051` does not route to a sidecar by default.
-- [ ] GitOps: deploy Process ingress for Kafka (`PROCESS_INGRESS_SOURCE=kafka://`, `KAFKA_BROKERS`, `KAFKA_GROUP_ID`, optional `KAFKA_TOPICS`) so workflows are signaled by facts (not by test-only helpers). (Blocked: kafka:// not implemented in CODE yet, and the Process ingress binary/image is not shipped as a separate runtime today.)
+- [ ] GitOps: deploy Domain dispatcher (`/app/domain-transformation-dispatcher`) so outbox topics are published to Kafka (required for ingress + KEDA queues).
+- [ ] GitOps: deploy Process ingress for Kafka (`PROCESS_INGRESS_SOURCE=kafka://`, `KAFKA_BROKERS`, `KAFKA_GROUP_ID`, optional `KAFKA_TOPICS`) so workflows are signaled by facts (not by test-only helpers). (Note: `/app/process-transformation-ingress` is shipped inside the `primitive-process-transformation` image; deploy it as a separate workload via command override.)
 - [ ] Tests: un-gate cluster Process orchestration tests (`TRANSFORMATION_ENABLE_PROCESS_CLUSTER_TESTS=1`) and require Projection timeline assertions (ProcessQuery + WorkQuery) in cluster mode once projection wiring is fixed.
 
 **Test ladder (TDD: small → large)**
