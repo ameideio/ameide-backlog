@@ -35,6 +35,8 @@ This section is a lightweight status tracker against the work packages below.
 - [x] WP-Z GitOps cleanup: legacy `graph`/`transformation` app components removed and gateway no longer routes non-graph proto traffic through `graph`.
 - [ ] WP-0 Repo health: confirm repo-wide codegen drift gates are green and enforceable in CI (regen-diff).
 - [x] WP-B (CODE) WorkRequests substrate: Domain WorkRequest record + facts + queue-topic fanout implemented; executor implemented (`primitives/integration/transformation-work-executor`).
+- [x] WP-B (CODE) Process ingress can consume Kafka domain facts (`PROCESS_INGRESS_SOURCE=kafka://`) and signal workflows (no manual signal required).
+- [x] WP-B (CODE) Domain dispatcher publishes outbox topics to Kafka by default (no topic prefix filter).
 - [x] WP-B (TEST) Capability pack exists (`capabilities/transformation/__tests__/integration`) with repo-mode + cluster-mode WorkRequest seam coverage (E2E‑0) and repo-mode Process orchestration seam (E2E‑1).
 - [ ] WP-B (CLUSTER) Process orchestration in cluster is end-to-end (ingress → Temporal signals → projection timeline assertions enabled).
 - [x] GitOps parity (execution substrate): KEDA + Kafka work-queue topics + workbench + secret wiring exist in `ameide-gitops` (enabled in `local` + `dev`; disabled elsewhere).
@@ -430,7 +432,7 @@ Enabling ScaledJobs in `local` proves the GitOps substrate and KEDA/Kafka wiring
 
 The remaining “end-to-end” gaps are now wiring gaps (not missing code primitives):
 
-- Process ingress is not Kafka-native yet (workflows are not completed by facts; cluster orchestration remains gated).
+- Process ingress is Kafka-native in CODE (kafka consumer for `transformation.work.domain.facts.v1` + `transformation.governance.domain.facts.v1`), but is not deployed/wired in cluster yet (workflows are not completed by facts; cluster orchestration remains gated).
 - Projection service port naming can route gRPC traffic to the Telepresence sidecar instead of the app container (blocking reliable projection assertions in cluster tests).
 - ScaledJobs default to `maxReplicaCount: 0` (safety); enable at least the verify queue in `local`/`dev` to run cluster-mode WorkRequest seam tests.
 
@@ -438,7 +440,7 @@ The remaining “end-to-end” gaps are now wiring gaps (not missing code primit
 
 - [ ] GitOps: enable `workrequests-toolrun-verify` ScaledJob in `local`/`dev` (set `maxReplicaCount > 0`) and remove any ad-hoc “*-test” ScaledJob once stable.
 - [ ] GitOps: fix Projection Service port naming so `transformation-v0-projection:50051` routes to the projection container (not the Telepresence sidecar).
-- [ ] CODE+GitOps: implement Process ingress for Kafka (`transformation.work.domain.facts.v1` / queue topics) and deploy it so workflows are signaled by facts (not by test-only helpers).
+- [ ] GitOps: deploy Process ingress for Kafka (`PROCESS_INGRESS_SOURCE=kafka://`, `KAFKA_BROKERS`, `KAFKA_GROUP_ID`, optional `KAFKA_TOPICS`) so workflows are signaled by facts (not by test-only helpers).
 - [ ] Tests: un-gate cluster Process orchestration tests (`TRANSFORMATION_ENABLE_PROCESS_CLUSTER_TESTS=1`) and require Projection timeline assertions (ProcessQuery + WorkQuery) in cluster mode once projection wiring is fixed.
 
 **Test ladder (TDD: small → large)**
