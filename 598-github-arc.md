@@ -123,6 +123,8 @@ Azure overlay remains unchanged (cluster appset only reads `_shared/components/c
 - Component: `environments/local/components/cluster/secrets/github-arc-auth/component.yaml`
 - Values: `sources/values/_shared/cluster/github-arc-auth.yaml`
 - Materializes `Secret/arc-github-auth` in `arc-runners` from Vault key `ghcr-token` (local bootstrap convenience).
+- Local: `.env` secrets are seeded into local Vault by `infra/scripts/seed-local-secrets.sh` (invoked by `infra/scripts/deploy.sh local`); `GHCR_TOKEN` becomes Vault key `ghcr-token`.
+- Azure: `.env` secrets are materialized into Azure Key Vault via Terraform/Bicep; this ARC auth wiring is local-only (revisit if promoting).
 
 ### WP-5: Runner scale set (env, local-only)
 
@@ -160,4 +162,3 @@ Azure overlay remains unchanged (cluster appset only reads `_shared/components/c
 
 - Keep org-level attachment (`githubConfigUrl: https://github.com/ameideio`) or scope to a repo?
 - Do we need a non-default `runnerGroup`, or stay in `default`?
-
