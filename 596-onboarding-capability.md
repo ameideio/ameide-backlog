@@ -105,6 +105,7 @@ Additionally, ship a **repo-root integration pack** under `tests/integration/onb
 * canonical tenant id
 * org memberships
 * **org discovery status**: `OK | EMPTY | TIMEOUT | ERROR` (timeout is not empty)
+* **implementation note**: carry this status through the session payload (e.g. `session.user.organizationAccessStatus`) so routing/UI can distinguish `EMPTY` from `TIMEOUT/ERROR` (no “infer from empty list”)
 
 ### 3.4 Integration primitives (Keycloak / issuer mapping)
 
