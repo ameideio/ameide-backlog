@@ -4,6 +4,8 @@
 **Status**: In Flight – Realm-per-tenant rollout blocked, single-realm hardened  
 **Related**: `333-realms.md`, `331-tenant-resolution.md`, `322-rbac-v2.md`, `323-keycloak-realm-roles.md`
 
+> **Update (597):** The recommended target state is issuer-first tenant routing (OIDC `iss` issuer URL → server-side `issuer → tenant_id` mapping) and explicit access states (`OK | EMPTY | TIMEOUT | ERROR`). Do not extend legacy patterns like `tenantId` token claims, `x-tenant-id`, or `hasRealOrganization` onboarding gates.
+
 ---
 
 ## 1. Architecture at a Glance
@@ -12,8 +14,8 @@
 |-------|---------------|-------|
 | Identity Provider | Single Keycloak realm (`ameide`) backed by KC groups | Realm-per-tenant ADR written but not live. |
 | Session broker | NextAuth (Node runtime) with Redis session store | Custom JWT callback refreshes Keycloak access token + merges org context. |
-| Tenant context | `tenantId` issued as Keycloak attribute → JWT claim → session | Eliminated `DEFAULT_TENANT_ID` fallbacks in API layer; still present in legacy SDK/helpers. |
-| Organization context | JWT session carries `organization`, `organizations`, `defaultOrgId`, `hasRealOrganization` | `hasRealOrganization` gates onboarding; roles pulled via new membership lookup helper. |
+| Tenant context | Issuer-first routing (`iss` issuer URL → server-side mapping) | Avoid tenantId claims and issuer parsing; treat issuer as a URL. |
+| Organization context | Explicit access view (`OK | EMPTY | TIMEOUT | ERROR` + typed issues) | TIMEOUT/ERROR must never be treated as EMPTY; onboarding is not gated by `hasRealOrganization`. |
 | RBAC enforcement | Platform API enforces via gRPC `requireOrganizationRole`, UI reads `session.user.roles` | Role lookup now reconciles platform id ↔ Keycloak subject before populating session. |
 
 ---
@@ -23,17 +25,17 @@
 - **Session ↔ Platform identity alignment**  
   - NextAuth keeps the platform-generated user id as the canonical `session.user.id`.  
   - New helper `fetchOrganizationMembershipRoles` resolves membership roles using the platform id and falls back to `kcSub` when required.  
-  - On JWT refresh we now attach real membership roles (not just hints), guaranteeing `hasRealOrganization` survives logout/login sequences.
+  - On refresh we attach real membership roles (not just hints) and preserve explicit access-state semantics (TIMEOUT/ERROR ≠ EMPTY).
 - **Keycloak infrastructure parity**  
   - Keycloak operator instance now references the CNPG-owned `postgres-ameide-auth` credentials; ExternalSecrets managed by the chart hydrate admin/master secrets only.  
   - Helm smoke tests exercise realm bootstrap and client patching end-to-end, preventing regressions during future realm-per-tenant work.
 
 - **Onboarding flow reliability**  
   - `IdentityOrchestrator.completeRegistration` accepts both `platformUserId` and `keycloakUserId`, ensuring membership rows and subsequent role lookups align.  
-  - `/onboarding` refresh now calls `updateSession` with `refreshOrganizations` + `organizationRoles` hints; middleware routes users back to the org home once `hasRealOrganization` is true.
+  - UI routing should be driven by access states and lane semantics (see `backlog/597-login-onboarding-primitives.md`), not session flags.
 
 - **Logout handling**  
-  - `/logout` clears NextAuth cookies, optionally fans out to Keycloak logout; middleware routes authenticated users away from `/login`/`/register` to `/onboarding` or org home depending on `hasRealOrganization`.
+  - `/logout` clears session cookies and may optionally perform RP-initiated logout to Keycloak; post-logout routing should not depend on org-fetch side effects.
 
 ---
 
@@ -47,9 +49,8 @@
    - `packages/ameide_sdk_ts/src/platform/organization-client.ts` and graph service helpers continue to default to `DEFAULT_TENANT_ID`.  
    - Downstream scripts/tests assume atlas tenant; needs explicit tenant plumbing to avoid cross-tenant leakage during multi-tenant roll-out.
 
-3. **Pre-onboarding session race**  
-   - Immediately after logout/login, session refresh may miss the `hasRealOrganization` flip if the membership fetch fails (e.g., org created but membership not committed yet).  
-   - Mitigated by the new membership-role lookup but still dependent on prompt platform-service consistency.
+3. **Access resolution degraded vs empty**  
+   - Any access timeout/error must surface explicitly as `TIMEOUT`/`ERROR` and must never be interpreted as “no orgs” for routing decisions (see `backlog/597-login-onboarding-primitives.md`).
 
 4. **Guest / multi-org membership**  
    - `collectCandidateMemberIds` checks both platform id and `kcSub`, but membership queries default to platform id only.  
@@ -66,8 +67,8 @@
 | Priority | Task | Owner | Target |
 |----------|------|-------|--------|
 | P0 | Correct ADR-333 status + ship migration scripts (`realm_name`, realm provisioning CLI) | Platform Auth | Sprint +1 |
-| P0 | Update SDK defaults (TS/Go) to require explicit tenantId, remove `DEFAULT_TENANT_ID` | SDK team | Sprint +1 |
-| P1 | Add regression tests for logout/login ensuring `hasRealOrganization` persists | Platform QA | Sprint +2 |
+| P0 | Update SDK defaults (TS/Go) to remove `DEFAULT_TENANT_ID` and derive tenant context from issuer-first routing | SDK team | Sprint +1 |
+| P1 | Add regression tests ensuring TIMEOUT/ERROR never route into onboarding | Platform QA | Sprint +2 |
 | P1 | Document “drop all data” bootstrap procedure (Keycloak realms + platform seed) | Ops | Sprint +2 |
 | P2 | Guest federation roadmap: confirm membership storage uses platform id, add mapping table if necessary | Platform Auth | Sprint +3 |
 | P2 | Fix Jest moduleNameMapper for onboarding path to keep unit suite green | DX Tooling | Sprint +1 |
@@ -78,14 +79,12 @@
 
 - **Logs to watch**  
   - `[auth] applyOrganizationContext - organizations fetched` (ensure `count` > 0)  
-  - `[auth] JWT callback - organization refresh complete` (look for `newHasRealOrg: true`)  
-  - Middleware `[MIDDLEWARE] ...` entries to verify redirects away from `/onboarding` for onboarded users.
+  - Middleware routing logs to verify access-state handling (TIMEOUT/ERROR ≠ EMPTY) and that onboarding endpoints are not invoked during login.
 
 - **Manual sanity checks**  
-  1. Seed user (`admin66`) completes onboarding -> verify `/api/auth/session` shows `hasRealOrganization: true`, `roles` includes `admin`.  
-  2. `/logout` then login -> user lands on `/org/<slug>`, not `/onboarding`.  
-  3. Invited user accepts invitation -> middleware should bypass onboarding (hasRealOrganization true).  
-  4. `listOrganizations` gRPC call includes platform id first; fallback to `kcSub` only if membership missing.
+  1. Seeded user logs in → lands in app shell without hitting registrations endpoints (see `backlog/597-login-onboarding-primitives.md`).  
+  2. Access TIMEOUT/ERROR shows a blocker/retry view and does not route into onboarding.  
+  3. `/logout` then login returns to the shell and routes via access state, not session flags.
 
 ---
 
@@ -93,7 +92,6 @@
 
 - **Platform user id**: Primary key generated by the platform service; stored in session as `session.user.id`.  
 - **Keycloak subject (`kcSub`)**: Stable per realm identifier; stored alongside the platform id for cross-realm lookups.  
-- **`hasRealOrganization` flag**: Session marker telling middleware whether to gate `/onboarding`; set true once membership rows occupy the platform DB.  
 - **Tenant slug**: Human-readable tenant identifier stored in tenant metadata (`metadata.slug`), used for future realm naming.
 
 ---
