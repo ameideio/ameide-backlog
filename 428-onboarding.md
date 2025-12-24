@@ -11,6 +11,8 @@
 
 This backlog consolidates all onboarding-related requirements from prior specifications (319, 369, 319-v4) into a single, prioritized execution plan. It covers the complete journey from lead capture through fully-provisioned tenant, incorporating lessons learned and aligning with the current architecture (realm-per-tenant, Temporal orchestration, unified secret guardrails).
 
+> **Update (597):** This backlog assumes **realm-per-tenant (no exceptions)** and **issuer-first tenant routing** (OIDC `iss` issuer URL mapped server-side to canonical `tenant_id`). Do not implement new dependencies on `tenantId` token claims, `x-tenant-id`, or “shared realm” tiers.
+
 ---
 
 ## 1. Current State Assessment
@@ -27,7 +29,7 @@ This backlog consolidates all onboarding-related requirements from prior specifi
 | Token Security | ✅ | SHA-256 hashing, one-time use, expiration |
 | Database Schema | ✅ | Organizations, memberships, roles, invitations, users, teams |
 | RLS Enforcement | ✅ | Row-level security on platform tables |
-| JWT Tenant Claims | ✅ | `tenantId` claim via Keycloak protocol mapper (treat as a hint; routing authority is issuer-driven server-side mapping) |
+| Issuer-First Tenant Routing | 🔄 | Target: use OIDC issuer URL + server-side `issuer → tenant_id` mapping (no `tenantId` claim authority) |
 | RBAC Roles | ✅ | admin, contributor, viewer, guest, service (canonical catalog) |
 
 ### Current Blockers
@@ -98,22 +100,10 @@ DEPLOYMENT (Kubernetes Cluster)
 │                    KEYCLOAK SHARDING MODEL                              │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                         │
-│  Tier 1: Enterprise Accounts (realm-per-tenant)                         │
-│    - Dedicated Keycloak realm per organization                          │
-│    - Full SSO/SCIM/IdP brokering capabilities                           │
-│    - Max ~500 realms per Keycloak cluster                               │
-│    - Route by tenant → Keycloak shard (tenant_keycloak_shard_id)        │
-│                                                                         │
-│  Tier 2: SMB/Self-Serve Accounts (shared realm)                         │
-│    - Shared `ameide` realm with group-based tenant isolation            │
-│    - JWT `tenantId` claim from user attributes                          │
-│    - No per-tenant IdP brokering (use social/email auth)                │
-│    - Scales to 100k+ tenants per Keycloak cluster                       │
-│                                                                         │
-│  Upgrade Path: SMB → Enterprise                                         │
-│    - Migrate user from shared realm to dedicated realm                  │
-│    - Link existing platform.users/memberships to new realm              │
-│    - One-time migration workflow (Temporal)                             │
+│  Realm-per-tenant only (invariant)                                      │
+│    - Dedicated Keycloak realm per tenant                                │
+│    - Scale via multiple Keycloak clusters/shards (no shared-realm tier) │
+│    - Route by tenant → keycloak shard (`keycloak_shard_id`)             │
 │                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
@@ -122,8 +112,8 @@ DEPLOYMENT (Kubernetes Cluster)
 | Metric | Phase 1 Target | Phase 5 Target | Notes |
 |--------|----------------|----------------|-------|
 | Realms per Keycloak cluster | 50 | 500 | Load test required at 100, 250, 500 |
-| Total tenants (all tiers) | 1,000 | 10,000 | Hybrid model enables scale |
-| Keycloak clusters (production) | 1 | 2-3 | Shard by tenant tier + region |
+| Total tenants (production) | 1,000 | 10,000 | Expect multiple shards as scale increases |
+| Keycloak clusters (production) | 1 | 2-3 | Shard by region/capacity; still realm-per-tenant |
 
 **Implementation Notes**:
 - Add `keycloak_shard_id` column to `platform.tenants` table
@@ -337,7 +327,7 @@ When multiple identity sources are configured, the following precedence applies:
 | Requirement | Target | Notes |
 |-------------|--------|-------|
 | Concurrent signups | 100/second | Distributed across app replicas |
-| Tenants per cluster (all tiers) | 10,000 | Hybrid model: ~500 realm-per-tenant + shared realm |
+| Total tenants (production) | 10,000 | Requires multiple Keycloak clusters/shards; still realm-per-tenant |
 | Realms per Keycloak cluster | 500 | See Keycloak Capacity & Sharding Strategy |
 | Users per organization | 10,000 | RLS + indexed queries |
 | Invitations in flight | 1,000,000 | Partitioned by org |
@@ -1108,7 +1098,7 @@ export async function CustomerOnboardingWorkflow(input: OnboardingInput): Promis
 │    (onboarding)/       ← OnboardingLayout (minimal auth)                 │
 │      onboarding/                                                         │
 │    (app)/              ← Authenticated app routes (use middleware        │
-│                          headers: x-pathname, x-tenant-id, x-org-home)   │
+│                          headers: x-pathname, x-issuer, x-org-home)      │
 │      org/[orgId]/                                                        │
 │    healthz/route.ts    ← force-static, bypasses auth                     │
 │                                                                          │
@@ -1119,7 +1109,7 @@ export async function CustomerOnboardingWorkflow(input: OnboardingInput): Promis
 │                                                                          │
 │  Circuit Breakers:                                                       │
 │    - Redis: 3s timeout (dev), 10s (prod)                                 │
-│    - Org fetch: 5s timeout, return [] on timeout                         │
+│    - Org fetch: 5s timeout, return TIMEOUT/ERROR state (never [])        │
 │    - Redis warmup on app startup                                         │
 │                                                                          │
 └──────────────────────────────────────────────────────────────────────────┘
@@ -1127,7 +1117,7 @@ export async function CustomerOnboardingWorkflow(input: OnboardingInput): Promis
 
 **Onboarding Implications:**
 - Onboarding wizard pages should use minimal auth (skip org context fetch and heavy session logic)
-- Rely on middleware-injected headers (`x-tenant-id`, `x-user-id`, `x-org-home`) for routing decisions
+- Rely on middleware-injected headers (`x-issuer`, `x-user-id`, `x-user-kc-sub`, `x-org-home`) for routing decisions
 - Add Redis JSON.parse error handling in session store
 - Warmup Redis connection on app startup
 
@@ -1308,7 +1298,7 @@ export async function CustomerOnboardingWorkflow(input: OnboardingInput): Promis
 
 | Issue | Resolution |
 |-------|------------|
-| Keycloak 10k realms/cluster unrealistic | Added hybrid tenancy model: ~500 enterprise realms + shared realm for SMB |
+| Keycloak 10k realms/cluster unrealistic | Documented operational envelope + sharding strategy while keeping realm-per-tenant invariant |
 | SCIM endpoints underspecified | Added filtering, pagination, PATCH, OAuth scope requirements |
 | Identity source precedence undefined | Documented SCIM > JIT > manual invites with edge cases |
 | Billing source-of-truth ambiguous | Clarified: Stripe authoritative, DB is projection via webhooks |
