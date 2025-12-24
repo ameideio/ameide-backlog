@@ -115,23 +115,23 @@ Contract should specify:
 
 - Tenant(s)/org(s) required for local/dev.
 - Personas (email/username) required for local/dev, and their required **platform** roles/memberships.
-- Optional Keycloak facts: realm name, group names, required user attributes (e.g., `tenantId`), required realm roles.
+- Optional Keycloak facts: issuer URL / realm name, required realm roles, and persona credentials (via ExternalSecrets).
 
 ### Canonical baseline (recommended)
 
 Keep the baseline dataset intentionally boring and stable:
 
 - **Tenant:** `tenant-atlas`
-- **Org:** `atlas` (must match Keycloak group `/orgs/atlas` and platform organization key)
+- **Org:** `atlas` (platform organization key)
 - **Canonical role codes:** `admin`, `contributor`, `viewer`, `guest`, `service` (avoid introducing `owner/member`)
-- **Deterministic platform user IDs:** use `user_id=email` for seeded personas so platform memberships stay stable and `www-ameide-platform` can match memberships reliably.
+- **Deterministic identity links:** seed platform users with opaque IDs (UUID) and link personas via external identity mapping `(issuer, sub) → user_id` so login can resolve memberships reliably (see `backlog/597-login-onboarding-primitives.md`).
 
 ### Persona set (more comprehensive, still practical)
 
 Each persona that should “work” must exist in **both** systems:
 
-- **Keycloak**: user exists, has `tenantId=tenant-atlas`, is in `/orgs/atlas` (org hints), and has a known password (via ExternalSecret).
-- **Platform DB**: user exists (deterministic ID) and has the expected membership state + role codes in org `atlas`.
+- **Keycloak**: user exists in the tenant realm (issuer) and has a known password (via ExternalSecret).
+- **Platform DB**: user exists (opaque ID) and has the expected membership state + role codes in org `atlas`, plus an external identity link `(issuer, sub) → user_id`.
 
 Recommended personas:
 
@@ -157,7 +157,10 @@ If we later need org-switching coverage, add a second org (same tenant) and one 
 Keep it under ~30 lines and store it in Git (rendered into the verify Job).
 
 ```yaml
-tenantId: tenant-atlas
+tenant:
+  id: tenant-atlas
+  slug: atlas
+  issuer: https://auth.local.ameide.io/realms/atlas
 organization:
   id: atlas
   slug: atlas
@@ -181,11 +184,8 @@ personas:
     - email: newmember@example.com
       platformRoles: [guest]
 keycloak:
-  realm: ameide
-  requiredUserAttributes:
-    - tenantId
-  requiredGroups:
-    - /orgs/atlas
+  issuer: https://auth.local.ameide.io/realms/atlas
+  realmName: atlas
 ```
 
 Notes:
@@ -245,11 +245,11 @@ Realm import is create-only, so “declared users” in the import are not a rec
 
 ### Recommendation
 
-1. **Remove Playwright/test users from shared realm import** and move them behind environment flags (dev/local/staging only).
+1. **Remove Playwright/test users from realm import** and move them behind environment flags (dev/local/staging only).
 2. Implement a **persona reconciler Job** (idempotent) that ensures:
    - users exist by email,
-   - required attributes exist (tenantId/orgSlug),
-   - group membership exists (`/orgs/atlas`),
+   - users exist in the correct realm (issuer),
+   - external identity links exist in the platform DB (`(issuer, sub) → user_id`),
    - and passwords are sourced from `playwright-int-tests-secrets` (already delivered via ExternalSecrets).
 3. **Production:** do not include the persona secret or persona users by default.
 
@@ -268,7 +268,7 @@ Principle: **cluster mode must fail fast** if tenant/org context is missing. Rep
 
 Targets to remove/restrict:
 
-- SDK tenant fallback (`'tenant-atlas'`) → require explicit tenantId in calls or derive from session context; keep test helpers for mocks.
+- SDK tenant fallback (`'tenant-atlas'`) → remove; in cluster mode, tenant context is derived from `x-issuer` and a server-side `issuer → tenant_id` mapping (tests/mocks can still inject explicit context).
 - Inference default tenant (`"default"`) → require env var or explicit context; missing config should fail at startup (with a clear error).
 
 Related policy: [300-400/330-dynamic-tenant-resolution.md](300-400/330-dynamic-tenant-resolution.md) already describes the migration goal: “no hardcoded tenant defaults anywhere”.
