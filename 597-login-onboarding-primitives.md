@@ -72,6 +72,8 @@ For this backlog, “land in the app shell” means:
 
 A user can “land in the shell” even when there are typed blockers (e.g., tenant readiness violations). In that case the shell renders a blocker view and prevents navigation to normal app routes until an explicit admin/support action (or corrected seed) resolves the issue.
 
+**Implementation note (platform.ameide.io)**: the app shell entrypoint is `GET /` (portal). Do not introduce alternate “shell” escape hatches (e.g. `/app`) that bypass the portal’s explicit access state semantics.
+
 ---
 
 ## 1) Minimal primitives needed for login/logout
