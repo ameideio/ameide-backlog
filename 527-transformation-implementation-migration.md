@@ -38,7 +38,7 @@ This section is a lightweight status tracker against the work packages below.
 - [x] WP-B (CODE) Process ingress consumes Kafka domain facts (`PROCESS_INGRESS_SOURCE=kafka://`) and signals workflows (Temporal signals; deploy/wiring is a GitOps concern).
 - [x] WP-B (CODE) Domain dispatcher publishes outbox topics to Kafka by default (no topic prefix filter).
 - [x] WP-B (TEST) Capability pack exists (`capabilities/transformation/__tests__/integration`) with repo-mode + cluster-mode WorkRequest seam coverage (E2E‑0) and repo-mode Process orchestration seam (E2E‑1).
-- [x] WP-B (CLUSTER) Process orchestration in cluster is end-to-end (ingress → Temporal signals → projection timeline assertions enabled).
+- [ ] WP-B (CLUSTER) Process orchestration in cluster is end-to-end (ingress → Temporal signals → projection timeline assertions enabled). **Blocked** until `transformation-v0-process` worker is healthy in `local` + `dev` (see “Recent failure mode (local): process migrations CrashLoop” below).
 - [x] GitOps parity (execution substrate): KEDA + Kafka work-queue topics + workbench + secret wiring exist in `ameide-gitops` (enabled in `local` + `dev`; disabled elsewhere).
 - [x] GitOps parity (contract topics): Transformation fact-stream KafkaTopics exist as a dedicated component (`data-kafka-transformation-contract-topics`) and are asserted by `data-data-plane-smoke` (enabled in `local` + `dev`).
 - [x] GitOps parity (runtime wiring): dispatcher/ingress/relay workloads exist and are enabled in `local` + `dev` (`domain-transformation-v0-dispatcher`, `process-transformation-v0-ingress`, `projection-transformation-v0-relay`).
@@ -87,6 +87,21 @@ Operational note: with `imagePullPolicy: IfNotPresent`, k3d/k3s may keep a cache
 
 - `docker exec k3d-ameide-agent-0 sh -lc 'crictl rmi ghcr.io/ameideio/primitive-projection-transformation:dev || true'`
 - `kubectl -n ameide-local delete pod -l app.kubernetes.io/name=projection,app.kubernetes.io/instance=transformation-v0`
+
+### Recent failure mode (local): process migrations CrashLoop
+
+If `transformation-v0-process` is `CrashLoopBackOff` with:
+
+- `ensure migrations: ensure schema_migrations: ERROR: syntax error at or near \"//\" (SQLSTATE 42601)`
+
+…the `ghcr.io/ameideio/primitive-process-transformation:dev` image is older than the fix in `ameide` PR **#382**. This blocks the cluster-mode process seam test:
+
+- `TestWorkRequestSeam_ProcessOrchestration_ClusterMode` in `capabilities/transformation/__tests__/integration`
+
+Operational note: with `imagePullPolicy: IfNotPresent`, k3d/k3s may keep a cached `:dev` image; delete the cached image on the node and restart the pod to force a pull:
+
+- `docker exec k3d-ameide-agent-0 sh -lc 'crictl rmi ghcr.io/ameideio/primitive-process-transformation:dev || true'`
+- `kubectl -n ameide-local delete pod -l app.kubernetes.io/name=process,app.kubernetes.io/instance=transformation-v0`
 
 ## 1) Alignment to 520 (normative constraints)
 
