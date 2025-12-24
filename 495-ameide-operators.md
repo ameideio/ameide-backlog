@@ -3,7 +3,7 @@
 All primitive operators share the same skeleton:
 
 * Implemented in Go with `controller-runtime`
-* One controller per CRD kind: `Domain`, `Process`, `Agent`, `UISurface`, `Projection`, `Integration` (Projection/Integration operators are part of the v2 stack in 520)
+* One controller per CRD kind: `Domain`, `Process`, `Agent`, `UISurface`, `Projection`, `Integration` (each kind has its own operator binary; no multi-kind operator binaries)
 * GitOps applies only the CRs; operators own all children (Deployments, Jobs, HPAs, CNPG bits, ServiceMonitors, NetworkPolicies, etc.) 
 * CRDs are *runtime wiring only*, they never model tables, fields, or UI layout 
 
@@ -455,8 +455,10 @@ ameide-core/
     process-operator/
     agent-operator/
     uisurface-operator/
+    projection-operator/
+    integration-operator/
     shared/                     # Shared Go types (conditions)
-    helm/                       # Helm chart for all 4 operators
+    helm/                       # Helm chart for all 6 operators
       Chart.yaml
       values.yaml
       crds/                     # CRD manifests (copied from operator config/)
@@ -469,17 +471,19 @@ ameide-core/
 On merge/tag to `main`:
 
 1. **Build images** for each operator:
-   * `ghcr.io/ameide/domain-operator:<version>`
-   * `ghcr.io/ameide/process-operator:<version>`
-   * `ghcr.io/ameide/agent-operator:<version>`
-   * `ghcr.io/ameide/uisurface-operator:<version>`
+   * `ghcr.io/ameideio/domain-operator:<version>`
+   * `ghcr.io/ameideio/process-operator:<version>`
+   * `ghcr.io/ameideio/agent-operator:<version>`
+   * `ghcr.io/ameideio/uisurface-operator:<version>`
+   * `ghcr.io/ameideio/projection-operator:<version>`
+   * `ghcr.io/ameideio/integration-operator:<version>`
 
 2. **Package Helm chart**:
    * `helm package charts/ameide-operators`
    * Chart `version:` matches operator release (e.g. `0.5.0`)
 
 3. **Publish chart as OCI artifact**:
-   * `ghcr.io/ameide/helm/ameide-operators:0.5.0`
+   * `ghcr.io/ameideio/helm/ameide-operators:0.5.0`
 
 > Operators are published as **artifacts** (container images + Helm chart). No operator manifests are copied into GitOps repos as code.
 
@@ -510,7 +514,7 @@ metadata:
   name: platform-operators
 spec:
   source:
-    repoURL: oci://ghcr.io/ameide/helm
+    repoURL: oci://ghcr.io/ameideio/helm
     chart: ameide-operators
     targetRevision: 0.5.0
     helm:
