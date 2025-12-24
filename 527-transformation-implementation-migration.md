@@ -336,6 +336,7 @@ WP‑B is implemented **proto-first** so orchestration and evidence do not drift
 
 - [x] KEDA installed cluster-scoped (see `backlog/585-keda.md`).
 - [x] Work-queue topics provisioned via `data-kafka-workrequests-topics` (enabled in `local` + `dev`; disabled elsewhere).
+- [x] Transformation contract topics provisioned via `data-kafka-transformation-contract-topics` (enabled in `local` + `dev`; disabled elsewhere).
 - [x] Workbench provisioned via `workrequests-runner` (enabled in `local` + `dev`; disabled elsewhere). ExternalSecrets templates exist, but `local` + `dev` currently set `secrets.enabled=false` so the workbench can start without Vault/ExternalSecrets.
 - [x] MinIO service-user scaffolding for WorkRequests (Vault-backed) exists (enabled in `local` + `dev`; disabled elsewhere).
 - [x] KEDA `ScaledJob` resources enabled in `local` + `dev` (disabled elsewhere). **Note:** `scaledJobs.maxReplicaCount: 0` is the shared default (safety); `local` + `dev` set `maxReplicaCount: 1` to allow cluster-mode WorkRequest seam tests without enabling uncontrolled fan-out. Executor image is `ghcr.io/ameideio/primitive-integration-transformation-work-executor:<tag>`.
@@ -347,10 +348,9 @@ Components (ApplicationSet-rendered):
 
 - Topics:
   - `environments/_shared/components/data/core/kafka-workrequests-topics/component.yaml`
-  - `environments/local/components/data/core/kafka-workrequests-topics/component.yaml`
+  - `environments/_shared/components/data/core/kafka-transformation-contract-topics/component.yaml`
 - Runner/workbench + ScaledJobs:
   - `environments/_shared/components/apps/runtime/workrequests-runner/component.yaml`
-  - `environments/local/components/apps/runtime/workrequests-runner/component.yaml`
 
 Values (layered per 434):
 
@@ -358,6 +358,9 @@ Values (layered per 434):
   - `sources/values/_shared/data/data-kafka-workrequests-topics.yaml`
   - `sources/values/env/local/data/data-kafka-workrequests-topics.yaml` (enabled)
   - `sources/values/env/dev/data/data-kafka-workrequests-topics.yaml` (enabled)
+  - `sources/values/_shared/data/data-kafka-transformation-contract-topics.yaml`
+  - `sources/values/env/local/data/data-kafka-transformation-contract-topics.yaml` (enabled)
+  - `sources/values/env/dev/data/data-kafka-transformation-contract-topics.yaml` (enabled)
 - Runner/workbench/ScaledJobs (shared + env toggles):
   - `sources/values/_shared/apps/workrequests-runner.yaml`
   - `sources/values/env/local/apps/workrequests-runner.yaml` (enabled + ScaledJobs enabled)
