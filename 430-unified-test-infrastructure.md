@@ -196,12 +196,14 @@ The verifier applies to both:
 
 - `services/<service>/__tests__/integration/` integration packs
 - `primitives/<kind>/<name>/tests/` integration packs
+- `tests/integration/<pack>/` repo-root integration packs (cross-primitive orchestration)
 
 The verifier fails when a pack exists but does not satisfy:
 
 - **Services**: `services/<service>/__mocks__/` exists
 - **Services**: `__tests__/integration/run_integration_tests.sh` exists and is executable
 - **Primitives**: `tests/run_integration_tests.sh` exists and is executable
+- **Repo-root**: `tests/integration/<pack>/run_integration_tests.sh` exists and is executable
 - Runner sources `tools/integration-runner/integration-mode.sh` and `tools/integration-runner/junit-path.sh`
 - Runner resolves mode via `MODE="$(integration_mode)"` (or equivalent) and exports `INTEGRATION_MODE`
 - Runner declares a `required_vars=(...)` (or `required_env_vars=(...)`) array and every entry (when present) starts with the expected prefix (`SERVICEPREFIX_FIELD`)

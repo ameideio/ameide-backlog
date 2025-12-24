@@ -19,7 +19,7 @@
 
 **Impact of realm-per-tenant**:
 - Each organization will have its own Keycloak realm
-- Tenant ID will be derived from the **realm name** in JWT issuer: `iss: "https://keycloak/realms/{org-slug}"`
+- Tenant routing becomes **issuer-driven**: treat OIDC `iss` (issuer URL) as an opaque identifier and resolve `issuer → tenant_id` server-side (do not parse realm name out of `iss`)
 - The `tenantId` user attribute approach described here becomes **redundant**
 - Realm discovery will replace tenant resolution
 
@@ -31,7 +31,7 @@
 **Migration path**:
 1. Continue using `tenantId` attribute in single realm (current state)
 2. Implement realm-per-tenant architecture (333-realms.md Week 1-2)
-3. Switch to realm-based tenant resolution (333-realms.md Week 2)
+3. Switch to issuer-driven routing with `issuer → tenant_id` mapping (see `backlog/597-login-onboarding-primitives.md`)
 4. Deprecate `tenantId` user attribute
 
 ---

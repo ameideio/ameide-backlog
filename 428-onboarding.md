@@ -27,7 +27,7 @@ This backlog consolidates all onboarding-related requirements from prior specifi
 | Token Security | ✅ | SHA-256 hashing, one-time use, expiration |
 | Database Schema | ✅ | Organizations, memberships, roles, invitations, users, teams |
 | RLS Enforcement | ✅ | Row-level security on platform tables |
-| JWT Tenant Claims | ✅ | `tenantId` claim via Keycloak protocol mapper |
+| JWT Tenant Claims | ✅ | `tenantId` claim via Keycloak protocol mapper (treat as a hint; routing authority is issuer-driven server-side mapping) |
 | RBAC Roles | ✅ | admin, contributor, viewer, guest, service (canonical catalog) |
 
 ### Current Blockers
@@ -75,11 +75,13 @@ DEPLOYMENT (Kubernetes Cluster)
 
 ### Key Architectural Decisions
 
-1. **Realm-Per-Tenant**: Each organization gets its own Keycloak realm for complete identity isolation (see backlog/333-realms.md)
-2. **JWT-Based Tenant Resolution**: `tenantId` flows from Keycloak → session → all services
-3. **No Hardcoded Fallbacks**: API routes fail-secure when tenantId missing
-4. **Temporal Orchestration**: Long-running onboarding workflows via Temporal (target architecture)
-5. **Vault-Managed Secrets**: All credentials via ExternalSecrets (see backlog/362-unified-secret-guardrails.md)
+1. **Realm-Per-Tenant (Multi-Issuer)**: Each tenant has its own Keycloak realm/issuer for isolation (see `backlog/333-realms.md`).
+2. **Issuer-Driven Tenant Routing**: Treat OIDC `iss` (issuer URL) as the routing authority; resolve `issuer → tenant_id` server-side. Do not parse realm names from `iss`, and do not treat `tenantId` claims as authority.
+3. **Login Does Not Provision**: Login establishes session + access state only; onboarding/provisioning is an explicit lane/intent with authorization (see `backlog/597-login-onboarding-primitives.md`).
+4. **BFF/Server-Session**: Browser holds only a session cookie; the OIDC client lives server-side; avoid `keycloak-js` in the browser to prevent duplicate auth state.
+5. **No Hardcoded Fallbacks**: Access/routing must be explicit; “unknown” (timeouts/errors) must not be interpreted as “empty”.
+6. **Temporal Orchestration**: Long-running onboarding workflows via Temporal (target architecture).
+7. **Vault-Managed Secrets**: All credentials via ExternalSecrets (see `backlog/362-unified-secret-guardrails.md`).
 
 ### Keycloak Capacity & Sharding Strategy
 
