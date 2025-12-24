@@ -7,6 +7,7 @@
 **🚨 THIS DOCUMENT DESCRIBES THE INTERIM SINGLE-REALM ARCHITECTURE**
 
 The long-term architecture is **realm-per-tenant** where each organization gets its own Keycloak realm. See **[backlog/333-realms.md](./333-realms.md)** for the target architecture.
+Also see **`backlog/597-login-onboarding-primitives.md`** for vendor-aligned realm-per-tenant routing and login/onboarding boundaries (issuer-driven routing, pre-login issuer selection, multi-issuer callback validation).
 
 **Why the change?**
 - Enterprise customers need to configure their own SSO (Okta, Azure AD, Google Workspace)
@@ -24,7 +25,7 @@ The long-term architecture is **realm-per-tenant** where each organization gets 
 - ❌ No more single "ameide" realm - each org gets dedicated realm
 - ❌ No more Keycloak groups for organization membership (`/orgs/{slug}`)
 - ❌ No more `org_groups` JWT claim
-- ✅ Realm name IS the organization: `iss: "https://keycloak/realms/acme"`
+- ✅ Issuer-driven routing: treat OIDC `iss` as an issuer **URL** (opaque identifier) and resolve `issuer → tenant_id` server-side; do not introduce new dependencies on parsing realm names out of `iss`
 - ✅ Each org configures own IdP, password policies, branding
 - ✅ Guest users via realm-to-realm federation
 
@@ -137,10 +138,12 @@ clientScopes:
 ### Security Improvements
 
 ✅ **Session-based tenant validation** - All API routes extract tenantId from JWT session
-✅ **JWT-based tenant isolation** - tenantId flows from Keycloak → Session → All services
+✅ **JWT-based tenant isolation (single-realm Phase 1)** - tenantId flows from Keycloak → Session → All services
 ✅ **Fail-secure by default** - Missing tenantId returns 400/401 errors
 ✅ **Request body protection** - Agent routes and all endpoints ignore client-provided tenantId
 ✅ **Type-safe implementation** - All changes pass TypeScript validation
+
+> **Realm-per-tenant update (597):** Treat OIDC `iss` (issuer URL) as the routing authority and resolve `issuer → tenant_id` server-side. If a `tenantId` claim remains present, treat it as a hint only and validate it against the canonical routing result.
 
 #### Post-Verification Remediation (2025-10-30)
 

@@ -13,6 +13,8 @@
 
 **This configuration describes single-realm multi-tenancy.** The target architecture is **realm-per-tenant**. See [backlog/333-realms.md](./333-realms.md).
 
+> **Update (597):** In realm-per-tenant, tenant routing is issuer-first (OIDC `iss` issuer URL → server-side `issuer → tenant_id` mapping). Do not introduce new dependencies on `tenantId` claims or issuer/realm-name parsing helpers; keep `issuer` as an opaque URL and route via the Tenancy Catalog.
+
 **What changes with realm-per-tenant**:
 
 ### Current Configuration (Single Realm)
@@ -553,11 +555,10 @@ echo $TOKEN | cut -d'.' -f2 | base64 -d 2>/dev/null | jq '{tenantId, realm_acces
 
 #### Next Phase: Code Refactoring
 
-See [backlog/330-dynamic-tenant-resolution.md](./330-dynamic-tenant-resolution.md) for the code changes to:
-- Extract `tenantId` from JWT in auth callback
-- Remove all hardcoded `DEFAULT_TENANT_ID` constants
-- Update 40+ API routes to use `session.user.tenantId`
-- Remove environment variable fallbacks
+See `backlog/597-login-onboarding-primitives.md` for the code changes to:
+- Route tenant context by OIDC issuer URL (issuer-first routing; no `tenantId` claim)
+- Remove hardcoded tenant defaults and user-controlled tenant hints
+- Surface access states explicitly (`OK | EMPTY | TIMEOUT | ERROR`) so TIMEOUT/ERROR is never treated as EMPTY
 
 ## Completion Summary
 
@@ -565,7 +566,7 @@ See [backlog/330-dynamic-tenant-resolution.md](./330-dynamic-tenant-resolution.m
 **Status**: ✅ Single-realm configuration complete
 **Helm Release**: `keycloak-realm`
 **Deployment**: Local cluster (k3d)
-**Verification**: JWT tokens include roles AND tenantId claims
+**Verification**: JWT tokens include required OIDC scopes and roles (`realm_access.roles`)
 
 **Current Configuration** (Single Realm):
 1. **`roles` client scope** - User role information for RBAC
@@ -964,16 +965,6 @@ export function extractRoles(decoded: KeycloakAccessToken): string[] {
   // Simpler: Only realm_access.roles (no resource_access)
   return decoded.realm_access?.roles ?? [];
 }
-
-export function extractTenantFromIssuer(issuer: string): string {
-  // Extract org slug from issuer URL
-  // Example: "https://keycloak/realms/atlas" → "atlas"
-  const match = issuer.match(/\/realms\/([^/]+)$/);
-  if (!match) {
-    throw new Error(`Invalid Keycloak issuer format: ${issuer}`);
-  }
-  return match[1];  // Realm name = org slug = tenant ID
-}
 ```
 
 **File**: `services/www_ameide_platform/app/(auth)/auth.ts` (simplified)
@@ -983,20 +974,15 @@ export function extractTenantFromIssuer(issuer: string): string {
 callbacks: {
   async jwt({ token, account, profile }) {
     if (account && profile) {
-      // 1. Extract tenant from issuer (NO custom claim needed)
-      const tenantId = extractTenantFromIssuer(profile.iss);
-
-      // 2. Extract roles (simplified, no client roles)
+      // 1. Extract roles (simplified, no client roles)
       const roles = extractRoles(profile as KeycloakAccessToken);
 
-      // 3. Resolve organization (direct lookup by realm name)
-      const organization = await getOrganizationByRealmName(tenantId);
+      // 2. Resolve canonical tenant context from issuer (no string parsing)
+      const tenant = await resolveTenantForIssuer(profile.iss);
 
-      token.tenantId = tenantId;
-      token.realmName = tenantId;  // Same value
+      token.tenantId = tenant.tenantId; // optional convenience; issuer remains the routing authority
       token.issuer = profile.iss;
       token.roles = roles;
-      token.organization = organization;
       // NO organizations array (single org per realm)
     }
     return token;
@@ -1023,11 +1009,10 @@ callbacks: {
 **Code Deletion**:
 - ❌ Delete `extractOrgGroups()` function
 - ❌ Delete `resource_access` iteration logic
-- ❌ Delete `tenantId` claim extraction (use issuer instead)
+- ❌ Delete `tenantId` claim extraction (use issuer-first routing instead)
 
 **New Code Required**:
-- ✅ Add `extractTenantFromIssuer()` function (~10 lines)
-- ✅ Add `getOrganizationByRealmName()` lookup (~15 lines)
+- ✅ Add `resolveTenantForIssuer(issuer)` lookup against the Tenancy Catalog routing view
 
 ---
 
@@ -2071,14 +2056,13 @@ export function createMultiRealmKeycloakProvider(
     },
 
     async userinfo(context) {
-      const realm = await extractRealmFromIssuer(context.tokens.id_token);
+      const realm = await strategy.resolveRealmFromRequest(context.request);
       const baseUrl = process.env.AUTH_KEYCLOAK_BASE_URL!;
-      const response = await fetch(`${baseUrl}/realms/${realm}/protocol/openid-connect/userinfo`, {
-        headers: {
-          Authorization: `Bearer ${context.tokens.access_token}`,
-        },
+      const wellKnownUrl = `${baseUrl}/realms/${realm}/.well-known/openid-configuration`;
+      const { userinfo_endpoint } = await fetch(wellKnownUrl).then((r) => r.json());
+      const response = await fetch(userinfo_endpoint, {
+        headers: { Authorization: `Bearer ${context.tokens.access_token}` },
       });
-
       return response.json();
     },
 
@@ -2087,17 +2071,6 @@ export function createMultiRealmKeycloakProvider(
   };
 }
 
-/**
- * Extract realm name from JWT issuer
- * Example: "https://keycloak/realms/atlas" → "atlas"
- */
-export function extractRealmFromIssuer(issuer: string): string {
-  const match = issuer.match(/\/realms\/([^/]+)$/);
-  if (!match) {
-    throw new Error(`Invalid Keycloak issuer format: ${issuer}`);
-  }
-  return match[1];
-}
 ```
 
 **Update**: `services/www_ameide_platform/app/(auth)/auth.ts`
@@ -2111,37 +2084,24 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       new PathBasedRealmResolution()  // Use path-based realm resolution
     ),
   ],
-  callbacks: {
-    async jwt({ token, account, profile }) {
-      if (account && profile) {
-        // Extract realm from issuer (replaces tenantId extraction)
-        const realmName = extractRealmFromIssuer(profile.iss);
+	  callbacks: {
+	    async jwt({ token, account, profile }) {
+	      if (account && profile) {
+	        // Extract roles (simplified, no resource_access)
+	        const roles = profile.realm_access?.roles ?? [];
+	        token.issuer = profile.iss;
+	        token.roles = roles;
+	      }
+	      return token;
+	    },
 
-        // Extract roles (simplified, no resource_access)
-        const roles = profile.realm_access?.roles ?? [];
-
-        // Resolve organization by realm name (direct lookup)
-        const organization = await getOrganizationByRealmName(realmName);
-
-        token.realmName = realmName;
-        token.issuer = profile.iss;
-        token.roles = roles;
-        token.organization = organization;
-        token.tenantId = organization?.id;  // Backward compatibility
-      }
-      return token;
-    },
-
-    async session({ session, token }) {
-      if (token) {
-        session.user.realmName = token.realmName as string;
-        session.user.issuer = token.issuer as string;
-        session.user.roles = token.roles as string[];
-        session.user.organization = token.organization as OrganizationContext;
-        session.user.tenantId = token.tenantId as string;
-      }
-      return session;
-    },
+	    async session({ session, token }) {
+	      if (token) {
+	        session.user.issuer = token.issuer as string;
+	        session.user.roles = token.roles as string[];
+	      }
+	      return session;
+	    },
   },
 });
 ```

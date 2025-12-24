@@ -789,10 +789,10 @@ Realm-per-tenant introduces new integration test scenarios that don't exist in s
 
 ```typescript
 import { describe, it, expect, beforeEach } from 'vitest';
-import { validateToken, extractRealmFromIssuer } from '@/lib/auth/jwt';
+import { validateToken } from '@/lib/auth/jwt';
 
-describe('Multi-realm JWT validation', () => {
-  it('validates token from Atlas realm', async () => {
+describe('Multi-issuer JWT validation', () => {
+  it('validates token from Atlas issuer', async () => {
     const token = generateMockJWT({
       iss: 'https://keycloak/realms/atlas',
       sub: 'user-123',
@@ -802,12 +802,12 @@ describe('Multi-realm JWT validation', () => {
     
     const session = await validateToken(token);
     
-    expect(session.user.realm).toBe('atlas');
+    expect(session.user.issuer).toBe('https://keycloak/realms/atlas');
+    expect(session.user.tenantId).toBe('tenant-atlas'); // resolved via issuer → tenant mapping
     expect(session.user.roles).toContain('admin');
-    expect(session.user.orgId).toBe('org-atlas-uuid');
   });
   
-  it('validates token from ACME realm', async () => {
+  it('validates token from ACME issuer', async () => {
     const token = generateMockJWT({
       iss: 'https://keycloak/realms/acme',
       sub: 'user-456',
@@ -817,19 +817,19 @@ describe('Multi-realm JWT validation', () => {
     
     const session = await validateToken(token);
     
-    expect(session.user.realm).toBe('acme');
+    expect(session.user.issuer).toBe('https://keycloak/realms/acme');
+    expect(session.user.tenantId).toBe('tenant-acme');
     expect(session.user.roles).toContain('contributor');
-    expect(session.user.orgId).toBe('org-acme-uuid');
   });
   
-  it('rejects token from unregistered realm', async () => {
+  it('rejects token from unregistered issuer', async () => {
     const token = generateMockJWT({
       iss: 'https://keycloak/realms/unknown-org',
       sub: 'user-789',
       realm_access: { roles: ['admin'] }
     });
     
-    await expect(validateToken(token)).rejects.toThrow('Invalid realm: unknown-org');
+    await expect(validateToken(token)).rejects.toThrow('TENANT_NOT_FOUND_FOR_ISSUER');
   });
   
   it('rejects token with mismatched issuer', async () => {
@@ -840,33 +840,6 @@ describe('Multi-realm JWT validation', () => {
     });
     
     await expect(validateToken(token)).rejects.toThrow('Issuer validation failed');
-  });
-});
-
-describe('Realm extraction', () => {
-  it('extracts realm from issuer URL', () => {
-    expect(extractRealmFromIssuer('https://keycloak/realms/atlas')).toBe('atlas');
-    expect(extractRealmFromIssuer('https://keycloak/realms/acme-corp')).toBe('acme-corp');
-  });
-  
-  it('throws on malformed issuer', () => {
-    expect(() => extractRealmFromIssuer('https://keycloak/atlas')).toThrow();
-    expect(() => extractRealmFromIssuer('invalid-url')).toThrow();
-  });
-});
-
-describe('Organization lookup by realm', () => {
-  it('finds organization by realm name', async () => {
-    const org = await findOrganizationByRealm('atlas');
-    
-    expect(org).toBeDefined();
-    expect(org.realmName).toBe('atlas');
-    expect(org.slug).toBe('atlas');
-  });
-  
-  it('returns null for non-existent realm', async () => {
-    const org = await findOrganizationByRealm('nonexistent');
-    expect(org).toBeNull();
   });
 });
 ```
