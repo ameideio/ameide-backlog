@@ -21,7 +21,8 @@ GitOps now emits **only** `AMEIDE_TENANT_ID` and requires explicit values so the
 ## 2) Policy (keep it lean)
 
 - `AMEIDE_TENANT_ID` is the **only** tenant env var GitOps should set going forward.
-- User-driven traffic must continue to use **JWT/session tenant context**; `AMEIDE_TENANT_ID` exists for **bootstrap/system contexts** (realm discovery/bootstrap jobs/background calls) where there is no user session.
+- User-driven traffic must use **issuer-first tenant routing** (OIDC issuer URL → server-side `issuer → tenant_id` mapping; see `backlog/597-login-onboarding-primitives.md`). `AMEIDE_TENANT_ID` exists only for **bootstrap/system contexts** where there is no authenticated principal.
+- **No tenant-specific GitOps requirement:** GitOps sets a single bootstrap tenant ID per environment; it does not encode per-tenant routing for user traffic.
 - Canonical dev tenant ID format is `tenant-<slug>` (e.g. `tenant-atlas`) to align with platform validation.
 
 ---
