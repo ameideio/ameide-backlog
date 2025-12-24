@@ -3,6 +3,8 @@
 ## Status
 **STATUS** - Reference Design (implementation deferred)
 
+> **Update (597):** Treat OIDC `iss` as an issuer **URL**. Tenant routing is `issuer → tenant_id` via a server-side routing view in the Tenancy Catalog. Do not embed `tenantId` claims in tokens and do not parse issuers to infer realm/tenant identity.
+
 ## Date
 - Proposed: 2025-10-30
 - Implemented: 2025-10-30
@@ -12,7 +14,7 @@
 - ✅ Single Keycloak realm (`ameide`) hardened with chart-owned ExternalSecrets and CNPG-managed DB credentials.
 - ⏳ Realm-per-tenant provisioning scripts remain in design; no feature-flag pilot is running.
 - ⚠️ Guest federation, realm discovery, and realm teardown automation pending first implementation.
-- ✅ Tenant catalog entries must now include `metadata.realmName`/`tenantSlug` at creation and update time so every downstream service (auth session, discovery, orchestration) can deterministically map a tenant to its Keycloak realm.
+- ✅ Tenancy Catalog must include `issuer` (OIDC issuer URL) and a routing entry (`issuer → tenant_id`) so downstream services can deterministically map an authenticated principal to a canonical tenant; `realm_name` can remain as an ops attribute.
 
 **Next Steps Before Rollout**
 - Build the realm bootstrap CLI + Flyway migrations that persist organization↔realm mappings.
@@ -99,25 +101,23 @@ Keycloak Instance
 
 ### Key Concepts
 
-**Realm = Organization = Tenant**
-- Each organization gets a dedicated Keycloak realm
-- Realm name matches organization slug: `https://keycloak/realms/{org-slug}`
-- Complete isolation: authentication, users, groups, configuration
+**Realm/issuer is the identity boundary**
+- Each tenant has a dedicated Keycloak realm.
+- The realm’s OIDC `iss` value is the authoritative routing key (issuer URL).
+- The platform maps `issuer → tenant_id` in the Tenancy Catalog; do not rely on realm-name string parsing or `tenantId` claims.
 
 **Native Users vs Guest Users**
 - **Native users**: Belong to the realm (home tenant)
 - **Guest users**: Federated from other realms (B2B collaboration)
 - Implemented via Keycloak Identity Brokering between realms
 
-**Realm Discovery**
-- User enters email → domain lookup → redirect to correct realm
-- Example: `alice@atlas.com` → realm "atlas"
-- Example: `user@acme.com` → realm "acme"
+**Pre-login issuer selection**
+- Because Keycloak endpoints are realm-scoped, the app must select an expected issuer **before** redirecting to the IdP (subdomain, invite link, tenant picker) and bind it to the login attempt (`state`).
+- On callback, validate multi-issuer safety (state + token `iss`; validate RFC 9207 `iss` response parameter when present).
 
 **OIDC Client Per Realm**
 - Each realm has its own OAuth client configuration
-- JWT issuer identifies the realm: `iss: "https://keycloak/realms/atlas"`
-- No need for `tenantId` claim - realm IS the tenant
+- Tokens are validated against the issuer URL; tenant context is derived server-side from `issuer → tenant_id`.
 
 ## Implementation Plan
 
@@ -284,106 +284,29 @@ COMMENT ON COLUMN platform.organizations.realm_name IS
 -- UPDATE platform.organizations SET realm_name = key WHERE realm_name IS NULL;
 ```
 
-### Phase 2: Realm Discovery & Switching (Week 2)
+### Phase 2: Issuer Routing & Tenant Binding (Week 2)
 
-#### 2.1 Realm Discovery Mechanism
-**File**: `services/www_ameide_platform/lib/auth/realm-discovery.ts`
+#### 2.1 Tenancy Catalog routing view
 
-```typescript
-/**
- * Determine which realm a user should authenticate against
- * based on their email domain
- */
-export async function discoverRealmFromEmail(email: string): Promise<string | null> {
-  const domain = email.split('@')[1];
+- Persist a routing view entry `issuer (URL) → tenant_id` (and optional `tenant_slug`, `realm_name` for ops).
+- The realm provisioner is the single writer for issuer mappings and should derive the issuer from OIDC discovery metadata (no string parsing).
 
-  // Query database for organization with verified domain
-  const org = await findOrganizationByDomain(domain);
-  if (org?.realm_name) {
-    return org.realm_name;
-  }
+#### 2.2 Pre-login issuer selection
 
-  // Default: return null for email entry screen
-  return null;
-}
+- Select an expected issuer before redirecting to Keycloak (subdomain, invite link, tenant picker).
+- Bind expected issuer to `state` and validate it on callback (multi-issuer safety).
 
-/**
- * Get organization's realm name from slug
- */
-export async function getRealmForOrganization(orgSlug: string): Promise<string> {
-  const org = await findOrganizationBySlug(orgSlug);
-  if (!org?.realm_name) {
-    throw new Error(`No realm found for organization: ${orgSlug}`);
-  }
-  return org.realm_name;
-}
+#### 2.3 Middleware update
 
-/**
- * Build Keycloak authorization URL for specific realm
- */
-export function buildRealmAuthUrl(realmName: string, redirectUri: string): string {
-  const baseUrl = process.env.AUTH_KEYCLOAK_BASE_URL;
-  return `${baseUrl}/realms/${realmName}/protocol/openid-connect/auth?...`;
-}
-```
+Middleware should forward the authenticated issuer URL as a trusted header:
 
-#### 2.2 Authentication Flow Update
-**File**: `services/www_ameide_platform/app/(auth)/auth.ts`
-
-**Current (single realm):**
-```typescript
-providers: [
-  {
-    id: "keycloak",
-    name: "Keycloak",
-    type: "oidc",
-    issuer: process.env.AUTH_KEYCLOAK_ISSUER, // Single realm
-  }
-]
-```
-
-**Updated (multi-realm):**
-```typescript
-// Dynamic provider based on organization
-// Requires custom authorize flow with realm discovery
-
-async authorize(credentials) {
-  // 1. User enters email on login page
-  const email = credentials.email;
-
-  // 2. Discover realm from email domain
-  const realmName = await discoverRealmFromEmail(email);
-
-  // 3. Redirect to realm-specific authorization URL
-  const authUrl = buildRealmAuthUrl(realmName, callbackUrl);
-
-  // 4. Continue OAuth flow with discovered realm
-  return { redirect: authUrl };
-}
-```
-
-**Alternative: Org-based login URLs**
-```
-https://platform.ameide.io/auth/signin?org=atlas
-https://platform.ameide.io/auth/signin?org=acme
-```
-
-#### 2.3 Middleware Update
-**File**: `services/www_ameide_platform/middleware.ts`
-
-Extract realm from JWT issuer:
 ```typescript
 const session = await getSession();
-if (session?.user) {
-  // JWT issuer identifies the realm/org
-  // iss: "https://keycloak/realms/atlas"
-  const issuer = session.accessToken?.iss;
-  const realmName = issuer?.split('/realms/')[1];
-
-  // Set organization context from realm
-  request.headers.set('x-org-realm', realmName);
-}
+const issuer = session?.idTokenClaims?.iss ?? session?.accessTokenClaims?.iss;
+if (issuer) request.headers.set('x-issuer', issuer);
 ```
+
+Do not parse realm names from issuers (e.g., `split('/realms/')`) for routing.
 
 ### Phase 3: Guest Users & B2B Federation (Week 3)
 
@@ -481,18 +404,17 @@ const issuer = "https://keycloak/realms/ameide";
 // Validate against any organization realm
 async function validateToken(token: string) {
   const decoded = jwt.decode(token);
-  const issuer = decoded.iss; // "https://keycloak/realms/atlas"
+  const issuer = decoded.iss; // issuer URL
 
-  // Verify issuer is a valid organization realm
-  const realmName = issuer.split('/realms/')[1];
-  const org = await findOrganizationByRealm(realmName);
+  // Verify issuer is registered (server-side routing view)
+  const tenant = await findTenantByIssuer(issuer);
 
-  if (!org) {
-    throw new Error('Invalid realm');
+  if (!tenant) {
+    throw new Error('Invalid issuer');
   }
 
-  // Fetch realm's public keys for signature verification
-  const jwks = await fetchRealmJWKS(realmName);
+  // Fetch issuer's public keys via OIDC discovery metadata
+  const jwks = await fetchJwksForIssuer(issuer);
   return jwt.verify(token, jwks);
 }
 ```
