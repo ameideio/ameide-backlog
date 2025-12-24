@@ -150,6 +150,55 @@ Azure overlay remains unchanged (cluster appset only reads `_shared/components/c
 
 ---
 
+## Workflow Onboarding (Other Repos)
+
+### 1) Route workflows to ARC
+
+Set the job `runs-on` to the ARC scale set name:
+
+```yaml
+runs-on: arc-local
+```
+
+Recommended pattern (allows overriding per-repo with a GitHub **Variable**):
+
+```yaml
+runs-on: ${{ vars.AMEIDE_RUNS_ON || 'arc-local' }}
+```
+
+Then, in each repo:
+
+- Create GitHub variable `AMEIDE_RUNS_ON=arc-local`
+- Ensure the repo is in the `ameideio` org (this local ARC install is org-attached via `githubConfigUrl: https://github.com/ameideio`)
+
+### 2) Runner group access (optional but recommended)
+
+If you restrict runner groups, ensure the target repo is allowed to use the configured `runnerGroup` (default is `default`).
+
+### 3) Security guardrail for PRs from forks
+
+Self-hosted runners should not execute untrusted fork PR code. If you keep `pull_request` triggers, add a job-level guard:
+
+```yaml
+if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+```
+
+### 4) Smoke test
+
+Add a `workflow_dispatch` smoke workflow and trigger it:
+
+```bash
+gh workflow run <workflow-file>.yaml -R ameideio/<repo> --ref main
+```
+
+While it runs:
+
+```bash
+kubectl -n arc-runners get pods -w
+```
+
+---
+
 ## Risks / Gotchas
 
 - **CRD upgrades:** some ARC upgrades require remove/replace per release notes; treat upgrades as a change window.
