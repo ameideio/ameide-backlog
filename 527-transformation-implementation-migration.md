@@ -341,6 +341,9 @@ WP‑B is implemented **proto-first** so orchestration and evidence do not drift
 - [x] Work-queue topics provisioned via `data-kafka-workrequests-topics` (enabled in `local` + `dev`; disabled elsewhere).
 - [x] Transformation contract topics provisioned via `data-kafka-transformation-contract-topics` (enabled in `local` + `dev`; disabled elsewhere).
 - [x] Workbench provisioned via `workrequests-runner` (enabled in `local` + `dev`; disabled elsewhere). ExternalSecrets templates exist, but `local` + `dev` currently set `secrets.enabled=false` so the workbench can start without Vault/ExternalSecrets.
+  - Note: cluster-mode WorkRequests execution typically requires credentials:
+    - `WORKREQUESTS_GITHUB_TOKEN` to `git clone` private repos (or set `TRANSFORMATION_TEST_REPO_URL` to a public repo for seam tests).
+    - `WORKREQUESTS_MINIO_*` for durable evidence refs (`s3://...`) when MinIO upload is required by policy.
 - [x] MinIO service-user scaffolding for WorkRequests (Vault-backed) exists (enabled in `local` + `dev`; disabled elsewhere).
 - [x] KEDA `ScaledJob` resources enabled in `local` + `dev` (disabled elsewhere). **Note:** `scaledJobs.maxReplicaCount: 0` is the shared default (safety); `local` + `dev` set `maxReplicaCount: 1` to allow cluster-mode WorkRequest seam tests without enabling uncontrolled fan-out. Executor image is `ghcr.io/ameideio/primitive-integration-transformation-work-executor:<tag>`.
 - [ ] Runtime hardening: RBAC/NetworkPolicy per executor class (toolrun vs agentwork) and staging/production rollout posture.
