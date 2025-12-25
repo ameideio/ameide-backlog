@@ -36,6 +36,10 @@ Pinned to chart version **`0.13.1`**.
 
 ARC alone does not guarantee Docker is available on runner pods. Any workflow that builds container images should adopt a **k8s-native** build path (BuildKit-in-cluster, Buildx Kubernetes driver, etc.) rather than assuming a local Docker daemon.
 
+**Target model (explicit):** local ARC runners (`arc-local`) must not rely on Docker-in-Docker; image builds use in-cluster BuildKit (`buildctl` → `buildkitd`).
+
+See `backlog/599-k8s-native-buildkit-builds-on-arc.md`.
+
 ---
 
 ## Related / Use With
@@ -62,6 +66,13 @@ jobs:
   build:
     runs-on: arc-local
 ```
+
+### Standard runner image (local)
+
+`arc-local` uses an org-owned, pinned runner image to remove per-workflow “installer glue”:
+
+- Image: `ghcr.io/ameideio/arc-local-runner`
+- Baseline tools include `git/curl/tar/jq/yq/rg` and `buildctl` (for BuildKit builds)
 
 ### Auth secret shape
 
@@ -238,6 +249,7 @@ Adopt a k8s-native build strategy:
 
 - Run a cluster BuildKit daemon (local-only) and have workflows use `buildctl` to build/export (or push) images.
 - Keep publish workflows **dry-run by default** on `workflow_dispatch` so ARC verification remains safe.
+- Standardize on `AMEIDE_BUILDKIT_ADDR=tcp://buildkitd.buildkit.svc.cluster.local:1234` (org-level preferred; per-repo fallback is acceptable).
 - Prefer a repo/org variable for the BuildKit endpoint (example): `AMEIDE_BUILDKIT_ADDR=tcp://buildkitd.buildkit.svc.cluster.local:1234`.
 
 ---
