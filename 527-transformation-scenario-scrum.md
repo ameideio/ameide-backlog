@@ -19,6 +19,27 @@ The path is Scrum-native (refinement → DoR → iterate → DoD), but all desig
 
 ---
 
+## Prerequisites (implementation)
+
+These are the minimum implementation capabilities required for this scenario to run end-to-end.
+
+- [ ] **Domain (Enterprise Knowledge)** supports Elements/Versions/Relationships writes for `{tenant_id, organization_id, repository_id}`.
+- [ ] **REFERENCE relationships are versioned**: governance anchors (e.g., `ref:requirement`, `ref:deliverables_root`) include `metadata.target_version_id` (no “latest version” ambiguity).
+- [ ] **Projection** can read and render:
+  - [ ] change element + its outgoing `ref:*` relationships (including `metadata.target_version_id`)
+  - [ ] requirement status (as domain facts or a derived read model)
+  - [ ] deliverables root membership (relationships under the deliverables root)
+- [ ] **WorkRequests substrate** works end-to-end:
+  - [ ] Domain records WorkRequests and emits `transformation.work.domain.facts.v1`
+  - [ ] executor processes tool-run queues and records outcomes + evidence back to Domain
+  - [ ] Process emits `ToolRunRecorded` and step transitions on `transformation.process.facts.v1`
+- [ ] **UISurface** can create/edit:
+  - [ ] a change element (`methodology_key = scrum`)
+  - [ ] requirement draft element(s) and snapshots (ElementVersions)
+  - [ ] anchor relationships (`ref:requirement`, `ref:deliverables_root`) with `metadata.target_version_id`
+
+---
+
 ## Phase 1 — Initiate (intake + articulation + DoR)
 
 ### 1.1 Capture change element (raw intake)
@@ -45,6 +66,13 @@ The path is Scrum-native (refinement → DoR → iterate → DoD), but all desig
 - **Input:** Change element id/scope + anchored stabilized requirement ref(s) + DoR evidence ref(s).
 - **Output:** R2R workflow instance started (using `r2r.governance.scrum.v1`); “requirements captured” process fact emitted.
 - **Next:** **Trigger** Phase 2
+
+### Phase 1 — Implementation checklist
+
+- [ ] **Domain**: requirement status fact/field exists (`DRAFT | NEEDS_INPUT | STABILIZED | CANCELED`) and is queryable.
+- [ ] **Domain**: `ref:requirement` relationship stores `metadata.target_version_id` and is updatable idempotently.
+- [ ] **UISurface**: supports iterative requirement articulation (draft → snapshot → stabilize) and records DoR evidence (manual evidence element/attachment is fine for v0).
+- [ ] **Projection**: exposes “requirement stabilized” and the anchored requirement snapshot on the change view.
 
 ---
 
@@ -80,6 +108,14 @@ The path is Scrum-native (refinement → DoR → iterate → DoD), but all desig
 - **Output:** Decision recorded (approve/reject) as workflow signal + process facts; anchored design artifact refs remain the canonical inputs to Phase 3.
 - **Next:** **Wait** gate decision; if Approve → **Trigger** Phase 3; if Reject → **Loop** 2.1; if Cancel → **End**
 
+### Phase 2 — Implementation checklist
+
+- [ ] **Domain**: supports a deliverables package/root element and versioning it (ElementVersion snapshots).
+- [ ] **Domain**: `ref:deliverables_root` relationship stores `metadata.target_version_id`.
+- [ ] **UISurface**: can assemble the deliverables root contents (views/docs/elements) and maintain the root’s membership links deterministically.
+- [ ] **Projection**: can render the deliverables root and its members for review/gates.
+- [ ] **(Optional)** BPMN authoring/binding surfaces exist if executable workflows are in-scope for this slice.
+
 ---
 
 ## Phase 3 — Realize (sprint execution + tool runs + verification)
@@ -114,6 +150,13 @@ The path is Scrum-native (refinement → DoR → iterate → DoD), but all desig
 - **Output:** Verification report + evidence bundle; pass/fail status.
 - **Next:** If pass → **Trigger** Phase 4; if fail → **Loop** 3.3 (fix) or if “proto breaking” → **Loop** 2.2 (redesign)
 
+### Phase 3 — Implementation checklist
+
+- [ ] **Domain**: WorkRequest lifecycle is persisted and emits `WorkRequested/Started/Completed/Failed` facts.
+- [ ] **Integration runner**: can execute `scaffold|generate|verify` deterministically for a given `commit_sha` and record evidence (logs + artifacts).
+- [ ] **Process**: emits step-level process facts and correlates to WorkRequests (so Projection can build a run timeline).
+- [ ] **Projection/UISurface**: can show WorkRequest status + evidence links and the process run timeline.
+
 ---
 
 ## Phase 4 — Promote (governed release decision)
@@ -128,6 +171,12 @@ The path is Scrum-native (refinement → DoR → iterate → DoD), but all desig
 - **Output:** Domain records promoted versions/baseline; promotion facts emitted; projection reflects audit trail.
 - **Next:** **Trigger** Phase 5
 
+### Phase 4 — Implementation checklist
+
+- [ ] **Domain**: baselines exist as immutable `{element_id, version_id}` sets and can be promoted.
+- [ ] **Projection**: can render baseline membership and promotion history for audit.
+- [ ] **Process/UISurface**: gate decisions are recorded and visible (approve/reject/override/cancel).
+
 ---
 
 ## Phase 5 — Release (merge + deploy + DoD visibility)
@@ -141,3 +190,9 @@ The path is Scrum-native (refinement → DoR → iterate → DoD), but all desig
 - **Input:** Domain facts + process facts + deployment evidence + anchored deliverables.
 - **Output:** DoD outcome recorded as evidence linked from the change element (e.g., `evidence:dod`); portal/read model shows evidence chain and run timeline.
 - **Next:** **Trigger** workflow completion + close change element
+
+### Phase 5 — Implementation checklist
+
+- [ ] **Domain**: can record a release outcome (as an element/attachment + reference relationships) linked to the change.
+- [ ] **Projection/UISurface**: can show “what shipped” + evidence chain + timelines in one view.
+- [ ] **DoD evidence**: captured deterministically (even if it is initially manual evidence attachments for v0).

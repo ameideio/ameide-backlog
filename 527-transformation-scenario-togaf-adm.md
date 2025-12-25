@@ -19,6 +19,27 @@ The path is ADM-native (A→B→C→D→… with explicit deliverables), but all
 
 ---
 
+## Prerequisites (implementation)
+
+These are the minimum implementation capabilities required for this scenario to run end-to-end.
+
+- [ ] **Domain (Enterprise Knowledge)** supports Elements/Versions/Relationships writes for `{tenant_id, organization_id, repository_id}`.
+- [ ] **REFERENCE relationships are versioned**: governance anchors (e.g., `ref:requirement`, `ref:deliverables_root`) include `metadata.target_version_id`.
+- [ ] **Projection** can read and render:
+  - [ ] change element + its outgoing `ref:*` relationships (including `metadata.target_version_id`)
+  - [ ] deliverables root membership (relationships under the deliverables root)
+  - [ ] phase gate evidence and “phase completeness” signals derived from relationships + evidence
+- [ ] **WorkRequests substrate** works end-to-end:
+  - [ ] Domain records WorkRequests and emits `transformation.work.domain.facts.v1`
+  - [ ] executor processes tool-run queues and records outcomes + evidence back to Domain
+  - [ ] Process emits `ToolRunRecorded` and step transitions on `transformation.process.facts.v1`
+- [ ] **UISurface** can create/edit:
+  - [ ] a change element (`methodology_key = togaf_adm`)
+  - [ ] requirement draft element(s) and snapshots (ElementVersions)
+  - [ ] anchor relationships (`ref:requirement`, `ref:deliverables_root`) with `metadata.target_version_id`
+
+---
+
 ## Phase 1 — Initiate (intake + articulation + Phase A readiness)
 
 ### 1.1 Capture change element (request for change / work)
@@ -40,6 +61,13 @@ The path is ADM-native (A→B→C→D→… with explicit deliverables), but all
 - **Input:** Change element id/scope + anchored stabilized requirement ref(s) (`ref:requirement`).
 - **Output:** R2R workflow instance started (using `r2r.governance.togaf_adm.v1`); “requirements captured” process fact emitted; ADM run context initialized.
 - **Next:** **Trigger** Phase 2
+
+### Phase 1 — Implementation checklist
+
+- [ ] **Domain**: requirement status fact/field exists and is queryable.
+- [ ] **Domain**: `ref:requirement` relationship stores `metadata.target_version_id` and is updatable idempotently.
+- [ ] **UISurface**: supports requirement articulation loop and “stabilize” decision recording.
+- [ ] **Projection**: exposes the anchored requirement snapshot on the change view.
 
 ---
 
@@ -90,6 +118,13 @@ The path is ADM-native (A→B→C→D→… with explicit deliverables), but all
 - **Output:** Gate decision recorded (Approve/Reject) as workflow signal + process facts; validation evidence is recorded as evidence linked from the change element (e.g., `evidence:adm_phase_gates`) and can assert “A–D complete” against `ref:deliverables_root`.
 - **Next:** **Wait** gate decision; if Approve → **Trigger** Phase 3; if Reject → **Loop** Phase 2 (revise deliverables); if Cancel → **End**
 
+### Phase 2 — Implementation checklist
+
+- [ ] **Domain**: deliverables package/root element exists and is versioned; `ref:deliverables_root` stores `metadata.target_version_id`.
+- [ ] **UISurface**: provides Phase A–D workspace navigation/templates (even if minimal) that create/update deliverables as elements.
+- [ ] **Projection**: can render phase completeness deterministically from relationships + evidence (no “search for what counts”).
+- [ ] **Validation**: Phase A–D completeness checks exist (v0 can be manual evidence + simple projection rules; v1 can be WorkRequest-executed validators).
+
 ---
 
 ## Phase 3 — Realize (work packages + tool runs + verification)
@@ -119,6 +154,13 @@ The path is ADM-native (A→B→C→D→… with explicit deliverables), but all
 - **Output:** Verification report + evidence bundle; pass/fail status.
 - **Next:** If pass → **Trigger** Phase 4; if fail → **Loop** 3.2 (fix) or if “architecture-invalidates-contract” → **Loop** Phase 2 (revise A–D then re-verify)
 
+### Phase 3 — Implementation checklist
+
+- [ ] **Domain**: WorkRequest lifecycle is persisted and emits `WorkRequested/Started/Completed/Failed` facts.
+- [ ] **Integration runner**: can execute `scaffold|generate|verify` deterministically and record evidence (logs + artifacts).
+- [ ] **Process**: emits step-level process facts and correlates to WorkRequests.
+- [ ] **Projection/UISurface**: can show WorkRequest status + evidence links and the process run timeline.
+
 ---
 
 ## Phase 4 — Promote (governed release decision)
@@ -133,6 +175,12 @@ The path is ADM-native (A→B→C→D→… with explicit deliverables), but all
 - **Output:** Domain records promoted versions/baseline; promotion facts emitted; projection reflects audit trail.
 - **Next:** **Trigger** Phase 5
 
+### Phase 4 — Implementation checklist
+
+- [ ] **Domain**: baselines exist as immutable `{element_id, version_id}` sets and can be promoted.
+- [ ] **Projection**: can render baseline membership and promotion history for audit.
+- [ ] **Process/UISurface**: phase gate decisions and promotion decisions are recorded and visible.
+
 ---
 
 ## Phase 5 — Release (merge + deploy + governance visibility)
@@ -146,3 +194,9 @@ The path is ADM-native (A→B→C→D→… with explicit deliverables), but all
 - **Input:** Domain facts + process facts + deployment evidence.
 - **Output:** Portal/read model shows: what shipped, what’s approved, what’s running, evidence chain, run timeline; optional post-release evidence can be captured as evidence elements/attachments linked from the change element (e.g., `evidence:adm_post_release`).
 - **Next:** **Trigger** workflow completion + close change element
+
+### Phase 5 — Implementation checklist
+
+- [ ] **Domain**: can record a release outcome (as an element/attachment + reference relationships) linked to the change.
+- [ ] **Projection/UISurface**: can show “what shipped” + evidence chain + timelines in one view.
+- [ ] **ADM Phase H posture**: follow-on changes can be represented as new change elements linked to prior releases/baselines.
