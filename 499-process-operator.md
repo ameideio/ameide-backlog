@@ -57,7 +57,7 @@ metadata:
   name: l2o
 spec:
   image: ghcr.io/ameide/l2o-process:0.7.0
-  imagePullPolicy: IfNotPresent # set Always only for mutable tags (transitional; see 602/603)
+  imagePullPolicy: IfNotPresent # GitOps: keep boring; do not deploy mutable tags (see 602/603)
   definitionRef:
     id: L2O_v3
     tenantId: t123

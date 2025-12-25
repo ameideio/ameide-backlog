@@ -75,6 +75,8 @@ Examples:
 
 If GitOps references `ghcr.io/ameideio/process-transformation:dev` (missing `primitive-`), Kubernetes will hit `ImagePullBackOff` even when the CI build is green.
 
+Note: the examples above describe the **build/publish tag convention**. GitOps target state is to deploy **digest-pinned** refs (see `backlog/602-image-pull-policy.md`) so rollouts are driven by Git changes, not by mutable tags.
+
 ### Recent failure mode (local): projection migrations CrashLoop
 
 If `transformation-v0-projection` is `CrashLoopBackOff` with:
@@ -83,10 +85,7 @@ If `transformation-v0-projection` is `CrashLoopBackOff` with:
 
 …the `primitive-projection-transformation:dev` image is older than `ameide` PR **#348** (the fix removes an accidental `// nosemgrep...` prefix inside the SQL string literal).
 
-Operational note (local): if you are using a mutable `:dev` image tag with `imagePullPolicy: IfNotPresent`, k3d/k3s may keep a cached image. Preferred target-state is digest pinning (see `backlog/602-image-pull-policy.md`). Transitional workaround: delete the cached image on the node and restart the pod to force a pull:
-
-- `docker exec k3d-ameide-agent-0 sh -lc 'crictl rmi ghcr.io/ameideio/primitive-projection-transformation:dev || true'`
-- `kubectl -n ameide-local delete pod -l app.kubernetes.io/name=projection,app.kubernetes.io/instance=transformation-v0`
+Operational note (local): this caching failure mode was only relevant when deploying mutable tags (e.g. `:dev`). GitOps now pins primitives by digest (see `backlog/602-image-pull-policy.md`), so a rollout should be driven by a Git change + Argo sync. If debugging, compare the running pod image digest vs Git and re-sync the Application instead of forcing node cache deletes.
 
 ### Recent failure mode (local): process migrations CrashLoop
 
@@ -98,10 +97,7 @@ If `transformation-v0-process` is `CrashLoopBackOff` with:
 
 - `TestWorkRequestSeam_ProcessOrchestration_ClusterMode` in `capabilities/transformation/__tests__/integration`
 
-Operational note: with `imagePullPolicy: IfNotPresent`, k3d/k3s may keep a cached `:dev` image; delete the cached image on the node and restart the pod to force a pull:
-
-- `docker exec k3d-ameide-agent-0 sh -lc 'crictl rmi ghcr.io/ameideio/primitive-process-transformation:dev || true'`
-- `kubectl -n ameide-local delete pod -l app.kubernetes.io/name=process,app.kubernetes.io/instance=transformation-v0`
+Operational note: this caching failure mode was only relevant when deploying mutable tags (e.g. `:dev`). GitOps now pins primitives by digest (see `backlog/602-image-pull-policy.md`), so a rollout should be driven by a Git change + Argo sync.
 
 ## 1) Alignment to 520 (normative constraints)
 

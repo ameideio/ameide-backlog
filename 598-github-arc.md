@@ -74,6 +74,11 @@ jobs:
 - Image: `ghcr.io/ameideio/arc-local-runner`
 - Baseline tools include `git/curl/tar/jq/yq/rg` and `buildctl` (for BuildKit builds)
 
+Image policy note:
+
+- Any GitOps-managed runner image reference MUST be digest-pinned per `backlog/602-image-pull-policy.md` / `backlog/603-image-pull-policy.md`.
+- Rollouts should happen because Git changed (PR write-back), not because of `imagePullPolicy`.
+
 ### Auth secret shape
 
 ARC expects a Secret in the runner namespace with:

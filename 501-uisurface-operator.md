@@ -42,7 +42,7 @@ metadata:
   name: www-ameide-platform
 spec:
   image: ghcr.io/ameide/www_ameide_platform:3.0.1
-  imagePullPolicy: IfNotPresent # set Always only for mutable tags (transitional; see 602/603)
+  imagePullPolicy: IfNotPresent # GitOps: keep boring; do not deploy mutable tags (see 602/603)
   host: app.ameide.com
   pathPrefix: /
   auth:

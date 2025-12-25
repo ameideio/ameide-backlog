@@ -331,20 +331,22 @@ helm install ameide ./operators/helm \
   --set operators.integration.enabled=false
 ```
 
-### Use Dev Images
+### Use Digest-Pinned Images (GitOps-aligned)
 
 ```bash
 helm install ameide ./operators/helm \
   -n ameide-system \
   --create-namespace \
-  --set global.imagePullPolicy=Always \
-  --set operators.domain.image.tag=dev \
-  --set operators.process.image.tag=dev \
-  --set operators.agent.image.tag=dev \
-  --set operators.uisurface.image.tag=dev \
-  --set operators.projection.image.tag=dev \
-  --set operators.integration.image.tag=dev
+  --set global.imagePullPolicy=IfNotPresent \
+  --set operators.domain.image.ref=ghcr.io/ameideio/domain-operator@sha256:<digest> \
+  --set operators.process.image.ref=ghcr.io/ameideio/process-operator@sha256:<digest> \
+  --set operators.agent.image.ref=ghcr.io/ameideio/agent-operator@sha256:<digest> \
+  --set operators.uisurface.image.ref=ghcr.io/ameideio/uisurface-operator@sha256:<digest> \
+  --set operators.projection.image.ref=ghcr.io/ameideio/projection-operator@sha256:<digest> \
+  --set operators.integration.image.ref=ghcr.io/ameideio/integration-operator@sha256:<digest>
 ```
+
+Note: GitOps-managed environments should follow `backlog/602-image-pull-policy.md` / `backlog/603-image-pull-policy.md` (digest pinning + Git-driven rollouts) rather than relying on mutable tags + pull policy.
 
 ### Verify Installation
 
