@@ -2,7 +2,7 @@
 
 **Status:** Target state (normative)  
 **Owner:** Platform SRE / GitOps  
-**Scope:** GitOps-managed environments (`local`, `staging`, `production`)  
+**Scope:** GitOps-managed environments (`local`, `dev`, `staging`, `production`)  
 **Related:** `backlog/603-image-pull-policy.md`, `backlog/503-operators-helm-chart.md`, `backlog/495-ameide-operators.md`, `backlog/456-ghcr-mirror.md`, `backlog/519-gitops-fleet-policy-hardening.md`
 
 ## Problem
@@ -48,12 +48,12 @@ All pod templates MUST use (Deployments/StatefulSets/DaemonSets, Jobs/CronJobs, 
 
 `Always` MUST NOT be used as a rollout mechanism.
 
-### Rule 4 — One fast-moving lane: `local`, updated by PRs
+### Rule 4 — Fast-moving lanes: `local` + `dev`, updated by PRs
 
-There is exactly one “fast-moving” GitOps lane: `local`.
+There are exactly two “fast-moving” GitOps lanes: `local` and `dev`.
 
-- CI MUST open PRs that update `image.ref` digests in `local` and MUST auto-merge them once required checks pass (no human step for `local`).
-- Merge → Argo auto-sync → rollout (deterministic).
+- CI MUST open PRs that update `image.ref` digests in `local` and `dev` and MUST auto-merge them once required checks pass (no human step for `local`/`dev`).
+- Merge → Argo auto-sync → rollout (deterministic) in both environments.
 
 `local` is not an exception to the digest-only policy: it follows the same “digest-pinned refs only” rules as `staging`/`production`. The only difference is that `local` advances automatically (via auto-merged PRs).
 
@@ -87,6 +87,7 @@ CI MUST write the digest into Git (`image.ref`) via PRs; Argo rollouts MUST be d
 The enforcement checks apply at minimum to:
 
 - `sources/values/env/local/**`
+- `sources/values/env/dev/**`
 - `sources/values/env/staging/**`
 - `sources/values/env/production/**`
 - cluster-scoped operators and dependencies (at minimum `sources/values/_shared/cluster/ameide-operators.yaml`)

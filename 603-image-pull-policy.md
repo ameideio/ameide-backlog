@@ -56,14 +56,14 @@ Make “Git commit → deployed artifact” deterministic in GitOps-managed envi
 
 ### WP-4: Continuous update mechanism for the “fast-moving” environment
 
-There is one fast-moving GitOps environment: `local`. It moves via Git PRs that update digests.
+There are two fast-moving GitOps environments: `local` and `dev`. They move via Git PRs that update digests.
 
 `local` is not an exception to the policy: it must be digest-pinned and deterministic. “Fast-moving” means automated Git change + Argo rollout, not floating tags.
 
 **DoD**
-- Every successful build opens (or updates) a PR updating `image.ref` in `sources/values/env/local/**`.
-- The PR is auto-merged once required checks pass (no human step for `local`).
-- Merge → Argo auto-sync → deterministic rollout without manual restarts.
+- Every successful build opens (or updates) a PR updating `image.ref` in `sources/values/env/local/**` and `sources/values/env/dev/**`.
+- The PR is auto-merged once required checks pass (no human step for `local`/`dev`).
+- Merge → Argo auto-sync → deterministic rollout without manual restarts in both environments.
 - Promotion to staging/production is a PR copying the exact same `image.ref` forward.
 
 ### WP-5: Policy enforcement (CI)
@@ -100,8 +100,7 @@ This is the starting map for “what must change” if we implement 602 and want
 
 ### GitOps (repo: `ameide-gitops`)
 
-- [ ] Replace image configuration in all env overlays with `image.ref` (digest-pinned) and remove `tag:` fields across `sources/values/env/{local,staging,production}/**`.
-- [ ] Remove the `env/dev` directory and references (target state is `local`/`staging`/`production` only).
+- [ ] Replace image configuration in all env overlays with `image.ref` (digest-pinned) and remove `tag:` fields across `sources/values/env/{local,dev,staging,production}/**`.
 - [ ] Replace all direct `:dev` / `:main` / `:latest` image strings (example: `grpcurl-runner:dev` in `_shared/apps/*-smoke.yaml`) with digest-pinned refs.
 - [ ] Update any embedded raw manifest strings to use digest-pinned refs (these frequently evade enforcement).
 - [ ] Refactor cluster-scoped operators to use `operators.<name>.image.ref` (digest-pinned) and set `imagePullPolicy: IfNotPresent` (no “force pulls” behavior).
@@ -136,10 +135,10 @@ Use this as a “touch every place images are defined” checklist for implement
 ## Sequencing (recommended execution order)
 
 1) Implement `image.ref` support in charts/templates (including operators + primitives) and render `imagePullPolicy: IfNotPresent` explicitly everywhere.  
-2) Remove `env/dev` (values, Argo config, cluster config) so only `local`/`staging`/`production` remain.  
-3) Convert `local`/`staging`/`production` overlays to digest-pinned `image.ref` values and remove all `tag:` fields.  
+2) Convert `local`/`dev`/`staging`/`production` overlays to digest-pinned `image.ref` values and remove all `tag:` fields.  
+3) Make `local`+`dev` fully automated (CI PRs + auto-merge + Argo auto-sync).  
 4) Remove `pullPolicy: Always` / `imagePullPolicy: Always` everywhere and delete “force-pull” behavior.  
-5) Update build/CI to open PRs that update `image.ref` in `local`, and promotions to copy the same ref forward.  
+5) Update build/CI to open PRs that update `image.ref` in `local`+`dev`, and promotions to copy the same ref forward.  
 6) Turn on CI enforcement and keep it on (no floating tags, no non-digest refs).
 
 ### 1) Decide and standardize the values contract (stop “tag sprawl”)
@@ -156,9 +155,9 @@ Use this as a “touch every place images are defined” checklist for implement
 
 ### 3) Convert environment overlays to digest pinning (staging/prod first)
 
-- [ ] Remove `sources/values/env/dev/**` and remove `env: dev` from `config/clusters/azure.yaml` (target state is no `dev` environment).
 - [ ] Replace all `tag: main` / `tag: dev` / `tag: latest` usage with digest-pinned `image.ref` in:
   - [ ] `sources/values/env/local/**`
+  - [ ] `sources/values/env/dev/**`
   - [ ] `sources/values/env/staging/**`
   - [ ] `sources/values/env/production/**`
 - [ ] Eliminate `:latest` usage by pinning digests in local overlays:
@@ -190,7 +189,7 @@ Primitives must set `spec.image` to a digest-pinned ref and must not rely on tag
 - [ ] Update Helm unit tests in charts that hard-code `:dev` expectations:
   - [ ] `sources/charts/apps/*/tests/image_test.yaml` (examples seen under `sources/charts/apps/agents/tests/image_test.yaml`)
 - [ ] Add a repo-level CI gate that fails if any non-digest image refs appear in GitOps-managed env overlays:
-  - [ ] Enforce on `sources/values/env/local/**`, `sources/values/env/staging/**`, and `sources/values/env/production/**`
+  - [ ] Enforce on `sources/values/env/local/**`, `sources/values/env/dev/**`, `sources/values/env/staging/**`, and `sources/values/env/production/**`
   - [ ] Enforce on cluster-scoped operator values (`sources/values/_shared/cluster/ameide-operators.yaml`)
 
 ### 7) Bootstrap/tooling alignment (remove “dev-tag” assumptions)
@@ -445,9 +444,11 @@ sources/values/env/local/data/data-minio.yaml
 sources/values/env/local/platform/platform-backstage.yaml
 ```
 
-### ameide-gitops: `dev` environment footprint still present (must be removed)
+### ameide-gitops: `dev` environment footprint (expected; keep, but make it compliant)
 
 Command: `rg --files-with-matches "\\benv:\\s*dev\\b|environment:\\s*dev\\b|ameide-dev\\b" config argocd sources/values bootstrap scripts -S | sort`
+
+Note: this is not itself a violation. The violation is when `dev` overlays are not digest-pinned (`image.ref`) and/or are not part of the fully automated fast-lane flow.
 
 ```
 argocd/applicationsets/ameide.yaml
