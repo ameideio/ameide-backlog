@@ -6,7 +6,7 @@
 
 This document tracks the **TOGAF ADM methodology overlay** implementation: ADM-native UISurface views, checks/validators (optional validation packs), and ProcessDefinitions that operate over the same canonical **Elements + Relationships + Versions** substrate.
 
-The overlay is considered “done” when an ADM-driven workflow can assemble phase deliverables as elements under a deliverables package, run verification checks, and promote/release using the simple handshake (pins as named links; see `backlog/527-transformation-methodology-dictionary.md`).
+The overlay is considered “done” when an ADM-driven workflow can assemble phase deliverables as elements under a deliverables package, run verification checks, and promote/release using the simple handshake (anchor `REFERENCE` relationships with `metadata.target_version_id`; see `backlog/527-transformation-methodology-dictionary.md`).
 
 ---
 
@@ -27,13 +27,13 @@ The overlay is considered “done” when an ADM-driven workflow can assemble ph
 
 ## 1) Overlay deliverables (what must exist)
 
-### 1.1 Minimal v0 handshake (pins as links)
+### 1.1 Minimal v0 handshake (anchor reference relationships)
 
 - [ ] Change element type convention (e.g., `ameide:change`) is supported by UI/workflows.
 - [ ] Change element stores `methodology_key = togaf_adm`.
-- [ ] Change element uses named links (“pins”):
-  - [ ] `ref:requirement` → authoritative requirement `{element_id, version_id}`
-  - [ ] `ref:deliverables_root` → deliverables package/root `{element_id, version_id}`
+- [ ] Change element uses anchor `REFERENCE` relationships (versioned via `metadata.target_version_id`):
+  - [ ] `ref:requirement` → authoritative requirement snapshot (`target_element_id` + `metadata.target_version_id`)
+  - [ ] `ref:deliverables_root` → deliverables package/root snapshot (`target_element_id` + `metadata.target_version_id`)
   - [ ] optional: `evidence:*`, `ref:baseline`, `ref:release`
 
 ### 1.2 Elements (ADM deliverables as “just elements”)
@@ -48,7 +48,7 @@ The overlay is considered “done” when an ADM-driven workflow can assemble ph
   - Phase A–D navigation and templates
   - deliverables completeness status per phase
   - conformance/validation findings and evidence viewer
-  - promotion/release view (pins + evidence chain)
+  - promotion/release view (anchor relationships + evidence chain)
 
 ### 1.4 Optional v1 (configurable overlays via Definition Registry)
 
@@ -65,7 +65,7 @@ The overlay is considered “done” when an ADM-driven workflow can assemble ph
 ### WP-A1 — Deliverables package template + UI scaffolding
 
 - [ ] UI can create `ref:deliverables_root` and scaffold Phase A–D placeholders as elements.
-- [ ] Projection can render “phase completeness” from pinned refs + relationships + validation evidence.
+- [ ] Projection can render “phase completeness” from anchored references + relationships + validation evidence.
 
 ### WP-A2 — Phase A–D checks/validators
 
@@ -75,17 +75,17 @@ The overlay is considered “done” when an ADM-driven workflow can assemble ph
 ### WP-A3 — ADM workflow definition (ProcessDefinition)
 
 - [ ] BPMN authoring pattern for ADM overlay is locked.
-- [ ] Workflow emits process facts for each transition/gate and cites pinned refs.
+- [ ] Workflow emits process facts for each transition/gate and cites anchored references.
 
 ### WP-A4 — Governance gates + promotion wiring
 
 - [ ] Phase gate decisions are recorded as evidence and reflected in projection timelines.
-- [ ] Promotion gate requires required phase evidence + pinned baseline refs.
+- [ ] Promotion gate requires required phase evidence + baseline references (immutable `{element_id, version_id}` sets).
 
 ### WP-A5 — “Happy path” e2e slice
 
 - [ ] Scenario passes end-to-end per `backlog/527-transformation-scenario-togaf-adm.md`:
-  - requirement pinned
-  - deliverables root pinned + Phase A–D complete
+  - requirement anchored (reference relationship + `metadata.target_version_id`)
+  - deliverables root anchored (reference relationship + `metadata.target_version_id`) + Phase A–D complete
   - verify pass
   - baseline promoted → release recorded (if in-scope)

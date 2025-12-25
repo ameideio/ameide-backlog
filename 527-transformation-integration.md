@@ -137,12 +137,12 @@ GitOps baseline (normative; Kafka + KEDA):
 
 #### Runtime image (normative): `.devcontainer` parity
 
-KEDA-scheduled Jobs MUST run a runtime image derived from the repo’s `.devcontainer` toolchain so local (developer-mode) and platform (job-mode) executions use the same pinned environment:
+KEDA-scheduled Jobs MUST run a runtime image derived from the repo’s `.devcontainer` toolchain so local (developer-mode) and platform (job-mode) executions use the same fixed toolchain environment:
 
 - Base image is built from `.devcontainer/Dockerfile` (or an equivalent published image that is provably derived from it).
 - The runtime image MUST include the repo-native `ameide` CLI (which embeds `packages/ameide_coding_helpers/**` for `doctor`/`verify`/`generate`/`scaffold`; see `backlog/558-ameide-coding-helpers.md`).
 - The Job entrypoint executes the runner/agent work loop (checkout repo at `commit_sha` → run tool(s) → upload artifacts → record evidence/outcome in Domain).
-- Toolchain pins that matter for evidence (e.g., Codex CLI) are inherited from the devcontainer pin (see `backlog/433-codex-cli-057.md`).
+- Toolchain version locks that matter for evidence (e.g., Codex CLI) are inherited from the devcontainer lock (see `backlog/433-codex-cli-057.md`).
 
 This does not imply “VS Code devcontainer” in-cluster; it means the **same containerized toolchain** is used for deterministic runs.
 
@@ -301,7 +301,7 @@ Ameide-required invariants that do not fit core CloudEvents attributes MUST be c
 **Execution substrate (coding/tool runs):**
 
 - Prefer a single “executor toolchain” image/profile for all runner executions (so verification results are comparable across CI/in-cluster/local).
-- If the runner uses an LLM coding backend (e.g., Codex CLI), pin and record the version as part of `tool_run_evidence` (see Codex pin rationale in `backlog/433-codex-cli-057.md`).
+- If the runner uses an LLM coding backend (e.g., Codex CLI), record the exact version as part of `tool_run_evidence` (see Codex version-lock rationale in `backlog/433-codex-cli-057.md`).
 
 **Metamodel interoperability:** import/export and downstream tool integration is profile-driven:
 

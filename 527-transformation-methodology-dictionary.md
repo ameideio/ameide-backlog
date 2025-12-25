@@ -37,28 +37,32 @@ Related:
 
 ---
 
-## Pinned refs contract (harmonized platform handshake)
+## Reference relationships contract (harmonized platform handshake)
 
 Regardless of methodology (Scrum vs TOGAF ADM vs PMI), the platform should converge on a tiny set of **stable pointers** that gates/promotions/release consume deterministically (no “search for what counts”).
 
-Recommended anchor: a **change element** (an Element) whose versioned body (or outgoing REFERENCE relationships) carries these pins.
+Recommended anchor: a **change element** (an Element) whose outgoing `REFERENCE` relationships anchor the authoritative snapshots used by governance and workflows.
 
-### Simple posture (recommended): pins are named links
+### Simple posture (recommended): anchors are named relationships
 
-The simplest implementation is to represent pins as **well-known relationship kinds** from the change element.
+The simplest implementation is to represent anchors as **well-known `ElementRelationship` rows** from the change element.
 
-Minimum pins (required):
+Minimum anchors (required):
 
-1. `ref:requirement` → `{element_id, version_id}` (authoritative requirement snapshot)
-2. `ref:deliverables_root` → `{element_id, version_id}` (package/root enumerating deliverables by outgoing links)
+1. `ref:requirement` → authoritative requirement snapshot (`target_element_id` + `metadata.target_version_id`)
+2. `ref:deliverables_root` → deliverables package/root snapshot (`target_element_id` + `metadata.target_version_id`)
 
-Optional pins (add only when needed):
+Optional anchors (add only when needed):
 
 3. `ref:baseline` → `{baseline_id}` (governance baseline; immutable set of `{element_id, version_id}` pointers)
 4. `ref:release` → `{release_ref}` (release record element and/or external refs as attachments)
 5. `evidence:*` → `{evidence_ref}` (links to evidence elements/attachments; implementation-specific)
 
 Rule: methodology differences determine **what is under `ref:deliverables_root`** and which gates apply, but not how promotions/releases identify authoritative inputs.
+
+Versioning rule (lock-in):
+
+- For `ref:*` anchors, the relationship MUST be `relationship_kind = REFERENCE` and MUST include `metadata.target_version_id`.
 
 ---
 
@@ -99,13 +103,13 @@ When configurability is required (multiple orgs, different gate policies, plugga
 | **Scope identity**: `{tenant_id, organization_id, repository_id}` (required everywhere) | N/A (notation-level) | Architecture repository scope / enterprise context | Product context | Project/program context |
 | **Repository**: the design-time store for models/docs/definitions (element-centric) | Model repository (ArchiMate model/views) | Architecture Repository (logical concept) | Product artifacts (often tool-specific) | Project repository / PMIS |
 | **Initiative**: governance container for a transformation effort | Work Package / Plateau (often used to model change effort) | Architecture work / work package grouping | Epic / Initiative (tool term; not Scrum-normative) | Program/Project/Phase container |
-| **Change element**: the tracked unit of change (an Element that pins deliverables + status) | Work Package / Deliverable (depending on modeling approach) | Architecture Change Request / Request for Architecture Work | PBI / Epic (depending on how you model it) | Change Request / Work Package |
+| **Change element**: the tracked unit of change (an Element that anchors deliverables + status) | Work Package / Deliverable (depending on modeling approach) | Architecture Change Request / Request for Architecture Work | PBI / Epic (depending on how you model it) | Change Request / Work Package |
 
 ### 2) Requirement articulation (agent-assisted) + readiness
 
 | Canonical (Ameide/Transformation) | ArchiMate (notation) | TOGAF ADM | Scrum | PMI |
 |---|---|---|---|---|
-| **Requirement draft snapshot**: structured requirement text + examples + glossary + constraints (pinned by reference) | Requirements are usually *external* to ArchiMate; may be represented as Motivation elements (e.g., Requirement/Constraint) if modeled | Architecture Requirements Specification (ARS) (conceptual equivalent) | Story narrative + Acceptance Criteria | Requirements Documentation |
+| **Requirement draft snapshot**: structured requirement text + examples + glossary + constraints (anchored by reference relationship) | Requirements are usually *external* to ArchiMate; may be represented as Motivation elements (e.g., Requirement/Constraint) if modeled | Architecture Requirements Specification (ARS) (conceptual equivalent) | Story narrative + Acceptance Criteria | Requirements Documentation |
 | **Requirement status (Domain fact)**: `DRAFT \| NEEDS_INPUT \| STABILIZED \| CANCELED` | N/A (notation-level) | Requirements managed through ADM; “requirements baseline” is a common practice | Definition of Ready (DoR) / refinement outcome | Requirements baseline / approved requirements |
 | **Readiness gate**: explicit recorded decision that the requirement is stable enough to start delivery workflow | N/A | Phase gate / Architecture Board checkpoint (often before committing downstream phases) | DoR gate for pulling into Sprint | Phase gate / integrated change control checkpoint |
 
@@ -133,7 +137,7 @@ When configurability is required (multiple orgs, different gate policies, plugga
 |---|---|---|---|---|
 | **WorkRequest**: domain-owned record for long-running tool/agent work (scaffold/generate/verify), with idempotency + evidence refs | N/A | Execution task record (conceptual) | CI job/run + checklist (conceptual) | Work performance data / task record (conceptual) |
 | **Evidence bundle**: immutable outputs proving what ran and what happened (logs, reports, artifacts), linked from domain state | N/A | Architecture compliance evidence / governance artifacts | DoD evidence (tests, builds, review notes) | Verification/validation evidence; audit artifacts |
-| **Verification baseline**: pinned toolchain + checks that define “verify” | N/A | Compliance baseline / governance criteria | Definition of Done (DoD) + quality gates | Quality baselines + acceptance criteria |
+| **Verification baseline**: fixed toolchain versions + checks that define “verify” | N/A | Compliance baseline / governance criteria | Definition of Done (DoD) + quality gates | Quality baselines + acceptance criteria |
 | **Promotion**: governed decision to “publish” a set of versions/definitions/baseline | Plateau transition / Deliverable acceptance | Phase gate approvals; Architecture Board sign-off (conceptual) | Acceptance of Increment / release readiness | Integrated change control approval |
 | **Release record**: what shipped + where + evidence chain | Implementation & Migration artifacts (Deliverable/Plateau) | Implementation Governance (Phase G) + change management (Phase H) | Release/Increment outcomes | Transition/Close + deployment approvals |
 
@@ -141,7 +145,7 @@ When configurability is required (multiple orgs, different gate policies, plugga
 
 ## Harmonized outputs (what every methodology workflow must produce)
 
-Regardless of whether the ProcessDefinition follows Scrum, TOGAF ADM, or PMI, the workflow should converge on these **canonical domain outputs** (as pinned snapshots/versions + domain facts):
+Regardless of whether the ProcessDefinition follows Scrum, TOGAF ADM, or PMI, the workflow should converge on these **canonical domain outputs** (as versioned snapshots + domain facts):
 
 - Requirement snapshot + `requirement_status=STABILIZED` (or `CANCELED`).
 - Architecture package (depth is profile-dependent; may be “lightweight” for Scrum).

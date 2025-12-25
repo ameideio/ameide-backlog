@@ -132,7 +132,7 @@ Projection queries must be reproducible and auditable. v1 standardizes two cross
   - `head` (latest)
   - `published` (promoted/published pointers)
   - `baseline_ref` (baseline id + version)
-  - `version_ref` (element id + version id) for pinning
+  - `version_ref` (element id + version id) for selecting a specific snapshot
 - Optional:
   - `as_of_time` (for time-travel when supported)
   - `include_uncommitted` (must be false for audit views)

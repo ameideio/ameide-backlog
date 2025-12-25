@@ -31,9 +31,9 @@ The path is Scrum-native (refinement → DoR → iterate → DoD), but all desig
 - **Output:** Requirement draft element(s) (docs/views) linked from the change element; drafts include problem, non-goals, examples, acceptance criteria, glossary/definitions, risks/governance needs.
 - **Next:** If still ambiguous → **Loop** 1.2; else **Trigger** 1.3
 
-### 1.3 Record requirement status (Domain fact; pinned element version)
+### 1.3 Record requirement status (Domain fact; anchored element version)
 - **Input:** Latest requirement draft element version(s).
-- **Output:** Requirement status recorded as a Domain fact on the change element (e.g., `DRAFT | NEEDS_INPUT | STABILIZED | CANCELED`) and a pin link is updated: `ref:requirement` → `{element_id, version_id}`.
+- **Output:** Requirement status recorded as a Domain fact on the change element (e.g., `DRAFT | NEEDS_INPUT | STABILIZED | CANCELED`) and the anchor reference relationship is updated: `ref:requirement` (`relationship_kind=REFERENCE`, `metadata.target_version_id=<requirement_version_id>`).
 - **Next:** If `STABILIZED` → **Trigger** 1.4; if `CANCELED` → **End**; else **Loop** 1.2
 
 ### 1.4 DoR validation (Scrum overlay)
@@ -42,7 +42,7 @@ The path is Scrum-native (refinement → DoR → iterate → DoD), but all desig
 - **Next:** If DoR fails → **Loop** 1.2; else **Trigger** 1.5
 
 ### 1.5 Start delivery workflow (only after DoR)
-- **Input:** Change element id/scope + pinned stabilized requirement refs + DoR evidence ref(s).
+- **Input:** Change element id/scope + anchored stabilized requirement ref(s) + DoR evidence ref(s).
 - **Output:** R2R workflow instance started (using `r2r.governance.scrum.v1`); “requirements captured” process fact emitted.
 - **Next:** **Trigger** Phase 2
 
@@ -52,7 +52,7 @@ The path is Scrum-native (refinement → DoR → iterate → DoD), but all desig
 
 ### 2.1 Produce architecture package (Scrum-appropriate)
 - **Input:** Requirement snapshot; existing repository content.
-- **Output:** Deliverables package element created/updated and pinned via `ref:deliverables_root`; package contains lightweight architecture elements (views/docs) sufficient to constrain the change.
+- **Output:** Deliverables package element created/updated and anchored via `ref:deliverables_root` (`relationship_kind=REFERENCE`, `metadata.target_version_id=<deliverables_root_version_id>`); package contains lightweight architecture elements (views/docs) sufficient to constrain the change.
 - **Next:** **Trigger** 2.2
 
 ### 2.2 Define contract + message boundary
@@ -77,7 +77,7 @@ The path is Scrum-native (refinement → DoR → iterate → DoD), but all desig
 
 ### 2.5 Design gate (Scrum)
 - **Input:** Proposed diffs: architecture package refs + proto + (optional) BPMN + (optional) BPMN profile + (optional) AgentDefinition.
-- **Output:** Decision recorded (approve/reject) as workflow signal + process facts; pinned design artifact refs remain the canonical inputs to Phase 3.
+- **Output:** Decision recorded (approve/reject) as workflow signal + process facts; anchored design artifact refs remain the canonical inputs to Phase 3.
 - **Next:** **Wait** gate decision; if Approve → **Trigger** Phase 3; if Reject → **Loop** 2.1; if Cancel → **End**
 
 ---
@@ -138,6 +138,6 @@ The path is Scrum-native (refinement → DoR → iterate → DoD), but all desig
 - **Next:** **Wait** CI/deploy status; if fail → **Loop** Phase 3 (fix) or **Trigger** rollback/disable if already partially deployed
 
 ### 5.2 DoD validation + close-out
-- **Input:** Domain facts + process facts + deployment evidence + pinned deliverables.
+- **Input:** Domain facts + process facts + deployment evidence + anchored deliverables.
 - **Output:** DoD outcome recorded as evidence linked from the change element (e.g., `evidence:dod`); portal/read model shows evidence chain and run timeline.
 - **Next:** **Trigger** workflow completion + close change element

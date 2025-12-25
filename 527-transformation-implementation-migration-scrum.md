@@ -6,7 +6,7 @@
 
 This document tracks the **Scrum methodology overlay** implementation: Scrum-native UISurface views, checks/validators (optional validation packs), and ProcessDefinitions that operate over the same canonical **Elements + Relationships + Versions** substrate.
 
-The overlay is considered “done” when a Scrum-driven workflow can create/update the required elements, run verification WorkRequests, and promote/release using the simple handshake (pins as named links; see `backlog/527-transformation-methodology-dictionary.md`).
+The overlay is considered “done” when a Scrum-driven workflow can create/update the required elements, run verification WorkRequests, and promote/release using the simple handshake (anchor `REFERENCE` relationships with `metadata.target_version_id`; see `backlog/527-transformation-methodology-dictionary.md`).
 
 ---
 
@@ -27,13 +27,13 @@ The overlay is considered “done” when a Scrum-driven workflow can create/upd
 
 ## 1) Overlay deliverables (what must exist)
 
-### 1.1 Minimal v0 handshake (pins as links)
+### 1.1 Minimal v0 handshake (anchor reference relationships)
 
 - [ ] Change element type convention (e.g., `ameide:change`) is supported by UI/workflows.
 - [ ] Change element stores `methodology_key = scrum`.
-- [ ] Change element uses named links (“pins”):
-  - [ ] `ref:requirement` → authoritative requirement `{element_id, version_id}`
-  - [ ] `ref:deliverables_root` → deliverables package/root `{element_id, version_id}`
+- [ ] Change element uses anchor `REFERENCE` relationships (versioned via `metadata.target_version_id`):
+  - [ ] `ref:requirement` → authoritative requirement snapshot (`target_element_id` + `metadata.target_version_id`)
+  - [ ] `ref:deliverables_root` → deliverables package/root snapshot (`target_element_id` + `metadata.target_version_id`)
   - [ ] optional: `evidence:*`, `ref:baseline`, `ref:release`
 
 ### 1.2 UISurface (Scrum-native UX)
@@ -42,7 +42,7 @@ The overlay is considered “done” when a Scrum-driven workflow can create/upd
   - backlog/refinement workspace
   - DoR outcome + missing deliverables guidance (recorded as evidence links, not a special bundle type)
   - DoD outcome + evidence viewer
-  - promotion/release view (pins + evidence chain)
+  - promotion/release view (anchor relationships + evidence chain)
 
 ### 1.3 Optional v1 (configurable overlays via Definition Registry)
 
@@ -58,8 +58,8 @@ The overlay is considered “done” when a Scrum-driven workflow can create/upd
 
 ### WP-S1 — “Change element” support in UI + Domain
 
-- [ ] UI can create a change element, set `methodology_key`, and maintain the pin links (`ref:requirement`, `ref:deliverables_root`).
-- [ ] Projection exposes pin links + status in a stable query surface.
+- [ ] UI can create a change element, set `methodology_key`, and maintain the anchor reference relationships (`ref:requirement`, `ref:deliverables_root`, with `metadata.target_version_id`).
+- [ ] Projection exposes anchor relationships + status in a stable query surface.
 
 ### WP-S2 — DoR validation pack
 
@@ -69,7 +69,7 @@ The overlay is considered “done” when a Scrum-driven workflow can create/upd
 ### WP-S3 — Scrum workflow definition (ProcessDefinition)
 
 - [ ] BPMN authoring pattern for Scrum overlay is locked.
-- [ ] Workflow emits process facts for each transition/gate and cites pinned refs.
+- [ ] Workflow emits process facts for each transition/gate and cites anchored references.
 
 ### WP-S4 — DoD validation pack + promotion gate wiring
 
@@ -79,6 +79,6 @@ The overlay is considered “done” when a Scrum-driven workflow can create/upd
 ### WP-S5 — “Happy path” e2e slice
 
 - [ ] Scenario passes end-to-end per `backlog/527-transformation-scenario-scrum.md`:
-  - requirement pinned → DoR pass
-  - deliverables package pinned → verify pass
+  - requirement anchored (reference relationship + `metadata.target_version_id`) → DoR pass
+  - deliverables package anchored (reference relationship + `metadata.target_version_id`) → verify pass
   - baseline promoted → release recorded

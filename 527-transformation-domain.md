@@ -71,12 +71,26 @@ Handshake anchor (recommended):
 
 - Represent the tracked unit of change as an **Element** (a “change element”) with:
   - a minimal `methodology_key` in its versioned body (e.g., `scrum`, `togaf_adm`) or a link to a methodology element, and
-  - a small set of **named links** (relationship kinds) that act as the “pins”:
-    - `ref:requirement` → the authoritative requirement element version
-    - `ref:deliverables_root` → the deliverables package/root element version
+  - a small set of **well-known REFERENCE relationships** that anchor governance/workflows:
+    - `ref:requirement` → the authoritative requirement element **version** (via `target_version_id`)
+    - `ref:deliverables_root` → the deliverables package/root element **version** (via `target_version_id`)
     - optional: `evidence:*`, `ref:baseline`, `ref:release`
 
-This keeps the platform handshake simple: “pins” are just well-known relationship kinds over the element substrate; UIs and workflows interpret them consistently.
+This keeps the platform handshake simple: the “anchors” are just well-known `ElementRelationship` rows over the element substrate; UIs and workflows interpret them consistently.
+
+### 1.2a Versioned reference relationships (lock-in; required for audit)
+
+To make governance reproducible and auditable (no “latest version” ambiguity), reference relationships used as workflow/governance anchors MUST be versioned.
+
+Normative rule:
+
+- Any `ElementRelationship` with `relationship_kind = REFERENCE` and `type_key` in the `ref:*` family MUST include:
+  - `metadata.target_version_id` = the immutable `ElementVersion.id` of the target element.
+
+Notes:
+
+- The relationship still targets `target_element_id` (element identity); `metadata.target_version_id` selects the authoritative snapshot.
+- For non-anchor references (e.g., casual navigation links), `target_version_id` MAY be omitted.
 
 Note: IT4IT is treated as the **default operating model** of the Transformation capability, not as an optional “methodology package”.
 
@@ -111,7 +125,7 @@ The minimum relational model implied by “element-centric substrate + governanc
   - `elements`
   - `element_versions` (head/published pointers + immutable version rows)
   - `element_relationships` (semantic + containment + reference)
-  - `element_assignments` (workspace node → element, ordering, optional pinned version)
+  - `element_assignments` (workspace node → element, ordering, optional fixed version reference)
 - Governance:
   - `baselines` / `baseline_items` (baseline = set of `{element_id, version_id}` pointers)
   - `approvals` / `promotions` (policy-driven, auditable)
@@ -129,7 +143,7 @@ The minimum relational model implied by “element-centric substrate + governanc
 Repository organization (navigation tree) is represented by:
 
 - `WorkspaceNode` (tree) and
-- `ElementAssignment` (node → element, ordering, optional pinned version).
+- `ElementAssignment` (node → element, ordering, optional fixed version reference).
 
 Do not introduce a second, competing folder system for repository organization (e.g., “folder elements”). If a notation needs internal structure (sections, groups, lanes-as-structure), represent it with `ElementRelationship` of kind `CONTAINMENT` inside the element graph.
 

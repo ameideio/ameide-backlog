@@ -177,7 +177,7 @@ Enterprise Repository canonical storage is **elements-only** (303 direction):
 - `ElementVersion` (immutable snapshots for views/docs; head/published pointers; no cascading versioning)
 - Workspace organization is separate:
   - `WorkspaceNode` (tree)
-  - `ElementAssignment` (node → element, optional pinned version)
+  - `ElementAssignment` (node → element, optional fixed version reference)
 
 ### 3.3 “Diagram” naming
 

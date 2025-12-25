@@ -31,13 +31,13 @@ The path is ADM-native (A→B→C→D→… with explicit deliverables), but all
 - **Output:** Requirement draft element(s) (docs/views) linked from the change element (drivers, goals, constraints, scenarios/examples, acceptance criteria, glossary).
 - **Next:** If still ambiguous → **Loop** 1.2; else **Trigger** 1.3
 
-### 1.3 Record requirement status (Domain fact; pinned element version)
+### 1.3 Record requirement status (Domain fact; anchored element version)
 - **Input:** Latest requirement draft element version(s).
-- **Output:** Requirement status recorded as a Domain fact on the change element (e.g., `DRAFT | NEEDS_INPUT | STABILIZED | CANCELED`) and a pin link is updated: `ref:requirement` → `{element_id, version_id}`.
+- **Output:** Requirement status recorded as a Domain fact on the change element (e.g., `DRAFT | NEEDS_INPUT | STABILIZED | CANCELED`) and the anchor reference relationship is updated: `ref:requirement` (`relationship_kind=REFERENCE`, `metadata.target_version_id=<requirement_version_id>`).
 - **Next:** If `STABILIZED` → **Trigger** 1.4; if `CANCELED` → **End**; else **Loop** 1.2
 
 ### 1.4 Start governance workflow (ADM run)
-- **Input:** Change element id/scope + pinned stabilized requirement ref(s) (`ref:requirement`).
+- **Input:** Change element id/scope + anchored stabilized requirement ref(s) (`ref:requirement`).
 - **Output:** R2R workflow instance started (using `r2r.governance.togaf_adm.v1`); “requirements captured” process fact emitted; ADM run context initialized.
 - **Next:** **Trigger** Phase 2
 
@@ -47,7 +47,7 @@ The path is ADM-native (A→B→C→D→… with explicit deliverables), but all
 
 ### 2.A Architecture Vision (ADM Phase A)
 - **Input:** Stabilized requirement snapshot; stakeholder concerns; baseline repository state.
-- **Output:** Deliverables package element created/updated and pinned via `ref:deliverables_root`; Phase A deliverables stored as Elements/Views/Docs under that package (vision, scope, principles, stakeholder map).
+- **Output:** Deliverables package element created/updated and anchored via `ref:deliverables_root` (`relationship_kind=REFERENCE`, `metadata.target_version_id=<deliverables_root_version_id>`); Phase A deliverables stored as Elements/Views/Docs under that package (vision, scope, principles, stakeholder map).
 - **Next:** **Trigger** 2.B
 
 ### 2.B Business Architecture (ADM Phase B)
@@ -66,7 +66,7 @@ The path is ADM-native (A→B→C→D→… with explicit deliverables), but all
 - **Next:** **Trigger** 2.1
 
 ### 2.1 Define contract + message boundary (derived from A–D)
-- **Input:** Pinned A–D deliverables + requirement snapshot; current capability protos.
+- **Input:** Anchored A–D deliverables + requirement snapshot; current capability protos.
 - **Output:** Proto diff spec and checklist (touched primitives, migrations/tests); derived contract package linked from the change element.
 - **Next:** **Trigger** 2.2
 

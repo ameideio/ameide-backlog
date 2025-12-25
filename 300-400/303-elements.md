@@ -43,6 +43,11 @@ Relationship taxonomy (recommended):
   - standards namespaces: `archimate:*`, `bpmn:*`, `c4:*`, etc.
   - extension namespace: `ameide:*`
 
+**Versioned references (lock-in):**
+
+- A `REFERENCE` relationship MAY include `target_version_id` in its `metadata` to point to a specific immutable `ElementVersion`.
+- For governance/workflow anchoring (e.g., “requirement snapshot”, “deliverables package root”), `target_version_id` MUST be present so reads are reproducible (no “latest version” ambiguity).
+
 ### 1.3 Attachments and evidence (non-canonical)
 
 External file formats and evidence bundles are **not canonical state**.
@@ -55,7 +60,7 @@ External file formats and evidence bundles are **not canonical state**.
 Repository organization (folders, navigation tree) is represented as a **workspace tree**, not as Elements:
 
 - `WorkspaceNode` (tree) stores “where things live” in the repository browser.
-- `ElementAssignment` links elements into the workspace tree (with ordering and optional pinned versions).
+- `ElementAssignment` links elements into the workspace tree (with ordering and optional fixed version references).
 
 Rule: do not introduce parallel “folder elements” for repository organization. If a notation needs internal structure (e.g., sections inside a document), represent it with `ElementRelationship` of kind `CONTAINMENT` within the element graph, not by duplicating the workspace tree.
 

@@ -192,7 +192,7 @@ Correlation invariant:
 
 The EDA envelope invariants above apply to bus messages (intents/facts). Projection query responses additionally MUST be reproducible:
 
-- All query responses MUST return a `read_context` describing what state was read (head/published/baseline/version pins).
+- All query responses MUST return a `read_context` describing what state was read (head/published/baseline/version selectors).
 - Audit- and approval-grade views MUST return `citations[]` that reference the underlying domain facts/process facts and/or element versions used to compute the answer.
 
 Normative cross-reference:
@@ -223,7 +223,7 @@ The canonical write model is relational:
 Methodology overlays do not require new canonical aggregates:
 
 - Scrum/TOGAF/PMI artifacts are represented as elements and links under a chosen ontology namespace (`type_key`) and validated/exported by profile-aware tooling.
-- The minimal “platform handshake” can be expressed as well-known relationship kinds from the change element (e.g., `ref:requirement`, `ref:deliverables_root`), rather than requiring a methodology-specific work-item model.
+- The minimal “platform handshake” can be expressed as well-known `REFERENCE` relationships from the change element (e.g., `ref:requirement`, `ref:deliverables_root`) with version selection carried explicitly (e.g., `metadata.target_version_id`), rather than requiring a methodology-specific work-item model.
 
 ### Notation (metamodel) profiles: standards-compliant vs extended (invariants)
 
