@@ -14,6 +14,18 @@ Make “Git commit → deployed artifact” deterministic in GitOps-managed envi
 - completely removing floating `:dev` / `:main` from GitOps-managed deployments (aliases are never referenced by GitOps)
 - making `imagePullPolicy` usage consistent and intentional (not accidental drift)
 
+## Success criteria (definition of success)
+
+This initiative is successful when:
+
+- GitOps-managed lanes (`local`, `dev`, `staging`, `production`) only reference digest-pinned image refs (`@sha256:...`) everywhere (charts, raw manifests, hooks, generated resources).
+- A “new build” for any workload produces a Git change (PR updating `image.ref`) that deterministically rolls out via Argo; no “restart pods to pick up :dev” runbooks remain.
+- `local` is not a special case: it follows the same digest-only policy as higher environments, it just advances automatically (auto-merged PRs).
+- `imagePullPolicy` is consistent (`IfNotPresent`) and is not used as a rollout mechanism.
+- Producers/tooling do not default to floating tags:
+  - build/publish workflows emit unique tags (e.g. `dev-<sha>` / `main-<sha>`) and surface digests for GitOps write-back
+  - scaffolding does not generate committed manifests with floating `:dev` / `:main`
+
 ## Current state (known reality)
 
 - Some workloads still use floating tags (especially during rapid iteration).
@@ -116,6 +128,10 @@ This is the starting map for “what must change” if we implement 602 and want
 
 - [ ] Update `ameide primitive publish` to support publishing non-`:dev` tags (e.g., `:<sha>` / `dev-<sha>` / `main-<sha>`) and to surface the resolved digest; remove the “only :dev is supported” restriction.
 - [ ] Update scaffolding (`primitive scaffold`, coding helpers) to avoid generating committed manifests that reference floating `:dev`; prefer placeholders or digest-aware value patterns aligned to 602.
+- [ ] Update local build/publish scripts to default to immutable tags (`dev-<sha>` / `main-<sha>`) instead of `:dev` / `:main` (allow explicit overrides for legacy workflows).
+- [ ] Update operator build defaults (Makefiles) so local builds never default to floating `:dev` / `:main` tags.
+- [ ] Ensure first-party Helm charts in this repo accept digest-pinned refs (`image.ref` and/or `image.digest`) and docs/examples no longer teach `tag: dev` / `tag: main`.
+- [ ] Remove/replace any Dockerfiles that reference floating base images (example: `devcontainer:dev` / `devcontainer:main`) so final artifacts don’t depend on floating tags in the build graph.
 
 ### Enforcement (CI)
 
