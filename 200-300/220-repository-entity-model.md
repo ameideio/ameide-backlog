@@ -1,5 +1,8 @@
 # Repository Entities
 
+> **Deprecated (historical context only).** This document predates the `303/527` target posture and uses legacy identifiers such as `graph_id`. Keep for history, but do not use as an implementation target.  
+> Canonical: `backlog/300-400/303-elements.md`, `backlog/527-transformation-capability.md`, and the mapping table in `backlog/527-transformation-crossreference-303-ontology.md`.
+
 > Progress tracking lives in `220-graph-entity-model-progress.md` (updated 2025-10-20).
 
 ## Domain Summary

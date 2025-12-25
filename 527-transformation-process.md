@@ -34,10 +34,16 @@ Process primitives implement **cross-domain orchestration**:
 
 Core workflow families:
 
-- **TOGAF/ADM governance** (phase progression, required deliverables, review/approval gates).
-- **Scrum governance** (Sprint start/end, readiness cues) aligned with `backlog/506-scrum-vertical-v2.md`.
-- **PMI governance** (stage gates, approvals, reporting cadence).
+- **R2R governance workflows** (Requirement → Release as a value-stream): ProcessDefinitions are value-stream-first, with methodology as a qualifier (recommended IDs: `r2r.governance.scrum.v1`, `r2r.governance.togaf_adm.v1`).
+- **Methodology governance workflows** (Scrum / TOGAF ADM / PMI): different ProcessDefinitions, different gates, different required deliverables and validations.
 - **Delivery loop orchestration** (scaffold → generate → verify → promote → deploy) for primitives and definitions.
+
+Methodology note (normative):
+
+- Methodology is not a separate “canonical data model”. Methodology-specific workflows operate over the same element graph and ship as dedicated **UISurface** experiences (Scrum UI vs ADM UI).
+- Methodology meaning MUST NOT be encoded into Kubernetes CRDs/operators. CRDs describe how to run code (images, env, scaling, permissions), not the business/method model; methodology is expressed as **element content + workflows + UI behavior + checks/validators** (and optionally as promotable definitions when configurability is required) and is enforced by gates.
+- Governance/promotion gates should consume a small, deterministic set of references on the change element, rather than relying on search/heuristics:
+  - simplest posture: treat “pins” as well-known link kinds like `ref:requirement` and `ref:deliverables_root` (optional `ref:baseline`, `ref:release`, `evidence:*`).
 
 ## 2) Contract boundaries (non-negotiable)
 

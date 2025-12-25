@@ -2,6 +2,9 @@
 
 # backlog/367-1-scrum-transformation – Scrum Governance Profile Enablement
 
+> **Deprecated (historical context only).** This document assumes Scrum has separate canonical aggregates/tables and that Scrum facts/intents are the primary persistence model. Under the `303/527` target posture and Option A, Scrum is an **ontology over elements** (type_key namespace + UISurface/workflows/projections) with no additional canonical tables.  
+> Keep for history; do not use as an implementation target. See `backlog/527-transformation-crossreference-303-ontology.md` and `backlog/300-400/303-elements.md`.
+
 **Parent backlog:** [backlog/367-elements-transformation-automation.md](./367-elements-transformation-automation.md)
 
 > **Contract alignment**

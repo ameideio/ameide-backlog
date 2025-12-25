@@ -22,7 +22,7 @@ This document specifies the **Transformation UISurface primitive** — the porta
   - workspace browser,
   - modeling editors (generic canvas + metamodel profiles for ArchiMate/BPMN/Docs),
   - definition registry manager and promotion flows,
-  - governance consoles (Scrum/TOGAF/PMI gates, approvals, evidence bundles),
+  - governance consoles (methodology overlay gates, approvals, evidence bundles),
   - activity feed and audit timeline views.
 - Remain thin:
   - read via projection query services,
@@ -57,6 +57,14 @@ Profile definitions and conformance/export status are data-driven:
 
 - Profile definitions are versioned/promotable and referenced from model/view metadata (see `backlog/527-transformation-domain.md` §4.4).
 - Conformance results, exports, and gate evidence are projection-backed views with `read_context` + citations (see `backlog/527-transformation-projection.md` §4.2.1).
+
+### 1.2 Methodology overlays (Scrum UI vs ADM UI)
+
+The UISurface must support **dedicated methodology-native experiences** (e.g., Scrum UI and TOGAF ADM UI) while writing the same canonical substrate:
+
+- Minimum viable posture: methodology selection is a simple `methodology_key` on the change element, and each methodology ships a dedicated UISurface that knows how to render and guide work on the same element graph.
+- When configurability is required (multi-org policies, pluggable validators), methodology navigation/templates/gates can be driven by **design-time definitions** stored/promoted in the Transformation Domain.
+- The UISurface must not hard-code methodology semantics in deployment wiring; Kubernetes/operator configuration is runtime-only.
 
 ## 2) Full UX scope (future state inventory)
 

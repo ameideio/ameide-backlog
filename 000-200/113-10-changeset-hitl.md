@@ -1,5 +1,9 @@
 # Artifact-Centric Graph Architecture - Human-in-the-Loop Change Review
 
+> **Deprecated (historical context only).** This ChangeSet/event-store proposal predates the `303/527` target posture and assumes `graph_id` + a write-capable Graph/Artifact store.  
+> Keep for historical context, but do not implement this design as-is. Prefer: elements/versions for proposals + baselines/promotions for normative truth, and treat Graph/vector as projections.  
+> See `backlog/527-transformation-crossreference-303-ontology.md`.
+
 ## Core Design Principles
 
 The ChangeSet system enables reviewable proposals while maintaining:

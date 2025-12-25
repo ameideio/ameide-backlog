@@ -203,10 +203,12 @@ Transformation-owned packages live under `ameide_core_proto.transformation.<subc
 - `ameide_core_proto.process.transformation.v1`  
   Transformation process facts catalog (`ActivityTransitioned`, `GateDecisionRecorded`, `ToolRunRecorded`, …).
 
-Topic families follow 509:
+Topic families follow `backlog/509-proto-naming-conventions.md` and `backlog/496-eda-protobuf-ameide.md`:
 
-- `transformation.domain.intents.v1`
-- `transformation.domain.facts.v1`
+- `transformation.knowledge.domain.facts.v1`
+- `transformation.registry.domain.facts.v1`
+- `transformation.governance.domain.facts.v1`
+- `transformation.work.domain.facts.v1`
 - `transformation.process.facts.v1`
 
 ### 4.2 Service naming and ownership
@@ -672,8 +674,10 @@ These are explicitly sequenced so we reintroduce governance *after* the enterpri
 
 ### P4 — Scrum / TOGAF / PMI overlays
 
-- [ ] Separate profile domains exist (Scrum/TOGAF/PMI) and govern the same repository (no forked canonical model).
-- Separate profile domains/processes that govern the same repository (no forked canonical model).
+- [ ] Methodology overlays exist (Scrum/TOGAF/PMI) as **definitions + validations + workflow paths + UISurface profiles** over the same element graph (no forked canonical model).
+- Track overlay delivery plans:
+  - `backlog/527-transformation-implementation-migration-scrum.md`
+  - `backlog/527-transformation-implementation-migration-togaf-adm.md`
 
 ---
 
@@ -683,4 +687,7 @@ These are explicitly sequenced so we reintroduce governance *after* the enterpri
 - `backlog/509-proto-naming-conventions.md` — package/topic naming
 - `backlog/300-400/303-elements.md` — elements-only substrate
 - `backlog/521f-external-verification-baseline.md` — verify expectations
-- `backlog/527-transformation-scenario.md` — end-to-end “Design → Deploy” narrative (CLI is a tool inside the process)
+- `backlog/527-transformation-scenario-scrum.md` — end-to-end “Requirement → Release” flow (Scrum track; CLI is a tool inside the process)
+- `backlog/527-transformation-scenario-togaf-adm.md` — end-to-end “Requirement → Release” flow (TOGAF ADM track; CLI is a tool inside the process)
+- `backlog/527-transformation-implementation-migration-scrum.md` — Scrum overlay progress tracker
+- `backlog/527-transformation-implementation-migration-togaf-adm.md` — TOGAF ADM overlay progress tracker
