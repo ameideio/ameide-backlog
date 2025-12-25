@@ -130,6 +130,15 @@ This is the starting map for “what must change” if we implement 602 and want
 
 Use this as a “touch every place images are defined” checklist for implementing `backlog/602-image-pull-policy.md` across `ameide-gitops`.
 
+## Sequencing (recommended execution order)
+
+1) Implement `image.ref` support in charts/templates (including operators + primitives) and render `imagePullPolicy: IfNotPresent` explicitly everywhere.  
+2) Remove `env/dev` (values, Argo config, cluster config) so only `local`/`staging`/`production` remain.  
+3) Convert `local`/`staging`/`production` overlays to digest-pinned `image.ref` values and remove all `tag:` fields.  
+4) Remove `pullPolicy: Always` / `imagePullPolicy: Always` everywhere and delete “force-pull” behavior.  
+5) Update build/CI to open PRs that update `image.ref` in `local`, and promotions to copy the same ref forward.  
+6) Turn on CI enforcement and keep it on (no floating tags, no non-digest refs).
+
 ### 1) Decide and standardize the values contract (stop “tag sprawl”)
 
 - [ ] Standardize on `image.ref` everywhere and remove `repository`/`tag`/`digest` splits from GitOps values.
@@ -204,6 +213,8 @@ Primitives must set `spec.image` to a digest-pinned ref and must not rely on tag
 ## Audit log (repo scan, 2025-12-25)
 
 This section is the baseline inventory of all remaining violations vs `backlog/602-image-pull-policy.md`. Every list here should go to zero as 603 is implemented.
+
+The output blocks are generated from the commands shown; rerun them to refresh the inventory.
 
 ### ameide-gitops: `tag: dev|main|latest` still present in values (must be removed)
 

@@ -42,7 +42,7 @@ Do not model images as `repository`/`tag`/`digest` in GitOps values. That split 
 
 ### Rule 3 — Pull policy is boring and consistent
 
-All pod templates MUST use:
+All pod templates MUST use (Deployments/StatefulSets/DaemonSets, Jobs/CronJobs, Helm hooks, initContainers):
 
 - `imagePullPolicy: IfNotPresent`
 
@@ -77,7 +77,16 @@ CI MUST write the digest into Git (`image.ref`) via PRs; Argo rollouts MUST be d
 ## Enforcement (required)
 
 - CI MUST fail if any GitOps-managed values or manifests reference an image ref without `@sha256:...`.
-- CI MUST fail if any floating tags (`:dev`, `:main`, `:latest`) appear anywhere under GitOps-managed environment directories.
+- CI MUST fail if any floating tags (`:dev`, `:main`, `:latest`) are referenced by GitOps.
+
+### Enforcement scope (paths)
+
+The enforcement checks apply at minimum to:
+
+- `sources/values/env/local/**`
+- `sources/values/env/staging/**`
+- `sources/values/env/production/**`
+- cluster-scoped operators and dependencies (at minimum `sources/values/_shared/cluster/ameide-operators.yaml`)
 
 ## Notes
 
