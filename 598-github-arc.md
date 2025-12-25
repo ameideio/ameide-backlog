@@ -32,6 +32,10 @@ Pinned to chart version **`0.13.1`**.
 - No production-grade runner hardening beyond local needs.
 - No CI migration work; this only installs the runner substrate.
 
+### Follow-on (separate backlog)
+
+ARC alone does not guarantee Docker is available on runner pods. Any workflow that builds container images should adopt a **k8s-native** build path (BuildKit-in-cluster, Buildx Kubernetes driver, etc.) rather than assuming a local Docker daemon.
+
 ---
 
 ## Related / Use With
@@ -223,6 +227,18 @@ While it runs:
 ```bash
 kubectl -n arc-runners get pods -w
 ```
+
+---
+
+## Recommended Next Step: k8s-native image builds
+
+Once ARC is installed, the main operational pain point is container builds: self-hosted runners may not provide Docker, and k3d-only hostnames/service endpoints are often only reachable from inside the cluster.
+
+Adopt a k8s-native build strategy:
+
+- Run a cluster BuildKit daemon (local-only) and have workflows use `buildctl` to build/export (or push) images.
+- Keep publish workflows **dry-run by default** on `workflow_dispatch` so ARC verification remains safe.
+- Prefer a repo/org variable for the BuildKit endpoint (example): `AMEIDE_BUILDKIT_ADDR=tcp://buildkitd.buildkit.svc.cluster.local:1234`.
 
 ---
 
