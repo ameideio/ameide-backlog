@@ -6,7 +6,7 @@
 This document specifies the **Transformation Domain primitives** — the canonical writers for:
 
 - the element-centric **Enterprise Knowledge** repository substrate (Enterprise Repository), and
-- governance/definition state that transforms and governs that repository (initiatives, baselines/promotions, Definition Registry, methodology profiles).
+- governance/definition state that transforms and governs that repository (initiatives, baselines/promotions, Definition Registry, methodology overlays).
 
 **IT4IT alignment (intent):** within the Transformation capability boundary, Domain primitives are the **systems of record** for IT value-stream state (design-time truth + approvals/promotions + definitions). Process primitives execute promoted ProcessDefinitions and emit process facts; process execution state does not live in the domain.
 
@@ -37,21 +37,52 @@ The `transformation-domain` primitive is the **single-writer** for core Transfor
 
 **Canonical writer rule:** external file formats are attachments/import/export bundles; they are not canonical state.
 
-### 1.2 Methodology profile domains (bounded contexts)
+---
 
-Profiles are methodology state bound to initiatives; they **govern** the repository and execution, but do not fork the repository’s core model:
+## 1.1a The simple storage posture (relational SoR; ontology-agnostic)
 
-- `transformation-scrum-domain` — Scrum artifacts and governance state (`ameide_core_proto.transformation.scrum.v1`).
-- `transformation-togaf-domain` — TOGAF/ADM profile configuration and governance state (`ameide_core_proto.transformation.togaf.v1`).
-- `transformation-pmi-domain` — PMI profile configuration and governance state (`ameide_core_proto.transformation.pmi.v1`).
+Normative “keep it simple” stance:
 
-Note: IT4IT is treated as the **default operating model** of the Transformation capability, not as an optional “profile package”. Methodology profiles above are governance overlays that constrain and evidence work execution over the same canonical repository.
+- The system-of-record is a **relational Postgres write model** for `elements`, `element_versions`, and `element_relationships` (plus governance tables like baselines/approvals).
+- A “graph database” is not required for correctness: the graph is represented by `element_relationships`.
+- Semantic search is not stored canonically: embeddings/indexes are **projection outputs** derived from `element_versions`.
 
-These domains:
+Ontology support rule:
 
-- Accept change via commands (RPC) and/or **domain intents**.
-- Emit **domain facts** via transactional outbox.
-- Provide minimal, strongly-consistent reads only (get-by-id / bounded lists); full read/search is projection-backed.
+- Any ontology/notation (ArchiMate, BPMN, Scrum artifacts, TOGAF deliverables) is represented by:
+  - `type_key` namespaces (e.g., `archimate:*`, `bpmn:*`, `ameide:*`), and
+  - optional validators/exporters (profile-driven),
+  not by introducing new canonical tables per methodology.
+
+### 1.2 Methodology overlays (bounded views + validations + workflows)
+
+Methodology is an **overlay** on the same canonical repository substrate:
+
+- **Canonical design-time truth is always Elements** (`Element`, `ElementVersion`, `ElementRelationship`) plus governance/definitions/promotions.
+- **Scrum/TOGAF/PMI differences live in:**
+  - methodology-specific **UISurface** experiences (navigation, templates, forms),
+  - methodology-specific **validators/checks** (what must exist + what must pass; optionally packaged as “validation packs” later),
+  - methodology-specific **ProcessDefinitions** (different orchestration paths and gates),
+  - and (optionally) methodology-specific **projections** (convenience read models).
+
+In other words: at the “graph level”, everything is still just **elements and relationships**; methodology determines which elements are required, how they are validated, and how workflows gate promotions/releases.
+
+Handshake anchor (recommended):
+
+- Represent the tracked unit of change as an **Element** (a “change element”) with:
+  - a minimal `methodology_key` in its versioned body (e.g., `scrum`, `togaf_adm`) or a link to a methodology element, and
+  - a small set of **named links** (relationship kinds) that act as the “pins”:
+    - `ref:requirement` → the authoritative requirement element version
+    - `ref:deliverables_root` → the deliverables package/root element version
+    - optional: `evidence:*`, `ref:baseline`, `ref:release`
+
+This keeps the platform handshake simple: “pins” are just well-known relationship kinds over the element substrate; UIs and workflows interpret them consistently.
+
+Note: IT4IT is treated as the **default operating model** of the Transformation capability, not as an optional “methodology package”.
+
+Optional overlays (future/optional):
+
+- It is acceptable to introduce methodology-specific proto packages (e.g., a `scrum.v1` catalog) as **non-canonical convenience overlays** for UI/reporting, but they MUST NOT fork canonical design-time truth away from the element substrate.
 
 ## 2) Core aggregates (core domain)
 

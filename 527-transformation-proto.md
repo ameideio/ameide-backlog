@@ -36,7 +36,7 @@ Delivered (today, in repo):
 Not yet delivered (target state in this spec):
 
 - [ ] Core Transformation envelope unification under `ameide_core_proto.transformation.core.v1` (subject/meta catalogs; currently partial).
-- [ ] TOGAF/PMI profile contracts and their process facts packages.
+- [ ] Optional methodology overlay contracts (TOGAF/PMI) if/when we decide they add value beyond element-centric artifacts + validations.
 
 ## 1) Packages (authoritative)
 
@@ -46,39 +46,36 @@ Not yet delivered (target state in this spec):
 - Definition Registry (exists; target for broadened coverage): `ameide_core_proto.transformation.registry.v1`
 - Scrum profile (exists): `ameide_core_proto.transformation.scrum.v1`
 - Legacy UI façade (removed): `ameide_core_proto.transformation.v1`
-- TOGAF profile (target): `ameide_core_proto.transformation.togaf.v1`
-- PMI profile (target): `ameide_core_proto.transformation.pmi.v1`
+- Optional methodology overlays (not required for the platform handshake): `ameide_core_proto.transformation.togaf.v1`, `ameide_core_proto.transformation.pmi.v1`
 - Process facts:
   - Scrum: `ameide_core_proto.process.scrum.v1` (exists)
   - Transformation (exists): `ameide_core_proto.process.transformation.v1`
-  - TOGAF: `ameide_core_proto.process.togaf.v1` (target)
-  - PMI: `ameide_core_proto.process.pmi.v1` (target)
+  - Optional overlays (not required for the platform handshake): `ameide_core_proto.process.togaf.v1`, `ameide_core_proto.process.pmi.v1`
 
 ## 2) Topic families (runtime seams)
 
-Target posture: split “Enterprise Knowledge” (element-centric repository substrate) from “Governance” and “Profiles” at the topic-family level.
-Current implementations may still emit/consume `transformation.architecture.*` while refactoring toward `transformation.knowledge.*`.
+Target posture: split “Enterprise Knowledge” (element-centric repository substrate) from “Governance” and optional methodology overlays at the topic-family level.
+Current implementations emit/consume `transformation.<subcontext>.domain.facts.v1` streams (e.g., `transformation.knowledge.*`, `transformation.registry.*`, `transformation.governance.*`). Avoid introducing a generic `transformation.domain.*` seam unless/until we actually unify envelopes under `ameide_core_proto.transformation.core.v1`.
 
 | Topic family | Message type | Purpose |
 |------------|--------------|---------|
-| `transformation.domain.intents.v1` | `TransformationDomainIntent` | Requests to mutate core Transformation state |
-| `transformation.domain.facts.v1` | `TransformationDomainFact` | Facts emitted after persistence |
 | `transformation.process.facts.v1` | `TransformationProcessFact` | IT4IT-aligned value-stream workflow facts (Temporal); evidence of orchestration (distinct from domain facts) |
 | `transformation.work.domain.facts.v1` | `TransformationWorkDomainFact` | Canonical WorkRequest lifecycle facts (`WorkRequested/Started/Completed/Failed`) for persistence/projection; execution backends MUST NOT scale on mixed/non-WorkRequested streams |
 | `transformation.work.queue.toolrun.verify.v1` | `WorkRequestQueueMessage` (TBD) | **Execution queue** (WorkRequested only) for verify-class tool runs; used for KEDA lag-based scaling |
 | `transformation.work.queue.toolrun.generate.v1` | `WorkRequestQueueMessage` (TBD) | **Execution queue** (WorkRequested only) for generate-class tool runs; used for KEDA lag-based scaling |
 | `transformation.work.queue.agentwork.coder.v1` | `WorkRequestQueueMessage` (TBD) | **Execution queue** (WorkRequested only) for coder-class agent work; used for KEDA lag-based scaling |
-| `transformation.knowledge.domain.intents.v1` | `TransformationKnowledgeDomainIntent` | Requests to mutate Enterprise Knowledge (elements/relationships/versions) |
 | `transformation.knowledge.domain.facts.v1` | `TransformationKnowledgeDomainFact` | Enterprise Knowledge facts emitted after persistence |
-| `scrum.domain.intents.v1` | `ScrumDomainIntent` | Requests to mutate Scrum profile state |
-| `scrum.domain.facts.v1` | `ScrumDomainFact` | Scrum facts emitted after persistence |
-| `scrum.process.facts.v1` | `ScrumProcessFact` | Scrum workflow facts (Temporal) |
-| `togaf.domain.intents.v1` | `TogafDomainIntent` | Requests to mutate TOGAF profile state |
-| `togaf.domain.facts.v1` | `TogafDomainFact` | TOGAF facts emitted after persistence |
-| `togaf.process.facts.v1` | `TogafProcessFact` | TOGAF governance workflow facts |
-| `pmi.domain.intents.v1` | `PmiDomainIntent` | Requests to mutate PMI profile state |
-| `pmi.domain.facts.v1` | `PmiDomainFact` | PMI facts emitted after persistence |
-| `pmi.process.facts.v1` | `PmiProcessFact` | PMI governance workflow facts |
+| `transformation.registry.domain.facts.v1` | `TransformationRegistryDomainFact` | Definition Registry facts emitted after persistence |
+| `transformation.governance.domain.facts.v1` | `TransformationGovernanceDomainFact` | Governance (initiatives/baselines/promotions/approvals) facts emitted after persistence |
+| `scrum.domain.intents.v1` | `ScrumDomainIntent` | Optional overlay: Scrum-native state mutations (not required when Scrum is represented as elements + links + workflows/projections) |
+| `scrum.domain.facts.v1` | `ScrumDomainFact` | Optional overlay: Scrum facts emitted after persistence |
+| `scrum.process.facts.v1` | `ScrumProcessFact` | Optional overlay: Scrum workflow facts (Temporal) |
+| `togaf.domain.intents.v1` | `TogafDomainIntent` | Optional overlay (not required): TOGAF-native profile state mutations |
+| `togaf.domain.facts.v1` | `TogafDomainFact` | Optional overlay (not required): TOGAF facts emitted after persistence |
+| `togaf.process.facts.v1` | `TogafProcessFact` | Optional overlay (not required): TOGAF governance workflow facts |
+| `pmi.domain.intents.v1` | `PmiDomainIntent` | Optional overlay (not required): PMI-native profile state mutations |
+| `pmi.domain.facts.v1` | `PmiDomainFact` | Optional overlay (not required): PMI facts emitted after persistence |
+| `pmi.process.facts.v1` | `PmiProcessFact` | Optional overlay (not required): PMI governance workflow facts |
 
 Agent handover note (event-driven first):
 
@@ -214,6 +211,20 @@ Core Transformation treats the Enterprise Repository (Enterprise Knowledge) as a
 - Baseline/Promotion
 - Definition Registry entries (ProcessDefinition / ScaffoldingPlanDefinition / CompiledWorkflowDefinition / AgentDefinition / ExtensionDefinition)
 
+### “Element-based, any ontology” and relational storage (normative clarification)
+
+The canonical write model is relational:
+
+- `Element` / `ElementVersion` / `ElementRelationship` are persisted in Postgres.
+- Graph traversal and semantic search are *read projections* derived from facts:
+  - graph projection for traversal/impact analysis,
+  - vector projection (e.g., pgvector) keyed by `{element_id, version_id}` for semantic retrieval.
+
+Methodology overlays do not require new canonical aggregates:
+
+- Scrum/TOGAF/PMI artifacts are represented as elements and links under a chosen ontology namespace (`type_key`) and validated/exported by profile-aware tooling.
+- The minimal “platform handshake” can be expressed as well-known relationship kinds from the change element (e.g., `ref:requirement`, `ref:deliverables_root`), rather than requiring a methodology-specific work-item model.
+
 ### Notation (metamodel) profiles: standards-compliant vs extended (invariants)
 
 Transformation treats ArchiMate/BPMN/etc. as **profiles over the element model** (303). Storage remains element-centric; profiles define validity, validation, and exports.
@@ -230,6 +241,7 @@ Transformation treats ArchiMate/BPMN/etc. as **profiles over the element model**
 
 - ProcessDefinitions are **design-time definitions** stored and promoted by the Definition Registry (Domain).
 - The canonical authoring payload is **BPMN 2.0** (portable; standards-compliant profiles avoid non-standard namespaces for correctness).
+- Prefer value-stream-first ProcessDefinition IDs with methodology as a qualifier (examples: `r2r.governance.scrum.v1`, `r2r.governance.togaf_adm.v1`).
 - Promoted ProcessDefinition versions are compiled into:
   - `CompiledWorkflowDefinition` (Workflow IR for Temporal-backed execution), and
   - `ScaffoldingPlanDefinition` (deterministic generation/verification plan).
@@ -243,7 +255,9 @@ Transformation treats ArchiMate/BPMN/etc. as **profiles over the element model**
 
 ## 5) Core intent catalog (to define)
 
-Core intents are imperative requests to change Enterprise Repository state. Transported on `transformation.domain.intents.v1` as `TransformationDomainIntent` with `meta + subject + oneof intent`.
+Enterprise Knowledge write ingress is the `TransformationKnowledgeCommandService` RPC surface (`ameide_core_proto.transformation.knowledge.v1`).
+
+If/when a bus-carried intent topic is added for Enterprise Knowledge, it MUST follow `backlog/509-proto-naming-conventions.md` / `backlog/496-eda-protobuf-ameide.md` (one topic family ↔ one aggregator message) and be treated as an optional ingress alongside RPC (not a second writer).
 
 ### Initiative / repository lifecycle
 
@@ -302,7 +316,7 @@ Core intents are imperative requests to change Enterprise Repository state. Tran
 
 ## 6) Core fact catalog (to define)
 
-Core facts are immutable past-tense events transported on `transformation.domain.facts.v1` as `TransformationDomainFact` with `meta + subject + oneof fact`.
+Enterprise Knowledge facts are immutable past-tense events transported on `transformation.knowledge.domain.facts.v1` as `TransformationKnowledgeDomainFact` with `meta + subject + oneof fact`.
 
 ### Initiative / repository facts
 
@@ -368,7 +382,7 @@ Core facts are immutable past-tense events transported on `transformation.domain
 
 Confirm/decide:
 
-- Whether `transformation.domain.*` is the single canonical topic family, or whether `transformation.knowledge.*` is split as a first-class bounded context (recommended for the Enterprise Knowledge substrate).
+- Lock-in: use split subcontext streams (`transformation.<subcontext>.domain.facts.v1` for knowledge/registry/governance/work) and `transformation.process.facts.v1`; do not introduce a generic `transformation.domain.*` seam.
 - The canonical envelope pattern (e.g., `meta + subject + oneof`) and which fields are required across all Transformation message families (including producer identity and monotonic versioning rules).
 - The v1 plan for TOGAF/PMI: whether to stub packages now (empty catalogs) or defer until governance workflows are defined.
 - The v1 BPMN execution posture: compile-to-Temporal (recommended) vs direct runtime interpretation, and whether collaboration diagrams are required for “deployable/scaffoldable” ProcessDefinitions.

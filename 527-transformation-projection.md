@@ -7,6 +7,7 @@ This document specifies the **Transformation Projection primitive** — read mod
 
 **Extensions:**
 - Semantic search (pgvector + contextual retrieval): `backlog/535-mcp-read-optimizations.md`
+- Legacy mapping (historical docs → target): `backlog/527-transformation-crossreference-303-ontology.md`
 
 ---
 
@@ -33,6 +34,19 @@ Projection primitives:
 - Are idempotent consumers of domain facts and process facts.
 - Provide the primary read path for UISurfaces and Agents.
 - Do not write domain state.
+
+## 1.1 Simple posture (relational SoR; projections for graph + vector)
+
+Normative “keep it simple” stance:
+
+- Domain truth is stored once (relational Postgres). Projection makes it fast to read in different shapes.
+- Graph traversal is a projection problem:
+  - MVP: adjacency queries over `ElementRelationship` (plus limited-depth expansion).
+  - Scale: precomputed adjacency/materialized views, still derived from domain facts.
+- Semantic search is a projection problem:
+  - index element-version text/JSON/doc extracts into pgvector (or equivalent) keyed by `{element_id, version_id}`.
+
+This keeps the canonical model ontology-agnostic: any ontology is represented by `type_key` namespaces + link kinds + versioned bodies, not by dedicated canonical tables.
 
 ## 2) Read model inventory (full scope)
 

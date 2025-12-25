@@ -1,5 +1,8 @@
 # Scrum governance contract target state
 
+> **Deprecation note (persistence model only).** This document contains guidance that assumes Scrum has its own canonical tables/aggregates. Under the `303/527` target posture and Option A, Scrum is an **ontology over elements** (type_key namespace + UISurface/workflows/projections) with no additional canonical tables.  
+> Keep for event semantics and ceremony/process guidance; for storage/model decisions use `backlog/300-400/303-elements.md`, `backlog/527-transformation-capability.md`, and `backlog/527-transformation-crossreference-303-ontology.md`.
+
 This is a clean, **Scrum-Guide-aligned** contract for structuring Scrum as:
 
 * **Scrum Domain (Transformation)** = *system of record* for Scrum artifacts + commitments (data and rules), **reactive only** (no timers/orchestration).

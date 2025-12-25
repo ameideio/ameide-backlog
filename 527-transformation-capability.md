@@ -14,6 +14,7 @@ This backlog is the capability definition counterpart to the method in `backlog/
 - EDA contract rules: `backlog/496-eda-principles.md`, `backlog/496-eda-protobuf-ameide.md`
 - Proto conventions: `backlog/509-proto-naming-conventions.md`
 - Primitives stack guardrails: `backlog/520-primitives-stack-v2.md`
+- Legacy mapping (historical docs → target): `backlog/527-transformation-crossreference-303-ontology.md`
 
 ## Layer header (Strategy + Business, with Application realization)
 
@@ -26,9 +27,12 @@ This backlog is the capability definition counterpart to the method in `backlog/
 
 Transformation is Ameide’s change-the-business capability. In the future state it provides:
 
-- An element-centric **Enterprise Knowledge graph** (the Enterprise Repository) as the system of record for design-time content (architecture, process, documents, definitions) that is versioned, promotable, and queryable.
-- Multi-methodology **profiles** (Scrum, TOGAF/ADM, PMI) as bounded contexts that govern how the repository is used.
-- A **Definition Registry** for platform definitions (ProcessDefinition, AgentDefinition, ExtensionDefinition, etc.) stored as domain data and consumed by operators and runtimes.
+- A tiny, ontology-agnostic **Enterprise Knowledge substrate** as the system of record: **Elements + Links + Versions** in relational Postgres.
+- **Graph + vector search are read projections**, not separate canonical stores:
+  - graph traversal/impact analysis is a projection over element links,
+  - semantic search is a projection over element-version content embeddings (e.g., pgvector).
+- Multi-methodology **experiences** (Scrum, TOGAF/ADM, PMI) delivered as **dedicated UISurfaces + workflows** over the same substrate (no methodology-specific canonical data model).
+- Optional, when needed for configurability: a **Definition Registry** for promotable workflow/UI/validation definitions stored as domain data (still subject to the same EDA + promotion rules).
 - 496-native EDA contracts so Process primitives and Agents can execute work deterministically without runtime RPC coupling.
 
 **Repository identity (fixed):**
@@ -49,7 +53,7 @@ This capability is Strategy/Business-led and realized via Application/Technology
 Today “Transformation” exists as:
 
 - a legacy `TransformationService` CRUD surface (proto exists; legacy `services/transformation` implementation has been deleted),
-- an emerging Scrum contract (`ameide_core_proto.transformation.scrum.v1` intents/facts/query + DB tables + outbox migration),
+- an emerging Scrum contract (`ameide_core_proto.transformation.scrum.v1` protos exist), but under the `303/527` target posture Scrum is modeled as an **ontology over elements** (type_key namespace + UISurface/workflows/projections), not as separate canonical tables,
 - a target architecture intent across backlogs (Transformation stores definitions; Process operator fetches definitions; runtime is bus-only),
 
 …but we lack a single authoritative backlog that says:
@@ -65,6 +69,7 @@ This section is the current repo snapshot of **what is implemented vs what is st
 - [x] Canonical storage is **elements-only** (no canonical “artifact” noun; “artifact” is UX vocabulary only).
 - [x] Scope identity is required everywhere: `{tenant_id, organization_id, repository_id}`.
 - [x] `repository_id` is the only repository identifier in contracts/APIs (no separate `graph_id`).
+- [x] Canonical store is **relational Postgres**; graph traversal and vector search are **projection concerns**.
 - [x] Legacy backends are removed; all flows must go through primitives (see “Deletion”).
 - [x] Work execution scales only on dedicated work-queue topics (`transformation.work.queue.toolrun.verify.v1`, `transformation.work.queue.toolrun.generate.v1`, `transformation.work.queue.agentwork.coder.v1`), not on canonical domain fact streams.
 
@@ -287,7 +292,7 @@ Transformation capability owns (at minimum):
   - standards-compliant profiles (e.g., ArchiMate 3.2, BPMN 2.0) that constrain `type_key` to the standard namespaces and enable standard exports
   - extended profiles (Ameide/vendor extensions) that allow additional `type_key` namespaces (e.g., `ameide:*`) and define their own export targets
   - delivered as profile definitions (at minimum: ArchiMate, BPMN, documents/markdown)
-- Methodology profiles (Scrum, TOGAF/ADM, PMI) as bounded contexts
+- Methodology overlays (Scrum, TOGAF/ADM, PMI) as UI + validation + workflow definitions over the same element graph
 - Platform definitions (ProcessDefinition, AgentDefinition, ExtensionDefinition, etc.)
 
 Rule of thumb:
@@ -298,7 +303,8 @@ Rule of thumb:
 **Profile taxonomy (avoid ambiguity):**
 
 - **Notation (metamodel) profiles** govern *what kinds of elements/relationships are valid* and how diagrams/models are validated/exported (ArchiMate/BPMN/etc.).
-- **Methodology profiles** govern *how work is executed* over the repository (Scrum/TOGAF/PMI), without forking the canonical repository model.
+- **Methodology overlays** govern *how work is executed* (ProcessDefinitions + gates) and *what “compliance” means* (checks/validators + UI views), without forking the canonical repository model.
+- **Kubernetes CRDs/operators** govern runtime wiring only; they MUST NOT encode methodology/business semantics. Methodology meaning is stored as domain data (Definitions + Elements) and enforced via validations + gates.
 
 ## 4) Application realization (primitives)
 
@@ -309,6 +315,9 @@ Rule of thumb:
 - Agent primitives: `backlog/527-transformation-agent.md`
 - Integration primitives: `backlog/527-transformation-integration.md`
 - Proto contracts: `backlog/527-transformation-proto.md`
+- Methodology dictionary: `backlog/527-transformation-methodology-dictionary.md`
+- Scenarios (flow-only): `backlog/527-transformation-scenario-scrum.md`, `backlog/527-transformation-scenario-togaf-adm.md`
+- Overlay implementation trackers: `backlog/527-transformation-implementation-migration-scrum.md`, `backlog/527-transformation-implementation-migration-togaf-adm.md`
 - Implementation & migration: `backlog/527-transformation-implementation-migration.md`
 
 ## 4.1) Application Interfaces for Agents (MCP)
@@ -353,8 +362,9 @@ Edge constraints (Transformation):
 - Evidence is emitted as domain facts (after persistence) and surfaced via projection-backed audit trail.
 
 **Proto contract references:**
-- Topic families: `transformation.domain.intents.v1`, `transformation.domain.facts.v1`
-- Proto package: `ameide_core_proto.transformation.core.v1`
+- Domain facts (Enterprise Knowledge substrate): `transformation.knowledge.domain.facts.v1`
+- Process facts: `transformation.process.facts.v1`
+- RPC services/packages: `ameide_core_proto.transformation.knowledge.v1`, `ameide_core_proto.process.transformation.v1`
 - Full contract catalog: [527-transformation-proto.md](527-transformation-proto.md)
 
 **MCP Security Spine (invariants):**

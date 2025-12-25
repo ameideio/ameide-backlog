@@ -70,7 +70,7 @@ Transformation agents access the capability via the capability tool surface (que
 Examples (illustrative; authoritative exposure comes from proto annotations):
 
 - Queries (Projection): `transformation.listElements`, `transformation.getView`, `transformation.searchCapabilities`, `transformation.semanticSearch`
-- Commands (Domain): `transformation.submitRepositoryIntent`, `transformation.submitScrumIntent`, `transformation.createBaseline`
+- Commands (Domain): `transformation.submitRepositoryIntent`, `transformation.createBaseline`
 
 Tool grants are expressed as tool identifiers (e.g., `<capability>.<operation>`) and enforced by AgentDefinitions/risk tiers; agents may invoke via SDK clients (preferred for in-platform agents) or via MCP adapters (external/devtool compatibility).
 
