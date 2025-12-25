@@ -46,7 +46,7 @@ This capability is Strategy/Business-led and realized via Application/Technology
 
 - **Strategy/Business (what/why + governance):** delivery roles (Product Owner, Solution Architect), approval gates, promotion policy, and evidence requirements; profiles (Scrum/TOGAF/PMI) map their accountabilities onto the same role taxonomy.
 - **Application (how it is executed):** primitives as components/services/events — Domain as system-of-record + facts, Process as orchestration + gate decisions + process facts, Agent as role-based assistants (LangGraph DAGs), Integration as runners/connectors returning evidence, UISurface as thin UI over projections.
-- **Technology (where it runs):** execution substrates (devcontainer, CI/in-cluster runners), pinned toolchains, secrets/network isolation, and observability; these are swappable but must always produce auditable evidence.
+- **Technology (where it runs):** execution substrates (devcontainer, CI/in-cluster runners), fixed toolchain versions, secrets/network isolation, and observability; these are swappable but must always produce auditable evidence.
 
 ## 0) Problem
 
@@ -413,7 +413,7 @@ MCP is a **compatibility interface**, not the canonical tool runtime. Tool defin
 
 - Guardrails must be expressed as evidence-producing gates (verify/test/lint/codegen drift) so promotions can be policy-driven and auditable (see `backlog/527-transformation-integration.md` runner evidence contract).
 - Execution environments should be explicit and swappable:
-  - interactive devcontainer (human/agent in loop; pinned tooling, e.g. Codex CLI pin in `backlog/433-codex-cli-057.md`; developer workflow in `backlog/435-remote-first-development.md`; parallel agent slots in `backlog/581-parallel-ai-devcontainers.md`),
+  - interactive devcontainer (human/agent in loop; fixed tooling versions, e.g. Codex CLI version lock in `backlog/433-codex-cli-057.md`; developer workflow in `backlog/435-remote-first-development.md`; parallel agent slots in `backlog/581-parallel-ai-devcontainers.md`),
   - KEDA-scheduled in-cluster Jobs (executor image; deterministic tool runs, structured evidence),
   - local dev (human) as a convenience, never a promotion authority without evidence capture.
 

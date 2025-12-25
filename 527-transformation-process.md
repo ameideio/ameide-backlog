@@ -43,7 +43,7 @@ Methodology note (normative):
 - Methodology is not a separate “canonical data model”. Methodology-specific workflows operate over the same element graph and ship as dedicated **UISurface** experiences (Scrum UI vs ADM UI).
 - Methodology meaning MUST NOT be encoded into Kubernetes CRDs/operators. CRDs describe how to run code (images, env, scaling, permissions), not the business/method model; methodology is expressed as **element content + workflows + UI behavior + checks/validators** (and optionally as promotable definitions when configurability is required) and is enforced by gates.
 - Governance/promotion gates should consume a small, deterministic set of references on the change element, rather than relying on search/heuristics:
-  - simplest posture: treat “pins” as well-known link kinds like `ref:requirement` and `ref:deliverables_root` (optional `ref:baseline`, `ref:release`, `evidence:*`).
+  - simplest posture: treat anchors as well-known `REFERENCE` relationships like `ref:requirement` and `ref:deliverables_root` (optional `ref:baseline`, `ref:release`, `evidence:*`) and require `metadata.target_version_id` for reproducible reads.
 
 ## 2) Contract boundaries (non-negotiable)
 
