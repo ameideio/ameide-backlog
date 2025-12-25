@@ -138,6 +138,98 @@ This is the starting map for “what must change” if we implement 602 and want
 
 - [ ] Update docs that currently teach `tag: dev` / `tag: main` (example: `operators/helm/README.md`) to show digest/SHA-tag patterns consistent with 602.
 - [ ] Update runbooks that recommend “restart pods to pull the new `:dev`” so the new normal is “merge digest update PR → Argo rollout”.
+## GitOps configuration checklist (end-to-end)
+
+Use this as a “touch every place images are defined” checklist for implementing `backlog/602-image-pull-policy.md` across `ameide-gitops`.
+
+### 1) Decide and standardize the values contract (stop “tag sprawl”)
+
+- [ ] Remove floating defaults for primitives from `sources/values/base/globals.yaml` (`global.ameide.primitives.imageTag: dev`) and replace with an explicit digest-first contract (example: `global.ameide.primitives.imageDigest` or `global.ameide.primitives.imageRef`).
+- [ ] Remove `global.ameide.primitives.imageTag: main` from `sources/values/env/staging/globals.yaml` and `sources/values/env/production/globals.yaml` and replace with per-primitive digest pinning (see primitives section below).
+- [ ] Audit all “pull policy defaults” and make them intentional:
+  - [ ] Change `imagePullPolicy: Always` to `IfNotPresent` in `sources/values/cluster/azure/globals.yaml` once all images are digest-pinned.
+  - [ ] Change `global.ameide.primitives.imagePullPolicy: Always` to `IfNotPresent` in `sources/values/env/local/globals.yaml` and `sources/values/env/dev/globals.yaml` once primitives deploy by digest.
+- [ ] Remove unconditional `pullPolicy: Always` defaults in shared app values (they were compensating for mutable tags):
+  - [ ] `sources/values/_shared/apps/*.yaml` (examples: `sources/values/_shared/apps/graph.yaml`, `sources/values/_shared/apps/workflows.yaml`, `sources/values/_shared/apps/www-ameide-platform.yaml`)
+  - [ ] `sources/charts/shared-values/platform/*.yaml`
+
+### 2) Make every chart/template accept digests (operators are the outlier)
+
+- [ ] Confirm (or add) digest support in all first-party app charts under `sources/charts/apps/*` (most already support `image.digest` → `repo@sha256:...`).
+- [ ] Add digest support to the operators chart (currently tag-only):
+  - [ ] Update templates under `sources/charts/platform/ameide-operators/templates/*-deployment.yaml` to render `image: repo@digest` when `operators.<name>.image.digest` is set.
+  - [ ] Update the values schema/README for the operators chart under `sources/charts/platform/ameide-operators/` so each operator image has `repository`, `tag`, and `digest` (digest preferred).
+- [ ] Verify the db-migrations chart stays digest-first (it already supports `migrations.image.digest`): `sources/charts/platform/db-migrations/templates/job.yaml`.
+
+### 3) Convert environment overlays to digest pinning (staging/prod first)
+
+- [ ] Remove the “dev vs local” split at the GitOps policy layer (keep only one “fast-moving” environment concept):
+  - [ ] Decide whether `env/dev` remains a real cluster namespace (AKS) or is replaced/renamed to `env/local` (or `env/sandbox`).
+  - [ ] If removing/renaming `dev`, update `config/clusters/azure.yaml`, `sources/values/env/dev/**`, `argocd/README.md`, and bootstrap defaults in `bootstrap/bootstrap.sh`.
+- [ ] Replace `tag: main` + `pullPolicy: Always` with `digest: sha256:...` + `pullPolicy: IfNotPresent` in:
+  - [ ] `sources/values/env/staging/apps/*.yaml`
+  - [ ] `sources/values/env/production/apps/*.yaml`
+- [ ] Eliminate `:latest` usage by pinning digests in local overlays:
+  - [ ] `sources/values/env/local/data/data-minio.yaml`
+  - [ ] `sources/values/env/local/platform/platform-backstage.yaml`
+- [ ] Fix test/integration jobs that still use mutable tags:
+  - [ ] `sources/values/env/staging/tests/integration/transformation.yaml` (currently `tag: dev`)
+  - [ ] `sources/values/env/production/tests/integration/transformation.yaml` (currently `tag: dev`)
+- [ ] Stop using `tag: dev-placeholder` in local/dev UI tilt values and switch to either digest pinning or a deterministic content-based tag that is written back to Git:
+  - [ ] `sources/values/env/local/apps/www-ameide-tilt.yaml`
+  - [ ] `sources/values/env/dev/apps/www-ameide-tilt.yaml`
+
+### 4) Convert primitives (CR manifests) to digest pinning
+
+Primitives currently construct `spec.image` from `repository:tag` and inherit global tags (`dev`/`main`). Target state is `spec.image: repo@sha256:...` (or `repo:sha@sha256:...`).
+
+- [ ] Update all primitive value templates under `sources/values/_shared/apps/*-v0*.yaml` to support digest pinning (example file: `sources/values/_shared/apps/domain-transformation-v0.yaml`).
+  - [ ] If a digest is set, render `spec.image` as `repo@digest`.
+  - [ ] If a tag+digest pair is set, render `spec.image` as `repo:tag@digest` (optional readability).
+  - [ ] If only a tag is set, treat as explicitly transitional (tracked and time-boxed per 602/603).
+- [ ] Remove `_shared` defaults that force `tag: dev` for primitive runtime images (example: `sources/values/_shared/apps/domain-transformation-v0.yaml`) and require env overlays to provide digests for GitOps-managed envs.
+- [ ] Update primitive smoke tests to pin `grpcurl-runner` by digest (no `:dev`):
+  - [ ] `sources/values/_shared/apps/*-smoke.yaml` (examples: `sources/values/_shared/apps/domain-transformation-v0-smoke.yaml`, `sources/values/_shared/apps/process-ping-v0-smoke.yaml`)
+
+### 5) Convert cluster-scoped operators to digest pinning (no floating tags)
+
+- [ ] Replace `tag: dev` with digest pinning for all operators in `sources/values/_shared/cluster/ameide-operators.yaml`.
+- [ ] Remove “force pulls because :dev moves” behavior from local overrides once pinned:
+  - [ ] `sources/values/cluster/local/ameide-operators.yaml` (currently sets `global.imagePullPolicy: Always` and `operators.*.image.tag: dev`)
+
+### 6) Update CI/render validation and chart tests to match digest-first policy
+
+- [ ] Update the hardened render script to stop assuming `:dev` and to validate digest pinning rules:
+  - [ ] `scripts/validate-hardened-charts.sh` (currently renders `dev staging production` and expects `...:dev` patterns)
+- [ ] Update Helm unit tests in charts that hard-code `:dev` expectations:
+  - [ ] `sources/charts/apps/*/tests/image_test.yaml` (examples seen under `sources/charts/apps/agents/tests/image_test.yaml`)
+- [ ] Add a repo-level CI gate that fails if floating tags appear in GitOps-managed env overlays (allowlist must be explicit + time-boxed):
+  - [ ] Enforce on `sources/values/env/staging/**` and `sources/values/env/production/**`
+  - [ ] Enforce on cluster-scoped operator values (`sources/values/_shared/cluster/ameide-operators.yaml`)
+
+### 7) Bootstrap/tooling alignment (remove “dev-tag” assumptions)
+
+- [ ] Fix bootstrap build hooks that reference non-existent scripts and “dev-only” flows:
+  - [ ] `bootstrap/bootstrap.sh` (references `${REPO_ROOT}/scripts/build-all-images-dev.sh`, which does not exist in this repo)
+  - [ ] Decide whether bootstrap should build/push images at all, or only deploy digest-pinned refs produced elsewhere (recommended for determinism).
+- [ ] Update migration helper scripts to stop defaulting to `:dev` and to read the digest-pinned GitOps value instead:
+  - [ ] `scripts/run-migrations.sh` (defaults to `gitops/.../env/dev/...` and `ghcr.io/ameideio/migrations:dev`)
+  - [ ] `scripts/run-flyway-cli.sh`
+
+### 8) Enforcement and drift management (Argo + admission)
+
+- [ ] Align (or retire) the existing Kyverno policies so they match Ameide namespaces and the 602/603 approach:
+  - [ ] `policies/deny-latest-tag.yaml` (currently only matches namespace `ameide`)
+  - [ ] `policies/require-digest-mutation.yaml` (currently placeholder image refs and namespace; mutation can also create Argo drift)
+- [ ] If admission policies mutate images (digest rewrite), decide and document how Argo should treat that drift:
+  - [ ] Prefer “Git is already digest-pinned” (no mutation needed) over mutation-based enforcement.
+  - [ ] If mutation is kept, add narrowly-scoped `ignoreDifferences` rules in Argo config (see `sources/values/common/argocd.yaml`) to avoid constant OutOfSync.
+
+### 9) Quick inventory commands (to confirm nothing is missed)
+
+- [ ] Run `rg -n \"tag:\\s*(dev|main|latest)\\b\" sources/values/env -S` and eliminate or time-box every match.
+- [ ] Run `rg -n \"pullPolicy:\\s*Always\" sources/values sources/charts/shared-values -S` and ensure every remaining `Always` is justified (prefer `IfNotPresent` with digests).
+- [ ] Run `rg -n \"grpcurl-runner:dev\" sources -S` and pin by digest.
 
 ## Verification checklist
 
