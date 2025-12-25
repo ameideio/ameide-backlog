@@ -59,8 +59,9 @@ Make “Git commit → deployed artifact” deterministic in GitOps-managed envi
 There is one fast-moving GitOps environment: `local`. It moves via Git PRs that update digests.
 
 **DoD**
-- Every successful build opens a PR updating `image.ref` in `sources/values/env/local/**`.
-- Merge → Argo sync → deterministic rollout without manual restarts.
+- Every successful build opens (or updates) a PR updating `image.ref` in `sources/values/env/local/**`.
+- The PR is auto-merged once required checks pass (no human step for `local`).
+- Merge → Argo auto-sync → deterministic rollout without manual restarts.
 - Promotion to staging/production is a PR copying the exact same `image.ref` forward.
 
 ### WP-5: Policy enforcement (CI)

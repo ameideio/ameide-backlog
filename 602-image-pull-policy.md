@@ -52,8 +52,8 @@ All pod templates MUST use (Deployments/StatefulSets/DaemonSets, Jobs/CronJobs, 
 
 There is exactly one “fast-moving” GitOps lane: `local`.
 
-- CI MUST open PRs that update `image.ref` digests in `local`.
-- Merge → Argo sync → rollout (deterministic).
+- CI MUST open PRs that update `image.ref` digests in `local` and MUST auto-merge them once required checks pass (no human step for `local`).
+- Merge → Argo auto-sync → rollout (deterministic).
 
 `staging` and `production` MUST only move via promotion PRs that copy the exact same digest forward.
 
