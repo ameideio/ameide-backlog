@@ -1,8 +1,8 @@
-# 602: Image Pull Policy + Image Reference Policy (GitOps)
+# 602: Image References + Pull Policy (GitOps)
 
-**Status:** Draft (target-state policy)  
+**Status:** Target state (normative)  
 **Owner:** Platform SRE / GitOps  
-**Scope:** GitOps-managed environments (including `local`)  
+**Scope:** GitOps-managed environments (`local`, `staging`, `production`)  
 **Related:** `backlog/603-image-pull-policy.md`, `backlog/503-operators-helm-chart.md`, `backlog/495-ameide-operators.md`, `backlog/456-ghcr-mirror.md`, `backlog/519-gitops-fleet-policy-hardening.md`
 
 ## Problem
@@ -16,77 +16,68 @@ We need a policy where a Git commit maps to **one exact image artifact**, with a
 
 ## Terms
 
-- **Immutable identity:** `@sha256:<digest>` (preferred deployment reference).
-- **Unique build tag:** `:<sha>` (human-friendly, still immutable if never republished).
-- **Floating tag:** `:dev`, `:main`, `:latest` (allowed to exist, not deployed directly in GitOps-managed environments).
-- **`imagePullPolicy`:** controls pull behavior on pod start; it does **not** create rollouts by itself.
+- **Immutable identity:** `@sha256:<digest>` (the deployment identity).
+- **Readable ref (still immutable):** `:<sha>@sha256:<digest>` (allowed, still pinned by digest).
+- **Floating tag:** `:dev`, `:main`, `:latest` (MUST NOT be referenced by GitOps).
+- **`imagePullPolicy`:** a pull behavior knob; it does **not** create rollouts by itself.
 
 ## Policy (target state)
 
-### Rule 1 — GitOps-managed environments deploy immutable image references
+### Rule 1 — GitOps deploys digest-pinned image refs only
 
-Manifests must reference images using one of:
+All images referenced by GitOps MUST be pinned by digest:
 
-1) `repo@sha256:<digest>` (preferred)  
-2) `repo:<tag>@sha256:<digest>` (allowed for readability)
+- `repo@sha256:<digest>` (preferred)
+- `repo:<sha>@sha256:<digest>` (allowed for readability)
 
-Floating tags (`:dev`, `:main`, `:latest`) are not deployed directly.
+Refs without a digest are non-compliant.
 
-### Rule 2 — Every build publishes a unique tag and a digest
+### Rule 2 — Single image configuration contract: `image.ref`
 
-Required output per build:
+In this GitOps repo, the only supported “knob” for images is a single string value:
 
-- `repo:<gitsha>` (or `repo:sha-<gitsha>`)
-- `repo@sha256:<digest>` (recorded by CI)
+- `image.ref: <repo>[@sha256:<digest> | :<sha>@sha256:<digest>]`
 
-Optional:
+Do not model images as `repository`/`tag`/`digest` in GitOps values. That split invites drift and makes it easy to accidentally deploy a floating tag.
 
-- release tags (`vX.Y.Z`, `vX.Y.Z-rc.N`) that point at the **same digest** as the SHA tag
+### Rule 3 — Pull policy is boring and consistent
 
-### Rule 3 — Promotion is “copy the same digest forward”
+All pod templates MUST use:
 
-Promotion across stages is a Git change that moves the same digest reference forward.
+- `imagePullPolicy: IfNotPresent`
 
-- Rollback is Git revert.
-- Staging/prod prove the exact artifact that passed earlier stages.
+`Always` MUST NOT be used as a rollout mechanism.
 
-### Rule 4 — Operators + primitives follow the same immutability rules
+### Rule 4 — One fast-moving lane: `local`, updated by PRs
+
+There is exactly one “fast-moving” GitOps lane: `local`.
+
+- CI MUST open PRs that update `image.ref` digests in `local`.
+- Merge → Argo sync → rollout (deterministic).
+
+`staging` and `production` MUST only move via promotion PRs that copy the exact same digest forward.
+
+### Rule 5 — Operators and primitives follow the same policy
 
 Cluster-scoped operators and primitive runtimes are dependencies:
 
-- pin them by digest in GitOps-managed environments
-- treat floating tags as a transient dev convenience only (not the deployment reference)
+- Operators MUST be pinned by digest in GitOps.
+- Primitive CRs MUST set `spec.image` to a digest-pinned ref.
+- GitOps MUST NOT rely on primitive `spec.imagePullPolicy` for rollouts in any environment.
 
-## Transitional allowances (explicitly time-boxed)
+## Build output requirements (producer side)
 
-If we temporarily deploy floating tags (e.g., for rapid iteration), we must still make behavior predictable:
+Every image build MUST output:
 
-- set explicit pull policies (`spec.imagePullPolicy: Always` for primitives; chart-specific equivalents elsewhere)
-- ensure Git changes on every rollout (e.g., write back a resolved digest into Git, or bump a rollout annotation)
+- a unique, immutable SHA tag (example: `repo:<gitsha>`)
+- the resolved digest (example: `repo@sha256:<digest>`)
 
-This is tracked and refactored under `backlog/603-image-pull-policy.md`.
+CI MUST write the digest into Git (`image.ref`) via PRs; Argo rollouts MUST be driven by that Git change.
 
-## Compatible implementation patterns (choose one)
+## Enforcement (required)
 
-### A) Pure Git PR promotion (minimal moving parts)
-
-1. CI builds and pushes `repo:<sha>`, records the digest.
-2. CI opens a PR updating GitOps values/manifests to `repo@sha256:<digest>`.
-3. Merge → Argo sync → deterministic rollout.
-4. Promotion is another PR copying the same digest forward.
-
-### B) Argo CD Image Updater with Git write-back
-
-If we want continuous updates without humans:
-
-- image updater follows a constrained tag set (e.g., `sha-*`)
-- writes the resolved digest back to Git (Git remains source of truth)
-
-### C) Kargo (promotion controller)
-
-If we want a first-class “promote artifact between stages” controller:
-
-- Kargo watches artifacts and commits new refs into the GitOps repo per stage
+- CI MUST fail if any GitOps-managed values or manifests reference an image ref without `@sha256:...`.
+- CI MUST fail if any floating tags (`:dev`, `:main`, `:latest`) appear anywhere under GitOps-managed environment directories.
 
 ## Notes
 
