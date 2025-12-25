@@ -652,6 +652,10 @@ The checklist below is ordered to deliver value early (login stability) while in
   - [x] seeded personas exist in Keycloak and in platform DB
   - [x] seeded personas have external identity links `(issuer,subject) → user_id`
   - [x] seeded memberships reference canonical `user_id`
+  - [x] Seed sources are versioned:
+    - Keycloak + platform dev data values: `gitops/ameide-gitops/sources/values/env/local/platform/platform-dev-data.yaml`
+    - Playwright persona secrets sync: `gitops/ameide-gitops/sources/values/env/local/platform/platform-playwright-int-tests-secret.yaml`
+    - Vault bootstrap (where seeded passwords originate): `gitops/ameide-gitops/sources/values/_shared/foundation/foundation-vault-bootstrap.yaml`
 - [ ] Provide support-only repair commands (for drift/migrations; never on login):
   - [ ] upsert/repair tenant routing (`TenantRoutingView`)
   - [ ] link external identity to existing user
