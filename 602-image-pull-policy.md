@@ -55,6 +55,8 @@ There is exactly one “fast-moving” GitOps lane: `local`.
 - CI MUST open PRs that update `image.ref` digests in `local` and MUST auto-merge them once required checks pass (no human step for `local`).
 - Merge → Argo auto-sync → rollout (deterministic).
 
+`local` is not an exception to the digest-only policy: it follows the same “digest-pinned refs only” rules as `staging`/`production`. The only difference is that `local` advances automatically (via auto-merged PRs).
+
 `staging` and `production` MUST only move via promotion PRs that copy the exact same digest forward.
 
 ### Rule 5 — Operators and primitives follow the same policy
@@ -78,6 +80,7 @@ CI MUST write the digest into Git (`image.ref`) via PRs; Argo rollouts MUST be d
 
 - CI MUST fail if any GitOps-managed values or manifests reference an image ref without `@sha256:...`.
 - CI MUST fail if any floating tags (`:dev`, `:main`, `:latest`) are referenced by GitOps.
+- There is no allowlist for floating tags in `local`.
 
 ### Enforcement scope (paths)
 
@@ -92,3 +95,4 @@ The enforcement checks apply at minimum to:
 
 - `imagePullPolicy` is a correctness *aid*, not a rollout mechanism.
 - Multi-arch and pull-secrets are separate concerns; see `backlog/456-ghcr-mirror.md`.
+- If you need mutable tags for an inner-loop workflow, keep it outside GitOps-managed surfaces (e.g., Tilt-only ephemeral releases that are not committed to the GitOps repo).

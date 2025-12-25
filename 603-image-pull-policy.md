@@ -58,6 +58,8 @@ Make “Git commit → deployed artifact” deterministic in GitOps-managed envi
 
 There is one fast-moving GitOps environment: `local`. It moves via Git PRs that update digests.
 
+`local` is not an exception to the policy: it must be digest-pinned and deterministic. “Fast-moving” means automated Git change + Argo rollout, not floating tags.
+
 **DoD**
 - Every successful build opens (or updates) a PR updating `image.ref` in `sources/values/env/local/**`.
 - The PR is auto-merged once required checks pass (no human step for `local`).
