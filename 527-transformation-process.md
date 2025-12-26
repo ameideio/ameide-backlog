@@ -21,8 +21,22 @@ This document specifies the **Transformation Process primitives** — Temporal-b
 What is implemented in code today (Dec 2025):
 
 - R2R governance workflows exist as Temporal workflows in `primitives/process/transformation`:
-  - Scrum governance workflow (v0 implementation) anchors `ref:requirement` and `ref:deliverables_root`, then requests two verify WorkRequests.
-  - TOGAF ADM governance workflow (v0 implementation) anchors the same relationships, then requests two verify WorkRequests (Phase A, then B/C/D).
+  - Scrum governance workflow (v0 implementation):
+    - records requirement stabilization status on the change element (v0: `Element.lifecycle_state`),
+    - anchors `ref:requirement` and `ref:deliverables_root`,
+    - requests one scaffold WorkRequest (`ActionKind=SCAFFOLD`, generate queue),
+    - requests DoR + DoD verify WorkRequests,
+    - records evidence elements linked via `ref:evidence:*`,
+    - records a release element linked via `ref:release`,
+    - creates and promotes a governance baseline.
+  - TOGAF ADM governance workflow (v0 implementation):
+    - records requirement stabilization status on the change element (v0: `Element.lifecycle_state`),
+    - anchors the same relationships,
+    - requests one scaffold WorkRequest (`ActionKind=SCAFFOLD`, generate queue),
+    - requests Phase A + Phase B/C/D verify WorkRequests,
+    - records evidence elements linked via `ref:evidence:*`,
+    - records a release element linked via `ref:release`,
+    - creates and promotes a governance baseline.
 - WorkRequest orchestration path exists end-to-end in repo-mode tests (Domain + executor + router/ingress seam + Process facts).
 - Cluster-mode execution is tested as the same suite under `INTEGRATION_MODE=cluster` (per `backlog/430-unified-test-infrastructure.md`) and assumes deployed dispatcher/executor/ingress/projection + Temporal wiring.
 

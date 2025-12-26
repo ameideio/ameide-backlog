@@ -29,6 +29,7 @@ These are the minimum implementation capabilities required for this scenario to 
   - [ ] change element + its outgoing `ref:*` relationships (including `metadata.target_version_id`)
   - [ ] requirement status (as domain facts or a derived read model)
   - [ ] deliverables root membership (relationships under the deliverables root)
+  - [ ] evidence links as versioned `ref:evidence:*` relationships (e.g., `ref:evidence:dor`, `ref:evidence:dod`)
 - [ ] **WorkRequests substrate** works end-to-end:
   - [ ] Domain records WorkRequests and emits `transformation.work.domain.facts.v1`
   - [ ] executor processes tool-run queues and records outcomes + evidence back to Domain
@@ -54,12 +55,12 @@ These are the minimum implementation capabilities required for this scenario to 
 
 ### 1.3 Record requirement status (Domain fact; anchored element version)
 - **Input:** Latest requirement draft element version(s).
-- **Output:** Requirement status recorded as a Domain fact on the change element (e.g., `DRAFT | NEEDS_INPUT | STABILIZED | CANCELED`) and the anchor reference relationship is updated: `ref:requirement` (`relationship_kind=REFERENCE`, `metadata.target_version_id=<requirement_version_id>`).
+- **Output:** Requirement status recorded on the change element (v0: `Element.lifecycle_state`, e.g., `DRAFT | NEEDS_INPUT | STABILIZED | CANCELED`) and the anchor reference relationship is updated: `ref:requirement` (`relationship_kind=REFERENCE`, `metadata.target_version_id=<requirement_version_id>`).
 - **Next:** If `STABILIZED` → **Trigger** 1.4; if `CANCELED` → **End**; else **Loop** 1.2
 
 ### 1.4 DoR validation (Scrum overlay)
 - **Input:** `ref:requirement` + Scrum checklist/rules.
-- **Output:** DoR outcome recorded as evidence (e.g., an evidence element or attachment) linked from the change element (e.g., `evidence:dor`).
+- **Output:** DoR outcome recorded as evidence (e.g., an evidence element/version) linked from the change element (e.g., `ref:evidence:dor`).
 - **Next:** If DoR fails → **Loop** 1.2; else **Trigger** 1.5
 
 ### 1.5 Start delivery workflow (only after DoR)
@@ -188,7 +189,7 @@ These are the minimum implementation capabilities required for this scenario to 
 
 ### 5.2 DoD validation + close-out
 - **Input:** Domain facts + process facts + deployment evidence + anchored deliverables.
-- **Output:** DoD outcome recorded as evidence linked from the change element (e.g., `evidence:dod`); portal/read model shows evidence chain and run timeline.
+- **Output:** DoD outcome recorded as evidence linked from the change element (e.g., `ref:evidence:dod`); portal/read model shows evidence chain and run timeline.
 - **Next:** **Trigger** workflow completion + close change element
 
 ### Phase 5 — Implementation checklist
