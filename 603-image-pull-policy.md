@@ -81,16 +81,18 @@ This is “per commit” if producer CI triggers `repository_dispatch`; otherwis
 - **Missing `image.ref` in overlays blocks primitives:** local stacktest primitive overlays were missing pinned refs; added digest-pinned refs to unblock reconciles.
 - **Digest pinning surfaces “broken image” reality:** `process-transformation` ingress image was missing `/app/process-transformation-ingress`; GitOps mitigation was rollback to last known-good digest (producer fix required).
 - **Third-party chart digest pinning gotcha:** encoding `tag: vX.Y.Z@sha256:...` broke the Alloy chart because it reuses `image.tag` in `app.kubernetes.io/version` labels; fixed by using the chart’s `image.digest` field and a plain semver `tag`.
+- **Temporal digest pinning required an operator patch:** the community Temporal operator appended `:version` to `spec.image`, which prevented `repo@sha256:...`; fixed by deploying a patched operator image and pinning Temporal server/ui/admin-tools by digest.
 - **Probe stability fixes are GitOps-owned:** pgAdmin and Langfuse needed probe tuning to avoid kubelet-induced restarts under local contention.
 - **ArgoCD operational unblocks:** a stuck Application sync operation can require clearing `.operation` and forcing a hard refresh; prefer fixing the root render/apply errors in Git.
 
-## Known Exceptions / Constraints
+## Temporal (now compliant)
 
-- TemporalCluster CR images (`sources/values/_shared/data/data-temporal.yaml`) are repository-only because the Temporal community operator appends `:version`. Digest pinning requires operator support for full `repo@sha256` refs (or a no-append mode).
+- Patched operator image: `sources/values/_shared/cluster/temporal-operator.yaml` points to `ghcr.io/ameideio/temporal-operator@sha256:...`.
+- Digest-pinned TemporalCluster images: `sources/values/_shared/data/data-temporal.yaml` sets `cluster.image`, `ui.image`, `admintools.image` as `repo@sha256:...` refs.
+- Build/publish helper: `.github/workflows/publish-temporal-operator.yaml` (and local helper `scripts/temporal-operator/build-and-push.sh`).
 
 ## Developer Tasks (outside GitOps)
 
-- Ensure the Temporal operator / TemporalCluster supports digest-pinned images (or migrate Temporal to a workload where `image.ref` is possible).
 - Publish digest-pinnable images for currently-disabled developer features (so they can be GitOps-managed without floating tags):
   - devcontainer service image
   - agent runtime image for `core-platform-coder`
