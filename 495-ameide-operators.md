@@ -82,15 +82,16 @@ kind: Domain
 metadata:
   name: orders
 spec:
-  image: ghcr.io/ameide/orders-domain:1.12.3
-  imagePullPolicy: IfNotPresent # GitOps: keep boring; do not deploy mutable tags
+  # GitOps-managed environments deploy digest-pinned refs; see backlog/602-image-pull-policy.md.
+  image: ghcr.io/ameide/orders-domain@sha256:<digest>
+  imagePullPolicy: IfNotPresent # Pull policy is not a rollout trigger
   proto:
     module: github.com/ameide/apis/domains/orders
     version: v1.5.0
   db:
     clusterRef: cnpg/orders
     schema: orders
-    migrationJobImage: ghcr.io/ameide/migrator:latest
+    migrationJobImage: ghcr.io/ameide/migrator@sha256:<digest>
   resources:
     cpu: "500m"
     memory: "512Mi"
@@ -669,7 +670,7 @@ Operators are built via the standard `cd-service-images.yml` workflow:
 
 Published to:
 - `ghcr.io/ameideio/domain-operator@sha256:<digest>` (GitOps deploy identity; producer may also publish a `:dev` tag)
-- `ghcr.io/ameideio/domain-operator:main` (main branch)
+- `ghcr.io/ameideio/domain-operator:main` (producer convenience tag; GitOps deploys by digest)
 - `ghcr.io/ameideio/domain-operator:<version>` (tags)
 
 ### 7.5 Dockerfile Pattern

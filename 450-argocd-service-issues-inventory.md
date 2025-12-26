@@ -31,6 +31,8 @@ Total applications: 200
 - **OutOfSync**: 20+
 - **Progressing**: 12
 
+**Clean-state note (image policy):** This inventory contains historical incidents from the “floating tags + pull-policy” era. The current GitOps target state is `backlog/602-image-pull-policy.md` / `backlog/603-image-pull-policy.md`: deploy digest-pinned refs and drive rollouts via Git PR write-back/promotion PRs. When reading older “missing `:main` tag” or “restart pods to pick up `:dev`” entries, treat them as superseded.
+
 ## Update (2025-12-14): Local GitOps health fixes (devcontainer + k3d)
 
 - Fixed `local-platform-keycloak-realm` being blocked by a failing PreSync hook: `platform-keycloak-realm-client-patcher` is now reproducible (no runtime GitHub tool downloads; Keycloak Admin REST + Kubernetes API patch for rotation ConfigMap).
@@ -876,7 +878,7 @@ Remediation approach (GitOps-aligned):
 Remediation approach (vendor-aligned, GitOps-idempotent):
 1. Add a deterministic Temporal schema Job (use `temporal-sql-tool setup-schema` + `update-schema`) that runs **before** the metadata preflight, following the Temporal Helm chart pattern and backlog/425.
 2. Keep the metadata preflight, but run it only after schema exists (either by ordering it after schema setup, or by guarding on table existence so it never blocks `TemporalCluster` creation).
-3. Pin schema tooling images/tags (avoid `:latest`) so local arm64 and CI behave consistently.
+3. Pin schema tooling images by **digest** (avoid `:latest`) so local arm64 and CI behave consistently.
 
 ## Update (2025-12-16): `local-platform-keycloak-realm` stuck `Missing` (realm import modeled as Argo PreSync hook)
 
@@ -990,7 +992,7 @@ ameide-staging   ameide-vault   ...
 
 | Pod | Namespace | Image |
 |-----|-----------|-------|
-| `transformation-*` | ameide-dev | `ghcr.io/ameideio/transformation:dev` |
+| `transformation-*` | ameide-dev | `ghcr.io/ameideio/transformation@sha256:<digest>` (historically deployed via `:dev`; current target is digest-pinned per 602/603) |
 
 **Root Cause (Multi-Layer)**:
 1. ClusterSecretStore broken → fixed with per-environment SecretStores
@@ -1014,18 +1016,18 @@ See [451-secrets-management.md](451-secrets-management.md) for complete secrets 
 
 **Symptom**
 - `cluster-ameide-operators` is `Degraded`.
-- `ameide-system/ameide-operators-*` pods are `ImagePullBackOff` for images like `ghcr.io/ameideio/*-operator:dev`.
+- `ameide-system/ameide-operators-*` pods are `ImagePullBackOff` pulling from GHCR (missing pull secret and/or private image).
 
 **Root cause**
 - `ghcr-pull` is currently materialized only in **environment namespaces** (`ameide-dev`, `ameide-staging`, `ameide-prod`).
 - Cluster-scoped operator Deployments run in `ameide-system` and already expect `imagePullSecrets: [ghcr-pull]`, but the Secret is missing in that namespace.
-- After `ghcr-pull` is present, some operator images still fail with `no match for platform in manifest` when using `:dev` tags (single-arch dev publishes).
+- Some controller images were also single-arch; on mixed clusters this surfaces as `no match for platform in manifest`.
 
 **Remediation approach (GitOps-idempotent)**
 1. Extend Vault bootstrap role binding to allow ESO auth from `ameide-system` (add it to `externalSecrets.namespaces`).
 2. Ensure a `SecretStore/ameide-vault` exists in `ameide-system` that targets the stable cluster Vault backend (prefer `vault-core-prod`).
 3. Materialize `ghcr-pull` in `ameide-system` via ExternalSecrets (reuse `foundation-ghcr-pull-secret` with `registry.additionalNamespaces: [ameide-system]`).
-4. Ensure any cluster-scoped controller image tag used on hosted clusters is **multi-arch (at least linux/amd64)**. If we only publish `:dev` today, treat that as a release alias and make it multi-arch; follow up to publish versioned tags and switch away from `:dev`.
+4. Ensure any cluster-scoped controller image is **multi-arch** and deployed by **digest** in GitOps (promotion PRs copy digests forward per 602/603).
 5. Verify operator pods pull successfully and `cluster-ameide-operators` becomes `Healthy`.
 
 ### `ameide-operators-agent` CrashLoopBackOff (2025-12-17)
@@ -1137,16 +1139,16 @@ Apps still reconciling (may self-heal once P0 fixed):
 
 | Issue | Environment | Root Cause | Resolution |
 |-------|-------------|------------|------------|
-| `www-ameide-platform` ImagePullBackOff | staging, prod | `main` tag not pushed to GHCR | CI/CD pipeline needs to push `main` tag |
-| `plausible-seed` ImagePullBackOff | staging, prod | Missing `main` tag | CI/CD pipeline issue |
-| `workflows-runtime` CrashLoopBackOff | staging, prod | Likely missing `main` tag | CI/CD pipeline issue |
+| `www-ameide-platform` ImagePullBackOff | staging, prod | Digest points to missing/private or wrong-arch image, or missing pull secret | Ensure digest-pinned refs are valid and pull secrets exist; staging/prod move only by promotion PRs (602/603). |
+| `plausible-seed` ImagePullBackOff | staging, prod | Digest points to missing/private or wrong-arch image, or missing pull secret | Ensure digest-pinned refs are valid and pull secrets exist; staging/prod move only by promotion PRs (602/603). |
+| `workflows-runtime` CrashLoopBackOff | staging, prod | Runtime regression or missing dependencies (not a tag rollout mechanism issue) | Treat as app/runtime issue; promotion PRs should be gated by staging validation (602/603). |
 | Bootstrap jobs Pending | staging, prod | Helm hooks need ArgoCD re-sync | Delete jobs and sync apps |
 
-**Image Tagging Strategy**:
-- `dev` environment → `dev` tag (working)
-- `staging`/`production` environments → `main` tag (not pushed by CI/CD yet)
+**Version bumping strategy (current target state)**:
+- `local`/`dev`: automated PR write-back updates digest-pinned refs.
+- `staging`/`production`: promotion PRs copy the exact same digests forward (human-gated).
 
-The GitOps configuration is correct. The issue is that the source repositories' CI/CD pipelines are not pushing `main` tagged images to GHCR.
+The GitOps configuration should not rely on `:main`/`:dev` tags for rollouts; it should rely on digest-pinned refs per 602/603.
 
 ### Tolerations Fix (2025-12-05)
 

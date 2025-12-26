@@ -36,5 +36,5 @@ Complete all unchecked items in this document for this vertical primitive to be 
 
 ### Manual Image Publish
 
-- [x] Publish the runtime image `ghcr.io/ameideio/process-ping:dev` (use `ameide primitive publish --kind process --name ping`).
-- [x] Publish the operator image `ghcr.io/ameideio/process-operator:dev` (use `./scripts/build-all-images.sh dev operators/process-operator` or `ameide primitive publish --image ghcr.io/ameideio/process-operator:dev --dockerfile operators/process-operator/Dockerfile.dev`).
+- [x] Publish the runtime image to GHCR and deploy it via a digest-pinned ref in GitOps (local/dev bump PR writes the digest; do not deploy floating `:dev` directly). See `backlog/602-image-pull-policy.md` / `backlog/603-image-pull-policy.md`.
+- [x] Publish the operator image to GHCR and pin by digest in GitOps (operators are dependencies; do not deploy floating tags directly). See `backlog/602-image-pull-policy.md` / `backlog/603-image-pull-policy.md`.

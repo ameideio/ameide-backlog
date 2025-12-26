@@ -107,9 +107,9 @@ If CI publishing is unavailable, publish manually from the repo root:
 
 | Environment | Tag | Mutability | Use Case |
 |------------|-----------|----------|
-| local / dev | `:dev` | mutable | Fast iteration only; prefer digest/SHA pinning per `backlog/602-image-pull-policy.md` |
-| staging | `:main-<sha>` (or digest) | pinned | Pre-production validation |
-| prod | `:vX.Y.Z` (or digest) | pinned | Releases |
+| local / dev | digest-pinned (`@sha256:...`) | pinned | Fully automated fast lane: producer pushes `:dev`, GitOps resolves `:dev` → digest and writes it into Git (PR write-back) per `backlog/602-image-pull-policy.md` / `backlog/603-image-pull-policy.md`. |
+| staging | digest-pinned (`@sha256:...`) | pinned | Promotion lane: move only by promotion PRs that copy the exact same digest forward. |
+| prod | digest-pinned (`@sha256:...`) | pinned | Promotion lane: move only by promotion PRs that copy the exact same digest forward. |
 
 ---
 
@@ -121,7 +121,7 @@ If CI publishing is unavailable, publish manually from the repo root:
   - Adds `operators.<name>.image.ref` and `operators.<name>.image.digest` support in `operators/helm` so GitOps can pin by digest without relying on `tag: dev/main`.
   - Updates chart docs/examples to teach digest-pinned refs and `imagePullPolicy: IfNotPresent` for GitOps-managed environments.
 
-Note: the tag table above is retained as historical context for how CI publishes tags; GitOps-managed environments should follow 602 and deploy digest-pinned refs only.
+Note: the image tag table above describes CI publishing outputs; GitOps-managed environments should follow `backlog/602-image-pull-policy.md` / `backlog/603-image-pull-policy.md` and deploy digest-pinned refs only.
 
 ---
 
@@ -235,7 +235,7 @@ global:
   imagePullPolicy: IfNotPresent
 ```
 
-Note: `global.imagePullPolicy` controls the **operator Deployment** pull policy. Primitive workloads rendered by operators use `spec.imagePullPolicy` on the primitive CRs. See `backlog/602-image-pull-policy.md` and `backlog/603-image-pull-policy.md` for the target-state deployment policy (digest pinning) vs transitional `:dev` behavior.
+Note: `global.imagePullPolicy` controls the **operator Deployment** pull policy. Primitive workloads rendered by operators use `spec.imagePullPolicy` on the primitive CRs, but GitOps rollouts must be driven by digest-pinned image refs (Git change) rather than pull-policy tricks; see `backlog/602-image-pull-policy.md` / `backlog/603-image-pull-policy.md`.
 
 ### Phase 3: Production Hardening
 

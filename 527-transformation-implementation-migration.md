@@ -44,7 +44,7 @@ This section is a lightweight status tracker against the work packages below.
 - [x] GitOps parity (contract topics): Transformation fact-stream KafkaTopics exist as a dedicated component (`data-kafka-transformation-contract-topics`) and are asserted by `data-data-plane-smoke` (enabled in `local` + `dev`).
 - [x] GitOps parity (runtime wiring): dispatcher/ingress/relay workloads exist and are enabled in `local` + `dev` (`domain-transformation-v0-dispatcher`, `process-transformation-v0-ingress`, `projection-transformation-v0-relay`).
 - [x] GitOps parity (runtimes): Process/Agent/Projection/UISurface runtime components exist in `ameide-gitops` and local has a minimal “stacktest” set enabled (`process-ping-v0`, `agent-echo-v0`, `projection-foo-v0`, `uisurface-hello-v0`) to validate the substrate end-to-end.
-- [x] GitOps parity (images): primitive images published by CI are `ghcr.io/ameideio/primitive-<suffix>:<tag>` (e.g. `primitive-process-transformation:dev`), so GitOps MUST use the `primitive-` prefix for primitives.
+- [x] GitOps parity (images): primitive images published by CI use the `ghcr.io/ameideio/primitive-<suffix>` repository name. GitOps MUST use the `primitive-` prefix for primitives and MUST deploy digest-pinned refs (local/dev digest bump PRs resolve `:dev` → digest; staging/prod move by promotion PRs). See `backlog/602-image-pull-policy.md` / `backlog/603-image-pull-policy.md`.
 - [x] GitOps parity (gateway routing): platform gateway routes Transformation gRPC services to primitives (Domain CommandServices → `transformation-v0-domain`; Projection QueryServices → `transformation-v0-projection`) across environments.
 
 Gates (currently passing):
@@ -76,10 +76,12 @@ Quick verification (GitOps / cluster truth):
 
 Examples:
 
-- `primitives/process/transformation` → `ghcr.io/ameideio/primitive-process-transformation:dev`
-- `primitives/projection/transformation` → `ghcr.io/ameideio/primitive-projection-transformation:dev`
+- `primitives/process/transformation` → `ghcr.io/ameideio/primitive-process-transformation@sha256:<digest>` (producer may also publish `:dev` as the local/dev discovery tag)
+- `primitives/projection/transformation` → `ghcr.io/ameideio/primitive-projection-transformation@sha256:<digest>` (producer may also publish `:dev` as the local/dev discovery tag)
 
-If GitOps references `ghcr.io/ameideio/process-transformation:dev` (missing `primitive-`), Kubernetes will hit `ImagePullBackOff` even when the CI build is green.
+If GitOps references the wrong repository (e.g. missing the `primitive-` prefix), Kubernetes will hit `ImagePullBackOff` even when the CI build is green. Example of a wrong ref:
+
+- `ghcr.io/ameideio/process-transformation@sha256:<digest>` (missing `primitive-`)
 
 Note: the examples above describe the **build/publish tag convention**. GitOps target state is to deploy **digest-pinned** refs (see `backlog/602-image-pull-policy.md`) so rollouts are driven by Git changes, not by mutable tags.
 
@@ -89,7 +91,7 @@ If `transformation-v0-projection` is `CrashLoopBackOff` with:
 
 - `failed to ensure migrations ... syntax error at or near \"//\" (SQLSTATE 42601)`
 
-…the `primitive-projection-transformation:dev` image is older than `ameide` PR **#348** (the fix removes an accidental `// nosemgrep...` prefix inside the SQL string literal).
+…the deployed `ghcr.io/ameideio/primitive-projection-transformation@sha256:<digest>` is older than `ameide` PR **#348** (the fix removes an accidental `// nosemgrep...` prefix inside the SQL string literal).
 
 Operational note (local): this caching failure mode was only relevant when deploying mutable tags (e.g. `:dev`). GitOps now pins primitives by digest (see `backlog/602-image-pull-policy.md`), so a rollout should be driven by a Git change + Argo sync. If debugging, compare the running pod image digest vs Git and re-sync the Application instead of forcing node cache deletes.
 
@@ -99,7 +101,7 @@ If `transformation-v0-process` is `CrashLoopBackOff` with:
 
 - `ensure migrations: ensure schema_migrations: ERROR: syntax error at or near \"//\" (SQLSTATE 42601)`
 
-…the `ghcr.io/ameideio/primitive-process-transformation:dev` image is older than the fix in `ameide` PR **#382**. This blocks the cluster-mode process seam test:
+…the deployed `ghcr.io/ameideio/primitive-process-transformation@sha256:<digest>` is older than the fix in `ameide` PR **#382**. This blocks the cluster-mode process seam test:
 
 - `TestWorkRequestSeam_ProcessOrchestration_ClusterMode` in `capabilities/transformation/__tests__/integration`
 

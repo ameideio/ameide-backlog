@@ -421,7 +421,8 @@ metadata:
   name: sre-agent
   namespace: primitives-system
 spec:
-  image: ghcr.io/ameideio/agent-runtime-langgraph:latest
+  # GitOps-managed environments deploy digest-pinned refs; see backlog/602-image-pull-policy.md.
+  image: ghcr.io/ameideio/agent-runtime-langgraph@sha256:<digest>
   definitionRef:
     id: sre-agent
     tenantId: platform
@@ -461,7 +462,8 @@ metadata:
   name: sre-coder
   namespace: ameide-system
 spec:
-  image: ghcr.io/ameideio/sre-coder:latest
+  # GitOps-managed environments deploy digest-pinned refs; see backlog/602-image-pull-policy.md.
+  image: ghcr.io/ameideio/sre-coder@sha256:<digest>
   definitionRef:
     id: sre-coder
     tenantId: platform
