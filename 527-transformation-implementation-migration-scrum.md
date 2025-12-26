@@ -25,6 +25,22 @@ The overlay is considered “done” when a Scrum-driven workflow can create/upd
 
 ---
 
+## 0.1) Implementation progress (code snapshot; preserve context)
+
+Implemented in code (Dec 2025):
+
+- [x] **Versioned anchor relationships**: Domain accepts `relationship_kind=REFERENCE` relationships with `metadata.target_version_id` and validates that the target version exists for the target element.
+- [x] **R2R governance workflow (Scrum)**: Process primitive has a v0 Temporal workflow that:
+  - creates/updates `ref:requirement` and `ref:deliverables_root` versioned reference relationships, then
+  - requests two verify WorkRequests (`dor.verify`, `dod.verify`) and emits process facts.
+- [x] **E2E tests**: capability pack runs the Scrum R2R flow end-to-end in repo-mode and cluster-mode under the same test implementation (430 posture).
+
+Still pending (target state):
+
+- [ ] Scrum-native UISurface experience for refinement/DoR/DoD.
+- [ ] Stored `ProcessDefinition` (BPMN) `r2r.governance.scrum.v1` executed from the Definition Registry (v0 workflow is hard-coded).
+- [ ] DoR/DoD as DefinitionRegistry-driven ValidationPack + GatePolicy definitions (optional v1).
+
 ## 1) Overlay deliverables (what must exist)
 
 ### 1.1 Minimal v0 handshake (anchor reference relationships)

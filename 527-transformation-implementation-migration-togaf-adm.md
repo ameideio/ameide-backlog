@@ -25,6 +25,22 @@ The overlay is considered “done” when an ADM-driven workflow can assemble ph
 
 ---
 
+## 0.1) Implementation progress (code snapshot; preserve context)
+
+Implemented in code (Dec 2025):
+
+- [x] **Versioned anchor relationships**: Domain accepts `relationship_kind=REFERENCE` relationships with `metadata.target_version_id` and validates that the target version exists for the target element.
+- [x] **R2R governance workflow (TOGAF ADM)**: Process primitive has a v0 Temporal workflow that:
+  - creates/updates `ref:requirement` and `ref:deliverables_root` versioned reference relationships, then
+  - requests two verify WorkRequests (`phase_a.verify`, `phase_bcd.verify`) and emits process facts.
+- [x] **E2E tests**: capability pack runs the TOGAF ADM R2R flow end-to-end in repo-mode and cluster-mode under the same test implementation (430 posture).
+
+Still pending (target state):
+
+- [ ] ADM-native UISurface experience for Phase A–D deliverables.
+- [ ] Stored `ProcessDefinition` (BPMN) `r2r.governance.togaf_adm.v1` executed from the Definition Registry (v0 workflow is hard-coded).
+- [ ] Phase A–D validators and Architecture Board gates as DefinitionRegistry-driven definitions (optional v1).
+
 ## 1) Overlay deliverables (what must exist)
 
 ### 1.1 Minimal v0 handshake (anchor reference relationships)

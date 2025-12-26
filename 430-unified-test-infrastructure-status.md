@@ -9,7 +9,7 @@ parent: 430-unified-test-infrastructure.md
 
 This document tracks implementation progress against the target state defined in [430-unified-test-infrastructure.md](./430-unified-test-infrastructure.md).
 
-**Audit Date:** 2025-12-10
+**Audit Date:** 2025-12-26
 
 ---
 
@@ -46,6 +46,10 @@ Capability packs are first-class integration packs (same `INTEGRATION_MODE` cont
 | Capability | Mode Helper | Mock Mode | `__mocks__/` | Violations | Priority |
 |------------|-------------|-----------|--------------|------------|----------|
 | `capability-transformation` | Yes | **Compliant** | N/A (capability pack) | None | P1 |
+
+Notes (preserve context):
+
+- `capability-transformation` is now 430-strict: no mode-based skips inside tests; cluster mode is fail-fast via required env vars declared in the pack runner.
 
 ---
 
