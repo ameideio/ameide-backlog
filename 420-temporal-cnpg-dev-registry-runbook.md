@@ -27,6 +27,8 @@
 - **Namespace management:** Temporal namespaces are created declaratively via `TemporalNamespace` CRs (packaged with `data-temporal`).
 - **DB preflight (self-healing):** `data-temporal` runs a `temporal-db-preflight` Argo `PreSync` hook to wait for Postgres and ensure the metadata partition row exists (`namespace_metadata.partition_id=54321`). This removes the need for manual SQL in the normal rollout path.
 - **Webhook CA injection:** The Temporal operator uses admission webhooks and depends on cert-manager CA injection in its namespace (`ameide-system`). This is provided by the cluster-shared cert-manager install (`cluster-cert-manager` in `cert-manager`; CRDs via `cluster-crds-cert-manager`).
+- **Digest-pinned Temporal images:** GitOps deploys Temporal server/UI/admin-tools by digest per `backlog/602-image-pull-policy.md`. This requires the operator to treat `repo@sha256:...` as complete (no `:version` appending).
+- **Patched operator image + pull secret:** The Temporal operator is deployed from `ghcr.io/ameideio/temporal-operator` (patched to support digest refs) and therefore must have `imagePullSecrets: [{name: ghcr-pull}]` so it can pull from GHCR.
 - **Dev registry wiring:** k3d local registry `k3d-ameide.localhost:5001/ameide` is the single endpoint for dev GitOps. Builds push via the host-published port `localhost:5001` (configurable via `AMEIDE_REGISTRY_PUSH_HOST`) to avoid DNS-to-container IP hangs.
 - **Image naming:** Build script enforces hyphenated image tags (`agents-runtime`, `www-ameide`, `www-ameide-platform`, etc.) even if service directories use underscores. Filters accept either form.
 - **Argo CD apps:** Temporal is deployed by:
@@ -42,6 +44,9 @@ In dev, the **normal path** is now: open the DevContainer (per `backlog/435-remo
 - **Temporal operator webhook failures (CR create/update blocked, x509/CA bundle errors):**
   - **Cause:** Missing/unsynced `cluster-cert-manager` (or missing cert-manager CRDs), preventing CA injection into the operator webhook configurations.
   - **Fix:** Sync `cluster-crds-cert-manager` + `cluster-cert-manager`, then `cluster-crds-temporal-operator` + `cluster-temporal-operator`; verify webhook `caBundle` is injected and the operator pods are Running.
+- **Temporal operator `ImagePullBackOff` (401 Unauthorized from GHCR):**
+  - **Cause:** Operator chart was pointed at `ghcr.io/ameideio/temporal-operator` but did not set `imagePullSecrets`, so nodes attempted anonymous pulls.
+  - **Fix (GitOps):** Ensure `sources/values/_shared/cluster/temporal-operator.yaml` sets `imagePullSecrets: [{name: ghcr-pull}]`, and that `local-foundation-ghcr-pull-secret` is Healthy before the operator rollouts.
 - **Dev registry push hangs / missing images:**
   - **Cause:** Devcontainer resolving `k3d-ameide.localhost` to the registry container IP (no host port), and underscore image names diverging from GitOps values.
   - **Fix:** Build script now defaults push endpoint to `localhost:5001` while tagging `k3d-ameide.localhost:5001/ameide/<image>:dev`; enforces hyphenated tags; adds service filters; documents usage in README/backlog/415.

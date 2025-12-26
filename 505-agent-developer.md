@@ -240,7 +240,8 @@ AgentDefinition:
   id: "ameide-product-owner"
   runtime_type: "langgraph"
   dag_ref:
-    image: "ghcr.io/ameideio/agent-runtime-langgraph:main"
+    # GitOps-managed environments deploy digest-pinned refs; see backlog/602-image-pull-policy.md.
+    image: "ghcr.io/ameideio/agent-runtime-langgraph@sha256:<digest>"
     module: "ameide.agents.product_owner.graph"
     entrypoint: "build_graph"
   tools: []  # NO coding tools - product management only
@@ -256,7 +257,8 @@ AgentDefinition:
 AgentDefinition:
   id: "ameide-coder"
   runtime_type: "devcontainer"
-  image: "ghcr.io/ameideio/devcontainer-service:main"
+  # GitOps-managed environments deploy digest-pinned refs; see backlog/602-image-pull-policy.md.
+  image: "ghcr.io/ameideio/devcontainer-service@sha256:<digest>"
   tools:  # Generic coder with MANY tools
     - id: "ameide_cli"
     - id: "claude_code"
