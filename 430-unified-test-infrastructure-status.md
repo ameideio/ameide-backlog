@@ -178,7 +178,11 @@ Although operators don’t use `INTEGRATION_MODE`, the intent is analogous:
 **Notes:**
 - Jest integration config exercises the full suite in both modes; tests select mock vs live clients in the harness layer.
 - `getServerClient()` does not branch on `INTEGRATION_MODE`; runtime always uses the live transport.
-- `tests/scripts/run-playwright-e2e.mjs` enforces the mode contract (defaulting to `repo`), injects deterministic credentials, and fail-fast validates base URLs per backlog 430.
+- `tests/scripts/run-playwright-e2e.mjs` enforces backlog 430: **Playwright E2E is cluster-only** and fails fast unless:
+  - `INTEGRATION_MODE=cluster`
+  - `WWW_AMEIDE_PLATFORM_BASE_URL` is set (absolute URL)
+  - `WWW_AMEIDE_PLATFORM_E2E_NAMESPACE` + `WWW_AMEIDE_PLATFORM_E2E_SECRET_NAME` are set (persona secret source)
+- Playwright artifacts write to `/artifacts/e2e/*` (junit + report + traces/screenshots/videos) with no fallback paths.
 
 ---
 
@@ -313,7 +317,7 @@ Although operators don’t use `INTEGRATION_MODE`, the intent is analogous:
 | `platform` | `index.ts`, `client.ts` | Good - full mock client |
 | `graph` | `service.ts` | Good - mock handlers |
 | `threads` | `client.ts`, `fixtures.ts`, `index.ts` | Good - mock transport |
-| `www_ameide_platform` | `handlers.ts`, `next/`, `http.ts` | Full MSW + mock fetch stack |
+| `www_ameide_platform` | `client.ts`, `fixtures.ts`, `http.ts`, `next/` | Mock HTTP + Next.js helpers (no MSW) |
 | `agents` | `server.go` | Mock gRPC server (Go) |
 | `inference_gateway` | `inference.go` | Mock inference backend (Go) |
 | `inference` | `fixtures.py`, `http.py`, `grpc.py`, `websocket.py` | Dual-mode mock FastAPI + gRPC |
