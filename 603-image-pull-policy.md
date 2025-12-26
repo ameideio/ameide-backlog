@@ -82,7 +82,10 @@ This is “per commit” if producer CI triggers `repository_dispatch`; otherwis
 - **Digest pinning surfaces “broken image” reality:** `process-transformation` ingress image was missing `/app/process-transformation-ingress`; GitOps mitigation was rollback to last known-good digest (producer fix required).
 - **Third-party chart digest pinning gotcha:** encoding `tag: vX.Y.Z@sha256:...` broke the Alloy chart because it reuses `image.tag` in `app.kubernetes.io/version` labels; fixed by using the chart’s `image.digest` field and a plain semver `tag`.
 - **Temporal digest pinning required an operator patch:** the community Temporal operator appended `:version` to `spec.image`, which prevented `repo@sha256:...`; fixed by deploying a patched operator image and pinning Temporal server/ui/admin-tools by digest.
+- **Patched Temporal operator image requires pull secret:** because the patched operator is published to `ghcr.io/ameideio/temporal-operator`, the operator chart must set `imagePullSecrets: [{name: ghcr-pull}]` so the controller can pull it.
 - **Probe stability fixes are GitOps-owned:** pgAdmin and Langfuse needed probe tuning to avoid kubelet-induced restarts under local contention.
+- **CNPG readiness probe timeout can flap on local:** CloudNativePG readiness can time out under local control-plane contention; increasing `cluster.probes.readiness.timeoutSeconds` avoids “no endpoints” cascades where dependent workloads can’t connect to Postgres.
+- **CNPG webhook defaulting causes Argo diff noise:** rendering CNPG defaulted fields explicitly in values keeps Argo CD from reporting perpetual OutOfSync on `postgresql.cnpg.io/Cluster`.
 - **ArgoCD operational unblocks:** a stuck Application sync operation can require clearing `.operation` and forcing a hard refresh; prefer fixing the root render/apply errors in Git.
 
 ## Temporal (now compliant)
