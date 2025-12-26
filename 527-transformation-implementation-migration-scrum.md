@@ -31,8 +31,13 @@ Implemented in code (Dec 2025):
 
 - [x] **Versioned anchor relationships**: Domain accepts `relationship_kind=REFERENCE` relationships with `metadata.target_version_id` and validates that the target version exists for the target element.
 - [x] **R2R governance workflow (Scrum)**: Process primitive has a v0 Temporal workflow that:
-  - creates/updates `ref:requirement` and `ref:deliverables_root` versioned reference relationships, then
-  - requests two verify WorkRequests (`dor.verify`, `dod.verify`) and emits process facts.
+  - records requirement stabilization status on the change element (v0: `Element.lifecycle_state`),
+  - creates/updates `ref:requirement` and `ref:deliverables_root` versioned reference relationships,
+  - scaffolds deliverables membership via `CONTAINMENT` relationships (e.g., `contains:deliverable`),
+  - requests one scaffold WorkRequest (`ActionKind=SCAFFOLD`, routed to `transformation.work.queue.toolrun.generate.v1`),
+  - requests two verify WorkRequests (`dor.verify`, `dod.verify`),
+  - records evidence as elements linked via versioned `ref:evidence:*` relationships, and
+  - records a release element linked via `ref:release`, then promotes a governance baseline.
 - [x] **E2E tests**: capability pack runs the Scrum R2R flow end-to-end in repo-mode and cluster-mode under the same test implementation (430 posture).
 
 Still pending (target state):
@@ -48,9 +53,10 @@ Still pending (target state):
 - [ ] Change element type convention (e.g., `ameide:change`) is supported by UI/workflows.
 - [ ] Change element stores `methodology_key = scrum`.
 - [ ] Change element uses anchor `REFERENCE` relationships (versioned via `metadata.target_version_id`):
+- [ ] Change element uses anchor `REFERENCE` relationships (versioned via `metadata.target_version_id`):
   - [ ] `ref:requirement` → authoritative requirement snapshot (`target_element_id` + `metadata.target_version_id`)
   - [ ] `ref:deliverables_root` → deliverables package/root snapshot (`target_element_id` + `metadata.target_version_id`)
-  - [ ] optional: `evidence:*`, `ref:baseline`, `ref:release`
+  - [ ] optional: `ref:evidence:*`, `ref:baseline`, `ref:release`
 
 ### 1.2 UISurface (Scrum-native UX)
 
@@ -94,7 +100,7 @@ Still pending (target state):
 
 ### WP-S5 — “Happy path” e2e slice
 
-- [ ] Scenario passes end-to-end per `backlog/527-transformation-scenario-scrum.md`:
+- [x] Scenario passes end-to-end (Process + Domain + executor; UISurface pending) per `backlog/527-transformation-scenario-scrum.md`:
   - requirement anchored (reference relationship + `metadata.target_version_id`) → DoR pass
   - deliverables package anchored (reference relationship + `metadata.target_version_id`) → verify pass
   - baseline promoted → release recorded

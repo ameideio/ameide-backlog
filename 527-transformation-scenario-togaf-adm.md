@@ -29,6 +29,7 @@ These are the minimum implementation capabilities required for this scenario to 
   - [ ] change element + its outgoing `ref:*` relationships (including `metadata.target_version_id`)
   - [ ] deliverables root membership (relationships under the deliverables root)
   - [ ] phase gate evidence and “phase completeness” signals derived from relationships + evidence
+  - [ ] evidence links as versioned `ref:evidence:*` relationships (e.g., `ref:evidence:phase_a`, `ref:evidence:phase_bcd`)
 - [ ] **WorkRequests substrate** works end-to-end:
   - [ ] Domain records WorkRequests and emits `transformation.work.domain.facts.v1`
   - [ ] executor processes tool-run queues and records outcomes + evidence back to Domain
@@ -54,7 +55,7 @@ These are the minimum implementation capabilities required for this scenario to 
 
 ### 1.3 Record requirement status (Domain fact; anchored element version)
 - **Input:** Latest requirement draft element version(s).
-- **Output:** Requirement status recorded as a Domain fact on the change element (e.g., `DRAFT | NEEDS_INPUT | STABILIZED | CANCELED`) and the anchor reference relationship is updated: `ref:requirement` (`relationship_kind=REFERENCE`, `metadata.target_version_id=<requirement_version_id>`).
+- **Output:** Requirement status recorded on the change element (v0: `Element.lifecycle_state`, e.g., `DRAFT | NEEDS_INPUT | STABILIZED | CANCELED`) and the anchor reference relationship is updated: `ref:requirement` (`relationship_kind=REFERENCE`, `metadata.target_version_id=<requirement_version_id>`).
 - **Next:** If `STABILIZED` → **Trigger** 1.4; if `CANCELED` → **End**; else **Loop** 1.2
 
 ### 1.4 Start governance workflow (ADM run)
@@ -115,7 +116,7 @@ These are the minimum implementation capabilities required for this scenario to 
 
 ### 2.4 Architecture gate (A–D complete)
 - **Input:** Proposed A–D deliverables + contract package + (optional) BPMN artifacts + (optional) AgentDefinition.
-- **Output:** Gate decision recorded (Approve/Reject) as workflow signal + process facts; validation evidence is recorded as evidence linked from the change element (e.g., `evidence:adm_phase_gates`) and can assert “A–D complete” against `ref:deliverables_root`.
+- **Output:** Gate decision recorded (Approve/Reject) as workflow signal + process facts; validation evidence is recorded as evidence linked from the change element (e.g., `ref:evidence:adm_phase_gates`) and can assert “A–D complete” against `ref:deliverables_root`.
 - **Next:** **Wait** gate decision; if Approve → **Trigger** Phase 3; if Reject → **Loop** Phase 2 (revise deliverables); if Cancel → **End**
 
 ### Phase 2 — Implementation checklist
@@ -192,7 +193,7 @@ These are the minimum implementation capabilities required for this scenario to 
 
 ### 5.2 Post-release visibility (Phase G/H-style evidence)
 - **Input:** Domain facts + process facts + deployment evidence.
-- **Output:** Portal/read model shows: what shipped, what’s approved, what’s running, evidence chain, run timeline; optional post-release evidence can be captured as evidence elements/attachments linked from the change element (e.g., `evidence:adm_post_release`).
+- **Output:** Portal/read model shows: what shipped, what’s approved, what’s running, evidence chain, run timeline; optional post-release evidence can be captured as evidence elements/attachments linked from the change element (e.g., `ref:evidence:adm_post_release`).
 - **Next:** **Trigger** workflow completion + close change element
 
 ### Phase 5 — Implementation checklist
