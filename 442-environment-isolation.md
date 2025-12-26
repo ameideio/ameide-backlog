@@ -1147,3 +1147,11 @@ vaultSecretPath: "ameide/{{ .Values.environment }}"
 - [x] Each environment has isolated secrets → **Helm lookup+randAlphaNum pattern generates unique passwords per namespace**
 - [x] No cross-environment secret access → **Secrets generated in-namespace, not shared**
 - [ ] Secret rotation works per-environment → **Planned: Delete secret + ArgoCD sync regenerates**
+
+---
+
+## Implementation progress (image policy)
+
+### 2025-12-26
+
+- `local` is not an exception to GitOps determinism: see `backlog/602-image-pull-policy.md` / `backlog/603-image-pull-policy.md` for the “automated, digest-only” policy that aligns with environment isolation goals.

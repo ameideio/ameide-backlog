@@ -234,3 +234,11 @@ Check ApplicationSets: kubectl -n argocd get applicationset -l tier and argocd a
 - **Structured logs:** CLI keeps human-readable output by default and adds `--output json` for CI/CD summaries.
 - **RollingSync waits:** Optional `--wait-tier` and `--timeout` flags allow pipelines to block on specific tiers without forcing waits on every run.
 - **Bicep outputs:** Pipelines export `properties.outputs` JSON artifacts and pass them to `--bicep-outputs`, removing manual copy/paste
+
+---
+
+## Implementation progress (image policy)
+
+### 2025-12-26
+
+- Bootstrap and day-2 workflows should assume digest-pinned refs and Git-driven rollouts per `backlog/602-image-pull-policy.md` / `backlog/603-image-pull-policy.md` (no “force pull :dev” operational playbooks in GitOps-managed environments).

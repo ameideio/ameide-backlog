@@ -744,3 +744,11 @@ The 7-step Reconcile flow (§10.3) remains identical; only the helper functions 
 | [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md) | Operator deployment architecture |
 | [484-ameide-cli.md](484-ameide-cli.md) | CLI verify integration with operator status |
 | [472-ameide-information-application.md](472-ameide-information-application.md) | Idempotency patterns (§3.3.2) |
+
+---
+
+## Implementation progress (image policy)
+
+### 2025-12-26
+
+- Producer/tooling work to support digest-pinned refs is tracked in https://github.com/ameideio/ameide/pull/404 (in review). This is a prerequisite for removing floating `:dev`/`:main` from GitOps-managed environments per 602/603.

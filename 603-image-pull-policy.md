@@ -30,6 +30,18 @@ This is “per commit” if producer CI triggers `repository_dispatch`; otherwis
   - `.github/workflows/promote-images.yaml` (manual `workflow_dispatch`) opens the PR
 - Humans approve/merge promotion PRs (branch protection) → Argo CD sync → deterministic rollout.
 
+---
+
+## Producer/tooling progress (log)
+
+### 2025-12-26
+
+- `ameide` (producer/tooling): PR https://github.com/ameideio/ameide/pull/404 (in review) removes floating `:dev`/`:main` defaults from local tooling and adds digest/ref support for operator chart + scaffolding.
+
+### 2025-12-25
+
+- `backlog`: PR https://github.com/ameideio/ameide-backlog/pull/50 captured success criteria and expanded the cross-repo checklist (historical context; the GitOps implementation plan has since evolved).
+
 ## Repo-Wide Checklist (implemented)
 
 - Charts render `image: {{ required "image.ref is required" .Values.image.ref }}` (or equivalent) and set `imagePullPolicy: IfNotPresent` for every PodSpec (Deployments/Jobs/hooks/initContainers).

@@ -1346,3 +1346,12 @@ kubectl get pods -A --field-selector=status.phase=Pending
 # Check CreateContainerConfigError pods
 kubectl get pods -A | grep CreateContainerConfigError
 ```
+
+---
+
+## Implementation progress (602/603 alignment)
+
+### 2025-12-26
+
+- `backlog/602-image-pull-policy.md` / `backlog/603-image-pull-policy.md` are now the source of truth for “Git-driven rollouts” (digest-pinned refs + `IfNotPresent`).
+- `ameide` repo PR https://github.com/ameideio/ameide/pull/404 (in review) removes floating `:dev`/`:main` defaults from local tooling and updates operator chart docs to teach digest pinning (so the “restart pods to pick up :dev” class of issues can be retired).

@@ -97,3 +97,11 @@ Note: this is Tilt-only inner-loop guidance. GitOps-managed environments should 
 * *Charts don’t decide tags/registries; tools/environments do.*
 
 If you want, paste one app’s current **dev manifest** and the **helmfile release** block; I’ll sanity-check them against this blueprint and tighten anything that could still bite later.
+
+---
+
+## Implementation progress (602/603 alignment)
+
+### 2025-12-26
+
+- The “release safety pins by digest” half of this doc is now fully formalized for GitOps-managed environments in `backlog/602-image-pull-policy.md`; 603 tracks the refactoring work needed to remove floating tags from all GitOps surfaces.

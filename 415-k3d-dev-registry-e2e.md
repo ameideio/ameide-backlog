@@ -75,3 +75,11 @@ This story covers the **Argo CD / GitOps dev path only**:
 Tilt’s inner-loop build path and its registry configuration (`registry.localhost:32000` by default) are out of scope for this story and are tracked under 373.
 
 > Staging/prod remain unchanged here: they continue to use the cloud registry (GHCR/ACR) with pull secrets and Argo-only deployment flows; no Tilt involvement.
+
+---
+
+## Implementation progress (602/603 alignment)
+
+### 2025-12-26
+
+- This document’s `:dev`-tagged local registry references are legacy guidance. Target state is to pin GitOps-managed workloads by digest (`image.ref` with `@sha256:...`) even for `local`, with automation advancing `local`/`dev` via PRs (see 602/603).

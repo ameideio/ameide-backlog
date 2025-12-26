@@ -134,3 +134,12 @@ The enforcement checks apply at minimum to:
 - Third-party images are pinned by digest too: GitOps determinism applies equally to upstream charts (otherwise `:latest`/`vX.Y.Z` retags can change meaning without a Git diff).
 - Multi-arch and pull-secrets are separate concerns; see `backlog/456-ghcr-mirror.md`.
 - If you need mutable tags for an inner-loop workflow, keep it outside GitOps-managed surfaces (e.g., Tilt-only ephemeral releases that are not committed to the GitOps repo).
+
+---
+
+## Implementation progress (log)
+
+### 2025-12-26
+
+- `ameide` (producer/tooling): PR https://github.com/ameideio/ameide/pull/404 (in review) removes floating `:dev`/`:main` defaults from local build/publish + scaffolding, and adds digest/ref support to the operators Helm chart to unblock 602 in GitOps-managed environments.
+- `backlog`: PR https://github.com/ameideio/ameide-backlog/pull/50 (merged) defined success criteria and expanded the refactoring checklist in 603.
