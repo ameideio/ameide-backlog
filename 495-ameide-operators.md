@@ -28,7 +28,7 @@ All primitive CRDs MAY specify `spec.imagePullPolicy` (`Always` | `IfNotPresent`
 Recommended:
 
 - GitOps-managed environments should deploy **immutable image references** (digest or unique SHA tag) per `backlog/602-image-pull-policy.md`.
-- If you are temporarily using **mutable** tags (e.g. `:dev`), set `spec.imagePullPolicy: Always` (tracked as transitional under `backlog/603-image-pull-policy.md`).
+- GitOps-managed environments SHOULD deploy digest-pinned refs and keep pull policy boring (`IfNotPresent`); see `backlog/602-image-pull-policy.md` / `backlog/603-image-pull-policy.md`.
 - For **pinned** tags/digests (e.g. `:<sha>`, `:v1.2.3`, `@sha256:...`), omit it (defaults to `IfNotPresent`) or set `IfNotPresent`.
 
 GitOps wiring (until digest pinning is universal):
@@ -83,7 +83,7 @@ metadata:
   name: orders
 spec:
   image: ghcr.io/ameide/orders-domain:1.12.3
-  imagePullPolicy: IfNotPresent # set Always for mutable tags (e.g. :dev)
+  imagePullPolicy: IfNotPresent # GitOps: keep boring; do not deploy mutable tags
   proto:
     module: github.com/ameide/apis/domains/orders
     version: v1.5.0
@@ -186,7 +186,7 @@ metadata:
   name: l2o
 spec:
   image: ghcr.io/ameide/l2o-process:0.7.0
-  imagePullPolicy: IfNotPresent # set Always for mutable tags (e.g. :dev)
+  imagePullPolicy: IfNotPresent # GitOps: keep boring; do not deploy mutable tags
   definitionRef:
     id: L2O_v3
     tenantId: t123
@@ -292,7 +292,7 @@ metadata:
   name: core-platform-coder
 spec:
   image: ghcr.io/ameide/agent-runtime-langgraph:2.1.0
-  imagePullPolicy: IfNotPresent # set Always for mutable tags (e.g. :dev)
+  imagePullPolicy: IfNotPresent # GitOps: keep boring; do not deploy mutable tags
   definitionRef:
     id: core-platform-coder-v4
     tenantId: t123
@@ -385,7 +385,7 @@ metadata:
   name: www-ameide-platform
 spec:
   image: ghcr.io/ameide/www_ameide_platform:3.0.1
-  imagePullPolicy: IfNotPresent # set Always for mutable tags (e.g. :dev)
+  imagePullPolicy: IfNotPresent # GitOps: keep boring; do not deploy mutable tags
   host: app.ameide.com
   pathPrefix: /
   auth:
@@ -668,7 +668,7 @@ Operators are built via the standard `cd-service-images.yml` workflow:
 ```
 
 Published to:
-- `ghcr.io/ameideio/domain-operator:dev` (dev branch)
+- `ghcr.io/ameideio/domain-operator@sha256:<digest>` (GitOps deploy identity; producer may also publish a `:dev` tag)
 - `ghcr.io/ameideio/domain-operator:main` (main branch)
 - `ghcr.io/ameideio/domain-operator:<version>` (tags)
 

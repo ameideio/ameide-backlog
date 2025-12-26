@@ -73,7 +73,7 @@ metadata:
   name: core-platform-coder
 spec:
   image: ghcr.io/ameide/agent-runtime-langgraph:2.1.0
-  imagePullPolicy: IfNotPresent # set Always only for mutable tags (transitional; see 602/603)
+  imagePullPolicy: IfNotPresent # GitOps: keep boring; do not deploy mutable tags (see 602/603)
   definitionRef:
     id: core-platform-coder-v4
     tenantId: t123

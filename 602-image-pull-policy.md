@@ -19,6 +19,7 @@ We need a policy where a Git commit maps to **one exact image artifact**, with a
 - **Immutable identity:** `@sha256:<digest>` (the deployment identity).
 - **Readable ref (still immutable):** `:<sha>@sha256:<digest>` (allowed, still pinned by digest).
 - **Floating tag:** `:dev`, `:main`, `:latest` (MUST NOT be referenced by GitOps).
+- **Semantic version tag:** `:vX.Y.Z` (not floating; allowed only when paired with a digest).
 - **`imagePullPolicy`:** a pull behavior knob; it does **not** create rollouts by itself.
 
 ## Policy (target state)
@@ -32,13 +33,25 @@ All images referenced by GitOps MUST be pinned by digest:
 
 Refs without a digest are non-compliant.
 
+GitOps MUST NOT use branch-like tags (e.g. `:main`) even when combined with a digest (`repo:main@sha256:...`). If a tag is present, it MUST be either:
+
+- a build SHA tag (recommended), or
+- a semantic version tag (for third-party images), and still paired with `@sha256:...`.
+
 ### Rule 2 — Single image configuration contract: `image.ref`
 
-In this GitOps repo, the only supported “knob” for images is a single string value:
+For **custom charts we control** in this GitOps repo, the only supported “knob” for images is a single string value:
 
 - `image.ref: <repo>[@sha256:<digest> | :<sha>@sha256:<digest>]`
 
-Do not model images as `repository`/`tag`/`digest` in GitOps values. That split invites drift and makes it easy to accidentally deploy a floating tag.
+Do not model first-party service images as `repository`/`tag`/`digest` in GitOps values. That split invites drift and makes it easy to accidentally deploy a floating tag.
+
+For **third-party charts** (vendored under `sources/charts/third_party/**`), follow the chart’s supported values, but the rendered image MUST still be digest-pinned. In practice, that means one of:
+
+- chart supports a `digest:` field → set it (`sha256:<digest>`) and keep `tag:` as a plain semantic version (`vX.Y.Z`) if the chart uses the tag for labels.
+- chart supports `repository` + `tag` only → encode as `tag: <version>@sha256:<digest>` only if the chart does not reuse `tag` in Kubernetes labels/annotations (otherwise it can render invalid label values like `vX.Y.Z@sha256:...`).
+
+If a third-party chart does not support digest pinning cleanly, patch the vendored chart to add a digest value (preferred) rather than relaxing the policy.
 
 ### Rule 3 — Pull policy is boring and consistent
 
@@ -54,6 +67,16 @@ There are exactly two “fast-moving” GitOps lanes: `local` and `dev`.
 
 - CI MUST open PRs that update `image.ref` digests in `local` and `dev` and MUST auto-merge them once required checks pass (no human step for `local`/`dev`).
 - Merge → Argo auto-sync → rollout (deterministic) in both environments.
+
+Implementation (this repo):
+
+- `.github/workflows/bump-local-dev-images.yaml` runs on a schedule and/or `repository_dispatch` and opens an auto-merged PR.
+- `scripts/bump-local-dev-images.sh` resolves `ghcr.io/ameideio/<repo>:dev` → digest and rewrites `sources/values/env/local/**` + `sources/values/env/dev/**`.
+
+This is “fully automated” for local/dev once:
+
+- producer CI pushes `:<repo>:dev` tags, and
+- the bump workflow is enabled with `GHCR_TOKEN` (read access) configured.
 
 `local` is not an exception to the digest-only policy: it follows the same “digest-pinned refs only” rules as `staging`/`production`. The only difference is that `local` advances automatically (via auto-merged PRs).
 
@@ -76,11 +99,23 @@ Every image build MUST output:
 
 CI MUST write the digest into Git (`image.ref`) via PRs; Argo rollouts MUST be driven by that Git change.
 
+## Version bumping and promotion (GitOps)
+
+- `local` and `dev`: updated automatically via PR write-back (CI opens a PR that updates digest-pinned `image.ref` values and auto-merges once required checks pass).
+- `staging` and `production`: updated only via **promotion PRs** that copy the exact same digest forward; PR approval is a human gate (branch protection), but the mechanism is still “Git change → Argo rollout”.
+
+Implementation (this repo):
+
+- `scripts/promote-images.sh <source_env> <target_env>` rewrites digests in the target env to match the source env.
+- `.github/workflows/promote-images.yaml` (manual `workflow_dispatch`) opens a promotion PR; it is not auto-merged.
+
 ## Enforcement (required)
 
 - CI MUST fail if any GitOps-managed values or manifests reference an image ref without `@sha256:...`.
 - CI MUST fail if any floating tags (`:dev`, `:main`, `:latest`) are referenced by GitOps.
 - There is no allowlist for floating tags in `local`.
+
+Implementation (this repo): `.github/workflows/image-policy.yaml` runs `scripts/check-image-policy.sh` on PRs/changes in `sources/values/**`.
 
 ### Enforcement scope (paths)
 
@@ -90,11 +125,13 @@ The enforcement checks apply at minimum to:
 - `sources/values/env/dev/**`
 - `sources/values/env/staging/**`
 - `sources/values/env/production/**`
+- shared component defaults (at minimum `sources/values/_shared/**`)
 - cluster-scoped operators and dependencies (at minimum `sources/values/_shared/cluster/ameide-operators.yaml`)
 
 ## Notes
 
 - `imagePullPolicy` is a correctness *aid*, not a rollout mechanism.
+- Third-party images are pinned by digest too: GitOps determinism applies equally to upstream charts (otherwise `:latest`/`vX.Y.Z` retags can change meaning without a Git diff).
 - Multi-arch and pull-secrets are separate concerns; see `backlog/456-ghcr-mirror.md`.
 - If you need mutable tags for an inner-loop workflow, keep it outside GitOps-managed surfaces (e.g., Tilt-only ephemeral releases that are not committed to the GitOps repo).
 

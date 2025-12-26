@@ -1,6 +1,6 @@
 # 527 Transformation — Process Primitive Specification
 
-**Status:** Draft (scaffold implemented; verification posture defined; workflow logic pending)  
+**Status:** Draft (scaffold implemented; WorkRequest seam implemented; initial workflows implemented; BPMN/registry execution pending)  
 **Parent:** [527-transformation-capability.md](527-transformation-capability.md)
 
 This document specifies the **Transformation Process primitives** — Temporal-backed governance workflows that execute promoted, design-time **ProcessDefinitions** (BPMN 2.0 as source of truth) and the "design → scaffold → verify → promote → run" delivery loop.
@@ -15,6 +15,35 @@ This document specifies the **Transformation Process primitives** — Temporal-b
 - **Primary ArchiMate layer(s):** Application.
 - **Primary element types used:** Application Component (Process), Application Events (process facts), Application Services (workflow signals).
 - **Out-of-scope layers:** Canonical state writing (domain responsibility) and portal read models (projection responsibility).
+
+## 0.1) Implementation progress (repo snapshot; preserve context)
+
+What is implemented in code today (Dec 2025):
+
+- R2R governance workflows exist as Temporal workflows in `primitives/process/transformation`:
+  - Scrum governance workflow (v0 implementation):
+    - records requirement stabilization status on the change element (v0: `Element.lifecycle_state`),
+    - anchors `ref:requirement` and `ref:deliverables_root`,
+    - requests one scaffold WorkRequest (`ActionKind=SCAFFOLD`, generate queue),
+    - requests DoR + DoD verify WorkRequests,
+    - records evidence elements linked via `ref:evidence:*`,
+    - records a release element linked via `ref:release`,
+    - creates and promotes a governance baseline.
+  - TOGAF ADM governance workflow (v0 implementation):
+    - records requirement stabilization status on the change element (v0: `Element.lifecycle_state`),
+    - anchors the same relationships,
+    - requests one scaffold WorkRequest (`ActionKind=SCAFFOLD`, generate queue),
+    - requests Phase A + Phase B/C/D verify WorkRequests,
+    - records evidence elements linked via `ref:evidence:*`,
+    - records a release element linked via `ref:release`,
+    - creates and promotes a governance baseline.
+- WorkRequest orchestration path exists end-to-end in repo-mode tests (Domain + executor + router/ingress seam + Process facts).
+- Cluster-mode execution is tested as the same suite under `INTEGRATION_MODE=cluster` (per `backlog/430-unified-test-infrastructure.md`) and assumes deployed dispatcher/executor/ingress/projection + Temporal wiring.
+
+What remains intentionally pending (target state):
+
+- Executing **stored ProcessDefinitions** (BPMN) fetched from the Definition Registry (v0 workflows are hard-coded).
+- A formal “compiled workflow” pipeline (BPMN → IR → promotion → execution) and its promotion gates.
 
 ## 1) Process responsibilities
 

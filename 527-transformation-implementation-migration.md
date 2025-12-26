@@ -37,8 +37,9 @@ This section is a lightweight status tracker against the work packages below.
 - [x] WP-B (CODE) WorkRequests substrate: Domain WorkRequest record + facts + queue-topic fanout implemented; executor implemented (`primitives/integration/transformation-work-executor`).
 - [x] WP-B (CODE) Process ingress consumes Kafka domain facts (`PROCESS_INGRESS_SOURCE=kafka://`) and signals workflows (Temporal signals; deploy/wiring is a GitOps concern).
 - [x] WP-B (CODE) Domain dispatcher publishes outbox topics to Kafka by default (no topic prefix filter).
-- [x] WP-B (TEST) Capability pack exists (`capabilities/transformation/__tests__/integration`) with repo-mode + cluster-mode WorkRequest seam coverage (E2E‑0) and repo-mode Process orchestration seam (E2E‑1).
-- [ ] WP-B (CLUSTER) Process orchestration in cluster is end-to-end (ingress → Temporal signals → projection timeline assertions enabled). **Blocked** until `transformation-v0-process` worker is healthy in `local` + `dev` (see “Recent failure mode (local): process migrations CrashLoop” below).
+- [x] WP-B (TEST) Capability pack exists (`capabilities/transformation/__tests__/integration`) with repo-mode + cluster-mode WorkRequest seam coverage (E2E‑0) and Process orchestration + R2R governance coverage (E2E‑1).
+- [x] WP-B (TEST) Test pack is 430-aligned: no mode-based `t.Skip`; cluster mode is fail-fast via the pack runner’s required env vars (see `backlog/430-unified-test-infrastructure.md`).
+- [ ] WP-B (CLUSTER) Cluster end-to-end depends on deployed wiring (dispatcher → broker → executor → domain facts → ingress → Temporal → projection). Code + tests assume those components exist and are reachable; environment health/config may still block execution.
 - [x] GitOps parity (execution substrate): KEDA + Kafka work-queue topics + workbench + secret wiring exist in `ameide-gitops` (enabled in `local` + `dev`; disabled elsewhere).
 - [x] GitOps parity (contract topics): Transformation fact-stream KafkaTopics exist as a dedicated component (`data-kafka-transformation-contract-topics`) and are asserted by `data-data-plane-smoke` (enabled in `local` + `dev`).
 - [x] GitOps parity (runtime wiring): dispatcher/ingress/relay workloads exist and are enabled in `local` + `dev` (`domain-transformation-v0-dispatcher`, `process-transformation-v0-ingress`, `projection-transformation-v0-relay`).
@@ -58,6 +59,11 @@ Quick verification (GitOps / cluster truth):
 - `local-foundation-operators-smoke` asserts KEDA operator deployments and the external metrics `APIService` (when KEDA is installed).
 - Primitive runtime apps: ArgoCD Applications `local-process-ping-v0`, `local-agent-echo-v0`, `local-projection-foo-v0`, `local-uisurface-hello-v0` should be `Synced/Healthy`, and the corresponding `ameide.io/*` CRs should report `Ready=True`.
 - `local-transformation-v0-runtime-wiring-smoke` asserts the Transformation runtime wiring deployments are `Available` (dispatcher, ingress, projection relay; enabled in `local` + `dev`).
+
+### Historical note (preserve context)
+
+- Earlier iterations carried cluster-only coverage in separate test files and used env flags to skip cluster suites when infra was unavailable.
+- Current posture expresses cluster coverage as the same tests executed under `INTEGRATION_MODE=cluster`, and missing cluster dependencies are treated as hard failures per `backlog/430-unified-test-infrastructure.md`.
 - Platform Gateway should route Transformation primitive gRPC services internally (no legacy `graph` routing):
   - `kubectl -n ameide-local get grpcroute.gateway.networking.k8s.io transformation`
   - Smoke: `local-platform-transformation-routing-smoke` asserts the `GRPCRoute/transformation` is `Accepted=True` and `ResolvedRefs=True`.
@@ -75,6 +81,8 @@ Examples:
 
 If GitOps references `ghcr.io/ameideio/process-transformation:dev` (missing `primitive-`), Kubernetes will hit `ImagePullBackOff` even when the CI build is green.
 
+Note: the examples above describe the **build/publish tag convention**. GitOps target state is to deploy **digest-pinned** refs (see `backlog/602-image-pull-policy.md`) so rollouts are driven by Git changes, not by mutable tags.
+
 ### Recent failure mode (local): projection migrations CrashLoop
 
 If `transformation-v0-projection` is `CrashLoopBackOff` with:
@@ -83,10 +91,7 @@ If `transformation-v0-projection` is `CrashLoopBackOff` with:
 
 …the `primitive-projection-transformation:dev` image is older than `ameide` PR **#348** (the fix removes an accidental `// nosemgrep...` prefix inside the SQL string literal).
 
-Operational note (local): if you are using a mutable `:dev` image tag with `imagePullPolicy: IfNotPresent`, k3d/k3s may keep a cached image. Preferred target-state is digest pinning (see `backlog/602-image-pull-policy.md`). Transitional workaround: delete the cached image on the node and restart the pod to force a pull:
-
-- `docker exec k3d-ameide-agent-0 sh -lc 'crictl rmi ghcr.io/ameideio/primitive-projection-transformation:dev || true'`
-- `kubectl -n ameide-local delete pod -l app.kubernetes.io/name=projection,app.kubernetes.io/instance=transformation-v0`
+Operational note (local): this caching failure mode was only relevant when deploying mutable tags (e.g. `:dev`). GitOps now pins primitives by digest (see `backlog/602-image-pull-policy.md`), so a rollout should be driven by a Git change + Argo sync. If debugging, compare the running pod image digest vs Git and re-sync the Application instead of forcing node cache deletes.
 
 ### Recent failure mode (local): process migrations CrashLoop
 
@@ -98,10 +103,7 @@ If `transformation-v0-process` is `CrashLoopBackOff` with:
 
 - `TestWorkRequestSeam_ProcessOrchestration_ClusterMode` in `capabilities/transformation/__tests__/integration`
 
-Operational note: with `imagePullPolicy: IfNotPresent`, k3d/k3s may keep a cached `:dev` image; delete the cached image on the node and restart the pod to force a pull:
-
-- `docker exec k3d-ameide-agent-0 sh -lc 'crictl rmi ghcr.io/ameideio/primitive-process-transformation:dev || true'`
-- `kubectl -n ameide-local delete pod -l app.kubernetes.io/name=process,app.kubernetes.io/instance=transformation-v0`
+Operational note: this caching failure mode was only relevant when deploying mutable tags (e.g. `:dev`). GitOps now pins primitives by digest (see `backlog/602-image-pull-policy.md`), so a rollout should be driven by a Git change + Argo sync.
 
 ## 1) Alignment to 520 (normative constraints)
 

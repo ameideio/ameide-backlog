@@ -39,9 +39,10 @@ We already rely on BuildKit features (e.g. `RUN --mount=type=secret`) for safe b
 ### Deployed resources
 
 - Namespace: `buildkit`
-- Deployment: `buildkitd` (image: `moby/buildkit:v0.18.2`)
+- Deployment: `buildkitd` (image: `docker.io/moby/buildkit@sha256:86c0ad9d1137c186e9d455912167df20e530bdf7f7c19de802e892bb8ca16552`)
 - Service: `buildkitd` (ClusterIP) on port `1234`
 - NetworkPolicy: restrict ingress to `arc-runners` (and same-namespace)
+- DaemonSet: `binfmt` (installs `amd64` emulation on arm64 k3d nodes)
 
 GitOps sources:
 
@@ -51,7 +52,7 @@ GitOps sources:
 ### Runner wiring
 
 - Runner pods export `AMEIDE_BUILDKIT_ADDR=tcp://buildkitd.buildkit.svc.cluster.local:1234` so workflows don’t need to hardcode it.
-- `arc-local` uses a pinned runner image with baseline tools (including `buildctl`) to avoid per-workflow installer glue.
+- `arc-local` uses a pinned runner image with baseline tools (including `buildctl` and `skopeo`) to avoid per-workflow installer glue.
 
 ### BuildKit security posture (local-only)
 
@@ -69,6 +70,7 @@ GitOps sources:
 
 - `arc-local` is for smoke builds by default: validate Dockerfile and produce artifacts (OCI tar), **no publishing** on `workflow_dispatch` unless explicitly opted-in.
 - Real image pushes should run on GitHub-hosted runners or a separate trusted runner set with locked-down secrets and review gates.
+  - If you accept pushes from ARC, use dedicated `GHCR_USERNAME` / `GHCR_TOKEN` secrets (avoid relying on `GITHUB_TOKEN` permissions for org-owned packages).
 
 ### Network / egress requirements
 

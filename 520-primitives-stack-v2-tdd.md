@@ -4,7 +4,7 @@ This document guides the end-to-end development of a single sample stack across 
 
 `proto shape` → `SDKs` → `skeleton generator` → `primitive runtime` → `operator reconcile` → `ArgoCD sync` → `in-cluster probe`
 
-The only permitted deviation for this activity is: image publishing is done manually (dev tag only).
+The only permitted deviation for this activity is: image publishing is done manually (by pushing `:dev` tags), while GitOps deployments still remain digest-pinned (see `backlog/602-image-pull-policy.md` / `backlog/603-image-pull-policy.md`).
 
 **Update (2025-12-26):** This “dev-tag-only” exception is being removed as part of `backlog/602-image-pull-policy.md` / `backlog/603-image-pull-policy.md`. Local/dev should converge on automated, digest-pinned refs (and/or unique `dev-<sha>` tags) rather than floating `:dev`. The sections below are preserved as historical guidance from the earlier phase.
 
@@ -62,7 +62,10 @@ For this activity, treat CI image publishing as disabled.
 - Every push to `dev` uses commit messages containing `[skip ci]`.
 - No PR to `main` is opened for this activity.
 - Images are pushed manually with the credentials in `.env`.
-- Because `:dev` tags are mutable, ensure workload CRs use `spec.imagePullPolicy: Always` (transitional; see `backlog/602-image-pull-policy.md` + `backlog/603-image-pull-policy.md` for the target-state digest pinning policy).
+- After pushing a new `:dev` image, update GitOps by writing the resolved digest into `sources/values/env/{local,dev}/**`:
+  - run `bash scripts/bump-local-dev-images.sh` (or trigger `.github/workflows/bump-local-dev-images.yaml`)
+  - ArgoCD rollouts then happen because Git changed (digest-pinned ref changed)
+- Do not use `spec.imagePullPolicy: Always` as a rollout mechanism; keep pull policy boring (`IfNotPresent`) and drive rollouts via digest updates.
 
 ### Smoke probes in ArgoCD (GitOps team feedback)
 
@@ -109,7 +112,7 @@ The Domain runtime imports the generated registration glue from:
 
 ### Manual Image Publish
 
-The cluster pulls `ghcr.io/ameideio/transformation-domain:dev` (as referenced by GitOps values).
+Producer pushes `ghcr.io/ameideio/transformation-domain:dev`, and GitOps deploys the resolved digest-pinned ref after the local/dev bump PR lands (see `backlog/603-image-pull-policy.md`).
 
 Publish with the CLI:
 

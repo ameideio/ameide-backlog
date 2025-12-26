@@ -1,6 +1,6 @@
 # 527 Transformation — Domain Primitive Specification
 
-**Status:** Draft (Enterprise Knowledge MVP implemented; governance/registry pending)  
+**Status:** Draft (Enterprise Knowledge MVP implemented; versioned reference anchors implemented; governance baselines/promotions implemented; registry pending)  
 **Parent:** [527-transformation-capability.md](527-transformation-capability.md)
 
 This document specifies the **Transformation Domain primitives** — the canonical writers for:

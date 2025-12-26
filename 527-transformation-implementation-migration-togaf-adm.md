@@ -25,6 +25,27 @@ The overlay is considered “done” when an ADM-driven workflow can assemble ph
 
 ---
 
+## 0.1) Implementation progress (code snapshot; preserve context)
+
+Implemented in code (Dec 2025):
+
+- [x] **Versioned anchor relationships**: Domain accepts `relationship_kind=REFERENCE` relationships with `metadata.target_version_id` and validates that the target version exists for the target element.
+- [x] **R2R governance workflow (TOGAF ADM)**: Process primitive has a v0 Temporal workflow that:
+  - records requirement stabilization status on the change element (v0: `Element.lifecycle_state`),
+  - creates/updates `ref:requirement` and `ref:deliverables_root` versioned reference relationships,
+  - scaffolds Phase A and B/C/D deliverables as elements and links them under the deliverables root via `CONTAINMENT` relationships (e.g., `contains:deliverable`),
+  - requests one scaffold WorkRequest (`ActionKind=SCAFFOLD`, routed to `transformation.work.queue.toolrun.generate.v1`),
+  - requests two verify WorkRequests (`phase_a.verify`, `phase_bcd.verify`),
+  - records evidence as elements linked via versioned `ref:evidence:*` relationships, and
+  - records a release element linked via `ref:release`, then promotes a governance baseline.
+- [x] **E2E tests**: capability pack runs the TOGAF ADM R2R flow end-to-end in repo-mode and cluster-mode under the same test implementation (430 posture).
+
+Still pending (target state):
+
+- [ ] ADM-native UISurface experience for Phase A–D deliverables.
+- [ ] Stored `ProcessDefinition` (BPMN) `r2r.governance.togaf_adm.v1` executed from the Definition Registry (v0 workflow is hard-coded).
+- [ ] Phase A–D validators and Architecture Board gates as DefinitionRegistry-driven definitions (optional v1).
+
 ## 1) Overlay deliverables (what must exist)
 
 ### 1.1 Minimal v0 handshake (anchor reference relationships)
@@ -34,7 +55,7 @@ The overlay is considered “done” when an ADM-driven workflow can assemble ph
 - [ ] Change element uses anchor `REFERENCE` relationships (versioned via `metadata.target_version_id`):
   - [ ] `ref:requirement` → authoritative requirement snapshot (`target_element_id` + `metadata.target_version_id`)
   - [ ] `ref:deliverables_root` → deliverables package/root snapshot (`target_element_id` + `metadata.target_version_id`)
-  - [ ] optional: `evidence:*`, `ref:baseline`, `ref:release`
+  - [ ] optional: `ref:evidence:*`, `ref:baseline`, `ref:release`
 
 ### 1.2 Elements (ADM deliverables as “just elements”)
 
@@ -84,7 +105,7 @@ The overlay is considered “done” when an ADM-driven workflow can assemble ph
 
 ### WP-A5 — “Happy path” e2e slice
 
-- [ ] Scenario passes end-to-end per `backlog/527-transformation-scenario-togaf-adm.md`:
+- [x] Scenario passes end-to-end (Process + Domain + executor; UISurface pending) per `backlog/527-transformation-scenario-togaf-adm.md`:
   - requirement anchored (reference relationship + `metadata.target_version_id`)
   - deliverables root anchored (reference relationship + `metadata.target_version_id`) + Phase A–D complete
   - verify pass

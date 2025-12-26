@@ -96,7 +96,8 @@ This section is the current repo snapshot of **what is implemented vs what is st
 
 ### Primitives scaffolds (beyond MVP slice)
 
-- [x] Process primitive scaffold exists: `primitives/process/transformation` (workflow logic pending).
+- [x] Process primitive scaffold exists: `primitives/process/transformation` (BPMN/DefinitionRegistry execution pending).
+  - [x] Initial workflow logic exists (v0 hard-coded workflows): R2R governance (Scrum + TOGAF ADM) over WorkRequests + versioned anchor relationships.
   - [x] Gate: `go run ./packages/ameide_core_cli/cmd/ameide primitive verify --kind process --name transformation --mode repo` passes (GitOps TODOs remain).
 - [x] Agent primitive scaffold exists: `primitives/agent/transformation` (role definitions/tool grants pending).
   - [x] Gate: `go run ./packages/ameide_core_cli/cmd/ameide primitive verify --kind agent --name transformation --mode repo` passes (GitOps TODOs remain).

@@ -1,6 +1,6 @@
 # 598: GitHub Actions Runner Controller (ARC) — Local Cluster Install (Isolated Namespaces)
 
-**Status:** Ready to implement  
+**Status:** Implemented (local)  
 **Created:** 2025-12-24  
 **Owner:** Platform SRE / GitOps  
 **Scope:** Install GitHub’s Actions Runner Controller (ARC) **runner scale sets** in the **local k3d cluster only**, using **isolated namespaces** and the **official OCI Helm charts** (GHCR), without impacting Azure.
@@ -72,7 +72,13 @@ jobs:
 `arc-local` uses an org-owned, pinned runner image to remove per-workflow “installer glue”:
 
 - Image: `ghcr.io/ameideio/arc-local-runner`
-- Baseline tools include `git/curl/tar/jq/yq/rg` and `buildctl` (for BuildKit builds)
+- Baseline tools include `git/curl/tar/jq/yq/rg/skopeo` and `buildctl` (for BuildKit builds)
+- GitOps pins the runner image digest (current: `0.1.1`)
+
+Image policy note:
+
+- Any GitOps-managed runner image reference MUST be digest-pinned per `backlog/602-image-pull-policy.md` / `backlog/603-image-pull-policy.md`.
+- Rollouts should happen because Git changed (PR write-back), not because of `imagePullPolicy`.
 
 ### Auth secret shape
 
@@ -151,26 +157,11 @@ Azure overlay remains unchanged (cluster appset only reads `_shared/components/c
 - `controllerServiceAccount` is set explicitly (required for GitOps / cross-namespace installs)
 - Local default container mode: `kubernetes-novolume`
 
-### WP-6: Runner scale set (env, local-only, docker-capable)
+### WP-6: No DinD runner sets (local)
 
-Some repos (e.g. image publishing workflows) require a working `docker` daemon (`docker buildx`, `docker/build-push-action`, `kind`, etc). For local ARC, provide a second scale set using **dind**:
+Local ARC runners should not require Docker-in-Docker. The local cluster provides in-cluster BuildKit for image builds (`backlog/599-k8s-native-buildkit-builds-on-arc.md`), and workflows should avoid a Docker daemon dependency.
 
-- Component: `environments/local/components/apps/runtime/github-arc-runner-set-dind/component.yaml`
-- Values:
-  - `sources/values/_shared/apps/github-arc-runner-set-dind.yaml`
-  - `sources/values/env/local/apps/github-arc-runner-set-dind.yaml`
-- Scale set name / `runs-on`: `arc-local-dind`
-- Container mode: `dind`
-
-### WP-7: Runner scale set (env, local-only, docker-capable, amd64)
-
-Local k3d clusters are often `arm64`. Some repos/dependencies still require `amd64` (example: `wasmtime-go` on certain versions). Provide an optional scale set that runs `amd64` images via emulation:
-
-- Component: `environments/local/components/apps/runtime/github-arc-runner-set-dind-amd64/component.yaml`
-- Values:
-  - `sources/values/_shared/apps/github-arc-runner-set-dind-amd64.yaml`
-  - `sources/values/env/local/apps/github-arc-runner-set-dind-amd64.yaml`
-- Scale set name / `runs-on`: `arc-local-dind-amd64`
+If a workflow truly requires Docker daemon semantics, run it on GitHub-hosted runners or introduce a separate, explicitly trusted runner set (out of scope for local ARC).
 
 ---
 
@@ -196,12 +187,6 @@ Set the job `runs-on` to the ARC scale set name:
 runs-on: arc-local
 ```
 
-For workflows that require `docker` (buildx, kind, etc), route to the dind scale set:
-
-```yaml
-runs-on: arc-local-dind
-```
-
 Recommended pattern (allows overriding per-repo with a GitHub **Variable**):
 
 ```yaml
@@ -210,7 +195,7 @@ runs-on: ${{ vars.AMEIDE_RUNS_ON || 'arc-local' }}
 
 Then, in each repo:
 
-- Create GitHub variable `AMEIDE_RUNS_ON=arc-local` (or `arc-local-dind` if the repo needs docker; or `arc-local-dind-amd64` for maximum compatibility on arm64 hosts)
+- Create GitHub variable `AMEIDE_RUNS_ON=arc-local` (or set to `ubuntu-latest` to run on GitHub-hosted)
 - Ensure the repo is in the `ameideio` org (this local ARC install is org-attached via `githubConfigUrl: https://github.com/ameideio`)
 
 ### 2) Runner group access (optional but recommended)

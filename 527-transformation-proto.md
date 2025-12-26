@@ -62,7 +62,7 @@ Current implementations emit/consume `transformation.<subcontext>.domain.facts.v
 | `transformation.process.facts.v1` | `TransformationProcessFact` | IT4IT-aligned value-stream workflow facts (Temporal); evidence of orchestration (distinct from domain facts) |
 | `transformation.work.domain.facts.v1` | `TransformationWorkDomainFact` | Canonical WorkRequest lifecycle facts (`WorkRequested/Started/Completed/Failed`) for persistence/projection; execution backends MUST NOT scale on mixed/non-WorkRequested streams |
 | `transformation.work.queue.toolrun.verify.v1` | `WorkRequestQueueMessage` (TBD) | **Execution queue** (WorkRequested only) for verify-class tool runs; used for KEDA lag-based scaling |
-| `transformation.work.queue.toolrun.generate.v1` | `WorkRequestQueueMessage` (TBD) | **Execution queue** (WorkRequested only) for generate-class tool runs; used for KEDA lag-based scaling |
+| `transformation.work.queue.toolrun.generate.v1` | `WorkRequestQueueMessage` (TBD) | **Execution queue** (WorkRequested only) for scaffold/generate-class tool runs (`ActionKind=SCAFFOLD|GENERATE`); used for KEDA lag-based scaling |
 | `transformation.work.queue.agentwork.coder.v1` | `WorkRequestQueueMessage` (TBD) | **Execution queue** (WorkRequested only) for coder-class agent work; used for KEDA lag-based scaling |
 | `transformation.knowledge.domain.facts.v1` | `TransformationKnowledgeDomainFact` | Enterprise Knowledge facts emitted after persistence |
 | `transformation.registry.domain.facts.v1` | `TransformationRegistryDomainFact` | Definition Registry facts emitted after persistence |
