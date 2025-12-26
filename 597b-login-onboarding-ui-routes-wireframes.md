@@ -54,7 +54,7 @@ App shell (authenticated product chrome)
 - Portal/access hub route: `services/www_ameide_platform/app/page.tsx` + `services/www_ameide_platform/app/(app)/_components/PlatformPortalClient.tsx`
 - Login UI: `services/www_ameide_platform/app/(public)/login/page.tsx` + `services/www_ameide_platform/app/(public)/login/KeycloakRedirect.tsx`
 - Register entry (server-rendered HTML POST to Auth.js): `services/www_ameide_platform/app/(auth)/register/route.ts`
-- Onboarding shell: `services/www_ameide_platform/app/(onboarding)/layout.tsx` + `services/www_ameide_platform/app/(onboarding)/onboarding/page.tsx`
+- Onboarding shell: `services/www_ameide_platform/app/(onboarding)/layout.tsx` + `services/www_ameide_platform/app/(onboarding)/onboarding/page.tsx` (server guard) + `services/www_ameide_platform/app/(onboarding)/onboarding/OnboardingClientPage.tsx` (client UI)
 - Invitation acceptance (public/join shell): `services/www_ameide_platform/app/accept/page.tsx`
 
 ### Public (no session SSR, no app shell)
