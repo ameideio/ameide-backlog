@@ -6,6 +6,8 @@ This document guides the end-to-end development of a single sample stack across 
 
 The only permitted deviation for this activity is: image publishing is done manually (dev tag only).
 
+**Update (2025-12-26):** This “dev-tag-only” exception is being removed as part of `backlog/602-image-pull-policy.md` / `backlog/603-image-pull-policy.md`. Local/dev should converge on automated, digest-pinned refs (and/or unique `dev-<sha>` tags) rather than floating `:dev`. The sections below are preserved as historical guidance from the earlier phase.
+
 ## Non-Negotiables
 
 - Protobuf files under `packages/ameide_core_proto/src/` are the shape source.
@@ -72,6 +74,8 @@ For this activity, treat CI image publishing as disabled.
 The gRPC smoke jobs run shell scripts via `/bin/sh -c`. Use the grpcurl runner image that includes a shell:
 
 - `ghcr.io/ameideio/grpcurl-runner:dev`
+
+**Note:** treat `:dev` here as legacy documentation. Target state is to pin this image by digest via GitOps values (and avoid relying on `imagePullPolicy` as a rollout mechanism).
 
 ## Domain Vertical (Dev 1) — Transformation v0
 

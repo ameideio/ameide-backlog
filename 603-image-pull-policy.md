@@ -33,6 +33,23 @@ This initiative is successful when:
 - `imagePullPolicy` is currently used to force refreshes when tags move, but it does not trigger rollouts on its own.
 - Argo can surface drift from Kubernetes-defaulted fields when diff mode changes.
 
+---
+
+## Implementation progress (log)
+
+### 2025-12-26
+
+- `ameide` (producer/tooling): PR https://github.com/ameideio/ameide/pull/404 (in review)
+  - Local build scripts default to immutable tags (`dev-<sha>` / `main-<sha>`) instead of floating `:dev` / `:main`.
+  - `ameide primitive publish` no longer forces `:dev` only; defaults to `dev-<sha>`.
+  - Scaffolding no longer emits committed `:dev` refs; uses digest placeholders where appropriate.
+  - Operators Helm chart supports digest-pinned refs (`image.ref` / `image.digest`) so GitOps can deploy operators without tags.
+- Blocking: PR checks currently fail before any workflow steps start (GitHub Actions runner/setup issue); merge is pending.
+
+### 2025-12-25
+
+- `backlog`: PR https://github.com/ameideio/ameide-backlog/pull/50 (merged) added success criteria and expanded the `ameide`-repo checklist to fully remove floating `dev`/`main`.
+
 ## Refactoring work packages
 
 ### WP-1: Primitive CRD contract completeness (repo: `ameide`)

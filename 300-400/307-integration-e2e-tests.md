@@ -1178,3 +1178,11 @@ Run job / stream logs	Integration runner	Skip Helm apply in local mode
 With this setup, the job image always matches Tilt’s digest tag, and the runner simply executes against the already-deployed environment, matching the rest of the AMEIDE platform workflows.
 
 **Status:** ✅ Implemented via `tests/playwright-runner/config.yaml`, the `pnpm test:e2e` wrapper, and the integration runner’s `--env=local` flow that now tails the Tilt-managed Job instead of reapplying Helm.
+
+---
+
+## Implementation progress (image refs)
+
+### 2025-12-26
+
+- This work aligns with 602/603: local inner-loop should still be deterministic at the “deployed artifact” level (digest-pinned refs), with automation driving updates rather than floating tags.

@@ -691,3 +691,11 @@ These are explicitly sequenced so we reintroduce governance *after* the enterpri
 - `backlog/527-transformation-scenario-togaf-adm.md` — end-to-end “Requirement → Release” flow (TOGAF ADM track; CLI is a tool inside the process)
 - `backlog/527-transformation-implementation-migration-scrum.md` — Scrum overlay progress tracker
 - `backlog/527-transformation-implementation-migration-togaf-adm.md` — TOGAF ADM overlay progress tracker
+
+---
+
+## Implementation progress (image policy)
+
+### 2025-12-26
+
+- As 602/603 are implemented, transformation runtime/operator deployments should move away from relying on floating `:dev` tags and `imagePullPolicy` tricks; target state is digest-pinned refs updated via PRs.

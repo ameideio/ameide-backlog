@@ -36,6 +36,14 @@ GitOps wiring (until digest pinning is universal):
 - Primitive CR `spec.image` should be rendered from a single value key (e.g. `global.ameide.primitives.imageTag`) so “new build” implies “new Git change” implies “new rollout”.
 - `imagePullPolicy` affects pull-on-start only; it does **not** trigger a rollout by itself.
 
+---
+
+## Implementation progress (602/603 alignment)
+
+### 2025-12-26
+
+- `ameide` (tooling + chart): PR https://github.com/ameideio/ameide/pull/404 (in review) removes `:dev`-only assumptions from local publish/scaffold flows and adds digest/ref support to the operators Helm chart.
+
 ## Testing & acceptance
 
 Operators must be testable at two levels:

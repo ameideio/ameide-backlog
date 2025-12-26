@@ -265,3 +265,11 @@ The k3d dev registry end-to-end flow is **fully operational** and meets all crit
 The only gap is **cosmetic**: the bootstrap.yaml config file is missing explicit registry fields, but the system works correctly due to sensible defaults.
 
 **Recommendation:** Ship as-is. Optionally add registry config to bootstrap.yaml for documentation purposes.
+
+---
+
+## Implementation progress (image refs)
+
+### 2025-12-26
+
+- This verification reflects a legacy `:dev`-tagged local registry flow. The current target state for GitOps-managed environments is digest pinning per `backlog/602-image-pull-policy.md` / `backlog/603-image-pull-policy.md` (including for `local`, advanced automatically via PRs).

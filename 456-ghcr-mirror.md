@@ -305,3 +305,11 @@ sidecar:
 - [423-temporal-argocd-recovery.md](423-temporal-argocd-recovery.md) - Temporal ArgoCD recovery procedures
 - [420-temporal-cnpg-dev-registry-runbook.md](420-temporal-cnpg-dev-registry-runbook.md) - Temporal CNPG dev registry runbook
 - [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md) - Cluster operator tolerations (related to node scheduling)
+
+---
+
+## Implementation progress (image refs)
+
+### 2025-12-26
+
+- This GHCR mirroring work remains a dependency for 602/603: digest pinning is only reliable if the pinned digest is available for all required architectures (especially `arm64` devcontainers).

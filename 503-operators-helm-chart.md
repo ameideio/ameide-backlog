@@ -113,6 +113,18 @@ If CI publishing is unavailable, publish manually from the repo root:
 
 ---
 
+## Implementation progress (602/603 alignment)
+
+### 2025-12-26
+
+- `ameide` (chart implementation): PR https://github.com/ameideio/ameide/pull/404 (in review)
+  - Adds `operators.<name>.image.ref` and `operators.<name>.image.digest` support in `operators/helm` so GitOps can pin by digest without relying on `tag: dev/main`.
+  - Updates chart docs/examples to teach digest-pinned refs and `imagePullPolicy: IfNotPresent` for GitOps-managed environments.
+
+Note: the tag table above is retained as historical context for how CI publishes tags; GitOps-managed environments should follow 602 and deploy digest-pinned refs only.
+
+---
+
 ## 4. Development Phases
 
 ### Phase 1: Core Chart ✅ IMPLEMENTED

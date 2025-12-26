@@ -455,3 +455,12 @@ Example wrapper conventions:
 - [ ] Phase G: system-level diff customizations + SSA policy
   - [x] Scoped app-level drift mitigations added where required (e.g., GitLab defaulted fields)
   - [ ] Move generic drift rules into Argo system config where appropriate; minimize `ignoreDifferences`
+
+---
+
+## Implementation progress (image policy)
+
+### 2025-12-26
+
+- `backlog/602-image-pull-policy.md` / `backlog/603-image-pull-policy.md`: clarified “local is automated, not an exception” and expanded the cross-repo checklist.
+- `ameide` repo PR https://github.com/ameideio/ameide/pull/404 (in review) removes floating `:dev`/`:main` defaults from producer-side tooling (scripts/CLI/scaffold) and adds digest/ref support to the operators Helm chart (pre-req for fleet-wide enforcement).

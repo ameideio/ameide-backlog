@@ -1143,3 +1143,11 @@ Populate Software Catalog with existing Ameide services per the entity mapping i
 | Document | Section | Relationship |
 |----------|---------|--------------|
 | [484-ameide-cli.md](484-ameide-cli.md) | §3, §13 | `ameide primitive scaffold` generates Backstage-aligned templates; CLI and Backstage share same skeleton sources |
+
+---
+
+## Implementation progress (image policy)
+
+### 2025-12-26
+
+- Backstage-generated/templated deployables should not introduce floating tags into GitOps-managed environments; 602/603 define the policy and 603 tracks refactoring surfaces.

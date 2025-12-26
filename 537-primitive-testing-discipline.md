@@ -778,3 +778,11 @@ This is the **ideal**, checklist-driven refactor set to bring the repo in line w
   - [ ] Clearly documents which generated trees are authoritative and which are build-only.
 - [ ] Update the `Codegen` gate implementation:
   - `packages/ameide_coding_helpers/verify/repo_gate.go`
+
+---
+
+## Implementation progress (602/603 alignment)
+
+### 2025-12-26
+
+- Producer-side refactoring to stop generating committed floating tags (scaffolding + local publish) is in review: https://github.com/ameideio/ameide/pull/404.
