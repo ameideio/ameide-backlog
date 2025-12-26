@@ -70,7 +70,7 @@ This story covers the **Argo CD / GitOps dev path only**:
 
 - Ensure the k3d dev cluster is created with a local registry (`k3d-ameide.localhost:5001/ameide`) and that k3s/containerd is configured to pull from it over HTTP.
 - Ensure dev bootstrap builds and **pushes** images for all services to that registry.
-- Ensure dev GitOps values reference `k3d-ameide.localhost:5001/ameide/<service>:dev`.
+- Legacy: ensure dev GitOps values reference `k3d-ameide.localhost:5001/ameide/<service>:dev` for this k3d flow. Current target state is digest-pinned refs with PR write-back (see `backlog/602-image-pull-policy.md` / `backlog/603-image-pull-policy.md`).
 
 Tilt’s inner-loop build path and its registry configuration (`registry.localhost:32000` by default) are out of scope for this story and are tracked under 373.
 

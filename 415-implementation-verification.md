@@ -3,7 +3,7 @@
 **Date:** 2025-11-29
 **Status:** ✅ LARGELY IMPLEMENTED with minor gaps
 
-> ⚠️ **Legacy scope:** This report verifies the old k3d-based dev registry workflow. Remote-first development now targets the shared AKS cluster (see [435-remote-first-development.md](435-remote-first-development.md)), so treat the findings below as historical documentation rather than the current dev path. The bootstrap CLI referenced here as `tools/bootstrap/bootstrap-v2.sh` now lives in the `ameide-gitops` repository (`bootstrap/bootstrap.sh`); retain the original paths below only for provenance.
+> ⚠️ **Legacy scope:** This report verifies the old k3d-based dev registry workflow. Remote-first development now targets the shared AKS cluster (see [435-remote-first-development.md](435-remote-first-development.md)), so treat the findings below as historical documentation rather than the current dev path. The current GitOps image policy deploys digest-pinned refs and drives rollouts via Git PR write-back (see `backlog/602-image-pull-policy.md` / `backlog/603-image-pull-policy.md`). The bootstrap CLI referenced here as `tools/bootstrap/bootstrap-v2.sh` now lives in the `ameide-gitops` repository (`bootstrap/bootstrap.sh`); retain the original paths below only for provenance.
 
 Implementation playbook note: `backlog/533-capability-implementation-playbook.md` references this report as verification context for capability implementation workflows.
 
@@ -97,11 +97,8 @@ The k3d dev registry end-to-end flow has been successfully implemented with most
   - Default registry endpoint disabled for server+agent ✅
 
 ### 6. GitOps Values
-- **Repository URLs:** ✅ All using `k3d-ameide.localhost:5001/ameide/<service>:dev`
-  - Verified across 14 dev values files
-  - Examples:
-    - [apps-www-ameide-platform.yaml:35](../gitops/ameide-gitops/sources/values/env/dev/apps/apps-www-ameide-platform.yaml#L35)
-    - [apps-inference.yaml:15](../gitops/ameide-gitops/sources/values/env/dev/apps/apps-inference.yaml#L15)
+- **Repository URLs (legacy):** ✅ At time of writing, values referenced `k3d-ameide.localhost:5001/ameide/<service>:dev`.  
+  **Current policy:** GitOps-managed environments deploy digest-pinned refs; local/dev advance via automated PRs (see `backlog/602-image-pull-policy.md` / `backlog/603-image-pull-policy.md`).
 
 - **Pull Policy:** ✅ `pullPolicy: IfNotPresent` (legacy k3d registry flow; current target-state policy is `backlog/602-image-pull-policy.md`)
 - **Pull Secrets:** ✅ Empty/none (as expected for local registry)

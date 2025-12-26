@@ -19,6 +19,7 @@ We need a policy where a Git commit maps to **one exact image artifact**, with a
 - **Immutable identity:** `@sha256:<digest>` (the deployment identity).
 - **Readable ref (still immutable):** `:<sha>@sha256:<digest>` (allowed, still pinned by digest).
 - **Floating tag:** `:dev`, `:main`, `:latest` (MUST NOT be referenced by GitOps).
+- **Semantic version tag:** `:vX.Y.Z` (not floating; allowed only when paired with a digest).
 - **`imagePullPolicy`:** a pull behavior knob; it does **not** create rollouts by itself.
 
 ## Policy (target state)
@@ -32,6 +33,11 @@ All images referenced by GitOps MUST be pinned by digest:
 
 Refs without a digest are non-compliant.
 
+GitOps MUST NOT use branch-like tags (e.g. `:main`) even when combined with a digest (`repo:main@sha256:...`). If a tag is present, it MUST be either:
+
+- a build SHA tag (recommended), or
+- a semantic version tag (for third-party images), and still paired with `@sha256:...`.
+
 ### Rule 2 — Single image configuration contract: `image.ref`
 
 For **custom charts we control** in this GitOps repo, the only supported “knob” for images is a single string value:
@@ -42,8 +48,10 @@ Do not model first-party service images as `repository`/`tag`/`digest` in GitOps
 
 For **third-party charts** (vendored under `sources/charts/third_party/**`), follow the chart’s supported values, but the rendered image MUST still be digest-pinned. In practice, that means one of:
 
-- chart supports a `digest:` field → set it (`sha256:<digest>`)
-- chart supports `repository` + `tag` only → encode as `tag: <version>@sha256:<digest>`
+- chart supports a `digest:` field → set it (`sha256:<digest>`) and keep `tag:` as a plain semantic version (`vX.Y.Z`) if the chart uses the tag for labels.
+- chart supports `repository` + `tag` only → encode as `tag: <version>@sha256:<digest>` only if the chart does not reuse `tag` in Kubernetes labels/annotations (otherwise it can render invalid label values like `vX.Y.Z@sha256:...`).
+
+If a third-party chart does not support digest pinning cleanly, patch the vendored chart to add a digest value (preferred) rather than relaxing the policy.
 
 ### Rule 3 — Pull policy is boring and consistent
 
@@ -123,5 +131,6 @@ The enforcement checks apply at minimum to:
 ## Notes
 
 - `imagePullPolicy` is a correctness *aid*, not a rollout mechanism.
+- Third-party images are pinned by digest too: GitOps determinism applies equally to upstream charts (otherwise `:latest`/`vX.Y.Z` retags can change meaning without a Git diff).
 - Multi-arch and pull-secrets are separate concerns; see `backlog/456-ghcr-mirror.md`.
 - If you need mutable tags for an inner-loop workflow, keep it outside GitOps-managed surfaces (e.g., Tilt-only ephemeral releases that are not committed to the GitOps repo).
