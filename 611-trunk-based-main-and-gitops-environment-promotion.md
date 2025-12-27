@@ -1,0 +1,186 @@
+---
+title: 611 – Trunk-Based `main` + GitOps Environment Promotion (dev → staging → prod)
+status: active
+owners:
+  - platform
+  - release
+  - sre
+created: 2025-12-27
+updated: 2025-12-27
+---
+
+## Summary
+
+Move to a **single-trunk** development model where:
+
+- `main` is the only integration branch (all changes land via PR → `main`)
+- **dev environment tracks `main` via artifacts** (digest-pinned images), not via a long-lived `dev` branch
+- **staging/prod are promotions of immutable artifacts built from `main`** (build once → deploy many)
+- ARC (`arc-local`) is the default CI substrate; Docker-in-Docker is not required (BuildKit in-cluster)
+
+This eliminates duplicated “promotion PR” CI, reduces queued/cancelled runs, and aligns GitOps with environment promotion.
+
+## Context
+
+We currently conflate:
+
+- source control branching (`dev`/`main`)
+- deployment environments (dev/staging/prod)
+
+This leads to waste patterns:
+
+- `dev → main` PRs re-run heavy CI even though `dev` already enforced it
+- CD workflows create runs on many pushes and later self-cancel via `should-run`, causing queue/noise
+- “promotion” becomes “rebuild/retest” instead of “promote immutable digests”
+
+Related backlogs:
+
+- `610-ci-rationalization.md` (cost/latency controls)
+- `598-github-arc.md` (ARC local runner substrate)
+- `599-k8s-native-buildkit-builds-on-arc.md` (in-cluster BuildKit)
+- `602-image-pull-policy.md` / `603-image-pull-policy.md` (digest pinning and rollout discipline)
+
+## Goals
+
+1. **Single trunk**: all feature work merges via PR → `main`.
+2. **Build once, deploy many**: the same image digests move dev → staging → prod.
+3. **No duplicated CI**: no “full CI twice” on branch promotions.
+4. **Low-noise pipelines**: avoid creating workflow runs when paths are irrelevant.
+5. **ARC-first CI**: most PR/push verification runs on `arc-local` without Docker daemon semantics.
+
+## Non-goals
+
+- Introducing new permanent “flag” systems for choosing runner/publish behavior per workflow.
+- Making staging/prod deploy directly from branch pointers instead of immutable digests.
+- Running untrusted fork PR code on self-hosted runners.
+
+## Target Model
+
+### Branching
+
+- **`main` only** for integration.
+- Optional: short-lived release branches only if needed for backports (policy-defined); default is tag-based releases from `main`.
+- Remove “`dev` branch as environment proxy”.
+
+### Environments and promotions (GitOps)
+
+- Dev/staging/prod are represented by **GitOps overlays** and **digest-pinned `image.ref` values**.
+- Promotion is a GitHub PR in `ameide-gitops` that copies digests forward:
+  - dev → staging
+  - staging → prod
+- Promotion does **not** rebuild images; it reuses already-produced digests.
+
+### CI vs CD responsibilities
+
+**CI (verification)**
+- Runs on PRs to `main` (ARC by default) with cancellation + scoped work.
+- Never publishes externally by default.
+
+**CD (publication/promotion)**
+- Only runs when explicitly intended:
+  - tags/releases
+  - manual dispatch
+  - PR-merged promotion in GitOps (digest copy)
+- Avoid “always-on publish on every push”.
+
+### Runner switching (simple)
+
+- One variable to switch CI execution substrate per repo:
+  - `AMEIDE_RUNS_ON=arc-local` (default)
+  - `AMEIDE_RUNS_ON=ubuntu-latest` (fallback)
+- Publishing workflows should run on a **trusted substrate** (hosted or a separate locked-down runner set), not on `arc-local`.
+
+## Required-check policy
+
+- Required checks should map to **PRs into `main`** only.
+- Avoid policies that require a “promotion PR path” (e.g., “PRs to main must come from dev”), as that recreates duplication and complexity.
+
+## Definition of Done
+
+- `dev` branch is not required for the standard change path; all work merges via PR → `main`.
+- `dev` environment deploys the latest approved `main` artifacts via GitOps digest pins.
+- staging/prod promotions are PR-based digest copies; no rebuilds.
+- CI creates minimal queued/cancelled noise (path filters + cancellation).
+- ARC runners are the default for CI; BuildKit-in-cluster is the image build path.
+
+---
+
+## Transition Plan (Actions)
+
+### A) Repository governance (source of truth)
+
+1. Make `main` the only required PR target for normal development (document this in repo README/contributing).
+2. Remove/relax any policies that enforce “PRs to main must come from dev” (required-check and workflow policy alignment).
+3. Decide whether to keep a `dev` branch at all:
+   - Preferred: keep temporarily as a compatibility branch, then archive/delete once unused.
+   - If kept: it must not be an environment proxy.
+
+### B) CI restructuring (ameide repo)
+
+1. Change CI triggers to be trunk-based:
+   - Heavy CI runs on `pull_request` targeting `main` (fork-guarded).
+   - `push` to `main` runs a smaller “post-merge” validation set (optional).
+2. Add/strengthen path scoping inside heavyweight workflows:
+   - Gate pnpm install + JS suites behind path filters.
+   - Gate uv sync + Python suites behind path filters.
+   - Gate operators and integration packs behind path filters.
+3. Ensure aggressive cancellation:
+   - `concurrency.cancel-in-progress: true` for PR workflows grouped by PR number.
+4. Ensure CI is ARC-safe:
+   - No Docker daemon assumptions.
+   - Any image builds use BuildKit (`AMEIDE_BUILDKIT_ADDR`).
+
+### C) CD workflow triggers (ameide repo)
+
+1. Prevent unnecessary run creation:
+   - Add `on.push.paths` filters to CD workflows so irrelevant pushes don’t create runs at all:
+     - `.github/workflows/cd-service-images.yml`
+     - `.github/workflows/cd-packages.yml`
+     - `.github/workflows/cd-devcontainer-image.yml`
+2. Turn on branch-run cancellation:
+   - For branch pushes, set `concurrency.cancel-in-progress: true` (group by workflow+branch).
+   - Keep tags/releases separate if needed (no cancellation).
+3. Separate “publish” from “smoke”:
+   - Smoke builds may run on ARC and produce OCI/tar artifacts without pushing.
+   - Real publishing/signing should run on a trusted substrate.
+
+### D) GitOps environment model (ameide-gitops repo)
+
+1. Define explicit environment overlays and promotion PR flow:
+   - dev overlay consumes “latest main” channel (digest-pinned).
+   - staging overlay consumes promoted digests from dev.
+   - prod overlay consumes promoted digests from staging.
+2. Standardize image references:
+   - Always digest-pin `image.ref` (enforced by `602`/`603` policy).
+3. Promotion scripts:
+   - Ensure `scripts/promote-images.sh` copies digests forward without rebuilding.
+   - Ensure promotion PRs are labeled/owned and auto-mergeable when policy allows.
+
+### E) Argo CD + Applicationsets
+
+1. Ensure dev/staging/prod are driven by GitOps overlays (not branch pointers).
+2. Ensure Argo CD sync waves reflect “foundation → platform → workloads”.
+3. Confirm rollouts happen because Git changed (promotion PR merged), not because tags float.
+
+### F) ARC + BuildKit (local cluster)
+
+1. Keep ARC default runner (`arc-local`) CI-friendly:
+   - baseline tools in runner image (git/curl/tar/jq/yq/rg/skopeo/rsync/buildctl)
+   - `AMEIDE_BUILDKIT_ADDR` injected into runner pods and set as repo variable
+2. Keep BuildKit in-cluster reachable (`buildkitd.buildkit.svc.cluster.local:1234`) and restrict access appropriately for local.
+
+### G) External integrations + release artifacts
+
+1. Decide the publication boundary:
+   - what is published on tag only vs every merge to main
+   - where signing happens (hosted or trusted runner set)
+2. Align SDK publishing and container publishing to the same release signal (tags on `main`).
+3. Update documentation (runbooks) for “how to promote dev → staging → prod”.
+
+### H) Measurement and guardrails
+
+1. Update CI reporting to measure:
+   - runner occupancy (sum of job `startedAt→completedAt`)
+   - queue time separately (run created→job started)
+2. Track cancelled/superseded runs and enforce budgets (see `610`).
+
