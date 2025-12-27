@@ -73,7 +73,8 @@ jobs:
 
 - Image: `ghcr.io/ameideio/arc-local-runner`
 - Baseline tools include `git/curl/tar/jq/yq/rg/skopeo` and `buildctl` (for BuildKit builds)
-- GitOps pins the runner image digest (current: `0.1.1`)
+- GitOps pins the runner image digest (current: `sha-0c673b3c10ae@sha256:839c1a30fd0a3195ae61209131b67a480fe534723a9adf67e524dceda3830b55`)
+  - Tooling includes `rsync` + `cosign` so workflows don’t carry installer glue.
 
 Image policy note:
 
@@ -197,6 +198,8 @@ Then, in each repo:
 
 - Create GitHub variable `AMEIDE_RUNS_ON=arc-local` (or set to `ubuntu-latest` to run on GitHub-hosted)
 - Ensure the repo is in the `ameideio` org (this local ARC install is org-attached via `githubConfigUrl: https://github.com/ameideio`)
+
+Note: org-level Actions variables are preferred, but may require elevated org permissions; if org variable management is restricted, use per-repo variables.
 
 ### 2) Runner group access (optional but recommended)
 

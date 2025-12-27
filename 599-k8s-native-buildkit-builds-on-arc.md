@@ -31,6 +31,7 @@ We already rely on BuildKit features (e.g. `RUN --mount=type=secret`) for safe b
 - Runner label: `arc-local` (runner scale set name)
 - BuildKit endpoint variable: `AMEIDE_BUILDKIT_ADDR` (repo/org variable)
   - Default: `tcp://buildkitd.buildkit.svc.cluster.local:1234`
+  - Local runner pods also export `AMEIDE_BUILDKIT_ADDR` directly, so ARC workflows can rely on it without hardcoding.
 
 ---
 
