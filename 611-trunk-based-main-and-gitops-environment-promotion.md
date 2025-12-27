@@ -224,3 +224,12 @@ Current workflow logic mixes “branch == environment/channel” assumptions tha
 
 - `.external/ameide-repo/scripts/ci/compute_sdk_versions.sh`: already has correct “release == semver tag” semantics; remove downstream branch heuristics in workflows so this remains authoritative.
 - `.external/ameide-repo/scripts/ci/report_actions_minutes.sh`: improve measurement to separate **runner occupancy** vs **queue time** by summing job `startedAt→completedAt` from `gh run view --json jobs`, and report queue as (run created→first job started). This better matches ARC capacity pressure than `run_duration_ms` alone.
+
+---
+
+## Implementation progress (log)
+
+### 2025-12-27
+
+- `ameide` (proposed changes): pushed branch `codex/trunk-main-only` that removes `dev` branch triggers, makes release semantics tag-only, adds `on.push.paths` to CD workflows, and aligns channel tagging to `:dev` (from `main`) + `vX.Y.Z` tags.
+- `backlog` (this repo): updated `598`, `602`, `603`, `610` to reflect trunk-based semantics while preserving pre-trunk notes; updated `611` research log with concrete refactor targets.

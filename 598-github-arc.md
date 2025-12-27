@@ -194,6 +194,8 @@ Recommended pattern (allows overriding per-repo with a GitHub **Variable**):
 runs-on: ${{ vars.AMEIDE_RUNS_ON || 'arc-local' }}
 ```
 
+Trunk-based note: with the single-trunk `main` model (`611`), CI should primarily be `pull_request` → `main` and `push` → `main` (no long-lived `dev` branch required for CI routing).
+
 Then, in each repo:
 
 - Create GitHub variable `AMEIDE_RUNS_ON=arc-local` (or set to `ubuntu-latest` to run on GitHub-hosted)

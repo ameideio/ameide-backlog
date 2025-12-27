@@ -73,6 +73,8 @@ Implementation (this repo):
 - `.github/workflows/bump-local-dev-images.yaml` runs on a schedule and/or `repository_dispatch` and opens an auto-merged PR.
 - `scripts/bump-local-dev-images.sh` resolves `ghcr.io/ameideio/<repo>:dev` → digest and rewrites `sources/values/env/local/**` + `sources/values/env/dev/**`.
 
+Trunk-based note: the producer `:dev` tag should represent “latest built from `main`” (a channel tag), not “built from a `dev` branch”.
+
 This is “fully automated” for local/dev once:
 
 - producer CI pushes `:<repo>:dev` tags, and

@@ -76,15 +76,15 @@ Split/gate heavy work by change category:
 
 Prefer explicit `paths-filter`-style gates over “always run and hope cache saves you”.
 
-### C) Stop “always-on” CD on `dev` (unless relevant)
+### C) Stop “always-on” CD on branch pushes (unless relevant)
 
-Publishing images/packages on every `dev` push is expensive and creates long queues.
+Publishing images/packages on every branch push is expensive and creates long queues.
 
 Target behavior:
 
 - **Manual dispatch** always runs (for smoke/publish)
 - **Tags** always run (release)
-- **Branch pushes** run only if relevant directories changed (diff gate)
+- **Branch pushes** run only if relevant directories changed (`on.push.paths`, plus a defensive diff gate)
 
 ### D) Cache and dependency hygiene
 
@@ -92,9 +92,16 @@ Target behavior:
 - Cache expensive tool downloads (e.g., Playwright browsers) with a stable key.
 - Make “fast paths” explicit and documented (keep `468` aligned with CI reality).
 
-### E) Required-check policy for promotion PRs (`dev → main`)
+### E) Required-check policy under trunk-based `main`
 
-Avoid duplicating full PR CI on promotion PRs:
+Avoid duplicated “full CI twice” by aligning required checks with the trunk model:
+
+- Required checks apply to **PRs into `main`** (the only integration path).
+- “Promotion” is a **GitOps digest-copy PR** (dev → staging → prod) and should have its own minimal checks (lint/policy/manifest render), not the full application CI suite.
+
+#### Historical note (pre-trunk `dev → main`)
+
+Earlier, the repo used a `dev` branch and a `dev → main` promotion PR flow. Under that model, the correct optimization was:
 
 - Preferred: only run the full CI suite on PRs targeting `dev`, and a minimal “promotion smoke” on PRs targeting `main`.
 - If branch protection requires specific checks: create “proxy” checks for `main` that are quick but still meaningful.
@@ -108,4 +115,3 @@ Any change to:
 - “fast path” semantics
 
 …must add an entry to `521h-external-verification-improvements.md`.
-

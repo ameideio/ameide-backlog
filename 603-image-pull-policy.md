@@ -21,6 +21,8 @@
   - `scripts/bump-local-dev-images.sh`
 - PR auto-merges after checks → Argo CD sync → deterministic rollout.
 
+Trunk-based note: `:dev` is a producer channel tag for “latest from `main`”, not a branch-derived environment.
+
 This is “per commit” if producer CI triggers `repository_dispatch`; otherwise it runs on schedule.
 
 ### Staging + production (promotion PRs; human-gated)
