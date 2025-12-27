@@ -38,6 +38,10 @@ These are the minimum implementation capabilities required for this scenario to 
   - [ ] a change element (`methodology_key = scrum`)
   - [ ] requirement draft element(s) and snapshots (ElementVersions)
   - [ ] anchor relationships (`ref:requirement`, `ref:deliverables_root`) with `metadata.target_version_id`
+- [ ] **Cluster E2E harness (non-agentic) exists** (optional gate; required for UI-affecting changes):
+  - [ ] BuildKit build path exists in-cluster (no Docker-in-Docker requirement)
+  - [ ] Gateway API overlay routing exists (Envoy Gateway): runner can create/delete `HTTPRoute` rules that match a run header (recommended `X-Ameide-Run-Key=<nonce>`) and route to shadow Services while stable URLs remain unchanged
+  - [ ] Playwright E2E runner can hit the stable URL and inject the run header on every request (artifacts under `/artifacts/e2e/*` per 430)
 
 ---
 
@@ -149,12 +153,23 @@ These are the minimum implementation capabilities required for this scenario to 
 ### 3.4a Verification outcome recorded
 - **Input:** WorkRequest id.
 - **Output:** Verification report + evidence bundle; pass/fail status.
-- **Next:** If pass → **Trigger** Phase 4; if fail → **Loop** 3.3 (fix) or if “proto breaking” → **Loop** 2.2 (redesign)
+- **Next:** If pass → **Trigger** 3.5 (when E2E gate is required) else **Trigger** Phase 4; if fail → **Loop** 3.3 (fix) or if “proto breaking” → **Loop** 2.2 (redesign)
+
+### 3.5 Request cluster E2E harness run (stable URLs; gateway overlay)
+- **Input:** Verified PR ref + stable base URL + run key (nonce) + service selection manifest.
+- **Output:** Domain WorkRequest created with `action_kind=e2e` (recommended queue: `transformation.work.queue.toolrun.e2e.v1`).
+- **Next:** **Trigger** E2E runner job; **Wait** 3.5a
+
+### 3.5a E2E outcome recorded
+- **Input:** E2E WorkRequest id.
+- **Output:** Playwright artifacts + pass/fail evidence recorded in Domain and cited by Process facts.
+- **Next:** If pass → **Trigger** Phase 4; if fail → **Loop** 3.3 (fix) or **Loop** 2.1/2.2 (redesign) depending on root cause
 
 ### Phase 3 — Implementation checklist
 
 - [ ] **Domain**: WorkRequest lifecycle is persisted and emits `WorkRequested/Started/Completed/Failed` facts.
 - [ ] **Integration runner**: can execute `scaffold|generate|verify` deterministically for a given `commit_sha` and record evidence (logs + artifacts).
+- [ ] **Integration runner (E2E)**: can build/run shadow services in-cluster, apply Gateway API overlay routes, run Playwright against stable URLs with a run header, and record artifacts under `/artifacts/e2e/*`.
 - [ ] **Process**: emits step-level process facts and correlates to WorkRequests (so Projection can build a run timeline).
 - [ ] **Projection/UISurface**: can show WorkRequest status + evidence links and the process run timeline.
 

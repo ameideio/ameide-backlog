@@ -71,7 +71,7 @@ This section is the current repo snapshot of **what is implemented vs what is st
 - [x] `repository_id` is the only repository identifier in contracts/APIs (no separate `graph_id`).
 - [x] Canonical store is **relational Postgres**; graph traversal and vector search are **projection concerns**.
 - [x] Legacy backends are removed; all flows must go through primitives (see “Deletion”).
-- [x] Work execution scales only on dedicated work-queue topics (`transformation.work.queue.toolrun.verify.v1`, `transformation.work.queue.toolrun.generate.v1`, `transformation.work.queue.agentwork.coder.v1`), not on canonical domain fact streams.
+- [x] Work execution scales only on dedicated work-queue topics (`transformation.work.queue.toolrun.verify.v1`, `transformation.work.queue.toolrun.generate.v1`, `transformation.work.queue.agentwork.coder.v1`; recommended new for UI E2E harness: `transformation.work.queue.toolrun.e2e.v1`), not on canonical domain fact streams.
 
 ### Transformation Knowledge (Domain + Projection + UISurface wiring)
 
@@ -274,6 +274,7 @@ Queue topics (v1; dedicated per class of work to avoid scaling on non-WorkReques
 - `transformation.work.queue.toolrun.verify.v1`
 - `transformation.work.queue.toolrun.generate.v1`
 - `transformation.work.queue.agentwork.coder.v1`
+- recommended (new): `transformation.work.queue.toolrun.e2e.v1` for non-agentic E2E harness runs (cluster-only; stable URLs; Gateway API overlays).
 
 Implementation status (GitOps; `ameide-gitops`):
 
@@ -306,6 +307,21 @@ Rule of thumb:
 - **Notation (metamodel) profiles** govern *what kinds of elements/relationships are valid* and how diagrams/models are validated/exported (ArchiMate/BPMN/etc.).
 - **Methodology overlays** govern *how work is executed* (ProcessDefinitions + gates) and *what “compliance” means* (checks/validators + UI views), without forking the canonical repository model.
 - **Kubernetes CRDs/operators** govern runtime wiring only; they MUST NOT encode methodology/business semantics. Methodology meaning is stored as domain data (Definitions + Elements) and enforced via validations + gates.
+
+## 3.1) Cluster E2E harness (non-agentic; stable URLs; no GitOps churn)
+
+Transformation’s v1 posture separates **agentic development** from **non-agentic E2E testing**:
+
+- **Dev WorkRequests (agent-capable):** interactive, human-in-the-loop development in an in-cluster devcontainer toolchain, producing repo changes + repo-mode verification evidence.
+- **E2E WorkRequests (non-agentic):** fully programmatic “build → run shadow → route overlay → run Playwright → collect artifacts → cleanup” against **stable environment URLs** (e.g., `https://platform.local.ameide.io`), without per-run GitOps/Argo changes.
+
+To keep stable URLs unchanged while routing only test traffic to the modified service versions, the platform uses the gateway as the “intercept plane”:
+
+- Create ephemeral **shadow** Deployments/Services for the changed services (no changes to baseline Deployments).
+- Create ephemeral **Gateway API** overlay routes (e.g., `HTTPRoute`) matching a run-scoped header (recommended: `X-Ameide-Run-Key=<nonce>`) that routes only that run’s requests to the shadow Services.
+- Playwright sets the header on all requests; all other traffic continues to hit baseline services.
+
+Telepresence remains a developer ergonomics tool for interactive remote-first workflows; it is not required for the v1 in-cluster E2E harness.
 
 ## 4) Application realization (primitives)
 

@@ -44,6 +44,7 @@ What remains intentionally pending (target state):
 
 - Executing **stored ProcessDefinitions** (BPMN) fetched from the Definition Registry (v0 workflows are hard-coded).
 - A formal “compiled workflow” pipeline (BPMN → IR → promotion → execution) and its promotion gates.
+- Optional: cluster E2E harness orchestration as a non-agentic WorkRequest step (`action_kind=e2e`) for stable-URL Playwright runs via Gateway API header overlays (see `backlog/527-transformation-integration.md` §1.0.1a).
 
 ## 1) Process responsibilities
 
@@ -98,7 +99,7 @@ Workflow steps often require deterministic tool execution (scaffolding, codegen,
 
 Kafka note (normative):
 
-- The WorkRequest queue uses dedicated Kafka topics per executor class (v1: `transformation.work.queue.toolrun.verify.v1`, `transformation.work.queue.toolrun.generate.v1`, `transformation.work.queue.agentwork.coder.v1`); KEDA scales by consumer group lag and the Job is the Kafka consumer.
+- The WorkRequest queue uses dedicated Kafka topics per executor class (v1: `transformation.work.queue.toolrun.verify.v1`, `transformation.work.queue.toolrun.generate.v1`, `transformation.work.queue.agentwork.coder.v1`; recommended new: `transformation.work.queue.toolrun.e2e.v1` for stable-URL Playwright runs via Gateway API overlays); KEDA scales by consumer group lag and the Job is the Kafka consumer.
 - WorkRequest processors must disable auto-commit and only commit offsets after outcomes/evidence are durably recorded in Domain.
 
 ## 3) BPMN ProcessDefinitions (executable + scaffolding driver)

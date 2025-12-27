@@ -38,7 +38,8 @@ Implemented in code (Dec 2025):
   - requests two verify WorkRequests (`phase_a.verify`, `phase_bcd.verify`),
   - records evidence as elements linked via versioned `ref:evidence:*` relationships, and
   - records a release element linked via `ref:release`, then promotes a governance baseline.
-- [x] **E2E tests**: capability pack runs the TOGAF ADM R2R flow end-to-end in repo-mode and cluster-mode under the same test implementation (430 posture).
+- [x] **Headless E2E tests (governance seam)**: capability pack runs the TOGAF ADM R2R flow end-to-end in repo-mode and cluster-mode under the same test implementation (430 posture).
+- [ ] **UI E2E harness (Playwright; stable URLs)**: WorkRequest-driven E2E harness uses BuildKit + Gateway API header overlays (no Telepresence) to route only test traffic to shadow services and capture artifacts under `/artifacts/e2e/*` (per `backlog/430-unified-test-infrastructure-status.md`).
 
 Still pending (target state):
 

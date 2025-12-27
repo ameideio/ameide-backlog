@@ -320,6 +320,7 @@ WP‑B is implemented **proto-first** so orchestration and evidence do not drift
     - `transformation.work.queue.toolrun.verify.v1`
     - `transformation.work.queue.toolrun.generate.v1`
     - `transformation.work.queue.agentwork.coder.v1`
+    - recommended (new): `transformation.work.queue.toolrun.e2e.v1` (cluster E2E harness; Gateway API overlay routing + Playwright; separate executor/RBAC)
   - note: these queue topics are distinct from canonical domain fact streams (e.g., `transformation.*.facts.v1`) which exist for persistence/projection; scaling MUST NOT depend on them
   - define the consumer group naming convention per executor class/role (e.g., `transformation-workrequest-executor.v1.<kind>`) and bind it in KEDA trigger metadata
   - set retention/cleanup to reflect “Kafka is transport, not evidence” (short retention + delete policy; evidence is persisted in Domain and object storage)
@@ -354,7 +355,7 @@ WP‑B is implemented **proto-first** so orchestration and evidence do not drift
 - [x] Process ingress supports Kafka (cluster E2E wiring pending):
   - `PROCESS_INGRESS_SOURCE=kafka://` consumes domain fact topics and signals workflows; cluster orchestration remains gated until GitOps deploys ingress + dispatcher + topics
 - [ ] Projection “timeline assertions” are enabled in cluster mode:
-  - projection must ingest process facts + work facts reliably and expose query services without Telepresence port-name collisions (see gotchas)
+  - projection must ingest process facts + work facts reliably and expose query services without sidecar port-name collisions (Telepresence is dev-only; see gotchas)
   - `primitive-projection-transformation` image now includes `projection-transformation-relay` for deployment as a standalone ingestion workload in cluster
 
 **Implementation status (GitOps; repo snapshot)**
@@ -425,13 +426,19 @@ Consumer groups (current GitOps scaffolding; subject to future naming convention
 - `transformation-work-queue-toolrun-verify-v1`
 - `transformation-work-queue-toolrun-generate-v1`
 - `transformation-work-queue-agentwork-coder-v1`
+- recommended (new): `transformation-work-queue-toolrun-e2e-v1` (cluster E2E harness; separate ServiceAccount/RBAC)
 
 ### Implementation gotchas captured (so we don’t regress)
 
 - Strimzi topic config values MUST be rendered as strings for numeric fields like `retention.ms` to avoid scientific-notation formatting (`6.048e+08`) that Kafka rejects. See `sources/values/_shared/data/data-kafka-workrequests-topics.yaml` (`retentionMs: "604800000"`).
 - KEDA’s Kafka scaler runs in `keda-system`; `bootstrapServers` MUST be namespace-qualified (e.g., `kafka-kafka-bootstrap.ameide-local:9092`) so the scaler can resolve the broker Service.
 - Local k3d scheduling: Kafka may require tolerations for control-plane/master taints due to PVC/node pinning in single-node clusters.
-- Telepresence sidecars can accidentally “steal” a Service `targetPort` name:
+- Gateway overlay routing (E2E harness):
+  - Route isolation MUST use a non-guessable run key header (recommended `X-Ameide-Run-Key=<nonce>`), not a predictable WorkRequest id.
+  - Overlay `HTTPRoute` rules MUST be strictly more specific than baseline routes (host + header match) so normal traffic remains unchanged.
+  - Cleanup MUST be deterministic: delete overlay routes + shadow workloads by `workrequest_id` label selector and record a cleanup marker in evidence.
+  - Shadow workloads MUST run with config parity (env/config/secret inputs) with the baseline service; do not “copy deployment spec” at runtime.
+- Legacy (dev-only): Telepresence sidecar port-name collisions
   - if the `traffic-agent` container exposes a port named `grpc`, and the Service targets `targetPort: grpc`, gRPC traffic can route to the sidecar (e.g., port `9900`) instead of the intended app container (e.g., port `50051`)
   - fix: ensure the app container port name and Service `targetPort` name match and do not conflict with the sidecar (use unique names like `tm-grpc` consistently)
 
@@ -464,7 +471,7 @@ Enabling ScaledJobs in `local` proves the GitOps substrate and KEDA/Kafka wiring
 The remaining “end-to-end” gaps are now wiring gaps (not missing code primitives):
 
 - Process ingress supports Kafka in CODE (`PROCESS_INGRESS_SOURCE=kafka://`), but cluster orchestration remains gated until GitOps deploys ingress + dispatcher and wires Kafka env vars.
-- Telepresence traffic-agent injection is now opt-in (`agentInjector.injectPolicy=WhenEnabled`) so baseline workloads and operator-managed primitives do not get sidecars by default.
+- Telepresence traffic-agent injection is now opt-in (`agentInjector.injectPolicy=WhenEnabled`) so baseline workloads and operator-managed primitives do not get sidecars by default (interactive/dev ergonomics only; the cluster E2E harness uses Gateway API header overlays, not Telepresence).
 - WorkRequests runner ScaledJobs are now enabled in `local` + `dev` with `maxReplicaCount: 1` for cluster-mode seam tests.
 
 **Remaining activities (WP‑B completion; checklists)**
@@ -495,6 +502,40 @@ We implement WP‑B using a strict “small → large” ladder per `backlog/537
    - In a kind-style acceptance environment, a KEDA ScaledJob schedules an executor-image Job for a `WorkRequested`, and the Job records completion/evidence in Domain; duplicates are tolerated and converge via idempotency keys.
 7. **Headless end-to-end (no UISurface)**
    - Full slice: Process → Domain WorkRequest → KEDA Job → Domain evidence/outcome → Process facts → Projection timeline; assertions run via APIs/queries only.
+
+8. **Cluster UI E2E harness (stable URLs; no Telepresence; no GitOps churn)**
+   - A dedicated `action_kind=e2e` WorkRequest drives:
+     - BuildKit build (changed services only),
+     - ephemeral shadow Deployments/Services (no baseline Deployment mutation),
+     - Gateway API overlay route(s) keyed by a run header (e.g., `X-Ameide-Run-Key=<nonce>`),
+     - Playwright against stable URLs (per `backlog/430-unified-test-infrastructure-status.md`),
+     - artifact capture to `/artifacts/e2e/*` and evidence recording back into Domain.
+   - This rung is non-agentic and must be repeatable and self-cleaning (label-based cleanup + evidence marker).
+
+### WP‑C — Cluster E2E harness (Gateway API overlays; Playwright)
+
+Goal: add a deterministic, non-agentic E2E WorkRequest execution path that validates UISurface flows against stable URLs without preview namespaces or GitOps PRs.
+
+- [ ] Add `action_kind = e2e` to the WorkRequest execution surface (Domain + runner contract).
+- [ ] Add a dedicated E2E work queue topic + consumer group + executor workload:
+  - topic: `transformation.work.queue.toolrun.e2e.v1`
+  - consumer group: `transformation-work-queue-toolrun-e2e-v1`
+  - executor image has additional RBAC to create/delete shadow Deployments/Services and Gateway API `HTTPRoute` objects in a fixed namespace.
+- [ ] Define a deterministic service selection manifest in-repo (no heuristic selection):
+  - changed-path roots → service id
+  - build metadata (BuildKit context/dockerfile/image name)
+  - runtime metadata (shadow deployment template, ports, readiness probe)
+  - edge routing metadata (stable hostname + gateway attachment refs; eligible for overlay routing)
+- [ ] Implement E2E harness runner behavior (Job):
+  - build changed services via BuildKit,
+  - deploy shadow service(s) with config parity,
+  - apply overlay `HTTPRoute` keyed by a per-run header,
+  - run Playwright (`INTEGRATION_MODE=cluster`) against the stable URL with the header injected,
+  - upload `/artifacts/e2e/*` and record evidence + cleanup marker back into Domain.
+
+DoD:
+
+- A single end-to-end E2E run exists for `www-ameide-platform` against the stable URL in `ameide-local`, producing Playwright artifacts and leaving no shadow workloads/routes behind after completion.
 
 Debug/admin mode (required in `local`/`dev`; not a processor):
 

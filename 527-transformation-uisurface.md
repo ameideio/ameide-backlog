@@ -33,6 +33,10 @@ This document specifies the **Transformation UISurface primitive** — the porta
 UISurface must make the execution substrate observable without relying on “pods still exist”:
 
 - Show **WorkRequests** (tool runs and agent work) per initiative/process instance, including status transitions (`requested/started/succeeded/failed`) and linked evidence bundles.
+- For cluster E2E harness WorkRequests (`action_kind=e2e`), show:
+  - target stable `base_url`,
+  - the run isolation key/header (masked in UI; stored as evidence metadata),
+  - Playwright artifacts (junit/report/traces) and pass/fail status.
 - Show the **Process run timeline** (process facts) joined with correlated Domain facts (work requests, promotions, approvals) using `correlation_id` and/or `work_request_id` citations (see `backlog/527-transformation-projection.md` §4.3).
 - Display external actor identity for side effects (defense-in-depth):
   - semantic role (AgentDefinition/runtime role),
@@ -92,6 +96,7 @@ Not yet delivered (UISurface meaning):
 - [ ] Workspace tree browser + assignments UI (beyond “view list”).
 - [ ] Governance UX (initiatives/baselines/promotions/approvals/evidence).
 - [ ] Audit timeline views with `read_context` + citations.
+- [ ] “Run E2E” action that requests a non-agentic E2E WorkRequest (stable URL + Gateway API header overlay) and then links to the resulting artifacts.
 
 ## 2.2) Clarification requests (next steps)
 

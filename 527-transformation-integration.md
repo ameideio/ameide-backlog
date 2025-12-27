@@ -49,6 +49,64 @@ Integration runners exist to bridge “definition-driven process steps” to det
 
 The runner does not decide policy; it executes tools, captures outputs, and emits intents/commands when external systems must be updated (Git provider/registry/CI), while Domain/Process facts remain the authoritative evidence streams.
 
+### 1.0.1a E2E harness runner (non-agentic; stable URLs; Gateway API overlays)
+
+Transformation’s E2E posture is intentionally **cluster-first and programmatic** (per `backlog/430-unified-test-infrastructure-status.md`):
+
+- Playwright E2E runs hit **stable environment URLs** (e.g., `https://platform.local.ameide.io`), not per-run preview URLs.
+- Runs must not require GitOps/Argo PRs or per-run namespaces.
+- Only the changed services are “overlaid” for the duration of the run.
+
+The Integration primitive provides this as a deterministic tool-run action:
+
+- `work_kind = tool_run`
+- `action_kind = e2e`
+- recommended dedicated queue: `transformation.work.queue.toolrun.e2e.v1` (separate executor image + ServiceAccount) because it requires Kubernetes-side effects.
+
+**Mechanism (normative; v1)**
+
+The gateway (Envoy Gateway / Gateway API) is the routing plane for test-traffic interception:
+
+1) Determine affected services from a repo-owned, deterministic manifest (no heuristic selection).
+2) Build the changed services’ images in-cluster (BuildKit) and push to a registry the cluster can pull from.
+3) Start **shadow** Deployments/Services for those images (ephemeral runtime objects; baseline Deployments remain unchanged).
+4) Create **Gateway API overlay routes** (e.g., `HTTPRoute`) matching a run-scoped header:
+   - Recommended header: `X-Ameide-Run-Key=<nonce>` (a per-run secret, not a guessable WorkRequest id).
+   - For host `platform.local.ameide.io`, the most-specific header match routes to the shadow Service; all other traffic goes to baseline.
+5) Run Playwright E2E against the stable URL with the header injected on every request.
+6) Collect artifacts under `/artifacts/e2e/*` (junit + report + traces/screenshots/videos), plus cluster logs relevant to the run.
+7) Cleanup: delete overlay routes + shadow workloads deterministically (label selector `workrequest_id=<id>`).
+
+This keeps E2E “intercepts” vendor-aligned (gateway routing, not traffic-agent injection) and avoids requiring Telepresence privileges inside the cluster.
+
+**Configuration parity (required)**
+
+Shadow services MUST run with the same configuration contract as the baseline services they replace for test traffic:
+
+- environment variables, ConfigMaps, and Secrets required for boot and for critical flows (auth, API endpoints, storage)
+- runtime ports and health checks compatible with the baseline routing
+
+Do not “introspect baseline Deployments” at runtime and copy unknown fields. Instead:
+
+- maintain a deterministic, repo-owned template per service (preferred), or
+- reuse the same templating logic already used by the platform (e.g., Helm values) in a deterministic way inside the harness.
+
+The goal is: “tests validate behavior,” not “tests validate the harness can guess config.”
+
+**No GitOps/Argo churn (clarification)**
+
+This posture avoids GitOps PRs and preview namespaces, but it does create ephemeral runtime objects (Deployments/Services/HTTPRoutes).
+To prevent ArgoCD pruning those objects, the E2E harness MUST run in a namespace that is not configured to prune unknown objects, or the environment must have a one-time baseline policy that tolerates `workrequest_id`-labeled ephemeral objects.
+
+**Playwright harness (430 alignment)**
+
+The E2E harness SHOULD reuse the repo’s Playwright runner contract so evidence locations and required env vars are consistent with backlog 430:
+
+- `INTEGRATION_MODE=cluster` (fail-fast if not set)
+- stable base URL (e.g., `WWW_AMEIDE_PLATFORM_BASE_URL`)
+- persona secret source (namespace + secret name) for authenticated flows
+- artifacts written to `/artifacts/e2e/*` with no fallback paths
+
 ### 1.0.2 Runner interface contract (normative; v1)
 
 Integration runners exist so deterministic tool steps can run without turning the CLI (or a scaling layer) into the orchestrator.
@@ -67,7 +125,7 @@ Integration runners exist so deterministic tool steps can run without turning th
 - Plan reference:
   - `scaffolding_plan_ref` → a promoted `ScaffoldingPlanDefinition` version (Definition Registry id + version), or a fetched plan artifact path provided by the Process primitive
 - Requested action:
-  - `action_kind` ∈ `{preflight, scaffold, generate, verify, build, publish, deploy, smoke}` (v1 set; expand later)
+  - `action_kind` ∈ `{preflight, scaffold, generate, verify, build, publish, deploy, smoke, e2e}` (v1 set; expand later)
   - `execution_scope` ∈ `{slice, repo}` (see §1.0.4)
 - Idempotency:
   - `idempotency_key` (stable per WorkRequest) so replays do not duplicate side effects (e.g., “open PR”)
@@ -112,6 +170,7 @@ GitOps wiring expectation (normative):
 
 - Dedicated Kafka work-queue topics exist for WorkRequests (do not share with unrelated domain facts).
 - Prefer “one topic per role/class of work” (e.g., `transformation.work.queue.toolrun.verify.v1`, `transformation.work.queue.toolrun.generate.v1`, `transformation.work.queue.agentwork.coder.v1`) so scaling, ServiceAccounts, and external credentials can be scoped tightly per executor.
+  - For cluster E2E harness runs, use a dedicated queue (recommended): `transformation.work.queue.toolrun.e2e.v1` so the executor can have the extra Kubernetes permissions required for shadow workloads + Gateway API overlay routes without granting those permissions to the general `verify` executor.
 
 GitOps baseline (normative; Kafka + KEDA):
 
@@ -152,6 +211,7 @@ Implemented (and enabled in `local` + `dev`, disabled elsewhere):
 
 - KEDA installed cluster-scoped (see `backlog/585-keda.md`).
 - Kafka topics created: `transformation.work.queue.toolrun.verify.v1`, `transformation.work.queue.toolrun.generate.v1`, `transformation.work.queue.agentwork.coder.v1`.
+- (Planned) add E2E harness queue: `transformation.work.queue.toolrun.e2e.v1`.
 - Workbench pod (`workrequests-workbench`) deployed for admin attach/exec (not a processor).
 - Secrets contract is defined in GitOps (ExternalSecrets templates exist) but is currently **disabled by default** in `local` + `dev` overlays (`secrets.enabled=false`) so the workbench can be brought up without depending on Vault/ExternalSecrets; enable it when we want the workbench/executors to fetch credentials declaratively from Vault:
   - `workrequests-github-token` (`token`)
@@ -165,6 +225,7 @@ Implemented (and enabled in `local` + `dev`, disabled elsewhere):
 ScaledJobs are rendered/enabled in `local` + `dev`, but intentionally “idle” until a real WorkRequest consumer exists:
 
 - KEDA `ScaledJob` resources exist for `transformation.work.queue.toolrun.verify.v1`, `transformation.work.queue.toolrun.generate.v1`, `transformation.work.queue.agentwork.coder.v1`.
+- (Planned) add an E2E `ScaledJob` for `transformation.work.queue.toolrun.e2e.v1` once the gateway-overlay harness executor exists.
 - `scaledJobs.maxReplicaCount: 0` by default to avoid continuous Job churn/noise until a real producer emits valid `WorkRequested` messages onto the queue topics.
 
 #### Debug/admin mode (workbench pod; not a processor)
