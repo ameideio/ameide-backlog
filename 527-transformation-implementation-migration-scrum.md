@@ -40,6 +40,7 @@ Implemented in code (Dec 2025):
   - records a release element linked via `ref:release`, then promotes a governance baseline.
 - [x] **Headless E2E tests (governance seam)**: capability pack runs the Scrum R2R flow end-to-end in repo-mode and cluster-mode under the same test implementation (430 posture).
 - [ ] **UI E2E harness (Playwright; stable URLs)**: WorkRequest-driven E2E harness uses BuildKit + Gateway API header overlays (no Telepresence) to route only test traffic to shadow services and capture artifacts under `/artifacts/e2e/*` (per `backlog/430-unified-test-infrastructure-status.md`).
+  - Required hardening: wait for `HTTPRoute` `Accepted/Resolved`, prove WUT via an overlay-only marker, and cleanup via a run anchor (`ConfigMap wut-run-<work_request_id>`) + `ownerReferences` + TTL janitor sweep.
 
 Still pending (target state):
 

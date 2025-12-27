@@ -436,7 +436,14 @@ Consumer groups (current GitOps scaffolding; subject to future naming convention
 - Gateway overlay routing (E2E harness):
   - Route isolation MUST use a non-guessable run key header (recommended `X-Ameide-Run-Key=<nonce>`), not a predictable WorkRequest id.
   - Overlay `HTTPRoute` rules MUST be strictly more specific than baseline routes (host + header match) so normal traffic remains unchanged.
-  - Cleanup MUST be deterministic: delete overlay routes + shadow workloads by `workrequest_id` label selector and record a cleanup marker in evidence.
+  - The harness MUST fail closed unless it can prove routing correctness:
+    - wait for `HTTPRoute` status `Accepted=True` and `ResolvedRefs=True` (or controller equivalent),
+    - prove WUT is hit by asserting an overlay-only verification marker (preferred: response header on the overlay rule) is present with the run header and absent without it.
+  - Cleanup MUST be deterministic:
+    - create a run anchor object (recommended `ConfigMap wut-run-<work_request_id>`) and owner-reference all shadow Deployments/Services/HTTPRoutes,
+    - teardown by deleting the anchor object (K8s GC),
+    - verify “no resources remain for `work_request_id`”, and record that proof as evidence,
+    - add a janitor sweep for leaked anchors older than TTL.
   - Shadow workloads MUST run with config parity (env/config/secret inputs) with the baseline service; do not “copy deployment spec” at runtime.
 - Legacy (dev-only): Telepresence sidecar port-name collisions
   - if the `traffic-agent` container exposes a port named `grpc`, and the Service targets `targetPort: grpc`, gRPC traffic can route to the sidecar (e.g., port `9900`) instead of the intended app container (e.g., port `50051`)
@@ -510,7 +517,7 @@ We implement WP‑B using a strict “small → large” ladder per `backlog/537
      - Gateway API overlay route(s) keyed by a run header (e.g., `X-Ameide-Run-Key=<nonce>`),
      - Playwright against stable URLs (per `backlog/430-unified-test-infrastructure-status.md`),
      - artifact capture to `/artifacts/e2e/*` and evidence recording back into Domain.
-   - This rung is non-agentic and must be repeatable and self-cleaning (label-based cleanup + evidence marker).
+   - This rung is non-agentic and must be repeatable and self-cleaning (run anchor + ownerReferences + teardown proof in evidence).
    - Note: keep `action_kind=verify` and select this harness via `verification_suite_ref` so the domain does not accrete test-specific verbs.
 
 ### WP‑C — Cluster E2E harness (Gateway API overlays; Playwright)
@@ -528,15 +535,21 @@ Goal: add a deterministic, non-agentic E2E WorkRequest execution path that valid
   - runtime metadata (shadow deployment template, ports, readiness probe)
   - edge routing metadata (stable hostname + gateway attachment refs; eligible for overlay routing)
 - [ ] Implement E2E harness runner behavior (Job):
+  - create a run anchor object and generate a non-guessable run key,
   - build changed services via BuildKit,
+  - record image digests in evidence and (preferred) deploy shadow workloads by digest,
   - deploy shadow service(s) with config parity,
   - apply overlay `HTTPRoute` keyed by a per-run header,
+  - wait for `HTTPRoute` readiness (`Accepted=True`, `ResolvedRefs=True`) and prove WUT routing with an overlay-only verification marker before running Playwright,
   - run Playwright (`INTEGRATION_MODE=cluster`) against the stable URL with the header injected,
-  - upload `/artifacts/e2e/*` and record evidence + cleanup marker back into Domain.
+  - upload `/artifacts/e2e/*` and record evidence back into Domain (artifacts + routing proof + digests + resources created/deleted + teardown proof),
+  - cleanup by deleting the run anchor object and verifying no labeled resources remain.
+- [ ] Add a periodic janitor sweep for leaked `wut-run-*` anchors older than TTL.
 
 DoD:
 
-- A single end-to-end E2E run exists for `www-ameide-platform` against the stable URL in `ameide-local`, producing Playwright artifacts and leaving no shadow workloads/routes behind after completion.
+- A single end-to-end E2E run exists for `www-ameide-platform` against the stable URL in `ameide-local`, producing Playwright artifacts.
+- The run proves routing correctness (route Accepted/Resolved + marker check) and leaves no shadow workloads/routes behind after completion (teardown evidence).
 
 Debug/admin mode (required in `local`/`dev`; not a processor):
 

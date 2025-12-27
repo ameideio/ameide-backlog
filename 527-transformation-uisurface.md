@@ -36,6 +36,7 @@ UISurface must make the execution substrate observable without relying on “pod
 - For UI harness verification WorkRequests (`action_kind=verify` + `verification_suite_ref=transformation.verify.ui_harness.gateway_overlay.v1`), show:
   - target stable `base_url`,
   - the run isolation key/header (masked in UI; stored as evidence metadata),
+  - routing proof (overlay route accepted/resolved + marker check),
   - Playwright artifacts (junit/report/traces) and pass/fail status.
 - Show the **Process run timeline** (process facts) joined with correlated Domain facts (work requests, promotions, approvals) using `correlation_id` and/or `work_request_id` citations (see `backlog/527-transformation-projection.md` §4.3).
 - Display external actor identity for side effects (defense-in-depth):

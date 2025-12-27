@@ -250,7 +250,14 @@ Evidence bundles are stored as attachments/blobs and referenced from baselines/p
 UI harness evidence posture (430-aligned):
 
 - E2E artifacts (Playwright junit/report/traces) are stored as durable artifact refs (not pod-local paths) and linked via the evidence bundle.
-- The evidence bundle SHOULD include a cleanup marker (e.g., “overlay routes deleted”, “shadow workloads deleted”) so an operator does not need to inspect the cluster to confirm teardown happened.
+- The evidence bundle MUST make “did we actually hit WUT?” provable:
+  - overlay route readiness: `HTTPRoute` `Accepted=True` and `ResolvedRefs=True` (or controller equivalent),
+  - overlay-only verification marker (preferred): response header marker present with run header and absent without it.
+- The evidence bundle MUST include image integrity and teardown proof:
+  - image digests of all built shadow workloads (prefer deploying by digest),
+  - created resources list (shadow Deployments/Services/HTTPRoutes + run anchor),
+  - deleted resources list, and
+  - “no resources remain for `work_request_id`” check result.
 
 ### 3.5 Authorization + approval policy (minimum; v1)
 

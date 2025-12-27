@@ -68,17 +68,32 @@ The Integration primitive provides this as a deterministic **verification suite*
 
 The gateway (Envoy Gateway / Gateway API) is the routing plane for test-traffic interception:
 
+0) Create a per-run anchor object (recommended: `ConfigMap wut-run-<work_request_id>`) and generate a non-guessable run key (`X-Ameide-Run-Key=<nonce>`). All ephemeral runtime objects MUST be owner-referenced to this anchor for deterministic teardown.
 1) Determine affected services from a repo-owned, deterministic manifest (no heuristic selection).
 2) Build the changed services’ images in-cluster (BuildKit) and push to a registry the cluster can pull from.
+   - Record image digests as evidence and deploy shadow workloads by digest (not tag) when possible.
 3) Start **shadow** Deployments/Services for those images (ephemeral runtime objects; baseline Deployments remain unchanged).
 4) Create **Gateway API overlay routes** (e.g., `HTTPRoute`) matching a run-scoped header:
    - Recommended header: `X-Ameide-Run-Key=<nonce>` (a per-run secret, not a guessable WorkRequest id).
    - For host `platform.local.ameide.io`, the most-specific header match routes to the shadow Service; all other traffic goes to baseline.
+   - Wait for route readiness before tests: `HTTPRoute` MUST report `Accepted=True` and `ResolvedRefs=True` (or controller equivalent), otherwise fail closed.
+   - Prove “we hit WUT” before Playwright:
+     - add a response header marker on the overlay rule when supported (e.g., `X-Ameide-WUT: <work_request_id>`), and
+     - assert marker is present with the run header, and absent without the run header.
 5) Run Playwright E2E against the stable URL with the header injected on every request.
 6) Collect artifacts under `/artifacts/e2e/*` (junit + report + traces/screenshots/videos), plus cluster logs relevant to the run.
-7) Cleanup: delete overlay routes + shadow workloads deterministically (label selector `workrequest_id=<id>`).
+7) Cleanup (deterministic):
+   - delete the run anchor object and rely on K8s garbage collection via `ownerReferences`,
+   - verify no `workrequest_id=<id>` resources remain, and
+   - record cleanup evidence (created resources, deleted resources, and “no resources remain” proof).
+8) Safety net: a periodic janitor sweep deletes any `wut-run-*` anchors older than a TTL to handle crashed/killed Jobs.
 
 This keeps “intercepts” vendor-aligned (gateway routing, not traffic-agent injection) and avoids requiring Telepresence privileges inside the cluster.
+
+**Service selection policy (required)**
+
+- Gateway overlay routing is intended for **edge-routable** services only (served by stable URLs).
+- For non-edge services, prefer cluster integration/contract tests against the shadow Service DNS directly; do not claim E2E coverage unless request context propagation is implemented.
 
 **Configuration parity (required)**
 
