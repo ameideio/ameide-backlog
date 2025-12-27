@@ -23,6 +23,42 @@ This document is the **Implementation & Migration** layer plan for delivering th
 
 ---
 
+## 0.0) Definition of success (v1 acceptance slice)
+
+v1 “success” is a **workflow-driven** and **testable** slice (not a UI demo):
+
+1) **Two governance workflows exist** (Scrum + TOGAF ADM) that operate over the same canonical element substrate and are observable via timelines:
+   - `r2r.governance.scrum.v1`
+   - `r2r.governance.togaf_adm.v1`
+
+2) **Testing is automatic background work** (no human “run tests” action):
+   - Process requests verification via Domain-owned WorkRequests,
+   - runners execute deterministically and record evidence back into Domain,
+   - Process waits on `WorkCompleted/WorkFailed` and gates promotions accordingly.
+
+3) **Cluster UI harness verification is real and provable** (430-aligned; stable URLs; no Telepresence; no GitOps PRs):
+   - WorkRequest remains `work_kind=tool_run`, `action_kind=verify`, selecting the harness via:
+     - `verification_suite_ref=transformation.verify.ui_harness.gateway_overlay.v1`
+     - queue: `transformation.work.queue.toolrun.verify.ui_harness.v1` (separate executor identity/RBAC)
+   - The harness:
+     - builds shadow images in-cluster (BuildKit) and records image digests,
+     - deploys shadow workloads (baseline Deployments unchanged),
+     - applies Gateway API overlay routes (`HTTPRoute`) using a non-guessable run key header (`X-Ameide-Run-Key=<nonce>`),
+     - **fails closed unless it can prove WUT routing** (route `Accepted/Resolved` + overlay-only marker check),
+     - runs Playwright against the stable URL and writes artifacts to `/artifacts/e2e/*`,
+     - records evidence (artifacts + routing proof + digests + created/deleted resources + teardown proof),
+     - cleans up deterministically (run anchor + `ownerReferences` + TTL janitor sweep).
+
+4) **End-to-end tests exist and are runnable** per `backlog/430-unified-test-infrastructure-status.md`:
+   - unit + integration tests cover Domain/Process/Runner seams (idempotency, fact-after-persist, ack-after-durable-outcome),
+   - cluster-mode integration tests prove the WorkRequest substrate wiring end-to-end,
+   - both Scrum and TOGAF ADM scenarios have coverage at the “process requests work → evidence recorded → process continues” seam,
+   - UI harness verification runs are included where applicable (edge-routable service changes).
+
+This definition is intentionally stricter than “we can click through a UI”: success is measured by **automated workflows + automated evidence + automated gates**.
+
+---
+
 ## 0.1) Implementation progress (repo snapshot; checklist)
 
 This section is a lightweight status tracker against the work packages below.

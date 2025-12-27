@@ -448,4 +448,5 @@ Confirm/decide:
 1. Transformation is described and operated as a capability realized via primitives, not as a single service.
 2. Core Transformation EDA contracts exist (topic families + envelopes) aligned with the Scrum pattern.
 3. Migration stance is explicit: what becomes canonical writer and what becomes projection/facade.
-4. At least one end-to-end slice proves the seam (example: `ScrumDomainIntent` → outbox → `ScrumDomainFact` → Process reacts → `ScrumProcessFact` → UISurface reads via projection query services).
+4. At least one end-to-end slice proves the seam for **both** governance workflows (Scrum + TOGAF ADM) over the same element substrate (Domain intents → domain facts/outbox → Process reacts → process facts → Projection reads).
+5. Verification is **workflow-driven background work**: Process requests `action_kind=verify` WorkRequests and gates on their outcomes; UI harness verification is selected by `verification_suite_ref` and runs against stable URLs via Gateway API overlays (430-aligned), not by manual UI actions.

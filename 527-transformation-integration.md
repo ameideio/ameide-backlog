@@ -413,3 +413,4 @@ Confirm/decide:
 
 1. Integrations are idempotent and do not emit domain facts.
 2. External side effects are bounded and audit-friendly (evidence bundles).
+3. The UI harness verification suite (gateway overlays + Playwright) runs as `action_kind=verify` (selected via `verification_suite_ref`) and records evidence that makes routing correctness and teardown provable (route `Accepted/Resolved`, overlay marker check, artifacts, digests, created/deleted resources).
