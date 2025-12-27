@@ -184,3 +184,43 @@ Related backlogs:
    - queue time separately (run created→job started)
 2. Track cancelled/superseded runs and enforce budgets (see `610`).
 
+---
+
+## Research log (what must change / align)
+
+This section records concrete deltas discovered while drafting 611, so related backlogs/docs can be adjusted coherently (no “flag proliferation”, no band-aids).
+
+### Existing backlogs that need edits
+
+- `backlog/610-ci-rationalization.md`: the section “E) Required-check policy for promotion PRs (`dev → main`)" conflicts with trunk-based `main` only; rewrite it to cover **PR → `main` only** and treat “promotion” as **GitOps digest-copy PRs** (dev→staging→prod) rather than branch promotions.
+- `backlog/598-github-arc.md`: “Workflow onboarding” currently assumes `dev` exists as an integration path; update onboarding guidance to **PR → `main` only** and treat `dev` as an environment lane (GitOps), not a branch.
+- `backlog/602-image-pull-policy.md` / `backlog/603-image-pull-policy.md`: keep the digest-pinning model, but explicitly clarify that any `:dev` tag usage is **a producer channel tag** (resolved to digest by GitOps automation), not a `dev` branch semantic.
+
+### Process docs (AGENTS.md) that conflict with this direction
+
+These docs explicitly instruct “feature PR → `dev`” then “promotion PR `dev → main`”, and even recommend merging `origin/main` into `dev` regularly. They must be updated to a trunk-only flow:
+
+- `.external/ameide-repo/AGENTS.md`: remove the `dev` promotion workflow; document “feature PR → `main`” and “environment promotion happens in `ameide-gitops` via digest-copy PRs”.
+- `.external/ameide/AGENTS.md`: same update (duplicate policy exists in a second clone).
+
+### CI/CD workflow refactors needed in `ameide`
+
+Current workflow logic mixes “branch == environment/channel” assumptions that are incompatible with the trunk-based model.
+
+- `.external/ameide-repo/.github/workflows/README.md`: update trigger language that says “PRs to `dev`/`main`” and the “main == release” narrative; describe **`main` == dev channel**, and **tags == release**.
+- `.external/ameide-repo/.github/workflows/cd-packages.yml`:
+  - Remove `push.branches: [dev]` once trunk-based.
+  - Change `workflow_dispatch.inputs.ref` default from `dev` → `main`.
+  - Delete branch-derived channel logic (`main => release`), and use `scripts/ci/compute_sdk_versions.sh` outputs (`channel`, `is_release`, `ghcr_extra_tags`) as the single source of truth.
+- `.external/ameide-repo/.github/workflows/cd-packages-probe.yml`: the “channel” determination currently treats `refs/heads/main` as `release`; change this to **tag-only release** and derive tags to probe from `compute_sdk_versions.sh` outputs.
+- `.external/ameide-repo/scripts/ci/verify_ghcr_aliases.sh`: currently skips verification when `BRANCH_CHANNEL=dev`; align this with tag-based releases (e.g., verify aliases when `IS_RELEASE=true` / `CHANNEL=release`), and decide explicitly whether dev-channel aliases (like `:dev`) should also be verified.
+- `.external/ameide-repo/.github/workflows/cd-service-images.yml` and `.external/ameide-repo/.github/workflows/cd-devcontainer-image.yml`:
+  - Remove `push.branches: [dev]` under trunk-based.
+  - Add `on.push.paths` so irrelevant pushes do not create runs at all (keep `should-run` as defense-in-depth).
+  - Enable cancellation for branch pushes (`concurrency.cancel-in-progress: true` for `main`), while keeping tag/release behavior separate if desired.
+- `.external/ameide-repo/.github/workflows/ci-proto.yml`: currently publishes to BSR and SDKs on `refs/heads/main`; confirm whether that is intended as “dev channel publication” or whether external publication should be tag-only (if tag-only, move publish gates to `refs/tags/v*`).
+
+### Build/CI script refactors
+
+- `.external/ameide-repo/scripts/ci/compute_sdk_versions.sh`: already has correct “release == semver tag” semantics; remove downstream branch heuristics in workflows so this remains authoritative.
+- `.external/ameide-repo/scripts/ci/report_actions_minutes.sh`: improve measurement to separate **runner occupancy** vs **queue time** by summing job `startedAt→completedAt` from `gh run view --json jobs`, and report queue as (run created→first job started). This better matches ARC capacity pressure than `run_duration_ms` alone.
