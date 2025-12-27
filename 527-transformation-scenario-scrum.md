@@ -159,13 +159,13 @@ These are the minimum implementation capabilities required for this scenario to 
 - **Output:** Verification report + evidence bundle; pass/fail status.
 - **Next:** If pass → **Trigger** 3.5 (when E2E gate is required) else **Trigger** Phase 4; if fail → **Loop** 3.3 (fix) or if “proto breaking” → **Loop** 2.2 (redesign)
 
-### 3.5 Request cluster E2E harness run (stable URLs; gateway overlay)
-- **Input:** Verified PR ref + stable base URL + run key (nonce) + service selection manifest.
+### 3.5 Automatically request cluster UI harness verification (stable URLs; gateway overlay)
+- **Input:** Verified PR ref + stable base URL + service selection manifest.
 - **Output:** Domain WorkRequest created with:
   - `action_kind=verify`
   - `verification_suite_ref=transformation.verify.ui_harness.gateway_overlay.v1`
   - recommended queue: `transformation.work.queue.toolrun.verify.ui_harness.v1`
-- **Next:** **Trigger** E2E runner job; **Wait** 3.5a
+- **Next:** If the manifest indicates no `edge_routable` services are affected → **Skip** 3.5 and **Trigger** Phase 4; else **Trigger** E2E runner job; **Wait** 3.5a
 
 ### 3.5a E2E outcome recorded
 - **Input:** E2E WorkRequest id.

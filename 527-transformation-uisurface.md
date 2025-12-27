@@ -97,7 +97,7 @@ Not yet delivered (UISurface meaning):
 - [ ] Workspace tree browser + assignments UI (beyond “view list”).
 - [ ] Governance UX (initiatives/baselines/promotions/approvals/evidence).
 - [ ] Audit timeline views with `read_context` + citations.
-- [ ] “Run E2E” action that requests a non-agentic E2E WorkRequest (stable URL + Gateway API header overlay) and then links to the resulting artifacts.
+- [ ] Workflow-driven UI harness verification: when a workflow step requests `action_kind=verify` with `verification_suite_ref=transformation.verify.ui_harness.gateway_overlay.v1`, the UI shows background progress and links artifacts (no manual “run tests” action required).
 
 ## 2.2) Clarification requests (next steps)
 
