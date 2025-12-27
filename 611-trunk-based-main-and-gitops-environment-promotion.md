@@ -115,6 +115,21 @@ Related backlogs:
    - Preferred: keep temporarily as a compatibility branch, then archive/delete once unused.
    - If kept: it must not be an environment proxy.
 
+### A.1) GitHub branch rules / rulesets (concrete)
+
+Target behavior: **all code merges via PR → `main`**; “promotion” is GitOps digest-copy PRs (dev→staging→prod), not `dev → main`.
+
+- Protect `main` (all repos that participate in CI/CD):
+  - Require PRs (no direct pushes), block force-push and deletion
+  - Require approvals + CODEOWNERS, require conversation resolution
+  - Require status checks appropriate for PR→`main` (CI workflows only; avoid making CD/publish required unless intended)
+  - Optional: require linear history (recommended) and signed commits (policy choice)
+- Remove legacy constraints:
+  - Remove any “source branch must be `dev`” rules/checks
+  - Remove any “promotion PR `dev → main`” required check logic
+- ARC safety:
+  - Ensure fork PRs do not execute on self-hosted ARC runners (policy + workflow guards); keep required checks compatible with that constraint.
+
 ### B) CI restructuring (ameide repo)
 
 1. Change CI triggers to be trunk-based:
@@ -233,3 +248,4 @@ Current workflow logic mixes “branch == environment/channel” assumptions tha
 
 - `ameide` (merged): PR `ameideio/ameide#428` removes `dev` branch triggers, makes release semantics tag-only, adds `on.push.paths` to CD workflows, and aligns channel tagging to `:dev` (from `main`) + `vX.Y.Z` tags.
 - `backlog` (this repo): updated `598`, `602`, `603`, `610` to reflect trunk-based semantics while preserving pre-trunk notes; updated `611` research log with concrete refactor targets.
+- GitHub governance (pending): align GitHub `main` branch rules/rulesets to trunk-based PR flow and remove legacy `dev`-promotion assumptions (apply via `gh api` where permissions allow).
