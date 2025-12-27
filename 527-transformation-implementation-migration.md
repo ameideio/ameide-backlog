@@ -320,7 +320,7 @@ WP‑B is implemented **proto-first** so orchestration and evidence do not drift
     - `transformation.work.queue.toolrun.verify.v1`
     - `transformation.work.queue.toolrun.generate.v1`
     - `transformation.work.queue.agentwork.coder.v1`
-    - recommended (new): `transformation.work.queue.toolrun.e2e.v1` (cluster E2E harness; Gateway API overlay routing + Playwright; separate executor/RBAC)
+    - recommended (new): `transformation.work.queue.toolrun.verify.ui_harness.v1` (UI harness verification suite; Gateway API overlay routing + Playwright; separate executor/RBAC)
   - note: these queue topics are distinct from canonical domain fact streams (e.g., `transformation.*.facts.v1`) which exist for persistence/projection; scaling MUST NOT depend on them
   - define the consumer group naming convention per executor class/role (e.g., `transformation-workrequest-executor.v1.<kind>`) and bind it in KEDA trigger metadata
   - set retention/cleanup to reflect “Kafka is transport, not evidence” (short retention + delete policy; evidence is persisted in Domain and object storage)
@@ -426,7 +426,7 @@ Consumer groups (current GitOps scaffolding; subject to future naming convention
 - `transformation-work-queue-toolrun-verify-v1`
 - `transformation-work-queue-toolrun-generate-v1`
 - `transformation-work-queue-agentwork-coder-v1`
-- recommended (new): `transformation-work-queue-toolrun-e2e-v1` (cluster E2E harness; separate ServiceAccount/RBAC)
+- recommended (new): `transformation-work-queue-toolrun-verify-ui-harness-v1` (UI harness verification suite; separate ServiceAccount/RBAC)
 
 ### Implementation gotchas captured (so we don’t regress)
 
@@ -504,22 +504,23 @@ We implement WP‑B using a strict “small → large” ladder per `backlog/537
    - Full slice: Process → Domain WorkRequest → KEDA Job → Domain evidence/outcome → Process facts → Projection timeline; assertions run via APIs/queries only.
 
 8. **Cluster UI E2E harness (stable URLs; no Telepresence; no GitOps churn)**
-   - A dedicated `action_kind=e2e` WorkRequest drives:
+   - A dedicated UI harness verification WorkRequest drives:
      - BuildKit build (changed services only),
      - ephemeral shadow Deployments/Services (no baseline Deployment mutation),
      - Gateway API overlay route(s) keyed by a run header (e.g., `X-Ameide-Run-Key=<nonce>`),
      - Playwright against stable URLs (per `backlog/430-unified-test-infrastructure-status.md`),
      - artifact capture to `/artifacts/e2e/*` and evidence recording back into Domain.
    - This rung is non-agentic and must be repeatable and self-cleaning (label-based cleanup + evidence marker).
+   - Note: keep `action_kind=verify` and select this harness via `verification_suite_ref` so the domain does not accrete test-specific verbs.
 
 ### WP‑C — Cluster E2E harness (Gateway API overlays; Playwright)
 
 Goal: add a deterministic, non-agentic E2E WorkRequest execution path that validates UISurface flows against stable URLs without preview namespaces or GitOps PRs.
 
-- [ ] Add `action_kind = e2e` to the WorkRequest execution surface (Domain + runner contract).
+- [ ] Keep `action_kind = verify` and add `verification_suite_ref` so “UI harness via gateway overlays” is a suite, not a new verb.
 - [ ] Add a dedicated E2E work queue topic + consumer group + executor workload:
-  - topic: `transformation.work.queue.toolrun.e2e.v1`
-  - consumer group: `transformation-work-queue-toolrun-e2e-v1`
+  - topic: `transformation.work.queue.toolrun.verify.ui_harness.v1`
+  - consumer group: `transformation-work-queue-toolrun-verify-ui-harness-v1`
   - executor image has additional RBAC to create/delete shadow Deployments/Services and Gateway API `HTTPRoute` objects in a fixed namespace.
 - [ ] Define a deterministic service selection manifest in-repo (no heuristic selection):
   - changed-path roots → service id

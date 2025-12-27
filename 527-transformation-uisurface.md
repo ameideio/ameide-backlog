@@ -33,7 +33,7 @@ This document specifies the **Transformation UISurface primitive** — the porta
 UISurface must make the execution substrate observable without relying on “pods still exist”:
 
 - Show **WorkRequests** (tool runs and agent work) per initiative/process instance, including status transitions (`requested/started/succeeded/failed`) and linked evidence bundles.
-- For cluster E2E harness WorkRequests (`action_kind=e2e`), show:
+- For UI harness verification WorkRequests (`action_kind=verify` + `verification_suite_ref=transformation.verify.ui_harness.gateway_overlay.v1`), show:
   - target stable `base_url`,
   - the run isolation key/header (masked in UI; stored as evidence metadata),
   - Playwright artifacts (junit/report/traces) and pass/fail status.

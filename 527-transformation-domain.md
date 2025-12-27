@@ -200,7 +200,7 @@ Minimum v1 conceptual shape (schema-backed; do not embed proto text here):
   - `requested_at`, `requested_by_actor` (optional: human/agent identity)
 - Type:
   - `work_kind` ∈ `{tool_run, agent_work}`
-  - `action_kind` (for tool runs): `preflight|scaffold|generate|verify|build|publish|deploy|smoke|e2e`
+  - `action_kind` (for tool runs): `preflight|scaffold|generate|verify|build|publish|deploy|smoke`
 - Idempotency:
   - `client_request_id` / `idempotency_key` (required; stable across retries)
 - Execution binding:
@@ -210,7 +210,9 @@ Minimum v1 conceptual shape (schema-backed; do not embed proto text here):
   - repo checkout: `repo_url`, `commit_sha`, `workdir`
   - plan refs: `scaffolding_plan_ref` / definition refs
   - constraints: `allowed_paths`/`deny_paths`, tool allowlist, policy refs
-  - E2E harness (when `action_kind=e2e`):
+  - Verification suite selection (when `action_kind=verify`):
+    - `verification_suite_ref` (e.g., `transformation.verify.ui_harness.gateway_overlay.v1`)
+  - UI harness verify suite (when `action_kind=verify` and `verification_suite_ref` selects the UI harness):
     - `base_url` (stable URL; absolute)
     - `run_key` reference (nonce; stored as evidence metadata; do not use predictable ids)
     - `service_selection_manifest_ref` (repo-owned mapping for changed-path → service → build/runtime metadata)
@@ -232,7 +234,7 @@ Kafka transport binding (normative):
 
 - `WorkRequested` is emitted (outbox) onto a dedicated Kafka topic bound from `queue_ref` so the WorkRequest queue is not mixed with unrelated domain facts.
   - v1 queue topics (examples): `transformation.work.queue.toolrun.verify.v1`, `transformation.work.queue.toolrun.generate.v1`, `transformation.work.queue.agentwork.coder.v1`
-  - recommended (new): `transformation.work.queue.toolrun.e2e.v1` for E2E harness runs, because E2E requires additional Kubernetes-side effects (ephemeral shadow workloads + Gateway API overlay routes) and should run under a separate ServiceAccount/permission set.
+  - recommended (new): `transformation.work.queue.toolrun.verify.ui_harness.v1` for the UI harness verification suite, because it requires additional Kubernetes-side effects (ephemeral shadow workloads + Gateway API overlay routes) and should run under a separate ServiceAccount/permission set.
 - WorkRequest processors (KEDA-scheduled Jobs) are Kafka consumers and MUST use “ack only after durable outcome recorded” semantics:
   - disable auto-commit,
   - write outcome + evidence linkage into Domain idempotently,
@@ -245,7 +247,7 @@ Correlation rules (required):
 
 Evidence bundles are stored as attachments/blobs and referenced from baselines/promotions/definitions using REFERENCE relationships; projection surfaces them in audit views.
 
-E2E evidence posture (430-aligned):
+UI harness evidence posture (430-aligned):
 
 - E2E artifacts (Playwright junit/report/traces) are stored as durable artifact refs (not pod-local paths) and linked via the evidence bundle.
 - The evidence bundle SHOULD include a cleanup marker (e.g., “overlay routes deleted”, “shadow workloads deleted”) so an operator does not need to inspect the cluster to confirm teardown happened.
