@@ -248,4 +248,7 @@ Current workflow logic mixes “branch == environment/channel” assumptions tha
 
 - `ameide` (merged): PR `ameideio/ameide#428` removes `dev` branch triggers, makes release semantics tag-only, adds `on.push.paths` to CD workflows, and aligns channel tagging to `:dev` (from `main`) + `vX.Y.Z` tags.
 - `backlog` (this repo): updated `598`, `602`, `603`, `610` to reflect trunk-based semantics while preserving pre-trunk notes; updated `611` research log with concrete refactor targets.
-- GitHub governance (pending): align GitHub `main` branch rules/rulesets to trunk-based PR flow and remove legacy `dev`-promotion assumptions (apply via `gh api` where permissions allow).
+- GitHub governance (done):
+  - Enabled `main` branch protection for `ameideio/ameide`, `ameideio/ameide-gitops`, `ameideio/ameide-backlog` via `gh api`.
+  - `ameideio/ameide`: requires 1 approval + CODEOWNERS, conversation resolution, linear history; retains the existing required status check context `Verify PR source branch` (now advisory).
+  - `ameideio/ameide-gitops` + `ameideio/ameide-backlog`: requires 1 approval + CODEOWNERS, conversation resolution, linear history (no required status checks yet).
