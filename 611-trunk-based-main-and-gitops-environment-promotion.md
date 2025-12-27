@@ -231,5 +231,5 @@ Current workflow logic mixes “branch == environment/channel” assumptions tha
 
 ### 2025-12-27
 
-- `ameide` (proposed changes): PR `ameideio/ameide#428` (`codex/trunk-main-only`) removes `dev` branch triggers, makes release semantics tag-only, adds `on.push.paths` to CD workflows, and aligns channel tagging to `:dev` (from `main`) + `vX.Y.Z` tags.
+- `ameide` (merged): PR `ameideio/ameide#428` removes `dev` branch triggers, makes release semantics tag-only, adds `on.push.paths` to CD workflows, and aligns channel tagging to `:dev` (from `main`) + `vX.Y.Z` tags.
 - `backlog` (this repo): updated `598`, `602`, `603`, `610` to reflect trunk-based semantics while preserving pre-trunk notes; updated `611` research log with concrete refactor targets.
