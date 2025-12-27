@@ -167,7 +167,7 @@ Minimum read model expectations (v1):
   - `ProcessInstanceStarted/Completed/Failed`
   - `ActivityTransitioned` (STARTED/COMPLETED/FAILED) with attempt/retry counts (includes gateways as `activity_id = gateway_id`)
   - `GateDecisionRecorded` (Approve/Reject/Override/Cancel)
-  - `ToolRunRecorded` (scaffold/generate/verify/build outputs)
+  - `ToolRunRecorded` (scaffold/generate/verify/build outputs; for UI harness verification include stable `base_url`, masked run key metadata, routing proof (route Accepted/Resolved + marker checks), image digests, and Playwright artifact refs)
   - `ReadPerformed` (projection reads used for decisions, including `read_context` + citations)
 - Deterministic correlations:
   - join step evidence to domain facts using `correlation_id`/`causation_id` links (and/or explicit refs on the process fact)

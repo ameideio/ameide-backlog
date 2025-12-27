@@ -210,6 +210,13 @@ Minimum v1 conceptual shape (schema-backed; do not embed proto text here):
   - repo checkout: `repo_url`, `commit_sha`, `workdir`
   - plan refs: `scaffolding_plan_ref` / definition refs
   - constraints: `allowed_paths`/`deny_paths`, tool allowlist, policy refs
+  - Verification suite selection (when `action_kind=verify`):
+    - `verification_suite_ref` (e.g., `transformation.verify.ui_harness.gateway_overlay.v1`)
+  - UI harness verify suite (when `action_kind=verify` and `verification_suite_ref` selects the UI harness):
+    - `base_url` (stable URL; absolute)
+    - `run_key` reference (nonce; stored as evidence metadata; do not use predictable ids)
+    - `service_selection_manifest_ref` (repo-owned mapping for changed-path → service → build/runtime metadata)
+    - `kubernetes_scope_ref` (fixed namespace + gateway attachment refs; no per-run namespaces)
 - Status:
   - `status` ∈ `{requested, started, succeeded, failed, canceled}`
   - `started_at`, `finished_at`, `attempt`
@@ -227,6 +234,7 @@ Kafka transport binding (normative):
 
 - `WorkRequested` is emitted (outbox) onto a dedicated Kafka topic bound from `queue_ref` so the WorkRequest queue is not mixed with unrelated domain facts.
   - v1 queue topics (examples): `transformation.work.queue.toolrun.verify.v1`, `transformation.work.queue.toolrun.generate.v1`, `transformation.work.queue.agentwork.coder.v1`
+  - recommended (new): `transformation.work.queue.toolrun.verify.ui_harness.v1` for the UI harness verification suite, because it requires additional Kubernetes-side effects (ephemeral shadow workloads + Gateway API overlay routes) and should run under a separate ServiceAccount/permission set.
 - WorkRequest processors (KEDA-scheduled Jobs) are Kafka consumers and MUST use “ack only after durable outcome recorded” semantics:
   - disable auto-commit,
   - write outcome + evidence linkage into Domain idempotently,
@@ -238,6 +246,18 @@ Correlation rules (required):
   - citations/trace links back to the underlying facts/versions that the evidence supports
 
 Evidence bundles are stored as attachments/blobs and referenced from baselines/promotions/definitions using REFERENCE relationships; projection surfaces them in audit views.
+
+UI harness evidence posture (430-aligned):
+
+- E2E artifacts (Playwright junit/report/traces) are stored as durable artifact refs (not pod-local paths) and linked via the evidence bundle.
+- The evidence bundle MUST make “did we actually hit WUT?” provable:
+  - overlay route readiness: `HTTPRoute` `Accepted=True` and `ResolvedRefs=True` (or controller equivalent),
+  - overlay-only verification marker (preferred): response header marker present with run header and absent without it.
+- The evidence bundle MUST include image integrity and teardown proof:
+  - image digests of all built shadow workloads (prefer deploying by digest),
+  - created resources list (shadow Deployments/Services/HTTPRoutes + run anchor),
+  - deleted resources list, and
+  - “no resources remain for `work_request_id`” check result.
 
 ### 3.5 Authorization + approval policy (minimum; v1)
 
