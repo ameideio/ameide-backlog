@@ -22,6 +22,9 @@ Delivered (today, in repo):
 - [x] Enterprise Knowledge contracts exist and are used by the MVP:
   - [x] `packages/ameide_core_proto/src/ameide_core_proto/transformation/knowledge/v1/` (commands, queries, facts, view layout payloads).
   - [x] Domain emits `transformation.knowledge.domain.facts.v1` and Projection ingests those facts.
+- [x] WorkRequests contract supports suite-driven verification and structured outputs:
+  - [x] WorkRequest `tool_run` may select a deterministic verification suite (e.g., `verification_suite_ref=transformation.verify.ui_harness.gateway_overlay.v1`) without introducing a new `action_kind=e2e`.
+  - [x] WorkResult includes an `outputs` map so workflows can consume deterministic structured results (e.g., `outputs.commit_sha`, `outputs.pr_url`) without log scraping.
 - [x] Governance/registry packages exist (not in MVP slice yet):
   - [x] `packages/ameide_core_proto/src/ameide_core_proto/transformation/governance/v1/`
   - [x] `packages/ameide_core_proto/src/ameide_core_proto/transformation/registry/v1/`

@@ -229,7 +229,8 @@ Implemented (and enabled in `local` + `dev`, disabled elsewhere):
 
 - KEDA installed cluster-scoped (see `backlog/585-keda.md`).
 - Kafka topics created: `transformation.work.queue.toolrun.verify.v1`, `transformation.work.queue.toolrun.generate.v1`, `transformation.work.queue.agentwork.coder.v1`.
-- (Planned) add UI harness verify queue: `transformation.work.queue.toolrun.verify.ui_harness.v1`.
+- UI harness verify queue exists in code (`verification_suite_ref=transformation.verify.ui_harness.gateway_overlay.v1`) and is wired as a dedicated topic/runner identity:
+  - `transformation.work.queue.toolrun.verify.ui_harness.v1` (GitOps wiring must be merged/enabled for cluster truth).
 - Workbench pod (`workrequests-workbench`) deployed for admin attach/exec (not a processor).
 - Secrets contract is defined in GitOps (ExternalSecrets templates exist) but is currently **disabled by default** in `local` + `dev` overlays (`secrets.enabled=false`) so the workbench can be brought up without depending on Vault/ExternalSecrets; enable it when we want the workbench/executors to fetch credentials declaratively from Vault:
   - `workrequests-github-token` (`token`)

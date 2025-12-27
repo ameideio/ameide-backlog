@@ -75,6 +75,7 @@ This section is a lightweight status tracker against the work packages below.
 - [x] WP-B (CODE) Domain dispatcher publishes outbox topics to Kafka by default (no topic prefix filter).
 - [x] WP-B (TEST) Capability pack exists (`capabilities/transformation/__tests__/integration`) with repo-mode + cluster-mode WorkRequest seam coverage (E2E‑0) and Process orchestration + R2R governance coverage (E2E‑1).
 - [x] WP-B (TEST) Test pack is 430-aligned: no mode-based `t.Skip`; cluster mode is fail-fast via the pack runner’s required env vars (see `backlog/430-unified-test-infrastructure.md`).
+- [x] WP-B (CODE) UI harness verification suite exists (`transformation.verify.ui_harness.gateway_overlay.v1`) and is requested as `action_kind=verify` (no special E2E action kind); runner proves routing via Gateway API overlay marker and records `/artifacts/e2e/*`.
 - [ ] WP-B (CLUSTER) Cluster end-to-end depends on deployed wiring (dispatcher → broker → executor → domain facts → ingress → Temporal → projection). Code + tests assume those components exist and are reachable; environment health/config may still block execution.
 - [x] GitOps parity (execution substrate): KEDA + Kafka work-queue topics + workbench + secret wiring exist in `ameide-gitops` (enabled in `local` + `dev`; disabled elsewhere).
 - [x] GitOps parity (contract topics): Transformation fact-stream KafkaTopics exist as a dedicated component (`data-kafka-transformation-contract-topics`) and are asserted by `data-data-plane-smoke` (enabled in `local` + `dev`).
