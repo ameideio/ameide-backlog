@@ -148,13 +148,22 @@ These are the minimum implementation capabilities required for this scenario to 
 - **Output:** Evidence bundle + terminal status recorded in Domain; Process emits `ToolRunRecorded` referencing evidence.
 - **Next:** If success → **Trigger** 3.2; if failure → **Loop** 3.1 or **Wait** for repair then re-**Trigger** 3.1
 
-### 3.2 Implement repo changes (agent or human)
-- **Input:** Scaffolded repo state + accepted artifacts.
-- **Output:** PR/branch with: proto changes, regenerated outputs, capability domain/process/agent/projection/UI updates, tests.
-- **Next:** **Trigger** 3.3
+### 3.2 Request Dev WorkRequest (agentic; Codex mocked; creates PR)
+- **Input:** Accepted artifacts + task prompt + repo ref.
+- **Output:** Domain WorkRequest created:
+  - `work_kind=agent_work`
+  - `action_kind=publish` (agent produces and publishes a PR as the outcome)
+- **Next:** **Trigger** agent-work runner job; **Wait** 3.2a
+
+### 3.2a Dev outcome recorded (PR created)
+- **Input:** Dev WorkRequest id.
+- **Output:** PR metadata recorded as WorkRequest result outputs + evidence:
+  - `outputs.pr_url`
+  - `outputs.commit_sha` (head SHA for verification)
+- **Next:** If success → **Trigger** 3.3; else **Loop** 3.2 (revise prompt / fix runner)
 
 ### 3.3 Request verification tool run
-- **Input:** PR ref; `action_kind=verify`; verification baseline.
+- **Input:** `outputs.commit_sha`; `action_kind=verify`; verification baseline.
 - **Output:** Domain WorkRequest created; `WorkRequested` emitted (e.g., `transformation.work.queue.toolrun.verify.v1`).
 - **Next:** **Trigger** Integration verifier job; **Wait** 3.3a
 
