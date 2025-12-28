@@ -23,6 +23,42 @@ This document is the **Implementation & Migration** layer plan for delivering th
 
 ---
 
+## 0.0) Definition of success (v1 acceptance slice)
+
+v1 “success” is a **workflow-driven** and **testable** slice (not a UI demo):
+
+1) **Two governance workflows exist** (Scrum + TOGAF ADM) that operate over the same canonical element substrate and are observable via timelines:
+   - `r2r.governance.scrum.v1`
+   - `r2r.governance.togaf_adm.v1`
+
+2) **Testing is automatic background work** (no human “run tests” action):
+   - Process requests verification via Domain-owned WorkRequests,
+   - runners execute deterministically and record evidence back into Domain,
+   - Process waits on `WorkCompleted/WorkFailed` and gates promotions accordingly.
+
+3) **Cluster UI harness verification is real and provable** (430-aligned; stable URLs; no Telepresence; no GitOps PRs):
+   - WorkRequest remains `work_kind=tool_run`, `action_kind=verify`, selecting the harness via:
+     - `verification_suite_ref=transformation.verify.ui_harness.gateway_overlay.v1`
+     - queue: `transformation.work.queue.toolrun.verify.ui_harness.v1` (separate executor identity/RBAC)
+   - The harness:
+     - builds shadow images in-cluster (BuildKit) and records image digests,
+     - deploys shadow workloads (baseline Deployments unchanged),
+     - applies Gateway API overlay routes (`HTTPRoute`) using a non-guessable run key header (`X-Ameide-Run-Key=<nonce>`),
+     - **fails closed unless it can prove WUT routing** (route `Accepted/Resolved` + overlay-only marker check),
+     - runs Playwright against the stable URL and writes artifacts to `/artifacts/e2e/*`,
+     - records evidence (artifacts + routing proof + digests + created/deleted resources + teardown proof),
+     - cleans up deterministically (run anchor + `ownerReferences` + TTL janitor sweep).
+
+4) **End-to-end tests exist and are runnable** per `backlog/430-unified-test-infrastructure-status.md`:
+   - unit + integration tests cover Domain/Process/Runner seams (idempotency, fact-after-persist, ack-after-durable-outcome),
+   - cluster-mode integration tests prove the WorkRequest substrate wiring end-to-end,
+   - both Scrum and TOGAF ADM scenarios have coverage at the “process requests work → evidence recorded → process continues” seam,
+   - UI harness verification runs are included where applicable (edge-routable service changes).
+
+This definition is intentionally stricter than “we can click through a UI”: success is measured by **automated workflows + automated evidence + automated gates**.
+
+---
+
 ## 0.1) Implementation progress (repo snapshot; checklist)
 
 This section is a lightweight status tracker against the work packages below.
@@ -39,6 +75,7 @@ This section is a lightweight status tracker against the work packages below.
 - [x] WP-B (CODE) Domain dispatcher publishes outbox topics to Kafka by default (no topic prefix filter).
 - [x] WP-B (TEST) Capability pack exists (`capabilities/transformation/__tests__/integration`) with repo-mode + cluster-mode WorkRequest seam coverage (E2E‑0) and Process orchestration + R2R governance coverage (E2E‑1).
 - [x] WP-B (TEST) Test pack is 430-aligned: no mode-based `t.Skip`; cluster mode is fail-fast via the pack runner’s required env vars (see `backlog/430-unified-test-infrastructure.md`).
+- [x] WP-B (CODE) UI harness verification suite exists (`transformation.verify.ui_harness.gateway_overlay.v1`) and is requested as `action_kind=verify` (no special E2E action kind); runner proves routing via Gateway API overlay marker and records `/artifacts/e2e/*`.
 - [ ] WP-B (CLUSTER) Cluster end-to-end depends on deployed wiring (dispatcher → broker → executor → domain facts → ingress → Temporal → projection). Code + tests assume those components exist and are reachable; environment health/config may still block execution.
 - [x] GitOps parity (execution substrate): KEDA + Kafka work-queue topics + workbench + secret wiring exist in `ameide-gitops` (enabled in `local` + `dev`; disabled elsewhere).
 - [x] GitOps parity (contract topics): Transformation fact-stream KafkaTopics exist as a dedicated component (`data-kafka-transformation-contract-topics`) and are asserted by `data-data-plane-smoke` (enabled in `local` + `dev`).
@@ -322,6 +359,7 @@ WP‑B is implemented **proto-first** so orchestration and evidence do not drift
     - `transformation.work.queue.toolrun.verify.v1`
     - `transformation.work.queue.toolrun.generate.v1`
     - `transformation.work.queue.agentwork.coder.v1`
+    - recommended (new): `transformation.work.queue.toolrun.verify.ui_harness.v1` (UI harness verification suite; Gateway API overlay routing + Playwright; separate executor/RBAC)
   - note: these queue topics are distinct from canonical domain fact streams (e.g., `transformation.*.facts.v1`) which exist for persistence/projection; scaling MUST NOT depend on them
   - define the consumer group naming convention per executor class/role (e.g., `transformation-workrequest-executor.v1.<kind>`) and bind it in KEDA trigger metadata
   - set retention/cleanup to reflect “Kafka is transport, not evidence” (short retention + delete policy; evidence is persisted in Domain and object storage)
@@ -356,7 +394,7 @@ WP‑B is implemented **proto-first** so orchestration and evidence do not drift
 - [x] Process ingress supports Kafka (cluster E2E wiring pending):
   - `PROCESS_INGRESS_SOURCE=kafka://` consumes domain fact topics and signals workflows; cluster orchestration remains gated until GitOps deploys ingress + dispatcher + topics
 - [ ] Projection “timeline assertions” are enabled in cluster mode:
-  - projection must ingest process facts + work facts reliably and expose query services without Telepresence port-name collisions (see gotchas)
+  - projection must ingest process facts + work facts reliably and expose query services without sidecar port-name collisions (Telepresence is dev-only; see gotchas)
   - `primitive-projection-transformation` image now includes `projection-transformation-relay` for deployment as a standalone ingestion workload in cluster
 
 **Implementation status (GitOps; repo snapshot)**
@@ -427,13 +465,26 @@ Consumer groups (current GitOps scaffolding; subject to future naming convention
 - `transformation-work-queue-toolrun-verify-v1`
 - `transformation-work-queue-toolrun-generate-v1`
 - `transformation-work-queue-agentwork-coder-v1`
+- recommended (new): `transformation-work-queue-toolrun-verify-ui-harness-v1` (UI harness verification suite; separate ServiceAccount/RBAC)
 
 ### Implementation gotchas captured (so we don’t regress)
 
 - Strimzi topic config values MUST be rendered as strings for numeric fields like `retention.ms` to avoid scientific-notation formatting (`6.048e+08`) that Kafka rejects. See `sources/values/_shared/data/data-kafka-workrequests-topics.yaml` (`retentionMs: "604800000"`).
 - KEDA’s Kafka scaler runs in `keda-system`; `bootstrapServers` MUST be namespace-qualified (e.g., `kafka-kafka-bootstrap.ameide-local:9092`) so the scaler can resolve the broker Service.
 - Local k3d scheduling: Kafka may require tolerations for control-plane/master taints due to PVC/node pinning in single-node clusters.
-- Telepresence sidecars can accidentally “steal” a Service `targetPort` name:
+- Gateway overlay routing (E2E harness):
+  - Route isolation MUST use a non-guessable run key header (recommended `X-Ameide-Run-Key=<nonce>`), not a predictable WorkRequest id.
+  - Overlay `HTTPRoute` rules MUST be strictly more specific than baseline routes (host + header match) so normal traffic remains unchanged.
+  - The harness MUST fail closed unless it can prove routing correctness:
+    - wait for `HTTPRoute` status `Accepted=True` and `ResolvedRefs=True` (or controller equivalent),
+    - prove WUT is hit by asserting an overlay-only verification marker (preferred: response header on the overlay rule) is present with the run header and absent without it.
+  - Cleanup MUST be deterministic:
+    - create a run anchor object (recommended `ConfigMap wut-run-<work_request_id>`) and owner-reference all shadow Deployments/Services/HTTPRoutes,
+    - teardown by deleting the anchor object (K8s GC),
+    - verify “no resources remain for `work_request_id`”, and record that proof as evidence,
+    - add a janitor sweep for leaked anchors older than TTL.
+  - Shadow workloads MUST run with config parity (env/config/secret inputs) with the baseline service; do not “copy deployment spec” at runtime.
+- Legacy (dev-only): Telepresence sidecar port-name collisions
   - if the `traffic-agent` container exposes a port named `grpc`, and the Service targets `targetPort: grpc`, gRPC traffic can route to the sidecar (e.g., port `9900`) instead of the intended app container (e.g., port `50051`)
   - fix: ensure the app container port name and Service `targetPort` name match and do not conflict with the sidecar (use unique names like `tm-grpc` consistently)
 
@@ -466,7 +517,7 @@ Enabling ScaledJobs in `local` proves the GitOps substrate and KEDA/Kafka wiring
 The remaining “end-to-end” gaps are now wiring gaps (not missing code primitives):
 
 - Process ingress supports Kafka in CODE (`PROCESS_INGRESS_SOURCE=kafka://`), but cluster orchestration remains gated until GitOps deploys ingress + dispatcher and wires Kafka env vars.
-- Telepresence traffic-agent injection is now opt-in (`agentInjector.injectPolicy=WhenEnabled`) so baseline workloads and operator-managed primitives do not get sidecars by default.
+- Telepresence traffic-agent injection is now opt-in (`agentInjector.injectPolicy=WhenEnabled`) so baseline workloads and operator-managed primitives do not get sidecars by default (interactive/dev ergonomics only; the cluster E2E harness uses Gateway API header overlays, not Telepresence).
 - WorkRequests runner ScaledJobs are now enabled in `local` + `dev` with `maxReplicaCount: 1` for cluster-mode seam tests.
 
 **Remaining activities (WP‑B completion; checklists)**
@@ -497,6 +548,47 @@ We implement WP‑B using a strict “small → large” ladder per `backlog/537
    - In a kind-style acceptance environment, a KEDA ScaledJob schedules an executor-image Job for a `WorkRequested`, and the Job records completion/evidence in Domain; duplicates are tolerated and converge via idempotency keys.
 7. **Headless end-to-end (no UISurface)**
    - Full slice: Process → Domain WorkRequest → KEDA Job → Domain evidence/outcome → Process facts → Projection timeline; assertions run via APIs/queries only.
+
+8. **Cluster UI E2E harness (stable URLs; no Telepresence; no GitOps churn)**
+   - A dedicated UI harness verification WorkRequest drives:
+     - BuildKit build (changed services only),
+     - ephemeral shadow Deployments/Services (no baseline Deployment mutation),
+     - Gateway API overlay route(s) keyed by a run header (e.g., `X-Ameide-Run-Key=<nonce>`),
+     - Playwright against stable URLs (per `backlog/430-unified-test-infrastructure-status.md`),
+     - artifact capture to `/artifacts/e2e/*` and evidence recording back into Domain.
+   - This rung is non-agentic and must be repeatable and self-cleaning (run anchor + ownerReferences + teardown proof in evidence).
+   - Note: keep `action_kind=verify` and select this harness via `verification_suite_ref` so the domain does not accrete test-specific verbs.
+
+### WP‑C — Cluster E2E harness (Gateway API overlays; Playwright)
+
+Goal: add a deterministic, non-agentic E2E WorkRequest execution path that validates UISurface flows against stable URLs without preview namespaces or GitOps PRs.
+
+- [ ] Keep `action_kind = verify` and add `verification_suite_ref` so “UI harness via gateway overlays” is a suite, not a new verb.
+- [ ] Add a dedicated E2E work queue topic + consumer group + executor workload:
+  - topic: `transformation.work.queue.toolrun.verify.ui_harness.v1`
+  - consumer group: `transformation-work-queue-toolrun-verify-ui-harness-v1`
+  - executor image has additional RBAC to create/delete shadow Deployments/Services and Gateway API `HTTPRoute` objects in a fixed namespace.
+- [ ] Define a deterministic service selection manifest in-repo (no heuristic selection):
+  - changed-path roots → service id
+  - build metadata (BuildKit context/dockerfile/image name)
+  - runtime metadata (shadow deployment template, ports, readiness probe)
+  - edge routing metadata (stable hostname + gateway attachment refs; eligible for overlay routing)
+- [ ] Implement E2E harness runner behavior (Job):
+  - create a run anchor object and generate a non-guessable run key,
+  - build changed services via BuildKit,
+  - record image digests in evidence and (preferred) deploy shadow workloads by digest,
+  - deploy shadow service(s) with config parity,
+  - apply overlay `HTTPRoute` keyed by a per-run header,
+  - wait for `HTTPRoute` readiness (`Accepted=True`, `ResolvedRefs=True`) and prove WUT routing with an overlay-only verification marker before running Playwright,
+  - run Playwright (`INTEGRATION_MODE=cluster`) against the stable URL with the header injected,
+  - upload `/artifacts/e2e/*` and record evidence back into Domain (artifacts + routing proof + digests + resources created/deleted + teardown proof),
+  - cleanup by deleting the run anchor object and verifying no labeled resources remain.
+- [ ] Add a periodic janitor sweep for leaked `wut-run-*` anchors older than TTL.
+
+DoD:
+
+- A single end-to-end E2E run exists for `www-ameide-platform` against the stable URL in `ameide-local`, producing Playwright artifacts.
+- The run proves routing correctness (route Accepted/Resolved + marker check) and leaves no shadow workloads/routes behind after completion (teardown evidence).
 
 Debug/admin mode (required in `local`/`dev`; not a processor):
 

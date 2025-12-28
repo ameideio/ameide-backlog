@@ -22,6 +22,9 @@ Delivered (today, in repo):
 - [x] Enterprise Knowledge contracts exist and are used by the MVP:
   - [x] `packages/ameide_core_proto/src/ameide_core_proto/transformation/knowledge/v1/` (commands, queries, facts, view layout payloads).
   - [x] Domain emits `transformation.knowledge.domain.facts.v1` and Projection ingests those facts.
+- [x] WorkRequests contract supports suite-driven verification and structured outputs:
+  - [x] WorkRequest `tool_run` may select a deterministic verification suite (e.g., `verification_suite_ref=transformation.verify.ui_harness.gateway_overlay.v1`) without introducing a new `action_kind=e2e`.
+  - [x] WorkResult includes an `outputs` map so workflows can consume deterministic structured results (e.g., `outputs.commit_sha`, `outputs.pr_url`) without log scraping.
 - [x] Governance/registry packages exist (not in MVP slice yet):
   - [x] `packages/ameide_core_proto/src/ameide_core_proto/transformation/governance/v1/`
   - [x] `packages/ameide_core_proto/src/ameide_core_proto/transformation/registry/v1/`
@@ -63,6 +66,7 @@ Current implementations emit/consume `transformation.<subcontext>.domain.facts.v
 | `transformation.work.domain.facts.v1` | `TransformationWorkDomainFact` | Canonical WorkRequest lifecycle facts (`WorkRequested/Started/Completed/Failed`) for persistence/projection; execution backends MUST NOT scale on mixed/non-WorkRequested streams |
 | `transformation.work.queue.toolrun.verify.v1` | `WorkRequestQueueMessage` (TBD) | **Execution queue** (WorkRequested only) for verify-class tool runs; used for KEDA lag-based scaling |
 | `transformation.work.queue.toolrun.generate.v1` | `WorkRequestQueueMessage` (TBD) | **Execution queue** (WorkRequested only) for scaffold/generate-class tool runs (`ActionKind=SCAFFOLD|GENERATE`); used for KEDA lag-based scaling |
+| `transformation.work.queue.toolrun.verify.ui_harness.v1` | `WorkRequestQueueMessage` (TBD) | **Execution queue** (WorkRequested only) for non-agentic UI harness verification (BuildKit + shadow workloads + Gateway API header overlays + Playwright); used for KEDA lag-based scaling |
 | `transformation.work.queue.agentwork.coder.v1` | `WorkRequestQueueMessage` (TBD) | **Execution queue** (WorkRequested only) for coder-class agent work; used for KEDA lag-based scaling |
 | `transformation.knowledge.domain.facts.v1` | `TransformationKnowledgeDomainFact` | Enterprise Knowledge facts emitted after persistence |
 | `transformation.registry.domain.facts.v1` | `TransformationRegistryDomainFact` | Definition Registry facts emitted after persistence |
@@ -84,7 +88,7 @@ Agent handover note (event-driven first):
 
 Execution substrate note (WorkRequests; event-driven first):
 
-- Long-running tool runs and agent work are represented as Domain-owned `WorkRequest` records: Process requests work via Domain intents; Domain emits `WorkRequested` facts after persistence; KEDA-scaled execution backends consume `WorkRequested` from dedicated queue topics (e.g., `transformation.work.queue.toolrun.verify.v1`, `transformation.work.queue.toolrun.generate.v1`, `transformation.work.queue.agentwork.coder.v1`) and record outcomes back into Domain idempotently.
+- Long-running tool runs and agent work are represented as Domain-owned `WorkRequest` records: Process requests work via Domain intents; Domain emits `WorkRequested` facts after persistence; KEDA-scaled execution backends consume `WorkRequested` from dedicated queue topics (e.g., `transformation.work.queue.toolrun.verify.v1`, `transformation.work.queue.toolrun.generate.v1`, `transformation.work.queue.toolrun.verify.ui_harness.v1`, `transformation.work.queue.agentwork.coder.v1`) and record outcomes back into Domain idempotently.
 - Process workflows await the resulting domain facts and emit `ToolRunRecorded` (and other orchestration evidence) as process facts for projection timelines.
 
 ## 3) Envelope invariants (per 496)

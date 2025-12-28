@@ -38,6 +38,14 @@ These are the minimum implementation capabilities required for this scenario to 
   - [ ] a change element (`methodology_key = scrum`)
   - [ ] requirement draft element(s) and snapshots (ElementVersions)
   - [ ] anchor relationships (`ref:requirement`, `ref:deliverables_root`) with `metadata.target_version_id`
+- [ ] **Cluster E2E harness (non-agentic) exists** (optional gate; required for UI-affecting changes):
+  - [ ] BuildKit build path exists in-cluster (no Docker-in-Docker requirement)
+  - [ ] Gateway API overlay routing exists (Envoy Gateway): runner can create/delete `HTTPRoute` rules that match a run header (recommended `X-Ameide-Run-Key=<nonce>`) and route to shadow Services while stable URLs remain unchanged
+  - [ ] Harness fails closed unless it can prove routing correctness:
+    - [ ] waits for `HTTPRoute` status `Accepted=True` and `ResolvedRefs=True` (or controller equivalent)
+    - [ ] verifies an overlay-only marker (preferred: response header modifier) is present with the run header and absent without it
+  - [ ] Harness uses a run anchor object (`ConfigMap wut-run-<work_request_id>`) + `ownerReferences` for deterministic cleanup, with a TTL janitor sweep as a safety net
+  - [ ] Playwright E2E runner can hit the stable URL and inject the run header on every request (artifacts under `/artifacts/e2e/*` per 430)
 
 ---
 
@@ -136,25 +144,48 @@ These are the minimum implementation capabilities required for this scenario to 
 - **Output:** Evidence bundle + terminal status recorded in Domain; Process emits `ToolRunRecorded` referencing evidence.
 - **Next:** If success → **Trigger** 3.3; if failure → **Loop** 3.2 or **Wait** for repair then re-**Trigger** 3.2
 
-### 3.3 Implement repo changes (agent or human)
-- **Input:** Scaffolded repo state + accepted diffs.
-- **Output:** PR/branch with: proto changes, regenerated outputs, capability domain/process/agent/projection/UI updates, tests.
-- **Next:** **Trigger** 3.4
+### 3.3 Request Dev WorkRequest (agentic; Codex mocked; creates PR)
+- **Input:** Accepted diffs + task prompt + repo ref.
+- **Output:** Domain WorkRequest created:
+  - `work_kind=agent_work`
+  - `action_kind=publish` (agent produces and publishes a PR as the outcome)
+- **Next:** **Trigger** agent-work runner job; **Wait** 3.3a
+
+### 3.3a Dev outcome recorded (PR created)
+- **Input:** Dev WorkRequest id.
+- **Output:** PR metadata recorded as WorkRequest result outputs + evidence:
+  - `outputs.pr_url`
+  - `outputs.commit_sha` (head SHA for verification)
+- **Next:** If success → **Trigger** 3.4; else **Loop** 3.3 (revise prompt / fix runner)
 
 ### 3.4 Request verification tool run
-- **Input:** PR ref; `action_kind=verify`; verification baseline.
+- **Input:** `outputs.commit_sha`; `action_kind=verify`; verification baseline.
 - **Output:** Domain WorkRequest created; `WorkRequested` emitted (e.g., `transformation.work.queue.toolrun.verify.v1`).
 - **Next:** **Trigger** Integration verifier job; **Wait** 3.4a
 
 ### 3.4a Verification outcome recorded
 - **Input:** WorkRequest id.
 - **Output:** Verification report + evidence bundle; pass/fail status.
-- **Next:** If pass → **Trigger** Phase 4; if fail → **Loop** 3.3 (fix) or if “proto breaking” → **Loop** 2.2 (redesign)
+- **Next:** If pass → **Trigger** 3.5 (when E2E gate is required) else **Trigger** Phase 4; if fail → **Loop** 3.3 (fix) or if “proto breaking” → **Loop** 2.2 (redesign)
+
+### 3.5 Automatically request cluster UI harness verification (stable URLs; gateway overlay)
+- **Input:** Verified PR ref + stable base URL + service selection manifest.
+- **Output:** Domain WorkRequest created with:
+  - `action_kind=verify`
+  - `verification_suite_ref=transformation.verify.ui_harness.gateway_overlay.v1`
+  - recommended queue: `transformation.work.queue.toolrun.verify.ui_harness.v1`
+- **Next:** If the manifest indicates no `edge_routable` services are affected → **Skip** 3.5 and **Trigger** Phase 4; else **Trigger** E2E runner job; **Wait** 3.5a
+
+### 3.5a E2E outcome recorded
+- **Input:** E2E WorkRequest id.
+- **Output:** Playwright artifacts + pass/fail evidence recorded in Domain and cited by Process facts.
+- **Next:** If pass → **Trigger** Phase 4; if fail → **Loop** 3.3 (fix) or **Loop** 2.1/2.2 (redesign) depending on root cause
 
 ### Phase 3 — Implementation checklist
 
 - [ ] **Domain**: WorkRequest lifecycle is persisted and emits `WorkRequested/Started/Completed/Failed` facts.
 - [ ] **Integration runner**: can execute `scaffold|generate|verify` deterministically for a given `commit_sha` and record evidence (logs + artifacts).
+- [ ] **Integration runner (E2E)**: can build/run shadow services in-cluster, apply Gateway API overlay routes, run Playwright against stable URLs with a run header, and record artifacts under `/artifacts/e2e/*`.
 - [ ] **Process**: emits step-level process facts and correlates to WorkRequests (so Projection can build a run timeline).
 - [ ] **Projection/UISurface**: can show WorkRequest status + evidence links and the process run timeline.
 
