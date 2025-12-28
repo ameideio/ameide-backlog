@@ -115,7 +115,7 @@ we separate **source-of-truth** from **derived build inputs**:
 - **Source (canonical):** BPMN 2.0 payload stored as an element-centric versioned payload (`ElementVersion`) and referenced by a Definition Registry entry (`ProcessDefinition`).
 - **Derived (promotable):** a compiled **Workflow IR** and a **Scaffolding Plan** derived from the promoted BPMN version and stored/promoted in the Definition Registry.
 
-### 3.1 Supported BPMN subset (v1)
+### 3.1 Supported BPMN subset (v1; current)
 
 v1 supports a deliberately small executable subset (expand later; any unsupported constructs MUST fail verification):
 
@@ -131,6 +131,20 @@ v1 supports a deliberately small executable subset (expand later; any unsupporte
 - v1 does not require BPMN-native wait/timer constructs (e.g., `intermediateCatchEvent`, `timerEventDefinition`) to express “wait for an external event”.
 - “Wait” semantics are expressed via the execution profile (`await_domain_facts`) so the workflow can deterministically advance when a correlated domain fact arrives.
 - If/when BPMN-native waits/timers are added, they MUST map to the same execution profile concepts and produce the same step evidence (process facts).
+
+### 3.1.1 Supported BPMN subset (v2; planned and normative for compile-to-IR)
+
+v2 expands the executable subset to support **structured composition** and **non-happy-path modeling** without inventing non-BPMN constructs:
+
+- **Composition**
+  - `callActivity` (reusable subprocess; invoked as a separate ProcessDefinition)
+  - embedded `subProcess` (structuring within the same ProcessDefinition)
+- **Boundary events** on tasks/subprocesses (portable BPMN semantics; deterministic compilation required)
+  - error boundary (structured failure path)
+  - timer boundary (timeouts)
+  - cancel/terminate semantics where BPMN allows (interrupting vs non-interrupting must be preserved)
+
+Guardrail: if a v2 construct is present but does not satisfy the resolution + mapping rules in §3.5.1 and §3.6, promotion MUST fail (no best-effort fallbacks).
 
 ### 3.2 Collaboration requirement (for “scaffoldable”)
 
@@ -209,6 +223,11 @@ Execution profile requirements (conceptual shape; do not embed proto text):
   - `emit_process_facts`: which step transitions MUST be emitted (see `backlog/527-transformation-proto.md` §3.1)
   - `send_domain_intent` (optional): intent type + topic family + subject scope + idempotency key strategy
   - `await_domain_facts` (optional): which facts (by type/subject) unblock the workflow and how correlation is computed
+  - `call_process` (optional; v2): invoke another ProcessDefinition as a subprocess (Call Activity semantics):
+    - `called_process_definition_ref` (required): `{definition_id, version_id}` or `{definition_id, version_range}` depending on profile policy
+    - `input_mapping` (required): explicit mapping from parent inputs/variables to child inputs (no implicit shared context)
+    - `output_mapping` (required): explicit mapping from child outputs to parent variables/pins/evidence
+    - `timeout_policy` / `retry_policy` (bounded; retries rely on idempotency and must be visible as process facts)
   - `run_work_request` (optional): request execution via a Domain-owned WorkRequest (tool run or agent work) and define how the workflow waits for completion:
     - `work_kind` ∈ `{tool_run, agent_work}`
     - `queue_ref` (logical; environment binds actual broker/subject)
@@ -242,6 +261,26 @@ Process primitives are Temporal-backed. v1 execution posture is:
 
 This keeps BPMN as the authoring and governance source of truth while making execution deterministic and testable.
 
+### 3.5.1 Compilation semantics for nested processes (v2)
+
+The compile-to-IR contract MUST define deterministic semantics for v2 constructs:
+
+- **Call Activity → Temporal Child Workflow**
+  - Parent workflow executes a child workflow whose identity resolves to the called ProcessDefinition/version.
+  - The parent MUST await child completion and emit process facts for the call activity (`STARTED`, `COMPLETED`/`FAILED`) regardless of child outcome.
+  - Input/output mapping MUST be explicit in the execution profile (no implicit variable inheritance).
+
+- **Embedded SubProcess → inline IR block**
+  - An embedded `subProcess` compiles to a structured IR block inside the same workflow execution (not a child workflow).
+  - Nodes inside the subprocess continue to emit mandatory step transition facts.
+
+- **Boundary Events → explicit IR constructs**
+  - Timer boundary events compile to Temporal timers + deterministic cancellation behavior (interrupting vs non-interrupting preserved).
+  - Error boundary events compile to structured failure routing: caught failures transition to the modeled boundary flow; uncaught failures propagate as workflow failure.
+  - Cancel/terminate semantics compile to explicit cancellation propagation rules (never hidden retries).
+
+Plane separation (520-aligned): BPMN parsing and IR compilation are behavior-plane operations executed by promotion tooling (CI and/or Integration executors), not by operators.
+
 ### 3.6 Verification gates (deployable AND scaffoldable)
 
 Promotion of a ProcessDefinition version MUST fail unless:
@@ -249,6 +288,7 @@ Promotion of a ProcessDefinition version MUST fail unless:
 - the BPMN payload parses and conforms to the supported subset,
 - the collaboration/participant/message-flow contract is present (if deployable/scaffoldable),
 - bindings fully resolve (no “unknown intent”, “missing subject scope”, “undeclared read dependency”),
+- every `callActivity` resolves deterministically to an allowed ProcessDefinition/version and declares explicit input/output mapping (v2),
 - compilation produces:
   - a `CompiledWorkflowDefinition` (Workflow IR), and
   - a `ScaffoldingPlanDefinition` (generation plan),
@@ -263,6 +303,8 @@ For compile-to-Temporal execution, v1 requires a single orchestrator:
 
 This avoids accidental “multi-orchestrator” semantics and keeps compilation/execution deterministic.
 
+Call Activity note: invoking subprocesses via `callActivity` does not violate the single-orchestrator rule; it compiles to child workflow execution under the parent orchestrator, with explicit input/output mapping and mandatory facts.
+
 ### 3.6.2 Deterministic scaffolding mapping (what BPMN scaffolds)
 
 The goal is “one authoring source drives execution AND scaffolding of supporting services” without letting BPMN invent schemas. The deterministic mapping is:
@@ -276,6 +318,9 @@ The goal is “one authoring source drives execution AND scaffolding of supporti
     - publisher adapters in the orchestrator (to emit intents), and
     - subscriber/handler skeletons in the target domain primitive (to handle intents / emit facts),
     but MUST NOT invent new proto messages; missing protos are a Design-gate failure.
+- Call Activities → reusable process dependencies (v2)
+  - Each `callActivity` MUST resolve to an existing ProcessDefinition/version (or allowed version policy).
+  - Scaffolding tasks MUST ensure the called workflow IR is produced/promoted and that runtime wiring allows the parent to invoke the child deterministically (no dynamic BPMN interpretation at runtime).
 - Service tasks → runnable activities + adapters
   - If an activity has `send_domain_intent`, scaffolding tasks must ensure:
     - an intent publish path exists (adapter/SDK client),
