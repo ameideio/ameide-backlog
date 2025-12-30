@@ -11,7 +11,18 @@
 
 This backlog consolidates all onboarding-related requirements from prior specifications (319, 369, 319-v4) into a single, prioritized execution plan. It covers the complete journey from lead capture through fully-provisioned tenant, incorporating lessons learned and aligning with the current architecture (realm-per-tenant, Temporal orchestration, unified secret guardrails).
 
-> **Update (597):** This backlog assumes **realm-per-tenant (no exceptions)** and **issuer-first tenant routing** (OIDC `iss` issuer URL mapped server-side to canonical `tenant_id`). Do not implement new dependencies on `tenantId` token claims, `x-tenant-id`, or “shared realm” tiers.
+> **Historical note (Update (597), 2025-12):** This backlog was originally written assuming **realm-per-tenant (no exceptions)** and **issuer-first tenant routing** (OIDC `iss` issuer URL mapped server-side to canonical `tenant_id`). It also warns against new dependencies on `tenantId` token claims, `x-tenant-id`, or “shared realm” tiers.
+>
+> **Addendum (2025-12-30): Baseline alignment with 597**
+>
+> `backlog/597-login-onboarding-primitives.md` has since been clarified to a **single realm + IdP-per-tenant baseline** (brokered IdPs in one realm) with `idp_alias → tenant_id` routing, and `principal.issuer` treated as *non-authoritative* for tenant routing in that baseline.
+>
+> This 428 backlog still contains realm-per-tenant language because it consolidates earlier plans; **preserve it as a variant**. When implementing new work, treat:
+>
+> - **Baseline (current):** single realm + IdP-per-tenant (see 597 + 597b)
+> - **Variant (future/optional):** realm-per-tenant + multi-issuer mix-up defenses (RFC 9207 `iss` binding, issuer-driven routing)
+>
+> If/when we decide realm-per-tenant is the baseline again, update 597 first, then this doc.
 
 ---
 

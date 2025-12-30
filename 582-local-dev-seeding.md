@@ -24,6 +24,47 @@ Validated in `ameide-local`:
 
 **Migration note:** environments created before “Flyway schema-only” may retain legacy demo rows (e.g. `atlas-org` tenant/users) from historical Flyway seeds. To fully converge to the target-state dataset, wipe/recreate the local Postgres volumes/cluster once, then let `platform-dev-data` seed from scratch.
 
+---
+
+## Addendum (2025-12-30): “Seeded users must be complete” + local stability prerequisites
+
+This addendum preserves the original intent of 582 and records a concrete failure mode we hit in local:
+
+### Seeded personas must include platform DB facts (not just Keycloak)
+
+If a persona can authenticate in Keycloak but does not have the expected **platform DB** tenant/org/memberships, the UI will (correctly) land in “no access / onboarding lane” flows.
+
+This is not a bug in login; it is a missing seed contract fact.
+
+Concrete expectation (baseline):
+- A seeded “happy path” persona should already have:
+  - canonical `platform.users` row
+  - tenant + org membership(s) in the target org (e.g. `atlas`)
+  - role codes consistent with the RBAC catalog
+
+### Local cluster must run `www-ameide-platform` as a production image (Argo-managed)
+
+We saw `upstream request timeout` / 500s on `/login`, `/accept`, and `/api/auth/*` even while unit tests were green.
+Root cause: local Argo was temporarily pinned to a **dev-mode image** (`Dockerfile.dev`) while `NODE_ENV=production`, causing Next dev-server build/runtime failures behind the gateway.
+
+Policy:
+- For Argo-managed local (`ameide-local`), `www-ameide-platform` must run the **production** image (`Dockerfile.main`) pinned by digest.
+- Tilt/dev images are fine for developer loops, but should not be the baseline behind the shared local gateway that E2E hits.
+
+GitOps anchor (local):
+- `../gitops/ameide-gitops/sources/values/env/local/apps/www-ameide-platform.yaml` (pins prod digest; see `ameideio/ameide-gitops#53`)
+
+### Server-to-server calls must not use browser/public URLs
+
+We also saw onboarding bootstrap report “Tenant provisioning is currently unavailable” when the server-side SDK tried to call the **public** Envoy URL instead of the in-cluster gRPC base URL.
+
+Policy:
+- Browser/client: use `NEXT_PUBLIC_*` URLs.
+- Server-to-server: use `AMEIDE_GRPC_BASE_URL` (or `AMEIDE_ENVOY_URL` where appropriate), never `NEXT_PUBLIC_ENVOY_URL`.
+
+Code anchor:
+- `../services/www_ameide_platform/lib/sdk/server-client.ts` (base URL precedence)
+
 ## 1. Problem
 
 We want **fully deterministic developer environments** (local k3d + shared AKS namespaces) where:
