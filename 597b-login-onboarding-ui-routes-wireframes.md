@@ -57,6 +57,16 @@ App shell (authenticated product chrome)
 - Onboarding shell: `services/www_ameide_platform/app/(onboarding)/layout.tsx` + `services/www_ameide_platform/app/(onboarding)/onboarding/page.tsx` (server guard) + `services/www_ameide_platform/app/(onboarding)/onboarding/OnboardingClientPage.tsx` (client UI)
 - Invitation acceptance (public/join shell): `services/www_ameide_platform/app/accept/page.tsx`
 
+#### Addendum (2025-12-30): Local cluster gRPC base URL must be functional
+
+Even though this is a UI doc, several of the UI states here (notably `TIMEOUT/ERROR` vs `EMPTY` and the onboarding bootstrap failure banner) become impossible to validate if the server-side SDK can’t reach the platform APIs.
+
+Observed in local k3d:
+- `AMEIDE_GRPC_BASE_URL=http://envoy-grpc:9000` can return gRPC `UNIMPLEMENTED` for platform services, causing false “tenant not provisioned” / bootstrap failures.
+- Pointing the server-side SDK directly at `platform:8082` restores expected behavior for access resolution + onboarding primitives.
+
+Code anchor: `services/www_ameide_platform/lib/sdk/server-client.ts` (base URL resolution via `AMEIDE_GRPC_BASE_URL`).
+
 ### Public (no session SSR, no app shell)
 
 - `GET /login`
@@ -77,6 +87,14 @@ UI copy guidelines:
 - Avoid “Keycloak” / “IdP” branding in the login/register redirect screens; use provider-neutral language (“Signing you in”, “Continue”).
 - Avoid surfacing low-level details (CSRF/PKCE/state, “invalid_grant”, upstream timeouts, markdown/layout artifacts) to end users.
 - Put technical details in logs and attach a correlation/request id where possible; the UI can offer a generic support CTA.
+
+#### Addendum (2025-12-30): Portal UI must be user-facing by default
+
+The access hub `/` should not default to a “debug dashboard” that prints internal states (`tenantId`, `organizationAccessStatus`, `TenantNotProvisioned`, etc.) to end users. Those details belong in logs/telemetry and (optionally) a developer-only view.
+
+Code anchors:
+- Portal route: `services/www_ameide_platform/app/page.tsx`
+- Portal view-state logic: `services/www_ameide_platform/app/(app)/_components/PlatformPortalClient.tsx`
 
 - `GET /register`
   - Purpose: begin SSO with “signup/register” hint.
