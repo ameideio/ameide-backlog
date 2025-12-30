@@ -5,7 +5,7 @@ owners:
   - platform
   - test-infra
 created: 2025-12-26
-updated: 2025-12-26
+updated: 2025-12-30
 ---
 
 ## Summary
@@ -31,7 +31,7 @@ We already have strong testing/verification contracts:
 However, CI can still be “correct but too heavy” if:
 
 - heavyweight jobs trigger on unrelated changes
-- CD/publish jobs run on every `dev` push
+- CD/publish jobs run on every branch push (e.g. `main`)
 - repeated pushes/PR updates pile up queued runs that won’t ever merge
 - a single monolithic job forces worst-case setup on every PR
 
@@ -48,6 +48,43 @@ However, CI can still be “correct but too heavy” if:
 - Replacing CI with local-only discipline.
 - Changing release governance (promotion PR policy, GitOps release flow) beyond what is needed for cost controls.
 
+## Vendor constraints (GitHub Actions semantics)
+
+These are “gotchas” we must encode into docs and workflow design so we don’t accidentally fight GitHub’s behavior:
+
+1. **Workflow skipped ⇒ required checks stay Pending ⇒ merge blocks**  
+   If a workflow is skipped due to trigger-level filters (`paths`, `branches`) or skip markers in commit messages, its checks can remain **Pending**. If those checks are required, the PR merge is blocked.
+2. **Job skipped via `if:` ⇒ reports Success ⇒ does not block merge (even if required)**  
+   Job-level skipping is not a safe enforcement mechanism by itself.
+3. **`needs:` + failure/skip ⇒ downstream skips unless `if: ${{ always() }}`**  
+   A final “gate” job must be forced to run even when upstream jobs fail/skip.
+4. **Concurrency: define groups carefully to avoid cross-cancel**  
+   Prefer workflow-unique concurrency groups (commonly include `${{ github.workflow }}`) to avoid canceling other workflows unintentionally.
+5. **Metrics endpoint stability: `/actions/runs/{run_id}/timing` is closing down**  
+   “Get workflow usage” and “Get workflow run usage” endpoints (including `/timing`) are closing down as part of GitHub billing platform changes.
+
+## Required-check-safe scoping pattern (recommended)
+
+For any workflow whose checks are configured as **required** for merge, prefer this architecture:
+
+1. Trigger the workflow on all PRs to `main` (no trigger-level `paths` filters).
+2. Use a `changes` (diff) job to compute boolean outputs for “what changed”.
+3. Run suite jobs conditionally based on those outputs (`if:`).
+4. Have a single **required** `gate` job that:
+   - has `needs: [...]` on all suite jobs
+   - runs with `if: ${{ always() }}`
+   - fails if any *relevant* suite did not succeed
+
+This lets branch protection require **only the gate job’s check**, while the workflow still scopes expensive work to what changed.
+
+## Measurement note
+
+To measure cost/latency without relying on the closing `/timing` endpoint:
+
+- **Queue time**: workflow run created → first job started
+- **Runner occupancy**: sum over jobs of (`started_at` → `completed_at`)
+- Prefer job timestamp–based measurement via workflow jobs APIs (or `gh run view --json jobs`) over run-level `/timing`.
+
 ## Target metrics (initial)
 
 Track and publish these as a weekly snapshot:
@@ -62,7 +99,7 @@ Track and publish these as a weekly snapshot:
 ### A) Cancellation and concurrency policy
 
 - Ensure all PR workflows use `concurrency` with `cancel-in-progress: true` (grouped by PR number).
-- Ensure CD/publish workflows cancel superseded runs on `dev` pushes (grouped by branch/ref).
+- Ensure CD/publish workflows cancel superseded runs on branch pushes (grouped by branch/ref).
 - Make queue amplification visible (metrics + dashboards if available).
 
 ### B) Scope heavy checks to relevant changes
