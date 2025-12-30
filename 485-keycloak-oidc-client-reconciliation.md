@@ -120,7 +120,7 @@ KeycloakRealmImport (PostSync hook)
 | Service | Client ID | Status |
 |---------|-----------|--------|
 | Backstage | `backstage` | ❌ Blocked |
-| K8s Dashboard | `k8s-dashboard` | ⚠️ Unknown (may have same issue) |
+| K8s Dashboard | `kubernetes-dashboard` | ✅ Implemented (GitOps + Keycloak client reconciliation) |
 | Any future OIDC service | TBD | ⚠️ Will hit same issue |
 
 ---
@@ -203,7 +203,7 @@ clientPatcher:
           - email
           - groups
 
-    - clientId: k8s-dashboard
+    - clientId: kubernetes-dashboard
       realm: ameide
       spec:
         name: "Kubernetes Dashboard"
@@ -223,7 +223,7 @@ clientPatcher:
         vaultKey: backstage-oidc-client-secret
       - clientId: argocd
         vaultKey: argocd-dex-client-secret
-      - clientId: k8s-dashboard
+      - clientId: kubernetes-dashboard
         vaultKey: k8s-dashboard-oidc-client-secret
 ```
 
