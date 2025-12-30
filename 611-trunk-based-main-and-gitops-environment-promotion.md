@@ -6,7 +6,7 @@ owners:
   - release
   - sre
 created: 2025-12-27
-updated: 2025-12-27
+updated: 2025-12-30
 ---
 
 ## Summary
@@ -95,6 +95,17 @@ Related backlogs:
 - Required checks should map to **PRs into `main`** only.
 - Avoid policies that require a “promotion PR path” (e.g., “PRs to main must come from dev”), as that recreates duplication and complexity.
 
+### Vendor constraints (GitHub Actions semantics)
+
+- **Workflow skipped ⇒ required checks Pending (merge blocks)**: trigger-level filters (`paths`, `branches`) can skip an entire workflow; if its check is required, merges can block with “Pending”.
+- **Job skipped via `if:` ⇒ reports Success**: job-level skips are not enforcement by themselves.
+- **`needs:` + failure/skip ⇒ downstream skips unless `if: ${{ always() }}`**: use a final “gate” job (forced to run) if you need a single required check while still scoping internal work.
+
+### `ameide-gitops` required check (recommended)
+
+- Require only the single check `GitOps / Gate` (implemented in this repo at `.github/workflows/gitops-gate.yaml`).
+- Do not require path-filtered workflows directly; keep them as implementation detail called by the gate (or as push/schedule/manual automation).
+
 ## Definition of Done
 
 - `dev` branch is not required for the standard change path; all work merges via PR → `main`.
@@ -152,6 +163,7 @@ Target behavior: **all code merges via PR → `main`**; “promotion” is GitOp
      - `.github/workflows/cd-service-images.yml`
      - `.github/workflows/cd-packages.yml`
      - `.github/workflows/cd-devcontainer-image.yml`
+   - Note: `on.push.paths` prevents run creation; job-level `if:` only skips after the run exists (so it does not solve queue/noise).
 2. Turn on branch-run cancellation:
    - For branch pushes, set `concurrency.cancel-in-progress: true` (group by workflow+branch).
    - Keep tags/releases separate if needed (no cancellation).
@@ -197,6 +209,7 @@ Target behavior: **all code merges via PR → `main`**; “promotion” is GitOp
 1. Update CI reporting to measure:
    - runner occupancy (sum of job `startedAt→completedAt`)
    - queue time separately (run created→job started)
+   - prefer job timestamp–based measurement over GitHub’s `/actions/runs/{run_id}/timing` endpoints (which are closing down as part of billing platform changes)
 2. Track cancelled/superseded runs and enforce budgets (see `610`).
 
 ---
@@ -252,3 +265,7 @@ Current workflow logic mixes “branch == environment/channel” assumptions tha
   - Enabled `main` branch protection for `ameideio/ameide`, `ameideio/ameide-gitops`, `ameideio/ameide-backlog` via `gh api`.
   - `ameideio/ameide`: requires 1 approval + CODEOWNERS, conversation resolution, linear history; retains the existing required status check context `Verify PR source branch` (now advisory).
   - `ameideio/ameide-gitops` + `ameideio/ameide-backlog`: requires 1 approval + CODEOWNERS, conversation resolution, linear history (no required status checks yet).
+
+### 2025-12-30
+
+- `ameide-gitops` (this repo): added a single always-run PR-required gate workflow `GitOps / Gate` and converted path-scoped checks to be called via `workflow_call` (no PR path-filter required-check footguns).
