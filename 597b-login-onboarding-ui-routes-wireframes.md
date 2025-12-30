@@ -67,7 +67,16 @@ App shell (authenticated product chrome)
   - Functional invariants:
     - Initiates the login chain **exactly once per navigation**, even under React 18 dev Strict Mode.
     - Allows manual retry without double-submitting concurrent attempts.
-  - Output: renders “Continuing to Keycloak…” state with manual retry.
+  - Output: renders a provider-neutral “Signing you in…” state with manual retry.
+
+#### Addendum (2025-12-30): UI copy must not expose provider/technical details
+
+Preserve the implementation detail (we use Keycloak today), but avoid putting it in end-user copy.
+
+UI copy guidelines:
+- Avoid “Keycloak” / “IdP” branding in the login/register redirect screens; use provider-neutral language (“Signing you in”, “Continue”).
+- Avoid surfacing low-level details (CSRF/PKCE/state, “invalid_grant”, upstream timeouts, markdown/layout artifacts) to end users.
+- Put technical details in logs and attach a correlation/request id where possible; the UI can offer a generic support CTA.
 
 - `GET /register`
   - Purpose: begin SSO with “signup/register” hint.
@@ -176,15 +185,14 @@ When the user lands on `/accept?token=…`, the UI should:
 
 ```
 ┌──────────────────────────────────────────────┐
-│ Continuing to Keycloak                       │
-│ We’re redirecting you to your identity       │
-│ provider to finish signing in.               │
+│ Signing you in                               │
+│ We’re redirecting you to finish signing in.  │
 │                                              │
-│ [spinner] Preparing secure single sign-on…   │
+│ [spinner] Preparing secure sign-in…          │
 │                                              │
-│ (error) We could not reach Keycloak…         │
+│ (error) Unable to start sign-in…             │
 │                                              │
-│ [ Continue to Keycloak ]  (disabled while…)  │
+│ [ Continue ]  (disabled while…)              │
 │ Having trouble? support@ameide.io            │
 └──────────────────────────────────────────────┘
 ```
