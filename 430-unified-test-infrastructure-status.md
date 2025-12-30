@@ -24,6 +24,21 @@ This document tracks implementation progress against the target state defined in
 | Services with `__mocks__/` | 15 | 100% |
 | E2E cluster-only (by design) | 1 | 100% |
 
+### Addendum (2025-12-30): diagnosing “upstream request timeout” during cluster E2E
+
+When cluster E2E fails with gateway/browser errors like `upstream request timeout` (or Playwright `page.goto` timing out), do not assume the auth flow itself is broken.
+
+Common root causes are **deployment mode/config drift** in the environment under test:
+
+- `www-ameide-platform` running a dev-server image behind the gateway (cold compiles, missing build artifacts, runtime mismatches) will manifest as 500s/timeouts on `/login`, `/accept`, and `/api/auth/*`.
+- Server-side calls misconfigured to use a public/browser URL instead of the in-cluster RPC base URL can surface as “service unavailable” in onboarding flows.
+
+Practical triage checklist (local `ameide-local`):
+- `GET /healthz` returns 200 quickly
+- `/api/auth/session` returns 200 (not 500)
+- `www-ameide-platform` image is a prod digest (`Dockerfile.main`) in Argo-managed local:
+  - `../gitops/ameide-gitops/sources/values/env/local/apps/www-ameide-platform.yaml` (see `ameideio/ameide-gitops#53`)
+
 ---
 
 ## Per-Service Status
