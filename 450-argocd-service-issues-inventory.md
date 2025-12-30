@@ -402,6 +402,7 @@ Observed:
 GitOps hardening applied (prepared for rollout):
 - Removed baked environment defaults from shared Keycloak operator values (`_shared/platform/platform-keycloak.yaml`), so env overlays are the source of truth.
 - Keycloak realm: ensured OIDC client reconciliation is defined per env (and fixed the Kubernetes Dashboard client ID mismatch by standardizing on `clientId=kubernetes-dashboard` and adding env-specific redirect URIs).
+- Kubernetes Dashboard: deployed via GitOps (Dashboard Helm chart + oauth2-proxy + Gateway route). Note: upstream Dashboard still requires a Kubernetes bearer token; local dev may optionally use a token-injecting proxy behind SSO (shared `view` identity) for “hit URL → dashboard” UX.
 
 ### RedisFailover auth templating (breaks master election → Langfuse worker CrashLoop)
 
