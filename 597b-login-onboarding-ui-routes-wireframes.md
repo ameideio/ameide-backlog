@@ -54,6 +54,8 @@ App shell (authenticated product chrome)
 - Portal/access hub route: `services/www_ameide_platform/app/page.tsx` + `services/www_ameide_platform/app/(app)/_components/PlatformPortalClient.tsx`
 - Login UI: `services/www_ameide_platform/app/(public)/login/page.tsx` + `services/www_ameide_platform/app/(public)/login/KeycloakRedirect.tsx`
 - Register entry (server-rendered HTML POST to Auth.js): `services/www_ameide_platform/app/(auth)/register/route.ts`
+- Logout route (clears session cookies; optional IdP logout): `services/www_ameide_platform/app/(auth)/logout/route.ts`
+- Header sign-out entry: `services/www_ameide_platform/features/header/components/HeaderUserMenu.tsx`
 - Onboarding shell: `services/www_ameide_platform/app/(onboarding)/layout.tsx` + `services/www_ameide_platform/app/(onboarding)/onboarding/page.tsx` (server guard) + `services/www_ameide_platform/app/(onboarding)/onboarding/OnboardingClientPage.tsx` (client UI)
 - Invitation acceptance (public/join shell): `services/www_ameide_platform/app/accept/page.tsx`
 
@@ -62,10 +64,20 @@ App shell (authenticated product chrome)
 Even though this is a UI doc, several of the UI states here (notably `TIMEOUT/ERROR` vs `EMPTY` and the onboarding bootstrap failure banner) become impossible to validate if the server-side SDK can’t reach the platform APIs.
 
 Observed in local k3d:
-- `AMEIDE_GRPC_BASE_URL=http://envoy-grpc:9000` can return gRPC `UNIMPLEMENTED` for platform services, causing false “tenant not provisioned” / bootstrap failures.
-- Pointing the server-side SDK directly at `platform:8082` restores expected behavior for access resolution + onboarding primitives.
+- If `www-ameide-platform` is not running (or is crashlooping), Envoy shows `upstream request timeout` for `/login`, `/accept`, and `/api/auth/*` even while unit tests are green.
+- We also saw gRPC `UNIMPLEMENTED` when probing `envoy-grpc:9000` **from outside the cluster** (e.g. via port-forward). In practice this can be a protocol/authority mismatch and does **not** mean `envoy-grpc` is broken for in-cluster server-to-server calls.
 
-Code anchor: `services/www_ameide_platform/lib/sdk/server-client.ts` (base URL resolution via `AMEIDE_GRPC_BASE_URL`).
+Policy:
+- Keep server-to-server gRPC pointed at `AMEIDE_GRPC_BASE_URL=http://envoy-grpc:9000` (per `backlog/589-rpc-transport-determinism.md`).
+- Do **not** switch the Next.js server to `platform:8082` as a “workaround”; fix the determinism/sync issue instead.
+
+Verification (recommended):
+- `GET /api/health/grpc` (server-side gRPC reachability check; returns 200/503).
+- In-cluster probe (example): `kubectl -n ameide-local exec <www-pod> -- node -e '...'` calling the SDK against `http://envoy-grpc:9000`.
+
+Code anchors:
+- Base URL resolution: `services/www_ameide_platform/lib/sdk/server-client.ts`
+- Health endpoint: `services/www_ameide_platform/app/api/health/grpc/route.ts`
 
 ### Public (no session SSR, no app shell)
 
@@ -92,6 +104,9 @@ UI copy guidelines:
 
 The access hub `/` should not default to a “debug dashboard” that prints internal states (`tenantId`, `organizationAccessStatus`, `TenantNotProvisioned`, etc.) to end users. Those details belong in logs/telemetry and (optionally) a developer-only view.
 
+Recommended:
+- Hide diagnostics by default; allow explicit opt-in via `?debug=1`.
+
 Code anchors:
 - Portal route: `services/www_ameide_platform/app/page.tsx`
 - Portal view-state logic: `services/www_ameide_platform/app/(app)/_components/PlatformPortalClient.tsx`
@@ -110,6 +125,14 @@ Code anchors:
     - `EMPTY` → show “no access” actions (invites/support), not onboarding by default.
     - `TIMEOUT/ERROR` → show degraded access + retry; never onboarding.
     - Typed tenant issues → show blocker view in-shell; never onboarding.
+
+#### Addendum (2025-12-31): Seeded persona must not “fall into onboarding” on API failures
+
+If a seeded persona cannot resolve tenant/org due to a transient platform outage (or protocol mismatch), the portal must render a degraded/error view and offer retry/sign-out. It must **not** switch into “needs onboarding” unless we are confident the user is truly unassigned.
+
+Code anchors:
+- Tenant resolution helper: `services/www_ameide_platform/lib/auth/auto-tenant.ts`
+- E2E contract: `services/www_ameide_platform/features/onboarding/__tests__/e2e/seeded-admin-no-onboarding.spec.ts`
 
 ### Onboarding (explicit provisioning lane)
 
@@ -155,6 +178,8 @@ If access resolution returns `TIMEOUT` or `ERROR`, the UI must:
 - stay in the signed-in shell (`/`) or show a dedicated degraded view,
 - offer **Retry** and **Sign out**,
 - avoid showing onboarding CTAs and avoid calling provisioning endpoints.
+
+This includes “tenant not resolved due to transport failure” cases: if the platform can’t be reached, treat it as degraded access (retry), not “needs onboarding”.
 
 ### Rule B — `/onboarding` is not a “fallback page”
 
