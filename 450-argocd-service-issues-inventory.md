@@ -130,6 +130,17 @@ Remediation approach (vendor-aligned, reproducible):
 1. Do not hardcode a cluster-specific service-account audience in local overlays unless all clients mint matching tokens.
 2. Prefer leaving the Vault role `audience` unset (accept all audiences) until a single, explicitly configured token audience is enforced across ESO and any other Vault clients.
 
+## Update (2025-12-31): Local `SecretStore/ameide-vault` 403 flapping from unstable `token_reviewer_jwt` (projected SA token)
+
+- **Env:** `local` (k3d)
+- **Symptom class:** `SecretStore/ameide-vault` intermittently flips `Ready=False` with:
+  - `Code: 403` + `permission denied` from `PUT /v1/auth/kubernetes/login`
+  - Downstream `ExternalSecret` resources fail with `SecretStore "ameide-vault" is not ready`, and Argo apps go `Degraded`.
+- **Root cause (vendor-aligned):** Vault Kubernetes auth uses the Kubernetes **TokenReview** API. If Vault’s reviewer credentials become invalid/expired/revoked (common when `token_reviewer_jwt` is copied from a Pod’s projected service account token in Kubernetes 1.21+), Vault cannot complete TokenReview and login fails as `permission denied` even though the client role bindings are correct.
+- **Diagnostic:** check Vault’s Kubernetes auth config:
+  - `vault read -format=json auth/kubernetes/config` → `token_reviewer_jwt_set=true` is a red flag in in-cluster Vault if it was sourced from a Job/Pod token.
+- **Fix (repo):** stop writing `token_reviewer_jwt` (and stop pinning `kubernetes_ca_cert`) in `foundation/vault-bootstrap`, and let Vault load/re-read the in-cluster token/CA (`disable_local_ca_jwt=false`). See `ameide-gitops` `sources/charts/foundation/vault-bootstrap/templates/cronjob.yaml`.
+
 ## Update (2025-12-14): ComparisonError flapping + operator leader-election instability (local k3d)
 
 Observed “unhealthy” Argo apps even when the underlying resources were fine (or briefly fine):

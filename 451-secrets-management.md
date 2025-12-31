@@ -331,7 +331,7 @@ These secrets are generated in-cluster and should NOT be added to `.env` or Azur
 | SecretStore not Ready | Vault not initialized | Wait for vault-bootstrap to complete |
 | ExternalSecret shows `SecretSyncError` | Vault path incorrect | Check `secretPrefix` in values |
 | SecretStore `InvalidProviderConfig` | Vault sealed | Unseal Vault (see below) |
-| SecretStore `permission denied` (403) | Kubernetes auth not configured | Run vault-bootstrap or reconfigure manually |
+| SecretStore `permission denied` (403) | Vault Kubernetes auth cannot complete TokenReview (often due to an invalid/expired reviewer JWT, or missing TokenReview RBAC) | Fix Vault Kubernetes auth config (see below) |
 
 ### Vault Sealed (503 Error)
 
@@ -367,8 +367,12 @@ This indicates Vault's Kubernetes auth is not properly configured.
 # Get root token
 ROOT_TOKEN=$(kubectl get secret -n ameide-<env> vault-auto-credentials -o jsonpath='{.data.root-token}' | base64 -d)
 
-# Reconfigure kubernetes auth
-kubectl exec -n ameide-<env> vault-core-<env>-0 -- sh -c "VAULT_TOKEN=$ROOT_TOKEN vault write auth/kubernetes/config kubernetes_host='https://kubernetes.default.svc' disable_iss_validation=true"
+# Inspect current kubernetes auth config (diagnostic)
+kubectl exec -n ameide-<env> vault-core-<env>-0 -- sh -c "VAULT_TOKEN=$ROOT_TOKEN vault read -format=json auth/kubernetes/config | jq '{token_reviewer_jwt_set, disable_local_ca_jwt, disable_iss_validation, kubernetes_host}'"
+
+# Reconfigure kubernetes auth (in-cluster Vault, Kubernetes 1.21+ safe)
+# Do NOT pin token_reviewer_jwt from a Pod/Job-mounted projected SA token (it expires / is pod-bound).
+kubectl exec -n ameide-<env> vault-core-<env>-0 -- sh -c \"VAULT_TOKEN=$ROOT_TOKEN vault write auth/kubernetes/config kubernetes_host='https://kubernetes.default.svc' disable_iss_validation=true disable_local_ca_jwt=false\"
 
 # Force SecretStore reconciliation
 kubectl annotate secretstore ameide-vault -n ameide-<env> force-refresh=$(date +%s) --overwrite
