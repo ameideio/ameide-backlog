@@ -6,6 +6,8 @@
 >
 > **Status note:** References to [429](429-devcontainer-bootstrap.md) and [432](432-devcontainer-modes-offline-online.md) in this document are historical context only. The canonical workflow is [435](435-remote-first-development.md) (remote-first) with [444](444-terraform.md) as the offline/local fallback.
 
+> **Update (2026-01):** References to `*-tilt.yaml` values overlays and `*-tilt` workloads/releases are deprecated and preserved for historical context only.
+
 > **Related documents:**
 > - [443-tenancy-models.md](443-tenancy-models.md) – **Tenancy model overview (single source of truth)**
 > - [435-remote-first-development.md](435-remote-first-development.md) – Remote-first development architecture

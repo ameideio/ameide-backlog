@@ -4,6 +4,8 @@
 
 > ⚠️ **Remote-first note:** The inventories below previously referred to a local k3d cluster. After [435-remote-first-development.md](435-remote-first-development.md), "dev" means the shared AKS namespace (`ameide-dev`) reached via Telepresence; treat any residual k3d wording as historical context.
 
+> **Update (2026-01):** References to `*-tilt` “Tilt-only” releases are deprecated. The `*-tilt.yaml` values overlays have been removed from GitOps; use baseline releases/routes, and rely on Telepresence intercept filtering (per-agent header routing) when you need parallelism.
+
 - Goal: align all public app/frontends to Envoy Gateway (Gateway API HTTPRoute/GRPCRoute) and remove residual Ingress usage that breaks health.
 - Actions:
   - Catalog current routes/hosts and their backends (gateway chart `additionalHttpRoutes` and route templates).

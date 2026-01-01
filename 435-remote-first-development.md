@@ -7,6 +7,8 @@
 
 > **Status – Active Canonical Workflow:** This is the authoritative reference for day-to-day development. We are now officially hybrid: AKS + Telepresence remains the default inner loop, while Terraform-driven local k3d (see [444-terraform.md](444-terraform.md)) is the supported fallback for offline/air-gapped scenarios. Both flows must reconcile to the same GitOps state.
 
+> **Update (2026-01):** The `*-tilt.yaml` values overlays and the parallel `*-tilt` Helm release pattern are deprecated. Use baseline releases and rely on Telepresence intercept filtering (per-agent header routing) to avoid hijacking shared traffic.
+
 ## Overview
 
 Pivot from dual-mode (offline-full k3d + online-telepresence) to a single **AKS + Telepresence + Tilt** model:
