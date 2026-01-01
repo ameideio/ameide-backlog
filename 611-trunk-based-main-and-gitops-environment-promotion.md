@@ -88,7 +88,7 @@ Related backlogs:
 - One variable to switch CI execution substrate per repo:
   - `AMEIDE_RUNS_ON=arc-local` (default)
   - `AMEIDE_RUNS_ON=ubuntu-latest` (fallback)
-- Publishing workflows should run on a **trusted substrate** (hosted or a separate locked-down runner set), not on `arc-local`.
+- Publishing workflows should run on a **trusted substrate**; in `ameide-gitops` we keep ARC-first and treat `arc-local` as the trusted substrate (locked down and fork-guarded), so workflows should not hardcode `ubuntu-latest`.
 
 ## Required-check policy
 
