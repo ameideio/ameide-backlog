@@ -165,14 +165,14 @@ Integration runners exist so deterministic tool steps can run without turning th
 
 In v1, long-running tool runs execute via **queue-driven ephemeral execution** in Kubernetes:
 
-- A KEDA `ScaledJob` schedules **Kubernetes Jobs** based on Kafka consumer group lag on `WorkRequested` (KEDA is the scaler/scheduler; Jobs are the consumers).
+- A KEDA `ScaledJob` schedules **Kubernetes Jobs** based on Kafka consumer group lag on execution queue topics carrying `WorkExecutionRequested` (KEDA is the scaler/scheduler; Jobs are the consumers).
 - The Job executes the requested tool run, produces evidence artifacts, and records outcomes back into Domain via a Domain intent.
 
-Hard rule (v1): queue-triggered Jobs MUST consume **WorkRequested** facts (explicitly requested by Process/Domain), not raw external webhooks/events.
+Hard rule (v1): queue-triggered Jobs MUST consume **execution intents** (`WorkExecutionRequested`) explicitly requested by Process/Domain, not raw external webhooks/events and not domain fact streams.
 
 #### Kafka (normative): what KEDA does vs what the Job does
 
-Kafka is the event broker for `WorkRequested`. In this model:
+Kafka is the event broker for execution queue topics. In this model:
 
 - KEDA scales the number of Jobs based on **Kafka consumer group lag** for a configured `{topic, consumerGroup}`.
 - KEDA does **not** pass a message payload into the Job. The Job is the Kafka consumer and must fetch/commit its own record(s).
@@ -196,7 +196,7 @@ GitOps baseline (normative; Kafka + KEDA):
   - `transformation.work.queue.toolrun.verify.v1`
   - `transformation.work.queue.toolrun.generate.v1`
   - `transformation.work.queue.agentwork.coder.v1`
-  - payload is a `WorkRequested` envelope (or equivalent reference) suitable for at-least-once delivery; evidence/outcomes are persisted elsewhere (Domain + object storage)
+  - payload is a `WorkExecutionRequested` intent suitable for at-least-once delivery; evidence/outcomes are persisted elsewhere (Domain + object storage)
   - partitions: size for expected parallelism (recommend ≥ 12 for bursty tool runs; tune later)
   - retention: short (e.g., 1–7 days); Kafka is not the evidence store
   - cleanup: `delete`
@@ -245,7 +245,7 @@ ScaledJobs are rendered/enabled in `local` + `dev`, but intentionally “idle”
 
 - KEDA `ScaledJob` resources exist for `transformation.work.queue.toolrun.verify.v1`, `transformation.work.queue.toolrun.generate.v1`, `transformation.work.queue.agentwork.coder.v1`.
 - (Planned) add a `ScaledJob` for `transformation.work.queue.toolrun.verify.ui_harness.v1` once the gateway-overlay harness executor exists.
-- `scaledJobs.maxReplicaCount: 0` by default to avoid continuous Job churn/noise until a real producer emits valid `WorkRequested` messages onto the queue topics.
+- `scaledJobs.maxReplicaCount: 0` by default to avoid continuous Job churn/noise until a real producer emits valid `WorkExecutionRequested` messages onto the queue topics.
 
 #### Debug/admin mode (workbench pod; not a processor)
 
@@ -265,7 +265,15 @@ Note: `agent-01`/`agent-02`/`agent-03` refer to **external developer-mode worksp
 
 Hard rules:
 
-- The workbench pod MUST NOT consume `WorkRequested` facts and MUST NOT act as a WorkRequest processor. **All WorkRequests are processed by KEDA-scheduled Jobs.**
+- The workbench pod MUST NOT consume execution queue intents and MUST NOT act as a WorkRequest processor. **All WorkRequests are processed by KEDA-scheduled Jobs.**
+
+#### External executors (supported; optional)
+
+Executor runtimes may run outside the cluster (CI runners, developer machines, hosted build farms) as long as they preserve the semantics:
+
+- they consume `WorkExecutionRequested` intents from the execution queue topics (or via an Integration-owned protocol binding such as an MCP adapter),
+- they write outcomes/evidence back into Domain via the Work command surface (idempotent),
+- and Domain remains the only source that emits domain facts (outbox).
 - Any “manual rerun” performed from the workbench must still record outcomes/evidence back into Domain using the same idempotent write surfaces, so audits and Process gates do not depend on ephemeral shell history.
 - Workbench access must be treated as **admin-only** and tightly scoped (ServiceAccount/RBAC + external credentials) because it is an interactive escape hatch.
 

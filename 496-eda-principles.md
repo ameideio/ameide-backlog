@@ -63,6 +63,42 @@ Agent-to-agent (A2A) communication per [505-agent-developer-v2.md](505-agent-dev
 
 - Avoid “events as passive-aggressive commands”: publishing a fact while implicitly requiring a specific consumer to act. If you need one responsible handler, use a command/intent.
 
+#### Execution queues (single-responsibility) vs fact topics (pub/sub)
+
+- **Fact topics are pub/sub**: many consumers may react; facts are emitted only by the owning domain/process after persistence (outbox).
+- **Execution queues are point-to-point** (single-responsibility consumption): their payloads MUST be **intents** (requests), never facts.
+- Any executor (in-cluster or external) MUST report outcomes via the owning domain/process write surface; the owner emits facts after persistence for audit and orchestration continuation.
+- **At-least-once is the default reality:** broker delivery is at-least-once, and Temporal Activities may run more than once (retries/crashes). Therefore:
+  - all commands/intents MUST carry an idempotency key (`message_id` / `request_id`), and
+  - domain/process write surfaces MUST be idempotent on that key.
+- **Kafka→Temporal signal ingestion requires dedupe:** if facts are routed into long-lived workflows via `SignalWithStart`, workflows MUST dedupe signals by `message_id` (especially across `Continue-As-New` boundaries).
+
+#### Temporal complements outbox (standard orchestration + fact emission pattern)
+
+Temporal makes **orchestration** durable; the transactional outbox makes **fact emission** durable.
+
+- **Outbox:** domain state change ↔ domain fact publish (DB commit + outbox row in one transaction; dispatcher publishes).
+- **Temporal:** workflow state machine is durable; Activities are *at-least-once in practice* and must be idempotent.
+
+Therefore:
+
+- Workflows/Activities MUST NOT publish domain facts directly; they submit domain intents/commands and domains emit facts after persistence (outbox).
+- If Kafka facts are routed into Temporal via ingress (`SignalWithStart`), workflows MUST dedupe by `message_id` (and plan `Continue-As-New`).
+
+Canonical flow:
+
+```text
+Workflow (Temporal) -> Activity -> Domain command (idempotent) -> DB TX (state + outbox rows)
+  -> Outbox dispatcher -> Kafka facts (pub/sub) + Kafka execution intents (point-to-point, optional)
+  -> Ingress -> SignalWithStart -> Workflow (dedupe by message_id; Continue-As-New as needed)
+```
+
+#### Idempotency keys: what to dedupe on
+
+- `meta.message_id`: the dedupe key for broker-delivered messages and for workflow signals derived from them.
+- `meta.correlation_id`: trace linkage only; MUST NOT be used as a dedupe key.
+- `meta.causation_id`: “what caused this” linkage; not a dedupe key.
+
 **Implementation**:
 
 ```protobuf

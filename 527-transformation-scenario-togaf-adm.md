@@ -140,7 +140,7 @@ These are the minimum implementation capabilities required for this scenario to 
 
 ### 3.1 Request scaffold/codegen tool run
 - **Input:** Accepted design artifacts; repo coordinates; idempotency key; `action_kind=scaffold|generate`.
-- **Output:** Domain WorkRequest created; `WorkRequested` emitted to work queue (e.g., `transformation.work.queue.toolrun.generate.v1`).
+- **Output:** Domain WorkRequest created; `WorkExecutionRequested` execution intent emitted to the execution queue topic (e.g., `transformation.work.queue.toolrun.generate.v1`); `WorkRequested` fact emitted to `transformation.work.domain.facts.v1`.
 - **Next:** **Trigger** Integration executor job; **Wait** 3.1a
 
 ### 3.1a Tool run outcome recorded
@@ -164,7 +164,7 @@ These are the minimum implementation capabilities required for this scenario to 
 
 ### 3.3 Request verification tool run
 - **Input:** `outputs.commit_sha`; `action_kind=verify`; verification baseline.
-- **Output:** Domain WorkRequest created; `WorkRequested` emitted (e.g., `transformation.work.queue.toolrun.verify.v1`).
+- **Output:** Domain WorkRequest created; `WorkExecutionRequested` execution intent emitted to the execution queue topic (e.g., `transformation.work.queue.toolrun.verify.v1`); `WorkRequested` fact emitted to `transformation.work.domain.facts.v1`.
 - **Next:** **Trigger** Integration verifier job; **Wait** 3.3a
 
 ### 3.3a Verification outcome recorded

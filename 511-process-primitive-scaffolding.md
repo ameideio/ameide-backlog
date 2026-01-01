@@ -115,7 +115,8 @@ Process scaffolds assume:
 - **Tool/agent execution boundary (WorkRequests; normative posture)**:
   - Workflows MUST NOT “call a runner service” synchronously to execute tools (no hidden write coupling).
   - Long-running work is requested by emitting a **domain intent** that creates a Domain-owned `WorkRequest` (idempotent).
-  - Execution backends (CI runners or in-cluster ephemeral Jobs, e.g., KEDA ScaledJobs) consume `WorkRequested` domain facts and record outcomes back to Domain idempotently (evidence bundles + terminal status).
+  - Domain emits `WorkRequested` facts after persistence (outbox) on a domain facts topic (audit trail), and emits a separate execution intent after persistence onto the execution queue topic.
+  - Execution backends (CI runners or in-cluster ephemeral Jobs, e.g., KEDA ScaledJobs) consume **execution intents** (e.g., `WorkExecutionRequested`) from execution queue topics and record outcomes back to Domain idempotently (evidence bundles + terminal status).
   - Workflow advancement is driven by **awaiting correlated domain facts** (`WorkCompleted`/`WorkFailed` or equivalent), not by a direct runner response.
   - KEDA is a scaling backend, not an orchestrator: queue messages must represent **explicitly requested work** decided by Process/Domain, not raw external events.
 

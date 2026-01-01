@@ -201,7 +201,7 @@ The chain is:
 
 3. **Tool runners (Integration executes; CLI is a tool)**
    - Some steps require deterministic tool execution (existing CLI scaffolding, `buf generate`, `ameide primitive verify`, tests/build/publish).
-   - Tool/agent execution is requested via a **WorkRequest** recorded in Domain (see “Execution substrate” below). In v1, WorkRequests are executed via **KEDA ScaledJob → Kubernetes Job per WorkRequested**, using a dedicated **executor** image (not the workbench/devcontainer): Domain emits `WorkRequested` facts after persistence; Jobs consume those facts, execute, and record evidence back into Domain idempotently; Process awaits domain facts and emits process facts for the audit timeline. For parity/debugging, a separate long-lived workbench runs the devcontainer toolchain image (human attach/exec only; never consumes the queue).
+   - Tool/agent execution is requested via a **WorkRequest** recorded in Domain (see “Execution substrate” below). In v1, WorkRequests are executed via **KEDA ScaledJob → Kubernetes Job per execution intent**, using a dedicated **executor** image (not the workbench/devcontainer): Domain emits `WorkExecutionRequested` execution intents after persistence onto the queue topics; Jobs consume those intents, execute, and record evidence back into Domain idempotently; Domain emits facts for the audit trail; Process awaits domain facts and emits process facts for the audit timeline. For parity/debugging, a separate long-lived workbench runs the devcontainer toolchain image (human attach/exec only; never consumes the queue).
    - Outputs are captured as evidence bundles (attachments + structured summaries) and referenced from promotions/baselines and process facts.
 
 4. **Ameide primitives (realization outputs)**
@@ -243,8 +243,8 @@ To make “ephemeral jobs from a queue” safe and interoperable without turning
 
 1. **Process decides** a tool/agent step is needed (policy + orchestration).
 2. **Process requests execution** via a **Domain intent** that creates a `WorkRequest` record (idempotent).
-3. **Domain persists** the WorkRequest and emits a **domain fact** (`WorkRequested`) after commit (outbox).
-4. **Execution backend runs**: KEDA ScaledJob schedules in-cluster ephemeral Jobs based on Kafka consumer group lag on `WorkRequested` (KEDA schedules; the Job consumes):
+3. **Domain persists** the WorkRequest and emits a **domain fact** (`WorkRequested`) after commit (outbox) on `transformation.work.domain.facts.v1`.
+4. **Execution backend runs**: Domain also emits an execution intent (`WorkExecutionRequested`) after commit onto a dedicated execution queue topic; KEDA ScaledJob schedules in-cluster ephemeral Jobs based on Kafka consumer group lag on the execution queue topics (KEDA schedules; the Job consumes):
    - it executes exactly what was requested (no extra policy),
    - writes artifacts to object storage,
    - records outcomes back into Domain via a Domain intent (idempotent).
@@ -256,7 +256,7 @@ To make “ephemeral jobs from a queue” safe and interoperable without turning
 
 Kafka is the event broker for runtime seams. In the execution substrate:
 
-- `WorkRequested` is published to **dedicated Kafka work-queue topics** so KEDA can scale on lag without mixing unrelated domain facts.
+- `WorkExecutionRequested` is published to **dedicated Kafka execution queue topics** so KEDA can scale on lag without consuming domain fact streams.
 - KEDA scales **by consumer group lag**; it does not “hand a specific message to a pod”. The Job/pod is the Kafka consumer.
 - A WorkRequest processor MUST treat Kafka as **at-least-once** delivery:
   - disable auto-commit,
@@ -265,11 +265,11 @@ Kafka is the event broker for runtime seams. In the execution substrate:
 
 Hard rules (v1):
 
-- Queue-triggered execution MUST consume **WorkRequested** facts (explicitly requested by Process/Domain), not raw external webhooks/events.
+- Queue-triggered execution MUST consume **execution intents** (`WorkExecutionRequested`) explicitly requested by Process/Domain, not raw external webhooks/events and not domain fact streams.
 - Job TTL/cleanup is hygiene only; audit correctness comes from Domain-persisted evidence + process facts + projection citations.
 - A debug/admin “workbench” pod MUST exist in `local` and `dev` for human attach/exec and reproduction; it MUST NOT process WorkRequests and MUST NOT be deployed in `staging`/`production`. Workbench is an admin/debug surface and must not be conflated with external parallel dev “agent slots” (`agent-01`, `agent-02`, `agent-03`) described in `backlog/581-parallel-ai-devcontainers.md`.
 
-Queue topics (v1; dedicated per class of work to avoid scaling on non-WorkRequested facts):
+Queue topics (v1; dedicated per class of work to avoid scaling on fact streams):
 
 - `transformation.work.queue.toolrun.verify.v1`
 - `transformation.work.queue.toolrun.generate.v1`

@@ -179,7 +179,7 @@ Topic (or subject/stream) names are logical; encode class and version and map 1:
 Pattern:
 
 ```text
-<methodology>.<class>.<kind>.v<major>
+<context>.<class>.<kind>.v<major>
   where class ∈ { domain, process }
         kind  ∈ { intents, facts }
 ```
@@ -196,6 +196,22 @@ Rules:
 
 - Match topic version to proto package major (`*.v1` ↔ `...v1`).  
 - Do not invent synonyms (`scrum.events.v1`, `scrum.stream.v1`) for the same payload; if you need multiple consumer groups, use broker‑specific constructs (consumer groups, partitions), not separate semantic topics.
+
+### 5.2 Operational execution queues (non-spine)
+
+Some implementations require **single-responsibility execution queues** (e.g., KEDA-triggered Jobs, devcontainer runners, external executors). These are **not** part of the EDA “fact spine” and are not named using the `<context>.<class>.<kind>.v<major>` taxonomy above.
+
+Rules:
+
+- Execution queue payloads MUST be **intents** (requests), never facts (see `backlog/496-eda-principles.md`).
+- Outcomes MUST be recorded via the owning domain/process write surface; the owner emits facts after persistence (outbox) for audit and orchestration continuation.
+- Execution queue names MUST be capability-scoped, versioned (`.v<major>`), and unambiguously operational (include `queue` in the name).
+- Temporal **Task Queues are not Kafka topics**: they deliver Temporal workflow/activity tasks to Temporal workers and are not modeled as broker topics in this section.
+
+Examples (Transformation):
+
+- `transformation.work.queue.toolrun.generate.v1` (tool-run execution intents)
+- `transformation.work.queue.agentwork.coder.v1` (agent-work execution intents)
 
 ---
 
@@ -224,7 +240,7 @@ Several older backlogs and packages pre‑date these conventions (e.g., `506-scr
 
 - Use `ameide_core_proto.<context>[.<sub>].v<major>` for new packages.  
 - Use the suffixes and aggregator patterns in §3 for new commands/events.  
-- Use the `<methodology>.<class>.<kind>.v<major>` pattern for new topics and map them to the aggregator messages.
+- Use the `<context>.<class>.<kind>.v<major>` pattern for new topics and map them to the aggregator messages.
 
 Legacy packages and names:
 

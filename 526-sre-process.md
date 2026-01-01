@@ -15,12 +15,12 @@ This document specifies the **sre-process** primitive — Temporal-backed workfl
 - [ ] Full 525 phase model is not implemented yet (pattern lookup → triage → remediation → verification → documentation).
 - [ ] Approval signals + risk-tier gating are not implemented yet.
 - [ ] Change verification, SLO burn monitoring, and alert correlation workflows are not implemented yet.
-- [ ] Durable broker subscription / event-driven ingress from `sre.domain.facts.v1` is not implemented yet (current ingress is a scaffold; delivery semantics TBD).
+- [ ] Durable broker subscription / event-driven ingress from `sre.domain.facts.v1` is not implemented yet (current ingress is a scaffold; target delivery semantics are Kafka consumer → ingress → `SignalWithStart`, with signal dedupe + `Continue-As-New` planning per `backlog/496-eda-principles.md`).
 
 ## Clarifications requested (next steps)
 
-- [ ] Decide the canonical ingestion path for domain facts into Temporal: Kafka consumer → ingress RPC, direct subscription sidecar, or “process operator” managed delivery.
-- [ ] Define workflow idempotency/replay rules (how duplicate facts are handled; how `aggregate_version` maps to “last seen” state).
+- [x] Canonical ingestion path: Kafka consumer (ingress) → `SignalWithStart` (Temporal) using deterministic Workflow IDs and explicit `WorkflowIDReusePolicy` (no direct broker consumption in workflow code).
+- [ ] Define workflow idempotency/replay rules (dedupe by `message_id` and/or monotonic `aggregate_version`; plan `Continue-As-New` and dedupe across run boundaries).
 - [ ] Define approval semantics in-process: signals vs separate governance process, and how “time-bounded ops” are enforced (timeouts, retries, escalation).
 - [ ] Define the “minimum observable workflow” surface for operators (Temporal visibility + projection facts + UI), and what process facts must be emitted for audits.
 - [ ] Confirm whether Runbook execution belongs in SRE Process (as a workflow) or is modeled as Domain state + integration activity.

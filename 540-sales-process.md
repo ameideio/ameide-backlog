@@ -49,5 +49,5 @@
 
 - [ ] What is the “source of truth” for approval policy decisions (policy service, static rules, config refs)?
 - [ ] What are the SLA defaults for quote approval timeouts (per tenant/policy), and how are they configured?
-- [ ] Temporal conventions: namespace/task queue naming, workflow ID format, and retention/replay expectations per environment.
+- [ ] Temporal conventions: namespace/task queue naming, workflow ID format, explicit `WorkflowIDReusePolicy`, signal dedupe (`message_id`), `Continue-As-New` posture, and retention/replay expectations per environment.
 - [ ] ERP handoff contract: what constitutes “ack”, “reject”, “retryable failure”, and human remediation routing?

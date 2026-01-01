@@ -332,7 +332,7 @@ WP‑B is implemented **proto-first** so orchestration and evidence do not drift
 
 1. Update protos first (intents/facts/process facts + evidence references), then run regen-diff gates (520).
 2. Implement Domain write surfaces + outbox facts for the new messages; add Domain tests for idempotency and “facts after persistence” (537).
-3. Implement runner/job behavior that consumes `WorkRequested` and records outcomes/evidence via Domain commands (idempotent).
+3. Implement runner/job behavior that consumes `WorkExecutionRequested` (execution queue intent) and records outcomes/evidence via Domain commands (idempotent).
 4. Implement Process orchestration (send intent → await facts → emit process facts) and Projection joins for timelines/citations.
 
 **Deliverables (CODE — `ameide` repo)**
@@ -355,7 +355,7 @@ WP‑B is implemented **proto-first** so orchestration and evidence do not drift
 **Deliverables (GITOPS — `ameide-gitops` repo)**
 
 - Kafka (broker wiring; normative):
-  - create the WorkRequest execution queue topics (dedicated per executor class) so KEDA scales only on WorkRequested lag (not on unrelated domain facts):
+  - create the WorkRequest execution queue topics (dedicated per executor class) so KEDA scales only on execution intent lag (not on domain fact streams):
     - `transformation.work.queue.toolrun.verify.v1`
     - `transformation.work.queue.toolrun.generate.v1`
     - `transformation.work.queue.agentwork.coder.v1`
@@ -365,14 +365,14 @@ WP‑B is implemented **proto-first** so orchestration and evidence do not drift
   - set retention/cleanup to reflect “Kafka is transport, not evidence” (short retention + delete policy; evidence is persisted in Domain and object storage)
 - KEDA:
   - install/configure KEDA in `local`/`dev` (and any required broker scaler wiring)
-  - KEDA ScaledJob (normative) with a Kafka trigger that schedules Kubernetes Jobs based on consumer group lag on `WorkRequested` (Job is the Kafka consumer; scale is by consumer group lag)
+  - KEDA ScaledJob (normative) with a Kafka trigger that schedules Kubernetes Jobs based on consumer group lag on execution queue topics carrying `WorkExecutionRequested` (Job is the Kafka consumer; scale is by consumer group lag)
 - Kubernetes security + runtime wiring:
   - ServiceAccounts/RBAC + NetworkPolicy for runner Jobs (least privilege)
   - secrets/config injection required for repo checkout, evidence upload, and Domain callbacks
   - image deployment references (values contract): devcontainer workbench image + executor image for queue-driven Jobs
 - Debug/admin workbench (local/dev only; not a processor):
   - deploy workbench pod(s) only in `local`/`dev` with admin-only access
-  - verify workbench cannot consume WorkRequested and cannot become an orchestrator
+  - verify workbench cannot consume execution queue intents and cannot become an orchestrator
 
 **Implementation status (CODE; repo snapshot)**
 
@@ -381,8 +381,8 @@ WP‑B is implemented **proto-first** so orchestration and evidence do not drift
     - canonical `transformation.work.domain.facts.v1`
     - a KEDA queue topic (`transformation.work.queue.*`) based on `WorkKind` + `ActionKind`
   - `RecordWorkStarted` / `RecordWorkOutcome` update status + emit `WorkStarted` / `WorkCompleted|WorkFailed`
-- [x] Executor consumes WorkRequested and records outcomes durably:
-  - `primitives/integration/transformation-work-executor` processes one `WorkRequested` per Kubernetes Job, records `started/outcome`, and commits Kafka offsets only after `RecordWorkOutcome` succeeds
+- [x] Executor consumes `WorkExecutionRequested` and records outcomes durably:
+  - `primitives/integration/transformation-work-executor` processes one `WorkExecutionRequested` per Kubernetes Job, records `started/outcome`, and commits Kafka offsets only after `RecordWorkOutcome` succeeds
   - Evidence durability: when `WORKREQUESTS_MINIO_*` is configured, evidence is uploaded to object storage and recorded as stable `s3://...` refs (no pod-local paths as truth)
   - Execution substrate: the executor image runtime is devcontainer-derived (toolchain parity with developer mode)
 - [x] Process workflow exists (Temporal):
@@ -450,7 +450,7 @@ Secrets + bootstrap fixtures:
 
 ### Concrete execution queue decisions (v1)
 
-Kafka topics (dedicated per executor class so scaling does not react to non-WorkRequested facts):
+Kafka topics (dedicated per executor class so scaling does not depend on domain fact streams):
 
 - `transformation.work.queue.toolrun.verify.v1`
 - `transformation.work.queue.toolrun.generate.v1`
@@ -540,12 +540,12 @@ We implement WP‑B using a strict “small → large” ladder per `backlog/537
    - Domain can create `WorkRequest` with `client_request_id` idempotency.
    - Domain emits `WorkRequested` / `WorkCompleted` / `WorkFailed` **after persistence** (outbox discipline).
 4. **Runner component tests (no Kubernetes yet)**
-   - A runner “job main” consumes a `WorkRequested` envelope (or looks up `work_request_id`), checks out a repo fixture, runs `ameide` actions, and records outcomes/evidence back to Domain.
+   - A runner “job main” consumes a `WorkExecutionRequested` execution intent (or looks up `work_request_id`), checks out a repo fixture, runs `ameide` actions, and records outcomes/evidence back to Domain.
    - Proves “ack only after durable outcome recorded” (at-least-once safe) without requiring KEDA or a real broker.
 5. **Process workflow tests (Temporal test env)**
    - Workflow requests a WorkRequest (domain intent), awaits completion facts, emits `ToolRunRecorded` / `GateDecisionRecorded` deterministically.
 6. **Kubernetes substrate test (KEDA + Job)**
-   - In a kind-style acceptance environment, a KEDA ScaledJob schedules an executor-image Job for a `WorkRequested`, and the Job records completion/evidence in Domain; duplicates are tolerated and converge via idempotency keys.
+   - In a kind-style acceptance environment, a KEDA ScaledJob schedules an executor-image Job for a `WorkExecutionRequested`, and the Job records completion/evidence in Domain; duplicates are tolerated and converge via idempotency keys.
 7. **Headless end-to-end (no UISurface)**
    - Full slice: Process → Domain WorkRequest → KEDA Job → Domain evidence/outcome → Process facts → Projection timeline; assertions run via APIs/queries only.
 
@@ -594,13 +594,13 @@ Debug/admin mode (required in `local`/`dev`; not a processor):
 
 - Provide long-lived “workbench” pods for human attach/exec using the devcontainer toolchain image (`ghcr.io/ameideio/devcontainer:<tag>`).
 - It MUST be deployed only in `local` and `dev`, and MUST NOT be deployed in `staging`/`production`.
-- It MUST NOT consume `WorkRequested` and exists only to reproduce failures and run controlled “manual reruns” that still write outcomes/evidence back into Domain idempotently.
+- It MUST NOT consume execution queue intents and exists only to reproduce failures and run controlled “manual reruns” that still write outcomes/evidence back into Domain idempotently.
 - It MUST NOT be conflated with external “agent slots” (`agent-01`, `agent-02`, `agent-03`) used for parallel developer-mode DevContainers (clones) (see `backlog/581-parallel-ai-devcontainers.md`).
 
 **DoD (gates)**
 
 - A single end-to-end run exists: Process creates WorkRequest → runner executes → Domain records evidence → Process emits `ToolRunRecorded` → Projection shows timeline with citations.
-- Duplicate delivery is safe: replaying the same WorkRequested message produces one canonical outcome (idempotency proven by tests/logs).
+- Duplicate delivery is safe: replaying the same WorkExecutionRequested message produces one canonical outcome (idempotency proven by tests/logs).
 - The end-to-end run is covered by tests at the correct boundary layers (per 537):
   - Domain tests prove `WorkRequest` idempotency and fact emission-after-persistence.
   - Runner tests prove “ack only after durable outcome recorded” (at-least-once safe).

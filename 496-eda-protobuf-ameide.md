@@ -124,7 +124,7 @@ In Kafka + CSR environments, distinguish:
 
 Topic names (or stream/subject names) MUST encode:
 
-* methodology
+* context
 * class (`domain` or `process`)
 * kind (`intents` or `facts`)
 * major version
@@ -132,7 +132,7 @@ Topic names (or stream/subject names) MUST encode:
 Pattern:
 
 ```text
-<methodology>.<class>.<kind>.v<major>
+<context>.<class>.<kind>.v<major>
 ```
 
 
@@ -414,7 +414,7 @@ Commerce proposes:
 **Naming & topology**
 
 * [ ] Message is correctly classified: domain intent / domain fact / process fact. 
-* [ ] Topic name matches `<methodology>.<class>.<kind>.v<major>` and maps 1:1 to aggregator type. 
+* [ ] Topic name matches `<context>.<class>.<kind>.v<major>` and maps 1:1 to aggregator type. 
 * [ ] New events follow suffix rules (`…Requested`, past tense, governance vocabulary). 
 
 **Envelope**

@@ -14,7 +14,7 @@
 
 WorkRequests are an execution seam: Process requests work → Domain persists → an execution backend runs tools/agents and records evidence/outcomes.
 
-KEDA scales by Kafka consumer group lag, so we use **dedicated queue topics that contain only WorkRequested work items** (not mixed “domain facts”) to avoid scaling on unrelated events.
+KEDA scales by Kafka consumer group lag, so we use **dedicated execution queue topics that contain only execution intents** (e.g., `WorkExecutionRequested`), not mixed domain fact streams, to avoid scaling on unrelated events.
 
 References:
 - `backlog/527-transformation-capability.md` (§2.1 execution substrate)
@@ -47,9 +47,9 @@ Enabled environments:
 
 | Queue purpose | Kafka topic (current) | KafkaTopic resource | KEDA ScaledJob | Consumer group | Notes |
 |---|---|---|---|---|---|
-| Tool runs (verify) | `transformation.work.queue.toolrun.verify.v1` | `KafkaTopic/transformation-work-queue-toolrun-verify-v1` | `ScaledJob/workrequests-toolrun-verify` | `transformation-work-queue-toolrun-verify-v1` | KEDA schedules an executor-image Job that consumes `WorkRequested` from this queue and records outcomes/evidence back to Domain |
-| Tool runs (generate) | `transformation.work.queue.toolrun.generate.v1` | `KafkaTopic/transformation-work-queue-toolrun-generate-v1` | `ScaledJob/workrequests-toolrun-generate` | `transformation-work-queue-toolrun-generate-v1` | KEDA schedules an executor-image Job that consumes `WorkRequested` from this queue and records outcomes/evidence back to Domain |
-| Agent work (coder) | `transformation.work.queue.agentwork.coder.v1` | `KafkaTopic/transformation-work-queue-agentwork-coder-v1` | `ScaledJob/workrequests-agentwork-coder` | `transformation-work-queue-agentwork-coder-v1` | KEDA schedules an executor-image Job that consumes `WorkRequested` from this queue and records outcomes/evidence back to Domain |
+| Tool runs (verify) | `transformation.work.queue.toolrun.verify.v1` | `KafkaTopic/transformation-work-queue-toolrun-verify-v1` | `ScaledJob/workrequests-toolrun-verify` | `transformation-work-queue-toolrun-verify-v1` | KEDA schedules an executor-image Job that consumes `WorkExecutionRequested` intents from this queue and records outcomes/evidence back to Domain |
+| Tool runs (generate) | `transformation.work.queue.toolrun.generate.v1` | `KafkaTopic/transformation-work-queue-toolrun-generate-v1` | `ScaledJob/workrequests-toolrun-generate` | `transformation-work-queue-toolrun-generate-v1` | KEDA schedules an executor-image Job that consumes `WorkExecutionRequested` intents from this queue and records outcomes/evidence back to Domain |
+| Agent work (coder) | `transformation.work.queue.agentwork.coder.v1` | `KafkaTopic/transformation-work-queue-agentwork-coder-v1` | `ScaledJob/workrequests-agentwork-coder` | `transformation-work-queue-agentwork-coder-v1` | KEDA schedules an executor-image Job that consumes `WorkExecutionRequested` intents from this queue and records outcomes/evidence back to Domain |
 
 GitOps sources (authoritative):
 
@@ -85,5 +85,7 @@ If we rename again:
 - Decide whether WorkRequests queues are:
   - **capability-namespaced** (`transformation.*`), or
   - **platform-namespaced** (`workrequests.*` with `capability` carried in payload).
-- Define the queue message payload contract (`WorkRequestQueueMessage` or similar) and lock `.v1` semantics.
+- Lock the execution queue message payload contract:
+  - for Transformation: `WorkExecutionRequested` (`ameide_core_proto.transformation.work.v1`)
+  - for other capabilities: follow `backlog/509-proto-naming-conventions.md` §5.2 (execution queues are operational and intent-only).
 - Define staging/production rollout posture (security, secrets, TLS/SASL, NetworkPolicy/RBAC per executor class).
