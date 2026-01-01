@@ -49,7 +49,7 @@ Implemented (scaffold + guardrails):
 
 Not yet implemented:
 
-- [ ] Deterministic workflow IDs, SignalWithStart routing, and idempotent “seen version” state handling.
+- [ ] Deterministic workflow IDs, SignalWithStart routing, explicit `WorkflowIDReusePolicy`, and idempotent “seen version” signal dedupe (including `Continue-As-New` boundaries).
 - [ ] DNS verification + cert issuance + gateway route orchestration steps and retry/backoff policy.
 - [ ] Emission of `commerce.process.facts.v1` as a first-class observability stream (progress + failure taxonomy).
 

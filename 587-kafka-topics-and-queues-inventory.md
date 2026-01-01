@@ -21,7 +21,7 @@ Topic names are logical and must remain stable across environments.
   - `<capability>.work.queue.<executor_class>.<executor_kind>.v<major>`
   - examples (Transformation): `transformation.work.queue.toolrun.verify.v1`, `transformation.work.queue.agentwork.coder.v1`
 
-Hard rule: execution queues MUST NOT be “mixed streams” of unrelated facts; they should contain only `WorkRequested`-class work items so scaling reacts only to explicit work requests.
+Hard rule: execution queues MUST NOT be “mixed streams” of unrelated facts; they should contain only **execution intent** work items (e.g., `WorkExecutionRequested`) so scaling reacts only to explicitly requested work and never to domain fact streams.
 
 ## 2) Inventory: GitOps-provisioned Kafka topics (Strimzi `KafkaTopic`)
 

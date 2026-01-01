@@ -189,7 +189,7 @@ Minimum conceptual model:
 To avoid treating “a queue message exists” or “a Job ran” as canonical truth, execution is modeled as a Domain-owned governance object:
 
 - `WorkRequest` is a canonical Domain record representing **explicitly requested** tool/agent work initiated by a Process workflow (or an authorized actor).
-- Runners/ephemeral Jobs are execution backends that consume `WorkRequested` facts and record outcomes back into Domain idempotently.
+- Runners/ephemeral Jobs are execution backends that consume `WorkExecutionRequested` **execution intents** (from execution queue topics) and record outcomes back into Domain idempotently.
 - Kubernetes Job TTL/cleanup is hygiene only; audit/evidence correctness comes from Domain-persisted `WorkRequest` status + linked `EvidenceBundle` + Process facts + Projection citations.
 
 Minimum v1 conceptual shape (schema-backed; do not embed proto text here):
@@ -226,13 +226,14 @@ Minimum v1 conceptual shape (schema-backed; do not embed proto text here):
 
 Domain intents/facts (conceptual; v1):
 
-- Intent: `RequestWorkRequested` (create WorkRequest; idempotent)
+- Command: `RequestWork` (create WorkRequest; idempotent on `client_request_id`)
 - Facts: `WorkRequested`, `WorkStarted`, `WorkCompleted`, `WorkFailed` (emitted after persistence)
-- Intent: `RecordWorkOutcomeRequested` (attach evidence + terminal status; idempotent on `client_request_id`)
+- Execution intent: `WorkExecutionRequested` (execution queue message; not a domain fact)
+- Command: `RecordWorkStarted` / `RecordWorkOutcome` (attach evidence + status; idempotent)
 
 Kafka transport binding (normative):
 
-- `WorkRequested` is emitted (outbox) onto a dedicated Kafka topic bound from `queue_ref` so the WorkRequest queue is not mixed with unrelated domain facts.
+- `WorkExecutionRequested` is emitted (outbox) onto a dedicated execution queue topic bound from `queue_ref` so scaling is not driven by domain fact streams.
   - v1 queue topics (examples): `transformation.work.queue.toolrun.verify.v1`, `transformation.work.queue.toolrun.generate.v1`, `transformation.work.queue.agentwork.coder.v1`
   - recommended (new): `transformation.work.queue.toolrun.verify.ui_harness.v1` for the UI harness verification suite, because it requires additional Kubernetes-side effects (ephemeral shadow workloads + Gateway API overlay routes) and should run under a separate ServiceAccount/permission set.
 - WorkRequest processors (KEDA-scheduled Jobs) are Kafka consumers and MUST use “ack only after durable outcome recorded” semantics:
@@ -242,7 +243,7 @@ Kafka transport binding (normative):
 
 Correlation rules (required):
 
-- Process must propagate `correlation_id` across: Process instance → RequestWork intent → WorkRequested fact → RecordWorkOutcome intent → WorkCompleted/Failed fact.
+- Process must propagate `correlation_id` across: Process instance → RequestWork command → WorkRequested fact → WorkExecutionRequested intent → RecordWorkOutcome command → WorkCompleted/Failed fact.
   - citations/trace links back to the underlying facts/versions that the evidence supports
 
 Evidence bundles are stored as attachments/blobs and referenced from baselines/promotions/definitions using REFERENCE relationships; projection surfaces them in audit views.

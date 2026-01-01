@@ -89,7 +89,7 @@ For 527’s execution substrate, `ameide-gitops` already provisions:
 Implementation notes:
 
 - The ScaledJobs run `ghcr.io/ameideio/primitive-integration-transformation-work-executor:<tag>` (a dedicated integration primitive image).
-- Local/dev set `scaledJobs.maxReplicaCount: 0` by default to avoid continuous Job churn until a real producer emits valid `WorkRequested` messages onto the queue topics.
+- Local/dev set `scaledJobs.maxReplicaCount: 0` by default to avoid continuous Job churn until a real producer emits valid execution intents (`WorkExecutionRequested`) onto the execution queue topics.
 
 ### ScaledObject example (CPU trigger; local-only)
 

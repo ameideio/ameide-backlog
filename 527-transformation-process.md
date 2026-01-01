@@ -79,7 +79,7 @@ Methodology note (normative):
 
 - Processes **emit process facts only**; they do not emit domain facts.
 - All cross-domain writes occur via **domain intents / commands**; domains persist and emit facts.
-- **No synchronous write coupling:** runtime workflows MUST NOT synchronously RPC into other primitives to perform writes; they drive change only via domain intents/commands (including an enqueue-style `SubmitIntent` surface, where the response does not carry “updated state” and does not become a hidden transactional dependency).
+- **No synchronous cross-primitive state coupling:** runtime workflows MUST NOT rely on synchronous cross-primitive *state coupling* for correctness (no distributed transactions). Workflows MAY submit domain intents/commands via RPC or via an intent topic, but MUST treat any response as an ACK (not “updated truth”) and should normally advance on emitted domain facts/receipts.
 - **Reads are allowed but constrained:** runtime workflows may use projection-backed reads when necessary, and any “control-plane lookup” must be explicitly declared (timeout/retry posture) and never become a hidden dependency that recreates a distributed monolith.
 
 ### 2.1 Tool execution boundary (where CLI fits)
@@ -90,11 +90,14 @@ Workflow steps often require deterministic tool execution (scaffolding, codegen,
 - An **Integration runner** performs external side effects (run `bin/ameide`, `buf`, tests/builds) and captures outputs as evidence.
 - The **CLI is a tool**, not the orchestrator; it is invoked by workflow activities and by humans locally, but the process-of-record is always the Process primitive executing a stored ProcessDefinition.
 
+For the canonical end-to-end sequence (separating process semantics from infra mechanics), see `backlog/527-transformation-e2e-sequence.md`.
+
 **Execution substrate (normative; v1):** long-running tool/agent steps run on an event-driven WorkRequest seam:
 
 - Process requests execution via a Domain intent that creates a Domain-owned `WorkRequest` (idempotent).
-- Domain emits `WorkRequested` facts after persistence (outbox).
-- KEDA ScaledJobs schedule Kubernetes Jobs (running the WorkRequest **executor** image) based on Kafka consumer group lag on `WorkRequested` (Jobs consume and record results back to Domain idempotently).
+- Domain emits `WorkRequested` facts after persistence (outbox) on `transformation.work.domain.facts.v1` (audit trail; pub/sub).
+- Domain emits a `WorkExecutionRequested` **execution intent** after persistence (outbox) onto a dedicated execution queue topic (point-to-point).
+- KEDA ScaledJobs schedule Kubernetes Jobs (running the WorkRequest **executor** image) based on Kafka consumer group lag on the execution queue topics (Jobs consume `WorkExecutionRequested` and record results back to Domain idempotently).
 - Process awaits the resulting domain facts, then emits `ToolRunRecorded` / `GateDecisionRecorded` / `ActivityTransitioned` process facts for the audit timeline.
 
 Kafka note (normative):
@@ -261,6 +264,12 @@ Process primitives are Temporal-backed. v1 execution posture is:
 
 This keeps BPMN as the authoring and governance source of truth while making execution deterministic and testable.
 
+Vendor-aligned runtime guarantees (required):
+
+- **Activities are at-least-once in practice** (retries/crashes are normal). Therefore all `send_domain_intent` and `run_work_request` steps MUST propagate explicit idempotency keys, and Domain write surfaces MUST be idempotent on those keys.
+- **Signal ingestion requires dedupe + history planning**: when `await_domain_facts` is implemented as Kafka facts → ingress router → `SignalWithStart`, workflows MUST dedupe signal deliveries by `message_id` (especially across `Continue-As-New`) and use `Continue-As-New` for long-lived “entity workflow” histories.
+- **Task queue ≠ broker topic**: Temporal task queues route Temporal tasks to Temporal workers; they are not pub/sub topics and are not used as the platform fact spine.
+
 ### 3.5.1 Compilation semantics for nested processes (v2)
 
 The compile-to-IR contract MUST define deterministic semantics for v2 constructs:
@@ -385,7 +394,7 @@ Not yet delivered (process meaning):
 
 - [ ] BPMN → (bindings) → compiled Workflow IR → Temporal execution (end-to-end).
 - [ ] BPMN-derived `ScaffoldingPlanDefinition` generation + “fail closed” verification gates.
-- [ ] WorkRequest-based runner invocation from workflow activities (domain facts trigger ephemeral runner Jobs; outcomes recorded to Domain; process emits `ToolRunRecorded`).
+- [ ] WorkRequest-based runner invocation from workflow activities (execution intents trigger ephemeral runner Jobs; outcomes recorded to Domain; process emits `ToolRunRecorded`).
 - [ ] Deterministic governance workflows (Scrum/TOGAF/PMI) and continuous refinement loop.
 - [ ] Full process-facts emission semantics per workflow node transition (ActivityTransitioned/GateDecisionRecorded/ToolRunRecorded/ReadPerformed) correlated to domain facts.
 

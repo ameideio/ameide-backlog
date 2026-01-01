@@ -85,6 +85,8 @@ This stack explicitly does not do the following:
 - **Fact/Event**: a published payload message; use a stable external identifier (e.g., `type`) independent of package/type refactors.
 - **`stream_ref`**: a logical stream identifier in proto (e.g., `orders.facts`), bound to actual topics/subjects per environment via CRDs/runtime config.
 - **`binding_ref` / `endpoint_ref`**: logical references in proto used to bind to environment-specific transport configuration (Kafka subscriptions, HTTP endpoints, etc.).
+- **Activity-inline execution**: deterministic work executed directly inside a Process primitive’s Temporal Activity workers (workflow orchestrates; activity does the side effects).
+- **Activity-delegated execution**: work initiated by a Process Activity but executed by a different runtime boundary (Agent primitive, Integration primitive, KEDA/Job executor, or external executor); delegation is via an **intent** message, and completion is observed via **facts** (see `backlog/496-eda-principles.md` and `backlog/509-proto-naming-conventions.md`).
 - **Approved generated root**: any directory that is safe to delete/recreate on regen and enforced by CI. In this repo, CI-enforced generator outputs land only in:
   - `packages/ameide_sdk_ts/src/_proto/**` (TypeScript SDK generated stubs; internal)
   - `packages/ameide_sdk_python/src/ameide_sdk/_proto/**` (Python SDK generated stubs; internal)
@@ -289,6 +291,14 @@ Minimum contract for the shared module:
 
 Hard rule: do not place per-environment topic names/broker URLs in proto; bind those via CRDs/runtime config and inject at runtime.
 
+### 4a) Temporal complements outbox (required)
+
+Temporal makes **orchestration** durable; the transactional outbox makes **fact emission** durable (see `backlog/496-eda-principles.md`).
+
+- Domains emit domain facts **after persistence** via outbox; runtimes do not publish domain facts directly from workflow code.
+- Process workflows orchestrate; Activities initiate side effects and are *at-least-once in practice*, so Activities and any Domain/Process commands they invoke MUST be idempotent.
+- When a workflow needs to change domain state, it submits a domain intent/command (RPC or intent topic); the response is treated as an ACK, and continuation is driven by facts/receipts.
+
 **CloudEvents compatibility**
 
 CloudEvents is an optional **transport binding** for interoperability at system boundaries. It is not a second canonical semantic model: canonical semantics remain Ameide’s proto-defined envelopes + topic families (per `backlog/496-eda-principles.md`).
@@ -446,7 +456,9 @@ Hard constraints (required):
 
 - Workflow code must be deterministic (use Temporal workflow APIs for time/concurrency; do not use client APIs inside workflow code).
 - Signal-With-Start must set `WorkflowIDReusePolicy` explicitly (do not rely on SDK defaults).
-- Do not assume legacy/experimental Temporal Worker Versioning behavior (server-side support is time-limited; treat it as a fixed migration deadline).
+- Activities are at-least-once in practice (retries/crashes are normal); Activities and any Domain/Process commands they invoke MUST be idempotent via explicit idempotency keys.
+- If a Process ingests external facts via signals (Kafka → ingress → `SignalWithStart`), workflows MUST dedupe signals and plan `Continue-As-New` for long-lived “entity workflow” histories.
+- Do not assume legacy/experimental Temporal Worker Versioning behavior (vendor docs warn pre-2025 experimental support is removed from Temporal Server March 2026); treat it as a fixed migration deadline.
 
 ### Agent
 
@@ -569,6 +581,8 @@ Protocol adapters (required):
 - Workflow inputs are replay-safe: start args versioned explicitly; breaking payload changes handled via parallel variants.
 - Generated guardrails enforce determinism constraints and ban non-deterministic imports/calls in workflow impl.
 - Generated wiring uses shared constants/config for task queue/workflow type to avoid silent stalls from name mismatches, and always sets `WorkflowIDReusePolicy` explicitly for Signal-With-Start (do not rely on SDK defaults).
+- Generated workflows dedupe signal deliveries by `message_id` (or equivalent idempotency key), including across `Continue-As-New`.
+- Generated Activities and Domain/Process write surfaces use explicit idempotency keys so retries do not create duplicate effects.
 - Generated code does not assume legacy/experimental Temporal Worker Versioning methods (vendor docs warn pre-2025 experimental support is removed from Temporal Server March 2026); generated code uses replay-safe code versioning patterns and stable worker deployment/versioning approaches.
 
 ### Agent
