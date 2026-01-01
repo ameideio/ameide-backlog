@@ -3,6 +3,8 @@
 **Status:** Implemented  
 **Intent:** Fully separate Tilt’s inner-loop releases from Argo’s GitOps baselines. Tilt owns `*-tilt` releases (distinct names/hosts/secrets); Argo owns `apps-*`. No shared ownership, no adoption/pause/orphan dance.
 
+> **Update (2026-01): Deprecated.** The `*-tilt.yaml` GitOps values overlays and the parallel `*-tilt` release pattern are deprecated and have been removed from the GitOps repo. This backlog item is preserved for historical context (why we previously introduced the split), but it should not be used as current guidance.
+
 ---
 
 ## Why we changed this

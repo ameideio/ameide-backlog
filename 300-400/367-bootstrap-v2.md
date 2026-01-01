@@ -189,7 +189,7 @@ Local development now uses the `local.ameide.io` domain so hostnames match the u
 - Host dnsmasq scripts are no longer required; Telepresence routes the `dev.ameide.io`/`local.ameide.io` traffic directly to the AKS cluster.
 - `gitops/ameide-gitops/sources/values/env/local/apps/platform/gateway.yaml` exposes the `https-local` listener plus `auth.local.ameide.io`.
 - `gitops/ameide-gitops/sources/values/env/dev/platform/platform-cert-manager-config.yaml` includes the local wildcard SAN.
-- `gitops/ameide-gitops/sources/values/env/dev/apps/apps-www-ameide-tilt.yaml` & `apps-www-ameide-platform-tilt.yaml` reference `platform.local.ameide.io`.
+- **Update (2026-01):** `*-tilt.yaml` values overlays are deprecated and removed; any references to `apps-*-tilt.yaml` in this document are historical only.
 - `gitops/ameide-gitops/sources/values/_shared/platform/platform-keycloak-realm.yaml` whitelists the local callback URLs.
 
 ## 4. Implementation plan
