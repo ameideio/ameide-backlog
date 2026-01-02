@@ -5,7 +5,7 @@ owners:
   - platform
   - test-infra
 created: 2025-12-26
-updated: 2025-12-30
+updated: 2026-01-02
 ---
 
 ## Summary
@@ -152,3 +152,33 @@ Any change to:
 - “fast path” semantics
 
 …must add an entry to `521h-external-verification-improvements.md`.
+
+## Repo alignment status (ameide)
+
+As of `2026-01-02`, this repo’s GitHub Actions CI is implemented to match the scoping + cancellation principles above **without relying on trigger-level skipping for PR-required gates**.
+
+### Achievements
+
+- **No PR workflow skipping via `paths` / `paths-ignore`**: PR workflows trigger on all PRs targeting `main`, and compute relevance internally via diff-based change detection (`changes` job).
+- **Required-check-safe scoping**: each scoped workflow exposes a single always-run **`Gate`** job which enforces the required outcomes for the change category, while the expensive suite jobs are conditional.
+- **Aggressive cancellation**: all PR workflows use `concurrency` with `cancel-in-progress: true`, and concurrency groups include `${{ github.workflow }}` to avoid cross-workflow cancellation.
+- **CD cost controls**: publish pipelines are path-scoped and include defensive diff checks (should-run gates) so branch pushes don’t always publish/build.
+- **Metrics without `/timing`**: queue time and runner occupancy can be measured from job timestamps (see `scripts/ci/report_actions_minutes.sh`).
+
+### Workflows updated to match this pattern
+
+- `CI / Core Quality Gate` (`.github/workflows/ci-core-quality.yml`)
+- `CI / Proto` (`.github/workflows/ci-proto.yml`)
+- `CI / Integration Packs` (`.github/workflows/ci-integration-packs.yml`)
+- `CI / Go Integration (mock + cluster)` (`.github/workflows/ci-go-integration.yml`)
+- `CI / Helm Lint` (`.github/workflows/ci-helm.yml`)
+- `CI / Operators Acceptance` (`.github/workflows/ci-operators-acceptance.yml`)
+- `CI / Operators Envtest` (`.github/workflows/ci-operators-envtest.yml`)
+- `Extensions Runtime CI` (`.github/workflows/extensions-runtime.yml`)
+
+### Branch protection note (required checks)
+
+To preserve correctness while allowing scoping:
+
+- Prefer requiring only each workflow’s `Gate` check in branch protection.
+- Do not require individual suite jobs that are intentionally conditional; the `Gate` job is the enforcement surface.
