@@ -61,7 +61,7 @@ This phase is **durable orchestration**: Process sequences steps, but execution 
 | --- | --- | --- | --- |
 | Gate: “Requirement stabilized” | Workflow reaches a gate; waits for approval/confirmation | Process fact (optional) like `GateDecisionRecorded` for audit | none |
 | Request scaffold/codegen | Workflow Activity calls Domain `RequestWork(work_kind=TOOL_RUN, action_kind=SCAFFOLD|GENERATE)` | **Intent:** `WorkExecutionRequested` to toolrun queue<br>**Facts:** `WorkRequested/…/Completed` | Executor runs `ameide`/`buf generate` and records evidence |
-| Request coding change | Workflow Activity calls Domain `RequestWork(work_kind=AGENT_WORK, action_kind=DEV_PUBLISH)` | **Intent:** `WorkExecutionRequested` to agentwork queue<br>**Facts:** lifecycle facts | Executor runs “coding agent” (inside isolated runner) and records evidence (PR link, patches, summaries) |
+| Request coding change | Workflow Activity calls Domain `RequestWork(work_kind=AGENT_WORK, action_kind=PUBLISH)` | **Intent:** `WorkExecutionRequested` to agentwork queue<br>**Facts:** lifecycle facts | Executor runs “coding agent” (inside isolated runner) and records evidence (PR link, patches, summaries) |
 | Request verification | Workflow Activity calls Domain `RequestWork(work_kind=TOOL_RUN, action_kind=VERIFY)` | **Intent:** `WorkExecutionRequested` to verify queue<br>**Facts:** lifecycle facts | Executor runs tests/verify suites; uploads evidence |
 | Iterate until green | Workflow loops on outcomes + gate rules (no infra knowledge) | Facts are the only completion signals | Infra may change (KEDA, worker pool, external runners) without changing workflow semantics |
 

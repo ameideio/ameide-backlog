@@ -220,6 +220,11 @@ KEDA-scheduled Jobs MUST run a runtime image derived from the repo’s `.devcont
 - The runtime image MUST include the repo-native `ameide` CLI (which embeds `packages/ameide_coding_helpers/**` for `doctor`/`verify`/`generate`/`scaffold`; see `backlog/558-ameide-coding-helpers.md`).
 - The Job entrypoint executes the runner/agent work loop (checkout repo at `commit_sha` → run tool(s) → upload artifacts → record evidence/outcome in Domain).
 - Toolchain version locks that matter for evidence (e.g., Codex CLI) are inherited from the devcontainer lock (see `backlog/433-codex-cli-057.md`).
+- For `work_kind=AGENT_WORK` (coding agent), the runner MUST have Codex credentials available as a mounted file:
+  - Kubernetes Secret: `codex-auth` with a single key `auth.json`
+  - Env: `CODEX_HOME=/codex-home`
+  - Mount: `/codex-home/auth.json`
+  - See `backlog/613-codex-auth-json-secret.md` for how the secret is materialized in-cluster (local + Azure).
 
 This does not imply “VS Code devcontainer” in-cluster; it means the **same containerized toolchain** is used for deterministic runs.
 
