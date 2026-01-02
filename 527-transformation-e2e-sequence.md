@@ -15,6 +15,13 @@ Terminology (canonical in `backlog/520-primitives-stack-v2.md`):
 - **Activity-inline execution:** the work runs inside the Process primitive’s Temporal Activity worker.
 - **Activity-delegated execution:** a Process Activity initiates work but another runtime executes it; delegation is via **intent**, completion is observed via **facts**.
 
+Infra contract (agentic coding via Codex):
+
+- The AgentWork “coder” executor expects **authenticated Codex CLI** via an `auth.json` file.
+- In-cluster, infra provides this by mounting `Secret/codex-auth` (created by ExternalSecret) and setting `CODEX_HOME=/codex-home`.
+  - An initContainer copies `/codex-secret/auth.json` → `/codex-home/auth.json` (no secret bytes ever travel on the broker).
+- If `codex-auth` is missing, the executor MUST fail fast with a clear error and record a `WorkFailed` outcome (Domain emits facts via outbox).
+
 ---
 
 ## Sequence A — Activity-delegated execution (focus)
@@ -61,7 +68,7 @@ This phase is **durable orchestration**: Process sequences steps, but execution 
 | --- | --- | --- | --- |
 | Gate: “Requirement stabilized” | Workflow reaches a gate; waits for approval/confirmation | Process fact (optional) like `GateDecisionRecorded` for audit | none |
 | Request scaffold/codegen | Workflow Activity calls Domain `RequestWork(work_kind=TOOL_RUN, action_kind=SCAFFOLD|GENERATE)` | **Intent:** `WorkExecutionRequested` to toolrun queue<br>**Facts:** `WorkRequested/…/Completed` | Executor runs `ameide`/`buf generate` and records evidence |
-| Request coding change | Workflow Activity calls Domain `RequestWork(work_kind=AGENT_WORK, action_kind=PUBLISH)` | **Intent:** `WorkExecutionRequested` to agentwork queue<br>**Facts:** lifecycle facts | Executor runs “coding agent” (inside isolated runner) and records evidence (PR link, patches, summaries) |
+| Request coding change | Workflow Activity calls Domain `RequestWork(work_kind=AGENT_WORK, action_kind=PUBLISH)` | **Intent:** `WorkExecutionRequested` to agentwork queue<br>**Facts:** lifecycle facts | Executor runs “coding agent” in an isolated pod/runner with `CODEX_HOME` seeded from `Secret/codex-auth` (and optional GitHub token) and records evidence (PR link, patches, summaries) |
 | Request verification | Workflow Activity calls Domain `RequestWork(work_kind=TOOL_RUN, action_kind=VERIFY)` | **Intent:** `WorkExecutionRequested` to verify queue<br>**Facts:** lifecycle facts | Executor runs tests/verify suites; uploads evidence |
 | Iterate until green | Workflow loops on outcomes + gate rules (no infra knowledge) | Facts are the only completion signals | Infra may change (KEDA, worker pool, external runners) without changing workflow semantics |
 
