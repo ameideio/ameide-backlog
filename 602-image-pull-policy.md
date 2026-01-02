@@ -7,10 +7,10 @@
 
 ## Problem
 
-Kubernetes tags are **mutable pointers**. If Git says `image: foo:dev` and a new `foo:dev` is pushed:
+Kubernetes tags are **mutable pointers**. If Git says `image: foo:main` and a new `foo:main` is pushed:
 
 - Git does not change → Argo CD does not necessarily trigger a rollout.
-- A pod restart can pull “whatever `:dev` means now”, which is not deterministic.
+- A pod restart can pull “whatever `:main` means now”, which is not deterministic.
 
 We need a policy where a Git commit maps to **one exact image artifact**, with auditability and promotion that is a **Git operation**.
 
@@ -18,7 +18,7 @@ We need a policy where a Git commit maps to **one exact image artifact**, with a
 
 - **Immutable identity:** `@sha256:<digest>` (the deployment identity).
 - **Readable ref (still immutable):** `:<sha>@sha256:<digest>` (allowed, still pinned by digest).
-- **Floating tag:** `:dev`, `:main`, `:latest` (MUST NOT be referenced by GitOps).
+- **Floating tag:** `:main`, `:latest` (MUST NOT be referenced by GitOps).
 - **Semantic version tag:** `:vX.Y.Z` (not floating; allowed only when paired with a digest).
 - **`imagePullPolicy`:** a pull behavior knob; it does **not** create rollouts by itself.
 
@@ -71,13 +71,13 @@ There are exactly two “fast-moving” GitOps lanes: `local` and `dev`.
 Implementation (this repo):
 
 - `.github/workflows/bump-local-dev-images.yaml` runs on a schedule and/or `repository_dispatch` and opens an auto-merged PR.
-- `scripts/bump-local-dev-images.sh` resolves `ghcr.io/ameideio/<repo>:dev` → digest and rewrites `sources/values/env/local/**` + `sources/values/env/dev/**`.
+- `scripts/bump-local-dev-images.sh` resolves `ghcr.io/ameideio/<repo>:main` → digest and rewrites `sources/values/env/local/**` + `sources/values/env/dev/**`.
 
-Trunk-based note: the producer `:dev` tag should represent “latest built from `main`” (a channel tag), not “built from a `dev` branch”.
+Trunk-based note: the producer `:main` tag represents “latest built from `main`” (a channel tag).
 
 This is “fully automated” for local/dev once:
 
-- producer CI pushes `:<repo>:dev` tags, and
+- producer CI pushes `:<repo>:main` channel tags, and
 - the bump workflow is enabled with `GHCR_TOKEN` (read access) configured.
 
 `local` is not an exception to the digest-only policy: it follows the same “digest-pinned refs only” rules as `staging`/`production`. The only difference is that `local` advances automatically (via auto-merged PRs).
@@ -114,7 +114,7 @@ Implementation (this repo):
 ## Enforcement (required)
 
 - CI MUST fail if any GitOps-managed values or manifests reference an image ref without `@sha256:...`.
-- CI MUST fail if any floating tags (`:dev`, `:main`, `:latest`) are referenced by GitOps.
+- CI MUST fail if any floating tags (`:main`, `:latest`) are referenced by GitOps.
 - There is no allowlist for floating tags in `local`.
 
 Implementation (this repo): `.github/workflows/image-policy.yaml` runs `scripts/check-image-policy.sh` on PRs/changes in `sources/values/**`.
@@ -143,5 +143,5 @@ The enforcement checks apply at minimum to:
 
 ### 2025-12-26
 
-- `ameide` (producer/tooling): PR https://github.com/ameideio/ameide/pull/404 (in review) removes floating `:dev`/`:main` defaults from local build/publish + scaffolding, and adds digest/ref support to the operators Helm chart to unblock 602 in GitOps-managed environments.
+- `ameide` (producer/tooling): PR https://github.com/ameideio/ameide/pull/404 (in review) removes floating tag defaults from local build/publish + scaffolding, and adds digest/ref support to the operators Helm chart to unblock 602 in GitOps-managed environments.
 - `backlog`: PR https://github.com/ameideio/ameide-backlog/pull/50 (merged) defined success criteria and expanded the refactoring checklist in 603.
