@@ -65,6 +65,11 @@ Related backlogs:
 ### Environments and promotions (GitOps)
 
 - Dev/staging/prod are represented by **GitOps overlays** and **digest-pinned `image.ref` values**.
+- Producer CI publishes a **mainline channel tag** `ghcr.io/ameideio/<repo>:main` that always points at “latest built from `main`”; GitOps automation resolves it to digests for local/dev.
+- Mainline image contract:
+  - `:<repo>:main` MUST be a multi-arch manifest list (at least `linux/amd64` + `linux/arm64`) so local clusters and ARC runners don’t break by architecture.
+  - `:main` is the only moving tag used for mainline automation; do not publish or depend on a second moving tag.
+  - If a service needs a separate “dev-server” image (e.g., Next.js `pnpm dev`), model it as a distinct artifact (different image/repo or an explicit suffix), not a second moving tag that GitOps might accidentally consume.
 - Promotion is a GitHub PR in `ameide-gitops` that copies digests forward:
   - dev → staging
   - staging → prod
@@ -110,6 +115,8 @@ Related backlogs:
 
 - `dev` branch is not required for the standard change path; all work merges via PR → `main`.
 - `dev` environment deploys the latest approved `main` artifacts via GitOps digest pins.
+- Producer publishes `ghcr.io/ameideio/<repo>:main` for every first-party image consumed by GitOps local/dev, and it is multi-arch (`linux/amd64` + `linux/arm64`).
+- GitOps local/dev digest bump automation resolves `:<repo>:main` only and fails fast if `:main` is missing or not multi-arch.
 - staging/prod promotions are PR-based digest copies; no rebuilds.
 - CI creates minimal queued/cancelled noise (path filters + cancellation).
 - ARC runners are the default for CI; BuildKit-in-cluster is the image build path.
@@ -222,7 +229,7 @@ This section records concrete deltas discovered while drafting 611, so related b
 
 - `backlog/610-ci-rationalization.md`: the section “E) Required-check policy for promotion PRs (`dev → main`)" conflicts with trunk-based `main` only; rewrite it to cover **PR → `main` only** and treat “promotion” as **GitOps digest-copy PRs** (dev→staging→prod) rather than branch promotions.
 - `backlog/598-github-arc.md`: “Workflow onboarding” currently assumes `dev` exists as an integration path; update onboarding guidance to **PR → `main` only** and treat `dev` as an environment lane (GitOps), not a branch.
-- `backlog/602-image-pull-policy.md` / `backlog/603-image-pull-policy.md`: keep the digest-pinning model, but explicitly clarify that any `:dev` tag usage is **a producer channel tag** (resolved to digest by GitOps automation), not a `dev` branch semantic.
+- `backlog/602-image-pull-policy.md` / `backlog/603-image-pull-policy.md`: keep the digest-pinning model, but explicitly clarify that `:main` is **a producer channel tag** (resolved to digest by GitOps automation), not a branch/environment semantic.
 
 ### Process docs (AGENTS.md) that conflict with this direction
 
@@ -235,13 +242,13 @@ These docs explicitly instruct “feature PR → `dev`” then “promotion PR `
 
 Current workflow logic mixes “branch == environment/channel” assumptions that are incompatible with the trunk-based model.
 
-- `.external/ameide-repo/.github/workflows/README.md`: update trigger language that says “PRs to `dev`/`main`” and the “main == release” narrative; describe **`main` == dev channel**, and **tags == release**.
+- `.external/ameide-repo/.github/workflows/README.md`: update trigger language that says “PRs to `dev`/`main`” and the “main == release” narrative; describe **`main` == mainline channel**, and **tags == release**.
 - `.external/ameide-repo/.github/workflows/cd-packages.yml`:
   - Remove `push.branches: [dev]` once trunk-based.
   - Change `workflow_dispatch.inputs.ref` default from `dev` → `main`.
   - Delete branch-derived channel logic (`main => release`), and use `scripts/ci/compute_sdk_versions.sh` outputs (`channel`, `is_release`, `ghcr_extra_tags`) as the single source of truth.
 - `.external/ameide-repo/.github/workflows/cd-packages-probe.yml`: the “channel” determination currently treats `refs/heads/main` as `release`; change this to **tag-only release** and derive tags to probe from `compute_sdk_versions.sh` outputs.
-- `.external/ameide-repo/scripts/ci/verify_ghcr_aliases.sh`: currently skips verification when `BRANCH_CHANNEL=dev`; align this with tag-based releases (e.g., verify aliases when `IS_RELEASE=true` / `CHANNEL=release`), and decide explicitly whether dev-channel aliases (like `:dev`) should also be verified.
+- `.external/ameide-repo/scripts/ci/verify_ghcr_aliases.sh`: currently skips verification when `BRANCH_CHANNEL=dev`; align this with tag-based releases (e.g., verify aliases when `IS_RELEASE=true` / `CHANNEL=release`), and decide explicitly whether mainline-channel aliases (like `:main`) should also be verified.
 - `.external/ameide-repo/.github/workflows/cd-service-images.yml` and `.external/ameide-repo/.github/workflows/cd-devcontainer-image.yml`:
   - Remove `push.branches: [dev]` under trunk-based.
   - Add `on.push.paths` so irrelevant pushes do not create runs at all (keep `should-run` as defense-in-depth).
@@ -259,7 +266,7 @@ Current workflow logic mixes “branch == environment/channel” assumptions tha
 
 ### 2025-12-27
 
-- `ameide` (merged): PR `ameideio/ameide#428` removes `dev` branch triggers, makes release semantics tag-only, adds `on.push.paths` to CD workflows, and aligns channel tagging to `:dev` (from `main`) + `vX.Y.Z` tags.
+- `ameide` (merged): PR `ameideio/ameide#428` removes `dev` branch triggers, makes release semantics tag-only, adds `on.push.paths` to CD workflows, and aligns channel tagging to `:main` (from `main`) + `vX.Y.Z` tags.
 - `backlog` (this repo): updated `598`, `602`, `603`, `610` to reflect trunk-based semantics while preserving pre-trunk notes; updated `611` research log with concrete refactor targets.
 - GitHub governance (done):
   - Enabled `main` branch protection for `ameideio/ameide`, `ameideio/ameide-gitops`, `ameideio/ameide-backlog` via `gh api`.

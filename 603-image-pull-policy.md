@@ -15,13 +15,13 @@
 
 ### Local + dev (fully automated)
 
-- Producer pushes new first-party images to `ghcr.io/ameideio/<repo>:dev`.
-- GitOps automation resolves `:<repo>:dev` → digest and writes it into Git:
+- Producer pushes new first-party images to `ghcr.io/ameideio/<repo>:main`.
+- GitOps automation resolves `:<repo>:main` → digest and writes it into Git:
   - `.github/workflows/bump-local-dev-images.yaml`
   - `scripts/bump-local-dev-images.sh`
 - PR auto-merges after checks → Argo CD sync → deterministic rollout.
 
-Trunk-based note: `:dev` is a producer channel tag for “latest from `main`”, not a branch-derived environment.
+Trunk-based note: `:main` is a producer channel tag for “latest from `main`”, not a branch-derived environment.
 
 This is “per commit” if producer CI triggers `repository_dispatch`; otherwise it runs on schedule.
 
@@ -38,7 +38,7 @@ This is “per commit” if producer CI triggers `repository_dispatch`; otherwis
 
 ### 2025-12-26
 
-- `ameide` (producer/tooling): PR https://github.com/ameideio/ameide/pull/404 (in review) removes floating `:dev`/`:main` defaults from local tooling and adds digest/ref support for operator chart + scaffolding.
+- `ameide` (producer/tooling): PR https://github.com/ameideio/ameide/pull/404 (in review) removes floating tag defaults from local tooling and adds digest/ref support for operator chart + scaffolding.
 
 ### 2025-12-25
 
