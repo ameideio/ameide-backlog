@@ -157,6 +157,11 @@ Process scaffolds assume:
     - initialize `State` and any required fields **before** entering the signal handling loop, and
     - treat Signals as potentially arriving at any time in the workflow’s lifetime.
 
+- **User tasks / approvals (BPMN default: Updates)**:
+  - BPMN “user tasks” (approvals, manual decisions, acknowledgements) MUST be implemented as **Temporal Updates** by default, not Signals.
+  - Updates provide a synchronous accept/reject boundary and a stable idempotency surface via `UpdateId` (the client must send a stable id such as `approval_request_id`).
+  - Signals remain allowed for high-volume, fire-and-forget message delivery, but BPMN user tasks are not modeled that way by default.
+
 - **Long‑running entity workflows**:
   - Process workflows are expected to behave like **entity workflows** (one workflow per business key) and may run for a long time. To avoid unbounded history and ease versioning:
     - scaffolds should plan for **Continue‑As‑New** once a history size or event count threshold is reached, or when a definition version changes.
@@ -173,7 +178,7 @@ Scaffolded workflows:
 - Provide a function signature like:
 
 ```go
-func ExampleWorkflow(ctx context.Context, state *process.State) error
+func ExampleWorkflow(ctx workflow.Context, state *process.State) error
 ```
 
 with placeholder state and TODOs for:
