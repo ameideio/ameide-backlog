@@ -83,6 +83,22 @@ Total applications: 200
 - **Fix**: Replace blanket `pkill` with targeted PID discovery (`lsof` → `kill`) for only the known port-forward ports.
 - **Verification**: Rerunning `deploy.sh local` no longer terminates unrelated background processes.
 
+- **Date/Env**: 2026-01-03 / local
+- **Argo app**: `local-data-temporal`
+- **Unhealthy resource**: `Job/ameide-local/temporal-db-schema` (PreSync hook)
+- **Symptom**: Job stuck `ImagePullBackOff` with `401 Unauthorized` fetching `ghcr.io/ameideio/mirror/temporalio-admin-tools@...` while the Application sync stays `Running`.
+- **Root cause**: Schema hook Job defaulted to a private GHCR mirror image and did not carry `imagePullSecrets`, so early bootstrap could deadlock before pull secrets converge.
+- **Fix**: Override Temporal `schema.image.ref` (and `preflight.image.ref`) to public images in shared/local values.
+- **Verification**: `temporal-db-schema` completes and `local-data-temporal` reaches `Synced/Healthy` on fresh bootstrap.
+
+- **Date/Env**: 2026-01-03 / local
+- **Argo app**: `local-data-db-migrations`, `local-agents`
+- **Unhealthy resource**: `Deployment/ameide-local/agents`
+- **Symptom**: Agents CrashLoopBackOff with `ERROR: relation "agents.nodes" does not exist` (seed upsert fails).
+- **Root cause**: `local-data-db-migrations` rendered only hook resources, so Argo could report `Synced` without ever running the PreSync migration Job (hook-only desired state).
+- **Fix**: Add a tracked non-hook resource (e.g. a tracker ConfigMap) so the Application performs an initial sync and executes the migration hook Job deterministically.
+- **Verification**: `data-db-migrations` Job runs and completes; `agents` Deployment becomes `Healthy` without manual schema creation.
+
 ## Update (2025-12-14): Local GitOps health fixes (devcontainer + k3d)
 
 - Fixed `local-platform-keycloak-realm` being blocked by a failing PreSync hook: `platform-keycloak-realm-client-patcher` is now reproducible (no runtime GitHub tool downloads; Keycloak Admin REST + Kubernetes API patch for rotation ConfigMap).
