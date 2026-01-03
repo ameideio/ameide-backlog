@@ -45,6 +45,14 @@ For drill-in, the card may also expose:
 
 **Workflow IDs used as card IDs MUST NOT be reused for new instances.** If a capability cannot enforce non-reuse, use a domain-owned stable entity ID as `card_id` instead.
 
+### 1a) Board identity and membership (required)
+
+Kanban is a projection-backed list view. The projection MUST define a stable board identity and a deterministic membership rule.
+
+- `board_id` MUST be a deterministic function of board scope (recommended default: `{tenant_id, organization_id, repository_id, board_kind}`).
+- Cards MUST be stored and queried by `(board_id, card_id)` (card membership is derived; no UI-owned “board membership” state).
+- A capability MAY support multiple boards per scope (e.g., multiple `board_kind` values), but board IDs MUST remain stable over time.
+
 ### 2) Columns are derived (never imperative UI state)
 
 The UI MUST NOT contain methodology-specific mapping logic.
@@ -80,6 +88,14 @@ Recommended:
 - `blocked_reason`
 - `links[]` (evidence refs, PR links, work request IDs)
 
+### 5) Archival and deletion semantics (required)
+
+Operational boards must remain bounded without relying on hard deletes.
+
+- Cards MUST have a projection-derived terminal/archival rule (e.g., `is_archived` or `terminal_state` derived from facts).
+- Board queries MUST default to excluding archived cards (unless explicitly requested).
+- Hard deletion of card rows is NOT required for correctness; retention/cleanup is an operational policy, not part of the product contract.
+
 ## Fact sources (what the projection consumes)
 
 ### Domain facts (business truth)
@@ -109,6 +125,18 @@ The canonical minimal progress vocabulary and identity rules live in `backlog/50
 
 ## Projection implementation requirements
 
+### Deterministic apply order across fact sources (required)
+
+If a board is built from multiple fact streams/topics, the projection MUST define a deterministic apply order and convergence rule.
+
+Recommended default:
+
+- Partitioning/keying ensures all facts that affect a board are ordered by a single durable log order (e.g., board-scoped partitioning).
+
+If multiple partitions are used:
+
+- Projection logic MUST converge under at-least-once delivery and cross-partition interleaving (commutative/last-write-wins rules per field), and MUST NOT rely on timestamps for correctness ordering.
+
 ### Idempotency + replay
 
 Projections MUST be correct under at-least-once delivery:
@@ -118,6 +146,10 @@ Projections MUST be correct under at-least-once delivery:
 - Rebuild/replay from the fact log must converge to the same board state.
 
 See `backlog/520-primitives-stack-v2-projection.md`.
+
+### Message identity (required)
+
+Every ingested fact MUST carry a stable `message_id` suitable for inbox dedupe. For process-emitted progress facts, `message_id` MUST remain stable under Activity retries (no “new UUID per retry”).
 
 ### Storage selection (operational vs analytical)
 
@@ -130,11 +162,11 @@ This separation avoids mixing operational UI reads with analytical workloads and
 
 The UI should not poll full board state. Instead:
 
-1. Projection maintains a monotonic `board_seq` that increments whenever any card changes.
+1. Projection maintains a monotonic `board_seq` that is derived from the projection’s durable commit cursor/sequence (not from timestamps and not from “diff heuristics”).
 2. Projection exposes a subscription API that emits `{board_id, board_seq}` (at-least-once).
 3. UISurface subscribes; on notification it performs an idempotent refetch:
-   - either refetch the board, or
-   - fetch deltas “since seq”.
+   - preferred: fetch deltas “since seq” (cursor-based),
+   - fallback: refetch the board when deltas are unavailable or too large.
 
 Allowed transports:
 
@@ -180,4 +212,3 @@ The Kanban surface remains a projection-backed list view; it does not attempt to
   - reads from Projection only
   - subscribes to Projection Updates stream
   - refetches idempotently and renders without methodology-specific logic
-
