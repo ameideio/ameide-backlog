@@ -3,7 +3,7 @@
 **Created**: 2026-01-03
 **Updated**: 2026-01-03
 
-> **Status – New:** Track and fix local k3d scheduling + PV placement so control-plane stability policies (tainted server node) don’t break operator-managed stateful workloads (CNPG/Postgres).
+> **Status – Implemented (Local):** Track and fix local k3d scheduling + PV placement so control-plane stability policies (tainted server node) don’t break operator-managed stateful workloads (CNPG/Postgres).
 
 ## Summary
 
@@ -62,3 +62,8 @@ This should be treated as a stopgap only.
 - Keycloak reaches `Running` with ready endpoints; Dex stops crashlooping and can reach the issuer.
 - A fresh `deploy.sh local` converges without manual taint removal or PVC deletion.
 
+## Update (2026-01-03): Implementation notes (GitOps-aligned)
+
+- Control-plane taints remain enabled in the local bootstrap wrapper (`infra/scripts/tf-local.sh`) to reduce apiserver stalls; the system is expected to converge with the taint in place.
+- Local CNPG placement is enforced via required nodeAffinity in `sources/values/env/local/data/platform-postgres-clusters.yaml` (avoid `node-role.kubernetes.io/control-plane` / `.../master`) so first scheduling (and PV binding under `WaitForFirstConsumer`) lands on an agent.
+- Repair for already-pinned PVs remains “delete & recreate local cluster” (or delete the affected PVC/PV) so local-path reprovisions with the corrected affinity.

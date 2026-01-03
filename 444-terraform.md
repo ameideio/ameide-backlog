@@ -1,7 +1,7 @@
 # 444 – Terraform Infrastructure
 
 **Created**: 2025-12-04
-**Updated**: 2025-12-18
+**Updated**: 2026-01-03
 
 > **Status – Maintained:** Remote-first dev (see [435-remote-first-development.md](435-remote-first-development.md)) remains the default workflow. This document is the canonical reference for Terraform-managed environments (cloud + optional local k3d fallback) and is required when offline/air-gapped scenarios demand local infrastructure.
 
@@ -172,6 +172,8 @@ deploy.sh local
 ### Post-Apply Verification (Local)
 
 After `deploy.sh local`, validate GitOps health before handing the environment to developers:
+
+> **Update (2026-01-03):** Local bootstraps taint the control-plane node by default for stability. If your local cluster was created before CNPG placement rules existed, a Postgres PV may be pinned to `k3d-ameide-server-0` (local-path `WaitForFirstConsumer`) and stay `Pending` after tainting; the supported repair is to recreate the cluster (or delete the affected PVC/PV) so it reprovisions under the corrected `nodeAffinity` (see `backlog/531-local-cnpg-placement-vs-control-plane-taints.md` and `backlog/450-argocd-service-issues-inventory.md` Update 2026-01-03).
 
 1. **ArgoCD control plane** – `kubectl -n argocd get pods` should show the controllers, repo-server, Redis, and Dex in `Running`. Two replicas of repo-server ensure chart rendering is healthy.
 2. **Application health sweep** – `kubectl -n argocd get applications` confirms each generated Application reconciles. Expect some workloads to sit in `Progressing` (images still pulling), but foundation components (Vault, namespaces, cert-manager) must be `Healthy`.

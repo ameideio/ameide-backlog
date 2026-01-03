@@ -26,6 +26,8 @@
 | **Rate limiting template** | ✅ Done | `rate-limit-policy.yaml` with auth & global policies |
 | **Rate limiting values** | ✅ Done | Values added to `_shared/platform/platform-gateway.yaml` |
 
+> **Update (2026-01-03):** When writing NetworkPolicies that allow ingress to Envoy Gateway data-plane pods, allow the **pod ports** (`targetPort`s like `10080/10443`) rather than only the Service ports (`80/443`). Local bootstrap had an incident where a policy allowed `80/443` but blocked in-cluster callers because Envoy listened on `10080/10443` (see `backlog/450-argocd-service-issues-inventory.md` Update 2026-01-03).
+
 ## Problem Statement
 
 Current networking configuration lacks several production-ready features:

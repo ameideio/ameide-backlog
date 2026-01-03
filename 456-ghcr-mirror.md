@@ -163,6 +163,12 @@ docker login docker.io  # optional, for higher rate limits
 
 All namespaces have a `ghcr-pull` secret containing GHCR credentials. Charts must reference this secret to pull from the private GHCR mirror.
 
+## Addendum (2026-01-03): Argo hook Jobs and pull-secret ordering
+
+- Argo `PreSync`/`PostSync` hook Jobs may run before namespace bootstrap has created `ghcr-pull` (and before the default ServiceAccount is patched), so relying on implicit imagePullSecrets can break early bootstrap.
+- For bootstrap-critical hooks, prefer **public** images, or set `imagePullSecrets` directly on the hook Pods and ensure the secret exists earlier in the dependency graph.
+- Incident references: `backlog/450-argocd-service-issues-inventory.md` (Update 2026-01-03), `backlog/423-temporal-argocd-recovery.md` (Addendum 2026-01-03).
+
 ### Chart-Specific Patterns
 
 Different Helm charts expect `imagePullSecrets` in different formats:

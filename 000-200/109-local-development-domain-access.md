@@ -16,6 +16,8 @@ When developing AMEIDE Core platform locally using DevContainer + k3d, accessing
 ## Recommended Solution: The Opinionated Path
 
 > **Update (2025-12-14):** The current GitOps local environment uses the `*.local.ameide.io` domain and also exposes ArgoCD via the local Gateway (`https://argocd.local.ameide.io`) in addition to the fallback `https://localhost:8443` port-forward.
+>
+> **Update (2026-01-03):** The Terraform-managed local k3d cluster maps host ports `80/443` to the k3d load balancer by default (so `https://*.local.ameide.io` works without specifying `:8443`). If you prefer non-privileged ports (or `80/443` are unavailable on your host), keep the `8080/8443` mapping (as shown below), use the fallback `https://localhost:8443` ArgoCD port-forward, or adjust the local k3d port mappings.
 
 ### Core Design Decisions
 

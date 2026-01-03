@@ -24,6 +24,8 @@ This backlog is the canonical reference for how migrations work today and where 
 ## Architecture Overview
 
 > **Update (2025-12-22):** GitOps now treats Flyway as **schema-only**. Baseline/demo data is owned by GitOps seed Jobs (e.g. `platform-dev-data`), and the GitOps `db-migrations` chart neutralizes legacy seed SQL so new environments don’t get tenant/org/demo rows from Flyway.
+>
+> **Update (2026-01-03):** Avoid “hook-only” Argo applications with no tracked non-hook resources. A failed hook Job can leave `operationState.phase=Failed` even if the app later appears `Healthy/Synced`, and Argo has nothing stable to reconcile/track. Include a small non-hook “tracker” manifest (e.g. a ConfigMap) so auto-sync can converge and clear stale failures (see `backlog/450-argocd-service-issues-inventory.md` Update 2026-01-03).
 
 ### Components
 

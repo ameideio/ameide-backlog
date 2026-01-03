@@ -72,3 +72,9 @@
 
 - We keep the service name **Temporal** (and `TemporalCluster` name `temporal`) as the canonical naming.
 - Local DNS/HTTPRoute hostnames should use the `*.local.ameide.io` convention (e.g. `temporal.local.ameide.io`) to avoid mixing “dev” and “local” semantics.
+
+### Addendum (2026-01-03): Hook image availability during early bootstrap
+
+- If `temporal-db-schema` / `temporal-db-preflight` use **private** images (e.g. a GHCR mirror) before `ghcr-pull` exists in the env namespace (and before the default ServiceAccount is patched), the app can deadlock with hook Jobs stuck `ImagePullBackOff`.
+- Preferred for bootstrap hooks: use upstream **public** images, or ensure hook manifests set `imagePullSecrets` explicitly and that the pull secret is provisioned earlier in the sync graph.
+- Incident reference: `backlog/450-argocd-service-issues-inventory.md` (Update 2026-01-03); pull-secret patterns: `backlog/456-ghcr-mirror.md`.
