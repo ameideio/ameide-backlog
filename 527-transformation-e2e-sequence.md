@@ -31,6 +31,8 @@ Sequence A is expressed as a **Kanban progression** (phase-first progress), alig
 
 - A projection can render a board/timeline without workflow-specific UI logic.
 - Progress facts are **phase-first by default**; step-level progress is opt-in.
+- The board scope is initiative + repository by default (initiative is the change-governance container; repository is the architecture context).
+  - Repo roll-up boards are allowed, but the primary workspace view is `{repository_id, initiative_id}`.
 - Progress/process facts that drive the board carry:
   - `process_instance_id` (Temporal Workflow Id),
   - `process_run_id` (Temporal Run Id),
