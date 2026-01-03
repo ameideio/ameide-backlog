@@ -25,23 +25,24 @@ Infra contract (agentic coding via Codex):
 
 ---
 
-## Sequence A — Activity-delegated execution (focus)
+## Sequence A — End-to-end (detailed)
 
-| Task | Process (Temporal) | Events (intent vs fact) | Infra (mechanics) | UI (what the user can see) |
-| --- | --- | --- | --- | --- |
-| Start a governance run | Workflow starts (or SignalWithStart) and chooses the next step | none | none | “Run started” + current gate/step shown (initial timeline entry) |
-| Decide “work must run outside the worker” | Workflow calls an Activity that initiates delegation | none | none | Step shows as “queued / preparing execution” |
-| Create durable work record | Activity calls Domain `RequestWork` (idempotent) | none | Domain DB transaction + outbox | WorkRequest appears with a stable ID; status = `REQUESTED` |
-| Emit audit fact and execution intent | Domain persists WorkRequest and appends outbox records | **Fact:** `WorkRequested` on `transformation.work.domain.facts.v1` (pub/sub)<br>**Intent:** `WorkExecutionRequested` on `transformation.work.queue.*.v1` (point-to-point) | Broker topics exist; retention tuned; no secrets in payloads | Timeline shows `WorkRequested`; UI does not show “queue/topic”, only “requested” |
-| Run the work | Workflow waits for completion by correlation id / work_request_id (SignalWithStart via ingress) | none (work is running) | Executor consumes **intent** and executes (KEDA Job, long-lived worker pool, or external runner) | Status transitions to `STARTED` when Domain records start; UI can show “in progress” |
-| Report started/outcome | Workflow is unchanged; it remains deterministic | **No executor facts.** Executor calls Domain write API to record started/outcome; Domain emits `WorkStarted`/`WorkCompleted`/`WorkFailed` as facts after persistence | Executor has credentials/isolation; evidence uploads; idempotent callbacks | UI shows completion with outcome + evidence refs (patch/logs/PR URL if any); failures show error summary + evidence |
-| Continue orchestration | Ingress signals workflow on receipt of facts; workflow advances and emits process facts as needed | **Facts** are the continuation signal source; projections consume facts for UI timelines | Infra only observes lag/health; no “KEDA as orchestrator” logic | Timeline advances to next step; user sees the reason (facts/process facts) not infra state |
+Sequence A is described in the three phases below (triage → iterations → release). The delegated execution seam is always the same:
+
+- Workflow decides and stays deterministic.
+- Workflow calls an Activity (the only side-effect boundary).
+- Activity submits a Domain command/intent (e.g., `RequestWork`, idempotent).
+- Domain persists and emits:
+  - **Facts** (audit/outcomes) via outbox to the spine, and
+  - **Execution intents** to point-to-point execution queues when delegation is required.
+- Executor consumes execution intent, runs work, then calls the owning Domain write surface to record started/outcome (idempotent); Domain emits completion facts.
+- Process ingress observes facts and signals the workflow (`SignalWithStart`), and the UI shows the timeline via projections.
 
 **Hard rule:** executors (in-cluster or external) do not publish facts; they only call the owning Domain write surface; the Domain emits facts (outbox).
 
 ---
 
-## A.1 — User chats with Architect Agent (triage)
+### A.1 — User chats with Architect Agent (triage)
 
 This phase is **interactive** and mostly lives in the **Agent primitive (LangGraph runtime)**. Temporal is optional until you want durable orchestration/gates.
 
@@ -61,7 +62,7 @@ This phase is **interactive** and mostly lives in the **Agent primitive (LangGra
 
 ---
 
-## A.2 — Requirement stabilized → request work → dev/testing iterations
+### A.2 — Requirement stabilized → request work → dev/testing iterations
 
 This phase is **durable orchestration**: Process sequences steps, but execution happens via delegated WorkRequests.
 
@@ -83,7 +84,7 @@ This phase is **durable orchestration**: Process sequences steps, but execution 
 
 ---
 
-## A.3 — Release
+### A.3 — Release
 
 Release is still a Process concern (gates + sequencing), but “what gets deployed” is owned by GitOps artifact promotion and digest-pinned images.
 
