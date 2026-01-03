@@ -66,12 +66,14 @@ primitives/process/<name>/
 ├── Dockerfile                           # Multi-stage build (worker image)
 ├── cmd/
 │   ├── worker/
-│   │   └── main.go                      # Temporal worker bootstrap (register workflows)
+│   │   └── main.go                      # Temporal worker bootstrap (register workflows + activities)
 │   └── ingress/
 │       └── main.go                      # Ingress router: bus → Temporal SignalWithStart
 └── internal/
     ├── workflows/
     │   └── <name>_workflow.go           # Workflow stubs (entity or orchestration workflows)
+    ├── activities/
+    │   └── activities.go                # Activity stubs (side-effect boundary; idempotent)
     ├── ingress/
     │   └── router.go                    # Fact→Signal routing stubs
     ├── tests/
@@ -111,14 +113,21 @@ Process scaffolds assume:
     - `lastSeenAggregateVersion` per aggregate,
     - boolean flags for “already emitted” process facts (`SprintBacklogReadyForExecution`, etc.).  
   - Emit **process facts** (e.g., `ScrumProcessFact`) via an injected port or Activity that writes to an outbox / event bus, not via direct broker clients in workflow code.
+  - Emit a Kanban/timeline-friendly progress stream (phase-first) as process facts, aligned with `backlog/520-primitives-stack-v2.md`:
+    - include `process_definition_id`, `process_instance_id` (Workflow Id), `process_run_id` (Run Id), and stable ordering fields (`run_epoch`, `seq`),
+    - emit step-level facts only when explicitly required, and include both `step_id` and `step_instance_id` for BPMN-derived steps.
 
-- **Tool/agent execution boundary (WorkRequests; normative posture)**:
-  - Workflows MUST NOT “call a runner service” synchronously to execute tools (no hidden write coupling).
-  - Long-running work is requested by emitting a **domain intent** that creates a Domain-owned `WorkRequest` (idempotent).
-  - Domain emits `WorkRequested` facts after persistence (outbox) on a domain facts topic (audit trail), and emits a separate execution intent after persistence onto the execution queue topic.
-  - Execution backends (CI runners or in-cluster ephemeral Jobs, e.g., KEDA ScaledJobs) consume **execution intents** (e.g., `WorkExecutionRequested`) from execution queue topics and record outcomes back to Domain idempotently (evidence bundles + terminal status).
-  - Workflow advancement is driven by **awaiting correlated domain facts** (`WorkCompleted`/`WorkFailed` or equivalent), not by a direct runner response.
-  - KEDA is a scaling backend, not an orchestrator: queue messages must represent **explicitly requested work** decided by Process/Domain, not raw external events.
+- **Execution boundary (Activities; inline vs delegated)**:
+  - Workflows MUST initiate all side effects via **Activities** (the side‑effect boundary); workflow code must not call external systems directly.
+  - Activities have two allowed execution modes:
+    - **Inline deterministic execution:** the Activity runs the deterministic work directly inside the Process worker (preferred when the toolchain/isolation fits the worker image).
+    - **Delegated execution:** the Activity requests work across a runtime boundary (agentic coding, NiFi flows, devcontainer/heavy toolchains, external executors). Delegation MUST follow `496-eda-principles.md` semantics:
+      - the Activity submits a **domain intent/command** (idempotent) to create a Domain-owned `WorkRequest` (audit), and the Domain emits:
+        - lifecycle **facts** (audit/outcomes) via outbox on the fact spine, and
+        - a point‑to‑point execution **intent** on an operational execution queue (not a fact topic).
+      - executors consume execution **intents** and record outcomes back to the owning Domain write surface idempotently; the Domain emits completion facts.
+      - workflow advancement is driven by **awaiting correlated facts/receipts**, not by direct runner responses.
+  - Agent and Integration primitives remain separate DUs with their own runtimes (LangGraph, NiFi); Process delegates to them via Activities and advances based on correlated outcomes.
 
 - **Idempotency**:
   - Workflows must ignore domain facts where `aggregate_version <= lastSeenAggregateVersion`.  
@@ -133,12 +142,13 @@ Process scaffolds assume:
   - Process facts emitted as orchestration evidence must carry the same correlation/trace context so projections can materialize audit-grade timelines.
 
 - **Determinism and definitions**:
-  - BPMN / ProcessDefinition artifacts from Transformation are **design knowledge only**; they are not compiled into Temporal at runtime. The Process primitive’s code, typically authored via agentic development, implements workflows that follow these designs.
+  - BPMN / ProcessDefinition artifacts from Transformation are canonical **design inputs**. In v1 they may be treated as “design knowledge”, but the target architecture supports **BPMN → Temporal transpilation**; therefore Process implementations MUST carry a stable `process_definition_id` (definition key + version/checksum) in workflow inputs and emitted process facts.
   - Workflows must not consult “latest definition from ConfigMap/registry” on each replayed step. Instead:
     - capture a **definition version/checksum** as workflow input when starting, and
     - treat that version as immutable per Workflow Execution, or
     - record any derived routing/decision data into workflow history via an Activity/SideEffect once, then use the recorded value.
   - Definition changes are handled at coarse‑grained boundaries (e.g., **Continue‑As‑New** or new Workflow Executions) rather than by changing behavior within a running execution based on live config.
+  - When emitting BPMN‑derived step progress, include both `step_id` (definition element id) and `step_instance_id` (runtime occurrence id) to support loops, multi‑instance tasks, and parallel tokens.
 
 - **Signal ordering / initialization**:
   - When using `SignalWithStart`, Temporal may deliver Signals before the workflow’s main logic has fully initialized. Scaffolded workflows are expected to:
@@ -185,7 +195,10 @@ Implementers (humans or coding agents) are expected to:
 1. Fill in workflow logic (timers, derived state, process fact emissions) in a way that respects Temporal determinism and idempotent Activities.  
 2. Wire ingress router to call workflow signals based on domain facts using a Temporal client and deterministic workflow IDs.  
 3. Update tests to assert correct behavior, idempotency, and (where appropriate) Continue‑As‑New behavior.
-4. For any tool/agent execution step, implement the WorkRequest pattern (domain intent → domain fact → execution backend → domain intent → domain fact) rather than synchronous “runner RPC”.
+4. For any side‑effect step, implement the step as an Activity:
+   - run deterministically inline when feasible, or
+   - delegate via the WorkRequest + execution intent queue pattern when toolchain/isolation demands it,
+   - and advance the workflow only on correlated facts/receipts (not synchronous runner responses).
 
 ---
 
@@ -194,11 +207,11 @@ Implementers (humans or coding agents) are expected to:
 `ameide primitive verify --kind process --name <name>` is expected to check:
 
 - Presence of `cmd/worker/main.go` and `cmd/ingress/main.go`.  
-- Temporal worker registration of workflows/activities under `internal/workflows/**`.  
+- Temporal worker registration of workflows/activities under `internal/workflows/**` and `internal/activities/**`.  
 - Ingress router using deterministic workflow IDs and `SignalWithStart`.  
 - Idempotency state present in workflow code (`lastSeenAggregateVersion`, flags).  
 - Process facts published via a port or activity (not directly from workflows), consistent with EDA rules in `496-eda-principles.md`.
-- Work execution posture is explicit in scaffold docs and stubs: tool/agent steps must be requested via domain intents and advanced by awaiting domain facts (WorkRequest pattern), not by direct runner calls.
+- Work execution posture is explicit in scaffold docs and stubs: deterministic steps run inline as Activities when feasible; delegated steps are requested via domain intents (execution intents on queues) and advanced by awaiting correlated facts/receipts.
 
 Vertical slices like `506-scrum-vertical-v2.md` remain authoritative for **which workflows and facts** exist; this backlog only constrains the **scaffold shape and Temporal/EDA pattern** for Process primitives.
 
@@ -270,6 +283,7 @@ This section describes the current implementation status of 511 in the CLI (`pac
 ### 6.3 Known gaps and next steps
 
 - Scaffold:
-  - Enrich `internal/workflows` and `internal/ingress` stubs with stronger examples (e.g., example Activities, signal handlers, Continue-As-New patterns) once Temporal patterns are finalized.
+  - Add `internal/activities/**` stubs to the scaffold shape and register Activities in `cmd/worker/main.go` (Activities are the side-effect boundary).
+  - Enrich `internal/workflows`, `internal/activities`, and `internal/ingress` with stronger examples (signal handlers, Update vs Signal patterns for approvals, Continue-As-New patterns, and phase-first progress emission).
 - Verify:
   - Extend Process-specific checks to understand Temporal configuration and idempotency/fact emission conventions (currently out of scope for `checkProcessShape`).

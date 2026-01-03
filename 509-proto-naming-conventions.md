@@ -166,6 +166,23 @@ Envelope fields:
 
 For **domain facts**, keep `ScrumAggregateRef.version` monotonic per aggregate; downstream consumers (Temporal, analytics, projections) rely on this for idempotency and ordering.
 
+### 4.1 Process progress facts (Kanban/BPMN conventions)
+
+Process facts are the canonical **coordination truth** for long-running workflows (Temporal-backed Processes) and are designed to drive projections such as Kanban/timeline views (see `backlog/520-primitives-stack-v2.md`).
+
+Minimum requirements when a context defines “progress/process facts”:
+
+- **Temporal identity alignment:** when the Process is Temporal-backed, process progress facts MUST carry:
+  - `process_instance_id` (Temporal **Workflow Id**),
+  - `process_run_id` (Temporal **Run Id**; changes on `Continue-As-New`),
+  - a stable ordering mechanism such as `run_epoch` + `seq` (do not rely on timestamps for ordering).
+- **Definition identity:** include a stable `process_definition_id` (e.g., BPMN process key + version/checksum) so projections can group and render consistently across deployments.
+- **Phase-first:** treat “Kanban-ready” as **phase-first** by default (phase/gate/awaiting/blocked/terminal). Step-level progress is opt-in for long-lived or human-visible steps.
+- **BPMN step identity:** when emitting BPMN-derived step progress, include both:
+  - `step_id` (definition element id), and
+  - `step_instance_id` (runtime occurrence id for loops, multi-instance tasks, and parallel tokens).
+- **Idempotency vocabulary:** `message_id` remains the consumer dedupe key for broker-delivered facts; process identity fields (`process_instance_id`, `process_run_id`) are not dedupe keys.
+
 ---
 
 ## 5. Topic naming

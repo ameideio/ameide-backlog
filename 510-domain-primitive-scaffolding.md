@@ -160,6 +160,11 @@ Domain scaffolds must always follow the **outbox → dispatcher** pattern from `
 
 Topic naming and envelope semantics follow `509-proto-naming-conventions.md` and the relevant domain proto (stable topic families with aggregator messages like `*DomainIntent` / `*DomainFact` / `*ProcessFact`).
 
+**Progress semantics (Domain vs Process):**
+
+- Domain facts represent **business truth** (including business-state transitions that may be rendered as “progress” in a UI).
+- Domains MUST NOT emit orchestration-phase/coordinator progress noise (phase/gate/awaiting) as domain facts; that coordination truth belongs in **process facts** emitted by Process primitives.
+
 ---
 
 ## 4. Handler and test semantics (Domain / Go)
