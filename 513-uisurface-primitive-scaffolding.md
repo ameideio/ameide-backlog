@@ -79,6 +79,13 @@ gitops/primitives/uisurface/<name>/
 
 ## 2. Generated structure (UISurface / Node)
 
+This backlog mixes two perspectives:
+
+- **What the CLI scaffolds today** (use this as the authoritative reference for current capability teams).
+- **Target shape (planned)** (the intended end-state scaffold once the UISurface runtime + SDK wiring is standardized).
+
+### 2.1 What the CLI scaffolds today (current users; implemented v0 marker page)
+
 ```text
 primitives/uisurface/<name>/
 ├── README.md                            # Purpose + wiring notes
@@ -97,7 +104,16 @@ gitops/primitives/uisurface/<name>/
 ├── values.yaml                          # UISurface Deployment/service config
 ├── component.yaml                       # Argo CD component descriptor
 └── kustomization.yaml                   # Kustomize stub
-``>
+```
+
+### 2.2 Target shape (planned)
+
+The target UISurface scaffold is a TypeScript-first web app/BFF that:
+
+- serves the UI (Next.js or an equivalent) and/or a Connect/BFF layer,
+- uses Ameide SDK clients for all calls (SDK-only rule),
+- renders Kanban/timeline views from Projection query APIs (domain facts + process progress facts),
+- keeps generated-only artifacts under generated roots (never mixed with implementation-owned UI code).
 
 ---
 
@@ -119,7 +135,17 @@ The v0 UISurface smoke expectation is: HTTP GET `/` contains the marker string (
 
 ## 5. Verification expectations
 
-`ameide primitive verify --kind uisurface --name <name>` should check:
+### 5.1 Verify today (v0 marker page)
+
+For the current v0 scaffold, `ameide primitive verify --kind uisurface --name <name>` SHOULD check:
+
+- `server.js` exists and serves `internal/gen/index.generated.html` at `/`.
+- `internal/gen/index.generated.html` exists after running the Buf generation step.
+- GitOps manifests are valid when present (`--include-gitops`).
+
+### 5.2 Verify target (planned)
+
+For the planned TypeScript UISurface scaffold, verification SHOULD check:
 
 - Presence of `src/server.ts` and `src/routes/**`.  
 - `src/proto/index.ts` imports from SDK (`@ameideio/ameide-sdk-ts`), not `@ameide/core-proto`, in line with `SDK_USAGE.md`.  

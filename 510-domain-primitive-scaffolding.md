@@ -63,7 +63,65 @@ gitops/primitives/domain/<name>/
 
 ## 2. Generated structure (Domain / Go)
 
-The Domain scaffold emits **shape‑only** code and tests, but with a **fixed EDA pattern** baked in and a runnable gRPC entrypoint.
+This backlog mixes two perspectives:
+
+- **What the CLI scaffolds today** (use this as the authoritative reference for current capability teams).
+- **Target shape (planned)** (the intended end-state scaffold once more wiring can be derived or standardized).
+
+### 2.1 What the CLI scaffolds today (current users; implemented)
+
+The Domain scaffold emits **EDA scaffolding** (outbox + dispatcher + migrations) and minimal "starter" code. It does **not** require a proto path and does not parse proto descriptors at scaffold time.
+
+Key realities today (see §6.1):
+
+- `cmd/main.go` is a bootstrap placeholder that must be extended once the domain's gRPC service wiring is known.
+- `internal/handlers/handlers.go` may contain **no RPC methods** until you wire a concrete SDK service; it provides a constructor and a place to attach dependencies.
+
+Representative shape (some files are optional depending on flags and how much wiring you add immediately):
+
+```text
+primitives/domain/<name>/
+├── README.md
+├── catalog-info.yaml
+├── go.mod
+├── Dockerfile
+├── cmd/
+│   ├── main.go                          # Bootstrap placeholder (extend for gRPC wiring)
+│   └── dispatcher/
+│       └── main.go
+├── internal/
+│   ├── handlers/
+│   │   └── handlers.go                  # Minimal handler + constructor (RPC methods may be added later)
+│   ├── ports/
+│   │   ├── outbox.go
+│   │   └── outbound.go
+│   ├── adapters/
+│   │   ├── postgres/
+│   │   │   └── outbox.go
+│   │   └── sdk/
+│   │       └── clients.go
+│   └── dispatcher/
+│       └── dispatcher.go
+├── migrations/
+│   ├── V1__domain_outbox.sql
+│   ├── Dockerfile.dev
+│   └── Dockerfile.release
+└── tests/
+    └── run_integration_tests.sh         # When --include-test-harness is set
+```
+
+GitOps when `--include-gitops` is used:
+
+```text
+gitops/primitives/domain/<name>/
+├── values.yaml
+├── component.yaml
+└── kustomization.yaml
+```
+
+### 2.2 Target shape (planned)
+
+The target Domain scaffold shape is more "ready-to-run" out of the box: a runnable gRPC service entrypoint, concrete RPC stubs wired to SDK-generated service interfaces, and per-RPC RED tests.
 
 ```text
 primitives/domain/<name>/
@@ -195,7 +253,7 @@ Implementers (humans or coding agents) are expected to:
 
 ## 5. Verification expectations
 
-`ameide primitive verify --kind domain --name <name>` is expected to enforce:
+`ameide primitive verify --kind domain --name <name>` is expected to enforce (current users):
 
 - Presence of `internal/ports/outbox.go` and `internal/adapters/postgres/outbox.go`.  
 - Presence of dispatcher code under `internal/dispatcher/` and `cmd/dispatcher/`.  
