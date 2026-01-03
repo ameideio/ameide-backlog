@@ -58,6 +58,53 @@ This assumes:
 
 ## 2. Generated structure (Process / Go)
 
+This backlog mixes two perspectives:
+
+- **What the CLI scaffolds today** (use this as the authoritative reference for current capability teams).
+- **Target shape (planned)** (the intended end-state scaffold once more wiring and examples are standardized).
+
+### 2.1 What the CLI scaffolds today (current users; implemented)
+
+The current CLI scaffold creates a minimal Process primitive shape (worker + ingress + workflow stub + router + state + RED workflow test). It does **not** yet scaffold a dedicated `internal/activities/**` directory.
+
+```text
+primitives/process/<name>/
+├── README.md
+├── catalog-info.yaml
+├── go.mod
+├── Dockerfile
+├── cmd/
+│   ├── worker/
+│   │   └── main.go                      # Registers workflows (Activities stubs are not scaffolded yet)
+│   └── ingress/
+│       └── main.go                      # Bus -> Temporal SignalWithStart (TODO wiring)
+└── internal/
+    ├── workflows/
+    │   └── workflow.go                  # ExampleWorkflow stub (current scaffold filename)
+    ├── ingress/
+    │   └── router.go
+    ├── process/
+    │   └── state.go
+    └── tests/
+        └── process_workflow_test.go     # RED test (Temporal test harness)
+
+primitives/process/<name>/tests/
+└── run_integration_tests.sh             # When --include-test-harness is set
+```
+
+GitOps with `--include-gitops`:
+
+```text
+gitops/primitives/process/<name>/
+├── values.yaml
+├── component.yaml
+└── kustomization.yaml
+```
+
+### 2.2 Target shape (planned)
+
+The target scaffold shape makes Activities a first-class, explicit surface and prefers per-workflow files over a single `workflow.go`:
+
 ```text
 primitives/process/<name>/
 ├── README.md                            # Scaffold command, process checklist
@@ -205,10 +252,10 @@ Implementers (humans or coding agents) are expected to:
 
 ## 5. Verification expectations
 
-`ameide primitive verify --kind process --name <name>` is expected to check:
+`ameide primitive verify --kind process --name <name>` is expected to check (current users):
 
 - Presence of `cmd/worker/main.go` and `cmd/ingress/main.go`.  
-- Temporal worker registration of workflows/activities under `internal/workflows/**` and `internal/activities/**`.  
+- Temporal worker registration of workflows under `internal/workflows/**` (and Activities under `internal/activities/**` once the target shape is implemented).  
 - Ingress router using deterministic workflow IDs and `SignalWithStart`.  
 - Idempotency state present in workflow code (`lastSeenAggregateVersion`, flags).  
 - Process facts published via a port or activity (not directly from workflows), consistent with EDA rules in `496-eda-principles.md`.
