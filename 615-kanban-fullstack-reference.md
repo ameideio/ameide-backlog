@@ -46,6 +46,7 @@ Provide a single, repeatable implementation recipe for:
 - Facts are emitted **after persistence** via outbox when the SoR is a domain (`backlog/496-eda-principles.md`, `backlog/510-domain-primitive-scaffolding.md`).
 - Process progress facts must follow identity requirements in `backlog/509-proto-naming-conventions.md` (WorkflowID/RunID, `run_epoch + seq`).
 - Processes may define their own internal `phase_key` values; **UI must not hard-code mappings**. Mapping to Kanban columns lives in the projection rule/config.
+- Every fact MUST carry a stable `message_id` suitable for inbox dedupe. For process-emitted progress facts, `message_id` MUST remain stable under Activity retries.
 
 ### B) Projection (build + store)
 
@@ -57,15 +58,19 @@ Provide a single, repeatable implementation recipe for:
 
 **Required outputs:**
 
-- `board_seq` (monotonic cursor bumped when board changes)
+- `board_seq` (monotonic cursor derived from the projection’s durable commit cursor/sequence; not timestamps and not “diff heuristics”)
 - a query store that supports listing cards by column and fetching card details
+
+**Required invariants:**
+
+- Projection MUST define a deterministic apply order/convergence rule across all consumed topics/partitions that can affect a board (recommended: board-scoped partitioning so log order is the apply order).
 
 ### C) Query API
 
 The Projection exposes read-only APIs:
 
 - `GetKanbanBoard(board_scope)` → board model (columns + cards) + `board_seq`
-- optional: `GetKanbanDeltas(board_scope, since_seq)` → incremental updates
+- recommended: `GetKanbanDeltas(board_scope, since_seq)` → incremental updates (cursor-based)
 
 ### D) Projection Updates stream (live updates)
 
@@ -76,7 +81,7 @@ The Projection exposes a subscription that emits at least:
 **UI behavior is idempotent:**
 
 - UI keeps `last_seen_board_seq`
-- on any update where `board_seq` increases → refetch board (or fetch deltas)
+- on any update where `board_seq` increases → fetch deltas (preferred) or refetch board (fallback)
 
 ### E) UISurface layout (platform app)
 
@@ -141,7 +146,7 @@ Rationale:
 
 - Dedupe: re-deliver same `message_id` → no duplicate card updates.
 - Convergence: replay from empty → same board state.
-- Cursor: board_seq increments on meaningful change only.
+- Cursor: board_seq advances based on the durable projection commit cursor/sequence for the board; retries do not create duplicate effects.
 
 ### Process tests
 
@@ -163,4 +168,3 @@ Rationale:
 - [ ] Implement update stream emitting monotonic `board_seq`.
 - [ ] Implement Kanban as UISurface canvas + reusable component/widget.
 - [ ] Add unit/integration/E2E tests covering refetch-on-seq and convergence.
-
