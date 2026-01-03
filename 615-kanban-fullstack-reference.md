@@ -92,6 +92,11 @@ Kanban is a **canvas/page type** and a **reusable component**:
 
 This matches `backlog/520-primitives-stack-v2.md` “Shell + Canvases + Widgets” and `backlog/513-uisurface-primitive-scaffolding.md` scaffold conventions.
 
+Recommended board scopes (single model; different `board_kind`):
+
+- Repository roll-up board: `board_kind=repository` scoped by `{tenant_id, organization_id, repository_id}`.
+- Initiative workspace board (recommended for change initiatives): `board_kind=initiative` scoped by `{tenant_id, organization_id, repository_id, initiative_id}`.
+
 ## Recommended transport choice (single option)
 
 **Projection query API = gRPC/Connect** (SDK-only rule).

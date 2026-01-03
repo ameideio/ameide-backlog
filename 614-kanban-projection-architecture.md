@@ -53,6 +53,13 @@ Kanban is a projection-backed list view. The projection MUST define a stable boa
 - Cards MUST be stored and queried by `(board_id, card_id)` (card membership is derived; no UI-owned “board membership” state).
 - A capability MAY support multiple boards per scope (e.g., multiple `board_kind` values), but board IDs MUST remain stable over time.
 
+Recommended `board_kind` values (capability-agnostic):
+
+- `board_kind=repository`: repo-scoped roll-up board for an architecture context.
+- `board_kind=initiative`: initiative workspace board for a change initiative bound to a repository.
+  - Initiative boards MUST still be repository-scoped (initiative identity is not meaningful without its repository context).
+  - For initiative boards, scope MUST include `initiative_id` in addition to `{tenant_id, organization_id, repository_id}` so `board_id` remains unique and stable.
+
 ### 2) Columns are derived (never imperative UI state)
 
 The UI MUST NOT contain methodology-specific mapping logic.
