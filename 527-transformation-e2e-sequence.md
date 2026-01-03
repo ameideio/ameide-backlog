@@ -9,6 +9,7 @@ This backlog rewrites the end-to-end “work execution” story as a clean separ
 - **Process** decides *what* happens next (orchestration only; Temporal workflows are deterministic).
 - **Events** carry **intents** (requests) and **facts** (audit/outcomes) with strict 496 semantics.
 - **Infra** decides *how* work runs (KEDA/Jobs/worker pools/external executors), without leaking into process semantics.
+- **UI** shows a projection-driven timeline (facts + process facts + evidence refs), not infra internals.
 
 Terminology (canonical in `backlog/520-primitives-stack-v2.md`):
 
@@ -26,15 +27,15 @@ Infra contract (agentic coding via Codex):
 
 ## Sequence A — Activity-delegated execution (focus)
 
-| Task | Process (Temporal) | Events (intent vs fact) | Infra (mechanics) |
-| --- | --- | --- | --- |
-| Start a governance run | Workflow starts (or SignalWithStart) and chooses the next step | none | none |
-| Decide “work must run outside the worker” | Workflow calls an Activity that initiates delegation | none | none |
-| Create durable work record | Activity calls Domain `RequestWork` (idempotent) | none | Domain DB transaction + outbox |
-| Emit audit fact and execution intent | Domain persists WorkRequest and appends outbox records | **Fact:** `WorkRequested` on `transformation.work.domain.facts.v1` (pub/sub)<br>**Intent:** `WorkExecutionRequested` on `transformation.work.queue.*.v1` (point-to-point) | Broker topics exist; retention tuned; no secrets in payloads |
-| Run the work | Workflow waits for completion by correlation id / work_request_id (SignalWithStart via ingress) | none (work is running) | Executor consumes **intent** and executes (KEDA Job, long-lived worker pool, or external runner) |
-| Report started/outcome | Workflow is unchanged; it remains deterministic | **No executor facts.** Executor calls Domain write API to record started/outcome; Domain emits `WorkStarted`/`WorkCompleted`/`WorkFailed` as facts after persistence | Executor has credentials/isolation; evidence uploads; idempotent callbacks |
-| Continue orchestration | Ingress signals workflow on receipt of facts; workflow advances and emits process facts as needed | **Facts** are the continuation signal source; projections consume facts for UI timelines | Infra only observes lag/health; no “KEDA as orchestrator” logic |
+| Task | Process (Temporal) | Events (intent vs fact) | Infra (mechanics) | UI (what the user can see) |
+| --- | --- | --- | --- | --- |
+| Start a governance run | Workflow starts (or SignalWithStart) and chooses the next step | none | none | “Run started” + current gate/step shown (initial timeline entry) |
+| Decide “work must run outside the worker” | Workflow calls an Activity that initiates delegation | none | none | Step shows as “queued / preparing execution” |
+| Create durable work record | Activity calls Domain `RequestWork` (idempotent) | none | Domain DB transaction + outbox | WorkRequest appears with a stable ID; status = `REQUESTED` |
+| Emit audit fact and execution intent | Domain persists WorkRequest and appends outbox records | **Fact:** `WorkRequested` on `transformation.work.domain.facts.v1` (pub/sub)<br>**Intent:** `WorkExecutionRequested` on `transformation.work.queue.*.v1` (point-to-point) | Broker topics exist; retention tuned; no secrets in payloads | Timeline shows `WorkRequested`; UI does not show “queue/topic”, only “requested” |
+| Run the work | Workflow waits for completion by correlation id / work_request_id (SignalWithStart via ingress) | none (work is running) | Executor consumes **intent** and executes (KEDA Job, long-lived worker pool, or external runner) | Status transitions to `STARTED` when Domain records start; UI can show “in progress” |
+| Report started/outcome | Workflow is unchanged; it remains deterministic | **No executor facts.** Executor calls Domain write API to record started/outcome; Domain emits `WorkStarted`/`WorkCompleted`/`WorkFailed` as facts after persistence | Executor has credentials/isolation; evidence uploads; idempotent callbacks | UI shows completion with outcome + evidence refs (patch/logs/PR URL if any); failures show error summary + evidence |
+| Continue orchestration | Ingress signals workflow on receipt of facts; workflow advances and emits process facts as needed | **Facts** are the continuation signal source; projections consume facts for UI timelines | Infra only observes lag/health; no “KEDA as orchestrator” logic | Timeline advances to next step; user sees the reason (facts/process facts) not infra state |
 
 **Hard rule:** executors (in-cluster or external) do not publish facts; they only call the owning Domain write surface; the Domain emits facts (outbox).
 
@@ -44,12 +45,12 @@ Infra contract (agentic coding via Codex):
 
 This phase is **interactive** and mostly lives in the **Agent primitive (LangGraph runtime)**. Temporal is optional until you want durable orchestration/gates.
 
-| Task | Process (Temporal) | Events (intent vs fact) | Infra (mechanics) |
-| --- | --- | --- | --- |
-| Chat turn: architecture question → answer | Optional: start a “triage run” workflow to capture gates/evidence; otherwise no workflow yet | none required | UISurface calls Agent primitive API (LangGraph) |
-| Triage reads context | Workflow may allow projection reads (declared, time-bounded) but does not mutate state | none | Agent reads Projection query surfaces via SDK |
-| Triage produces an artifact | Workflow (if running) calls an Activity that requests a Domain write (proposal) | Domain receives a **command/intent** to create/update a draft artifact (e.g., “Requirement draft”, “Dev Brief”, “Gate checklist”) | Domain persists and emits facts via outbox |
-| Triage needs deep repo/tool analysis | Workflow calls delegated Activity → Domain `RequestWork(work_kind=AGENT_WORK|TOOL_RUN)` | **Intent:** `WorkExecutionRequested` on `transformation.work.queue.*.v1`<br>**Facts:** `WorkRequested/Started/Completed/Failed` on `transformation.work.domain.facts.v1` | Executor runs agent/tool work in an isolated environment and records outcomes to Domain |
+| Task | Process (Temporal) | Events (intent vs fact) | Infra (mechanics) | UI (what the user can see) |
+| --- | --- | --- | --- | --- |
+| Chat turn: architecture question → answer | Optional: start a “triage run” workflow to capture gates/evidence; otherwise no workflow yet | none required | UISurface calls Agent primitive API (LangGraph) | Chat transcript + agent answer streamed; optional “triage run created” badge |
+| Triage reads context | Workflow may allow projection reads (declared, time-bounded) but does not mutate state | none | Agent reads Projection query surfaces via SDK | UI can show “sources used” (projection queries / evidence refs), not raw infra calls |
+| Triage produces an artifact | Workflow (if running) calls an Activity that requests a Domain write (proposal) | Domain receives a **command/intent** to create/update a draft artifact (e.g., “Requirement draft”, “Dev Brief”, “Gate checklist”) | Domain persists and emits facts via outbox | Draft artifact appears (Requirement/Brief) with version + status = draft |
+| Triage needs deep repo/tool analysis | Workflow calls delegated Activity → Domain `RequestWork(work_kind=AGENT_WORK|TOOL_RUN)` | **Intent:** `WorkExecutionRequested` on `transformation.work.queue.*.v1`<br>**Facts:** `WorkRequested/Started/Completed/Failed` on `transformation.work.domain.facts.v1` | Executor runs agent/tool work in an isolated environment and records outcomes to Domain | UI shows “analysis requested/in progress/completed” with links to evidence (logs, patch, summary) |
 
 **Sub-activities (recommended decomposition):**
 
@@ -64,13 +65,13 @@ This phase is **interactive** and mostly lives in the **Agent primitive (LangGra
 
 This phase is **durable orchestration**: Process sequences steps, but execution happens via delegated WorkRequests.
 
-| Task | Process (Temporal) | Events (intent vs fact) | Infra (mechanics) |
-| --- | --- | --- | --- |
-| Gate: “Requirement stabilized” | Workflow reaches a gate; waits for approval/confirmation | Process fact (optional) like `GateDecisionRecorded` for audit | none |
-| Request scaffold/codegen | Workflow Activity calls Domain `RequestWork(work_kind=TOOL_RUN, action_kind=SCAFFOLD|GENERATE)` | **Intent:** `WorkExecutionRequested` to toolrun queue<br>**Facts:** `WorkRequested/…/Completed` | Executor runs `ameide`/`buf generate` and records evidence |
-| Request coding change | Workflow Activity calls Domain `RequestWork(work_kind=AGENT_WORK, action_kind=PUBLISH)` | **Intent:** `WorkExecutionRequested` to agentwork queue<br>**Facts:** lifecycle facts | Executor runs “coding agent” in an isolated pod/runner with `CODEX_HOME` seeded from `Secret/codex-auth` (and optional GitHub token) and records evidence (PR link, patches, summaries) |
-| Request verification | Workflow Activity calls Domain `RequestWork(work_kind=TOOL_RUN, action_kind=VERIFY)` | **Intent:** `WorkExecutionRequested` to verify queue<br>**Facts:** lifecycle facts | Executor runs tests/verify suites; uploads evidence |
-| Iterate until green | Workflow loops on outcomes + gate rules (no infra knowledge) | Facts are the only completion signals | Infra may change (KEDA, worker pool, external runners) without changing workflow semantics |
+| Task | Process (Temporal) | Events (intent vs fact) | Infra (mechanics) | UI (what the user can see) |
+| --- | --- | --- | --- | --- |
+| Gate: “Requirement stabilized” | Workflow reaches a gate; waits for approval/confirmation | Process fact (optional) like `GateDecisionRecorded` for audit | none | UI shows “approval required”; user approves/rejects; decision recorded in timeline |
+| Request scaffold/codegen | Workflow Activity calls Domain `RequestWork(work_kind=TOOL_RUN, action_kind=SCAFFOLD|GENERATE)` | **Intent:** `WorkExecutionRequested` to toolrun queue<br>**Facts:** `WorkRequested/…/Completed` | Executor runs `ameide`/`buf generate` and records evidence | UI shows “codegen requested/in progress/completed” + evidence links (logs, generated diff summary) |
+| Request coding change | Workflow Activity calls Domain `RequestWork(work_kind=AGENT_WORK, action_kind=PUBLISH)` | **Intent:** `WorkExecutionRequested` to agentwork queue<br>**Facts:** lifecycle facts | Executor runs “coding agent” in an isolated pod/runner with `CODEX_HOME` seeded from `Secret/codex-auth` (and optional GitHub token) and records evidence (PR link, patches, summaries) | UI shows “coding run started”; on success shows PR URL + patch + summary; on fail shows error + evidence |
+| Request verification | Workflow Activity calls Domain `RequestWork(work_kind=TOOL_RUN, action_kind=VERIFY)` | **Intent:** `WorkExecutionRequested` to verify queue<br>**Facts:** lifecycle facts | Executor runs tests/verify suites; uploads evidence | UI shows verification checks + pass/fail, with logs attached |
+| Iterate until green | Workflow loops on outcomes + gate rules (no infra knowledge) | Facts are the only completion signals | Infra may change (KEDA, worker pool, external runners) without changing workflow semantics | UI shows iteration timeline and “why” (facts/evidence), not infra retries/backoffs |
 
 **Sub-activities (recommended decomposition):**
 
@@ -86,12 +87,12 @@ This phase is **durable orchestration**: Process sequences steps, but execution 
 
 Release is still a Process concern (gates + sequencing), but “what gets deployed” is owned by GitOps artifact promotion and digest-pinned images.
 
-| Task | Process (Temporal) | Events (intent vs fact) | Infra (mechanics) |
-| --- | --- | --- | --- |
-| Gate: “Ready to release” | Workflow requires explicit approval (policy) | Process fact (optional) for audit | none |
-| Build/publish artifacts | Workflow Activity requests `TOOL_RUN` publish step (or triggers CI via Integration) | **Intent:** `WorkExecutionRequested` for publish class<br>**Facts:** Work lifecycle | CI/build system produces digest-pinned images (see `backlog/602-image-pull-policy.md`) |
-| Promote to environments | Workflow waits on promotion evidence (PR merged / promotion recorded) | Domain facts record the release/promote outcome; projections show it | GitOps promotion is a **Git change** (digest copy) per `backlog/611-trunk-based-main-and-gitops-environment-promotion.md`; publishing may use the proto-aware fast path per `backlog/611-cd-proto-aware-image-publish-fast-path.md` |
-| Close the run | Workflow emits final process facts and stops | Facts remain the audit trail | Infra is purely operational (rollout health, smoke checks) |
+| Task | Process (Temporal) | Events (intent vs fact) | Infra (mechanics) | UI (what the user can see) |
+| --- | --- | --- | --- | --- |
+| Gate: “Ready to release” | Workflow requires explicit approval (policy) | Process fact (optional) for audit | none | UI shows “ready to release” gate + required checks; approval recorded |
+| Build/publish artifacts | Workflow Activity requests `TOOL_RUN` publish step (or triggers CI via Integration) | **Intent:** `WorkExecutionRequested` for publish class<br>**Facts:** Work lifecycle | CI/build system produces digest-pinned images (see `backlog/602-image-pull-policy.md`) | UI shows build status + produced digest(s) + evidence (logs) |
+| Promote to environments | Workflow waits on promotion evidence (PR merged / promotion recorded) | Domain facts record the release/promote outcome; projections show it | GitOps promotion is a **Git change** (digest copy) per `backlog/611-trunk-based-main-and-gitops-environment-promotion.md`; publishing may use the proto-aware fast path per `backlog/611-cd-proto-aware-image-publish-fast-path.md` | UI shows environment promotion timeline (dev→staging→prod), PR links, and rollout status summary |
+| Close the run | Workflow emits final process facts and stops | Facts remain the audit trail | Infra is purely operational (rollout health, smoke checks) | UI shows “run complete” with final decision + pointers to evidence and promoted digests |
 
 ---
 
