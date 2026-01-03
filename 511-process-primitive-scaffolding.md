@@ -116,6 +116,7 @@ Process scaffolds assume:
   - Emit a Kanban/timeline-friendly progress stream (phase-first) as process facts, aligned with `backlog/520-primitives-stack-v2.md`:
     - include `process_definition_id`, `process_instance_id` (Workflow Id), `process_run_id` (Run Id), and stable ordering fields (`run_epoch`, `seq`),
     - emit step-level facts only when explicitly required, and include both `step_id` and `step_instance_id` for BPMN-derived steps.
+    - reuse the minimal capability-agnostic progress vocabulary from `backlog/509-proto-naming-conventions.md` (§4.1.1) unless there is a deliberate, documented exception.
 
 - **Execution boundary (Activities; inline vs delegated)**:
   - Workflows MUST initiate all side effects via **Activities** (the side‑effect boundary); workflow code must not call external systems directly.
