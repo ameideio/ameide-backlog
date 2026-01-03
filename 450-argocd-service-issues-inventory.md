@@ -2,7 +2,7 @@
 
 **Status**: Partially Resolved (CI/CD blocking staging/prod)
 **Created**: 2025-12-04
-**Updated**: 2025-12-18
+**Updated**: 2026-01-03
 **Commits**:
 - `485a3961 fix(sso): make keycloak client-patcher deterministic`
 - `e6dd0f32 fix(keycloak): ensure client specs exist before patcher hook`
@@ -32,6 +32,56 @@ Total applications: 200
 - **Progressing**: 12
 
 **Clean-state note (image policy):** This inventory contains historical incidents from the “floating tags + pull-policy” era. The current GitOps target state is `backlog/602-image-pull-policy.md` / `backlog/603-image-pull-policy.md`: deploy digest-pinned refs and drive rollouts via Git PR write-back/promotion PRs. When reading older “missing `:main` tag” or “restart pods to pick up `:dev`” entries, treat them as superseded.
+
+## Update (2026-01-03): Local bootstrap convergence incidents (Dex/Envoy, CNPG placement, hook jobs)
+
+- **Date/Env**: 2026-01-03 / local
+- **Argo app**: `local-platform-gateway`, `argocd-config`
+- **Unhealthy resource**: `Deployment/argocd/argocd-dex-server`
+- **Symptom**: Dex CrashLoopBackOff with `Get "https://auth.local.ameide.io/realms/ameide/.well-known/openid-configuration": ... dial tcp <envoy-svc-ip>:443: connect: connection refused`
+- **Root cause**: `NetworkPolicy/envoy-ameide-local-ingress-lockdown` allowed Service ports `80/443` instead of Envoy data-plane Pod `targetPort`s `10080/10443`, blocking in-cluster callers (including Dex) from reaching Keycloak via the local Gateway.
+- **Fix**: Set `networkPolicies.envoyProxyIngress.publicPorts` to `[10080, 10443, 8000]` so the policy matches pod ports.
+- **Verification**: `envoy-ameide-local-ingress-lockdown` lists `10080 10443 8000`; Dex pods stay `Running`; local Applications converge `Synced/Healthy`.
+
+- **Date/Env**: 2026-01-03 / local
+- **Argo app**: `local-platform-postgres-clusters`
+- **Unhealthy resource**: `Cluster/ameide-local/postgres-ameide` (CNPG) → `Pod/ameide-local/postgres-ameide-*` `Pending`
+- **Symptom**: Postgres instance stuck Pending after local control-plane taints; cascades into Keycloak/Dex failures (`issuer unreachable`).
+- **Root cause**: local-path `WaitForFirstConsumer` can pin a PV to the control-plane node if the first Postgres pod schedules there before taints/placement constraints exist.
+- **Fix**: Add local CNPG `nodeAffinity` to avoid `node-role.kubernetes.io/control-plane` and `node-role.kubernetes.io/master` so first scheduling (and PV binding) lands on an agent node.
+- **Verification**: With control-plane taints enabled, CNPG instances schedule on agent nodes and remain stable across restarts; downstream apps (Keycloak/Dex) converge.
+
+- **Date/Env**: 2026-01-03 / local
+- **Argo app**: `local-platform-langfuse-bootstrap`
+- **Unhealthy resource**: `Job/ameide-local/platform-langfuse-bootstrap` (PostSync hook)
+- **Symptom**: Hook Job fails early with `psql ... connection refused` when Postgres service has no endpoints yet; job remains as a failed resource and does not self-heal.
+- **Root cause**: The bootstrap script attempted `psql` before Postgres was reachable; Argo hook name is stable, so a failed Job can block future bootstrap unless deleted.
+- **Fix**: Add an explicit “wait for Postgres” loop before first `psql`, and set hook delete policy to include `BeforeHookCreation` so retries are deterministic on resync.
+- **Verification**: On fresh bootstrap, Langfuse bootstrap waits for DB readiness and completes; no persistent failed hook Jobs remain.
+
+- **Date/Env**: 2026-01-03 / local
+- **Argo app**: `bootstrap-local` (Terraform ArgoCD bootstrap)
+- **Unhealthy resource**: Helm install/upgrade step (bootstrap) failing with server-side apply conflicts
+- **Symptom**: `kubectl apply --server-side` emits ownership/field manager conflicts during ArgoCD bootstrap.
+- **Root cause**: Server-side apply conflicts with existing managers during rapid bootstrap/reconcile cycles.
+- **Fix**: Force `--server-side=false` in bootstrap apply paths.
+- **Verification**: `deploy.sh local` / bootstrap completes without SSA conflicts; Argo reconciles normally.
+
+- **Date/Env**: 2026-01-03 / local
+- **Argo app**: multiple (any pulling from `ghcr.io`)
+- **Unhealthy resource**: `Pod/*` `ImagePullBackOff`
+- **Symptom**: Local clusters fail to pull images from GHCR (missing pull secret / empty credentials).
+- **Root cause**: Local secret seeding accepted empty `.env` values and silently skipped writing required credentials, preventing Vault/ExternalSecrets from producing `ghcr-pull` for namespaces.
+- **Fix**: Make `seed-local-secrets.sh` fail fast when `GHCR_USERNAME` / `GHCR_TOKEN` are missing or empty.
+- **Verification**: `Secret/ghcr-pull` exists and workloads start without manual secret patching.
+
+- **Date/Env**: 2026-01-03 / local
+- **Argo app**: N/A (developer tooling)
+- **Unhealthy resource**: developer workflows (port-forwards killed)
+- **Symptom**: `deploy.sh local` teardown killed unrelated port-forwards/processes via a broad `pkill`, causing flakey local dev sessions.
+- **Root cause**: Process cleanup matched by name rather than port/PID ownership.
+- **Fix**: Replace blanket `pkill` with targeted PID discovery (`lsof` → `kill`) for only the known port-forward ports.
+- **Verification**: Rerunning `deploy.sh local` no longer terminates unrelated background processes.
 
 ## Update (2025-12-14): Local GitOps health fixes (devcontainer + k3d)
 
