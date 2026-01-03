@@ -311,6 +311,7 @@ Temporal-backed Processes MUST be shaped so a Kanban/timeline can be derived wit
 Rules:
 
 - **Phase-first by default:** progress facts are coarse-grained (phase/gate/awaiting/blocked/terminal). Step-level facts are opt-in for long-lived or human-visible steps (avoid “step spam” and unbounded histories).
+- **Canonical vocabulary:** Processes SHOULD reuse the capability-agnostic minimal progress vocabulary in `backlog/509-proto-naming-conventions.md` (§4.1.1) so BPMN→Temporal compilation and UI/projections do not require bespoke per-process taxonomies.
 - **Temporal identity alignment:** when Process is Temporal-backed, progress facts carry:
   - `process_instance_id` (Temporal WorkflowID),
   - `process_run_id` (Temporal RunID),

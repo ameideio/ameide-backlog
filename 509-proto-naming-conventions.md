@@ -183,6 +183,30 @@ Minimum requirements when a context defines “progress/process facts”:
   - `step_instance_id` (runtime occurrence id for loops, multi-instance tasks, and parallel tokens).
 - **Idempotency vocabulary:** `message_id` remains the consumer dedupe key for broker-delivered facts; process identity fields (`process_instance_id`, `process_run_id`) are not dedupe keys.
 
+#### 4.1.1 Minimal progress vocabulary (capability-agnostic)
+
+To keep BPMN → Temporal compilation and UISurface/projection behavior consistent across capabilities, every Process context that emits “progress/process facts” SHOULD implement this minimal vocabulary (names are illustrative; exact message/type names are per-context, but the semantics are stable):
+
+- **RunStarted**
+  - emitted once when the process instance is created/started (idempotent).
+- **PhaseEntered(phase_key)**
+  - the canonical Kanban/timeline driver; phase-first by default.
+  - `phase_key` MUST be stable across deployments for a given process definition version.
+- **Awaiting(kind, ref)** (optional but recommended)
+  - emitted when the process is waiting on something external (BPMN user task, dependency readiness, external executor completion).
+  - `kind` is a stable classifier (e.g., `approval`, `dependency`, `external_work`).
+  - `ref` is an opaque reference (e.g., approval_request_id, work_request_id).
+- **Blocked(reason)** (optional)
+  - emitted when work is blocked in a way that should be visible to operators/users.
+- **Terminal (exactly one per run):**
+  - **RunCompleted**
+  - **RunFailed**
+  - **RunCancelled**
+- **Step-level (opt-in):** **StepCompleted** / **StepFailed**
+  - only for long-lived or human-visible steps; MUST include both `step_id` and `step_instance_id`.
+
+This vocabulary is intentionally small so it remains feasible under Temporal history limits and avoids “step spam”; richer, capability-specific progress is layered on top as needed.
+
 ---
 
 ## 5. Topic naming
