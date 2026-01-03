@@ -87,6 +87,11 @@ This stack explicitly does not do the following:
 - **`binding_ref` / `endpoint_ref`**: logical references in proto used to bind to environment-specific transport configuration (Kafka subscriptions, HTTP endpoints, etc.).
 - **Activity-inline execution**: deterministic work executed directly inside a Process primitive’s Temporal Activity workers (workflow orchestrates; activity does the side effects).
 - **Activity-delegated execution**: work initiated by a Process Activity but executed by a different runtime boundary (Agent primitive, Integration primitive, KEDA/Job executor, or external executor); delegation is via an **intent** message, and completion is observed via **facts** (see `backlog/496-eda-principles.md` and `backlog/509-proto-naming-conventions.md`).
+- **`process_definition_id`**: a stable identifier for a process definition (e.g., BPMN process key + version).
+- **`process_instance_id`**: a stable identifier for a long-running process instance (Temporal **WorkflowID** when Process is Temporal-backed).
+- **`process_run_id`**: the identifier for a specific execution run of a process instance (Temporal **RunID**; changes on `Continue-As-New`).
+- **`run_epoch` / `seq`**: monotonic ordering fields emitted by the Process for progress/timeline facts (required for Kanban/timeline stability across `Continue-As-New`; do not rely on timestamps for ordering).
+- **`step_id` / `step_instance_id`**: `step_id` identifies a definition step (e.g., BPMN element id); `step_instance_id` identifies a specific runtime occurrence (loops, multi-instance, parallel tokens).
 - **Approved generated root**: any directory that is safe to delete/recreate on regen and enforced by CI. In this repo, CI-enforced generator outputs land only in:
   - `packages/ameide_sdk_ts/src/_proto/**` (TypeScript SDK generated stubs; internal)
   - `packages/ameide_sdk_python/src/ameide_sdk/_proto/**` (Python SDK generated stubs; internal)
@@ -299,6 +304,21 @@ Temporal makes **orchestration** durable; the transactional outbox makes **fact 
 - Process workflows orchestrate; Activities initiate side effects and are *at-least-once in practice*, so Activities and any Domain/Process commands they invoke MUST be idempotent.
 - When a workflow needs to change domain state, it submits a domain intent/command (RPC or intent topic); the response is treated as an ACK, and continuation is driven by facts/receipts.
 
+### 4b) Process progress facts (Kanban-ready baseline)
+
+Temporal-backed Processes MUST be shaped so a Kanban/timeline can be derived without workflow-specific UI logic.
+
+Rules:
+
+- **Phase-first by default:** progress facts are coarse-grained (phase/gate/awaiting/blocked/terminal). Step-level facts are opt-in for long-lived or human-visible steps (avoid “step spam” and unbounded histories).
+- **Temporal identity alignment:** when Process is Temporal-backed, progress facts carry:
+  - `process_instance_id` (Temporal WorkflowID),
+  - `process_run_id` (Temporal RunID),
+  - `run_epoch` and `seq` for stable ordering across `Continue-As-New`.
+- **BPMN-ready step identity:** when emitting step-level facts from BPMN-transpiled processes, facts MUST include both `step_id` (definition identity) and `step_instance_id` (runtime occurrence identity).
+- **Idempotent emission:** progress facts are emitted via idempotent Activities/ports (at-least-once Activities are the default reality).
+- **Ops visibility baseline:** Processes SHOULD set a minimal, non-PII set of Temporal Search Attributes for listing/filtering (definition id, phase key, tenant, primary business key, execution status). Search Attributes are for ops/debug; product UI reads from projections/query services.
+
 **CloudEvents compatibility**
 
 CloudEvents is an optional **transport binding** for interoperability at system boundaries. It is not a second canonical semantic model: canonical semantics remain Ameide’s proto-defined envelopes + topic families (per `backlog/496-eda-principles.md`).
@@ -457,6 +477,7 @@ Hard constraints (required):
 - Workflow code must be deterministic (use Temporal workflow APIs for time/concurrency; do not use client APIs inside workflow code).
 - Signal-With-Start must set `WorkflowIDReusePolicy` explicitly (do not rely on SDK defaults).
 - Activities are at-least-once in practice (retries/crashes are normal); Activities and any Domain/Process commands they invoke MUST be idempotent via explicit idempotency keys.
+- For BPMN “user tasks” / human approvals, Processes SHOULD prefer Temporal **Updates** with an explicit `UpdateId` as the idempotency key; if Signals are used, workflows MUST dedupe by `message_id` (including across `Continue-As-New`).
 - If a Process ingests external facts via signals (Kafka → ingress → `SignalWithStart`), workflows MUST dedupe signals and plan `Continue-As-New` for long-lived “entity workflow” histories.
 - Do not assume legacy/experimental Temporal Worker Versioning behavior (vendor docs warn pre-2025 experimental support is removed from Temporal Server March 2026); treat it as a fixed migration deadline.
 

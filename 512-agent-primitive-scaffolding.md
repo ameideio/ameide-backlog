@@ -27,6 +27,8 @@ MCP posture (for Agent scaffolds):
 - Do not scaffold MCP servers inside Agent primitives. MCP is a capability-owned Application Interface implemented as an **Integration primitive** (protocol adapter).
 - Agent primitives should prefer **Ameide SDK clients** (typed, stable) for internal calls; MCP exists as a compatibility layer for external ecosystems and developer tooling.
 - If an agent must run outside the cluster (or be exercised from external tooling), prefer consuming the capability’s MCP adapter rather than embedding bespoke HTTP/JSON clients.
+- Agents observe business state and process progress via **Projection query services** (SDK clients), not by polling Temporal visibility/Search Attributes for product UI behavior.
+- When an agent needs to advance a long-running process (e.g., a BPMN “user task” approval), it calls the Process write surface (e.g., a Temporal Update/Signal API exposed via the Process primitive) using an explicit idempotency key; agents never publish facts directly.
 
 ---
 

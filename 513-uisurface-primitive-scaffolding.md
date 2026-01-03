@@ -14,6 +14,11 @@
 - **Primitive responsibilities (this backlog, SDK_USAGE):** The UISurface scaffold owns the **application layer**: HTTP server/Connect endpoints, route handlers, and SDK-based calls into Domain/Process/Agent primitives. It lives inside the image referenced by the UISurface CRD and encapsulates UI behavior and composition, independent of operator internals.  
 - **Boundary:** Operators are the **control plane for hosting and routing**; UISurface primitives are the **frontend applications** that use SDKs to talk to backends. 513’s scaffold shape is designed so the operator only needs an image and a few config fields (host/path/auth), while the primitive remains fully in charge of UX and SDK wiring, consistent with `495-ameide-operators.md`, `497-operator-implementation-patterns.md`, and `501-uisurface-operator.md`.
 
+UISurface progress views (Kanban/timelines):
+
+- UISurfaces MUST render “business progress” (e.g., Kanban boards, timelines) from **Projection/query APIs** built from domain facts and process progress facts, not from infra internals (Temporal visibility, KEDA/Job status, broker offsets).
+- Temporal visibility/Search Attributes may be linked as an engineering debug surface, but are not a product UI data source.
+
 ---
 
 ## Scope exclusion – client applications
