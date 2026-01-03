@@ -7,6 +7,7 @@ It is intentionally aligned with:
 - `backlog/520-primitives-stack-v2.md` (Primitives Stack v2 constitution)
 - `backlog/520-primitives-stack-v2-projection.md` (Projection primitive contract)
 - `backlog/511-process-primitive-scaffolding.md` (Temporal-backed Process primitive contract)
+- `backlog/616-kanban-principles.md` (Kanban principles; projection-first UX)
 - `backlog/509-proto-naming-conventions.md` (topic families + process progress fact conventions)
 - `backlog/496-eda-principles.md` (facts are not requests; outbox discipline)
 - `backlog/513-uisurface-primitive-scaffolding.md` (UISurface reads from projections; no infra coupling)

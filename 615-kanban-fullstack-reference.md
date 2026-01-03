@@ -9,6 +9,7 @@ This document is intentionally capability-agnostic, but uses **Transformation** 
 ## Cross‑references (normative)
 
 - `backlog/614-kanban-projection-architecture.md` (Kanban architecture contract)
+- `backlog/616-kanban-principles.md` (Kanban principles; projection-first UX)
 - `backlog/520-primitives-stack-v2.md` (platform constitution)
 - `backlog/520-primitives-stack-v2-projection.md` (Projection contract)
 - `backlog/511-process-primitive-scaffolding.md` (Process + Temporal contracts)
