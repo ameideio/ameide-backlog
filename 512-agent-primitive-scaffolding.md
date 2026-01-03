@@ -1,10 +1,9 @@
 # 512 – Agent Primitive Scaffolding (Python, opinionated)
 
-> **Status update (520/521/522):** This backlog specifies the Agent scaffold produced by the Ameide CLI (`ameide primitive scaffold`). The consolidated approach is a split: the CLI orchestrates scaffolding + external wiring (repo layout, GitOps), and `buf generate` + plugins handle internal deterministic generation (SDKs, generated-only glue). See `backlog/520-primitives-stack-v2.md`, `backlog/521c-internal-generation-improvements.md`, and `backlog/521d-external-generation-improvements.md`.
+This backlog defines the **canonical target scaffold** for **Agent** primitives.
 
-**Status:** Active reference (aligned with 520/521/522)  
-**Audience:** AI agents, Python developers, CLI implementers  
-**Scope:** Exact scaffold shape and patterns for **Agent** primitives. One opinionated Python pattern, aligned with `514-primitive-sdk-isolation.md` (SDK-only, self-contained primitives). No additional Agent-specific CLI parameters beyond the canonical `ameide primitive scaffold` flags.
+- **Audience:** AI agents, Python developers, CLI implementers
+- **Scope:** One opinionated Python pattern (FastAPI + LangGraph), aligned with `backlog/520-primitives-stack-v2.md` and `514-primitive-sdk-isolation.md` (SDK-only, self-contained primitives). The CLI orchestrates repo/GitOps wiring; `buf generate` + plugins handle deterministic generation (SDKs, generated-only glue).
 
 ---
 
@@ -154,69 +153,3 @@ Implementers (humans or coding agents) are expected to:
 - Linting / packaging checks for `pyproject.toml`.
 
 Behavioral details (delegation, workflows, prompts, and tool semantics) remain in vertical slices such as `504-agent-vertical-slice.md` / `505-agent-developer-v2*.md`. This backlog only constrains the **scaffold shape** for Agent primitives.
-
----
-
-## 6. Implementation progress (CLI & scaffold)
-
-This section describes the current implementation status of 512 in the CLI (`packages/ameide_core_cli`) and repo scaffolds. It is descriptive; the rest of 512 remains the target spec.
-
-### 6.1 Scaffolder behavior for Agent primitives
-
-**Status:** Largely implemented and template-driven, aligned with the Python/LangGraph/FastAPI shape described in 512.
-
-- `ameide primitive scaffold --kind agent`:
-  - Uses a dedicated `scaffoldAgentPrimitive` path in `primitive_scaffold.go`.
-  - Creates `primitives/agent/<name>` with:
-    - `README.md` (from templates),
-    - `catalog-info.yaml`,
-    - `pyproject.toml`,
-    - `Dockerfile.dev` and `Dockerfile.release`,
-    - `src/__init__.py`, `src/main.py`, `src/agent.py`,
-    - `src/tools/__init__.py`,
-    - `src/prompts/default.md`,
-    - `tests/test_agent.py`.
-  - Adds GitOps manifests under `gitops/primitives/agent/<name>` when `--include-gitops` is set.
-  - Enforces the canonical language choice from 514:
-    - `runScaffold` rejects `--lang` values other than `py`/`python` for Agent scaffolds, so Agents are always Python projects.
-
-- Templates vs inline strings:
-  - Agent scaffolds are driven by `templates/agent/*.tmpl` via `templates_agent.go`:
-    - README, pyproject, package init, tools init, prompt content, and parts of the Dockerfiles come from templates.
-  - This satisfies 512’s requirement that Agent scaffold instructions live in templates, not inline CLI strings.
-  - `templates_agent_test.go` includes `TestAgentReadmeTemplateHasNoBacklogIds`, which renders the Agent README template and fails if any `NNN-*.md` backlog references appear, keeping scaffolded docs self-contained.
-
-### 6.2 Runtime and SDK expectations
-
-**Status:** Partially aligned with 514; SDK-only and “no CLI at runtime” are documented but not fully enforced.
-
-- Scaffolded runtime (`src/main.py`, `src/agent.py`):
-  - Exposes FastAPI `/healthz` and `/invoke` endpoints.
-  - Defines an `AgentPrimitive` class stub with TODOs for behavior, tools, and prompts.
-  - Does not embed `ameide` CLI calls into request handling — consistent with 514’s CLI-out-of-band rule.
-- SDK usage:
-  - The current scaffold hints at SDK usage conceptually, but:
-    - It does **not** yet wire concrete Ameide SDK Python clients by default.
-    - There is no Agent-specific import policy in `primitive verify` that enforces “no direct core-proto imports” for Python.
-
-### 6.3 Verify behavior for Agent primitives
-
-**Status:** Basic shape checks only; no 512-specific semantics yet.
-
-- `primitive verify --kind agent --name <name>`:
-  - Inherits generic checks:
-    - Naming, security/SAST/secret scan, tests, shared `Imports` policy, and optional GitOps checks.
-  - Does **not** currently:
-    - Confirm presence of specific AgentPrimitive methods/tools beyond the scaffold files existing.
-    - Enforce a full SDK wiring pattern (it only guards against obvious proto/core-proto and cross-primitive imports in Python runtime code).
-    - Validate AgentDefinition wiring or risk-tier metadata; these remain in the 504/505 vertical slices and Backstage metadata.
-
-### 6.4 Known gaps and next steps
-
-- Scaffold:
-  - Provide clearer SDK wiring in `src/agent.py` or `src/tools/__init__.py` (e.g., example Ameide SDK client usage).
-  - Ensure README template references SDK usage and AgentDefinition wiring rather than CLI guardrail loops.
-- Verify:
-  - Introduce a Python import check similar to Domain’s Go import policy:
-    - Fail when runtime Agent code imports `packages/ameide_core_proto` or other proto modules directly.
-    - Optionally warn on imports of non-whitelisted workspace packages from primitives.

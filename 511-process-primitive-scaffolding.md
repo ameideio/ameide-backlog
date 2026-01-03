@@ -1,10 +1,9 @@
 # 511 – Process Primitive Scaffolding (Go, opinionated)
 
-> **Status update (520/521):** This backlog specifies the Process scaffold produced by the Ameide CLI (`ameide primitive scaffold`). The consolidated approach is a split: the CLI orchestrates scaffolding + external wiring (repo layout, GitOps), and `buf generate` + plugins handle internal deterministic generation (SDKs, generated-only glue). See `backlog/520-primitives-stack-v2.md` and `backlog/521c-internal-generation-improvements.md`.
+This backlog defines the **canonical target scaffold** for **Process** primitives.
 
-**Status:** Active reference (aligned with 520/521)  
-**Audience:** AI agents, Go developers, CLI implementers  
-**Scope:** Exact scaffold shape and patterns for **Process** primitives. One opinionated Temporal/EDA pattern, aligned with `514-primitive-sdk-isolation.md` (SDK-only, self-contained primitives), no new Process-specific CLI parameters beyond the canonical `ameide primitive scaffold` flags.
+- **Audience:** AI agents, Go developers, CLI implementers
+- **Scope:** One opinionated Temporal/EDA pattern, aligned with `backlog/520-primitives-stack-v2.md`, `backlog/496-eda-principles.md`, and `514-primitive-sdk-isolation.md` (SDK-only). The CLI orchestrates repo/GitOps wiring; `buf generate` + plugins handle deterministic generation (SDKs, generated-only glue).
 
 ---
 
@@ -58,52 +57,7 @@ This assumes:
 
 ## 2. Generated structure (Process / Go)
 
-This backlog mixes two perspectives:
-
-- **What the CLI scaffolds today** (use this as the authoritative reference for current capability teams).
-- **Target shape (planned)** (the intended end-state scaffold once more wiring and examples are standardized).
-
-### 2.1 What the CLI scaffolds today (current users; implemented)
-
-The current CLI scaffold creates a minimal Process primitive shape (worker + ingress + workflow stub + router + state + RED workflow test). It does **not** yet scaffold a dedicated `internal/activities/**` directory.
-
-```text
-primitives/process/<name>/
-├── README.md
-├── catalog-info.yaml
-├── go.mod
-├── Dockerfile
-├── cmd/
-│   ├── worker/
-│   │   └── main.go                      # Registers workflows (Activities stubs are not scaffolded yet)
-│   └── ingress/
-│       └── main.go                      # Bus -> Temporal SignalWithStart (TODO wiring)
-└── internal/
-    ├── workflows/
-    │   └── workflow.go                  # ExampleWorkflow stub (current scaffold filename)
-    ├── ingress/
-    │   └── router.go
-    ├── process/
-    │   └── state.go
-    └── tests/
-        └── process_workflow_test.go     # RED test (Temporal test harness)
-
-primitives/process/<name>/tests/
-└── run_integration_tests.sh             # When --include-test-harness is set
-```
-
-GitOps with `--include-gitops`:
-
-```text
-gitops/primitives/process/<name>/
-├── values.yaml
-├── component.yaml
-└── kustomization.yaml
-```
-
-### 2.2 Target shape (planned)
-
-The target scaffold shape makes Activities a first-class, explicit surface and prefers per-workflow files over a single `workflow.go`:
+The Process scaffold shape makes Activities a first-class, explicit surface and prefers per-workflow files over a single `workflow.go`.
 
 ```text
 primitives/process/<name>/
@@ -213,9 +167,9 @@ Topic and event naming follow `509-proto-naming-conventions.md` and the relevant
 
 ## 4. Workflow and test semantics (Process / Go)
 
-Scaffolded workflows (target shape and current scaffold):
+Scaffolded workflows:
 
-- Live under `internal/workflows/workflow.go` in the current scaffold (per-process files like `<name>_workflow.go` remain the long-term goal).  
+- Live under `internal/workflows/**` (one file per workflow).  
 - Provide a function signature like:
 
 ```go
@@ -230,9 +184,9 @@ with placeholder state and TODOs for:
 - emitting process facts via idempotent Activities/ports,  
 - optionally performing **Continue‑As‑New** after configurable thresholds.
 
-Scaffolded tests (target shape):
+Scaffolded tests:
 
-- Live under `internal/tests/process_workflow_test.go` in the current scaffold (per-workflow test files are the long-term goal).  
+- Live under `internal/tests/**` (one file per workflow).  
 - Are RED by default:
   - invoke workflows through the Temporal test harness,
   - assert TODO behavior,
@@ -252,86 +206,13 @@ Implementers (humans or coding agents) are expected to:
 
 ## 5. Verification expectations
 
-`ameide primitive verify --kind process --name <name>` is expected to check (current users):
+`ameide primitive verify --kind process --name <name>` is expected to check:
 
 - Presence of `cmd/worker/main.go` and `cmd/ingress/main.go`.  
-- Temporal worker registration of workflows under `internal/workflows/**` (and Activities under `internal/activities/**` once the target shape is implemented).  
+- Temporal worker registration of workflows/activities under `internal/workflows/**` and `internal/activities/**`.  
 - Ingress router using deterministic workflow IDs and `SignalWithStart`.  
 - Idempotency state present in workflow code (`lastSeenAggregateVersion`, flags).  
 - Process facts published via a port or activity (not directly from workflows), consistent with EDA rules in `496-eda-principles.md`.
 - Work execution posture is explicit in scaffold docs and stubs: deterministic steps run inline as Activities when feasible; delegated steps are requested via domain intents (execution intents on queues) and advanced by awaiting correlated facts/receipts.
 
 Vertical slices like `506-scrum-vertical-v2.md` remain authoritative for **which workflows and facts** exist; this backlog only constrains the **scaffold shape and Temporal/EDA pattern** for Process primitives.
-
----
-
-## 6. Implementation progress (CLI & scaffold)
-
-This section describes the current implementation status of 511 in the CLI (`packages/ameide_core_cli`) and repo scaffolds. It is descriptive; the rest of 511 remains the target spec.
-
-### 6.1 Scaffolder behavior for Process primitives
-
-**Status:** Implemented as a Process-specific Go scaffold shape (worker + ingress + workflows), SDK/shape-based and proto-path free.
-
-- `ameide primitive scaffold --kind process`:
-  - Uses a dedicated Process shape in the shared Go scaffold path (`primitive_scaffold.go`):
-    - Creates `primitives/process/<name>/go.mod` with `go.temporal.io/sdk` and `github.com/ameideio/ameide-sdk-go` dependencies, a worker-focused `Dockerfile`, and `catalog-info.yaml`.
-    - Generates `cmd/worker/main.go` – a worker entrypoint that:
-      - reads `PROCESS_NAME`, `TEMPORAL_NAMESPACE`, `TEMPORAL_TASK_QUEUE`, and `TEMPORAL_ADDRESS`,
-      - creates a Temporal client (`go.temporal.io/sdk/client`),
-      - creates a worker (`go.temporal.io/sdk/worker`) for the configured task queue,
-      - registers `workflows.ExampleWorkflow`, and
-      - calls `worker.Run(worker.InterruptCh())`.
-    - Generates `cmd/ingress/main.go` – an ingress entrypoint that:
-      - reads `PROCESS_NAME`, `PROCESS_INGRESS_SOURCE`, `TEMPORAL_NAMESPACE`, `TEMPORAL_TASK_QUEUE`, and `TEMPORAL_ADDRESS`,
-      - creates a Temporal client,
-      - logs the configured source/namespace/task queue/address, and
-      - includes TODO comments to subscribe to domain facts and call `SignalWithStartWorkflow` with deterministic workflow IDs.
-    - Generates `internal/workflows/workflow.go` – an `ExampleWorkflow` stub that:
-      - uses `workflow.Context` from `go.temporal.io/sdk/workflow`,
-      - depends on `internal/process.State`,
-      - includes TODO comments for timers, signals, idempotency, and Continue-As-New.
-    - Generates `internal/ingress/router.go` – a `Router` stub with `HandleFact` placeholder.
-    - Generates `internal/process/state.go` – a `State` struct with `LastSeenAggregateVersion` and TODOs for derived state/idempotency flags.
-    - Generates a RED test `internal/tests/process_workflow_test.go` that references the workflow stub and reminds implementers to replace it with real assertions.
-    - Adds a shared integration test harness when `--include-test-harness` is set.
-  - Enforces Go as the canonical language:
-    - `runScaffold` rejects `--lang` values other than `go` for Process scaffolds and defaults `--lang` to `go` when omitted, matching 514’s P4 rule for Process primitives.
-
-- Templates vs inline strings:
-  - Process-specific templates under `templates/process/**` now exist and are wired via `templates_process.go`:
-    - README: `templates/process/readme.md.tmpl`.
-    - Worker main: `templates/process/cmd/worker_main.go.tmpl`.
-    - Ingress main: `templates/process/cmd/ingress_main.go.tmpl`.
-    - Workflow stub: `templates/process/internal/workflows/workflow.go.tmpl`.
-    - Ingress router stub: `templates/process/internal/ingress/router.go.tmpl`.
-    - State struct: `templates/process/internal/process/state.go.tmpl`.
-  - `buildReadmeContent` renders Process/Go READMEs from the template instead of inline strings, and `templates_process_test.go` includes `TestProcessReadmeTemplateHasNoBacklogIds` to ensure the template stays free of backlog ID references.
-
-### 6.2 Verify behavior for Process primitives
-
-**Status:** Generic checks plus a Process-specific shape check.
-
-- `primitive verify --kind process --name <name>`:
-  - Runs generic repo checks:
-    - Naming (`checkNamingConventions`),
-    - Security/SAST/secret scan,
-    - Dependency vulnerabilities (for Go modules),
-    - Tests (`go test` under the primitive),
-    - Optional Buf / GitOps checks when configured.
-  - Adds a Process-specific scaffold check:
-    - `checkProcessShape(kind, serviceDir)` ensures the following files exist:
-      - `cmd/worker/main.go`
-      - `cmd/ingress/main.go`
-      - `internal/workflows/workflow.go`
-      - `internal/ingress/router.go`
-      - `internal/process/state.go`
-    - Fails when any of these are missing with a `ProcessShape` issue.
-
-### 6.3 Known gaps and next steps
-
-- Scaffold:
-  - Add `internal/activities/**` stubs to the scaffold shape and register Activities in `cmd/worker/main.go` (Activities are the side-effect boundary).
-  - Enrich `internal/workflows`, `internal/activities`, and `internal/ingress` with stronger examples (signal handlers, Update vs Signal patterns for approvals, Continue-As-New patterns, and phase-first progress emission).
-- Verify:
-  - Extend Process-specific checks to understand Temporal configuration and idempotency/fact emission conventions (currently out of scope for `checkProcessShape`).
