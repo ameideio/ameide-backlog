@@ -14,6 +14,7 @@ This backlog defines the **UISurface experience** for Transformation (R2R) as a 
 - `backlog/614-kanban-projection-architecture.md` (Kanban as a projection)
 - `backlog/615-kanban-fullstack-reference.md` (Kanban full‑stack reference)
 - `backlog/616-kanban-principles.md` (Kanban principles; interaction streams are out‑of‑band)
+- `backlog/618-kanban-proto-contracts.md` (proto-first Kanban query + updates stream contracts)
 - `backlog/496-eda-principles.md` (facts vs intents; outbox; idempotency)
 - `backlog/509-proto-naming-conventions.md` (process progress facts identity + minimal vocabulary)
 - `backlog/300-400/303-elements.md` (elements-only canonical storage; repository-first scoping)
@@ -32,7 +33,7 @@ This backlog defines the **UISurface experience** for Transformation (R2R) as a 
 
 - **Repository**: the architecture context for work.
 - **Initiative**: a change initiative governed in a repository context (future: Scrum/TOGAF profiles).
-- **Board**: projection-backed view, scoped by `{tenant, org, repo, initiative?}` and `board_kind`.
+- **Board**: a Temporal Process board rendered via the platform Kanban contract; scoped by `{tenant, org, repo, initiative?}` and `board_kind`.
 - **Card**: a stable unit of work (default in process-driven boards: `card_id = process_instance_id`).
 - **Activity**: a user-visible unit of work inside a process instance (triage, coding, verify, release).
 - **Evidence**: links to artifacts/logs/PRs produced by activities (projection-rendered; not embedded streaming).
@@ -61,9 +62,9 @@ Recommended routes:
 - Repository workspace (elements browser): `/org/:orgId/repo/:repoId`
   - primary canvas is an element list browser (documents, views, artifacts) per `backlog/300-400/303-elements.md`
   - canonical editors open artifacts as elements (see “Artifact editor” below)
-- Initiatives index board (all initiatives): `/org/:orgId/transformation/initiatives`
-  - Kanban listing initiatives (board_kind = “initiatives index”)
-  - initiatives are bound to repositories; cards link into the repository context
+- Initiatives index (all initiatives): `/org/:orgId/transformation/initiatives`
+  - list/table view (not Kanban unless backed by a Temporal ProcessDefinition per `backlog/616-kanban-principles.md`)
+  - initiatives are bound to repositories; items link into the repository context
 - Initiative workspace (one initiative, in repo context): `/org/:orgId/repo/:repoId/governance/initiative/:initiativeId`
   - workspace board (board_kind=initiative) + related artifacts browser (elements/relationships/workspace assignments)
   - supports navigation into nested sub-initiative boards
@@ -304,10 +305,10 @@ Purpose: show the release gate and promotion evidence (build/publish + GitOps pr
 
 ### Pattern A: Kanban live updates
 
-1. UI subscribes to Projection Updates stream for `{board_id, board_seq}`.
+1. UI subscribes via `KanbanUpdatesService.WatchKanbanUpdates(scope, after_seq)` and receives cursor-only updates `{board_ref, board_seq}` (at-least-once).
 2. On cursor advance:
-   - preferred: `GetKanbanDeltas(board_id, since_seq)`,
-   - fallback: `GetKanbanBoard(board_id)`.
+   - preferred: `GetKanbanDeltas(scope, since_seq)`,
+   - fallback: `GetKanbanBoard(scope)`.
 3. UI never tries to interpret infra retries; it reflects projection truth.
 
 ### Pattern B: “in progress” badges

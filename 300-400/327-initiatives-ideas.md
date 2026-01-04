@@ -1,5 +1,7 @@
 Below is a **method‑aware UI/UX structure** that plugs cleanly into the shell you already drafted, while giving Agile/Scrum and TOGAF/ADM their own native “mental models.” I’m building on your current layout, routing, and threads patterns so you can implement this without re‑architecting the app chrome. 
 
+> Note: This backlog predates the platform Kanban contract. For current Kanban semantics (Temporal-backed Process boards only), see `backlog/616-kanban-principles.md`, `backlog/618-kanban-proto-contracts.md`, and `backlog/620-kanban-fullstack-implementation-plan.md`.
+
 ---
 
 ## 0) Guiding principles (fits your app shell)

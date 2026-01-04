@@ -11,6 +11,7 @@ It is intentionally aligned with:
 - `backlog/509-proto-naming-conventions.md` (topic families + process progress fact conventions)
 - `backlog/496-eda-principles.md` (facts are not requests; outbox discipline)
 - `backlog/513-uisurface-primitive-scaffolding.md` (UISurface reads from projections; no infra coupling)
+- `backlog/618-kanban-proto-contracts.md` (proto-first Kanban query + updates stream contracts)
 
 ## Decision (recommended; single option)
 
@@ -21,6 +22,28 @@ It is intentionally aligned with:
 - Live Kanban updates are delivered via a **Projection Updates** stream (SSE/WebSocket or server-streaming RPC) that notifies the UI of a monotonic update cursor.
 
 Temporal’s visibility/search APIs remain valuable for **ops/debug** and optional reconciliation tooling, but they are **not** the product Kanban source of truth.
+
+## Scope (platform-wide; process-definition-centric)
+
+Kanban is a platform-standard way to view progress for **Temporal-orchestrated Processes**.
+
+- Temporal is the only Process backend for boards described as Kanban.
+- Boards are **process-definition-centric**: a board represents a Process definition (e.g., “Sales Funnel v1”, “R2R Governance v1”) across many process instances.
+- Cards represent **process instances** (WorkflowID) moving through the Process definition’s phases.
+- Methodologies (Scrum/TOGAF/BPMN, etc.) define their own `phase_key` values; the Kanban contract standardizes the *mechanism*, not the phase taxonomy.
+
+### Examples (multiple domains)
+
+The Kanban contract is intentionally capability-agnostic. Examples of `process_definition_id` and typical phase keys:
+
+- **Sales**: `process_definition_id="sales.funnel.v1"`
+  - Example `phase_key`: `prospecting`, `qualification`, `proposal`, `negotiation`, `closed_won`, `closed_lost`
+- **Transformation**: `process_definition_id="transformation.r2r.v1"`
+  - Example `phase_key`: `triage`, `design`, `build`, `verify`, `release`
+- **SRE**: `process_definition_id="sre.incident.v1"`
+  - Example `phase_key`: `triage`, `mitigate`, `monitor`, `resolved`, `postmortem`
+
+These values are owned by each Process definition; the platform only requires they be stable keys that can be mapped to `column_key`.
 
 ## Why (avoid coupling Kanban to Temporal visibility)
 
@@ -36,7 +59,7 @@ The Ameide platform requires projections to be **rebuildable, convergent, and co
 
 ### 1) What a “card” is
 
-A **card** represents a stable business unit of work. In process-driven boards, the default is:
+A **card** represents a process instance moving through a Process definition:
 
 - `card_id = process_instance_id` (Temporal WorkflowID; stable for the workflow chain)
 
@@ -44,22 +67,24 @@ For drill-in, the card may also expose:
 
 - `process_run_id` (Temporal RunID; changes on Continue-As-New)
 
-**Workflow IDs used as card IDs MUST NOT be reused for new instances.** If a capability cannot enforce non-reuse, use a domain-owned stable entity ID as `card_id` instead.
+**Workflow IDs used as card IDs MUST NOT be reused for new instances.**
 
 ### 1a) Board identity and membership (required)
 
 Kanban is a projection-backed list view. The projection MUST define a stable board identity and a deterministic membership rule.
 
-- `board_id` MUST be a deterministic function of board scope (recommended default: `{tenant_id, organization_id, repository_id, board_kind}`).
+- `board_id` MUST be a deterministic function of board scope, and MUST include:
+  - `board_kind` (stable discriminator for the scope model), and
+  - `process_definition_id` (the Process definition being visualized).
 - Cards MUST be stored and queried by `(board_id, card_id)` (card membership is derived; no UI-owned “board membership” state).
-- A capability MAY support multiple boards per scope (e.g., multiple `board_kind` values), but board IDs MUST remain stable over time.
+- A capability MAY support multiple boards per scope, but board IDs MUST remain stable over time.
 
-Recommended `board_kind` values (capability-agnostic):
+Recommended board scopes (capability-agnostic):
 
-- `board_kind=repository`: repo-scoped roll-up board for an architecture context.
-- `board_kind=initiative`: initiative workspace board for a change initiative bound to a repository.
-  - Initiative boards MUST still be repository-scoped (initiative identity is not meaningful without its repository context).
-  - For initiative boards, scope MUST include `initiative_id` in addition to `{tenant_id, organization_id, repository_id}` so `board_id` remains unique and stable.
+- **Repository process board:** `{tenant_id, organization_id, repository_id, board_kind=repository, process_definition_id}`
+- **Initiative process board:** `{tenant_id, organization_id, repository_id, initiative_id, board_kind=initiative, process_definition_id}`
+
+Repository/initiative dashboards MAY link to multiple process boards, but each Kanban board MUST correspond to exactly one `process_definition_id`.
 
 ### 2) Columns are derived (never imperative UI state)
 
@@ -71,14 +96,25 @@ Columns are derived by projection rules from facts, using a configurable mapping
 
 The mapping must be versioned/configurable so each methodology/process can define its own phases while still producing a generic Kanban surface.
 
+**Examples:**
+
+- Sales funnel board maps `phase_key` values (e.g., `proposal`) to stable `column_key` values (e.g., `in_progress` or `proposal` depending on board design).
+- SRE incident board maps `phase_key=mitigate` to `column_key=mitigating`.
+- Transformation R2R board maps `phase_key=verify` to `column_key=verification`.
+
 ### 3) Ordering (separate “correctness cursor” vs optional user ranking)
 
 Kanban needs two different “sequence” concepts:
 
-- **Correctness cursor** (required): monotonic `board_seq` (or per-card `seq`) used for idempotent incremental updates and cache safety.
+- **Correctness cursor** (required): monotonic `board_seq` and per-card `seq` used for idempotent incremental updates and cache safety.
 - **User ranking** (optional): `rank` key for drag/drop ordering (e.g., LexoRank-style). Do not overload `seq` for ranking.
 
 If ranking is not needed, the board may sort by `updated_at` / domain priority / SLA.
+
+**Board cursor semantics (required):**
+
+- `board_seq` MUST be derived from the projection’s durable commit cursor/sequence, not timestamps and not “diff heuristics”.
+- `board_seq` MUST advance only on effectful commits (not on inbox dedupe/no-op reprocessing).
 
 ### 4) Minimal view model
 
@@ -88,7 +124,7 @@ Each card returned by the projection MUST include:
 - `column_key`
 - `title` (or `summary`)
 - `updated_at` (display only)
-- `seq` (monotonic per-card change cursor) or `board_seq` (board-level cursor)
+- `seq` (monotonic per-card change cursor)
 
 Recommended:
 
@@ -132,6 +168,10 @@ Processes emit **process progress facts** at phase/milestone transitions (phase-
 The canonical minimal progress vocabulary and identity rules live in `backlog/509-proto-naming-conventions.md`.
 
 ## Projection implementation requirements
+
+### Query scalability (required)
+
+Kanban boards can become large. Projection query APIs MUST support pagination for board reads and delta reads (see `backlog/618-kanban-proto-contracts.md`).
 
 ### Deterministic apply order across fact sources (required)
 
@@ -207,7 +247,7 @@ The Kanban surface remains a projection-backed list view; it does not attempt to
 
 ## Implementation checklist (for capability teams)
 
-- Define `board_id` scope (tenant/org/repo/capability) and `card_id` identity.
+- Define board scope (`KanbanBoardScope`, including `board_kind` and `process_definition_id`) and `card_id` identity (`card_id=process_instance_id`).
 - Define a mapping config from `(process_definition_id, phase_key, ...)` to `column_key` (versioned).
 - Ensure Process workflows emit phase-first progress facts via Activities (idempotent).
 - Ensure Domain emits required domain facts via outbox (idempotent consumers).
@@ -215,7 +255,7 @@ The Kanban surface remains a projection-backed list view; it does not attempt to
   - inbox dedupe on `message_id`
   - deterministic mapping + upsert
   - `GetKanbanBoard` query API
-  - `WatchBoardUpdates` (or equivalent) update stream emitting `board_seq`
+  - `KanbanUpdatesService.WatchKanbanUpdates` (or equivalent) update stream emitting `board_seq`
 - UISurface:
   - reads from Projection only
   - subscribes to Projection Updates stream
