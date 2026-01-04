@@ -94,10 +94,12 @@ Kanban is a **canvas/page type** and a **reusable component**:
 
 This matches `backlog/520-primitives-stack-v2.md` “Shell + Canvases + Widgets” and `backlog/513-uisurface-primitive-scaffolding.md` scaffold conventions.
 
-Recommended board scopes (single model; different `board_kind`):
+Recommended board scopes (process-definition-centric):
 
-- Repository roll-up board: `board_kind=repository` scoped by `{tenant_id, organization_id, repository_id}`.
-- Initiative workspace board (recommended for change initiatives): `board_kind=initiative` scoped by `{tenant_id, organization_id, repository_id, initiative_id}`.
+Kanban boards are **process-definition-centric** (a board is one `process_definition_id` across many process instances). Recommended scopes:
+
+- **Repository process board:** `{tenant_id, organization_id, repository_id, process_definition_id}`
+- **Initiative process board (change initiative workspace):** `{tenant_id, organization_id, repository_id, initiative_id, process_definition_id}`
 
 ## Recommended transport choice (single option)
 

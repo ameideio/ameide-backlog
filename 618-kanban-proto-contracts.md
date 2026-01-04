@@ -38,52 +38,46 @@ It does **not** define:
 
 ## Where these protos live (recommended)
 
-To avoid inventing per-capability Kanban message schemas, Kanban messages SHOULD live in a shared module:
+Kanban is a **platform-standard** projection surface. To avoid inventing per-capability Kanban message schemas, Kanban messages SHOULD live in the platform module:
 
-- `packages/ameide_core_proto/src/ameide_core_proto/common/v1/kanban.proto`
+- `packages/ameide_core_proto/src/ameide_core_proto/platform/kanban/v1/kanban.proto`
 
-Projection query/update services MAY live either:
-
-- in the same shared module (for a generic “Kanban Projection API”), **or**
-- in capability-specific projection query services that reuse the shared message types.
-
-The platform SHOULD prefer **shared message types** + **capability-specific services**, so each capability can scope boards and authorize reads without creating a single global “Kanban service” bottleneck.
+The platform SHOULD provide a single Kanban Projection API (query + updates stream) that is implemented by Projection primitives and consumed by UISurfaces via generated SDKs.
 
 ## Identity (canonical fields)
 
 These fields are required for rebuildable, methodology-agnostic boards:
 
-- `board_kind` (string; stable discriminator)
-- `board_scope` (explicit fields; never opaque JSON)
+- `process_definition_id` (stable identifier of the Process definition being visualized)
+- `board_scope` (explicit fields; never opaque JSON; MUST include `process_definition_id`)
 - `board_id` (deterministic function of scope; projection-owned)
 - `board_seq` (monotonic cursor derived from the projection’s durable commit cursor/sequence; not timestamps)
 - `card_id` (stable id; default for process-driven boards: `process_instance_id` / WorkflowID)
 
 **Workflow IDs used as `card_id` MUST NOT be reused** for new instances (see `backlog/614-kanban-projection-architecture.md`).
 
-## Proto contracts (target)
+## Proto contracts (normative)
 
-The following is the **target shape** for the shared Kanban protos.
+The following is the canonical shape for Kanban query + updates contracts.
 
-### 1) Shared messages: `ameide_core_proto.common.v1`
+### 1) Shared messages: `ameide_core_proto.platform.kanban.v1`
 
 ```proto
 syntax = "proto3";
 
-package ameide_core_proto.common.v1;
+package ameide_core_proto.platform.kanban.v1;
 
 import "ameide_core_proto/common/v1/pagination.proto";
 import "ameide_core_proto/common/v1/request_context.proto";
 
 message KanbanBoardScope {
-  // Stable discriminator selecting which board model to render for a given scope.
-  // Examples: "repository", "initiative", "capability".
-  string board_kind = 1;
-
   // Recommended default scope axes (see 614/616).
-  string tenant_id = 2;
-  string organization_id = 3;
-  string repository_id = 4;
+  string tenant_id = 1;
+  string organization_id = 2;
+  string repository_id = 3;
+
+  // The Process definition being visualized by this board.
+  string process_definition_id = 4;
 
   // Optional axis for initiative-scoped boards.
   string initiative_id = 5;
@@ -151,20 +145,19 @@ message KanbanBoardDelta {
 
 Notes:
 
-- `board_kind` is a **string** so new board kinds can be introduced without global enum churn.
 - `board_seq` MUST be derived from a durable projection commit cursor/sequence (see `backlog/615-kanban-fullstack-reference.md`).
-- `process_instance_id` and `process_run_id` are optional fields for process-driven boards; the board contract must not require Temporal coupling.
+- Boards are process-definition-centric; `process_definition_id` is part of board scope identity.
 
 ### 2) Query + deltas: “Kanban Projection Query” service
 
 ```proto
 syntax = "proto3";
 
-package ameide_core_proto.common.v1;
+package ameide_core_proto.platform.kanban.v1;
 
 import "ameide_core_proto/common/v1/request_context.proto";
 import "ameide_core_proto/common/v1/pagination.proto";
-import "ameide_core_proto/common/v1/kanban.proto";
+import "ameide_core_proto/platform/kanban/v1/kanban.proto";
 
 service KanbanQueryService {
   rpc GetKanbanBoard(GetKanbanBoardRequest) returns (GetKanbanBoardResponse);
@@ -196,10 +189,10 @@ message GetKanbanDeltasResponse {
 ```proto
 syntax = "proto3";
 
-package ameide_core_proto.common.v1;
+package ameide_core_proto.platform.kanban.v1;
 
 import "ameide_core_proto/common/v1/request_context.proto";
-import "ameide_core_proto/common/v1/kanban.proto";
+import "ameide_core_proto/platform/kanban/v1/kanban.proto";
 
 service KanbanUpdatesService {
   rpc WatchKanbanUpdates(WatchKanbanUpdatesRequest) returns (stream WatchKanbanUpdatesResponse);
@@ -253,4 +246,3 @@ Those belong to dedicated interactive surfaces (threads/agent runs) and dedicate
 - [ ] Query and updates services are defined in proto and consumed via generated SDKs.
 - [ ] The updates stream is cursor-only and idempotent-refetch compatible (`board_seq`).
 - [ ] Projections dedupe by `message_id` and converge under replay.
-

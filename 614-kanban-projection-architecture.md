@@ -23,6 +23,14 @@ It is intentionally aligned with:
 
 Temporal’s visibility/search APIs remain valuable for **ops/debug** and optional reconciliation tooling, but they are **not** the product Kanban source of truth.
 
+## Scope (platform-wide; process-definition-centric)
+
+Kanban is a platform-standard way to view progress for **Temporal-orchestrated Processes**.
+
+- Boards are **process-definition-centric**: a board represents a Process definition (e.g., “Sales Funnel v1”, “R2R Governance v1”) across many process instances.
+- Cards represent **process instances** (WorkflowID) moving through the Process definition’s phases.
+- Methodologies (Scrum/TOGAF/BPMN, etc.) define their own `phase_key` values; the Kanban contract standardizes the *mechanism*, not the phase taxonomy.
+
 ## Why (avoid coupling Kanban to Temporal visibility)
 
 Temporal visibility/search is designed for operational listing/filtering of workflow executions. It is not a durable, rebuildable product store:
@@ -37,7 +45,7 @@ The Ameide platform requires projections to be **rebuildable, convergent, and co
 
 ### 1) What a “card” is
 
-A **card** represents a stable business unit of work. In process-driven boards, the default is:
+A **card** represents a process instance moving through a Process definition:
 
 - `card_id = process_instance_id` (Temporal WorkflowID; stable for the workflow chain)
 
@@ -45,22 +53,22 @@ For drill-in, the card may also expose:
 
 - `process_run_id` (Temporal RunID; changes on Continue-As-New)
 
-**Workflow IDs used as card IDs MUST NOT be reused for new instances.** If a capability cannot enforce non-reuse, use a domain-owned stable entity ID as `card_id` instead.
+**Workflow IDs used as card IDs MUST NOT be reused for new instances.**
 
 ### 1a) Board identity and membership (required)
 
 Kanban is a projection-backed list view. The projection MUST define a stable board identity and a deterministic membership rule.
 
-- `board_id` MUST be a deterministic function of board scope (recommended default: `{tenant_id, organization_id, repository_id, board_kind}`).
+- `board_id` MUST be a deterministic function of board scope, and MUST include `process_definition_id`.
 - Cards MUST be stored and queried by `(board_id, card_id)` (card membership is derived; no UI-owned “board membership” state).
-- A capability MAY support multiple boards per scope (e.g., multiple `board_kind` values), but board IDs MUST remain stable over time.
+- A capability MAY support multiple boards per scope, but board IDs MUST remain stable over time.
 
-Recommended `board_kind` values (capability-agnostic):
+Recommended board scopes (capability-agnostic):
 
-- `board_kind=repository`: repo-scoped roll-up board for an architecture context.
-- `board_kind=initiative`: initiative workspace board for a change initiative bound to a repository.
-  - Initiative boards MUST still be repository-scoped (initiative identity is not meaningful without its repository context).
-  - For initiative boards, scope MUST include `initiative_id` in addition to `{tenant_id, organization_id, repository_id}` so `board_id` remains unique and stable.
+- **Repository process board:** `{tenant_id, organization_id, repository_id, process_definition_id}`
+- **Initiative process board:** `{tenant_id, organization_id, repository_id, initiative_id, process_definition_id}`
+
+Repository/initiative dashboards MAY link to multiple process boards, but each Kanban board MUST correspond to exactly one `process_definition_id`.
 
 ### 2) Columns are derived (never imperative UI state)
 

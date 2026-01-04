@@ -28,8 +28,7 @@ Kanban is **not** implemented by querying Temporal history/visibility as the sou
 
 - **Board**: a scoped Kanban view (columns + cards) served by a Projection query API.
 - **Card**: a stable unit of work derived from facts; displayed in one column at a time.
-- **`board_kind`**: a stable discriminator that selects *which* board model is being rendered for a given scope. It enables multiple boards over the same `{tenant, org, repo}` context without inventing new UI logic.
-  - Examples: `repository`, `initiative`, `capability`, `workflow_type`.
+- **`process_definition_id`**: the stable identifier of the Process definition being visualized on the board (e.g., “sales.funnel.v1”, “transformation.r2r.v1”).
 - **Projection Updates stream**: an at-least-once notification stream that carries a monotonic cursor (e.g., `board_seq`) so the UI can refetch safely.
 
 ## Principles (normative)
@@ -55,12 +54,12 @@ Kanban is **not** implemented by querying Temporal history/visibility as the sou
 ### Principle 4: Board identity and membership are deterministic
 
 - A Projection MUST define stable `board_id` and deterministic membership rules.
-- `board_id` MUST be a deterministic function of the board scope and `board_kind`.
+- `board_id` MUST be a deterministic function of the board scope and MUST include `process_definition_id`.
 
 Recommended default scopes:
 
-- **Repository roll-up board:** `{tenant_id, organization_id, repository_id, board_kind=repository}`
-- **Initiative workspace board:** `{tenant_id, organization_id, repository_id, initiative_id, board_kind=initiative}`
+- **Repository process board:** `{tenant_id, organization_id, repository_id, process_definition_id}`
+- **Initiative process board:** `{tenant_id, organization_id, repository_id, initiative_id, process_definition_id}`
 
 Initiatives are change initiatives and MUST be interpreted in a repository (architecture context). Kanban is a view of activities executed in that initiative+repository context.
 
