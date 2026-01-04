@@ -37,7 +37,7 @@ Sequence A is expressed as a **Kanban progression** (phase-first progress), alig
   - `process_instance_id` (Temporal Workflow Id),
   - `process_run_id` (Temporal Run Id),
   - stable ordering (`run_epoch`, `seq`) across `Continue-As-New`.
-- If/when BPMN -> Temporal transpilation is enabled, include `process_definition_id` in run start and progress facts.
+- Include `process_definition_id` in run start and progress facts (required for one Kanban contract everywhere; see `backlog/620-kanban-fullstack-implementation-plan.md` and `backlog/509-proto-naming-conventions.md`).
 
 ### Kanban columns (Transformation run board)
 

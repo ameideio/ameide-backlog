@@ -27,6 +27,7 @@ Temporal’s visibility/search APIs remain valuable for **ops/debug** and option
 
 Kanban is a platform-standard way to view progress for **Temporal-orchestrated Processes**.
 
+- Temporal is the only Process backend for boards described as Kanban.
 - Boards are **process-definition-centric**: a board represents a Process definition (e.g., “Sales Funnel v1”, “R2R Governance v1”) across many process instances.
 - Cards represent **process instances** (WorkflowID) moving through the Process definition’s phases.
 - Methodologies (Scrum/TOGAF/BPMN, etc.) define their own `phase_key` values; the Kanban contract standardizes the *mechanism*, not the phase taxonomy.
@@ -254,7 +255,7 @@ The Kanban surface remains a projection-backed list view; it does not attempt to
   - inbox dedupe on `message_id`
   - deterministic mapping + upsert
   - `GetKanbanBoard` query API
-  - `WatchBoardUpdates` (or equivalent) update stream emitting `board_seq`
+  - `KanbanUpdatesService.WatchKanbanUpdates` (or equivalent) update stream emitting `board_seq`
 - UISurface:
   - reads from Projection only
   - subscribes to Projection Updates stream

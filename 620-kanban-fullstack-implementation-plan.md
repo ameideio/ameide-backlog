@@ -1,12 +1,14 @@
 # 620 — Kanban Full‑Stack Implementation & Refactor Plan (Checklist)
 
+> **Contract note:** Kanban is a single platform contract for **Temporal-backed Process boards only**. There are no “non-Temporal boards”; if it is a Kanban board, it is a Temporal ProcessDefinition rendered via the platform Kanban APIs.
+
 This backlog is the **implementation plan** for delivering Ameide’s platform Kanban as the standard “progress view” for **all Temporal-orchestrated processes**, aligned to the **ideal** architecture (docs define the target; code/processes align — not the other way around).
 
 It is intentionally **checklist-driven** and capability-spanning: it covers **proto/SDK**, **Process** (progress facts), **Projection** (Kanban read model + updates stream), **UISurface** (board + activity workbench), and **refactors across existing domains**.
 
 ## Cross‑references (normative)
 
-- `backlog/616-kanban-principles.md` (normative Kanban UX principles)
+- `backlog/616-kanban-principles.md` (Kanban principles; normative)
 - `backlog/614-kanban-projection-architecture.md` (architecture contract)
 - `backlog/618-kanban-proto-contracts.md` (proto contracts)
 - `backlog/615-kanban-fullstack-reference.md` (implementation reference)
@@ -26,6 +28,7 @@ It is intentionally **checklist-driven** and capability-spanning: it covers **pr
 - UISurfaces read Kanban only via **Projection query APIs** and a **Projection Updates stream** (cursor-based notifications).
 - UISurfaces do **not** read Temporal visibility/history as product truth.
 - “Interactive streaming” (chat logs, agent tool streams, coding console output) is **not** transported as facts; it is served via **activity interaction surfaces** (out-of-band).
+- Temporal is the **only** Process backend for Kanban boards: “boards” that are not backed by a Temporal ProcessDefinition must not be described or implemented as Kanban.
 
 ### Board model (standard)
 
@@ -39,10 +42,15 @@ It is intentionally **checklist-driven** and capability-spanning: it covers **pr
 
 ## Definition of Done (DoD)
 
-- [ ] `ameide_core_proto.platform.kanban.v1` protos exist and SDKs are generated (`backlog/618-kanban-proto-contracts.md`).
+- [x] `ameide_core_proto.platform.kanban.v1` protos exist and SDKs are generated (`backlog/618-kanban-proto-contracts.md`).
 - [ ] Each relevant Projection primitive implements the **standard** `KanbanQueryService` and `KanbanUpdatesService` (same RPC surface everywhere).
+  - [x] Transformation projection implements `KanbanQueryService` + `KanbanUpdatesService`.
+  - [ ] Sales/SRE/Commerce projections migrated.
 - [ ] Each relevant Process primitive emits **process progress facts** aligned to `backlog/509-proto-naming-conventions.md` (phase-first by default).
+  - [x] Transformation process emits phase-first progress facts with stable `message_id` + `process_instance_id` + `process_run_id` + `run_epoch` + `seq`.
+  - [ ] Sales/SRE/Commerce processes migrated.
 - [ ] Board updates stream is cursor-based and advances only on **effectful commits** (no-op/dedupe does not advance).
+  - [x] Transformation projection increments `board_seq` only when a card view changes; updates stream emits `{board_ref, board_seq}`.
 - [ ] UISurface renders boards from Projection APIs, subscribes to updates, and provides **activity workbench surfaces** (per `backlog/616-kanban-principles.md`).
 - [ ] Unit tests + mock integration tests cover:
   - [ ] process progress emission idempotency
@@ -51,6 +59,17 @@ It is intentionally **checklist-driven** and capability-spanning: it covers **pr
   - [ ] updates stream semantics + UI refetch loop
   - [ ] archival/boundedness behavior
 - [ ] `backlog/619-kanban-domain-alignment-refactors.md` is fully checked off (all tracked domains refactored).
+
+## Implementation status (current)
+
+As of this checkpoint, WP1–WP4 are implemented for the **Transformation** domain end-to-end (proto/SDK + process progress facts + projection read model + updates stream). Remaining work packages are tracked below.
+
+Key implementation anchors:
+
+- Platform Kanban protos: `packages/ameide_core_proto/src/ameide_core_proto/platform/kanban/v1/`
+- Transformation process progress facts: `packages/ameide_core_proto/src/ameide_core_proto/process/transformation/v1/process_transformation_facts.proto`
+- Transformation projection Kanban schema + read model: `primitives/projection/transformation/internal/adapters/postgres/migrations/V8__kanban_projection.sql`
+- Transformation projection Kanban RPCs + updates stream: `primitives/projection/transformation/internal/handlers/kanban.go`
 
 ## Implementation plan (work packages)
 
@@ -66,11 +85,11 @@ It is intentionally **checklist-driven** and capability-spanning: it covers **pr
 
 Goal: the **same** Kanban query + updates interface is available to every capability via generated SDKs.
 
-- [ ] Implement `packages/ameide_core_proto/src/ameide_core_proto/platform/kanban/v1/kanban.proto` as described in `backlog/618-kanban-proto-contracts.md`.
-- [ ] Implement `KanbanQueryService` and `KanbanUpdatesService` protos in `ameide_core_proto.platform.kanban.v1`.
-- [ ] Regenerate SDKs (Go/TS/Python) and enforce “SDK-only imports” in runtime code (`backlog/520-primitives-stack-v2.md`).
+- [x] Implement `packages/ameide_core_proto/src/ameide_core_proto/platform/kanban/v1/kanban.proto` as described in `backlog/618-kanban-proto-contracts.md`.
+- [x] Implement `KanbanQueryService` and `KanbanUpdatesService` protos in `ameide_core_proto.platform.kanban.v1`.
+- [x] Regenerate SDKs (Go/TS/Python) and enforce “SDK-only imports” in runtime code (`backlog/520-primitives-stack-v2.md`).
 - [ ] Define and publish canonical `process_definition_id` strings for existing processes (multi-domain):
-  - [ ] `transformation.r2r.v1`
+  - [x] `transformation.r2r.v1`
   - [ ] `sales.funnel.v1` (or the approved sales process key)
   - [ ] `sre.incident.v1` (and other SRE process keys as needed)
   - [ ] `commerce.<process>.v1` (as applicable)
@@ -80,32 +99,35 @@ Goal: the **same** Kanban query + updates interface is available to every capabi
 Goal: each capability’s Projection can serve Kanban for its process-definition boards using the standard API.
 
 - [ ] Implement a canonical Kanban storage schema in Postgres for operational boards (per `backlog/614-kanban-projection-architecture.md`):
-  - [ ] `kanban_board_state` (includes durable commit cursor/sequence → `board_seq`)
-  - [ ] `kanban_card_view` (includes per-card `seq`, `column_key`, `rank` optional, derived `is_archived`)
-  - [ ] `kanban_projection_inbox` (dedupe by `message_id`)
+  - [x] `kanban_board_state` (includes durable commit cursor/sequence → `board_seq`) — implemented in Transformation projection.
+  - [x] `kanban_card_view` (includes per-card `seq`, `column_key`, `rank` optional, derived `is_archived`) — implemented in Transformation projection.
+  - [x] `kanban_projection_inbox` (dedupe by `message_id`) — implemented in Transformation projection.
 - [ ] Implement deterministic apply rules for multi-stream ingestion (one explicit rule set; no “timestamp ordering”).
+  - [x] Deterministic apply for Transformation process progress facts (idempotent inbox + effectful commit detection).
+  - [ ] Cross-stream convergence rules (domain facts + process facts + initiatives) for all boards.
 - [ ] Implement mapping configuration (phase → column) as projection-owned data (not UI logic):
-  - [ ] versioned mapping rules per `(board_kind, process_definition_id)`
+  - [x] versioned mapping rules per `(board_kind, process_definition_id)` — `kanban_phase_column_mapping`.
   - [ ] default mappings for Transformation/Sales/SRE examples
-- [ ] Implement `GetKanbanBoard` with:
-  - [ ] paging (`PageRequest/PageResponse`)
-  - [ ] optional `column_key` scoping for per-column paging
-- [ ] Implement `GetKanbanDeltas` with:
-  - [ ] `since_seq` semantics (delta is scoped by `board_seq`)
-  - [ ] `upserted_cards` plus `archived_card_ids` / `deleted_card_ids`
-- [ ] Implement archival/boundedness:
-  - [ ] derived archive rule (terminal phases or explicit archive facts)
-  - [ ] default queries exclude archived cards
+    - [x] Transformation R2R default mapping.
+- [x] Implement `GetKanbanBoard` with:
+  - [x] paging (`PageRequest/PageResponse`)
+  - [x] optional `column_key` scoping for per-column paging
+- [x] Implement `GetKanbanDeltas` with:
+  - [x] `since_seq` semantics (delta is scoped by `board_seq`)
+  - [x] `upserted_cards` plus `archived_card_ids` / `deleted_card_ids`
+- [x] Implement archival/boundedness:
+  - [x] derived archive rule (terminal phases or explicit archive facts)
+  - [x] default queries exclude archived cards
 
 ### WP3 — Projection updates stream (live refresh)
 
 Goal: UI can subscribe to “board changed” notifications and refetch safely.
 
 - [ ] Implement `WatchKanbanUpdates` (server streaming) in each Projection implementing Kanban:
-  - [ ] output payload includes `{board_ref, board_seq}`
-  - [ ] at-least-once delivery is tolerated by UI (idempotent refetch)
-- [ ] Prefer a non-polling mechanism (Postgres `LISTEN/NOTIFY` or equivalent) for updates stream fanout.
-- [ ] Provide a safe fallback for dev/test (polling allowed only in tests/dev mode).
+  - [x] output payload includes `{board_ref, board_seq}` (implemented in Transformation projection)
+  - [x] at-least-once delivery is tolerated by UI (idempotent refetch) (implemented in Transformation projection)
+- [x] Prefer a non-polling mechanism (Postgres `LISTEN/NOTIFY` or equivalent) for updates stream fanout (implemented in Transformation projection).
+- [x] Provide a safe fallback for dev/test (polling allowed only in tests/dev mode).
 
 ### WP4 — Process: standardized progress facts (per capability)
 
@@ -118,15 +140,16 @@ Goal: every process emits **phase-first** progress facts in a way that Kanban ca
   - [ ] `Blocked(reason)` (optional)
   - [ ] one terminal: `RunCompleted` | `RunFailed` | `RunCancelled`
   - [ ] optional opt-in: `StepCompleted/StepFailed` (with `step_id` + `step_instance_id`)
+  - [x] Transformation: emits `RunStarted`, `PhaseEntered`, `Awaiting`, and terminal (`RunCompleted` / `RunFailed`)
 - [ ] Enforce idempotency:
-  - [ ] process progress facts emitted via Activities/ports (at-least-once safe)
-  - [ ] `message_id` stable under retries and across Continue-As-New boundaries
+  - [x] Transformation: process progress facts emitted via Activities/ports (at-least-once safe)
+  - [x] Transformation: `message_id` stable under retries and across Continue-As-New boundaries
 - [ ] Ensure workflows use correct Temporal identity naming (WorkflowID vs RunID):
-  - [ ] `process_instance_id = WorkflowID`
-  - [ ] `process_run_id = RunID`
-  - [ ] `run_epoch + seq` for ordering (phase-first, avoid step-spam)
+  - [x] Transformation: `process_instance_id = WorkflowID`
+  - [x] Transformation: `process_run_id = RunID`
+  - [x] Transformation: `run_epoch + seq` for ordering (phase-first, avoid step-spam)
 - [ ] Add “phase budget” rule to prevent history explosion:
-  - [ ] phase transitions are the default; step-level evidence is opt-in per process/step type
+  - [x] Transformation: phase transitions are the default; step-level evidence is opt-in per process/step type
 
 ### WP5 — Refactor existing domains/processes to the ideal Kanban model
 
@@ -206,4 +229,3 @@ Cluster is not assumed available for this backlog. “Done” is enforced by **u
 - Do not retrofit the Kanban contract to match existing bespoke implementations:
   - refactor Sales/Transformation/SRE/Commerce to the contract
   - remove bespoke Kanban APIs once the standard interface is in place
-

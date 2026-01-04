@@ -174,7 +174,7 @@ The key variability between domains is:
 
 ### 4) Projection serves updates stream
 
-- `WatchBoardUpdates(after_seq)` emits new `{board_seq}` values.
+- `KanbanUpdatesService.WatchKanbanUpdates(after_seq)` emits new `{board_seq}` values.
 
 ### 5) UISurface renders Kanban
 

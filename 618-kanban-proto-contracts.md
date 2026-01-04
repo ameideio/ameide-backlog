@@ -18,6 +18,7 @@ It is intentionally aligned with:
 
 **Kanban is served by Projection query APIs and a Projection Updates stream, both defined in Protobuf and consumed only via generated SDKs.**
 
+- Kanban boards are **Temporal-backed Process boards**: if a “board” is not backed by a Temporal ProcessDefinition (process progress facts), it must not be described or implemented as Kanban.
 - UISurfaces MUST NOT read Temporal visibility/search/history for product Kanban truth.
 - UISurfaces MUST NOT consume Kafka facts directly.
 - Live updates are cursor-based notifications (`board_seq`) that trigger idempotent refetch (deltas preferred).

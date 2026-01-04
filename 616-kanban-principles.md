@@ -24,6 +24,11 @@ It is intentionally aligned with:
 
 Kanban is **not** implemented by querying Temporal history/visibility as the source of truth.
 
+Temporal is the **only** Process backend for Kanban boards:
+
+- If it is called a “Kanban board” in Ameide, it is a **Temporal-backed ProcessDefinition** rendered via the Kanban projection contract.
+- There are no “non-Temporal boards”. Non-process list/table views (indexes, dashboards) must not be described as Kanban.
+
 Kanban boards are **process-definition-centric**: one board corresponds to one `process_definition_id` across many process instances (cards).
 
 ## Definitions

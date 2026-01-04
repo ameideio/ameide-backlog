@@ -1,4 +1,6 @@
 # Executive Summary
+> Note: This backlog predates the platform Kanban contract. For current Kanban semantics (Temporal-backed Process boards only), see `backlog/616-kanban-principles.md`, `backlog/618-kanban-proto-contracts.md`, and `backlog/620-kanban-fullstack-implementation-plan.md`.
+
 Transformation Initiatives represent tenant-led change programs (product naming for legacy “ADM cycles”) that orchestrate repositories and artifacts in Ameide. Initiatives coordinate proposed/WIP architectures, delivery progress, and roles, while governance (owners, approvals, required checks, rulesets, promotion queue) remains defined once at graph/tenant scope. This document outlines the functional scope required to plan, execute, and track transformations while reusing the graph infrastructure defined in `backlog/150-enterprise-graph-functional.md`.
 
 # Objectives
