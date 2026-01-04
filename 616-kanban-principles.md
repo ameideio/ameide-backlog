@@ -15,6 +15,7 @@ It is intentionally aligned with:
 - `backlog/496-eda-principles.md` (facts vs intents; outbox + idempotency)
 - `backlog/614-kanban-projection-architecture.md` (Kanban as a projection; recommended architecture)
 - `backlog/615-kanban-fullstack-reference.md` (full-stack reference implementation)
+- `backlog/618-kanban-proto-contracts.md` (proto-first Kanban query + updates stream contracts)
 - `backlog/513-uisurface-primitive-scaffolding.md` (UISurface “Shell + Canvases + Widgets”)
 
 ## Decision (single option)
@@ -108,4 +109,3 @@ Initiatives are change initiatives and MUST be interpreted in a repository (arch
 - Using Temporal visibility/search attributes as the Kanban query store.
 - Emitting chat transcripts as broker facts.
 - Requiring step-level events for every workflow node.
-

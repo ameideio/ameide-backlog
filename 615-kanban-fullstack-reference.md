@@ -16,6 +16,7 @@ This document is intentionally capability-agnostic, but uses **Transformation** 
 - `backlog/513-uisurface-primitive-scaffolding.md` (UISurface layout patterns)
 - `backlog/509-proto-naming-conventions.md` (process progress facts + identity)
 - `backlog/496-eda-principles.md` (facts vs intents; outbox discipline)
+- `backlog/618-kanban-proto-contracts.md` (proto-first Kanban query + updates stream contracts)
 
 ## Goal
 
