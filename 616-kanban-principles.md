@@ -24,6 +24,8 @@ It is intentionally aligned with:
 
 Kanban is **not** implemented by querying Temporal history/visibility as the source of truth.
 
+Kanban boards are **process-definition-centric**: one board corresponds to one `process_definition_id` across many process instances (cards).
+
 ## Definitions
 
 - **Board**: a scoped Kanban view (columns + cards) served by a Projection query API.
