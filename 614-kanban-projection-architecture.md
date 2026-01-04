@@ -11,6 +11,7 @@ It is intentionally aligned with:
 - `backlog/509-proto-naming-conventions.md` (topic families + process progress fact conventions)
 - `backlog/496-eda-principles.md` (facts are not requests; outbox discipline)
 - `backlog/513-uisurface-primitive-scaffolding.md` (UISurface reads from projections; no infra coupling)
+- `backlog/618-kanban-proto-contracts.md` (proto-first Kanban query + updates stream contracts)
 
 ## Decision (recommended; single option)
 

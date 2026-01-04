@@ -14,6 +14,7 @@ This backlog defines the **UISurface experience** for Transformation (R2R) as a 
 - `backlog/614-kanban-projection-architecture.md` (Kanban as a projection)
 - `backlog/615-kanban-fullstack-reference.md` (Kanban full‑stack reference)
 - `backlog/616-kanban-principles.md` (Kanban principles; interaction streams are out‑of‑band)
+- `backlog/618-kanban-proto-contracts.md` (proto-first Kanban query + updates stream contracts)
 - `backlog/496-eda-principles.md` (facts vs intents; outbox; idempotency)
 - `backlog/509-proto-naming-conventions.md` (process progress facts identity + minimal vocabulary)
 - `backlog/300-400/303-elements.md` (elements-only canonical storage; repository-first scoping)
