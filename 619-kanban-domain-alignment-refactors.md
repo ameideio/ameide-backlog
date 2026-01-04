@@ -30,7 +30,8 @@ All capabilities MUST align to the platform Kanban contract:
 
 - [ ] Add `ameide_core_proto.platform.kanban.v1` protos to `ameide_core_proto` and generate SDKs.
 - [ ] Implement the platform `KanbanQueryService` and `KanbanUpdatesService` in projection primitives.
-- [ ] Remove (or deprecate) capability-specific Kanban APIs once the platform API is adopted, to avoid dual contracts.
+- [ ] Remove (or deprecate) bespoke capability-specific Kanban APIs once the standard interface is adopted everywhere, to avoid dual contracts.
+  - Capabilities may still run their own Projection deployments; the goal is to eliminate bespoke service shapes, not to centralize traffic.
 
 ### B) Process progress facts alignment (phase-first)
 

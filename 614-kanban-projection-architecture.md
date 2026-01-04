@@ -246,7 +246,7 @@ The Kanban surface remains a projection-backed list view; it does not attempt to
 
 ## Implementation checklist (for capability teams)
 
-- Define `board_id` scope (tenant/org/repo/capability) and `card_id` identity.
+- Define board scope (`KanbanBoardScope`, including `board_kind` and `process_definition_id`) and `card_id` identity (`card_id=process_instance_id`).
 - Define a mapping config from `(process_definition_id, phase_key, ...)` to `column_key` (versioned).
 - Ensure Process workflows emit phase-first progress facts via Activities (idempotent).
 - Ensure Domain emits required domain facts via outbox (idempotent consumers).

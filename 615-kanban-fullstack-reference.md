@@ -62,6 +62,7 @@ Provide a single, repeatable implementation recipe for:
 
 - `board_seq` (monotonic cursor derived from the projection’s durable commit cursor/sequence; not timestamps and not “diff heuristics”)
 - a query store that supports listing cards by column and fetching card details
+- per-card `seq` (monotonic per-card update cursor) so deltas/caching can be fine-grained and idempotent
 
 **Required invariants:**
 
@@ -204,7 +205,7 @@ The key variability between domains is:
 
 ## Implementation checklist (copy/paste)
 
-- [ ] Define card identity (`card_id`) and board scope (`tenant/org/repo/capability`).
+- [ ] Define card identity (`card_id=process_instance_id`) and board scope (`KanbanBoardScope`, including `board_kind` and `process_definition_id`).
 - [ ] Define mapping config from phase keys to column keys (versioned).
 - [ ] Emit process progress facts (phase-first) with correct identity fields.
 - [ ] Build projection with inbox dedupe + replayable apply.
@@ -212,3 +213,11 @@ The key variability between domains is:
 - [ ] Implement update stream emitting monotonic `board_seq`.
 - [ ] Implement Kanban as UISurface canvas + reusable component/widget.
 - [ ] Add unit/integration/E2E tests covering refetch-on-seq and convergence.
+
+## Archival / boundedness (required)
+
+Operational boards must remain bounded:
+
+- Projection MUST derive a terminal/archival rule (e.g., terminal phases, explicit “archived” fact, or policy).
+- Query APIs MUST default to excluding archived cards unless explicitly requested.
+- Deltas MUST report removals via `archived_card_ids` and/or `deleted_card_ids` per `backlog/618-kanban-proto-contracts.md`.

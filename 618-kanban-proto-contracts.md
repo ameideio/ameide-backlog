@@ -48,7 +48,13 @@ Kanban is a **platform-standard** projection surface. To avoid inventing per-cap
 
 - `packages/ameide_core_proto/src/ameide_core_proto/platform/kanban/v1/kanban.proto`
 
-The platform SHOULD provide a single Kanban Projection API (query + updates stream) that is implemented by Projection primitives and consumed by UISurfaces via generated SDKs.
+The platform SHOULD standardize a single Kanban Projection API **interface** (query + updates stream) that is implemented by Projection primitives and consumed by UISurfaces via generated SDKs.
+
+This is a standard interface, not a central deployment:
+
+- Capabilities MAY run separate Projection services, each implementing the same Kanban service interface.
+- UISurfaces select the appropriate Projection endpoint for a given `KanbanBoardScope` via routing/service discovery (implementation detail).
+- This avoids a global bottleneck while keeping one portable SDK contract.
 
 ## Identity (canonical fields)
 
@@ -285,7 +291,7 @@ Kanban query + update APIs MUST be authorization-aware:
 - repository/initiative scoping MUST be enforced by the server
 - query APIs MUST NOT allow cross-org data leakage by “board_id guessing”
 
-This is one reason capability-specific services can be preferable: they can reuse existing auth policies.
+This is one reason capability-owned Projection deployments are preferable: they can reuse existing auth policies while still exposing the standard Kanban service interface.
 
 ## Interaction streams are out of scope (by design)
 
