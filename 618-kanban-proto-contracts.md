@@ -30,6 +30,12 @@ This backlog defines:
 2. A **capability-agnostic** query + delta API.
 3. A **capability-agnostic** updates stream contract (server-streaming RPC payloads).
 
+This contract is designed to serve multiple domains consistently (examples):
+
+- Sales funnel boards (`process_definition_id="sales.funnel.v1"`)
+- Transformation change boards (`process_definition_id="transformation.r2r.v1"`)
+- SRE incident boards (`process_definition_id="sre.incident.v1"`)
+
 It does **not** define:
 
 - any particular capability’s mapping rules (phase → column) (projection config does this)
@@ -48,8 +54,9 @@ The platform SHOULD provide a single Kanban Projection API (query + updates stre
 
 These fields are required for rebuildable, methodology-agnostic boards:
 
+- `board_kind` (stable discriminator for scope model)
 - `process_definition_id` (stable identifier of the Process definition being visualized)
-- `board_scope` (explicit fields; never opaque JSON; MUST include `process_definition_id`)
+- `board_scope` (explicit fields; never opaque JSON; MUST include `board_kind` and `process_definition_id`)
 - `board_id` (deterministic function of scope; projection-owned)
 - `board_seq` (monotonic cursor derived from the projection’s durable commit cursor/sequence; not timestamps)
 - `card_id` (stable id; default for process-driven boards: `process_instance_id` / WorkflowID)
@@ -71,19 +78,23 @@ import "ameide_core_proto/common/v1/pagination.proto";
 import "ameide_core_proto/common/v1/request_context.proto";
 
 message KanbanBoardScope {
+  // Stable discriminator selecting which scope model to render for a given context.
+  // Examples: "repository", "initiative", "pipeline", "subprocess".
+  string board_kind = 1;
+
   // Recommended default scope axes (see 614/616).
-  string tenant_id = 1;
-  string organization_id = 2;
-  string repository_id = 3;
+  string tenant_id = 2;
+  string organization_id = 3;
+  string repository_id = 4;
 
   // The Process definition being visualized by this board.
-  string process_definition_id = 4;
+  string process_definition_id = 5;
 
   // Optional axis for initiative-scoped boards.
-  string initiative_id = 5;
+  string initiative_id = 6;
 
   // Optional axis for “nested” boards (subprocess trees).
-  string parent_card_id = 6;
+  string parent_card_id = 7;
 }
 
 message KanbanBoardRef {
@@ -129,6 +140,8 @@ message KanbanBoard {
   int64 board_seq = 2;
 
   repeated KanbanColumn columns = 3;
+
+  // This list may be paginated by the query API (see GetKanbanBoardRequest.page).
   repeated KanbanCardView cards = 4;
 }
 
@@ -145,8 +158,51 @@ message KanbanBoardDelta {
 
 Notes:
 
-- `board_seq` MUST be derived from a durable projection commit cursor/sequence (see `backlog/615-kanban-fullstack-reference.md`).
+- `board_seq` MUST be derived from a durable projection commit cursor/sequence (see `backlog/615-kanban-fullstack-reference.md`) and MUST advance only on effectful commits (not on inbox dedupe/no-ops).
 - Boards are process-definition-centric; `process_definition_id` is part of board scope identity.
+
+## Examples (multiple domains; same contract)
+
+### Repository-scoped process board (Transformation)
+
+```text
+board_kind=repository
+tenant_id=t-1
+organization_id=o-1
+repository_id=r-1
+process_definition_id=transformation.r2r.v1
+```
+
+### Initiative-scoped process board (Transformation)
+
+```text
+board_kind=initiative
+tenant_id=t-1
+organization_id=o-1
+repository_id=r-1
+initiative_id=init-123
+process_definition_id=transformation.r2r.v1
+```
+
+### Pipeline-scoped process board (Sales)
+
+```text
+board_kind=pipeline
+tenant_id=t-1
+organization_id=o-1
+repository_id=sales-core
+process_definition_id=sales.funnel.v1
+```
+
+### Repository-scoped incident process board (SRE)
+
+```text
+board_kind=repository
+tenant_id=t-1
+organization_id=o-1
+repository_id=sre-core
+process_definition_id=sre.incident.v1
+```
 
 ### 2) Query + deltas: “Kanban Projection Query” service
 
@@ -167,20 +223,26 @@ service KanbanQueryService {
 message GetKanbanBoardRequest {
   RequestContext ctx = 1;
   KanbanBoardScope scope = 2;
+  PageRequest page = 3;
+  // Optional: restrict returned cards to a single column (useful for per-column paging).
+  string column_key = 4;
 }
 
 message GetKanbanBoardResponse {
   KanbanBoard board = 1;
+  PageResponse page = 2;
 }
 
 message GetKanbanDeltasRequest {
   RequestContext ctx = 1;
   KanbanBoardScope scope = 2;
   int64 since_seq = 3;
+  PageRequest page = 4;
 }
 
 message GetKanbanDeltasResponse {
   KanbanBoardDelta delta = 1;
+  PageResponse page = 2;
 }
 ```
 

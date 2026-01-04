@@ -30,8 +30,16 @@ Kanban boards are **process-definition-centric**: one board corresponds to one `
 
 - **Board**: a scoped Kanban view (columns + cards) served by a Projection query API.
 - **Card**: a stable unit of work derived from facts; displayed in one column at a time.
+- **`board_kind`**: a stable discriminator that selects the scope model for a board (repository-scoped vs initiative-scoped vs nested/subprocess). It enables multiple boards over the same `{tenant, org, repo}` context without inventing new UI logic.
+  - Examples: `repository`, `initiative`, `subprocess`.
 - **`process_definition_id`**: the stable identifier of the Process definition being visualized on the board (e.g., “sales.funnel.v1”, “transformation.r2r.v1”).
 - **Projection Updates stream**: an at-least-once notification stream that carries a monotonic cursor (e.g., `board_seq`) so the UI can refetch safely.
+
+### Examples (multiple domains)
+
+- **Sales**: `process_definition_id="sales.funnel.v1"` (funnel board)
+- **Transformation**: `process_definition_id="transformation.r2r.v1"` (change initiative board)
+- **SRE**: `process_definition_id="sre.incident.v1"` (incident board)
 
 ## Principles (normative)
 
@@ -56,12 +64,14 @@ Kanban boards are **process-definition-centric**: one board corresponds to one `
 ### Principle 4: Board identity and membership are deterministic
 
 - A Projection MUST define stable `board_id` and deterministic membership rules.
-- `board_id` MUST be a deterministic function of the board scope and MUST include `process_definition_id`.
+- `board_id` MUST be a deterministic function of the board scope and MUST include:
+  - `board_kind`, and
+  - `process_definition_id`.
 
 Recommended default scopes:
 
-- **Repository process board:** `{tenant_id, organization_id, repository_id, process_definition_id}`
-- **Initiative process board:** `{tenant_id, organization_id, repository_id, initiative_id, process_definition_id}`
+- **Repository process board:** `{tenant_id, organization_id, repository_id, board_kind=repository, process_definition_id}`
+- **Initiative process board:** `{tenant_id, organization_id, repository_id, initiative_id, board_kind=initiative, process_definition_id}`
 
 Initiatives are change initiatives and MUST be interpreted in a repository (architecture context). Kanban is a view of activities executed in that initiative+repository context.
 
@@ -83,6 +93,11 @@ Initiatives are change initiatives and MUST be interpreted in a repository (arch
 - Projections MUST implement inbox dedupe keyed by `message_id`.
 - Replay/rebuild from the fact log MUST converge to the same board state.
 
+### Principle 7a: Boards are operationally bounded
+
+- Boards MUST support a projection-derived archival/terminal rule so operational views remain bounded.
+- Board queries MUST default to excluding archived cards unless explicitly requested.
+
 ### Principle 8: Progress facts are for visibility; interaction streams are out-of-band
 
 - Progress facts exist to make the board/timeline **rebuildable** and **auditable**.
@@ -97,6 +112,12 @@ Initiatives are change initiatives and MUST be interpreted in a repository (arch
   - verification: test logs + artifacts,
   - release: promotion status + evidence.
 - The board MUST remain projection-driven; the activity surface may stream interaction, but the board state changes only when facts arrive and the projection updates.
+
+**Examples:**
+
+- Sales: clicking a card in `phase_key=proposal` opens the quote/workbench surface (approval requests, negotiation notes, evidence).
+- Transformation: clicking a card in `phase_key=build` opens coding-agent execution logs and intervention controls (pause/cancel/append guidance).
+- SRE: clicking a card in `phase_key=mitigate` opens runbooks, live incident notes, and mitigation actions (with audit facts emitted on completion).
 
 ### Principle 10: Methodologies define phases; the platform defines the contract
 
