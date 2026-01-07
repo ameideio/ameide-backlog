@@ -67,3 +67,9 @@ This should be treated as a stopgap only.
 - Control-plane taints remain enabled in the local bootstrap wrapper (`infra/scripts/tf-local.sh`) to reduce apiserver stalls; the system is expected to converge with the taint in place.
 - Local CNPG placement is enforced via required nodeAffinity in `sources/values/env/local/data/platform-postgres-clusters.yaml` (avoid `node-role.kubernetes.io/control-plane` / `.../master`) so first scheduling (and PV binding under `WaitForFirstConsumer`) lands on an agent.
 - Repair for already-pinned PVs remains “delete & recreate local cluster” (or delete the affected PVC/PV) so local-path reprovisions with the corrected affinity.
+
+## Update (2026-01-06): Not all “local stalls” are taints
+
+We observed a separate local apiserver pressure incident class where default-deny ingress isolation blocks admission webhooks (Telepresence agent-injector, Vault injector). Because the apiserver is a host process, namespaceSelector-based allowlists don’t match; webhook calls can fail with `502` via the apiserver proxy and cascade into controller leader-election loss and overall API sluggishness.
+
+Related remediation and rationale are tracked in `backlog/492-telepresence-reliability.md` (GitOps-owned allowlist policies for control-plane webhook CIDRs).

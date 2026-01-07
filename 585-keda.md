@@ -89,7 +89,15 @@ For 527’s execution substrate, `ameide-gitops` already provisions:
 Implementation notes:
 
 - The ScaledJobs run `ghcr.io/ameideio/primitive-integration-transformation-work-executor:<tag>` (a dedicated integration primitive image).
-- Local/dev set `scaledJobs.maxReplicaCount: 0` by default to avoid continuous Job churn until a real producer emits valid execution intents (`WorkExecutionRequested`) onto the execution queue topics.
+- Local disables WorkRequests ScaledJobs by default (`scaledJobs.enabled: false`) to avoid continuous Job churn until a real producer emits valid execution intents (`WorkExecutionRequested`) onto the execution queue topics.
+
+## Update (2026-01-06): Local max replicas hardened
+
+The local overlay was tightened back to `scaledJobs.maxReplicaCount: 0` to avoid cluster instability from continuous Job creation when Kafka or the apiserver is under load. Enable it explicitly only when you are actively exercising WorkRequests execution queues.
+
+This also reduces secondary symptoms (controller leader-election loss / CrashLoopBackOff) that are triggered by API timeouts under churn, making root-cause incidents (e.g. admission webhook reachability) easier to spot and remediate.
+
+**Follow-up (same incident class):** KEDA can treat `maxReplicaCount: 0` as “unset/default” (effectively `1`), so the safer local default is now to disable WorkRequests ScaledJobs entirely (`scaledJobs.enabled: false`) until explicitly enabled for a test session.
 
 ### ScaledObject example (CPU trigger; local-only)
 

@@ -124,6 +124,20 @@ On k3d/k3s the Kubernetes API server runs as a host process (not a pod). With a 
   - Extend `deny-cross-environment` (local only) with an `ipBlock` allow for the control-plane CIDR, or
   - Keep `deny-cross-environment` as-is and add explicit allow policies for webhook servers (Telepresence + Vault injector).
 
+## Update (2026-01-06): GitOps-owned webhook allowlist (local)
+
+Local clusters hit recurring apiserver proxy `502` errors when calling admission webhooks (Telepresence `agent-injector` and Vault injector) because the k3s apiserver runs as a host process and does not match namespace-based allowlists.
+
+**Remediation**: the local environment now renders GitOps-owned NetworkPolicies from `foundation-namespaces` to allow the control-plane source CIDRs to reach:
+- Telepresence traffic-manager webhook port `8443`
+- Vault agent-injector pod port `8080` (Service `443` → targetPort `8080`)
+
+**Why earlier remediations weren’t effective**:
+- In k3d, webhook calls can originate from the node IP range (e.g. `172.19.0.0/16`), not only the pod CIDR (`10.42.0.0/16`). Allowing only the pod CIDR can still result in `connect: connection refused` (policy REJECT) even though the webhook pods are healthy.
+- Bootstrap/manual patches don’t survive GitOps resync/recreate; Argo must own these policies to prevent drift.
+
+This keeps the fix persistent across resyncs/recreates and reduces cascading leader-election loss/timeouts in controllers under load.
+
 ## Recent improvements
 
 - **RBAC alignment** – Telepresence Traffic Manager ClusterRole/Role templates now grant `create` on `pods/eviction`, matching the vendor guidance for v2.25.1 (mirrored in `sources/charts/third_party/telepresence/telepresence/2.25.1`). ArgoCD syncs `dev-traffic-manager`/`staging-traffic-manager` against the versioned chart path.
