@@ -1,7 +1,30 @@
 # Buf SDKs Architecture (v2)
 
-**Status**: Draft  
-**Intent**: Buf is the single source of truth. All languages ship parity SDKs published to Ameide GitHub registries, and every service consumes those SDKs at runtime (no intra-repo stubs or replaces). Dev/test can read the committed proto bundle from the shared package; runtime never does.
+**Status**: Superseded (historical)  
+
+## Why this is superseded
+
+This document captured an earlier “published-SDKs-only” target state (services consume released SDK artifacts; no workspace SDK linkage).
+
+The repo has since converged on a **workspace-first, rings-aligned** model where:
+
+- **Rings 1/2 (dev/CI/prod images built in-repo)** resolve SDKs from **workspace copies** (no registry coupling).
+- **Published SDKs** are still important, but primarily for **external consumers** and **out-of-tree smoke** checks.
+
+Canonical references for the current model:
+
+- `backlog/402-buf-first-generated-clients.md` (inner-loop “fail fast” contract)
+- `backlog/403-ts-proto-first-migrations.md`
+- `backlog/403-python-buf-first-migration-plan.md`
+- `backlog/404-go-buf-first-migration.md`
+- `backlog/405-docker-files.md` (rings + Dockerfile contracts)
+- `backlog/408-workspace-first-ring-2.md`
+- `backlog/410-bsr-native.md` (BSR-native SDKs; bundled stubs; SDK-only service surface)
+- `backlog/300-400/393-ameide-sdk-import-policy.md` (enforced policy surface)
+
+## Historical context (what this doc was aiming for)
+
+**Intent (historical):** Buf is the single source of truth. All languages ship parity SDKs published to Ameide registries, and every service consumes those SDKs at runtime (no intra-repo stubs or replaces). Dev/test can read the committed proto bundle from the shared package; runtime never does.
 
 ## Principles
 - **Buf-centric**: One managed Buf module defines APIs; no service owns bespoke protos.
