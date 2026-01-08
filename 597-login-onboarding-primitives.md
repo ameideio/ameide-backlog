@@ -407,13 +407,14 @@ ameide primitive scaffold --kind domain --name identity --proto-path packages/am
 
 **2) Scaffold the primitives (idempotent by default)**
 
-Go primitives (domain/process/projection/integration) require `--proto-path`:
+Go primitives (domain/projection/integration) require `--proto-path`. Process scaffolding is shifting to **BPMN-first** compilation (see `backlog/511-process-primitive-scaffolding-refactoring.md`), so `--proto-path` should not be treated as a long-term requirement for Process primitives.
 
 ```bash
 ameide primitive scaffold --kind integration --name identity-oidc-adapter --proto-path packages/ameide_core_proto/src/ameide_core_proto/identity/integration/v1/identity_oidc_adapter_service.proto --include-test-harness
 ameide primitive scaffold --kind domain --name identity --proto-path packages/ameide_core_proto/src/ameide_core_proto/identity/core/v1/identity_command_service.proto --include-test-harness
 ameide primitive scaffold --kind domain --name tenancy --proto-path packages/ameide_core_proto/src/ameide_core_proto/tenancy/core/v1/tenancy_command_service.proto --include-test-harness
 ameide primitive scaffold --kind projection --name tenancy-access --proto-path packages/ameide_core_proto/src/ameide_core_proto/tenancy/core/v1/tenancy_access_query_service.proto --include-test-harness
+# Process (v0 proto-driven scaffold; planned v1: BPMN-first at primitives/process/tenancy-onboarding/process.bpmn)
 ameide primitive scaffold --kind process --name tenancy-onboarding --proto-path packages/ameide_core_proto/src/ameide_core_proto/tenancy/process/v1/tenancy_onboarding_command_service.proto --include-test-harness
 ameide primitive scaffold --kind integration --name tenancy-idp-provisioner --proto-path packages/ameide_core_proto/src/ameide_core_proto/tenancy/integration/v1/idp_provisioner_service.proto --include-test-harness
 ```

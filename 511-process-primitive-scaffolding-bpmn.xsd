@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  targetNamespace="https://ameide.io/schema/bpmn/extensions/v1"
+  xmlns:ameide="https://ameide.io/schema/bpmn/extensions/v1"
+  elementFormDefault="qualified"
+  attributeFormDefault="unqualified">
+
+  <xs:annotation>
+    <xs:documentation>
+      Ameide BPMN extension elements (v1) for scaffolding Process primitives.
+      This schema defines the Ameide namespace elements only; it does not attempt to constrain
+      placement under BPMN 2.0 beyond "must appear in bpmn:extensionElements" (validated separately).
+
+      Normative direction and semantics: backlog/511-process-primitive-scaffolding-bpmn-extension.md
+
+      Note: element naming is intentionally Camunda-inspired for author familiarity, but semantics are
+      Ameide-owned (design-time compilation inputs for Temporal scaffolding, not BPMN engine config).
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Common primitives -->
+  <xs:simpleType name="identifier">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[A-Za-z_][A-Za-z0-9_]*"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="path">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!--
+    correlationKeyTemplate: a deterministic template (see direction doc) used to derive a single
+    correlation key value. This is intentionally aligned with Camunda's "single correlation key" model.
+  -->
+
+  <xs:simpleType name="implementation">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="activity"/>
+      <xs:enumeration value="delegated"/>
+      <xs:enumeration value="domainCommand"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Elements -->
+
+  <xs:element name="workflowDefinition" type="ameide:workflowDefinitionType"/>
+  <xs:complexType name="workflowDefinitionType">
+    <xs:attribute name="definitionId" type="xs:string" use="required"/>
+    <xs:attribute name="workflowType" type="xs:string" use="optional"/>
+    <xs:attribute name="workflowIdTemplate" type="xs:string" use="required"/>
+  </xs:complexType>
+
+  <xs:element name="taskDefinition" type="ameide:taskDefinitionType"/>
+  <xs:complexType name="taskDefinitionType">
+    <xs:attribute name="implementation" type="ameide:implementation" use="required"/>
+    <xs:attribute name="type" type="xs:string" use="required"/>
+    <xs:attribute name="idempotencyKeyTemplate" type="xs:string" use="required"/>
+    <xs:attribute name="policyRef" type="xs:string" use="required"/>
+  </xs:complexType>
+
+  <xs:element name="taskHeaders" type="ameide:taskHeadersType"/>
+  <xs:element name="header" type="ameide:headerType"/>
+  <xs:complexType name="taskHeadersType">
+    <xs:sequence>
+      <xs:element name="header" type="ameide:headerType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="headerType">
+    <xs:attribute name="key" type="xs:string" use="required"/>
+    <xs:attribute name="value" type="xs:string" use="required"/>
+  </xs:complexType>
+
+  <xs:element name="ioMapping" type="ameide:ioMappingType"/>
+  <xs:element name="input" type="ameide:mappingEntryType"/>
+  <xs:element name="output" type="ameide:mappingEntryType"/>
+  <xs:complexType name="ioMappingType">
+    <xs:choice minOccurs="0" maxOccurs="unbounded">
+      <xs:element name="input" type="ameide:mappingEntryType"/>
+      <xs:element name="output" type="ameide:mappingEntryType"/>
+    </xs:choice>
+  </xs:complexType>
+
+  <xs:complexType name="mappingEntryType">
+    <xs:attribute name="source" type="ameide:path" use="required"/>
+    <xs:attribute name="target" type="ameide:path" use="required"/>
+  </xs:complexType>
+
+  <xs:element name="subscription" type="ameide:subscriptionType"/>
+  <xs:complexType name="subscriptionType">
+    <!-- messageName MAY be omitted when the subscription is attached to a bpmn:message; name is taken from bpmn:message@name. -->
+    <xs:attribute name="messageName" type="xs:string" use="optional"/>
+    <xs:attribute name="correlationKeyTemplate" type="xs:string" use="required"/>
+    <xs:attribute name="messageIdPath" type="ameide:path" use="required"/>
+  </xs:complexType>
+
+  <xs:element name="updateDefinition" type="ameide:updateDefinitionType"/>
+  <xs:complexType name="updateDefinitionType">
+    <xs:attribute name="name" type="xs:string" use="required"/>
+    <xs:attribute name="idempotencyKeyTemplate" type="xs:string" use="optional"/>
+  </xs:complexType>
+
+</xs:schema>

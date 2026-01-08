@@ -23,6 +23,7 @@ Complete all unchecked items in this document for this vertical primitive to be 
 - [x] Keep the Process runtime at `primitives/process/ping/`.
 - [x] Expose gRPC on port `50051` and serve gRPC health.
 - [x] Implement deterministic v0 behavior in `ameide_core_proto.process.v1.ProcessV0Service/Ping`.
+- [ ] Configuration authority: runtime wiring is GitOps/operator-provisioned only (env/secret/volume), request inputs are request-provisioned only, and the runtime has no fallback/override chains (see `backlog/520-primitives-stack-v2.md`).
 
 ### Operator + GitOps
 

@@ -1,0 +1,463 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:ameide="https://ameide.io/schema/bpmn/extensions/v1"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_transformation_r2d_v1"
+                  targetNamespace="https://ameide.io/transformation/r2d/v1">
+
+  <!--
+    This BPMN file is a structural representation of the R2D hierarchy from:
+      backlog/527-transformation-e2e-sequence.md
+
+    Notes:
+    - BPMN element ids cannot contain dots, so ids are normalized with underscores.
+    - The human-readable `name` fields keep the canonical Ameide ids (dot-separated).
+    - Subprocesses are modeled as embedded `bpmn:subProcess` so BPMN editors can drill down.
+  -->
+
+  <!-- Message definitions (BPMN semantics for catch/throw events) -->
+  <bpmn:message id="Message_ExternalJobCompleted" name="ExternalJobCompleted">
+    <bpmn:extensionElements>
+      <ameide:subscription correlationKeyTemplate="${state.external_job_id}"
+                           messageIdPath="message_id"/>
+    </bpmn:extensionElements>
+  </bpmn:message>
+
+  <bpmn:collaboration id="Collaboration_transformation_r2d_v1">
+    <bpmn:participant id="Participant_transformation_r2d_v1"
+                      name="transformation.r2d.v1"
+                      processRef="transformation_r2d_v1"/>
+  </bpmn:collaboration>
+
+  <!-- Master process -->
+  <bpmn:process id="transformation_r2d_v1" name="transformation.r2d.v1" isExecutable="true">
+    <bpmn:extensionElements>
+      <ameide:workflowDefinition definitionId="transformation.r2d.v1:527-v3"
+                                 workflowType="transformation_r2d_v1"
+                                 workflowIdTemplate="transformation.r2d.v1/${state.tenant_id}/${state.subject_id}"/>
+    </bpmn:extensionElements>
+    <bpmn:startEvent id="StartEvent_r2d" name="Start R2D"/>
+
+    <!-- Subprocess: Requirements -->
+    <bpmn:subProcess id="SubProcess_requirements" name="transformation.r2d.requirements.v1">
+      <bpmn:startEvent id="StartEvent_requirements" name="Start Requirements"/>
+
+      <!-- A1: develop requirement (interactive; modeled as a user task) -->
+      <bpmn:userTask id="Task_develop_requirement"
+                     name="transformation.r2d.requirements.develop_requirement.v1"/>
+
+      <!-- A2: DoR gate (explicit approval decision) -->
+      <bpmn:userTask id="Task_dor_gate"
+                     name="transformation.r2d.requirements.dor_gate.v1"/>
+
+      <bpmn:endEvent id="EndEvent_requirements" name="End Requirements"/>
+
+      <bpmn:sequenceFlow id="Flow_req_1" sourceRef="StartEvent_requirements" targetRef="Task_develop_requirement"/>
+      <bpmn:sequenceFlow id="Flow_req_2" sourceRef="Task_develop_requirement" targetRef="Task_dor_gate"/>
+      <bpmn:sequenceFlow id="Flow_req_3" sourceRef="Task_dor_gate" targetRef="EndEvent_requirements"/>
+    </bpmn:subProcess>
+
+    <!-- Subprocess: Delivery loop -->
+    <bpmn:subProcess id="SubProcess_delivery_loop" name="transformation.r2d.delivery_loop.v1">
+      <bpmn:startEvent id="StartEvent_delivery_loop" name="Start Delivery Loop"/>
+
+      <bpmn:serviceTask id="Task_code_change"
+                        name="transformation.r2d.delivery_loop.code_change.v1">
+        <bpmn:extensionElements>
+          <ameide:taskDefinition implementation="delegated"
+                                 type="transformation.r2d.delivery_loop.code_change.v1"
+                                 idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
+                                 policyRef="default"/>
+          <ameide:ioMapping>
+            <ameide:output source="result.external_job_id" target="state.external_job_id"/>
+          </ameide:ioMapping>
+        </bpmn:extensionElements>
+      </bpmn:serviceTask>
+
+      <bpmn:intermediateCatchEvent id="Wait_code_change_completed" name="ExternalJobCompleted">
+        <bpmn:messageEventDefinition messageRef="Message_ExternalJobCompleted"/>
+      </bpmn:intermediateCatchEvent>
+
+      <!-- B2: iterative tests (modeled as a looping task placeholder) -->
+      <bpmn:serviceTask id="Task_iterate_tests"
+                        name="transformation.r2d.delivery_loop.iterate_tests.v1">
+        <bpmn:extensionElements>
+          <ameide:taskDefinition implementation="delegated"
+                                 type="transformation.r2d.delivery_loop.iterate_tests.v1"
+                                 idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
+                                 policyRef="default"/>
+          <ameide:ioMapping>
+            <ameide:output source="result.external_job_id" target="state.external_job_id"/>
+          </ameide:ioMapping>
+        </bpmn:extensionElements>
+      </bpmn:serviceTask>
+
+      <bpmn:intermediateCatchEvent id="Wait_iterate_tests_completed" name="ExternalJobCompleted">
+        <bpmn:messageEventDefinition messageRef="Message_ExternalJobCompleted"/>
+      </bpmn:intermediateCatchEvent>
+
+      <bpmn:serviceTask id="Task_final_gate"
+                        name="transformation.r2d.delivery_loop.final_gate.v1">
+        <bpmn:extensionElements>
+          <ameide:taskDefinition implementation="delegated"
+                                 type="transformation.r2d.delivery_loop.final_gate.v1"
+                                 idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
+                                 policyRef="default"/>
+          <ameide:ioMapping>
+            <ameide:output source="result.external_job_id" target="state.external_job_id"/>
+          </ameide:ioMapping>
+        </bpmn:extensionElements>
+      </bpmn:serviceTask>
+
+      <bpmn:intermediateCatchEvent id="Wait_final_gate_completed" name="ExternalJobCompleted">
+        <bpmn:messageEventDefinition messageRef="Message_ExternalJobCompleted"/>
+      </bpmn:intermediateCatchEvent>
+
+      <bpmn:endEvent id="EndEvent_delivery_loop" name="End Delivery Loop"/>
+
+      <bpmn:sequenceFlow id="Flow_deliv_1" sourceRef="StartEvent_delivery_loop" targetRef="Task_code_change"/>
+      <bpmn:sequenceFlow id="Flow_deliv_2" sourceRef="Task_code_change" targetRef="Wait_code_change_completed"/>
+      <bpmn:sequenceFlow id="Flow_deliv_3" sourceRef="Wait_code_change_completed" targetRef="Task_iterate_tests"/>
+      <bpmn:sequenceFlow id="Flow_deliv_4" sourceRef="Task_iterate_tests" targetRef="Wait_iterate_tests_completed"/>
+      <bpmn:sequenceFlow id="Flow_deliv_5" sourceRef="Wait_iterate_tests_completed" targetRef="Task_final_gate"/>
+      <bpmn:sequenceFlow id="Flow_deliv_6" sourceRef="Task_final_gate" targetRef="Wait_final_gate_completed"/>
+      <bpmn:sequenceFlow id="Flow_deliv_7" sourceRef="Wait_final_gate_completed" targetRef="EndEvent_delivery_loop"/>
+    </bpmn:subProcess>
+
+    <!-- Subprocess: Acceptance -->
+    <bpmn:subProcess id="SubProcess_acceptance" name="transformation.r2d.acceptance.v1">
+      <bpmn:startEvent id="StartEvent_acceptance" name="Start Acceptance"/>
+
+      <bpmn:serviceTask id="Task_preview_validate"
+                        name="transformation.r2d.acceptance.preview_validate.v1">
+        <bpmn:extensionElements>
+          <ameide:taskDefinition implementation="delegated"
+                                 type="transformation.r2d.acceptance.preview_validate.v1"
+                                 idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
+                                 policyRef="default"/>
+          <ameide:ioMapping>
+            <ameide:output source="result.external_job_id" target="state.external_job_id"/>
+          </ameide:ioMapping>
+        </bpmn:extensionElements>
+      </bpmn:serviceTask>
+
+      <bpmn:intermediateCatchEvent id="Wait_preview_validate_completed" name="ExternalJobCompleted">
+        <bpmn:messageEventDefinition messageRef="Message_ExternalJobCompleted"/>
+      </bpmn:intermediateCatchEvent>
+
+      <bpmn:userTask id="Task_accept_reject_gate"
+                     name="transformation.r2d.acceptance.accept_reject_gate.v1"/>
+
+      <bpmn:endEvent id="EndEvent_acceptance" name="End Acceptance"/>
+
+      <bpmn:sequenceFlow id="Flow_acc_1" sourceRef="StartEvent_acceptance" targetRef="Task_preview_validate"/>
+      <bpmn:sequenceFlow id="Flow_acc_2" sourceRef="Task_preview_validate" targetRef="Wait_preview_validate_completed"/>
+      <bpmn:sequenceFlow id="Flow_acc_3" sourceRef="Wait_preview_validate_completed" targetRef="Task_accept_reject_gate"/>
+      <bpmn:sequenceFlow id="Flow_acc_4" sourceRef="Task_accept_reject_gate" targetRef="EndEvent_acceptance"/>
+    </bpmn:subProcess>
+
+    <!-- Subprocess: Release -->
+    <bpmn:subProcess id="SubProcess_release" name="transformation.r2d.release.v1">
+      <bpmn:startEvent id="StartEvent_release" name="Start Release"/>
+
+      <bpmn:serviceTask id="Task_build_publish"
+                        name="transformation.r2d.release.build_publish.v1">
+        <bpmn:extensionElements>
+          <ameide:taskDefinition implementation="delegated"
+                                 type="transformation.r2d.release.build_publish.v1"
+                                 idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
+                                 policyRef="default"/>
+          <ameide:ioMapping>
+            <ameide:output source="result.external_job_id" target="state.external_job_id"/>
+          </ameide:ioMapping>
+        </bpmn:extensionElements>
+      </bpmn:serviceTask>
+
+      <bpmn:intermediateCatchEvent id="Wait_build_publish_completed" name="ExternalJobCompleted">
+        <bpmn:messageEventDefinition messageRef="Message_ExternalJobCompleted"/>
+      </bpmn:intermediateCatchEvent>
+
+      <bpmn:serviceTask id="Task_gitops_promote"
+                        name="transformation.r2d.release.gitops_promote.v1">
+        <bpmn:extensionElements>
+          <ameide:taskDefinition implementation="delegated"
+                                 type="transformation.r2d.release.gitops_promote.v1"
+                                 idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
+                                 policyRef="default"/>
+          <ameide:ioMapping>
+            <ameide:output source="result.external_job_id" target="state.external_job_id"/>
+          </ameide:ioMapping>
+        </bpmn:extensionElements>
+      </bpmn:serviceTask>
+
+      <bpmn:intermediateCatchEvent id="Wait_gitops_promote_completed" name="ExternalJobCompleted">
+        <bpmn:messageEventDefinition messageRef="Message_ExternalJobCompleted"/>
+      </bpmn:intermediateCatchEvent>
+
+      <bpmn:serviceTask id="Task_rollout_verify"
+                        name="transformation.r2d.release.rollout_verify.v1">
+        <bpmn:extensionElements>
+          <ameide:taskDefinition implementation="delegated"
+                                 type="transformation.r2d.release.rollout_verify.v1"
+                                 idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
+                                 policyRef="default"/>
+          <ameide:ioMapping>
+            <ameide:output source="result.external_job_id" target="state.external_job_id"/>
+          </ameide:ioMapping>
+        </bpmn:extensionElements>
+      </bpmn:serviceTask>
+
+      <bpmn:intermediateCatchEvent id="Wait_rollout_verify_completed" name="ExternalJobCompleted">
+        <bpmn:messageEventDefinition messageRef="Message_ExternalJobCompleted"/>
+      </bpmn:intermediateCatchEvent>
+
+      <bpmn:endEvent id="EndEvent_release" name="End Release"/>
+
+      <bpmn:sequenceFlow id="Flow_rel_1" sourceRef="StartEvent_release" targetRef="Task_build_publish"/>
+      <bpmn:sequenceFlow id="Flow_rel_2" sourceRef="Task_build_publish" targetRef="Wait_build_publish_completed"/>
+      <bpmn:sequenceFlow id="Flow_rel_3" sourceRef="Wait_build_publish_completed" targetRef="Task_gitops_promote"/>
+      <bpmn:sequenceFlow id="Flow_rel_4" sourceRef="Task_gitops_promote" targetRef="Wait_gitops_promote_completed"/>
+      <bpmn:sequenceFlow id="Flow_rel_5" sourceRef="Wait_gitops_promote_completed" targetRef="Task_rollout_verify"/>
+      <bpmn:sequenceFlow id="Flow_rel_6" sourceRef="Task_rollout_verify" targetRef="Wait_rollout_verify_completed"/>
+      <bpmn:sequenceFlow id="Flow_rel_7" sourceRef="Wait_rollout_verify_completed" targetRef="EndEvent_release"/>
+    </bpmn:subProcess>
+
+    <bpmn:endEvent id="EndEvent_r2d" name="End R2D"/>
+
+    <bpmn:sequenceFlow id="Flow_r2d_1" sourceRef="StartEvent_r2d" targetRef="SubProcess_requirements"/>
+    <bpmn:sequenceFlow id="Flow_r2d_2" sourceRef="SubProcess_requirements" targetRef="SubProcess_delivery_loop"/>
+    <bpmn:sequenceFlow id="Flow_r2d_3" sourceRef="SubProcess_delivery_loop" targetRef="SubProcess_acceptance"/>
+    <bpmn:sequenceFlow id="Flow_r2d_4" sourceRef="SubProcess_acceptance" targetRef="SubProcess_release"/>
+    <bpmn:sequenceFlow id="Flow_r2d_5" sourceRef="SubProcess_release" targetRef="EndEvent_r2d"/>
+  </bpmn:process>
+
+  <!-- BPMN DI (diagram interchange) so editors can render a diagram -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_transformation_r2d_v1">
+    <bpmndi:BPMNPlane id="BPMNPlane_transformation_r2d_v1" bpmnElement="Collaboration_transformation_r2d_v1">
+
+      <bpmndi:BPMNShape id="BPMNShape_Participant_transformation_r2d_v1" bpmnElement="Participant_transformation_r2d_v1">
+        <dc:Bounds x="100" y="50" width="1100" height="700"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="BPMNShape_StartEvent_r2d" bpmnElement="StartEvent_r2d">
+        <dc:Bounds x="160" y="132" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_SubProcess_requirements" bpmnElement="SubProcess_requirements" isExpanded="false">
+        <dc:Bounds x="240" y="110" width="120" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_SubProcess_delivery_loop" bpmnElement="SubProcess_delivery_loop" isExpanded="false">
+        <dc:Bounds x="400" y="110" width="120" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_SubProcess_acceptance" bpmnElement="SubProcess_acceptance" isExpanded="false">
+        <dc:Bounds x="560" y="110" width="120" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_SubProcess_release" bpmnElement="SubProcess_release" isExpanded="false">
+        <dc:Bounds x="720" y="110" width="120" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_EndEvent_r2d" bpmnElement="EndEvent_r2d">
+        <dc:Bounds x="860" y="132" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_r2d_1" bpmnElement="Flow_r2d_1">
+        <di:waypoint x="196" y="150"/>
+        <di:waypoint x="240" y="150"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_r2d_2" bpmnElement="Flow_r2d_2">
+        <di:waypoint x="360" y="150"/>
+        <di:waypoint x="400" y="150"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_r2d_3" bpmnElement="Flow_r2d_3">
+        <di:waypoint x="520" y="150"/>
+        <di:waypoint x="560" y="150"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_r2d_4" bpmnElement="Flow_r2d_4">
+        <di:waypoint x="680" y="150"/>
+        <di:waypoint x="720" y="150"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_r2d_5" bpmnElement="Flow_r2d_5">
+        <di:waypoint x="840" y="150"/>
+        <di:waypoint x="860" y="150"/>
+      </bpmndi:BPMNEdge>
+
+      <!-- Embedded subprocess diagrams (hidden until drilldown) -->
+
+      <!-- Requirements -->
+      <bpmndi:BPMNShape id="BPMNShape_StartEvent_requirements" bpmnElement="StartEvent_requirements">
+        <dc:Bounds x="160" y="312" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Task_develop_requirement" bpmnElement="Task_develop_requirement">
+        <dc:Bounds x="240" y="290" width="160" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Task_dor_gate" bpmnElement="Task_dor_gate">
+        <dc:Bounds x="440" y="290" width="160" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_EndEvent_requirements" bpmnElement="EndEvent_requirements">
+        <dc:Bounds x="640" y="312" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_req_1" bpmnElement="Flow_req_1">
+        <di:waypoint x="196" y="330"/>
+        <di:waypoint x="240" y="330"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_req_2" bpmnElement="Flow_req_2">
+        <di:waypoint x="400" y="330"/>
+        <di:waypoint x="440" y="330"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_req_3" bpmnElement="Flow_req_3">
+        <di:waypoint x="600" y="330"/>
+        <di:waypoint x="640" y="330"/>
+      </bpmndi:BPMNEdge>
+
+      <!-- Delivery loop -->
+      <bpmndi:BPMNShape id="BPMNShape_StartEvent_delivery_loop" bpmnElement="StartEvent_delivery_loop">
+        <dc:Bounds x="160" y="432" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Task_code_change" bpmnElement="Task_code_change">
+        <dc:Bounds x="240" y="410" width="160" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Task_iterate_tests" bpmnElement="Task_iterate_tests">
+        <dc:Bounds x="480" y="410" width="160" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Task_final_gate" bpmnElement="Task_final_gate">
+        <dc:Bounds x="720" y="410" width="160" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_EndEvent_delivery_loop" bpmnElement="EndEvent_delivery_loop">
+        <dc:Bounds x="980" y="432" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="BPMNShape_Wait_code_change_completed" bpmnElement="Wait_code_change_completed">
+        <dc:Bounds x="420" y="432" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Wait_iterate_tests_completed" bpmnElement="Wait_iterate_tests_completed">
+        <dc:Bounds x="660" y="432" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Wait_final_gate_completed" bpmnElement="Wait_final_gate_completed">
+        <dc:Bounds x="900" y="432" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_deliv_1" bpmnElement="Flow_deliv_1">
+        <di:waypoint x="196" y="450"/>
+        <di:waypoint x="240" y="450"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_deliv_2" bpmnElement="Flow_deliv_2">
+        <di:waypoint x="400" y="450"/>
+        <di:waypoint x="420" y="450"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_deliv_3" bpmnElement="Flow_deliv_3">
+        <di:waypoint x="456" y="450"/>
+        <di:waypoint x="480" y="450"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_deliv_4" bpmnElement="Flow_deliv_4">
+        <di:waypoint x="640" y="450"/>
+        <di:waypoint x="660" y="450"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_deliv_5" bpmnElement="Flow_deliv_5">
+        <di:waypoint x="696" y="450"/>
+        <di:waypoint x="720" y="450"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_deliv_6" bpmnElement="Flow_deliv_6">
+        <di:waypoint x="880" y="450"/>
+        <di:waypoint x="900" y="450"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_deliv_7" bpmnElement="Flow_deliv_7">
+        <di:waypoint x="936" y="450"/>
+        <di:waypoint x="980" y="450"/>
+      </bpmndi:BPMNEdge>
+
+      <!-- Acceptance -->
+      <bpmndi:BPMNShape id="BPMNShape_StartEvent_acceptance" bpmnElement="StartEvent_acceptance">
+        <dc:Bounds x="160" y="552" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Task_preview_validate" bpmnElement="Task_preview_validate">
+        <dc:Bounds x="240" y="530" width="160" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Task_accept_reject_gate" bpmnElement="Task_accept_reject_gate">
+        <dc:Bounds x="480" y="530" width="160" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_EndEvent_acceptance" bpmnElement="EndEvent_acceptance">
+        <dc:Bounds x="680" y="552" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="BPMNShape_Wait_preview_validate_completed" bpmnElement="Wait_preview_validate_completed">
+        <dc:Bounds x="420" y="552" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_acc_1" bpmnElement="Flow_acc_1">
+        <di:waypoint x="196" y="570"/>
+        <di:waypoint x="240" y="570"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_acc_2" bpmnElement="Flow_acc_2">
+        <di:waypoint x="400" y="570"/>
+        <di:waypoint x="420" y="570"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_acc_3" bpmnElement="Flow_acc_3">
+        <di:waypoint x="456" y="570"/>
+        <di:waypoint x="480" y="570"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_acc_4" bpmnElement="Flow_acc_4">
+        <di:waypoint x="640" y="570"/>
+        <di:waypoint x="680" y="570"/>
+      </bpmndi:BPMNEdge>
+
+      <!-- Release -->
+      <bpmndi:BPMNShape id="BPMNShape_StartEvent_release" bpmnElement="StartEvent_release">
+        <dc:Bounds x="160" y="672" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Task_build_publish" bpmnElement="Task_build_publish">
+        <dc:Bounds x="240" y="650" width="160" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Task_gitops_promote" bpmnElement="Task_gitops_promote">
+        <dc:Bounds x="480" y="650" width="160" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Task_rollout_verify" bpmnElement="Task_rollout_verify">
+        <dc:Bounds x="720" y="650" width="160" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_EndEvent_release" bpmnElement="EndEvent_release">
+        <dc:Bounds x="980" y="672" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="BPMNShape_Wait_build_publish_completed" bpmnElement="Wait_build_publish_completed">
+        <dc:Bounds x="420" y="672" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Wait_gitops_promote_completed" bpmnElement="Wait_gitops_promote_completed">
+        <dc:Bounds x="660" y="672" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Wait_rollout_verify_completed" bpmnElement="Wait_rollout_verify_completed">
+        <dc:Bounds x="900" y="672" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_rel_1" bpmnElement="Flow_rel_1">
+        <di:waypoint x="196" y="690"/>
+        <di:waypoint x="240" y="690"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_rel_2" bpmnElement="Flow_rel_2">
+        <di:waypoint x="400" y="690"/>
+        <di:waypoint x="420" y="690"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_rel_3" bpmnElement="Flow_rel_3">
+        <di:waypoint x="456" y="690"/>
+        <di:waypoint x="480" y="690"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_rel_4" bpmnElement="Flow_rel_4">
+        <di:waypoint x="640" y="690"/>
+        <di:waypoint x="660" y="690"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_rel_5" bpmnElement="Flow_rel_5">
+        <di:waypoint x="696" y="690"/>
+        <di:waypoint x="720" y="690"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_rel_6" bpmnElement="Flow_rel_6">
+        <di:waypoint x="880" y="690"/>
+        <di:waypoint x="900" y="690"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_rel_7" bpmnElement="Flow_rel_7">
+        <di:waypoint x="936" y="690"/>
+        <di:waypoint x="980" y="690"/>
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

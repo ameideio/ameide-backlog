@@ -20,6 +20,7 @@ This document is the consolidated, normative version of the Domain / Process / A
 - Shared contracts: generation, ownership, imports, secrets
 - Primitive kinds: Domain, Process, Agent, UISurface, Projection, Integration
 - Conformance Checklists
+- Agentic workflow (scaffold → publish → preview deploy)
 - Evolution Policy
 - Why this is not reinventing the wheel
 - References
@@ -42,6 +43,8 @@ This document uses direct requirement statements; treat them as non-negotiable f
 8. **Custom options are allowed, but protos are not a behavior DSL.** Use protobuf custom options/extensions for intent and metadata; keep routing/policy/prompt/provider behavior in `_impl` code + tests. ([Proto guide][20], [Proto guide][21])
 9. **Secrets stay in Kubernetes.** No secret literals in protos or generated artifacts. Operators inject secrets/config at runtime (env/volumes/secret refs, or platform-specific parameter stores). ([Kubernetes secrets][12])
 10. **Implementation-owned surface stays tiny.** The generator creates almost everything; the human “escape hatch” is a small set of `_impl` files and behavior tests.
+11. **Configuration has a single authority.** Every runtime value MUST come from exactly one source: (a) platform/cluster conventions (non-overridable), (b) GitOps/operator-provisioned runtime configuration (env/secret/volume), or (c) request inputs (envelopes/payloads). Runtimes MUST NOT implement fallback chains or “override” precedence across sources.
+12. **No runtime flags for behavior/config.** Container args/flags MUST NOT be used for environment- or process-specific configuration; use GitOps/operator-provisioned env/secret/volume. (Flags may exist only for generic ergonomics like `--help` and MUST NOT affect production behavior.)
 
 ---
 
@@ -51,6 +54,7 @@ This document uses direct requirement statements; treat them as non-negotiable f
 - If you are building a new primitive implementation: read the **Primitive kind** section for your kind, then follow the **CI gate checklist** and **Operator↔runtime contract**.
 - If you are implementing a new capability end-to-end: use `backlog/533-capability-implementation-playbook.md` as the parallelizable activity DAG (capability-agnostic).
 - The `backlog/520-primitives-stack-v2-research-*.md` files are supporting background; this document is the normative spec.
+- For an agent-friendly end-to-end loop (scaffold → implement/test → publish → PR preview deploy), see `backlog/520-primitives-stack-v2-agentic-process.md`.
 
 ---
 
@@ -216,6 +220,20 @@ Responsibility matrix:
 | Implementation-owned primitive skeleton | ❌ | ❌ | ✅ create/update | ❌ |
 | GitOps components / CR instances | ❌ | ❌ | ✅ create/update | reconciles CRs |
 | Canonical gate | CI uses proto+buf+tests | ✅ | optional wrapper | runtime only |
+
+### 3) Configuration authority contract (no “flaky variables”)
+
+Hard rule:
+
+- Every value used by a primitive runtime MUST have a single declared authority:
+  - **Cluster-derived**: fixed conventions owned by the platform/operator (e.g., standard ports, health paths). No per-primitive overrides.
+  - **GitOps/operator-provisioned**: environment-specific endpoints, credentials, feature toggles, concurrency knobs (env/secret/volume). Missing values are a hard error at startup.
+  - **Request-provisioned**: business inputs carried in envelopes/payloads. Missing values are a hard error at message handling time.
+
+Prohibited:
+
+- “Try env, else derive from subject, else default” logic in runtime code.
+- Any behavior differences between dev/staging/prod achieved by unpinned defaults inside the runtime image.
 
 **Repo layout (canonical pattern):**
 

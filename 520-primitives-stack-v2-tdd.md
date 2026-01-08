@@ -20,6 +20,7 @@ The only permitted deviation for this activity is: image publishing is done manu
 - Skeleton generators are deterministic (no timestamps, random IDs, or environment-dependent output).
 - Ameide-specific proto options are SOURCE-retained; generators read options from `source_file_descriptors` when present.
 - Generated output is written only into generated-only directories and is gitignored.
+- Runtime configuration follows the v2 “single authority” rule (cluster-derived vs GitOps/operator-provisioned vs request-provisioned); runtimes do not implement fallback/override chains (see `backlog/520-primitives-stack-v2.md`).
 
 ## Repository Locations
 

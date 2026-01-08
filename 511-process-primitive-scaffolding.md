@@ -20,6 +20,7 @@ This backlog defines the **canonical target scaffold** for **Process** primitive
 - Exactly one fixed, opinionated scaffold per primitive kind; **do not introduce new CLI flags** beyond the existing `ameide primitive scaffold` parameters.  
 - All user instructions for Process scaffolds must be provided via **template files** (README/templates, code comment templates), not inline string literals in the CLI code.  
 - Scaffolded documentation (README + comments) must be **self‑contained** and must **not reference external backlogs**; implementers should be able to follow the scaffold without opening design documents.  
+- Runtime configuration must follow the v2 “single authority” rule: cluster-derived conventions vs GitOps/operator env/secret/volume vs request payload inputs (no fallback chains). See `backlog/520-primitives-stack-v2.md` (“Configuration authority contract”).
 
 ---
 
@@ -37,7 +38,25 @@ This backlog defines the **canonical target scaffold** for **Process** primitive
 
 ## 1. Canonical scaffold command (Process / Go)
 
-For Process primitives we use a single, opinionated Temporal pattern. Scaffolds are SDK/shape‑based and do not require a proto path:
+For Process primitives we use a single, opinionated Temporal pattern.
+
+Process primitives are **Temporal runners**, not systems of record:
+
+- Durable business state lives in Domains.
+- Read models and query APIs live in Projections.
+- A Process may expose a minimal ops/control-plane endpoint (e.g., ping/health), but it should not grow into a business API.
+
+### 1.0 Configuration boundaries (no “flaky variables”)
+
+To keep Process primitives deterministic and environment-portable, every value must have one authority:
+
+- **Cluster-derived** (platform conventions): non-overridable constants (ports, health endpoints).
+- **GitOps/operator-provisioned**: all environment-specific wiring (Temporal namespace/task queue, broker endpoints, domain service addresses, credentials) via env/secret/volume. Missing config is a hard startup error.
+- **Request-provisioned**: all business inputs via ingress envelopes/payloads. Missing inputs are a hard message-handling error.
+
+The Process runtime MUST NOT implement “try X else Y” precedence between those sources (no “env overrides payload” or “derive org from subject if env missing”). Ingress should normalize inputs into the canonical envelope, and BPMN/extension IO mapping should make required business inputs explicit.
+
+The BPMN-first, Go-only compiler refactor (lint + compile into generated code) is specified in `backlog/511-process-primitive-scaffolding-refactoring.md`.
 
 ```bash
 ameide primitive scaffold \
@@ -54,6 +73,17 @@ This assumes:
 - The implementation must **implicitly choose Go** as the language for Process scaffolds (`--lang` is effectively fixed to `go` and treated as a compatibility flag only).  
 
 ---
+
+## 1.1 Where this fits in the existing CLI
+
+The “happy path” for Process primitives is the existing `ameide primitive` lifecycle:
+
+- `ameide primitive plan --kind process --name <name>`: suggests required files/tests and highlights drift.
+- `ameide primitive scaffold --kind process --name <name>`: creates/refreshes the repo skeleton.
+- `ameide primitive verify --kind process --name <name> --mode repo`: enforces repo guardrails (shape, tests, conventions).
+- `ameide primitive publish --kind process --name <name>`: builds/pushes the Process runner image (dev only).
+
+The BPMN→Temporal runner compiler work (v1) fits into this structure by making BPMN lint/compile part of the Process “repo mode” guardrails and the Process scaffold refresh loop. See `backlog/511-process-primitive-scaffolding-refactoring.md`.
 
 ## 2. Generated structure (Process / Go)
 
@@ -144,13 +174,18 @@ Process scaffolds assume:
   - Process facts emitted as orchestration evidence must carry the same correlation/trace context so projections can materialize audit-grade timelines.
 
 - **Determinism and definitions**:
-  - BPMN / ProcessDefinition artifacts from Transformation are canonical **design inputs**. In v1 they may be treated as “design knowledge”, but the target architecture supports **BPMN → Temporal transpilation**; therefore Process implementations MUST carry a stable `process_definition_id` (definition key + version/checksum) in workflow inputs and emitted process facts.
+  - BPMN / ProcessDefinition artifacts are canonical **design inputs**. In v1 they may be treated as “design knowledge”, but the target architecture supports **BPMN → Temporal transpilation**; therefore Process implementations MUST carry a stable `process_definition_id` (definition key + version/checksum) in workflow inputs and emitted process facts.
   - Workflows must not consult “latest definition from ConfigMap/registry” on each replayed step. Instead:
     - capture a **definition version/checksum** as workflow input when starting, and
     - treat that version as immutable per Workflow Execution, or
     - record any derived routing/decision data into workflow history via an Activity/SideEffect once, then use the recorded value.
   - Definition changes are handled at coarse‑grained boundaries (e.g., **Continue‑As‑New** or new Workflow Executions) rather than by changing behavior within a running execution based on live config.
   - When emitting BPMN‑derived step progress, include both `step_id` (definition element id) and `step_instance_id` (runtime occurrence id) to support loops, multi‑instance tasks, and parallel tokens.
+
+- **Ameide BPMN extensions (scaffolding metadata)**:
+  - ProcessDefinitions MAY include machine-readable bindings in BPMN `extensionElements` (under an Ameide-owned namespace) to drive scaffolding (e.g., task ↔ Temporal Activity, userTask ↔ Temporal Update, task ↔ WorkRequest + awaited facts).
+  - These extensions are **design-time compilation inputs**, not runtime configuration: the compiled workflow must still pin `process_definition_id` and remain deterministic.
+  - See `backlog/511-process-primitive-scaffolding-bpmn-extension.md` for the execution-profile schema (required elements, completion/wait semantics, templates/path grammar, lint rules).
 
 - **Signal ordering / initialization**:
   - When using `SignalWithStart`, Temporal may deliver Signals before the workflow’s main logic has fully initialized. Scaffolded workflows are expected to:
@@ -169,6 +204,170 @@ Process scaffolds assume:
 Topic and event naming follow `509-proto-naming-conventions.md` and the relevant process proto (e.g., `ameide_core_proto.process.scrum.v1`).
 
 ---
+
+## 3. BPMN as canonical design input (scaffolded to Temporal)
+
+### What BPMN is (and isn’t) in this approach
+
+- **BPMN is canonical design input**, intended to be **transpiled/scaffolded into Temporal workflows**. It is *not* interpreted dynamically at runtime.
+- Compiled implementations must pin a stable **`process_definition_id` (definition key + version/checksum)** into workflow inputs and emitted facts, and must not “fetch latest BPMN” during replay.
+- Definition changes are handled only at coarse boundaries (new execution or **Continue-As-New**), not “hot-swapped” inside a running workflow.
+
+---
+
+### Modeling inputs/outputs, events, facts, commands
+
+#### 1) Prefer machine-readable bindings in BPMN `extensionElements`
+
+Use an Ameide-owned namespace and keep the BPMN XSD-valid:
+
+```xml
+xmlns:ameide="https://ameide.io/schema/bpmn/extensions/v1"
+```
+
+**Minimal extension surface (v1):**
+
+- `ameide:taskDefinition` — required on automated executable nodes; binds the node to an execution binding (`implementation`) plus stable `type`, `idempotencyKeyTemplate`, and a deterministic `policyRef`.
+- `ameide:subscription` — required for explicit waits; Camunda-aligned: declares `correlationKeyTemplate` (single correlation key) and `messageIdPath` for correlation + dedupe (and `messageName` unless attached to a `bpmn:message`).
+- `ameide:ioMapping` — recommended; deterministic input/output mapping (variable paths → request fields, response fields → variable paths).
+- `ameide:taskHeaders` — optional; small static key/value metadata passed to the side-effect boundary.
+- `ameide:updateDefinition` — optional; user tasks default to Temporal Updates with a deterministic default name.
+
+This is the core “how we model commands/events/IO”: **the BPMN shape gives control-flow; the extensions bind nodes to Temporal + EDA surfaces.**
+
+#### 2) Commands vs facts
+
+**Commands / intents (“do work”)**
+
+A BPMN activity scaffolds to one of:
+
+- a **Temporal Activity** (side-effect boundary) when the work is “local enough”, or
+- a **delegated WorkRequest** pattern when execution is outside the worker (agentic toolchains, heavy environments, external executors).
+
+If delegated:
+
+- the Activity submits an **idempotent domain intent/command** that creates a Domain-owned **WorkRequest** (audit-grade), and
+- the workflow advances only by **awaiting correlated domain facts** (e.g., `WorkCompleted` / `WorkFailed`), not synchronous runner responses.
+- In the BPMN extension profile, “awaiting correlated facts” is represented with explicit BPMN wait nodes and a machine-readable await contract via `ameide:subscription` (either on the wait node itself or on the referenced `bpmn:message`; the await contract is not implied by the task).
+
+**Facts / events (“what happened”)**
+
+Model waits explicitly using BPMN wait nodes with a declared await contract (`ameide:subscription` on the wait node or on its referenced `bpmn:message`):
+
+- what a step emits as **process facts** (e.g., `PhaseEntered` / `Awaiting` / `GateDecisionRecorded`),
+- what it awaits as **domain facts**, with explicit `correlationKeyTemplate` (single key) and a dedupe `messageIdPath`.
+
+Ingress routing note:
+
+- For message-based waits, ingress SHOULD normalize inbound deliveries into a small envelope with `message_name`, `correlation_key`, and `message_id`, so the scaffolded workflow can match waits by `correlation_key` and dedupe by `message_id` deterministically.
+
+#### 3) Inputs/outputs
+
+Treat IO as **process variables / state**, not “BPMN runtime data”.
+
+- Use `ameide:ioMapping` mappings to make IO deterministic and compilable (inputs from process vars → request fields; outputs from results → vars).
+- Keep runtime workflow state as **derived, process-local state** (flags, last-seen versions, refs), not big payloads.
+- For large artifacts (PR diffs, evidence bundles, image digests), store externally and pass **references**.
+
+---
+
+### Temporal-specific execution rules that shape BPMN + extensions
+
+#### 1) Determinism boundaries
+
+- Workflow code must be deterministic and signal-driven; **no network calls, no mutable config reads**. All side effects go through **Activities**.
+- If anything requires a one-time nondeterministic decision (routing choice, derived config), record it once via Activity/SideEffect and re-use the recorded value.
+
+#### 2) Ingress router is where nondeterminism lives
+
+- A separate **Ingress router** subscribes to domain fact topics, computes deterministic workflow IDs, and uses **SignalWithStart** against the Temporal service.
+- Ingress must treat inbound facts as **at-least-once**, and propagate envelope metadata into workflow signals (tenant, message/correlation/causation IDs, trace context).
+
+#### 3) Signal ordering / initialization
+
+- With `SignalWithStart`, signals may arrive before the workflow fully initializes; workflows must initialize State before entering the signal loop and treat signals as arriving any time.
+
+#### 4) User tasks / gates are Temporal Updates by default
+
+- BPMN user tasks (approvals/gates) scaffold to **Temporal Updates** (not Signals) to get synchronous accept/reject semantics and stable idempotency via `UpdateId`.
+
+#### 5) Long-lived “entity workflow” posture + Continue-As-New
+
+- Assume one workflow per business key, long-running.
+- Plan for **Continue-As-New** on history thresholds and/or definition version changes.
+
+#### 6) Idempotency + ordering
+
+- Workflows ignore domain facts older than last seen aggregate version (`aggregate_version <= lastSeenAggregateVersion`).
+- Activities that emit process facts must be idempotent (Temporal retries happen).
+
+---
+
+### BPMN authoring conventions
+
+Even though BPMN isn’t executed at runtime:
+
+- Keep BPMN element IDs stable; they become `step_id` in emitted facts.
+- Emit `step_instance_id` for runtime occurrences (loops, multi-instance, parallel tokens).
+- Use BPMN structure (subprocesses, gateways, loops) to reflect true control-flow so the compiled Temporal state machine is understandable and doesn’t rely on “hidden control-flow” buried only in extensions.
+
+---
+
+### Tooling expectations
+
+The scaffolder reads BPMN + extensions, builds an internal IR (nodes/edges/subprocess trees + bindings/events/io), and generates:
+
+- workflow skeleton(s),
+- activity stubs,
+- update handlers for user tasks,
+- helpers to “await correlated fact”.
+
+Editor support can start as raw XML in `extensionElements`, later upgraded via a moddle descriptor for `bpmn-js`.
+
+---
+
+### Examples (extensions)
+
+#### Example: delegated work + explicit wait for completion
+
+```xml
+<bpmn:serviceTask id="Task_DoWork" name="Do work">
+  <bpmn:extensionElements>
+    <ameide:taskDefinition implementation="delegated"
+                           type="example.external_job.v1"
+                           idempotencyKeyTemplate="example/${process_instance_id}/job/${state.job_key}"
+                           policyRef="default" />
+    <ameide:ioMapping>
+      <ameide:input source="state.input_ref" target="request.input_ref" />
+      <ameide:output source="result.external_job_id" target="state.external_job_id" />
+    </ameide:ioMapping>
+  </bpmn:extensionElements>
+</bpmn:serviceTask>
+
+<bpmn:sequenceFlow id="Flow_1" sourceRef="Task_DoWork" targetRef="Wait_ExternalJobCompleted"/>
+
+<bpmn:message id="Message_ExternalJobCompleted" name="ExternalJobCompleted">
+  <bpmn:extensionElements>
+    <ameide:subscription correlationKeyTemplate="${state.external_job_id}"
+                         messageIdPath="message_id" />
+  </bpmn:extensionElements>
+</bpmn:message>
+
+<bpmn:intermediateCatchEvent id="Wait_ExternalJobCompleted" name="ExternalJobCompleted">
+  <bpmn:messageEventDefinition messageRef="Message_ExternalJobCompleted"/>
+</bpmn:intermediateCatchEvent>
+```
+
+#### Example: userTask scaffolding to a Temporal Update (optional override)
+
+```xml
+<bpmn:userTask id="Task_Approve" name="Approve">
+  <bpmn:extensionElements>
+    <ameide:updateDefinition name="Update_Task_Approve"
+                             idempotencyKeyTemplate="approval/${state.approval_request_id}" />
+  </bpmn:extensionElements>
+</bpmn:userTask>
+```
 
 ## 4. Workflow and test semantics (Process / Go)
 
