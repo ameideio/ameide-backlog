@@ -156,7 +156,7 @@ See also:
 | `primitives/process/{name}/catalog-info.yaml` | Backstage catalog |
 | `primitives/process/{name}/cmd/worker/main.go` | Temporal worker entrypoint |
 | `primitives/process/{name}/cmd/ingress/main.go` | HTTP/gRPC ingress entrypoint |
-| `primitives/process/{name}/internal/handlers/handlers.go` | Proto handlers |
+| `primitives/process/{name}/internal/handlers/handlers.go` | Ops/control-plane handlers only (not a read model; business state lives in Domains) |
 | `primitives/process/{name}/internal/workflows/workflow.go` | Temporal workflow stub |
 | `primitives/process/{name}/internal/ingress/router.go` | Ingress router |
 | `primitives/process/{name}/internal/process/state.go` | Process state struct |

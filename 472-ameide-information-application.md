@@ -85,7 +85,7 @@ We carry forward the earlier principles and make them concrete here:
    *Agents can read from knowledge, call domains, and be invoked from processes in a controlled, typed way.*
 
 5. **Proto-first contracts**
-   *Every domain/process/agent exposes a proto-based API, with Buf/BSR governance and SDKs.*
+   *Every Domain and Agent exposes a proto-based API, with Buf/BSR governance and SDKs. Process primitives may expose a minimal ops/control-plane proto, but they are not a system of record and do not serve read models (queries belong to Projections).*
 
 6. **Kubernetes-style declarative state**
    *We declare desired state (e.g. “invoice posted”) and primitives + workflows converge actual state, similar to K8s reconciliation loops and CRDs.*
@@ -133,6 +133,12 @@ We carry forward the earlier principles and make them concrete here:
 *Design-time:* **ProcessDefinitions** are BPMN-compliant artifacts produced by a **custom React Flow modeller** and stored in the **Transformation Domain** (modelled via Transformation design tooling UIs). They capture intent, stages, gateways, and bindings, but are **not executed directly**.
 
 *Runtime:* **Process primitives** are Temporal-backed services whose workflow code is derived from ProcessDefinitions by CLI/agents and human developers during implementation. At runtime they execute their own compiled workflows and **do not load or interpret BPMN/ProcessDefinitions dynamically**.
+
+**Execution posture (BPMN → Temporal compilation):**
+
+- BPMN is the canonical **source artifact** for orchestration intent and bindings.
+- Process primitives run **compiled** Temporal workflows pinned to a `process_definition_id` (version/checksum), rather than interpreting “latest BPMN” at runtime.
+- ProcessDefinitions MAY include Ameide-owned BPMN `extensionElements` to make bindings machine-readable for scaffolding (Temporal Activities/Updates, facts/intents wiring, IO mappings). See `backlog/511-process-primitive-scaffolding.md` (§3).
 
 **Key concepts**
 
@@ -1082,7 +1088,7 @@ This aligns with Backstage’s ecosystem modeling and software templates feature
 | Agent              | `Component` or custom `Agent` kind |
 | UI workspace       | `Component` (frontend)             |
 | Domain API         | `API`                              |
-| Process API        | `API` (process control / queries)  |
+| Process API        | `API` (ops / control-plane only; queries served by Projections) |
 | Transformation design tooling artifact       | `Resource` or custom `Artifact`    |
 
 This keeps all “things that exist” in the platform visible and discoverable via the catalog.
@@ -1109,7 +1115,7 @@ We provide **four base templates** (each parameterized per tenant):
 
      * Initial ProcessDefinition (BPMN-compliant, from React Flow modeller) with lane structure (Sales, Billing, Logistics, etc.).
      * Temporal workflow skeletons (service tasks bound to Domain primitive APIs).
-     * Process primitive service skeleton.
+     * Process primitive runner skeleton (worker + ingress) plus optional ops/control-plane endpoint.
      * Backstage `Component` entity + links to domain APIs.
 
 3. **Agent primitive Template**
@@ -1235,7 +1241,7 @@ This section is just to show that we’re not inventing yet another stack, but r
 
 2. **Proto-based APIs (044)**
 
-   * All domain/process/agent services are still proto-first, with gRPC + REST surfaces and consistent error handling.
+   * Domain + Projection services remain proto-first (gRPC + REST surfaces, consistent errors). Process primitives may expose proto-defined **ops/control** endpoints (optional), but business/query APIs live in Domains/Projections; process behavior is compiled from ProcessDefinitions (e.g., BPMN).
 
 3. **North-Star (064)**
 

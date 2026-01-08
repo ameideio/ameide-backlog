@@ -16,6 +16,39 @@ Terminology (canonical in `backlog/520-primitives-stack-v2.md`):
 - **Activity-inline execution:** work runs inside the Process primitive's Temporal Activity worker.
 - **Activity-delegated execution:** a Process Activity initiates work but another runtime executes it; delegation is via an **intent**, completion is observed via **facts**.
 
+---
+
+## Sequence V3 - Value-stream view (R2D first)
+
+V3 restates the same execution seam as Sequence A, but in value-stream terms so it can align to IT4IT-style naming (and your spreadsheet-style “phase / subphase” breakdown).
+
+**Kanban mapping (recommended):**
+
+- **A (Requirements management)** → `intake` / `triage` / `awaiting_approval` (often no Temporal yet).
+- **B (Design/build/test/package)** → `execution` (Temporal workflow + WorkRequests).
+- **C (Acceptance / preview)** → `execution` or `release` (depends on whether preview is a release gate).
+- **D (Release)** → `release` → `done|failed`.
+
+### Requirement to Deploy (R2D) — “Ship”
+
+| Process | Phase nr | Phase | SubPhase | Description | Implemented as | Input | Output | Proto (write surface) | Events (facts vs intents) | Temporal Activity | UI/Kanban |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| R2D | A | Requirements management | A1 Requirement development | Stabilize/clarify the requirement and supporting artifacts (markdown/BPMN/etc) with chat + element-editor assistance. | Platform app element editor + chat + LangGraph agent (Agent primitive). Temporal is optional until you want a durable run/timeline. | User chat + element edits. | Updated requirement Elements/ElementVersions and links (the “source of truth” artifacts). | `ameide_core_proto.transformation.knowledge.v1.TransformationKnowledgeCommandService` (`CreateElement`/`EditElement`/`CreateRelationship`/etc). | **Facts:** `ameide_core_proto.transformation.knowledge.v1.TransformationKnowledgeDomainFact` on `transformation.knowledge.domain.facts.v1`.<br>**No intents:** no `WorkExecutionRequested` queues unless you explicitly request delegated work. | None required. | Typically `intake` → `triage` (optionally show as “drafting” without a Process run). |
+| R2D | A | Requirements management | A2 Approval gate (optional) | Decide that the requirement slice is “ready to deploy” (DoR) and freeze a promotable set of versions. | Process gate (Temporal Update) if you started a run; otherwise a UI action that creates/submits a baseline. | Requirement element refs. | Baseline submitted/approved (and any required decision evidence). | `ameide_core_proto.transformation.governance.v1.TransformationGovernanceCommandService` (`CreateBaseline`/`SubmitBaseline`/`ApproveBaseline`/etc). | **Facts:** `ameide_core_proto.transformation.governance.v1.TransformationGovernanceDomainFact` on `transformation.governance.domain.facts.v1`.<br>**Process facts (if Temporal):** `ameide_core_proto.process.transformation.v1.TransformationProcessFact` on `transformation.process.facts.v1` (`Awaiting(kind=approval)`, `GateDecisionRecorded`). | `EmitPhaseEntered(awaiting_approval)` + `AwaitDecision` (Update/Signal). | `awaiting_approval` (card blocks until approved). |
+| R2D | B | Design, build, test, package | B1 Code | Produce the code change that fulfills the requirement slice (repo change + PR). | Temporal workflow orchestrates; code runs as delegated `WorkRequest` (agentic) or tool-run steps. | Approved baseline + repo checkout ref (commit SHA). | `WorkRequest` created; PR link or patch recorded as evidence. | `ameide_core_proto.transformation.work.v1.TransformationWorkCommandService.RequestWork` with `spec.work_kind=WORK_KIND_AGENT_WORK`, `spec.action_kind=ACTION_KIND_PUBLISH`. | **Intent:** `ameide_core_proto.transformation.work.v1.WorkExecutionRequested` to `transformation.work.queue.agentwork.*.v1`.<br>**Facts:** `ameide_core_proto.transformation.work.v1.TransformationWorkDomainFact` on `transformation.work.domain.facts.v1` (`WorkRequested/Started/Completed/Failed`).<br>**Process facts:** `ToolRunRecorded`/`ActivityTransitioned`/`PhaseEntered`. | `RequestWork` (side-effect boundary) + “await WorkCompleted/WorkFailed facts” (via SignalWithStart ingress). | `execution` (card shows PR + evidence refs). |
+| R2D | B | Design, build, test, package | B2 Iterative tests | Run fast feedback loops (unit/integration suites) until green; may repeat with more code changes. | Temporal workflow loop + delegated tool-run WorkRequests. | Repo checkout ref (commit SHA), suite selection. | Verified evidence + pass/fail outcomes; optional additional code WorkRequests. | `ameide_core_proto.transformation.work.v1.TransformationWorkCommandService.RequestWork` with `spec.work_kind=WORK_KIND_TOOL_RUN`, `spec.action_kind=ACTION_KIND_VERIFY`. | **Intent:** `WorkExecutionRequested` to `transformation.work.queue.toolrun.verify.*.v1`.<br>**Facts:** `TransformationWorkDomainFact` on `transformation.work.domain.facts.v1` + `TransformationProcessFact.ToolRunRecorded`. | `RequestWork` + loop on work outcomes. | `execution` (card shows test evidence + failures driving next steps). |
+| R2D | B | Design, build, test, package | B3 Final test | Run the required “final gate” suite(s) (e2e/smoke/security) and lock evidence for release decisioning. | Temporal workflow + delegated tool-run WorkRequests (may be a dedicated queue/class). | Repo checkout ref (candidate commit SHA), final suite refs. | Final verification evidence bundle + decision input. | Same as B2 (verify WorkRequest), possibly with a stricter `verification_suite_ref`/tool args. | Same as B2, plus explicit `Awaiting(kind=external_work, ref=work_request_id)` in process facts while waiting. | `RequestWork` + wait on completion facts. | `execution` (card shows “final gate” status). |
+| R2D | C | Acceptance | Preview environment | Validate in a preview environment before release (optional posture). | Argo CD PR generator (infra) + Process waits on evidence. | PR / candidate commit + config refs. | Preview URL + acceptance decision evidence. | Integration-specific (Git provider + GitOps repo PR + ArgoCD), plus optional Process gate. | **Facts:** process facts to record phase/gate; domain facts for any persisted acceptance artifacts/evidence. (Preview infra details must not leak into process semantics.) | `EmitPhaseEntered(acceptance)` + `Awaiting(kind=dependency, ref=preview_env)` (if modeled). | `execution` or `release` (team choice); UI shows preview link + accept/reject. |
+| R2D | D | Release |  | Promote/publish and roll out (digest-pinned), then close the run. | Temporal workflow orchestrates release gates; actual rollout is GitOps promotion + Argo sync health. | Approved changes + artifacts/digests + policy checks. | Promotion PRs + rollout evidence + terminal status. | Integration + governance write surfaces; process emits terminal facts. | **Facts:** process facts `PhaseEntered(release)` + `RunCompleted/RunFailed`; domain facts for any recorded release/promotions. | `EmitPhaseEntered(release)` + request publish/deploy WorkRequests (if used). | `release` → `done|failed` (UI shows promoted digests + rollout summary). |
+
+### Other value streams (stubs)
+
+These reuse the same execution seam (Workflow → Activity → Domain write → domain facts + process facts → UI/projection). The naming differs; the contracts and invariants do not.
+
+- **Request to Fulfill (R2F) — “Deliver”**: customer fulfillment flows (often more integration-heavy than agent-work heavy).
+- **Detect to Correct (D2C) — “Run”**: operational incident/change flows (signals + runbooks + verification WorkRequests).
+- **Strategy to Portfolio (S2P) — “Plan”**: initiative/roadmap shaping flows (mostly Domain writes + approvals; fewer WorkRequests).
+
 ## Infra contract (agentic coding via Codex)
 
 - The AgentWork "coder" executor expects authenticated Codex CLI via an `auth.json` file.
@@ -117,3 +150,4 @@ Release is still a Process concern (gates + sequencing), but what gets deployed 
 5. **Infra is swappable**: the "executor" can be KEDA Jobs today and a different runner pool tomorrow without changing process semantics.
 6. **At-least-once everywhere**: Kafka delivery is at-least-once; Temporal Activities may run more than once; Domain/Process commands MUST be idempotent via explicit idempotency keys.
 7. **Signal ingestion requires dedupe + history planning**: if facts are routed into long-lived workflows via `SignalWithStart`, workflows MUST dedupe by `message_id` and use `Continue-As-New` to avoid unbounded history growth.
+8. **No “activities-only orchestration”**: long-lived state, waits, retries-as-control-flow, and gate decisions live in Workflows; Activities remain retryable side effects only.

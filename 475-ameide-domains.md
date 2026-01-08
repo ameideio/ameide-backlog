@@ -216,7 +216,7 @@ We use three runtime primitive types plus two design-time artifact types:
 
 Domain primitives and Process primitives may expose explicit extension points (e.g. `BeforePostInvoice`, BPMN Extension Tasks) which are satisfied by `ExtensionDefinition` artifacts executed via the shared `extensions-runtime` service. This gives tenants a light-weight way to customize behaviour without introducing new primitives for every rule change. See [479-ameide-extensibility-wasm.md](479-ameide-extensibility-wasm.md).
 
-All primitives expose proto-based APIs and are consumed via the Ameide SDKs; this is uniform across all domains. At runtime each Domain/Process/Agent primitive is represented as a declarative CRD (Domain/Process/Agent) reconciled by Ameide operators (see [474-ameide-refactoring.md](474-ameide-refactoring.md) for the migration into this model).
+All externally exposed APIs are proto-first and consumed via the Ameide SDKs. Process primitives may expose proto-defined **ops/control** endpoints (optional), but business/query APIs live in Domains/Projections; process execution is typically driven by event ingress + Temporal. At runtime each Domain/Process/Agent primitive is represented as a declarative CRD (Domain/Process/Agent) reconciled by Ameide operators (see [474-ameide-refactoring.md](474-ameide-refactoring.md) for the migration into this model).
 
 ### 4.1 Example: Platform & Identity
 

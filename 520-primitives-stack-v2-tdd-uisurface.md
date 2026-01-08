@@ -18,6 +18,7 @@ Complete all unchecked items in this document for this vertical primitive to be 
 
 - [x] Keep the UISurface runtime at `primitives/uisurface/hello/`.
 - [x] Serve the generated marker response `Hello UISurface v0`.
+- [ ] Configuration authority: runtime wiring is GitOps/operator-provisioned only (env/secret/volume), request inputs are request-provisioned only, and the runtime has no fallback/override chains (see `backlog/520-primitives-stack-v2.md`).
 
 ### Operator + GitOps
 

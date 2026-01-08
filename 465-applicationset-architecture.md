@@ -12,6 +12,7 @@
 > | [464-chart-folder-alignment.md](464-chart-folder-alignment.md) | Chart folder structure & domain alignment |
 > | [426-keycloak-config-map.md](426-keycloak-config-map.md) | Secrets handling, OIDC client extraction patterns |
 > | [473-ameide-technology.md](473-ameide-technology.md) | Technology architecture (how Backstage, Temporal fit in) |
+> | [465-applicationset-architecture-preview-envs.md](465-applicationset-architecture-preview-envs.md) | PR-scoped preview environments (namespaces + Applications) |
 >
 > **Related (Implementation Details)**:
 > - [446-namespace-isolation.md](446-namespace-isolation.md) – Namespace isolation patterns

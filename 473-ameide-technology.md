@@ -68,7 +68,7 @@ The goal is to give implementers a **vendor-aligned blueprint** that can be exec
 
 2. **Proto‑first, SDK‑first APIs**
 
-   * All Domain/Process/Agent services share a single proto source of truth (Buf BSR) and generated server + client stubs. 
+   * All externally exposed APIs share a single proto source of truth (Buf BSR) and generated server + client stubs; Process primitives may be event-driven runners with only optional proto-defined ops/control endpoints.
    * The canonical way to talk to the platform is via the language SDKs (TS/Go/Python) and the shared `AmeideClient` contract, not by hand‑rolling gRPC clients. 
 
 3. **Backstage as the “factory” for primitives**
@@ -80,7 +80,7 @@ The goal is to give implementers a **vendor-aligned blueprint** that can be exec
 
    * Process primitives use the Temporal **technology service** as the runtime for orchestration (code‑first workflows). ([Temporal][3])
    * **ProcessDefinitions** are BPMN-compliant artifacts produced by a **custom React Flow modeller** (NOT Camunda/bpmn-js) and stored in the **Transformation Domain** (modelled via Transformation design tooling UIs). Mapping ProcessDefinitions to Temporal is handled by the Transformation pipeline.
-   * Process primitives execute ProcessDefinitions at runtime, backed by Temporal workflows.
+   * Process primitives execute Temporal workflows **derived from** ProcessDefinitions; ProcessDefinitions are design-time inputs and are not dynamically interpreted at runtime.
 
 5. **Deterministic domains, non‑deterministic agents**
 
@@ -496,7 +496,7 @@ This Technology Architecture should be read with the following documents:
 
 * 305 describes Temporal-based workflow orchestration; aligns with §3.2 (Runtime Orchestration Layer).
 * ProcessDefinitions (BPMN-compliant, from custom React Flow modeller) are compiled to Temporal workflows.
-* Process primitives execute ProcessDefinitions at runtime, backed by Temporal.
+* Process primitives execute Temporal workflows derived from ProcessDefinitions; ProcessDefinitions are not dynamically interpreted on the hot path.
 
 ### 10.2 Agents alignment (310)
 

@@ -239,6 +239,12 @@ Using MinIO keeps Tier 1 aligned with the rest of the platform’s artifact st
   * Input mapping (process variables → JSON)
   * Output mapping (JSON → process variables)
 
+**BPMN encoding (extensions)**
+
+- Represent an “Extension Task” as a standard BPMN task node plus `bpmn:extensionElements` under an Ameide-owned namespace (not vendor-specific `zeebe:*`).
+- Use the same extension pattern for other scaffoldable bindings (task ↔ Temporal Activity, userTask ↔ Temporal Update, task ↔ WorkRequest + awaited facts) so ProcessDefinitions remain BPMN-compliant while still being machine-readable for code generation.
+- Minimal extension surface (namespace/versioning, bindings, event wiring, IO mapping): `backlog/511-process-primitive-scaffolding.md` (§3).
+
 **Runtime**
 
 When a Process primitive (Temporal‑backed) executes an Extension Task:

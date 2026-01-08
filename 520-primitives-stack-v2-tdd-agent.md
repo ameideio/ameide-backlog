@@ -31,6 +31,7 @@ Complete all unchecked items in this document for this vertical primitive to be 
 - [x] Keep the Agent runtime at `primitives/agent/echo/`.
 - [x] Implement deterministic v0 behavior with no external LLM dependencies.
 - [x] Persist minimal state keyed by `thread_id` (turn counter).
+- [ ] Configuration authority: runtime wiring is GitOps/operator-provisioned only (env/secret/volume), request inputs are request-provisioned only, and the runtime has no fallback/override chains (see `backlog/520-primitives-stack-v2.md`).
 - [ ] Interrupt safety: nodes may be re-run; side-effects must be idempotent (dedupe keys derived from `{thread_id, node_id, logical_task_key}`).
 - [ ] Streaming: prefer machine-readable progress updates; keep token/message streaming opt-in.
 - [ ] Keep agent state “resume essentials” only; store large outputs as out-of-band artifact references (`uri`, `checksum`, `size`, `content_type`).

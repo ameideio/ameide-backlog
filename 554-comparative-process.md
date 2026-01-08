@@ -132,7 +132,7 @@ Four process primitives (Sales, Commerce, Transformation, SRE) exist at varying 
    - OpportunityHandoffToErpFailed
 
 **Gaps:**
-- No process query API (cannot query workflow status via gRPC)
+- No process query API (by design; use Temporal visibility + projection timelines for read/query)
 - No compensation/rollback workflows defined
 - No process instance cancellation support
 - Limited test coverage (only ping_test.go)
@@ -197,7 +197,7 @@ Four process primitives (Sales, Commerce, Transformation, SRE) exist at varying 
 
 **Gaps:**
 - No GitOps deployment config (implementation complete, not deployed)
-- No process query API
+- No process query API (by design; use Temporal visibility + projection timelines for read/query)
 - No compensation workflows
 - No runbook orchestration implementation (facts defined, no workflow)
 - Limited documentation
@@ -540,7 +540,7 @@ primitives/process/{domain}/
 - Implementation: Minimal (10%)
 - Temporal workflows: None
 - GitOps config: Missing
-- Recommended: Architectural decision needed (event-driven vs direct gRPC)
+- Recommended: converge on the standard runner pattern (worker + ingress; SignalWithStart; see 511)
 
 ### 6.3 Process CRD Capabilities (Available but Underutilized)
 
@@ -599,7 +599,7 @@ Current deployments use only: `temporal`, `logLevel`
 **Transformation:**
 - No Temporal SDK dependency
 - No process fact contract
-- Architectural mismatch (gRPC direct vs event-driven)
+- Missing standard runner posture (worker + ingress; SignalWithStart)
 - No worker/ingress implementation
 
 ## 8) Recommended Next Steps
@@ -607,7 +607,7 @@ Current deployments use only: `temporal`, `logLevel`
 ### 8.1 For Sales Process (Improve Deployed)
 1. **Add smoke tests:** Follow ping-v0 pattern with gRPC health checks
 2. **Expand test coverage:** Add workflow and activity unit tests
-3. **Add process query API:** Define gRPC service for GetWorkflowStatus, ListWorkflowInstances
+3. **Add operational visibility:** standardize Temporal Search Attributes + projection timelines (avoid process-level read APIs)
 4. **Define compensation workflows:** Rollback for failed ERP handoffs
 5. **Resource tuning:** Add CPU/memory limits based on load testing
 6. **Worker config:** Define maxConcurrentWorkflows/Activities
@@ -616,7 +616,7 @@ Current deployments use only: `temporal`, `logLevel`
 1. **Create GitOps config:** Deploy to production (implementation complete)
 2. **Add smoke tests:** gRPC health check harness
 3. **Implement runbook workflows:** Complete RunbookExecutionProcess (scaffolded)
-4. **Add process query API:** Support operational visibility
+4. **Add operational visibility:** standardize Temporal Search Attributes + projection timelines (avoid process-level read APIs)
 5. **Expand test coverage:** Add workflow tests
 6. **Add compensation:** Define remediation rollback workflows
 
@@ -630,24 +630,13 @@ Current deployments use only: `temporal`, `logLevel`
 7. **GitOps deployment:** Only after implementation complete
 
 ### 8.4 For Transformation Process (Architectural Decision)
-1. **Decision required:** Event-driven process primitive vs direct gRPC service?
-   - **Option A (Event-Driven):** Add Temporal SDK, implement workflow orchestration
-   - **Option B (Direct gRPC):** Keep current architecture, document as non-process primitive
-2. **If Option A:**
-   - Define process fact contract (transformation lifecycle events)
-   - Implement worker + ingress pattern
-   - Add workflows for milestone progression, phase gates
-   - GitOps deployment with Temporal connection
-3. **If Option B:**
-   - Remove from process primitive catalog
-   - Keep as domain service only
-   - Document architectural exception
+1. **Converge on event-driven runner:** Add Temporal SDK, implement worker + ingress, route facts via SignalWithStart (see 511)
+2. **Define process fact contract:** emit orchestration timeline facts (for projections/UI)
+3. **Implement workflows:** milestone progression, phase gates (Temporal Updates for user gates)
+4. **GitOps deployment:** wire Temporal connection and deploy runner image
 
 ### 8.5 For All Processes
-1. **Process Query API:** Define standard gRPC service for all processes:
-   - `GetWorkflowInstance(workflow_id) → WorkflowInstance`
-   - `ListWorkflowInstances(filters) → WorkflowInstance[]`
-   - `CancelWorkflow(workflow_id) → CancelWorkflowResponse`
+1. **Operational visibility:** use Temporal visibility/Search Attributes plus projection query APIs; do not introduce process-level read models
 2. **Resource Governance:** Define CPU/memory requests/limits for all deployments
 3. **Observability:** Add Prometheus metrics, OpenTelemetry tracing, alerting rules
 4. **Worker Configuration:** Define concurrency limits for optimal throughput
@@ -690,7 +679,7 @@ Current deployments use only: `temporal`, `logLevel`
 The four process primitives demonstrate distinct maturity levels:
 - **Sales & SRE** are production-ready with complete Temporal workflow implementations
 - **Commerce** has solid scaffolding but needs workflow logic completion
-- **Transformation** requires architectural decision (event-driven vs direct gRPC)
+- **Transformation** needs convergence on the standard runner posture (worker + ingress; SignalWithStart)
 
 All production-ready processes follow consistent patterns (signal-driven workflows, dual-binary architecture, process fact emission), but vary in deployment status and event catalog completeness.
 
@@ -704,7 +693,7 @@ The analysis reveals that **Temporal-first processes (Sales, SRE) achieved highe
 
 ### Primary Gaps Across All Processes
 
-1. **No process query API** - Cannot inspect running workflows via gRPC
+1. **No standardized operational visibility** - Use Temporal visibility + projection timelines (avoid process-level read APIs)
 2. **No compensation workflows** - No rollback/undo logic defined
 3. **Minimal test coverage** - Only basic tests; no workflow integration tests
 4. **Resource limits missing** - All deployments use operator defaults
@@ -714,6 +703,6 @@ The analysis reveals that **Temporal-first processes (Sales, SRE) achieved highe
 
 - **Deploy SRE immediately** (85% complete, tested, ready)
 - **Complete Commerce workflows** before deployment (30% → 80%)
-- **Decide Transformation architecture** (event-driven process vs direct gRPC service)
-- **Standardize query API** across all processes for operational visibility
+- **Bring Transformation to the standard runner posture** (worker + ingress; SignalWithStart)
+- **Standardize operational visibility** via Temporal visibility + projection timelines
 - **Add compensation frameworks** for all workflows with external side effects
