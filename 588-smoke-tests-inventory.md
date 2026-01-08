@@ -40,6 +40,10 @@ Related:
 | `platform-transformation-routing-smoke` | `environments/_shared/components/platform/control-plane/transformation-routing-smoke/component.yaml` | `sources/values/_shared/platform/platform-transformation-routing-smoke.yaml` | `sources/charts/foundation/helm-test-jobs` |
 | `platform-secrets-smoke` | `environments/_shared/components/platform/secrets/secrets-smoke/component.yaml` | `sources/values/_shared/platform/platform-secrets-smoke.yaml` | `sources/charts/foundation/helm-test-jobs` |
 
+## Notes (what each smoke actually asserts)
+
+- `platform-observability-smoke`: Prometheus/Grafana/Loki/Tempo readiness + telemetry HTTPRoutes, plus OTEL collector checks (OTLP gRPC `Service/otel-collector:4317` sanity and “no RBAC forbidden spam” in recent collector logs).
+
 ## How to run (any env)
 
 Smokes are ArgoCD hook Jobs; they re-run when the owning Application **syncs** (a refresh alone updates status, but does not re-run hooks).

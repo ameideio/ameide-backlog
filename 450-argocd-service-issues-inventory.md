@@ -865,6 +865,20 @@ Remediation approach (vendor-aligned, GitOps-idempotent):
 1. Enable metrics exposition in the `TemporalCluster` CR (`spec.metrics.enabled=true` with Prometheus listen port), so Deployments expose a `metrics` port that matches the Service `targetPort`.
 2. Keep Argo health customizations strict (do not mask operator readiness); fix the CR spec so the operator reports Ready deterministically.
 
+## Update (2026-01-08): Local OTEL exporter noise (OTLP 4317 ClusterIP refused + collector RBAC spam)
+
+- **Symptoms (apps):** workloads exporting OTLP metrics/traces spam errors like `PeriodicExportingMetricReader: metrics export failed ... connect ECONNREFUSED <cluster-ip>:4317`.
+- **Symptoms (collector):** `otel-collector` logs spam reflectors with RBAC `forbidden` errors (pods/namespaces/replicasets list/watch at cluster scope).
+
+Root causes:
+1. **k3s/kube-proxy routing edge case:** `Service/otel-collector` port `4317` had `appProtocol: grpc`, which made the **ClusterIP port unroutable** (connection refused) even though the collector pod was listening.
+2. **Missing RBAC for k8s enrichment:** collector config enables `k8sattributes` with `passthrough=false`, but the ServiceAccount lacked a ClusterRole/Binding, so enrichment could not work and logs spammed.
+
+Remediation approach (GitOps-aligned):
+1. In local, clear `ports.otlp.appProtocol` so `otel-collector:4317` is reachable for OTLP gRPC clients.
+2. Enable the minimal ClusterRole (pods/namespaces/replicasets list/watch) and ensure ClusterRole/Binding names are unique per environment (avoid collisions across `ameide-dev/staging/prod` when using `fullnameOverride: otel-collector`).
+3. Strengthen `platform-observability-smoke` to include OTEL collector OTLP sanity checks and a “no RBAC forbidden spam” check so these regressions fail fast during smoke syncs.
+
 ## Update (2025-12-17): Local bootstrap exports CA cert (Terraform automation)
 
 - **Goal:** eliminate manual steps during local cluster recreation.
