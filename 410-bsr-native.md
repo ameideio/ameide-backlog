@@ -10,6 +10,7 @@ Option A (workspace-first SDKs): BSR is the source of truth for the proto module
 - **Publish for third parties only:** published SDKs/BSR packages are for external consumers + external smokes, not for internal service builds.
 - **Policy enforcement:** CI fails on any workspace proto imports or direct BSR stub imports in services; only SDK imports allowed.
 - **Consumption split:** SDKs sync and bundle stubs from the BSR module; services depend only on SDKs (workspace copies in internal rings), never on BSR stub packages directly.
+- **CI ordering reality:** internal compile/test jobs may generate stubs from the local proto source-of-truth to avoid cross-workflow ordering and BSR propagation races; BSR sync and “generated SDK availability” checks remain explicit verification gates.
 
 ## Plan (phases)
 

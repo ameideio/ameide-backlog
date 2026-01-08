@@ -10,6 +10,13 @@ Baseline: `backlog/521f-external-verification-baseline.md`
 
 Add new entries here when external verification behavior changes.
 
+### 2026-01-08
+
+- CI flake hardening (Buf/BSR eventual consistency):
+  - Go integration and extensions-runtime CI now generate Go SDK stubs from the local proto source-of-truth (avoid consuming `buf.build/...:main` immediately after merge).
+  - Proto CI now triggers when proto distribution verification/sync tooling changes (e.g. `release/verify_*`, `scripts/ci/generate_bsr_artifacts.sh`, `sync_from_bsr.sh`) so the gates reflect tooling edits.
+  - Go SDK verification retry logic was hardened so transient `go mod download` failures in the Buf proxy path actually retry under `set -e`.
+
 ### 2026-01-01
 
 - `GitOps / Gate`: added diff-scoped suite gating (run only relevant checks) while keeping a single required-check-safe always-run gate job; removed duplicate `push` triggers from the called workflows to avoid post-merge re-runs.
