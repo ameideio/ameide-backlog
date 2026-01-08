@@ -12,6 +12,16 @@ If you run one thing before opening/merging a PR, run the same gate CI runs:
 
 This mirrors `.github/workflows/ci-core-quality.yml` and writes artifacts under `.test-results/` and `.coverage/`.
 
+## Agent inner loop (one command)
+
+For an AI agent (or an engineer) iterating locally and needing the fastest, most consistent “did I break anything?” signal with minimal cognitive overhead:
+
+```bash
+ameide dev inner-loop-test
+```
+
+This is intentionally **not** the full PR gate and does not do image builds/publishing or GitOps work. It runs **unit → integration → e2e** and writes artifacts under `artifacts/agent-ci/<timestamp>/`.
+
 ## Fast paths
 
 ```bash

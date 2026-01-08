@@ -11,6 +11,16 @@ This document tracks implementation progress against the target state defined in
 
 **Audit Date:** 2025-12-26
 
+## Update (2026-01): inner-loop-test is now the agent front door
+
+The agent-oriented, no-flags verification tool is now:
+
+- `ameide dev inner-loop-test`
+
+It runs unit → integration → e2e and treats **integration folders** as the canonical contract for repo-mode integration tests.
+
+This status doc still contains pack-based tracking notes for historical context, but “integration packs” are now considered legacy and will be removed/migrated.
+
 ---
 
 ## Executive Summary
