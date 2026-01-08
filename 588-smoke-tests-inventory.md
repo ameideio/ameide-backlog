@@ -24,6 +24,7 @@ Related:
 | `domain-transformation-v0-smoke` | `environments/_shared/components/apps/primitives/domain-transformation-v0-smoke/component.yaml` | `sources/values/_shared/apps/domain-transformation-v0-smoke.yaml` | `sources/charts/foundation/helm-test-jobs` |
 | `integration-echo-v0-smoke` | `environments/_shared/components/apps/primitives/integration-echo-v0-smoke/component.yaml` | `sources/values/_shared/apps/integration-echo-v0-smoke.yaml` | `sources/charts/foundation/helm-test-jobs` |
 | `process-ping-v0-smoke` | `environments/_shared/components/apps/primitives/process-ping-v0-smoke/component.yaml` | `sources/values/_shared/apps/process-ping-v0-smoke.yaml` | `sources/charts/foundation/helm-test-jobs` |
+| `www-ameide-platform-smoke` | `environments/_shared/components/apps/web/www-ameide-platform-smoke/component.yaml` | `sources/values/_shared/apps/www-ameide-platform-smoke.yaml` | `sources/charts/foundation/helm-test-jobs` |
 | `projection-foo-v0-smoke` | `environments/_shared/components/apps/primitives/projection-foo-v0-smoke/component.yaml` | `sources/values/_shared/apps/projection-foo-v0-smoke.yaml` | `sources/charts/foundation/helm-test-jobs` |
 | `transformation-v0-runtime-wiring-smoke` | `environments/_shared/components/apps/primitives/transformation-v0-runtime-wiring-smoke/component.yaml` | `sources/values/_shared/apps/transformation-v0-runtime-wiring-smoke.yaml` | `sources/charts/foundation/helm-test-jobs` |
 | `uisurface-hello-v0-smoke` | `environments/_shared/components/apps/primitives/uisurface-hello-v0-smoke/component.yaml` | `sources/values/_shared/apps/uisurface-hello-v0-smoke.yaml` | `sources/charts/foundation/helm-test-jobs` |
@@ -43,6 +44,7 @@ Related:
 ## Notes (what each smoke actually asserts)
 
 - `platform-observability-smoke`: Prometheus/Grafana/Loki/Tempo readiness + telemetry HTTPRoutes, plus OTEL collector checks (OTLP gRPC `Service/otel-collector:4317` sanity and “no RBAC forbidden spam” in recent collector logs).
+- `www-ameide-platform-smoke`: waits for `Deployment/www-ameide-platform` rollout, probes `/healthz`, and fails if recent app logs contain OTLP export red-noise (`PeriodicExportingMetricReader` / `ECONNREFUSED :4317`).
 
 ## How to run (any env)
 

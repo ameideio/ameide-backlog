@@ -879,6 +879,18 @@ Remediation approach (GitOps-aligned):
 2. Enable the minimal ClusterRole (pods/namespaces/replicasets list/watch) and ensure ClusterRole/Binding names are unique per environment (avoid collisions across `ameide-dev/staging/prod` when using `fullnameOverride: otel-collector`).
 3. Strengthen `platform-observability-smoke` to include OTEL collector OTLP sanity checks and a “no RBAC forbidden spam” check so these regressions fail fast during smoke syncs.
 
+## Update (2026-01-08): Local transformation ingress stuck rollout (image missing ingress entrypoint)
+
+- **App:** `local-process-transformation-v0-ingress`
+  - **Resource:** `Deployment/ameide-local/transformation-v0-process-ingress`
+  - **Symptom:** `Progressing=False (ProgressDeadlineExceeded)` with an old ReplicaSet still `Available=True` (Argo can show `Degraded`, but a naïve “deployment Available” smoke can still pass).
+  - **Observed evidence:** new pod CrashLoopBackOff with `exec: "/app/process-transformation-ingress": stat /app/process-transformation-ingress: no such file or directory`.
+  - **Root cause:** pinned image digest did not ship the ingress entrypoint binary expected by the Deployment command.
+
+Remediation approach (GitOps-aligned):
+1. Pin `process-transformation-v0-ingress` to an image digest that includes `/app/process-transformation-ingress` (or update the Deployment command to match the new image layout if the binary was intentionally renamed).
+2. Keep rollout-aware smokes (e.g., `kubectl rollout status`) for Deployments to catch “Available old RS + broken new RS” states.
+
 ## Update (2025-12-17): Local bootstrap exports CA cert (Terraform automation)
 
 - **Goal:** eliminate manual steps during local cluster recreation.
