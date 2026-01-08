@@ -142,7 +142,9 @@ These are intentionally **not counted** in the “Total integration test suites�
 
 ## GitOps smoke tests (out-of-scope for 430 metrics)
 
-In `ameide-gitops`, we also run ArgoCD **PostSync hook Jobs** (“smokes”) to validate **cluster truth after reconciliation** (CRDs ready, operators healthy, secrets present, data-plane dependencies ready, etc.).
+In `ameide-gitops`, we also run ArgoCD **hook Jobs** (“smokes”, usually `PostSync`) to validate **cluster truth after reconciliation** (CRDs ready, operators healthy, secrets present, data-plane dependencies ready, etc.).
+
+Important nuance: we standardize smokes on Argo CD Resource Hooks (`argocd.argoproj.io/hook`) and do not rely on Helm `helm.sh/hook: test*` hooks (Argo CD can skip/ignore them).
 
 Inventory: `backlog/588-smoke-tests-inventory.md`
 

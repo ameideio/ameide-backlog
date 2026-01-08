@@ -110,6 +110,7 @@ These are intentionally deferred to later in this backlog (but now tracked expli
   - ClickHouse + Argo CD CRD diff/SSA panics required local-specific sync strategy (avoid SSA + allow Replace for the CHI app).
   - Keycloak realm GitOps can be blocked by non-deterministic hook Jobs: `client-patcher` must not rely on runtime-downloaded tooling (and must be multi-arch safe for local `arm64`).
   - Gateway API cross-namespace access is fragile when CRDs require empty-string fields: `ReferenceGrant.spec.to[].group` for core resources must render as `""` (quoted) to avoid YAML null + validation failures.
+  - Helm `helm.sh/hook: test*` hooks are not a reliable execution mechanism under Argo CD; smoke Jobs should use Argo CD Resource Hooks (`argocd.argoproj.io/hook`, typically `PostSync`) plus hook delete policies.
   - Helm hook artifacts can persist and block convergence:
     - GitLab’s `upgrade-check` hook ConfigMap can remain in-cluster with `argocd.argoproj.io/hook-finalizer` even after the hook is disabled, preventing pruning and leaving applications `OutOfSync` while workloads are healthy.
     - Fix direction: disable Helm hooks (or wrap charts to remove hooks), and avoid depending on Argo hook finalizers for long-lived resources.
