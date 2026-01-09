@@ -65,8 +65,14 @@ Use this checklist whenever you create a net-new service under `services/` or `s
    - Ensure required buckets or databases are provisioned via GitOps jobs, not manual steps.
 
 6. **Testing**
-   - Set up `__mocks__/` and `__tests__/integration/` per backlog 430 (single implementation, mock + cluster modes).
-   - Ensure `run_integration_tests.sh` uses the standard tooling and fails fast on missing envs. Include end-to-end scenarios when the service depends on shared components (e.g., primitive → `extensions-runtime` → host-call) so regression tests cover cross-service seams.
+   - Implement tests under the 430v2 contract (Unit → Integration → E2E) and ensure they run under the repo front doors:
+     - CI gate: `ameide ci test` (Phase 0/1/2; must emit JUnit evidence).
+     - Local agent/human inner loop: `ameide dev inner-loop-test` (Unit → Integration → E2E).
+   - **Unit (Phase 1):** pure/local; no cluster tooling.
+   - **Integration (Phase 2):** local mocked/stubbed only; no cluster tooling; no “mode” variables.
+     - Go: use `//go:build integration` for Phase 2-only tests.
+     - TS/Py: select integration tests via standard runner config (no per-component scripts).
+   - **E2E (Phase 3):** cluster-only; Playwright-only (when applicable).
 
 7. **GitOps deployment**
    - Create Helm chart (or reuse existing) under `charts/`.

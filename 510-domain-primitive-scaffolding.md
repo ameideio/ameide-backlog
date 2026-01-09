@@ -80,25 +80,23 @@ primitives/domain/<name>/
 └── internal/
     ├── handlers/
     │   └── handlers.go                  # RPC stubs implementing the generated <Service>Server, call into domain logic + EventOutbox
+    │   └── handlers_test.go             # Unit tests (Phase 1)
     ├── ports/
     │   ├── outbox.go                    # EventOutbox interface (no Watermill/broker imports)
     │   └── outbound.go                  # Outbound ports for SDK-only cross-primitive calls
     ├── adapters/
     │   ├── postgres/
     │   │   └── outbox.go                # PostgresEventOutbox implementation
+    │   │   └── outbox_integration_test.go # Integration tests (Phase 2; `//go:build integration`)
     │   └── sdk/
     │       └── clients.go               # Example SDK-backed outbound adapter stubs
     ├── dispatcher/
     │   └── dispatcher.go                # Outbox → broker dispatcher skeleton (polls DB, calls OutboxPublisher)
-    └── tests/
-        ├── <rpc>_test.go                # Per‑RPC failing tests (call handler)
-        └── integration_mode.go          # Test harness mode switch
-
-primitives/domain/<name>/tests/
-└── run_integration_tests.sh             # 430‑aligned integration runner
+    │   └── dispatcher_test.go           # Unit tests (Phase 1)
+    └── ...
 ```
 
-GitOps when `--include-gitops` is used:
+GitOps stubs are always scaffolded (no `--include-gitops` flag):
 
 ```text
 gitops/primitives/domain/<name>/
