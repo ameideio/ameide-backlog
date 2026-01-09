@@ -23,7 +23,7 @@ PR input is treated as untrusted for cluster safety. The only PR-derived values 
 * `PR_NUMBER` (integer)
 * `HEAD_SHA` (string)
 
-No branch names, titles, labels (except as a boolean gate), or other free text are included in any resource names, destinations, or project selection.
+No branch names, titles, labels (except as boolean gates), or other free text are included in any resource names, destinations, or project selection.
 
 This aligns with Argo CD’s stated security posture that ApplicationSets are privileged and must be admin-owned, and that templating project fields is dangerous if untrusted users can open PRs.
 
@@ -252,6 +252,7 @@ This enforces “reuse infra” while keeping the workload values contracts unch
 
    * One Application per PR
    * Deploys `sources/charts/foundation/operators-config/postgres_secrets` into `pr-ameide-<num>` to materialize DB credential Secrets via ESO
+   * MUST force rendered resources into the PR namespace (the chart uses `.Values.namespace` unless `namespaceOverride` is set; env values set `.Values.namespace` to the base env namespace)
    * Project: `previews`
    * Automated sync with prune + selfHeal
    * Finalizer: `resources-finalizer.argocd.argoproj.io`
@@ -263,7 +264,7 @@ This enforces “reuse infra” while keeping the workload values contracts unch
    * Project: `previews`
    * Automated sync with prune + selfHeal
    * Finalizer: `resources-finalizer.argocd.argoproj.io`
-   * Passes `HEAD_SHA` as image selector value (see §8)
+   * Uses `HEAD_SHA` only when PR images are explicitly enabled (see §8)
 
 ### 7.2 Preview AppProject namespace allowlist (exact list)
 
@@ -343,7 +344,7 @@ All preview Applications MUST set:
 
 ### 8.1 Required publishing outputs
 
-The CI publish pipeline for the apps-tier MUST produce:
+If PR images are enabled (label `preview-images`), the CI publish pipeline for the apps-tier MUST produce:
 
 1. OCI container images pushed to the registry for every apps-tier service, tagged:
 
@@ -362,11 +363,25 @@ The CI publish pipeline for the apps-tier MUST produce:
 
 ### 8.2 Preview consumption rule
 
-Preview deployments MUST select images from the PR commit without letting the PR define Kubernetes objects.
+Preview deployments MUST NOT allow PR branches to define Kubernetes objects.
 
-Normative rule (current chart contract): each apps-tier chart uses `.Values.image.ref` (full image reference). Therefore each `preview-apps` generated Application MUST set:
+Normative rule (current chart contract): each apps-tier chart uses `.Values.image.ref` (full image reference).
 
-* `helm.parameters: [{ name: "image.ref", value: "ghcr.io/ameideio/<SERVICE>:<HEAD_SHA>" }]`
+Because PR images may not exist for every PR (and local clusters do not have public CI/webhook reachability), previews support two modes:
+
+1. **Default (always works): reuse base environment images**
+
+   * `preview-apps` MUST NOT override `image.ref`.
+   * Images come from the same GitOps values layering as the base environment (typically pinned by digest).
+
+2. **PR images (opt-in): deploy PR commit images**
+
+   * Only enabled when the PR has an additional label: `preview-images`.
+   * When enabled, `preview-apps` MUST override `image.ref` to the PR commit tag:
+
+     * `ghcr.io/ameideio/<SERVICE>:<HEAD_SHA>`
+
+If `preview-images` is set but the tag does not exist, Argo CD sync will fail (by design).
 
 Where `<SERVICE>` is the component/application name (or an explicit per-component override if image repository naming differs).
 
@@ -455,7 +470,8 @@ This matches the DNS/cert constraint noted in the spec (avoid multi-label wildca
 
       * Helm chart source
       * values-only ref source used solely for `$values/.../values.yaml`
-    * set `helm.parameters` for image selection (e.g. `image.ref=ghcr.io/ameideio/<service>:{{ .head_sha }}`)
+    * default: do not override `image.ref` (reuse base env pinned digests from values files)
+    * if PR label `preview-images` is present: override `image.ref=ghcr.io/ameideio/<service>:{{ .head_sha }}`
 
 ## Phase 5 — Secrets (closed posture)
 
