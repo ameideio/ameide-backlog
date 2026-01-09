@@ -5,11 +5,6 @@ This backlog defines the **canonical target scaffold** for **Process** primitive
 - **Audience:** AI agents, Go developers, CLI implementers
 - **Scope:** One opinionated Temporal/EDA pattern, aligned with `backlog/520-primitives-stack-v2.md`, `backlog/496-eda-principles.md`, and `514-primitive-sdk-isolation.md` (SDK-only). The CLI orchestrates repo/GitOps wiring; `buf generate` + plugins handle deterministic generation (SDKs, generated-only glue).
 
-> **Update (2026-01): no-brainer scaffolding + 430v2 test contract**
->
-> - Scaffolding should avoid optional flags by default (no “include-*” zoo); generated primitives should include the repo-required shape (including GitOps stubs and tests) without extra switches.
-> - Test scaffolding should align with `backlog/430-unified-test-infrastructure-v2-target.md` (Unit/Integration/E2E phases; native tooling; JUnit evidence; no `INTEGRATION_MODE`; no `run_integration_tests.sh` packs as the canonical path).
-
 ---
 
 ## Primitive/operator alignment
@@ -86,7 +81,7 @@ The “happy path” for Process primitives is the existing `ameide primitive` l
 - `ameide primitive plan --kind process --name <name>`: suggests required files/tests and highlights drift.
 - `ameide primitive scaffold --kind process --name <name>`: creates/refreshes the repo skeleton.
 - `ameide primitive verify --kind process --name <name> --mode repo`: enforces repo guardrails (shape, tests, conventions).
-- `ameide primitive publish --kind process --name <name>`: builds/pushes the Process runner image (dev only).
+- Publish images via CI to GHCR; GitOps consumes digest-pinned refs.
 
 The BPMN→Temporal runner compiler work (v1) fits into this structure by making BPMN lint/compile part of the Process “repo mode” guardrails and the Process scaffold refresh loop. See `backlog/511-process-primitive-scaffolding-refactoring.md`.
 
