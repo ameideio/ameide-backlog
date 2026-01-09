@@ -161,7 +161,7 @@ Required work (outer loop):
 5. Build and publish container images for:
    - primitive runtimes (Domain/Process/Projection/Integration/UISurface/Agent),
    - operators when required,
-   using `ameide primitive publish` (dev tags when CI publishing is skipped).
+   via CI to GHCR (the only supported image publishing path).
 6. Update GitOps components/values for the target environment and sync via ArgoCD.
 7. Run in-cluster smoke probes (PostSync Jobs) and validate conditions/health endpoints.
 8. Iterate until the slice passes end-to-end and produces the expected facts/read models.

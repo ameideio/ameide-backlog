@@ -139,7 +139,7 @@ This work is intentionally designed to fit the existing CLI lifecycle under `ame
 - `ameide primitive scaffold --kind process …` remains the canonical “create/refresh the Process skeleton” entrypoint.
 - `ameide primitive verify --kind process …` becomes the canonical enforcement gate in repo mode (BPMN contract + generated code up-to-date).
 - `ameide primitive drift --kind process …` can detect “BPMN changed but generated code wasn’t regenerated”.
-- `ameide primitive publish --kind process …` builds/pushes the runner image produced by the scaffold/compile.
+- Publish images via CI to GHCR; GitOps consumes digest-pinned refs.
 
 ## CLI contract (v1)
 
