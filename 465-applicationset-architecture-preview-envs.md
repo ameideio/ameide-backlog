@@ -502,3 +502,43 @@ This matches the DNS/cert constraint noted in the spec (avoid multi-label wildca
 
     * rendering must not intentionally produce duplicate resource identities where “last source wins”
     * treat `RepeatedResourceWarning` as a failure condition for previews
+
+---
+
+## Implementation status (as of 2026-01-09)
+
+Local k3d (BASE_ENV=`local`) was exercised end-to-end using an open PR labeled `preview` (example: PR `507`):
+
+- The preview namespace (`pr-ameide-507`) was created and labeled correctly (`gateway-access=allowed`, `ameide.io/environment=local`).
+- `preview-baseline` materialized:
+  - `Secret/ghcr-pull` (via ESO) and attached it to the default ServiceAccount as an `imagePullSecrets` entry.
+  - `Secret/default-external-secrets-token` (`kubernetes.io/service-account-token`) to support Vault auth in modern K8s (no auto-created SA token secrets).
+  - base-environment service aliases (`ExternalName`) for shared infra endpoints.
+- `preview-secrets` produced DB credential Secrets in the preview namespace via `namespaceOverride` (so charts that default to a base env namespace still work in previews).
+- `preview-apps` created apps-tier apps and injected PR-scoped hostnames:
+  - `platform-pr-<PR>.local.ameide.io` via `www-ameide-platform` `httproute.hostname`
+  - `www-pr-<PR>.local.ameide.io` via `www-ameide` `httproute.hostname`
+  - `api-pr-<PR>.local.ameide.io` via `inference-gateway` `grpcRoute.hostnames`
+- Reachability was verified once the base Envoy Gateway dataplane was Ready:
+  - `platform-pr-507.local.ameide.io` returned `200` for `/healthz` and `307` on `/` (expected redirect behavior).
+
+Local-only mitigations that were required to make this stable under k3d load:
+
+- `argocd/overlays/local/kustomization.yaml`: pin `www-ameide-platform` to `k3d-ameide-agent-1` via `nodeSelector` to avoid intermittent kubelet `configmap not found` fetch flakiness observed on a busy agent.
+- `argocd/overlays/local/argocd-repo-server-tuning.yaml`: co-locate `argocd-repo-server` with the application-controller (agent-1) to reduce cross-node manifest-generation connection flaps.
+
+## Troubleshooting notes (local)
+
+When preview Applications exist but the PR URL is not reachable, check in this order:
+
+1. **Gateway dataplane Ready**
+   - `kubectl -n argocd get endpoints envoy-ameide-local` MUST be non-empty.
+   - Envoy dataplane pods for the base env Gateway MUST be Ready (selectors: `gateway.envoyproxy.io/owning-gateway-name=ameide`, `gateway.envoyproxy.io/owning-gateway-namespace=ameide-local`).
+   - Symptom: dataplane `envoy` container logs show `gRPC config: initial fetch timed out ... ClusterLoadAssignment`.
+2. **PR routes exist**
+   - `kubectl -n pr-ameide-<PR> get httproute,grpcroute` MUST show the PR-scoped hostnames.
+3. **Secrets exist before workloads**
+   - `kubectl -n pr-ameide-<PR> get externalsecret` should show `Ready=True` for required secrets.
+   - `Secret/default-external-secrets-token` must exist, and `SecretStore/ameide-vault` must validate.
+4. **Argo manifest generation is healthy**
+   - If Argo shows `ComparisonError ... dial tcp ... argocd-repo-server`, check `argocd-repo-server` readiness and consider increasing local resources/replicas for repo-server and reducing cross-node churn.
