@@ -120,10 +120,10 @@ To prevent ArgoCD pruning those objects, the E2E harness MUST run in a namespace
 
 **Playwright harness (430 alignment)**
 
-The UI harness SHOULD reuse the repo’s Playwright runner contract so evidence locations and required env vars are consistent with backlog 430:
+The UI harness SHOULD reuse the repo’s Playwright runner contract so evidence locations and required env vars are consistent with 430v2:
 
-- `INTEGRATION_MODE=cluster` (fail-fast if not set)
-- stable base URL (e.g., `WWW_AMEIDE_PLATFORM_BASE_URL`)
+- no `INTEGRATION_MODE` (no test “modes”)
+- stable base URL is fixed (`https://platform.local.ameide.io/`)
 - persona secret source (namespace + secret name) for authenticated flows
 - artifacts written to `/artifacts/e2e/*` with no fallback paths
 

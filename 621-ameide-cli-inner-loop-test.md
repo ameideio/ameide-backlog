@@ -141,7 +141,7 @@ Prerequisites (must be explicit; no guesswork):
 - `telepresence` installed and compatible with header-filtered intercepts (Telepresence/traffic-manager >= 2.25).
 - A reachable Kubernetes context/namespace with the target workload (`www-ameide-platform`) and sidecar injection enabled.
 - Playwright test secrets present in-cluster (e.g., `playwright-int-tests-secrets` in the configured namespace).
-- A valid `BASE_URL` that resolves in the environment and routes through ingress/gateway; Phase 3 must fail fast if base URL routing/auth prerequisites are missing.
+- E2E ingress host is fixed: `https://platform.local.ameide.io/` (Phase 3 must fail fast if ingress/auth prerequisites are missing).
 
 Failure behavior:
 - If any prerequisite is missing, Phase 3 fails fast with an actionable message and still emits JUnit evidence under the run root.
