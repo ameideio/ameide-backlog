@@ -10,8 +10,10 @@
 - The runner must be **as smart as possible internally** (discovery, caching, preflight, actionable failure messages) while remaining a **no-brainer UX**:
   - **no flags**, **no launch modes**, **no user-chosen parameters** (besides `--help`).
   - one default behavior; fail-fast on first failure.
-- Must be runnable in **CI and local** environments without privileged access:
-  - **no `sudo`**, **no host mutations** (e.g., editing `/etc/hosts`), no interactive prompts.
+- Must be runnable in **CI and local** environments without host mutation or interactive prompts:
+  - no host mutations (e.g., editing `/etc/hosts`)
+  - no interactive prompts
+  - note: Phase 3 depends on Telepresence; in environments where Telepresence requires elevated privileges for its daemon, the environment must be preconfigured to run it non-interactively (e.g., NOPASSWD sudo in devcontainers/CI images).
 - Must leave the environment **clean after each run**:
   - no lingering background processes, intercepts, Telepresence daemons, or stray resources created by the run.
   - small on-disk caches/state that improve iteration are allowed, but must be explicit, bounded, and safe to delete.
@@ -56,13 +58,21 @@ Legacy bash runner scripts remain in-tree for reference and parity comparison (d
 
 ## Deliverable shape (what the CLI does)
 
-The CLI runs exactly three phases in order and exits non-zero on the first failure.
+The CLI runs phases in strict order (fail-fast) and exits non-zero on the first failure.
 
 Artifacts/logs are always written under a single run root:
 
 - `artifacts/agent-ci/<timestamp>/`
 
 It always prints **phase durations** and **total duration** at the end of execution (even when a later phase fails).
+
+### Phase 0 — Contract (local only)
+
+**Goal:** fail fast on contract drift (legacy “modes”, pack scripts) and validate vendor-driven discovery wiring before executing full suites.
+
+- Go: compile/link checks for unit and integration-tagged code.
+- Jest/Pytest/Playwright: discovery/collect/list modes where available.
+- Always emits JUnit evidence for Phase 0 (synthetic if needed).
 
 ### Phase 1 — Standard build/lint/unit (local only)
 
@@ -121,6 +131,17 @@ Vendor-aligned orchestration shape:
 - Tilt runs the hidden CLI runner:
 - which scopes `telepresence connect -- <cmd>` and `telepresence intercept -- <cmd>`
   - (Implementation detail: Telepresence requires a process entrypoint; this is not a user-facing “mode” and is not part of the public contract.)
+
+Prerequisites (must be explicit; no guesswork):
+
+- `tilt` installed and usable.
+- `telepresence` installed and compatible with header-filtered intercepts (Telepresence/traffic-manager >= 2.25).
+- A reachable Kubernetes context/namespace with the target workload (`www-ameide-platform`) and sidecar injection enabled.
+- Playwright test secrets present in-cluster (e.g., `playwright-int-tests-secrets` in the configured namespace).
+- A valid `BASE_URL` that resolves in the environment and routes through ingress/gateway; Phase 3 must fail fast if base URL routing/auth prerequisites are missing.
+
+Failure behavior:
+- If any prerequisite is missing, Phase 3 fails fast with an actionable message and still emits JUnit evidence under the run root.
 
 ## Non-goals
 

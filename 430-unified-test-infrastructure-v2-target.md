@@ -46,6 +46,7 @@ This command:
 
 ### Phase ordering (strict)
 
+0) **Phase 0: Contract** (local only; vendor-driven discovery)
 1) **Phase 1: Unit** (local, pure)
 2) **Phase 2: Integration** (local, mocked/stubbed only)
 3) **Phase 3: E2E** (cluster only, Playwright only)
@@ -53,6 +54,7 @@ This command:
 Invariants:
 - Phase 1 and Phase 2 **must not** interact with Kubernetes, Tilt, or Telepresence.
 - Cluster wiring (Telepresence/Tilt preflight/cleanup) is **Phase 3 only**.
+- Phase 0 must be able to prove the contract using vendor tooling “discovery/collect/list” capabilities and must emit JUnit evidence (synthetic if needed).
 
 ---
 
@@ -137,6 +139,34 @@ Tooling expectations (non-negotiable):
 - Pytest: `--junitxml=...`.
 - Playwright: built-in JUnit reporter.
 - Go: orchestrator converts `go test -json` output into JUnit.
+
+---
+
+## Phase 0 (Contract) — how correctness is verified
+
+Phase 0 is a **preflight contract check** that prevents “zoo drift” and keeps the repo vendor-aligned.
+
+Phase 0 must validate using native tooling *without running a full suite*:
+
+- **Go:** compile/link checks for both default tags and `integration` tag without executing test binaries (preferred):
+  - `go test -exec /bin/true ./...`
+  - `go test -tags=integration -exec /bin/true ./...`
+  - (fallback) `go test -run '^$' ...` when `-exec` is unavailable.
+- **Jest:** discovery via `jest --listTests` (unit vs integration selectors) and fail on misconfiguration.
+- **Pytest:** discovery via `pytest --collect-only` (unit vs integration selectors) and fail on misconfiguration.
+- **Playwright:** discovery via `playwright test --list` (no cluster required).
+
+Additionally, Phase 0 must enforce the v2 “no legacy surface” rule:
+- no `INTEGRATION_MODE`
+- no `run_integration_tests.sh`
+- no `tools/integration-runner/*` execution contract
+
+**Migration safety valve (temporary):** to avoid breaking the repo instantly, Phase 0 may support a repo-root allowlist file:
+- `.ameide/test-contract-allowlist.txt`
+
+This allowlist must be treated as a time-boxed migration artifact and should trend toward empty; new violations must be blocked.
+
+**Toolchain availability:** Phase 0 may treat Jest/Pytest/Playwright discovery as best-effort when the toolchain is not installed yet (e.g., no `node_modules/` or no `.venv/`). Phase 1 is responsible for syncing dependencies; Phase 0 must still enforce the “no legacy surface” rule.
 
 ---
 

@@ -28,6 +28,9 @@ Target contract: `backlog/430-unified-test-infrastructure-v2-target.md`
 
 Update `ameide dev inner-loop-test` to:
 
+- Phase 0:
+  - enforce “no legacy surface” (no `INTEGRATION_MODE`, no `run_integration_tests.sh`, no `tools/integration-runner/*`) with a temporary allowlist to avoid bricking the repo during migration
+  - validate vendor-driven discovery wiring (Go compile/link; Jest list; Pytest collect; Playwright list where applicable)
 - Phase 1:
   - `go test ./...`
   - Jest unit suite (repo-wide convention)
