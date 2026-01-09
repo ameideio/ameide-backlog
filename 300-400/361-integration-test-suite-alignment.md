@@ -1,8 +1,10 @@
 > Note: Chart and values paths are now under gitops/ameide-gitops/sources (charts/values); any infra/kubernetes/charts references below are historical.
 
-> **DEPRECATED**: This backlog has been superseded by [430-unified-test-infrastructure.md](./430-unified-test-infrastructure.md).
+> **DEPRECATED**: This backlog has been superseded by 430v2:
+> - `backlog/430-unified-test-infrastructure-v2.md`
+> - `backlog/430-unified-test-infrastructure-v2-target.md`
 >
-> The content below is retained for historical reference. All new work should follow backlog 430.
+> The content below is retained for historical reference. All new work should follow 430v2.
 
 ---
 

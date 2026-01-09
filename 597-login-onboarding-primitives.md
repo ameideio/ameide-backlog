@@ -22,10 +22,15 @@ This backlog defines:
 - `backlog/428-onboarding.md` (current onboarding + identity provisioning)
 - `backlog/322-rbac.md` (roles, enforcement, membership semantics)
 - `backlog/300-400/333-realms.md` (optional future: realm-per-tenant variant)
-- `backlog/430-unified-test-infrastructure.md` (integration runner contract)
+- `backlog/430-unified-test-infrastructure-v2-target.md` (normative test contract; strict phases + JUnit evidence)
 - `backlog/596-onboarding-capability.md` (onboarding hardening + test pack target)
 
 ---
+
+> **Update (2026-01): 430v2 contract**
+>
+> Any references in this doc to `INTEGRATION_MODE`, `tools/integration-runner`, or `run_integration_tests.sh` should be treated as legacy/historical. The normative execution contract is:
+> - `ameide dev inner-loop-test` (Unit → Integration → E2E)
 
 ## GitOps implications (ameide-gitops)
 

@@ -4,6 +4,15 @@
 **Created:** 2025-12-22
 **Updated:** 2025-12-22
 
+> **Update (2026-01): 430v2 contract**
+>
+> The normative contract is now:
+> - `backlog/430-unified-test-infrastructure-v2-target.md`
+>
+> In particular, v2 removes:
+> - `INTEGRATION_MODE`
+> - per-component `run_integration_tests.sh` “packs” as the canonical execution path
+
 If you run one thing before opening/merging a PR, run the same gate CI runs:
 
 ```bash
@@ -37,14 +46,25 @@ ALLOW_MYPY_FAIL=0 ./scripts/ci/run_core_quality_local.sh
 
 ## Integration packs (unified contract / 430)
 
-Integration packs are **owned by the component they test** and live alongside it:
+The historical “integration pack” model (scripts + `INTEGRATION_MODE`) is **legacy**.
+
+The v2 contract is:
+- Phase 1 (Unit): local, pure
+- Phase 2 (Integration): local, mocked/stubbed only
+- Phase 3 (E2E): cluster only, Playwright only
+
+Keep the pack section below for historical context only.
+
+### Legacy (v1): integration packs + `INTEGRATION_MODE`
+
+Integration packs (legacy) are **owned by the component they test** and live alongside it:
 
 - `services/<service>/__tests__/integration/run_integration_tests.sh`
 - `packages/<package>/__tests__/integration/run_integration_tests.sh` (when present)
 - `primitives/<kind>/<name>/tests/run_integration_tests.sh` (when present)
 - `capabilities/<capability>/__tests__/integration/run_integration_tests.sh` (when present; see `591-capabilities-tests.md`)
 
-They all honor:
+They all honored:
 
 - `INTEGRATION_MODE=repo|local|cluster` (default: `repo`)
 - **Fail fast** on missing env vars in `cluster` mode
@@ -61,7 +81,7 @@ Run all service packs (repo mode):
 INTEGRATION_MODE=repo bash -lc 'for f in services/*/__tests__/integration/run_integration_tests.sh; do echo "==> $f"; bash "$f"; done'
 ```
 
-For target-state rules (folder structure, `__mocks__/`, runner script contract), see `430-unified-test-infrastructure.md`.
+For the current target-state rules, see `backlog/430-unified-test-infrastructure-v2-target.md`.
 
 ## Operators (control plane)
 

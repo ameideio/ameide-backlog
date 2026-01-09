@@ -1,14 +1,16 @@
 ---
 title: 430 – Unified Test Infrastructure
-status: active
+status: historical
 owners:
   - platform
   - test-infra
 created: 2025-12-01
-updated: 2025-12-22
+updated: 2026-01-09
 supersedes:
   - 371-e2e-playwright.md
   - 376-integration-test-dual-modes.md
+superseded_by:
+  - 430-unified-test-infrastructure-v2.md
 ---
 
 ## Summary
@@ -17,15 +19,27 @@ This backlog defines the **target state** for all automated tests in the codebas
 
 **This document describes the end state only.** Transitional patterns, backward compatibility shims, fallbacks, and workarounds are explicitly forbidden. All implementations must conform to the target architecture.
 
-### Update (2026-01): agent inner-loop front door
+> **Update (2026-01): this document is legacy (v1 contract)**
+>
+> The normative test contract is now **430v2**:
+> - `backlog/430-unified-test-infrastructure-v2.md` (index)
+> - `backlog/430-unified-test-infrastructure-v2-target.md` (normative contract)
+>
+> This v1 document is preserved for historical context because many older backlogs reference:
+> - `INTEGRATION_MODE`
+> - `run_integration_tests.sh` “packs”
+> - `tools/integration-runner/*`
+
+### Update (2026-01): agent inner-loop front door (v2)
 
 The agent-focused “no-brainer” verification front door is now:
 
 - `ameide dev inner-loop-test` (unit → integration → e2e, fail-fast, no flags)
 
-This command treats **integration folders** as the canonical discovery contract for repo-mode integration tests.
-
-Existing “integration packs” (runner scripts per component) are now **legacy** and should be treated as a CI-compatibility artifact until they are fully removed/migrated. New work should prefer the folder-based model that `inner-loop-test` enforces.
+430v2 tightens this further:
+- no `INTEGRATION_MODE`
+- no per-component runner scripts (`run_integration_tests.sh`) as the canonical path
+- cluster interaction is Phase 3 (E2E) only
 
 > ⚠️ **Remote-first reminder:** Wherever this backlog mentions a “cluster” profile or k3d-based execution, substitute the shared AKS namespace (`ameide-dev`) reached via Telepresence per [435-remote-first-development.md](435-remote-first-development.md).
 

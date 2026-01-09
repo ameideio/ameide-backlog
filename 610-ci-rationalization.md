@@ -23,7 +23,7 @@ This backlog complements testing-contract backlogs by focusing on *operational e
 
 We already have strong testing/verification contracts:
 
-- `430-unified-test-infrastructure.md` — integration packs contract and structure
+- `backlog/430-unified-test-infrastructure-v2-target.md` — strict phases + JUnit evidence contract
 - `468-testing-front-door.md` — “run what CI runs” local front door
 - `537-primitive-testing-discipline.md` — normative requirements for primitives/operators
 - `521h-external-verification-improvements.md` — log for changes to external gates

@@ -8,6 +8,10 @@
 
 > **Parent document**: [484 – Ameide CLI Overview](484-ameide-cli.md)
 
+> **Update (2026-01): testing contract is 430v2**
+>
+> Treat `backlog/430-unified-test-infrastructure-v2-target.md` as the normative repo contract for test phases and JUnit evidence. Legacy “integration packs / `INTEGRATION_MODE`” guidance should be considered historical only.
+
 ---
 
 ## 1. Current State & Migration
@@ -252,6 +256,6 @@ primitive:
 | Backlog | Relationship |
 |---------|--------------|
 | [365-buf-sdks-v2](365-buf-sdks-v2.md) | Buf integration, SDK regeneration |
-| [430-unified-test-infrastructure](430-unified-test-infrastructure.md) | Test modes, JUnit output |
+| [430v2 unified test infrastructure](430-unified-test-infrastructure-v2.md) | Test phases and JUnit evidence |
 | [471-ameide-business-architecture](471-ameide-business-architecture.md) | Transformation Domain as source of truth |
 | [477-primitive-stack](477-primitive-stack.md) | Target repo layout |

@@ -162,4 +162,4 @@ When the dependencies above are met, onboarding will deliver the full “single 
 - Tests:  
   - `pnpm --filter www-ameide-platform exec jest --runTestsByPath features/onboarding/__tests__/unit/onboarding-wizard.test.tsx`  
   - `pnpm --filter www-ameide-platform exec jest --runTestsByPath features/onboarding/__tests__/integration/registration-api.test.ts`  
-  - `pnpm --filter www-ameide-platform exec playwright test onboarding` *(cluster-only; requires `INTEGRATION_MODE=cluster` and a seeded Keycloak test realm with appropriate fixtures).*
+  - `pnpm --filter www-ameide-platform exec playwright test onboarding` *(Phase 3 E2E; cluster-only; requires a seeded Keycloak test realm + appropriate fixtures).*

@@ -62,8 +62,7 @@ capabilities/
     fixtures/                      # test fixtures and seed data (capability-owned)
     __tests__/                     # capability-owned tests (see 591)
       integration/
-        run_integration_tests.sh
-        src/ | cmd/ | tests/
+        (native tests executed by the repo orchestrator)
       e2e/                         # optional: browser e2e (Playwright), not required for headless flows
 ```
 
@@ -101,7 +100,7 @@ This gives tooling a stable entry point for:
 
 - Capability semantics and primitive decomposition already exist in capability docs (example: `backlog/540-sales-capability.md`).
 - Primitives stack invariants (guardrails plane, operators posture, proto discipline) are defined in `backlog/520-primitives-stack-v2.md`.
-- Repo-wide test target state is defined by `backlog/430-unified-test-infrastructure.md`.
+- Repo-wide test target state is defined by `backlog/430-unified-test-infrastructure-v2-target.md`.
 - Primitive-level testing discipline is defined by `backlog/537-primitive-testing-discipline.md`.
 - “Front door” test entrypoint is `backlog/468-testing-front-door.md`.
 - Capability-owned test packs are defined in `backlog/591-capabilities-tests.md`.

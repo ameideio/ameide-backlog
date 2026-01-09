@@ -8,6 +8,10 @@
 
 Comparative analysis of integration primitive implementation maturity across four domains reveals significant variance in proto contracts, test coverage, security, and deployment readiness. No single domain is production-complete; each has complementary strengths and critical gaps.
 
+> **Update (2026-01): 430v2 test contract**
+>
+> This doc references legacy “integration harness” scripts (`run_integration_tests.sh`) and `tools/integration-runner` from the v1 era. Treat `backlog/430-unified-test-infrastructure-v2-target.md` as authoritative for the current repo contract (native tooling; strict phases; no `INTEGRATION_MODE`; no pack scripts as the canonical path).
+
 ## Maturity Overview
 
 | Domain | Overall Score | Proto | Implementation | Tests | GitOps | Security |
@@ -34,7 +38,7 @@ Comparative analysis of integration primitive implementation maturity across fou
 **Gaps:**
 - ❌ No GitOps deployment manifest (sales has one, commerce doesn't)
 - ❌ Tests stub-only (6 LOC empty smoke test at `tests/smoke_test.go`)
-- ⚠️ `tests/run_integration_tests.sh` exists but currently just runs `go test ./...` (no external-system integration assertions)
+- ⚠️ Legacy: `tests/run_integration_tests.sh` exists but currently just runs `go test ./...` (no external-system integration assertions)
 - README states "stub implementation to be replaced"
 
 **Critical Paths:**

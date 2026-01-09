@@ -8,6 +8,10 @@
 
 > **Parent document**: [484 – Ameide CLI Overview](484-ameide-cli.md)
 
+> **Update (2026-01): testing contract is 430v2**
+>
+> Treat `backlog/430-unified-test-infrastructure-v2-target.md` as the normative repo contract for test phases and JUnit evidence. Avoid introducing new runner scripts or “mode” variables in the CLI.
+
 ---
 
 ## 1. Industry Tool Comparison

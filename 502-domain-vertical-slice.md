@@ -652,8 +652,8 @@ Highlights:
   - `internal/handlers/handlers.go` with `status.Error(codes.Unimplemented, "...")`
   - `internal/tests/*_test.go` that immediately `t.Fatalf`, guaranteeing RED state
   - `README.md`, `go.mod` (with local replace to `packages/ameide_sdk_go`)
-  - Optional `gitops/primitives/{kind}/{name}/values.yaml|component.yaml|kustomization.yaml` when `--include-gitops`
-  - Optional `tests/run_integration_tests.sh` harness when `--include-test-harness`
+  - GitOps stubs and tests scaffolded by default (no optional include flags)
+  - No per-component `tests/run_integration_tests.sh` harness as a required contract (legacy only; 430v2 uses native tooling via `ameide dev inner-loop-test`)
 - **Scope**: Domain primitives in Go (initial slice). Other kinds/langs still TODO.
 
 Usage example:
@@ -663,8 +663,6 @@ ameide primitive scaffold \
   --name orders \
   --proto-path packages/ameide_core_proto/src/ameide_core_proto/transformation/v1/transformation_service.proto \
   --lang go \
-  --include-gitops \
-  --include-test-harness \
   --json
 ```
 

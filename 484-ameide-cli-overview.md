@@ -204,7 +204,7 @@ ameide config set <k> <v> # Update config value
 | Backlog | Relationship |
 |---------|--------------|
 | [365-buf-sdks-v2](365-buf-sdks-v2.md) | SDK regeneration, Buf breaking rules |
-| [430-unified-test-infrastructure](430-unified-test-infrastructure.md) | Test modes, folder structure |
+| [430v2 unified test infrastructure](430-unified-test-infrastructure-v2.md) | Test phases and evidence contract (JUnit) |
 | [434-unified-environment-naming](434-unified-environment-naming.md) | GitOps structure, namespace labels |
 | [470-ameide-vision](470-ameide-vision.md) | Core invariants including EDA (§8-13) |
 | [472-ameide-information-application](472-ameide-information-application.md) | CQRS, command/event patterns |

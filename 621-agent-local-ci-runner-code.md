@@ -4,6 +4,10 @@ This file is generated for review/traceability. It snapshots the current impleme
 
 - backlog/621-ameide-cli-inner-loop-test.md
 
+> **Update (2026-01):**
+>
+> This snapshot is historical and may include legacy references (e.g., `INTEGRATION_MODE`) that are no longer part of the normative 430v2 contract. Treat `backlog/430-unified-test-infrastructure-v2-target.md` as authoritative for current semantics.
+
 Generated at: 2026-01-08T16:16:01Z
 
 ## Tilt integration (Tiltfile excerpt)

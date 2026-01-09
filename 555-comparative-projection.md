@@ -4,6 +4,10 @@
 **Type:** Cross-cutting Architecture Analysis
 **Scope:** Sales, Commerce, Transformation, SRE projection primitives
 
+> **Update (2026-01): 430v2 test contract**
+>
+> This comparative doc references legacy “integration harness” scripts (`run_integration_tests.sh`) as an implementation detail in some scaffolds. Treat `backlog/430-unified-test-infrastructure-v2-target.md` as the normative contract (native tooling; strict phases; no pack scripts as the canonical path).
+
 ## Executive Summary
 
 Comparative analysis of projection primitive implementation maturity across four domains reveals **convergence toward the Sales CQRS pattern**. The most significant development is **Transformation projection's architectural shift from a proxy facade to a full PostgreSQL-backed CQRS read model** with event consumption, placing it alongside Sales as a production-ready implementation.

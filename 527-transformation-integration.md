@@ -5,6 +5,10 @@
 
 This document specifies the **Transformation Integration primitives** — adapters for external systems (git providers, CI/status surfaces, registries, interoperability bindings) used to realize and govern transformation initiatives.
 
+> **Update (2026-01): testing contract is 430v2**
+>
+> Treat `backlog/430-unified-test-infrastructure-v2-target.md` as authoritative for repo test phases and JUnit evidence. Legacy “integration packs / `INTEGRATION_MODE` / `run_integration_tests.sh`” guidance should be considered historical only.
+
 ---
 
 ## Layer header (Application)

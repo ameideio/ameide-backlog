@@ -8,6 +8,10 @@
 
 > **Parent document**: [484 – Ameide CLI Overview](484-ameide-cli.md)
 
+> **Update (2026-01): testing contract is 430v2**
+>
+> Treat `backlog/430-unified-test-infrastructure-v2-target.md` as the normative repo contract for test phases and JUnit evidence. Legacy “integration packs / `INTEGRATION_MODE` / `run_integration_tests.sh`” content should be considered historical only.
+
 ## Grounding & contract alignment
 
 - **Primitive CLI surface:** Defines the `ameide primitive` workflows for the Ameide primitives (Domain/Process/Agent/UISurface/Projection/Integration) introduced in `470-ameide-vision.md` and `472-ameide-information-application.md`. This 484a document focuses on the currently implemented CLI/operator surface (Domain/Process/Agent/UISurface) and uses the shared status/condition semantics from `502-domain-vertical-slice.md` and `495-ameide-operators.md`.  

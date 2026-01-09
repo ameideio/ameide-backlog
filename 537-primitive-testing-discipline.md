@@ -4,6 +4,16 @@
 **Audience:** AI agents (primary), developers, CLI implementers
 **Scope:** Testing requirements, RED→GREEN TDD pattern, CI enforcement, per-primitive invariants
 
+> **Update (2026-01): align to 430v2**
+>
+> The normative execution contract is now:
+> - `backlog/430-unified-test-infrastructure-v2-target.md`
+>
+> In particular, 430v2 removes:
+> - `INTEGRATION_MODE`
+> - per-component `run_integration_tests.sh` packs as the canonical path
+> - “integration in cluster” (cluster interaction is Phase 3 E2E only)
+
 ---
 
 ## Purpose
@@ -302,17 +312,17 @@ def test_agent_state_not_business_truth():
 2. **Scaffold markers must be replaced.** Any `AMEIDE_SCAFFOLD` marker in a test file causes `ameide primitive verify` to fail.
 3. **CI runs the same commands as `verify`.** The CLI's `verify --check tests` runs the same test commands CI runs—it's a wrapper, not a competing gate.
 
-### 3.2 Test Mode Semantics
+### 3.2 Phase Semantics (430v2)
 
-Three modes, clearly defined:
+Strict phases, clearly defined:
 
-| Mode | Env Var | Infrastructure | Use Case |
-|------|---------|----------------|----------|
-| `repo` | `INTEGRATION_MODE=repo` | Pure mocks only | Fast unit tests, no I/O |
-| `local` | `INTEGRATION_MODE=local` | testcontainers (Postgres, Temporal, etc.) | Integration tests with local infra |
-| `cluster` | `INTEGRATION_MODE=cluster` | Real cluster dependencies | E2E/probe tests, PostSync smoke jobs |
+| Phase | Environment | Allowed dependencies | Use case |
+|------:|-------------|----------------------|----------|
+| **1: Unit** | Local | pure mocks only | fastest feedback; no I/O |
+| **2: Integration** | Local | mocks/stubs/in-memory fakes only | boundary tests without cluster |
+| **3: E2E** | Cluster | real environment only; Playwright only | user journeys / real ingress |
 
-**Important:** testcontainers = `local` mode, NOT `cluster` mode. `cluster` is reserved for tests against real deployed infrastructure.
+**Important:** Phase 1 and Phase 2 must not touch Kubernetes, Tilt, or Telepresence. Cluster interaction is Phase 3 only.
 
 ### 3.3 Verify Behavior
 
@@ -371,21 +381,15 @@ func TestSetup(t *testing.T) {
 }
 ```
 
-**Integration Test Setup (`local` mode with testcontainers):**
+**Integration Test Setup (Phase 2; build-tagged):**
 ```go
+//go:build integration
+
 func TestIntegration(t *testing.T) {
-    if os.Getenv("INTEGRATION_MODE") != "local" {
-        t.Skip("Skipping integration test (requires INTEGRATION_MODE=local)")
-    }
-
     ctx := context.Background()
+    _ = ctx
 
-    // Start Postgres container
-    pgContainer, err := postgres.RunContainer(ctx)
-    require.NoError(t, err)
-    defer pgContainer.Terminate(ctx)
-
-    // Run migrations and test with real DB
+    // Exercise boundary seams against in-memory fakes/stubs (no cluster, no local infra).
     // ...
 }
 ```
@@ -426,19 +430,12 @@ func TestWorkflowDeterminismPolicy(t *testing.T) {
 }
 ```
 
-**Integration Test Setup (`local` mode with testcontainers):**
+**Integration Test Setup (Phase 2; build-tagged):**
 ```go
+//go:build integration
+
 func TestWorkflowIntegration(t *testing.T) {
-    if os.Getenv("INTEGRATION_MODE") != "local" {
-        t.Skip("Skipping integration test (requires INTEGRATION_MODE=local)")
-    }
-
-    // Start Temporal container
-    temporalContainer, err := temporal.RunContainer(ctx)
-    require.NoError(t, err)
-    defer temporalContainer.Terminate(ctx)
-
-    // Test with real Temporal
+    // Exercise workflow seams against deterministic fakes/mocks (no cluster, no local infra).
     // ...
 }
 ```
@@ -683,7 +680,7 @@ This section documents gaps between this spec (537) and the current CLI implemen
 
 | ID | Gap | Current State | Required by 537 |
 |----|-----|---------------|-----------------|
-| **G4** | Integration mode semantics inconsistent | Legacy `INTEGRATION_TEST_MODE` references and `mock`-mode assumptions cause drift; not all tests consistently skip based on `repo`/`local`/`cluster` semantics | Three modes: `repo`, `local`, `cluster` |
+| **G4** | Legacy mode semantics inconsistent | Legacy `INTEGRATION_TEST_MODE` references and `mock`-mode assumptions cause drift; not all tests consistently skip based on `repo`/`local`/`cluster` semantics | 430v2 strict phases; no `INTEGRATION_MODE` |
 | **G5** | No per-primitive invariant checks | Generic test check runs, but no invariant validation | Static determinism policy for Process, reducer annotation checks for Agent |
 | **G6** | No cross-cutting envelope tests | No validation of event metadata | Envelope tests required (tenant_id, traceparent, idempotency_key) for Domain/Process |
 | **G8** | No agent governance tests | No tool grants enforcement, no risk-tier validation | Tool grants, risk-tier, state discipline tests required |
@@ -698,7 +695,7 @@ This section documents gaps between this spec (537) and the current CLI implemen
 - `Codegen` check validates generated output freshness (TS via temp-tree generation+diff; Go/Python via proto vs generated-file timestamps).
 
 **Still needed (to make tests “meaningful”, not just present):**
-- **Integration mode discipline**: consolidate on `INTEGRATION_MODE` and remove `INTEGRATION_TEST_MODE` entirely; ensure tests consistently skip/require infra based on `repo`/`local`/`cluster`.
+- **430v2 phase alignment**: remove `INTEGRATION_MODE` / pack-script assumptions; classify tests as Unit (Phase 1), Integration-local (Phase 2), or E2E-cluster (Phase 3).
 - **Per-primitive invariants** (tests + optional verify checks):
   - Process: determinism policy (static) + idempotency behaviors (Temporal testsuite).
   - Domain/Process: envelope metadata tests (tenant/idempotency/trace context).
@@ -719,8 +716,8 @@ This section documents gaps between this spec (537) and the current CLI implemen
 
 | File | Changes |
 |------|---------|
-| `packages/ameide_core_cli/internal/commands/primitive_scaffold.go` | Scaffold test markers (`AMEIDE_SCAFFOLD`), harness prefers `INTEGRATION_MODE` |
-| `packages/ameide_core_cli/internal/commands/primitive_commands.go` | `--checks` alias; integration mode via env; scaffold markers fail verification by default |
+| `packages/ameide_core_cli/internal/commands/primitive_scaffold.go` | Scaffold test markers (`AMEIDE_SCAFFOLD`), harness follows 430v2 phases and JUnit evidence |
+| `packages/ameide_core_cli/internal/commands/primitive_commands.go` | `--checks` alias; scaffold markers fail verification by default |
 | `packages/ameide_core_cli/internal/commands/primitive.go` | Cross-language tests, “no tests found” FAIL, scaffold marker scan, `Codegen` drift check |
 | `packages/ameide_core_cli/internal/commands/templates/integration/mcp_adapter/internal/mcp/http_test.go.tmpl` | RED marker test for integration MCP adapter scaffolds |
 
@@ -730,24 +727,18 @@ This section documents gaps between this spec (537) and the current CLI implemen
 
 This is the **ideal**, checklist-driven refactor set to bring the repo in line with 537 and eliminate the known gaps (G4/G5/G6/G8/G9).
 
-### 10.1 Integration Mode Contract (G4)
+### 10.1 Phase Contract Alignment (430v2)
 
-- [ ] Standardize on `INTEGRATION_MODE={repo,local,cluster}` as the canonical contract.
-- [ ] Remove `INTEGRATION_TEST_MODE` completely (no fallbacks, no aliases, no exports).
-- [ ] Replace any legacy `mock` integration-mode comparisons with `mode !== "cluster"` (or explicit `repo|local` checks) to keep semantics intact.
-- [ ] Update the shared integration helpers:
-  - `tools/integration-runner/integration-mode.sh`
-  - `tools/integration-runner/integration_mode.py`
-- [ ] Update all generated harness scripts to export `INTEGRATION_MODE`:
-  - `primitives/*/*/tests/run_integration_tests.sh` (scaffold output)
-  - SDK/internal scripts that source the helper should tolerate `local` mode (treat as “non-cluster” for required env vars).
+- [ ] Adopt 430v2 strict phases: Unit (local), Integration (local mocked/stubbed), E2E (cluster only, Playwright only).
+- [ ] Remove `INTEGRATION_TEST_MODE` / `INTEGRATION_MODE` references from the normative contract; preserve old guidance under a clearly labeled “Legacy” section if needed.
+- [ ] Stop generating or requiring `primitives/*/*/tests/run_integration_tests.sh` as the canonical path (legacy only, targeted for deletion).
 
-### 10.2 Verification Behavior (G4 + discipline enforcement)
+### 10.2 Verification Behavior (phase discipline enforcement)
 
 - [ ] `ameide primitive verify --check tests` must:
   - [ ] FAIL when no tests exist.
   - [ ] FAIL when any test file contains `AMEIDE_SCAFFOLD`.
-  - [ ] Run tests with `INTEGRATION_MODE` exported.
+  - [ ] Classify and run tests under the v2 phases, emitting JUnit evidence.
 - [ ] Ensure no CLI paths read `INTEGRATION_TEST_MODE`:
   - `packages/ameide_core_cli/internal/commands/primitive.go`
   - `packages/ameide_core_cli/internal/commands/primitive_commands.go`

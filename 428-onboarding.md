@@ -5,6 +5,11 @@
 **Owner:** Platform / Identity
 **Supersedes:** backlog/319-onboarding.md, backlog/369-onboarding-v2.md, backlog/319-onboarding-v4.md
 
+> **Update (2026-01): testing contract is 430v2**
+>
+> Any references in this document to “dual-mode integration” (`INTEGRATION_MODE`) or `tools/integration-runner` are legacy. The normative repo contract is now:
+> - `backlog/430-unified-test-infrastructure-v2-target.md`
+
 ---
 
 ## Executive Summary
@@ -399,11 +404,10 @@ When multiple identity sources are configured, the following precedence applies:
 | 1.6 Add instrumentation/metrics to bootstrap endpoint | ✅ Implemented | The bootstrap route was already wrapped in `withRequestTelemetry` and now also records OpenTelemetry metrics via `services/www_ameide_platform/lib/onboarding-metrics.ts` (`onboarding_bootstrap_requests_total`, `onboarding_bootstrap_errors_total`, `onboarding_bootstrap_rate_limit_hits_total`, `onboarding_bootstrap_duration_seconds`) with status + HTTP code tags. |
 | 1.7 E2E test: complete signup flow with healthy backend | ✅ Playwright coverage in place; cluster-only | Playwright now focuses on **597 invariants** and **fail-fast behavior** (seeded users never hit onboarding/provisioning; onboarding routes are guarded; bootstrap endpoint returns structured JSON and never times out as a blank 504). See `services/www_ameide_platform/features/onboarding/__tests__/e2e/seeded-admin-no-onboarding.spec.ts`, `services/www_ameide_platform/features/onboarding/__tests__/e2e/onboarding-guards.spec.ts`, and `services/www_ameide_platform/features/onboarding/__tests__/e2e/tenant-bootstrap.spec.ts`. These suites are **cluster-only UI E2Es** (they require live Keycloak + platform and seeded data) and run when the Playwright job targets a real cluster. |
 
-**Integration Test Dual-Mode Alignment (376)**
+**Test Contract Alignment (430v2)**
 
-- Onboarding has **dual-mode integration coverage** (repo stubs vs cluster real deps) under the 430 runner contract (`INTEGRATION_MODE=repo|cluster`).
-- Playwright E2E is **cluster-only by design** (per `backlog/430-unified-test-infrastructure.md`): it must target a real environment (Keycloak + platform + seeded personas) and must fail fast when required env/secrets are missing.
-- `tools/integration-runner` and the Playwright values ensure `INTEGRATION_MODE` is set explicitly and unknown values fail fast; E2E is never executed implicitly from repo-mode workflows.
+- Phase 1 (Unit) and Phase 2 (Integration) are local-only (no cluster tooling).
+- Playwright is **Phase 3 only** and **cluster-only by design**: it must target a real environment (Keycloak + platform + seeded personas) and must fail fast when required env/secrets are missing.
 
 **Additional Work Completed (Beyond Initial Phase 1 Tasks)**
 
@@ -536,7 +540,7 @@ Verified Phase 1 implementation status against requirements defined in this back
 **Findings**:
 - ✅ `onboarding-flow.spec.ts`: Full wizard journey
 - ✅ `new-user-redirect.spec.ts`: Middleware redirect behavior
-- ✅ Cluster-only mode (`INTEGRATION_MODE=cluster`)
+- ✅ Cluster-only E2E (Phase 3; Playwright)
 - ✅ Covers: tenant bootstrap, org creation, redirect, post-onboarding access
 
 ### Audit Action Items
