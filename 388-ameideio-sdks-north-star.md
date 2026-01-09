@@ -55,7 +55,7 @@ The aim is to replace ad-hoc fixes (filters, skips, custom sanitizing) with a **
   * `ameide-sdk-go`
   * `ameide-sdk-python`
   * `ameide/configuration` (SDK-adjacent configuration)
-* We want to keep GHCR tags `:<sha>` and `:dev` as first-class citizens.
+* We want to keep GHCR tags `:<sha>` as first-class citizens.
 
 ---
 
@@ -132,10 +132,9 @@ Given:
 * GHCR:
 
   * `ghcr.io/ameideio/ameide-sdk-ts:<sha>`
-  * `ghcr.io/ameideio/ameide-sdk-ts:dev`
   * Same for Go, Python, configuration.
 
-Dev channel artifacts are intentionally moving targets for main/dev environments. Use `:dev` or `<sha>` in non-prod; semver pins are reserved for prod (and usually staging).
+Dev channel artifacts are intentionally moving targets for main/dev environments. Use `<sha>` tags for traceability, and deploy only digest-pinned image references; semver pins are reserved for prod (and usually staging).
 
 ---
 
@@ -246,14 +245,12 @@ For each artifact (TS SDK, Go SDK, Python SDK, configuration):
   For dev/main builds:
 
   * `ghcr.io/ameideio/ameide-sdk-ts:<sha>`
-  * `ghcr.io/ameideio/ameide-sdk-ts:dev`
 
   For release tags (`vX.Y.Z`):
 
   * `ghcr.io/ameideio/ameide-sdk-ts:<sha>`
   * `ghcr.io/ameideio/ameide-sdk-ts:X.Y.Z`
   * `ghcr.io/ameideio/ameide-sdk-ts:X.Y`
-  * `ghcr.io/ameideio/ameide-sdk-ts:latest` (optional / policy-driven)
   * Same for Go, Python, configuration.
 
 * **Signing**:
@@ -328,8 +325,8 @@ Single `publish-packages.yml` should implement:
    * GHCR:
 
      * Build images for TS/Go/Python/configuration.
-     * Tag `:<sha>` and `:dev` only.
-     * Sign `:<sha>`.
+     * Tag `:<sha>` (and only `:<sha>` for non-release builds).
+     * Sign the resulting digests.
 
 5. **Removal of temporary hacks**
 
@@ -344,33 +341,9 @@ Single `publish-packages.yml` should implement:
 
 ### 5.5 Kubernetes & Runtime Usage
 
-#### Tagging policy per environment
+#### Image reference policy
 
-* **Prod**:
-
-  * Deploy K8s manifests referencing **semver tags**, not `:dev`:
-
-    * `image: ghcr.io/ameideio/ameide-sdk-ts:0.1.0`
-    * Optionally, embed the SHA in annotations for audit:
-
-      * `ameide.io/image-sha: 71e210beab37b68546d56dceccba18f09264ecc3`
-  * Only roll deploys when version changes.
-
-* **Staging**:
-
-  * Either mirror prod behavior with a “candidate” version (`0.1.0-rc.1`), or
-  * Allow `:dev` images, but capture exact SHA via:
-
-    * `image: ghcr.io/ameideio/ameide-sdk-ts:<sha>`
-    * A `:dev` alias can be used for exploratory deploys, but rollbacks should always reference a specific SHA tag.
-
-* **Dev / ephemeral environments**:
-
-  * It’s acceptable to use:
-
-    * `image: ghcr.io/ameideio/ameide-sdk-ts:dev`
-    * `image: ghcr.io/ameideio/ameide-sdk-ts:<sha>`
-  * Dev/ephemeral builds intentionally **do not pin**; prod (and usually staging) pins SemVer. Always keep the SHA discoverable (image ID/tag or annotations) for rollbacks.
+Kubernetes deployments MUST use digest-pinned image references. Tags (`:<sha>`, `:X.Y.Z`) are for traceability and lookup, not as deploy inputs.
 
 #### Configuration delivery
 
@@ -379,10 +352,7 @@ Single `publish-packages.yml` should implement:
   * A library (npm/PyPI), pinned by version in the service lockfiles, and/or
   * An OCI image (`ghcr.io/ameideio/configuration:X.Y.Z` / `:<sha>`) mounted or consumed by services.
 
-* In Kubernetes, prefer:
-
-  * For immutable config bundles: reference `X.Y.Z` or `:<sha>` directly.
-  * For dev environments: `:dev` pointing to the latest main commit.
+* In Kubernetes, prefer digest-pinned image references (with `:<sha>` tags for traceability when needed).
 
 ---
 
@@ -406,8 +376,8 @@ Single `publish-packages.yml` should implement:
 
 6. **Complete GHCR tagging**:
 
-   * Retain `:<sha>` and `:dev`.
-   * Add semver tags for releases (X.Y.Z, X.Y, latest).
+   * Retain `:<sha>`.
+   * Add semver tags for releases (X.Y.Z, X.Y).
 
 7. **Remove hacks** (filters, sanitizing, skip guards) once above steps are in place and validated.
 
@@ -416,7 +386,7 @@ Single `publish-packages.yml` should implement:
 ## 7. Open Questions / Decisions
 
 * Do we want to keep **npm / PyPI dev publishing** on every main commit, or only for certain branches?
-* How strict do we want to be about **`latest`** tags in GHCR? (Always current stable? Only manually bumped?)
+* Do we want any **`latest`** tags in GHCR, or should we rely on explicit semver tags only?
 * Do we need a **migration story** for consumers already using old “2.x” or ad-hoc versions, or can we treat the first properly versioned release as a reset (e.g., `0.1.0`)?
 
 ---

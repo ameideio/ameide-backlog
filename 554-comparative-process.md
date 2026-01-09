@@ -515,7 +515,7 @@ primitives/process/{domain}/
 
 **Sales Process:**
 - **File:** `gitops/ameide-gitops/sources/values/_shared/apps/process-sales-v0.yaml`
-- **Image:** `ghcr.io/ameideio/process-sales:dev`
+- **Image:** `ghcr.io/ameideio/process-sales@sha256:<digest>`
 - **Temporal Connection:**
   - Namespace: `default`
   - Task Queue: `process-sales-v0`
