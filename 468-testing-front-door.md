@@ -16,10 +16,10 @@
 If you run one thing before opening/merging a PR, run the same gate CI runs:
 
 ```bash
-./scripts/ci/run_core_quality_local.sh
+ameide ci test
 ```
 
-This mirrors `.github/workflows/ci-core-quality.yml` and writes artifacts under `.test-results/` and `.coverage/`.
+This mirrors the 430v2 test contract phases in CI (Phase 0/1/2) and writes artifacts under `artifacts/agent-ci/`.
 
 ## Agent inner loop (one command)
 
@@ -33,16 +33,7 @@ This is intentionally **not** the full PR gate and does not do image builds/publ
 
 ## Fast paths
 
-```bash
-# Reuse existing deps (skip pnpm install + uv sync)
-SKIP_INSTALL=1 ./scripts/ci/run_core_quality_local.sh
-
-# Skip Playwright e2e
-SKIP_E2E=1 ./scripts/ci/run_core_quality_local.sh
-
-# Fail on mypy errors (CI allows mypy to be soft)
-ALLOW_MYPY_FAIL=0 ./scripts/ci/run_core_quality_local.sh
-```
+Fast paths are owned by the CLI (caching/dependency checks) rather than shell flags.
 
 ## Integration packs (unified contract / 430)
 
@@ -102,7 +93,7 @@ Acceptance harness details live in `tests/acceptance/README.md`.
 
 ## CI map
 
-- Core quality gate: `.github/workflows/ci-core-quality.yml` (local: `./scripts/ci/run_core_quality_local.sh`)
+- Core quality gate: `.github/workflows/ci-core-quality.yml` (tests: `ameide ci test`)
 - Integration packs: `.github/workflows/ci-integration-packs.yml`
 - Operators envtest: `.github/workflows/ci-operators-envtest.yml`
 - Operators acceptance: `.github/workflows/ci-operators-acceptance.yml`

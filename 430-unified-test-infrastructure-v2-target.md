@@ -15,7 +15,8 @@ supersedes:
 
 Define a single, repo-wide, **low-cognitive-load** testing contract:
 
-- One front door: `ameide dev inner-loop-test`
+- Local front door: `ameide dev inner-loop-test` (Phase 0/1/2/3)
+- CI front door: `ameide ci test` (Phase 0/1/2)
 - Strict phases: **Unit → Integration → E2E**
 - Native tooling per language (Go/Jest/Pytest/Playwright)
 - **No test “modes”** (`INTEGRATION_MODE` et al.)
@@ -35,11 +36,12 @@ Cross-references:
 
 ### Single front door
 
-All verification for agentic coding and CI gates is driven through:
+All verification is driven through the CLI (no pack scripts/modes):
 
 - `ameide dev inner-loop-test`
+- `ameide ci test`
 
-This command:
+These commands:
 - runs phases in strict order (fail-fast)
 - emits JUnit evidence for each phase
 - does not require users to understand runner specifics

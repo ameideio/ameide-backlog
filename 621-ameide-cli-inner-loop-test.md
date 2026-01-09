@@ -27,6 +27,10 @@ Provide a **single, fail-fast, no-flags** CLI entrypoint that an interactive AI 
 
 This is intentionally **not** “full CI”: it is an agentic inner-loop tool that prioritizes **time-to-first-actionable-signal** and **explainable failures**.
 
+CI uses a sibling command that runs the same contract phases without cluster E2E:
+
+- `ameide ci test` (Phase 0/1/2 only)
+
 ## Cross-references
 
 - `backlog/468-testing-front-door.md` (front-door testing entrypoints; this backlog adds an agent-optimized inner-loop tool)
@@ -53,8 +57,7 @@ This backlog item is now **implemented** as a first-class Go CLI command:
 
 Legacy bash runner scripts remain in-tree for reference and parity comparison (do not delete yet):
 
-- `tools/dev/agent-local-ci.sh`
-- `tools/dev/agent-local-ci/**`
+Legacy runner scripts have been removed; the canonical entrypoints are the CLI commands above.
 
 ## Deliverable shape (what the CLI does)
 
