@@ -10,6 +10,10 @@
 - **Primary element types used:** Application Component (UISurface primitives), Application Services (consumed by UISurfaces), Application Events (EDA integration).
 - **Analysis scope:** Code implementation, GitOps deployment, proto/API contracts, test coverage, documentation quality.
 
+> **Update (2026-01): 430v2 test contract**
+>
+> This comparative doc references legacy “integration harness” scripts (`run_integration_tests.sh`) as an implementation detail in some scaffolds. Treat `backlog/430-unified-test-infrastructure-v2-target.md` as the normative contract (native tooling; strict phases; no pack scripts as the canonical path).
+
 ---
 
 ## Executive Summary

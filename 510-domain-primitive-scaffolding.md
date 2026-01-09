@@ -5,6 +5,11 @@ This backlog defines the **canonical target scaffold** for **Domain** primitives
 - **Audience:** AI agents (primary), Go developers (secondary), CLI implementers
 - **Scope:** One opinionated pattern, aligned with `backlog/520-primitives-stack-v2.md` and `514-primitive-sdk-isolation.md` (SDK-only, self-contained primitives). The CLI orchestrates repo/GitOps wiring; `buf generate` + plugins handle deterministic generation (SDKs, generated-only glue).
 
+> **Update (2026-01): no-brainer scaffolding + 430v2 test contract**
+>
+> - Scaffolding should avoid optional flags by default (no “include-*” zoo); generated primitives should include the repo-required shape (including GitOps stubs and tests) without extra switches.
+> - Test scaffolding should align with `backlog/430-unified-test-infrastructure-v2-target.md` (Unit/Integration/E2E phases; native tooling; JUnit evidence; no `INTEGRATION_MODE`; no `run_integration_tests.sh` packs as the canonical path).
+
 ---
 
 ## Primitive/operator alignment
@@ -43,12 +48,10 @@ For Domain primitives we use **one opinionated pattern**:
 ```bash
 ameide primitive scaffold \
   --kind domain \
-  --name <name> \
-  --include-gitops \
-  --include-test-harness
+  --name <name>
 ```
 
-- `--kind`, `--name`, `--include-gitops`, `--include-test-harness` are the **canonical** CLI flags for Domain scaffolds.  
+- `--kind`, `--name` are the canonical inputs for Domain scaffolds.  
 - The implementation must **implicitly choose Go** as the language for Domain scaffolds (`--lang` is effectively fixed to `go` and treated as a compatibility flag only).  
 - After scaffolding, the CLI should **automatically add the new module to `go.work`** (via `go work use ./primitives/domain/<name>`) so `go build ./primitives/domain/<name>/...` works without additional wiring.  
 - The expected location for the scaffold is:

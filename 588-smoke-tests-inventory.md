@@ -7,7 +7,7 @@
 These smokes are **not** 430 `INTEGRATION_MODE` suites; they are Argo/cluster reconciliation probes.
 
 Related:
-- 430 test infra status: `backlog/430-unified-test-infrastructure-status.md`
+- 430v2 test contract: `backlog/430-unified-test-infrastructure-v2-target.md`
 - Kafka/topic inventory: `backlog/587-kafka-topics-and-queues-inventory.md`
 
 ## Execution model (important nuance)

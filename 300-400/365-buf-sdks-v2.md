@@ -67,7 +67,7 @@ Canonical references for the current model:
    - **TypeScript**: Graph, Repository, www_ameide, www_ameide_platform enforce SDK runtime clients (no raw `@buf`/proto.js), wire config/auth/tracing, and add SDK-backed integration/contract tests.  
    - Remove any proto-direct client usage; no shims or dual-path adapters.
 5) **Integration mode + coverage**  
-   - Apply integration-mode runner (376): `INTEGRATION_MODE=repo|local|cluster` enforced; non-cluster uses deterministic stubs, cluster asserts live deps.  
+   - Apply 430v2 test contract: strict phases (Unit → Integration → E2E), native tooling per language, and JUnit evidence (no `INTEGRATION_MODE`; cluster interaction only in E2E).  
    - Add SDK-path integration suites per service covering metadata/auth/retry/timeout/tracing/request-id; wire into CI matrices (mock for PR, cluster for main/nightly).
 6) **Release hygiene & dependabot**  
    - Ensure services pin released SDK versions; Dependabot bumps auto-merged; CI blocks if red checklist items remain.

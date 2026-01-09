@@ -644,7 +644,7 @@ Infrastructure values flow from Bicep to Helm via git:
 
 | Backlog | Relationship |
 |---------|--------------|
-| [430-unified-test-infrastructure](./430-unified-test-infrastructure.md) | Test modes aligned with environment naming |
+| [430v2 unified test infrastructure](./430-unified-test-infrastructure-v2.md) | Test phases and evidence aligned with environment naming |
 | [435-remote-first-development](./435-remote-first-development.md) | Telepresence + AKS workflow (refines this backlog) |
 | [443-tenancy-models](./443-tenancy-models.md) | Tenancy model definitions (single source of truth) |
 | [484-ameide-cli](./484-ameide-cli.md) | CLI `scaffold` outputs GitOps manifests following 434 structure |

@@ -26,6 +26,10 @@
 - Primitives stack: `backlog/520-primitives-stack-v2.md`
 - Capability definitions: `backlog/540-sales-capability.md`, `backlog/526-sre-capability.md`, `backlog/523-commerce.md`, `backlog/527-transformation-capability.md`
 
+> **Update (2026-01): 430v2 test contract**
+>
+> This comparative doc references legacy “integration harness” scripts (`run_integration_tests.sh`) as an implementation detail in some scaffolds. Treat `backlog/430-unified-test-infrastructure-v2-target.md` as the normative contract (native tooling; strict phases; no pack scripts as the canonical path).
+
 ## Layer header (Application Architecture + Technology)
 
 - **Primary ArchiMate layer(s):** Application (Application Component, Service, Event) + Technology (Workflow orchestration, Temporal infrastructure)

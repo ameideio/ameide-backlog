@@ -10,10 +10,17 @@ Onboarding v2: Primitive Decomposition + Non‑Happy Path Hardening + Integratio
 * `backlog/300-400/333-realms.md` (realm-per-tenant reference design + invariants)
 * `backlog/520-primitives-stack-v2.md` (stack invariants: operators + proto/codegen + CI gates; proto as behavior schema) 
 * `backlog/533-capability-implementation-playbook.md` (implementation DAG + Node 8 verification gates) 
-* `backlog/430-unified-test-infrastructure.md` (runner contract; `INTEGRATION_MODE=repo|cluster`; durable assertions)
+* `backlog/430-unified-test-infrastructure-v2-target.md` (normative test contract; strict phases + JUnit evidence)
 * `backlog/468-testing-front-door.md` (repo-wide test entrypoints and conventions)
 
 ---
+
+> **Update (2026-01): 430v2 contract**
+>
+> This doc was originally written in the v1 “integration pack / `INTEGRATION_MODE`” era. Keep those details for historical context, but treat the normative execution contract as:
+> - `ameide dev inner-loop-test` (Unit → Integration → E2E)
+> - no `INTEGRATION_MODE`
+> - no per-suite `run_integration_tests.sh` packs as the canonical path
 
 ## 1) Problem
 

@@ -2,13 +2,19 @@
 
 **Status:** Draft (target-state direction)  
 **Audience:** Capability owners, platform engineering, test-infra  
-**Scope:** Define how to write and run **capability-owned tests** (vertical slice tests spanning primitives), aligned with `backlog/430-unified-test-infrastructure.md`.
+**Scope:** Define how to write and run **capability-owned tests** (vertical slice tests spanning primitives), aligned with `backlog/430-unified-test-infrastructure-v2-target.md`.
+
+> **Update (2026-01): 430v2 contract**
+>
+> 430v2 removes `INTEGRATION_MODE` and per-component `run_integration_tests.sh` packs as the canonical execution path. This document keeps the old “pack” language for historical context but should be read through the v2 lens:
+> - Phase 2 Integration is local-only and mocked/stubbed.
+> - Phase 3 E2E is cluster-only and Playwright-only.
 
 ---
 
 ## Use with
 
-- Repo-wide test target state: `backlog/430-unified-test-infrastructure.md`
+- Repo-wide test target state: `backlog/430-unified-test-infrastructure-v2-target.md`
 - Repo-wide test entrypoint: `backlog/468-testing-front-door.md`
 - Primitive testing discipline (mandatory invariants): `backlog/537-primitive-testing-discipline.md`
 - Capability repo hierarchy (where these packs live): `backlog/590-capabilities.md`
@@ -42,41 +48,38 @@ Capability tests are the missing middle: “feature works” across primitives.
 
 ## 2) Where capability tests live (repo structure)
 
-Each capability owns its integration pack under its capability folder:
+Each capability owns its **integration tests** under its capability folder:
 
 ```text
 capabilities/<capability_name>/__tests__/integration/
-  run_integration_tests.sh
-  (implementation of the pack)
+  (native tests executed by the repo orchestrator)
 ```
 
-This mirrors the existing pack pattern in `services/*` and `packages/*` described in `backlog/430-unified-test-infrastructure.md` and indexed by `backlog/468-testing-front-door.md`.
+This mirrors the v2 “integration classification” convention described in `backlog/430-unified-test-infrastructure-v2-target.md`.
 
 ---
 
 ## 3) Runner contract (inherits 430)
 
-Capability integration packs must follow the **same runner contract** as service integration packs:
+Capability integration tests must follow the **same v2 contract** as the rest of the repo:
 
-- `INTEGRATION_MODE=repo|cluster` (accept `local` as non-cluster; do not introduce new modes)
-- One implementation, dual execution (no “cluster-only” test logic branches)
-- Fail fast on missing env vars in `cluster` mode
-- Output JUnit + artifacts in the standard locations used by CI
+- Phase 2 (Integration) is **local-only** and must be mocked/stubbed (no cluster).
+- Phase 3 (E2E) is **cluster-only** and Playwright-only (if applicable).
+- Output JUnit evidence via the orchestrator contract.
 
-Reference: `backlog/430-unified-test-infrastructure.md`.
+Reference: `backlog/430-unified-test-infrastructure-v2-target.md`.
 
 ---
 
 ## 3.1 No ad-hoc “test scripts”
 
-Capability tests must be runnable as an integration pack (`run_integration_tests.sh`) so they are:
+Capability tests must not introduce ad-hoc runner scripts. They must run under `ameide dev inner-loop-test` so they are:
 
 - discoverable by CI,
-- mode-consistent (`INTEGRATION_MODE`),
 - artifact-producing (JUnit + logs),
 - enforceable as a quality gate.
 
-If a capability needs a convenience wrapper for developers, it must call the pack entrypoint rather than creating a parallel test path.
+If a capability needs a convenience wrapper for developers, it must call `ameide dev inner-loop-test` (or a narrower repo-sanctioned wrapper), not create a parallel contract.
 
 ---
 
@@ -111,16 +114,20 @@ Capability tests should be built **small → large** (TDD ladder), so we can val
 
 ### 5.1 Repo mode (fast, deterministic)
 
-In `INTEGRATION_MODE=repo`, capability packs should:
+In Phase 2 (Integration), capability tests should:
 
 - run the capability flow against in-process fakes or repo-local dependencies
 - prove the “seam invariants” (idempotency, evidence schema, process determinism, projection materialization)
 
 This is how we keep capability tests fast and CI-friendly for pre-merge.
 
-### 5.2 Cluster mode (real dependencies)
+### 5.2 E2E (Phase 3; cluster-only, Playwright-only)
 
-In `INTEGRATION_MODE=cluster`, capability packs run against the real deployed system (remote-first AKS per `backlog/435-remote-first-development.md`, and GitOps authority per `backlog/430-unified-test-infrastructure.md`).
+Cluster validation for capabilities is owned by Phase 3 E2E under the 430v2 contract:
+
+- Cluster-only
+- Playwright-only
+- Runs against a real base URL (remote-first AKS per `backlog/435-remote-first-development.md`)
 
 For WorkRequests-based capabilities, cluster mode also validates:
 
@@ -130,20 +137,6 @@ For WorkRequests-based capabilities, cluster mode also validates:
 - durable evidence is recorded and queryable even after job cleanup
 
 ---
-
-## 5.3 Where cluster-mode tests run
-
-Cluster-mode capability packs may be executed:
-
-- **from outside the cluster** (CI runner or DevContainer) using kubeconfig/Telepresence, or
-- **as a headless Kubernetes Job** (when you want the test driver to run inside the same network boundary).
-
-Regardless of where the pack runs, the assertions remain the same: verify correctness via Domain/Process/Projection state and evidence, not via “pods existed” heuristics.
-
-**Default guidance:**
-
-- **Developer inner loop:** run cluster-mode packs from a DevContainer using Telepresence (fast iteration).
-- **CI / remote execution:** prefer running the pack as a headless Kubernetes Job when you want network parity and fewer port-forward assumptions.
 
 ---
 

@@ -8,6 +8,10 @@ This document specifies the **Transformation Process primitives** — Temporal-b
 **Extensions:**
 - MCP write governance (agent-driven writes): `backlog/536-mcp-write-optimizations.md`
 
+> **Update (2026-01): testing contract is 430v2**
+>
+> Treat `backlog/430-unified-test-infrastructure-v2-target.md` as authoritative for repo test phases and JUnit evidence. Legacy “integration packs / `INTEGRATION_MODE` / `run_integration_tests.sh`” guidance should be considered historical only.
+
 ---
 
 ## Layer header (Application)
@@ -38,7 +42,7 @@ What is implemented in code today (Dec 2025):
     - records a release element linked via `ref:release`,
     - creates and promotes a governance baseline.
 - WorkRequest orchestration path exists end-to-end in repo-mode tests (Domain + executor + router/ingress seam + Process facts).
-- Cluster-mode execution is tested as the same suite under `INTEGRATION_MODE=cluster` (per `backlog/430-unified-test-infrastructure.md`) and assumes deployed dispatcher/executor/ingress/projection + Temporal wiring.
+- Cluster validation is E2E-only under `backlog/430-unified-test-infrastructure-v2-target.md` (Phase 3; Playwright) and assumes deployed dispatcher/executor/ingress/projection + Temporal wiring.
 
 What remains intentionally pending (target state):
 

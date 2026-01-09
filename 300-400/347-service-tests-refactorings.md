@@ -6,6 +6,10 @@
 **Owner:** Platform DX / Quality Engineering  
 **Related Backlog:** 335, 336, 337, 338, 339, 340, 341, 342, 343, 344, 345, 346
 
+> **Update (2026-01): 430v2 contract**
+>
+> This guide is historical (it reflects the “integration pack / integration-runner” era). Treat `backlog/430-unified-test-infrastructure-v2-target.md` as the normative contract (strict phases, native tooling, JUnit evidence; no `INTEGRATION_MODE`; no `run_integration_tests.sh` packs as the canonical path).
+
 ---
 
 ## Why this guide exists

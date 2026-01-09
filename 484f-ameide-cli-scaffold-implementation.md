@@ -8,6 +8,10 @@
 
 > **Parent document**: [484 – Ameide CLI Overview](484-ameide-cli-overview.md)
 
+> **Update (2026-01): 430v2 contract**
+>
+> This doc is already deprecated for generation, but it also contains v1-era “integration pack / `INTEGRATION_MODE` / `run_integration_tests.sh`” assumptions. Treat `backlog/430-unified-test-infrastructure-v2-target.md` as authoritative for current test semantics.
+
 ---
 
 ## 1. Scaffold Command Reference
@@ -270,7 +274,7 @@ Tests should **fail** at this point (RED state per TDD). The agent's job is to i
 |-------|----------|
 | Agent wiring checklist | `templates/agent/readme.md.tmpl` |
 | Primitive repo layout | [477-primitive-stack.md](477-primitive-stack.md) §2 |
-| Test infrastructure | [430-unified-test-infrastructure.md](430-unified-test-infrastructure.md) |
+| Test infrastructure | [430v2 unified test infrastructure](430-unified-test-infrastructure-v2.md) |
 | Operator patterns | [497-operator-implementation-patterns.md](497-operator-implementation-patterns.md) |
 | Agent developer guide | [505-agent-developer.md](505-agent-developer.md) |
 

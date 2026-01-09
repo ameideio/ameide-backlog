@@ -11,6 +11,13 @@ This document tracks implementation progress against the target state defined in
 
 **Audit Date:** 2025-12-26
 
+> **Update (2026-01): 430v2 supersedes 430 (v1)**
+>
+> The normative target contract is now:
+> - `backlog/430-unified-test-infrastructure-v2-target.md`
+>
+> This status doc is preserved for historical tracking context of the v1 “integration packs / INTEGRATION_MODE” era.
+
 ## Update (2026-01): inner-loop-test is now the agent front door
 
 The agent-oriented, no-flags verification tool is now:

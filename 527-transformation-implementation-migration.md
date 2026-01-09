@@ -5,6 +5,10 @@
 
 This document is the **Implementation & Migration** layer plan for delivering the Transformation capability. Because we are **not live**, “migration” here means **implementation slicing + deletion of legacy code**, not compatibility shims, traffic splitting, or façade-first routing.
 
+> **Update (2026-01): testing contract is 430v2**
+>
+> Any references in this plan to “integration modes” (`INTEGRATION_MODE`) or pack scripts (`run_integration_tests.sh`) should be treated as legacy. The normative repo contract is `backlog/430-unified-test-infrastructure-v2-target.md` (Unit → Integration → E2E; cluster interaction only in E2E; JUnit evidence mandatory).
+
 ---
 
 ## Layer header (Implementation & Migration)
@@ -49,9 +53,9 @@ v1 “success” is a **workflow-driven** and **testable** slice (not a UI demo)
      - records evidence (artifacts + routing proof + digests + created/deleted resources + teardown proof),
      - cleans up deterministically (run anchor + `ownerReferences` + TTL janitor sweep).
 
-4) **End-to-end tests exist and are runnable** per `backlog/430-unified-test-infrastructure-status.md`:
+4) **End-to-end tests exist and are runnable** per `backlog/430-unified-test-infrastructure-v2-target.md`:
    - unit + integration tests cover Domain/Process/Runner seams (idempotency, fact-after-persist, ack-after-durable-outcome),
-   - cluster-mode integration tests prove the WorkRequest substrate wiring end-to-end,
+   - cluster validation is E2E-only (Phase 3) under the repo contract,
    - both Scrum and TOGAF ADM scenarios have coverage at the “process requests work → evidence recorded → process continues” seam,
    - UI harness verification runs are included where applicable (edge-routable service changes).
 
@@ -73,8 +77,8 @@ This section is a lightweight status tracker against the work packages below.
 - [x] WP-B (CODE) WorkRequests substrate: Domain WorkRequest record + facts + queue-topic fanout implemented; executor implemented (`primitives/integration/transformation-work-executor`).
 - [x] WP-B (CODE) Process ingress consumes Kafka domain facts (`PROCESS_INGRESS_SOURCE=kafka://`) and signals workflows (Temporal signals; deploy/wiring is a GitOps concern).
 - [x] WP-B (CODE) Domain dispatcher publishes outbox topics to Kafka by default (no topic prefix filter).
-- [x] WP-B (TEST) Capability pack exists (`capabilities/transformation/__tests__/integration`) with repo-mode + cluster-mode WorkRequest seam coverage (E2E‑0) and Process orchestration + R2R governance coverage (E2E‑1).
-- [x] WP-B (TEST) Test pack is 430-aligned: no mode-based `t.Skip`; cluster mode is fail-fast via the pack runner’s required env vars (see `backlog/430-unified-test-infrastructure.md`).
+- [x] WP-B (TEST) Capability tests exist (`capabilities/transformation/__tests__/integration`) with Phase 2 local integration coverage for the WorkRequest seam and Phase 3 E2E (Playwright) coverage where applicable.
+- [x] WP-B (TEST) Test contract alignment: follow `backlog/430-unified-test-infrastructure-v2-target.md` (no `INTEGRATION_MODE`; JUnit evidence; cluster interaction only in E2E).
 - [x] WP-B (CODE) UI harness verification suite exists (`transformation.verify.ui_harness.gateway_overlay.v1`) and is requested as `action_kind=verify` (no special E2E action kind); runner proves routing via Gateway API overlay marker and records `/artifacts/e2e/*`.
 - [ ] WP-B (CLUSTER) Cluster end-to-end depends on deployed wiring (dispatcher → broker → executor → domain facts → ingress → Temporal → projection). Code + tests assume those components exist and are reachable; environment health/config may still block execution.
 - [x] GitOps parity (execution substrate): KEDA + Kafka work-queue topics + workbench + secret wiring exist in `ameide-gitops` (enabled in `local` + `dev`; disabled elsewhere).
@@ -100,7 +104,7 @@ Quick verification (GitOps / cluster truth):
 ### Historical note (preserve context)
 
 - Earlier iterations carried cluster-only coverage in separate test files and used env flags to skip cluster suites when infra was unavailable.
-- Current posture expresses cluster coverage as the same tests executed under `INTEGRATION_MODE=cluster`, and missing cluster dependencies are treated as hard failures per `backlog/430-unified-test-infrastructure.md`.
+- Current posture treats cluster validation as E2E-only under the repo contract and as GitOps smokes for “cluster truth” probes (no `INTEGRATION_MODE`).
 - Platform Gateway should route Transformation primitive gRPC services internally (no legacy `graph` routing):
   - `kubectl -n ameide-local get grpcroute.gateway.networking.k8s.io transformation`
   - Smoke: `local-platform-transformation-routing-smoke` asserts the `GRPCRoute/transformation` is `Accepted=True` and `ResolvedRefs=True`.

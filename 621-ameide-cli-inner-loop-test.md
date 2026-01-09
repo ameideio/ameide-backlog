@@ -10,8 +10,10 @@
 - The runner must be **as smart as possible internally** (discovery, caching, preflight, actionable failure messages) while remaining a **no-brainer UX**:
   - **no flags**, **no launch modes**, **no user-chosen parameters** (besides `--help`).
   - one default behavior; fail-fast on first failure.
-- Must be runnable in **CI and local** environments without privileged access:
-  - **no `sudo`**, **no host mutations** (e.g., editing `/etc/hosts`), no interactive prompts.
+- Must be runnable in **CI and local** environments without host mutation or interactive prompts:
+  - no host mutations (e.g., editing `/etc/hosts`)
+  - no interactive prompts
+  - note: Phase 3 depends on Telepresence; in environments where Telepresence requires elevated privileges for its daemon, the environment must be preconfigured to run it non-interactively (e.g., NOPASSWD sudo in devcontainers/CI images).
 - Must leave the environment **clean after each run**:
   - no lingering background processes, intercepts, Telepresence daemons, or stray resources created by the run.
   - small on-disk caches/state that improve iteration are allowed, but must be explicit, bounded, and safe to delete.
@@ -28,7 +30,7 @@ This is intentionally **not** “full CI”: it is an agentic inner-loop tool th
 ## Cross-references
 
 - `backlog/468-testing-front-door.md` (front-door testing entrypoints; this backlog adds an agent-optimized inner-loop tool)
-- `backlog/430-unified-test-infrastructure.md` (integration mode contract; repo vs cluster)
+- `backlog/430-unified-test-infrastructure-v2-target.md` (normative test contract: phases, native tooling, JUnit evidence)
 - `backlog/435-remote-first-development.md` (Tilt + Telepresence as the default cluster dev substrate)
 - `backlog/581-parallel-ai-devcontainers.md` (parallel agent slots; header-filtered intercepts)
 - `.github/workflows/ci-core-quality.yml` (authoritative CI quality gate for PRs)
@@ -56,13 +58,21 @@ Legacy bash runner scripts remain in-tree for reference and parity comparison (d
 
 ## Deliverable shape (what the CLI does)
 
-The CLI runs exactly three phases in order and exits non-zero on the first failure.
+The CLI runs phases in strict order (fail-fast) and exits non-zero on the first failure.
 
 Artifacts/logs are always written under a single run root:
 
 - `artifacts/agent-ci/<timestamp>/`
 
 It always prints **phase durations** and **total duration** at the end of execution (even when a later phase fails).
+
+### Phase 0 — Contract (local only)
+
+**Goal:** fail fast on contract drift (legacy “modes”, pack scripts) and validate vendor-driven discovery wiring before executing full suites.
+
+- Go: compile/link checks for unit and integration-tagged code.
+- Jest/Pytest/Playwright: discovery/collect/list modes where available.
+- Always emits JUnit evidence for Phase 0 (synthetic if needed).
 
 ### Phase 1 — Standard build/lint/unit (local only)
 
@@ -80,27 +90,22 @@ Canonical tasks (toolchains directly):
   - `uvx ruff check …` (targeted packages)
   - `uv run -m pytest -q packages --ignore-glob='*/__tests__/integration/*'` (+ junit under `RUN_ROOT`)
 - **Go**
-  - `go test` across repo packages **excluding** integration-folder packages (so ordering stays strict)
+  - `go test ./...` (default tags only; integration-tagged tests are excluded by Go build constraints)
 
 **Invariant:** Phase 1 must not require `kubectl`, `telepresence`, or `tilt`.
 
-### Phase 2 — Integration tests (repo mode; integration folders)
+### Phase 2 — Integration tests (local mocked/stubbed only)
 
-**Goal:** run **all tests that live under integration folders** in `INTEGRATION_MODE=repo` (mock-first), **without** integration-pack orchestration.
-
-Discovery contract:
-
-- `**/__tests__/integration/**`
-- (Optional additional convention if it exists in-tree): `**/tests/integration/**`
+**Goal:** run local-only integration tests that exercise boundaries against mocks/stubs/in-memory fakes.
 
 Execution rules (opinionated, fail-fast):
 
-- Export `INTEGRATION_MODE=repo` for the phase.
-- Discover integration folders under: `services/`, `packages/`, `primitives/`, `capabilities/`, `tests/`.
-- Keep the folder contract, but minimize process startups:
-  - **Go:** batch all integration packages into a single `go test -json …` run (JSON saved under `RUN_ROOT`)
-  - **Python:** `uv run -m pytest -q -x <dir>` per integration directory (keeps suites isolated)
-  - **Jest:** one Jest invocation per owning workspace (not per folder) with junit output
+- No Kubernetes / Tilt / Telepresence.
+- No environment “mode” variables (no `INTEGRATION_MODE`).
+- Use native tooling selectors per language (430v2):
+  - **Go:** `go test -tags=integration ./...`
+  - **Jest/TS:** repo-wide selection for `__tests__/integration/**` via Jest config
+  - **Pytest/Python:** `@pytest.mark.integration` selection via pytest config
 
 ### Phase 3 — E2E (cluster; Tilt + Telepresence + Playwright)
 
@@ -126,6 +131,17 @@ Vendor-aligned orchestration shape:
 - Tilt runs the hidden CLI runner:
 - which scopes `telepresence connect -- <cmd>` and `telepresence intercept -- <cmd>`
   - (Implementation detail: Telepresence requires a process entrypoint; this is not a user-facing “mode” and is not part of the public contract.)
+
+Prerequisites (must be explicit; no guesswork):
+
+- `tilt` installed and usable.
+- `telepresence` installed and compatible with header-filtered intercepts (Telepresence/traffic-manager >= 2.25).
+- A reachable Kubernetes context/namespace with the target workload (`www-ameide-platform`) and sidecar injection enabled.
+- Playwright test secrets present in-cluster (e.g., `playwright-int-tests-secrets` in the configured namespace).
+- A valid `BASE_URL` that resolves in the environment and routes through ingress/gateway; Phase 3 must fail fast if base URL routing/auth prerequisites are missing.
+
+Failure behavior:
+- If any prerequisite is missing, Phase 3 fails fast with an actionable message and still emits JUnit evidence under the run root.
 
 ## Non-goals
 

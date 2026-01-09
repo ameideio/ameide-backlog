@@ -6,6 +6,10 @@
 **Owner:** Architecture / Platform Enablement  
 **Purpose:** Provide a single checklist and pointer map for spinning up a new Ameide service (platform service or primitive) with all cross-cutting requirements (security, testing, GitOps, documentation) enforced from day one.
 
+> **Update (2026-01): 430v2 contract**
+>
+> Any references below to “integration packs”, `INTEGRATION_MODE`, or `tools/integration-runner` are legacy. Treat `backlog/430-unified-test-infrastructure-v2-target.md` as the normative repo contract (strict phases; native tooling; JUnit evidence; no pack scripts as the canonical path).
+
 ---
 
 ## 1. When to use this backlog
@@ -26,8 +30,8 @@ Use this checklist whenever you create a net-new service under `services/` or `s
 | **GitOps & deployment** | Which ApplicationSet/Helm chart entries are required? What sync wave & labels apply? | `364-argo-configuration-v3.md`, `375-rolling-sync-wave-redesign.md`, `367-bootstrap-v2.md`, `387/447-argocd-waves*.md`, `465-applicationset-architecture.md`, environment naming per `434-unified-environment-naming.md` |
 | **SDK & workspace alignment** | Are protos consumed exclusively via Ameide SDKs, have Go/TS/Py packages been regenerated (`scripts/dev/check_sdk_alignment.py`), and do Dockerfiles follow the Ring 1/Ring 2 workspace-first rules? | `365-buf-sdks-v2.md`, `408-workspace-first-ring-2.md`, `405-docker-files.md` |
 | **Networking & tenancy labels** | Are namespace/pod labels and NetworkPolicies configured correctly (tier, tenant, environment)? | `441-networking.md`, `434-unified-environment-naming.md`, `442-environment-isolation.md`, `459-httproute-ownership.md` |
-| **Testing (mock/cluster)** | Do integration packs follow the unified test contract (single implementation, mock/cluster modes) and exercise critical flows (e.g., primitive → `extensions-runtime` → host-call)? | `430-unified-test-infrastructure.md`, `480-ameide-extensibility-wasm-service.md`, `services/_templates/README.md`, `tools/integration-runner/README.md` |
-| **Build/test verification & CI logs** | Have we run unit + integration suites locally, verified `docker build` (dev + release) succeeds, and confirmed GitHub workflows (`extensions-runtime.yml`, `cd-service-images.yml`) include the new service? Did the latest `gh run view <id>` logs pass SDK alignment and publishing checks? | `430-unified-test-infrastructure.md`, `395-sdk-build-docker-tilt-north-star.md`, `405-docker-files.md`, `408-workspace-first-ring-2.md`, `.github/workflows/*.yml` |
+| **Testing (unit/integration/e2e)** | Are tests classified and runnable under `ameide dev inner-loop-test` (Unit → Integration → E2E) and do they emit JUnit evidence? | `backlog/430-unified-test-infrastructure-v2-target.md`, `backlog/537-primitive-testing-discipline.md`, `backlog/468-testing-front-door.md` |
+| **Build/test verification & CI logs** | Have we run the repo front door and confirmed CI gates are aligned (JUnit evidence, strict phase semantics)? | `backlog/430-unified-test-infrastructure-v2-target.md`, `backlog/610-ci-rationalization.md`, `.github/workflows/*.yml` |
 | **Observability & SLOs** | What metrics/logging/tracing does the service emit? Are dashboards updated? | `platform observability backlogs`, `services/README.md`, service-specific SLO docs |
 | **Security & governance** | Does the service follow risk-tier rules, host-call policies, and secrets governance? | `476-security-and-trust.md`, `362-unified-secret-guardrails-v2.md`, `479-ameide-extensibility-wasm.md` (for Tier 1 runtime specifics) |
 | **Documentation & ownership** | README, runbooks, rotation steps, owners? Has Backstage catalog info been created? | `service_catalog/.../README.md`, `backlog/481-service-catalog.md` (Backstage integration), `services/README.md` |
@@ -97,7 +101,7 @@ Use this checklist whenever you create a net-new service under `services/` or `s
 | GitOps/AppSet placement | `backlog/465-applicationset-architecture.md`, `backlog/447-waves-v3-cluster-scoped-operators.md`, `backlog/375-rolling-sync-wave-redesign.md`, `backlog/367-bootstrap-v2.md` |
 | Secret guardrails | `backlog/362-unified-secret-guardrails-v2.md`, `backlog/348-envs-secrets-harmonization.md` |
 | SDK + Ring alignment | `backlog/365-buf-sdks-v2.md`, `backlog/408-workspace-first-ring-2.md`, `backlog/405-docker-files.md` |
-| Test infrastructure | `backlog/430-unified-test-infrastructure.md`, `tools/integration-runner/README.md`, `services/_templates/README.md` |
+| Test infrastructure | `backlog/430-unified-test-infrastructure-v2-target.md`, `backlog/468-testing-front-door.md` |
 | Environment naming & networking | `backlog/434-unified-environment-naming.md`, `backlog/441-networking.md`, `backlog/442-environment-isolation.md` |
 | Extensibility/Tier1 runtime | `backlog/479-ameide-extensibility-wasm.md`, `backlog/480-ameide-extensibility-wasm-service.md` |
 | Service catalog patterns | `backlog/481-service-catalog.md`, `service_catalog/domains/_primitive/skeleton/*` |
@@ -118,6 +122,6 @@ Use this checklist whenever you create a net-new service under `services/` or `s
 | Backlog | Relationship |
 |---------|--------------|
 | [484-ameide-cli](484-ameide-cli.md) | CLI scaffolding guidance is deprecated; see 520 for canonical `buf generate` gates |
-| [430-unified-test-infrastructure](430-unified-test-infrastructure.md) | Test structure requirements |
+| [430v2 unified test infrastructure](430-unified-test-infrastructure-v2.md) | Test structure requirements (phases + JUnit evidence) |
 | [434-unified-environment-naming](434-unified-environment-naming.md) | GitOps structure, labels |
 | [481-service-catalog](481-service-catalog.md) | Backstage catalog integration |

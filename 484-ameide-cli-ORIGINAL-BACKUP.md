@@ -2,6 +2,10 @@
 
 > **Deprecation notice (520):** This file is an archive snapshot and is not normative. It contains a CLI-scaffolder design that is deprecated. Canonical v2 uses **`buf generate`** (pinned plugins, deterministic outputs, generated-only roots, regen-diff CI gate). See `backlog/520-primitives-stack-v2.md`.
 
+> **Update (2026-01): 430v2 contract**
+>
+> This archive includes v1-era “integration pack / `INTEGRATION_MODE` / `run_integration_tests.sh`” assumptions. Treat `backlog/430-unified-test-infrastructure-v2-target.md` as authoritative for current test semantics.
+
 ## 1. Purpose
 
 The **Ameide CLI** is a proto-aligned command-line interface that serves as **guardrails for AI agents** doing autonomous development. It is designed to be consumed by:

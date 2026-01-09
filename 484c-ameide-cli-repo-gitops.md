@@ -8,6 +8,10 @@
 
 > **Parent document**: [484 – Ameide CLI Overview](484-ameide-cli.md)
 
+> **Update (2026-01): testing contract is 430v2**
+>
+> Treat `backlog/430-unified-test-infrastructure-v2-target.md` as the normative contract (strict phases; native tooling; JUnit evidence). Any references in this doc to `INTEGRATION_MODE`, `tools/integration-runner`, or `run_integration_tests.sh` are legacy.
+
 ---
 
 ## 1. Core Repo vs GitOps Repo Split
@@ -129,9 +133,9 @@ ameide-gitops/  # or gitops/ subdirectory in monorepo
 
 ---
 
-## 4. Test Infrastructure Alignment (Backlog 430)
+## 4. Test Infrastructure Alignment (Backlog 430v2)
 
-The CLI aligns with the unified test infrastructure defined in [430-unified-test-infrastructure.md](430-unified-test-infrastructure.md).
+The CLI aligns with the unified test infrastructure defined in `backlog/430-unified-test-infrastructure-v2-target.md`.
 
 ### 4.1 Verify Modes
 
@@ -145,51 +149,18 @@ The CLI aligns with the unified test infrastructure defined in [430-unified-test
 ```bash
 # Fast local check (default)
 ameide primitive verify --kind domain --name orders --json
-
-# Against live cluster
-ameide primitive verify --kind domain --name orders --mode cluster --json
 ```
 
 ### 4.2 Scaffolded Test Structure
 
-Scaffold outputs follow the 430 canonical structure:
+Scaffold outputs follow the 430v2 contract (native tooling; strict phases; no `INTEGRATION_MODE`; no per-component runner scripts as the canonical path):
 
 ```
 primitives/domain/{name}/
-├── __mocks__/                    # Mock implementations (required by 430)
-│   ├── index.ts
-│   ├── client.ts                 # createMockTransport()
-│   └── fixtures.ts               # Typed fixture data
-├── __tests__/
-│   ├── unit/
-│   └── integration/
-│       ├── run_integration_tests.sh  # 430-compliant runner
-│       ├── helpers.ts                # Mode-aware client factory
-│       └── *.test.ts
-```
-
-### 4.3 Runner Script Contract
-
-Scaffolded `run_integration_tests.sh` follows the 430 contract:
-
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
-
-source "tools/integration-runner/integration-mode.sh"
-MODE="$(integration_mode)"
-export INTEGRATION_MODE="${MODE}"
-
-if [[ "${MODE}" == "cluster" ]]; then
-  require_cluster_mode "${MODE}"
-  for var in GRPC_ADDRESS; do
-    [[ -z "${!var:-}" ]] && { echo "${var} required"; exit 1; }
-  done
-fi
-
-source "tools/integration-runner/junit-path.sh"
-JUNIT_PATH="$(resolve_junit_path {name})"
-# ... run tests
+├── __tests__/                    # language-idiomatic tests
+│   ├── unit/                     # Phase 1
+│   └── integration/              # Phase 2 (local mocked/stubbed only)
+└── (no run_integration_tests.sh) # legacy pack scripts are targeted for removal
 ```
 
 ### 4.4 Verify Output Formats
@@ -204,10 +175,10 @@ ameide primitive verify --kind domain --name orders --json
 
 ### 4.5 Fail Fast
 
-Per 430, verify must:
+Per 430v2, verify must:
 - Exit non-zero immediately on any failure
 - Never skip tests silently
-- Never fallback to defaults in cluster mode
+- Never fallback to defaults for required inputs
 
 ---
 
@@ -282,7 +253,7 @@ This makes 482 the "what" and 484 the "how" (automated).
 
 | Backlog | Relationship |
 |---------|--------------|
-| [430-unified-test-infrastructure](430-unified-test-infrastructure.md) | Test modes, folder structure, runner contracts |
+| [430v2 unified test infrastructure](430-unified-test-infrastructure-v2.md) | Test phases and JUnit evidence contract |
 | [434-unified-environment-naming](434-unified-environment-naming.md) | GitOps structure, namespace labels, tier mapping |
 | [435-remote-first-development](435-remote-first-development.md) | Telepresence, cluster mode context |
 | [477-primitive-stack](477-primitive-stack.md) | Repo layout, operator structure |
