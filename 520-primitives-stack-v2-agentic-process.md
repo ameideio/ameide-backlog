@@ -117,7 +117,18 @@ If more than two sources are required, treat it as a design smell and consolidat
 
 Digest pinning MUST be injected deterministically; otherwise “preview deploy” becomes tribal glue.
 
-Preferred mechanism (no GitOps mutation per PR):
+Trust model note:
+
+- PR branches are attacker-controlled inputs. Preview deploy MUST NOT consume arbitrary PR-branch “lock files” as a deploy input unless the cluster-side trust model explicitly allows it.
+
+Preferred mechanism (closed trust model; no PR-branch deploy inputs):
+
+- CI publish ensures that, for every previewed component image, `ghcr.io/<org>/<image>:<HEAD_SHA>` exists in the registry.
+  - If the component changed in the PR: build + push that tag.
+  - If the component did not change: copy/retag a trusted baseline digest (typically from `:main`) to that tag (no rebuild).
+- Preview deploy selects images using only `HEAD_SHA` (and optional PR number for human tags), without reading PR-branch artifacts.
+
+Alternative mechanism (no GitOps mutation per PR):
 
 - Publish writes the resolved digest into the deploy bundle lock file (e.g., `primitives/<kind>/<name>/deploy/image.ref.yaml`) on the primitive repo PR branch, and the PR generator deploys that exact commit.
 
@@ -125,14 +136,15 @@ Fallback mechanism (GitOps PR per preview):
 
 - Publish opens a GitOps PR adding a PR-scoped overlay containing the digest-pinned image ref, and the preview Application references that overlay.
 
-Additional mechanism (monorepo / repo-wide contract):
+Deprecated mechanism (monorepo / repo-wide PR-branch contract):
 
 - CI (or publish) writes a single repo-wide lock file (e.g., `images.lock.yaml`) that maps logical image names to digest-pinned refs (`ghcr.io/...@sha256:...`) and commits it back to the PR branch.
-- Preview deploy tooling consumes that lock file as the PR→deploy contract (similar to GitOps `image.ref`), so digest pinning remains deterministic without templating guesswork.
+- This is deterministic, but it violates the “PR_NUMBER + HEAD_SHA only” trust model unless the cluster explicitly treats PR branch files as trusted inputs.
 
 Historical note:
 
 - This doc started from a per-primitive deploy bundle model (`primitives/<kind>/<name>/deploy/image.ref.yaml`). A repo-wide lock file is the generalized form for repos that publish multiple images (services/operators/primitives) from one PR.
+- In the Ameide monorepo, the evolved direction for PR previews is to avoid consuming PR-branch lockfiles and instead guarantee `:<HEAD_SHA>` tags exist for every image, with unchanged images retagged from a trusted baseline.
 
 ### G) Supply chain hardening for agentic publish
 
