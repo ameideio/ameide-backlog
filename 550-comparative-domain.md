@@ -304,14 +304,14 @@ All domains have skeleton dispatcher:
 
 **Sales:**
 - File: `gitops/ameide-gitops/sources/values/_shared/apps/domain-sales-v0.yaml`
-- Image: `ghcr.io/ameideio/sales-domain:dev`
+- Image: `ghcr.io/ameideio/sales-domain@sha256:<digest>`
 - Replicas: 1
 - Config: Minimal (image + log level only)
 - Gaps: No database config, no resource limits
 
 **Transformation:**
 - File: `gitops/ameide-gitops/sources/values/_shared/apps/domain-transformation-v0.yaml`
-- Image: `ghcr.io/ameideio/transformation-domain:dev`
+- Image: `ghcr.io/ameideio/transformation-domain@sha256:<digest>`
 - Replicas: 1
 - Smoke Test values: `gitops/ameide-gitops/sources/values/_shared/apps/domain-transformation-v0-smoke.yaml` (gRPC health check harness)
 - Config: Minimal (image + log level only)

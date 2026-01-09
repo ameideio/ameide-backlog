@@ -114,7 +114,7 @@ metadata:
     ameide.io/primitive: uisurface
     ameide.io/uisurface: sales
 spec:
-  image: ghcr.io/ameideio/uisurface-sales:dev
+  image: ghcr.io/ameideio/uisurface-sales@sha256:<digest>
   routing:
     host: uisurface-sales-v0.local
   rollout:

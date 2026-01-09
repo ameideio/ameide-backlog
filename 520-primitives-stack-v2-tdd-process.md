@@ -35,7 +35,7 @@ Complete all unchecked items in this document for this vertical primitive to be 
   - `gitops/ameide-gitops/sources/values/_shared/apps/process-ping-v0.yaml`
   - `gitops/ameide-gitops/sources/values/_shared/apps/process-ping-v0-smoke.yaml`
 
-### Manual Image Publish
+### Publish
 
-- [x] Publish the runtime image to GHCR and deploy it via a digest-pinned ref in GitOps (local/dev bump PR writes the digest; do not deploy floating `:dev` directly). See `backlog/602-image-pull-policy.md` / `backlog/603-image-pull-policy.md`.
-- [x] Publish the operator image to GHCR and pin by digest in GitOps (operators are dependencies; do not deploy floating tags directly). See `backlog/602-image-pull-policy.md` / `backlog/603-image-pull-policy.md`.
+- [x] CI publishes the runtime image to GHCR; GitOps deploys only digest-pinned refs (no floating tags). See `backlog/602-image-pull-policy.md` / `backlog/603-image-pull-policy.md`.
+- [x] CI publishes the operator image to GHCR; GitOps pins the operator image by digest (operators are dependencies). See `backlog/602-image-pull-policy.md` / `backlog/603-image-pull-policy.md`.

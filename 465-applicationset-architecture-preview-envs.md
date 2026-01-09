@@ -1,566 +1,504 @@
-# 465 – ApplicationSet Architecture: PR Preview Environments
+## Ameide PR Preview Environments on Argo CD
 
-**Created**: 2026-01-08
-**Updated**: 2026-01-09
+### Normative specification (v1, closed)
 
-Note: `backlog/465-applicationset-architecture-preview-envs-v2.md` is the current “normative spec” draft; this document retains broader context, rationale, and implementation notes.
+### 0. Scope and invariants
 
-This document extends `backlog/465-applicationset-architecture.md` with a **vendor-correct, low-guesswork** pattern for **PR-scoped preview environments** (namespaces + Applications) that deploy **only first-party app workloads** (and optionally primitive CR instances) while reusing shared infrastructure (databases/Temporal/Kafka/observability/etc).
+**0.1 Preview definition**
+A “preview environment” is the deterministic set of Argo CD Applications created for a GitHub Pull Request and deployed into exactly one Kubernetes namespace:
 
-Crossreference: the agentic workflow that drives this from the developer/agent side is `backlog/520-primitives-stack-v2-agentic-process.md`.
+* Namespace name format: `pr-ameide-<PR_NUMBER>`
+* Namespace is ephemeral
+* Namespace is labeled so cluster policy can identify it as preview-managed
 
-## Problem statement
+**0.2 Preview is apps-tier**
+A preview deploys the **apps-tier set** (components in rollout phases `610–650`) into the PR namespace while reusing the base environment infra/data/observability. In Ameide, the apps-tier set explicitly includes the **primitives controllers/CR instances** (the `ameide.io/*` resources under `environments/_shared/components/apps/primitives/**`) as well as the apps runtimes and web surfaces. This matches the “apps-tier previews that reuse infra” requirement stated in the doc.
 
-We want a PR to produce a preview deployment that is:
+**0.2.1 Reuse shared entrypoints (avoid hostname conflicts)**
+Some components in the repo exist to expose shared services on stable hostnames (e.g. `auth.<env>.ameide.io`, `evals.<env>.ameide.io`). These MUST be reused from the base environment and MUST NOT be redeployed into preview namespaces, because they would compete for the same hostnames on the shared Gateway.
 
-- **Fast** (no long polling delays).
-- **Safe** (PR generator cannot escalate privileges).
-- **Clean** (teardown on PR close; no leaked namespaces/resources).
-- **Scoped** (deploys only first-party app workloads; reuses shared infrastructure and data services).
-- **Deterministic** (digest-pinned images; no “latest tag” ambiguity).
+**0.3 PR input trust model**
+PR input is treated as untrusted for cluster safety. The only PR-derived values used to render cluster objects are:
 
-## Key concept: “infra apps” vs “preview apps”
+* `PR_NUMBER` (integer)
+* `HEAD_SHA` (string)
 
-ArgoCD reconciles **only what an Application declares**. Preview environments avoid “redeploy infra” by separating ownership:
+No branch names, titles, labels (except as boolean gates), or other free text are included in any resource names, destinations, or project selection.
 
-- **Infrastructure Applications** (stable): cluster-scoped + environment-scoped infra (operators, CRDs, CNPG/Temporal/Kafka, observability stack, gateways). These remain on `main` and deploy to stable namespaces.
-- **Preview Applications** (ephemeral): PR namespace + first-party app workloads + per-namespace bindings (ConfigMaps/ExternalSecrets/etc) that *reference* the existing infra.
+This aligns with Argo CD’s stated security posture that ApplicationSets are privileged and must be admin-owned, and that templating project fields is dangerous if untrusted users can open PRs.
 
-Preview Apps must not include infra manifests. If they do, the preview loop becomes slow and dangerous.
+---
 
-### Expectation for Ameide (explicit)
+## 1. Argo CD policy model
 
-For Ameide, a “preview environment” is expected to mean:
+### 1.1 AppProject constraints
 
-- Deploy the first-party **apps tier** (“600*” stage in the environment RollingSync; i.e. the apps phases `610–650`, with optional `699` smokes) into a PR namespace.
-- Reuse everything else (foundation/data/observability substrate from `010–599`) from an existing base environment (`local` on k3d, or `dev` on AKS).
+**AppProject `previews` (namespaced-only workloads):**
 
-This repo also supports a smaller “smoke preview” (a minimal `deploy/preview/` bundle), but that is **not** the end-state expectation for “full platform” previews.
+* `spec.sourceRepos` MUST allow only:
 
-## Relationship to existing ApplicationSets (clarification)
+  * the GitOps repo that contains charts/values/components for apps-tier and preview baseline
+  * (if used) the Helm chart repository/OCI registry for charts
+* `spec.destinations` MUST allow only:
 
-This repo already has an “apps-only layer”, but it is **not a separate ApplicationSet**:
+  * `server: https://kubernetes.default.svc`
+  * `namespace: pr-ameide-*` (wildcard globbing is supported)
+* `spec.clusterResourceWhitelist` MUST be empty.
+  This is required because Argo CD AppProject cluster-scoped allow/deny is by `{group, kind}` only, so allowing `Namespace` would allow creation/deletion of **any** namespace.
+* `spec.namespaceResourceWhitelist` MUST be an explicit allowlist containing **only** the kinds required by apps-tier charts and preview baseline (see §7.2 for the exact list).
 
-- The environment-scoped ApplicationSet (`argocd/applicationsets/ameide.yaml`) generates Applications for *all* domains, including first-party apps (`environments/_shared/components/apps/**/component.yaml`).
-- “Apps-only” exists today as a **rollout-phase slice** (apps phases are `610–699` in `backlog/465-applicationset-architecture.md`), which ArgoCD uses for RollingSync ordering.
+**AppProject `previews-system` (namespace lifecycle only):**
 
-That “apps-only layer” is useful for:
+* `spec.sourceRepos` MUST allow only the GitOps repo.
+* `spec.destinations` MUST allow only:
 
-- reasoning about ordering (infra first, then apps),
-- dashboards/queries (`rollout-phase` labels), and
-- “deploy only apps” as an *operational choice* (e.g. sync only the apps Applications).
+  * `server: https://kubernetes.default.svc`
+  * `namespace: argocd` (system apps target argocd as a destination namespace; they still apply cluster-scoped resources)
+* `spec.clusterResourceWhitelist` MUST allow exactly one kind:
 
-However, PR preview environments still need their own wiring because they require:
+  * `group: ""`
+  * `kind: Namespace`
+* `spec.namespaceResourceWhitelist` MUST be empty.
 
-- a **different generator** (PR-driven vs environment matrix),
-- a **different destination model** (`pr-*` namespaces),
-- different **security constraints** (tight AppProject, safe namespace derivation), and
-- deterministic **cleanup semantics** on PR close (finalizers + prune + namespace teardown).
+**Control-plane safety rule**
+No preview AppProject destination may include the Argo CD control-plane namespace. Argo CD explicitly warns that allowing deployments into the Argo CD install namespace grants admin-level access.
 
-## Supported architecture (normative)
+---
 
-This repo standardizes on **one** primary architecture for PR previews:
+## 2. Namespace lifecycle (closed and safe)
 
-- **Generator**: ApplicationSet Pull Request generator (admin-owned) for preview Applications.
-- **Namespace lifecycle**: a separate ApplicationSet owns `Namespace/pr-*` creation/labels and a janitor closes the cleanup loop.
-- **Triggering**: managed clusters use the **ApplicationSet controller webhook** for fast refresh; local clusters use polling because they are not publicly reachable.
-- **Composition**:
-  - smoke previews: PR-owned `deploy/preview/` bundle (fast to iterate, but not a “full platform preview”)
-  - full previews (target state): GitOps-owned apps-tier inventory (PR × apps-tier components) + PR-owned image selector/lock contract
+### 2.1 Creation
 
-Alternative approaches (not implemented as the default here) are captured in “Appendix A: Alternatives”.
+Namespaces are created only by a GitOps-owned ApplicationSet:
 
-## Mandatory preview environment requirements
+* File: `argocd/applicationsets/preview-namespaces.yaml`
+* Project: `previews-system`
+* Generator: GitHub Pull Request generator (label-gated, see §5)
 
-### Preview scope (normative): apps-tier previews that reuse infra
+The namespace manifest MUST be rendered from **GitOps** source, never from PR source.
 
-When the goal is “all first-party services in the 600* stage”, the preview environment must include:
+Namespace manifest MUST include labels:
 
-- **All first-party services** that normally run in the apps tier (apps phases `610–650`) deployed into the PR namespace.
-- **No infra/data/observability components** (those are reused from the base environment).
+* `ameide.io/managed-by: preview`
+* `ameide.io/preview-pr: "<PR_NUMBER>"`
+* `ameide.io/environment: "<BASE_ENV>"` (see §6)
+* `gateway-access: allowed` (for Gateway API route attachment, see §6.3)
+* `kubernetes.io/metadata.name: pr-ameide-<PR_NUMBER>` (automatically set by K8s but must not be overridden)
 
-Non-goal (explicit): the PR namespace will *not* contain the foundation/data/platform/observability pods; those keep running in the base environment namespace and are consumed via stable service endpoints.
+### 2.2 Deletion
 
-This has two important consequences:
+**Argo CD MUST NOT delete preview namespaces automatically.**
+Reason: vendor guidance treats namespaces as critical resources and provides “confirm” mechanisms for prune/delete; in previews, automated deletion is required, but must be centralized and audited.
 
-1) **The deploy mechanism must be apps-tier aware**
-   - A preview bundle that only contains a smoke Deployment will never produce a “full platform” preview.
-   - The preview delivery wiring must be able to deploy the same first-party services as the environment apps tier, but into a PR namespace.
+Therefore:
 
-2) **Every app must support “reuse infra” configuration**
-   - Any “in-namespace dependency” assumptions must be overrideable (DB hostnames, Redis/brokers, Vault endpoints, Keycloak issuer URLs, etc.).
-   - Previews can only be “apps-tier” if charts can point to base-environment services via stable FQDNs (e.g., `<svc>.<base-env-namespace>.svc.cluster.local`).
+* The namespace Application generated by `preview-namespaces.yaml` MUST NOT be configured to delete resources on Application deletion:
 
-### Argo CD semantics (normative; common footguns)
+  * do not add the resources finalizer (`resources-finalizer.argocd.argoproj.io`)
+  * do not enable automated prune
 
-This section makes explicit a few Argo CD behaviors that routinely surprise teams implementing PR previews.
+**Namespace deletion is performed only by the janitor job**:
 
-### A.0) Template strictness (required)
+* Component: `environments/_shared/components/cluster/configs/preview-janitor/component.yaml` (already present per doc)
+* Execution: cluster-scoped CronJob running in a system namespace
+* Algorithm (must be implemented exactly):
 
-All preview-related ApplicationSets MUST enable strict template rendering so missing keys fail fast:
+  1. List namespaces where:
 
-```yaml
-spec:
-  goTemplate: true
-  goTemplateOptions:
-    - missingkey=error
-```
+     * name matches `^pr-ameide-[0-9]+$`
+     * label `ameide.io/managed-by=preview`
+  2. For each candidate namespace, refuse deletion if any Argo CD `Application` in namespace `argocd` has `spec.destination.namespace == <candidate>`.
+  3. Refuse deletion if namespace age is < `PREVIEW_ORPHAN_TTL_SECONDS` (default `300`).
+  4. Delete the namespace (async / `--wait=false` is acceptable).
 
-### A) Namespacing contract for deploy bundles (required)
+This provides deterministic cleanup without granting preview workloads cluster-scoped permissions, matching the doc’s “janitor” closure mechanism.
 
-Argo CD does **not** “force” a manifest into `spec.destination.namespace` if the manifest already declares its own namespace.
+---
 
-Normative rules:
+## 3. Namespacing contract for all workload manifests
 
-- All namespaced Kubernetes resources in the deploy bundle **MUST omit** `.metadata.namespace`.
-- The destination namespace is set only via:
-  - `Application.spec.destination.namespace`, and/or
-  - the deploy tool’s namespace injection (Helm release namespace, Kustomize `namespace:`), **never** via hardcoded `.metadata.namespace` in the bundle.
+All namespaced Kubernetes objects rendered by apps-tier charts and baseline MUST NOT target a fixed namespace.
 
-Rationale: hardcoded namespaces cause preview collisions and can accidentally deploy into stable namespaces.
+Namespace targeting is done exclusively via:
 
-### A.1) Deploy bundle contract (required)
+* `Application.spec.destination.namespace` and
+* the deploy tool’s namespace injection (Helm release namespace)
 
-Preview environments rely on a single, explicit “what does a PR deploy?” contract. Make it boring and machine-checkable.
+If a template sets `.metadata.namespace`, it MUST be derived from the deploy tool’s release namespace (e.g. `{{ .Release.Namespace }}`), not a fixed string.
 
-Normative rules (choose one and standardize):
+This is explicitly called out in the doc as a footgun and is mandatory.
 
-- **Option A (smoke previews): PR-owned Kustomize bundle**
-  - The PR repo MUST provide a **Kustomize** bundle at `deploy/preview/` containing `deploy/preview/kustomization.yaml`.
-  - The preview ApplicationSet MUST set `source.path: deploy/preview` and `targetRevision: {{ .head_sha }}` so the preview deploys exactly what was reviewed.
-  - The bundle MUST include only namespaced resources and MUST comply with the namespacing contract above (no `.metadata.namespace` hardcoding).
-  - The bundle MUST NOT include cluster-scoped resources (CRDs, ClusterRoles, ValidatingWebhookConfiguration, etc.). Those are infra.
+---
 
-- **Option B (full apps-tier previews): GitOps-owned charts + PR-owned image contract**
-  - The GitOps repo is the source of truth for the “apps-tier set” (which services exist and how they are deployed).
-  - The PR repo MUST publish a machine-readable image selector that the preview ApplicationSet can apply to the apps-tier deployments, such as:
-    - “all images use tag `{{ .head_sha }}`”, or
-    - an image lock file (digests) under `deploy/preview/` that the preview ApplicationSet consumes as Helm parameters / values.
-  - This is required because the PR namespace must deploy the *same charts* as the stable env, but with *PR-specific images*.
+## 4. Multi-source rule (exactly two sources, vendor-correct)
 
-Local clusters MUST NOT assume a webhook-driven trigger; local uses polling.
+The preview stack contains different “lanes” with different source models:
 
-### B) Namespace creation vs namespace ownership/deletion (required)
+- `preview-baseline` Applications are Kustomize-only and use a single Git source (`argocd/previews/baseline-<BASE_ENV>/`).
+- `preview-secrets` Applications MUST use exactly **two** sources and use the same vendor-documented safe pattern as `preview-apps` (Helm chart + values-only `$values` source).
+- `preview-apps` Applications MUST use exactly **two** sources and must use Argo CD’s vendor-documented safe pattern:
 
-Creating a namespace and *owning it for cleanup* are not the same thing.
+  * Source A: Helm chart source (the chart itself)
+  * Source B: values-only Git source with `ref: values` and **no `path`** (so it cannot render resources)
 
-Normative choice (pick one and standardize):
+This is Argo CD’s documented “Helm value files from external Git repository” pattern; if `path` is not set on the `$values` source, Argo uses it solely as a values provider.
 
-- **Option 1 (recommended for previews): explicit Namespace manifest**
-  - The preview baselines (GitOps source) include an explicit `Namespace` manifest for the PR namespace.
-  - The preview Application prunes it on deletion, so the namespace is deleted (and all namespaced objects are collected).
-  - The previews AppProject must allow `Namespace` creation only for the preview naming pattern.
+**Collision rule**
+No preview Application is allowed to rely on multi-source “last wins” resource overrides. Argo CD warns that repeated resources are allowed but produce `RepeatedResourceWarning`, and “last source wins.” That behavior is forbidden in preview specs.
 
-- **Option 2: `CreateNamespace=true` + `managedNamespaceMetadata`**
-  - The preview Application uses `syncOptions: ["CreateNamespace=true"]` and sets `managedNamespaceMetadata` to enforce labels/annotations.
-  - If you want Argo CD to treat the Namespace as managed, you must also ensure tracking is configured safely (this can accidentally “adopt” shared namespaces; use only if you understand the risks).
+---
 
-**Repo constraint (ameide-gitops):** our AppProject CRD supports `clusterResourceWhitelist` by `{group, kind}` only (no name globs). That makes “previews AppProject owns Namespace resources” unsafe.
+## 5. ApplicationSet PR generator (webhook + polling, vendor-aligned)
 
-**Vendor constraint (Argo CD):** `AppProject` allowlisting for cluster-scoped resources is by `{group, kind}` only (no per-resource-name constraints). That means allowing `Namespace` would effectively allow managing **any** Namespace, which is unsafe for PR-driven previews.
+### 5.1 PR gating
 
-**Implemented approach (recommended here):** manage preview namespaces via a separate, GitOps-owned ApplicationSet + AppProject:
+All preview ApplicationSets MUST require the GitHub PR label: `preview`.
 
-- `argocd/projects/previews-system.yaml` allows only `Namespace` (cluster-scoped).
-- `argocd/applicationsets/preview-namespaces.yaml` creates `Namespace/pr-...` and applies required labels (NetworkPolicy + Gateway attachment).
-- The previews AppProject (`argocd/projects/previews.yaml`) remains cluster-scoped deny-by-default.
+### 5.2 Webhook requirement (managed clusters)
 
-**Implementation closure (namespace deletion):** because previews do not own `Namespace` resources, we delete leaked/orphaned preview namespaces using a janitor job:
+Managed clusters MUST expose the ApplicationSet webhook endpoint and register it in GitHub:
 
-- A cluster-scoped `CronJob` deletes namespaces that:
-  - have label `ameide.io/managed-by=preview`
-  - match the `pr-` prefix
-  - are older than a retention window, and
-  - are not referenced by any `Application.spec.destination.namespace` in the `argocd` namespace.
+* The ApplicationSet controller webhook endpoint is `/api/webhook`.
+* This webhook server is **separate** from the Argo CD API server webhook configuration and must be exposed independently.
 
-This provides deterministic cleanup without granting the previews project cluster-scoped privileges.
+The cluster must provide an HTTPS route (Gateway API HTTPRoute or Ingress) that forwards:
 
-**Do not “simplify” via `managedNamespaceMetadata` tracking:** Argo CD can be configured to add tracking to created Namespaces, but this can accidentally “adopt” a shared namespace and is explicitly risky. We avoid this for previews; namespace lifecycle stays in the dedicated namespace ApplicationSet + janitor.
+* External path: `/api/applicationset-webhook`
+* Internal upstream: `argocd-applicationset-controller` service
+* Internal path: `/api/webhook`
+* Port: `7000` (controller webhook server)
 
-### C) AppProject restrictions (required)
+(Your doc already describes the intended HTTPRoute that rewrites to `/api/webhook`.)
 
-Preview apps must be constrained at the Argo CD Project layer.
+### 5.3 Polling safety net (all clusters)
 
-Normative rules:
+All PR generators poll by default; vendor docs state the default `requeueAfterSeconds` is **1800** (30 minutes).
+All preview ApplicationSets MUST set an explicit polling safety net (webhooks fail), and it SHOULD be low enough to be usable during webhook outages:
 
-- `AppProject.spec.destinations` MUST restrict destination namespaces to a preview glob (e.g. `pr-*`) and MUST NOT allow `argocd` or other control-plane namespaces.
-- `AppProject.spec.clusterResourceWhitelist` MUST be empty **unless** you intentionally choose to manage the preview Namespace.
-  - Because cluster-scoped allowlisting does not support name constraints, keep this empty for previews and manage `Namespace/pr-*` via a separate project (see section B above).
+* `requeueAfterSeconds: 300` (recommended default for managed clusters)
 
-### D) Sync option hardening (required)
+### 5.4 Local clusters
 
-Preview Applications must fail fast when they accidentally contain infra resources or collide with stable apps.
+Local clusters MUST NOT use a public webhook (not reachable). Local overlays MUST patch:
 
-Normative rules:
+* `requeueAfterSeconds: 60`
 
-- Preview Applications MUST set the following sync options:
-  - `FailOnSharedResource=true` (do not “share” resources with stable Applications)
-  - `PruneLast=true` (reduce transient breakage during sync)
-  - `PrunePropagationPolicy=background` (or `foreground`; pick one and standardize)
+(Your doc already includes this behavior.)
 
-### E) Multiple sources: precedence and collision policy (required)
+### 5.5 Template hardening
 
-Argo CD applies multiple sources in order. If two sources render the *same resource identity* (group/kind/name/namespace), the later source effectively “wins” and Argo CD will warn.
+All preview ApplicationSets MUST enable go templates and fail on missing keys:
 
-Normative rules:
+* `goTemplate: true`
+* `goTemplateOptions: ["missingkey=error"]`
 
-- The GitOps “bindings/baselines” source MUST be ordered **after** the PR deploy bundle source.
-- Overlapping resources across sources are either:
-  - prohibited, or
-  - allowed only for an explicit allowlist of kinds (e.g. ConfigMaps) with an explicit rationale.
+All preview ApplicationSets MUST set `spec.template.spec.project` to a **fixed string** (never templated from PR fields). Vendor docs explicitly call out the risk of templating `project` when untrusted users can create PRs.
 
-### F) PR generator webhook behavior (required)
+---
 
-PR generators poll by default. Webhooks are the vendor-supported way to make previews feel fast.
+## 6. Base environment reuse (NetworkPolicy + Gateway API)
 
-Normative rules:
+### 6.1 Base environment selection
 
-- Expose the ApplicationSet controller webhook endpoint (`/api/webhook`) as a first-class ingress/route.
-- Keep an explicit `requeueAfterSeconds` configured even when webhooks are enabled (webhooks fail; polling is the safety net).
-- Document and test the exact PR actions you rely on (opened/synchronize/closed/…); treat this as version-sensitive behavior.
+* Managed clusters: `BASE_ENV = dev`
+* Local clusters: `BASE_ENV = local`
 
-**Important operational footgun (two different webhook servers):**
+### 6.2 Namespace labels for NetworkPolicy reuse
 
-- `argocd-server` also serves `/api/webhook` for Argo CD Git webhooks (repo refresh) and it is a different backend than the ApplicationSet controller.
-- The PR generator fast-refresh webhook must reach the **ApplicationSet controller** (`argocd-applicationset-controller`), not `argocd-server`.
-- In this repo we expose a distinct external path (e.g. `/api/applicationset-webhook`) and rewrite to the controller’s `/api/webhook` to avoid conflicts.
+Preview namespaces MUST carry `ameide.io/environment=<BASE_ENV>` so the existing environment-isolation policies can allow intended traffic. Your doc calls this out as an explicit constraint. 
 
-**Local dev note:** local clusters run on developer workstations and are not publicly reachable. Do not require webhooks for local; rely on polling (short `requeueAfterSeconds`) and/or manual refresh for inner-loop work.
+### 6.3 Gateway API route attachment
 
-### 1) Namespace creation strategy (choose one and standardize)
+The base environment Gateway MUST restrict route attachment using `listeners[].allowedRoutes.namespaces.selector`, and preview namespaces MUST satisfy that selector label. The Gateway API guide describes this namespace-selector handshake as the correct cross-namespace routing pattern.
 
-Preview envs must not fail sync because the namespace doesn’t exist.
+### 6.4 Service aliasing contract (reuse shared infra endpoints)
 
-- **Option 0 (recommended here)**: a dedicated “preview-namespaces” ApplicationSet creates and labels Namespaces in a separate AppProject with Namespace-only privileges.
-- **Option 1**: Application `syncOptions: ["CreateNamespace=true"]` (requires cluster-scoped permissions, and can be blocked by AppProject policy).
-- **Option 2**: Preview overlay includes a `Namespace` manifest and manages it intentionally (requires cluster-scoped permissions, and can be risky without name constraints).
+Apps-tier charts use stable in-namespace service names for shared infra (Postgres, Redis, MinIO, Temporal, Keycloak, OTEL, etc.). Preview namespaces do not run those infra services, so previews MUST provide namespaced “aliases” that forward to the base environment namespace.
 
-### 2) Cleanup + deletion semantics (no leaks)
+Normative rule:
 
-Preview environments must delete everything they own when a PR closes.
+* `preview-baseline` MUST create `Service` objects of type `ExternalName` in the PR namespace that map stable names to base env FQDNs, e.g.:
 
-Required:
+  * `postgres-ameide-rw` → `postgres-ameide-rw.ameide-<BASE_ENV>.svc.cluster.local`
+  * `redis`, `redis-master` → `redis.ameide-<BASE_ENV>.svc.cluster.local`, `redis-master.ameide-<BASE_ENV>.svc.cluster.local`
+  * `data-minio` → `data-minio.ameide-<BASE_ENV>.svc.cluster.local`
+  * `temporal-frontend` → `temporal-frontend.ameide-<BASE_ENV>.svc.cluster.local`
+  * `keycloak` → `keycloak.ameide-<BASE_ENV>.svc.cluster.local`
+  * `otel-collector` → `otel-collector.ameide-<BASE_ENV>.svc.cluster.local`
 
-- Preview Applications enable **prune**.
-- Preview Applications use ArgoCD’s **resources finalizer** so deletion cascades to managed resources.
-- ApplicationSet preview policy must not preserve resources on deletion.
+This enforces “reuse infra” while keeping the workload values contracts unchanged (no per-chart host overrides).
 
-Namespace deletion rule:
+---
 
-- If the preview namespace is created by ArgoCD, it should also be deleted by ArgoCD (or by the preview teardown automation) to avoid leaks.
+## 7. Preview stack layout (what exists, what must exist)
 
-### 3) Security constraints (PR generators are privileged)
+### 7.1 Required ApplicationSets (exactly four)
 
-Required:
+1. **`preview-namespaces`** (system lane)
 
-- ApplicationSets that generate Applications from PRs are **admin-owned** and reviewed like infra.
-- Generated Applications are constrained to a safe ArgoCD **Project** (do not template `spec.project` from PR data).
-- Destination namespace is constrained to a safe pattern (e.g. `pr-<num>-<repo>`), not attacker-controlled free text.
-- Fork/untrusted PRs are not allowed to deploy previews unless explicitly allowlisted.
+   * Creates `Namespace/pr-ameide-<num>` and applies required labels
+   * Project: `previews-system`
+   * MUST NOT delete Namespace on Application deletion (no resources finalizer, no automated prune); janitor owns deletion
 
-### 4) Avoid redeploying infrastructure (preview scope)
+2. **`preview-baseline`** (namespaced baseline lane)
 
-Required:
+   * One Application per PR
+   * Deploys `argocd/previews/baseline-<BASE_ENV>/` into `pr-ameide-<num>`
+   * Project: `previews`
+   * Automated sync with prune + selfHeal
+   * Finalizer: `resources-finalizer.argocd.argoproj.io`
 
-- Preview Applications deploy only first-party app workloads (apps-tier `610–650`) and namespace-scoped bindings (ConfigMaps/ExternalSecrets/HTTPRoutes/etc).
-- Any shared infra (Temporal/Kafka/Postgres/observability) is owned by separate Applications and is referenced only via stable in-cluster endpoints and secret refs.
+3. **`preview-secrets`** (namespaced shared-infra secrets lane)
 
-### 5) Two-source Application composition (avoid copy/paste)
+   * One Application per PR
+   * Deploys `sources/charts/foundation/operators-config/postgres_secrets` into `pr-ameide-<num>` to materialize DB credential Secrets via ESO
+   * MUST force rendered resources into the PR namespace (the chart uses `.Values.namespace` unless `namespaceOverride` is set; env values set `.Values.namespace` to the base env namespace)
+   * Project: `previews`
+   * Automated sync with prune + selfHeal
+   * Finalizer: `resources-finalizer.argocd.argoproj.io`
 
-To keep “deploy intent next to code” without copying manifests into GitOps, standardize on **exactly two sources** for preview Applications:
+4. **`preview-apps`** (apps-tier lane)
 
-1. **Workload repo PR ref** (currently `ameide`): a Kustomize deploy bundle at `deploy/preview/`.
-2. **GitOps repo main ref**: preview namespace baselines + environment bindings (endpoints/secrets refs/topic bindings).
+   * Many Applications per PR: matrix generator = PRs × apps-tier component list
+   * Deploys the same charts as stable apps-tier (including primitives `ameide.io/*`) but into `pr-ameide-<num>`
+   * Project: `previews`
+   * Automated sync with prune + selfHeal
+   * Finalizer: `resources-finalizer.argocd.argoproj.io`
+   * Uses `HEAD_SHA` only when PR images are explicitly enabled (see §8)
 
-If more than two sources are needed, consolidate (treat as a smell).
+### 7.2 Preview AppProject namespace allowlist (exact list)
 
-### 6) Digest pinning injection (no tribal glue)
+`previews` AppProject `namespaceResourceWhitelist` MUST include exactly:
 
-Preview deployments must deploy immutable digests.
+* core:
 
-Preferred:
+  * `Service`
+  * `ServiceAccount`
+  * `ConfigMap`
+  * `Secret`
+  * `Endpoints` (if your charts produce them)
+  * `PersistentVolumeClaim` (required by `www-ameide-platform` when persistence is enabled)
+* apps:
 
-- Publish updates a deterministic lock file in the workload repo PR branch (e.g., under `deploy/preview/`), and the preview Application deploys that commit.
+  * `Deployment`
+  * `StatefulSet`
+* batch:
 
-Fallback:
+  * `Job`
+  * `CronJob`
+* rbac.authorization.k8s.io:
 
-- Publish opens a GitOps PR that provides a PR-scoped overlay containing the digest-pinned image ref.
+  * `Role`
+  * `RoleBinding`
+* networking.k8s.io:
 
-### 7) Stateful dependencies (DBs) for previews
+  * `NetworkPolicy`
+* gateway.networking.k8s.io:
 
-Preview envs should reuse infra but isolate state:
+  * `HTTPRoute`
+  * `GRPCRoute`
+* monitoring.coreos.com (if enabled by apps-tier charts):
 
-- Preferred: shared database infrastructure with per-preview **schema/db/user** provisioning (declared and managed; no runtime “magic defaults”).
-- Alternative: ephemeral DB per preview (costly; use only when required).
+  * `ServiceMonitor`
+  * `PrometheusRule`
+* gateway.envoyproxy.io (only if enabled by apps-tier charts):
 
-## Feasibility findings (current state of `ameide-gitops`)
+  * `HTTPRouteFilter`
+* external-secrets.io (if used by baseline):
 
-This section summarizes what is already in place vs what must be added to implement PR previews safely.
+  * `ExternalSecret`
+  * `SecretStore` (namespaced only; ClusterSecretStore is cluster-scoped and forbidden in previews project)
+* ameide.io (required: primitives are part of the apps-tier set in Ameide):
 
-### What is already feasible / exists
+  * `Domain`
+  * `Process`
+  * `Agent`
+  * `Integration`
+  * `Projection`
+  * `UISurface`
 
-- **ArgoCD + ApplicationSet controller are installed and used** (stable env matrix + cluster appset already exist).
-- **PR generator capability is available** in the installed ApplicationSet CRD (supports GitHub PR generator with `tokenRef` / `appSecretName`).
-- **Wildcard DNS is already provisioned per environment** (e.g. `*.dev.ameide.io`), so preview hostnames under an environment zone are viable without per-PR DNS automation.
-- **RollingSync separation already exists**: infra vs apps is modeled via `rollout-phase`, and primitives are already part of the “apps” domain in stable environments.
+No other kinds are permitted.
 
-### Gaps / required changes
+### 7.2.1 Allowlist verification gate (required)
 
-- **Webhook-driven refresh**: required for low-latency previews on managed clusters; local clusters will generally rely on polling.
-- **Preview AppProject**: required to constrain destinations and resource kinds.
-- **Preview baselines**: required for namespace-scoped defaults (NetworkPolicies, limits/quotas, etc.).
-- **Apps-tier preview wiring**: required if previews should include the full apps-tier set (`610–650` first-party services), not just a smoke bundle.
-- **Preview routing + URL scheme**: required if previews should be reachable on distinct hostnames that differ from the base environment.
+Because the allowlist is intentionally strict, we MUST make it mechanically correct.
 
-### High-risk area: secrets for dynamic namespaces
+Required: add a CI gate that renders the apps-tier preview manifests and compares the observed `(apiGroup, kind)` set against the `previews` AppProject allowlist. The gate MUST fail if:
 
-The current secrets model is environment-scoped and intentionally conservative:
+- a rendered resource kind is not whitelisted, or
+- a whitelisted kind is never rendered (stale allowlist).
 
-- Vault Kubernetes auth roles are bound to an explicit namespace allowlist (see the Vault bootstrap role bindings).
-- As a result, a brand-new `pr-*` namespace will not automatically be able to use the same SecretStore/ExternalSecret pattern unless we introduce a preview-safe auth/policy model.
+This turns “we think the allowlist is right” into “the allowlist is provably correct”.
 
-If previews must deploy workloads that need secrets (GHCR pulls, app config secrets, etc.), preview secrets handling is the main design decision and the main blocker.
+### 7.3 Sync option hardening (applies to preview-baseline, preview-secrets, preview-apps)
 
-## Implementation progress (2026-01)
+All preview Applications MUST set:
 
-This section records what is implemented in `ameide-gitops` as of 2026-01.
+* `FailOnSharedResource=true` (fail the sync if a shared resource is found)
+* `PruneLast=true` (prune only after other resources are healthy)
+* `PrunePropagationPolicy=background`
 
-### Landed in `main`
+---
 
-- Merged via `ameide-gitops#98`, `ameide-gitops#99`, and follow-ups.
-- **Preview AppProject**: `argocd/projects/previews.yaml` (restricted to `pr-*` namespaces, no cluster-scoped resources).
-- **PR generator ApplicationSet**: `argocd/applicationsets/preview.yaml` (GitHub PR generator gated by `preview` label, `requeueAfterSeconds` set, two-source Applications).
-  - **Important**: this currently deploys *only* what `ameide@PR` provides under `deploy/preview/` plus the GitOps baselines; if `deploy/preview/` is a smoke bundle, the preview will be a smoke preview (not the full apps tier).
-- **Preview namespace lifecycle**:
-  - `argocd/projects/previews-system.yaml`
-  - `argocd/applicationsets/preview-namespaces.yaml`
-- **Preview baselines**: `argocd/previews/baseline/` (initial baseline: cross-environment ingress isolation `NetworkPolicy`).
-- **Environment-specific preview baselines**:
-  - `argocd/previews/baseline-dev/` (dev Vault + GHCR pull secret wiring)
-  - `argocd/previews/baseline-local/` (local Vault + GHCR pull secret wiring)
-- **Preview namespace janitor**: `environments/_shared/components/cluster/configs/preview-janitor/component.yaml` + `sources/values/_shared/cluster/preview-janitor.yaml`
-  - Deletes orphaned `pr-*` namespaces labeled `ameide.io/managed-by=preview` after a retention window.
-- **Local overlay behavior**: `argocd/overlays/local/kustomization.yaml`:
-  - patches preview polling to 60s (local clusters are not publicly reachable for GitHub webhooks)
-  - patches preview namespaces to `ameide.io/environment=local`
-- **Cluster-gateway webhook route (managed clusters)**: `sources/charts/cluster/gateway/templates/httproute-applicationset-webhook.yaml`
-  - Exposes a stable external path (`/api/applicationset-webhook`) and rewrites to the controller’s `/api/webhook` endpoint.
-  - Local clusters typically cannot use this because they are not publicly reachable.
-- **Secrets wiring**
-  - `sources/values/_shared/foundation/foundation-vault-bootstrap.yaml` seeds `argocd-webhook-github-secret` (stable value generated if absent).
-  - `sources/values/env/{dev,local}/foundation/foundation-vault-bootstrap.yaml` enables a preview-safe Vault role `external-secrets-previews` bound to all namespaces, with a narrowly scoped read policy (default: `secret/data/ghcr-*`).
-  - `sources/values/_shared/cluster/vault-secrets-argocd.yaml`:
-    - syncs `webhook.github.secret` into `argocd-secret`
-    - syncs `Secret/argocd-pr-generator-github-token` for the PR generator (default Vault key `ghcr-token`)
-    - syncs `Secret/ameide-repo` (ArgoCD repository credentials for the private `ameide` repo)
+## 8. Image publishing contract (non-GitOps) and preview image selection
 
-### Still required to complete end-to-end
+### 8.1 Required publishing outputs
 
-- **Managed-cluster connectivity + public webhook**: ensure the managed cluster’s Argo CD hostname is reachable from GitHub and register the webhook using the `webhook.github.secret` value.
-- **Deploy bundle contract**: the PR repo must include a deploy bundle at the path used by the preview ApplicationSet (currently `deploy/preview/`).
-- **Apps-tier preview implementation**: deploy the full apps-tier (`610–650`) first-party services into the PR namespace, with values that reuse base-environment infra/data/observability.
-- **Preview hostnames**: create per-PR HTTPRoutes so previews are reachable on distinct hostnames (see “Preview URL scheme” below).
+If PR images are enabled (label `preview-images`), the CI publish pipeline for the apps-tier MUST produce:
 
-### Important constraint: NetworkPolicy + “reuse infra”
+1. OCI container images pushed to the registry for every apps-tier service, tagged:
 
-This repo enforces cross-environment isolation via namespace labels and NetworkPolicies. In practice:
+   * `:<HEAD_SHA>`
+2. A build manifest artifact containing:
 
-- If a preview namespace is meant to reuse “dev infra” services (databases, brokers, etc.), it must be able to talk to dev namespaces.
-- With strict namespaceSelector-based policies, that typically means preview namespaces must carry the same environment label as the infra they consume (e.g. `ameide.io/environment=dev`) or provide an explicit allowlist/exception.
+   * image repository
+   * tag (`HEAD_SHA`)
+   * resolved digest (`sha256:...`)
+   * build timestamp
+3. A supply-chain artifact set for each image:
 
-## Preview URL scheme (normative)
+   * SBOM
+   * provenance
+   * signature
 
-Previews should be reachable on distinct hostnames that:
+### 8.2 Preview consumption rule
 
-- are predictable (derive from PR number),
-- match existing wildcard certificates/DNS patterns, and
-- avoid multi-label hostnames that won’t match `*.{env}.ameide.io`.
+Preview deployments MUST NOT allow PR branches to define Kubernetes objects.
 
-Normative rules:
+Normative rule (current chart contract): each apps-tier chart uses `.Values.image.ref` (full image reference).
 
-- Do **not** use `www.pr503.ameide.io` (it requires a `*.*.ameide.io`-style wildcard; current env certs are `*.{env}.ameide.io`).
-- Prefer `www-pr-503.{env}.ameide.io` for the website, and similarly:
-  - `platform-pr-503.{env}.ameide.io`
-  - `auth-pr-503.{env}.ameide.io` (only if Keycloak is included in the preview set; otherwise reuse `auth.{env}.ameide.io`)
-  - `api-pr-503.{env}.ameide.io` (if exposing API routes)
+Because PR images may not exist for every PR (and local clusters do not have public CI/webhook reachability), previews support two modes:
 
-These should be implemented by creating `HTTPRoute` resources in the PR namespace that attach to the base-environment Gateway (via `parentRefs.namespace` / `gatewayNamespace`), relying on the gateway’s `allowedRoutes.namespaces.selector` (`gateway-access=allowed`).
+1. **Default (always works): reuse base environment images**
 
-## Proposed implementation (PR generator)
+   * `preview-apps` MUST NOT override `image.ref`.
+   * Images come from the same GitOps values layering as the base environment (typically pinned by digest).
 
-This is a concrete plan for implementing previews in a vendor-correct way while keeping the deploy contract and source composition explicit.
+2. **PR images (opt-in): deploy PR commit images**
 
-### 0) Decisions (must be explicit)
+   * Only enabled when the PR has an additional label: `preview-images`.
+   * When enabled, `preview-apps` MUST override `image.ref` to the PR commit tag:
 
-- **Base environment** for previews (recommended: `dev`): previews are “PR namespaces that reuse dev infra”.
-- **Namespace naming** (deterministic + safe): e.g. `pr-<num>-<repo>` (current implementation uses `pr-ameide-<pr-number>`).
-- **Namespace ownership**: current implementation uses a separate Namespace lifecycle ApplicationSet (`preview-namespaces`) in a Namespace-only AppProject (`previews-system`), plus a janitor for orphan cleanup.
-- **Secrets posture**:
-  - “No-secrets previews” (only for a limited subset of workloads), or
-  - a preview-safe Vault/ESO strategy (recommended; see below).
+     * `ghcr.io/ameideio/<SERVICE>:<HEAD_SHA>`
 
-### 0.1) Implementation plan (Ameide: full apps-tier previews that reuse infra)
+If `preview-images` is set but the tag does not exist, Argo CD sync will fail (by design).
 
-Implement “full previews” by generating **many Applications per PR** (one per first-party service), plus a single per-PR baseline:
+Where `<SERVICE>` is the component/application name (or an explicit per-component override if image repository naming differs).
 
-- Keep namespace lifecycle unchanged:
-  - Namespaces are created by `argocd/applicationsets/preview-namespaces.yaml` (AppProject `previews-system`).
-  - Namespaces are cleaned up by the preview janitor job.
+This keeps the PR surface area to “code/images only” and avoids letting PR branches define cluster objects.
 
-- Split “preview” into two ApplicationSets (so smoke previews remain possible):
-  - `preview-baseline`: one Application per PR that deploys only `argocd/previews/baseline-{dev,local}` into the PR namespace (policies + secrets + optional shared bindings).
-  - `preview-apps`: many Applications per PR that deploy the apps tier (`rolloutPhase: 650`, optionally `699`) into the PR namespace, reusing base env infra endpoints.
+### 8.3 Image repository mapping (required)
 
-- Build `preview-apps` as a matrix generator:
-  - PR generator (GitHub PRs with label gate, e.g. `preview-full`) × git file generator over `environments/_shared/components/apps/**/component.yaml`.
-  - Filter to `rolloutPhase: "650"` (and optionally `"699"` smokes).
-  - Each generated Application:
-    - targets `destination.namespace: pr-ameide-{{ .number }}`
-    - uses the same chart + values layering as `argocd/applicationsets/ameide.yaml`, but with environment values set to the chosen base env (`dev` or `local`)
-    - carries preview labels (`ameide.io/preview-pr`, `ameide.io/preview-head-sha`) for traceability.
+The image repository mapping MUST be deterministic and uniform across the apps tier:
 
-- Make PRs actually “different” (image override contract):
-  - Preferred (keeps a 2-source contract): publish PR images tagged by `{{ .head_sha }}` and have `preview-apps` pass `head_sha` as a Helm value/parameter (charts must honor `.Values.image.tag` or equivalent).
-  - Alternative (more explicit, but breaks strict 2-source guidance): add a PR-owned values source (or lock file) in `ameide@PR` that lists per-service digests, and have `preview-apps` consume it as values/parameters.
+- Default mapping: `<SERVICE>` = component name, and image repo is `ghcr.io/ameideio/<SERVICE>`.
+- If an exception is required, it MUST be expressed as explicit component metadata in the GitOps inventory (not inferred from PR data) so `preview-apps` can apply it consistently.
 
-- Enable distinct preview URLs (only for services that need exposure):
-  - Update `argocd/projects/previews.yaml` to allow Gateway API routes (at minimum `gateway.networking.k8s.io/HTTPRoute`).
-  - Reuse the base-environment Gateway by setting per-service `httproute.gatewayNamespace` and setting preview hostnames like `www-pr-{{ .number }}.{env}.ameide.io`.
-  - Keep the rule: no `www.pr{{n}}.ameide.io` hostnames (does not match `*.{env}.ameide.io` certs).
+---
 
-- Keep local responsive without webhooks:
-  - Patch the local overlay (`argocd/overlays/local/kustomization.yaml`) to set low `requeueAfterSeconds` and use `argocd/previews/baseline-local` for baseline.
+## 9. Preview URL scheme (deterministic)
 
-### 1) Add a dedicated AppProject for previews
+Preview URLs MUST be realized by the apps-tier charts that already define Gateway API resources, by injecting PR-scoped hostnames via `preview-apps` values/parameters.
 
-Create a new AppProject (admin-owned) with:
+For each PR, the following hostnames MUST exist (and differ from the base env hostnames):
 
-- source repo allowlist: **only** the workload repo (currently `ameide`) + this GitOps repo
-- cluster resource whitelist: empty / minimal (no CRDs, no RBAC cluster roles)
-- namespace-scoped resource whitelist: restricted to the K8s objects needed for previews (and optional primitive CRDs, if used)
-- destination server locked to `https://kubernetes.default.svc`
-- destination namespaces restricted as tightly as ArgoCD supports; where prefix constraints are not expressible, enforce namespace determinism in the ApplicationSet template and rely on resource whitelisting to limit blast radius
+* `www-pr-<PR_NUMBER>.<BASE_ENV>.ameide.io`
+* `api-pr-<PR_NUMBER>.<BASE_ENV>.ameide.io`
+* `platform-pr-<PR_NUMBER>.<BASE_ENV>.ameide.io`
 
-### 2) Expose the ApplicationSet webhook endpoint (Gateway API)
+Normative mapping to charts (current Ameide contracts):
 
-To avoid slow polling and make PR previews feel responsive:
+- `www-pr-...` is served by `www-ameide` via `httproute.hostname`
+- `platform-pr-...` is served by `www-ameide-platform` via `httproute.hostname`
+- `api-pr-...` is served by `inference-gateway` via `grpcRoute.hostnames` (and/or `httproute.hostname` if/when HTTP is enabled)
 
-- expose the `argocd-applicationset-controller` service over HTTPS at a dedicated hostname (e.g. `argocd-appset-webhook.<env-zone>`)
-- route `/api/webhook` to the controller service port (default `7000`)
-- configure the SCM (GitHub App / webhook) to call this endpoint on PR events
+All preview routes MUST attach to the base-environment Gateway using cross-namespace attachment (charts must set `gatewayNamespace` / `parentRefs.namespace`), and the preview namespace MUST satisfy the gateway’s `allowedRoutes.namespaces.selector` (via the `gateway-access=allowed` label).
 
-**Local dev note:** local clusters run on developer workstations and are not publicly reachable. Prefer polling (`requeueAfterSeconds`) for local rather than requiring an external webhook.
+This matches the DNS/cert constraint noted in the spec (avoid multi-label wildcards that don’t match `*.{env}.ameide.io`).
 
-### 3) Create a `preview` ApplicationSet using the PR generator
+---
 
-Add a new ApplicationSet dedicated to previews:
+# Implementation plan (refactor-driven, no branches)
 
-- generator: `pullRequest.github` (admin-owned)
-- template:
-  - `metadata.name`: deterministic and bounded (do not include attacker-controlled free text)
-  - `spec.project`: fixed to the previews AppProject (not templated from PR data)
-  - `destination.namespace`: derived from PR number using a fixed prefix (e.g. `pr-{{ .number }}`)
-  - `finalizers`: `resources-finalizer.argocd.argoproj.io`
-  - `syncPolicy.automated`: prune + selfHeal
-  - `syncOptions`: include `FailOnSharedResource=true`, `PruneLast=true`, and a standardized `PrunePropagationPolicy`
+## Phase 1 — Make the spec canonical (doc refactor)
 
-### 4) Standardize preview source composition (explicit)
+1. Replace `465-applicationset-architecture-preview-envs.md` with a **single** “Normative spec v1” that matches the above.
+2. Delete every “Option A/Option B/choose one” block from the doc. Specifically remove the deploy-contract options and the namespace-strategy options that currently remain in the file.
+3. Remove the contradictory line that claims implementation uses `CreateNamespace=true + managedNamespaceMetadata` as the closure, because the system-lane namespace lifecycle ApplicationSet already exists and is the only safe model under Argo’s `{group,kind}` cluster whitelist constraint.
 
-Preview environments can be implemented in two tiers; keep the source contract explicit per tier:
+## Phase 2 — Argo CD objects refactor (GitOps repo)
 
-- **Smoke previews (Option A / current `preview.yaml`)**: exactly two sources
-  1) **Workload repo PR ref**: a fixed deploy-bundle path in the PR branch/commit (currently `deploy/preview/`).
-  2) **GitOps repo main ref**: preview baselines + environment bindings (endpoints, topic names, SecretStores/ExternalSecrets, etc.).
+4. Ensure both AppProjects exist exactly as specified:
 
-- **Full apps-tier previews (Option B / planned `preview-apps`)**: GitOps charts + PR image selector
-  - The apps-tier Applications source their Helm charts and env value layers from `ameide-gitops` (same as stable environments), but are deployed into the PR namespace.
-  - PR-specific behavior comes from a machine-readable image selector (e.g. tag=`head_sha` or a digest lock file), passed as Helm values/parameters.
+   * `argocd/projects/previews.yaml`
+   * `argocd/projects/previews-system.yaml`
+5. Update `preview-namespaces.yaml`:
 
-The workload repo “publish” step is responsible for making the deployed images deterministic (including digest pinning where supported).
+   * project = `previews-system`
+   * generated Application MUST NOT delete the Namespace (no resources finalizer, no automated prune)
+   * source is GitOps-only
+6. Split the current `argocd/applicationsets/preview.yaml` into:
 
-### 5) Digest pinning mechanism (preferred)
+   * `preview-baseline.yaml`
+   * `preview-secrets.yaml`
+   * `preview-apps.yaml`
+     and delete `preview.yaml`.
 
-Follow the preferred mechanism in this doc:
+## Phase 3 — Vendor-correct PR refresh wiring
 
-- publish writes the resolved image digest (or tag→digest mapping) into a lock file in the workload repo PR branch (for example under `deploy/preview/`)
-- the preview Application deploys that PR commit, so the deployed image is immutable and reviewable
+7. Ensure ApplicationSet webhook exposure exists in managed clusters:
 
-### 6) Preview-safe secrets strategy (recommended approach)
+   * route external `/api/applicationset-webhook` → internal `/api/webhook` on the ApplicationSet controller
+8. Register GitHub webhook:
 
-To support secrets in `pr-*` namespaces without expanding the Vault auth allowlist indefinitely:
+   * send PR events
+   * configure secret validation
+9. Set `requeueAfterSeconds: 300` on all managed-cluster preview ApplicationSets.
+10. Patch local overlay to `requeueAfterSeconds: 60` and no webhook dependency.
 
-- introduce a **dedicated preview credential path** in Vault (e.g. `secret/data/previews/dev/pr-<num>/*`)
-- introduce a **dedicated Vault Kubernetes auth role** bound to a stable ServiceAccount in a stable namespace (e.g. `external-secrets`), rather than binding to every `pr-*` namespace
-- use an **(optional) ClusterSecretStore** for preview namespaces so ExternalSecrets in `pr-*` can reference it without requiring per-namespace Vault auth bindings
+## Phase 4 — Apps-tier preview (matrix generator) + image contract
 
-At minimum, previews usually need:
+11. Implement `preview-apps.yaml` as a matrix generator:
 
-- `ghcr-pull` (image pull secret), and
-- any per-service runtime secrets required by the deploy bundle.
+    * PR generator (label `preview`)
+    * Git file generator over apps-tier component definitions
+    * filter rolloutPhase `610–650` (the apps-tier set)
+12. For each generated Application:
 
-### 7) Baselines for preview namespaces
+    * destination namespace `pr-ameide-{{ .number }}`
+    * two-source pattern:
 
-Create a GitOps-owned “preview baselines” package that includes:
+      * Helm chart source
+      * values-only ref source used solely for `$values/.../values.yaml`
+    * default: do not override `image.ref` (reuse base env pinned digests from values files)
+    * if PR label `preview-images` is present: override `image.ref=ghcr.io/ameideio/<service>:{{ .head_sha }}`
 
-- `Namespace` manifest with required labels (including the chosen “base environment” label to satisfy NetworkPolicy constraints)
-- minimal NetworkPolicies/quotas/limit ranges for isolation and cost control
-- (optionally) `gateway-access: allowed` labeling if the preview needs HTTPRoute/GRPCRoute attachment
-- pull secret plumbing (e.g., ExternalSecret that materializes `ghcr-pull`)
+## Phase 5 — Secrets (closed posture)
 
-## Verification plan (implementation gate)
+13. Relax Vault preview policy to allow reuse of *base environment* secrets (trade-off: less isolation, faster previews).
+14. `preview-baseline` MUST materialize:
 
-### Static verification (repo-only)
+    * `ghcr-pull`
+    * shared infra credentials required by apps-tier charts (e.g., `redis-auth`, `minio-root-credentials`, Keycloak admin bootstrap), via ExternalSecrets.
+15. `preview-secrets` MUST materialize per-app DB credentials Secrets (Vault -> ESO -> Secret) so apps-tier Deployments can start.
 
-- Render the GitOps overlay (kustomize) and ensure the new resources are syntactically valid and included in the ArgoCD self-managed set.
-- Validate the preview ApplicationSet template renders deterministically (missing keys fail, names are bounded, no attacker-controlled strings in destinations).
+## Phase 6 — Cleanup and verification
 
-### End-to-end verification (cluster)
+16. Ensure `preview-janitor` CronJob runs cluster-wide and enforces the exact deletion algorithm in §2.2.
+17. Verification gates:
 
-1) **Webhook refresh**
-   - create/update a PR in the workload repo and confirm the preview Application appears quickly (no long polling delay)
-2) **Namespace + baselines**
-   - confirm the preview namespace exists, has the expected labels/annotations, and baseline policies are present
-3) **Scope correctness**
-   - confirm preview Applications deploy only apps-tier workloads + namespace bindings (no infra charts/operators)
-4) **Connectivity to shared infra**
-   - confirm preview workloads can reach the intended shared infra endpoints (e.g. dev database/broker) under the enforced NetworkPolicy posture
-5) **Secrets**
-   - confirm required secrets (at least `ghcr-pull`) exist in the preview namespace and pods can pull images
-6) **Routing**
-   - confirm preview hostnames (e.g. `www-pr-<num>.<env>.ameide.io`) route to the preview namespace services and differ from the base env (e.g. `www.<env>.ameide.io`)
-7) **Cleanup**
-   - close the PR and confirm the preview Application is deleted, resources are pruned, and the namespace is removed (no leaks)
-8) **Security regression**
-   - verify the previews AppProject prevents cluster-scoped resources and prevents source repos outside the allowlist
+    * PR open + label `preview` → namespaces + baseline + apps-tier Applications appear quickly (webhook)
+    * PR close or label removal → apps-tier + baseline Applications deleted with cascading resource deletion (finalizer)
+    * Namespace remains until janitor deletes (≥`PREVIEW_ORPHAN_TTL_SECONDS` and not referenced)
 
-## What to track in this backlog (checklist)
+## Phase 7 — Enforcement gates (CI, required)
 
-- [ ] Add Argo CD semantics section (namespacing, namespace ownership, sync options, multi-source precedence).
-- [ ] Define the preview namespace naming scheme (deterministic and safe).
-- [ ] Choose namespace creation strategy (`CreateNamespace=true` vs explicit Namespace manifest).
-- [ ] Decide where preview baselines live (GitOps repo path + ownership).
-- [ ] Specify the ArgoCD Project restrictions for preview apps.
-- [ ] Define deletion/prune/finalizer policy so previews never leak.
-- [ ] Decide the digest injection mechanism (workload lock file vs GitOps overlay).
-- [ ] Standardize on 2 sources for preview Applications.
-- [ ] Standardize multi-source collision/override policy.
-- [ ] Specify PR webhook refresh details (`/api/webhook`, polling safety net).
-- [ ] Document stateful dependency strategy (shared DB + schema, etc.).
+18. Add a CI gate that renders the preview apps-tier and verifies:
 
-## Appendix A: Alternatives (not the default)
+    * every rendered kind is allowed by the `previews` AppProject allowlist (§7.2)
+    * no unexpected kinds appear (fail-fast on chart changes)
 
-### A.1) GitOps PR creates a preview overlay (Pattern B)
+19. Add a CI gate that ensures no multi-source collisions are relied upon:
 
-Instead of a PR generator creating preview Applications dynamically, a pipeline can open a GitOps PR that adds a PR-scoped overlay (namespace + app values) and merges it into a “previews” branch.
-
-Pros:
-
-- Explicit change review in GitOps repo (auditable)
-- No need for ApplicationSet PR generator webhook exposure
-
-Cons:
-
-- More moving parts (automation to open/close PRs, merge policies, branch hygiene)
-- Slower feedback loop unless automation is highly optimized
-
-This repo documents it as an alternative, but does not treat it as the default supported architecture.
+    * rendering must not intentionally produce duplicate resource identities where “last source wins”
+    * treat `RepeatedResourceWarning` as a failure condition for previews
