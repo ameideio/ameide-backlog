@@ -125,6 +125,15 @@ Fallback mechanism (GitOps PR per preview):
 
 - Publish opens a GitOps PR adding a PR-scoped overlay containing the digest-pinned image ref, and the preview Application references that overlay.
 
+Additional mechanism (monorepo / repo-wide contract):
+
+- CI (or publish) writes a single repo-wide lock file (e.g., `images.lock.yaml`) that maps logical image names to digest-pinned refs (`ghcr.io/...@sha256:...`) and commits it back to the PR branch.
+- Preview deploy tooling consumes that lock file as the PR→deploy contract (similar to GitOps `image.ref`), so digest pinning remains deterministic without templating guesswork.
+
+Historical note:
+
+- This doc started from a per-primitive deploy bundle model (`primitives/<kind>/<name>/deploy/image.ref.yaml`). A repo-wide lock file is the generalized form for repos that publish multiple images (services/operators/primitives) from one PR.
+
 ### G) Supply chain hardening for agentic publish
 
 Digest pinning is necessary but not sufficient for agentic automation.
