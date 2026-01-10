@@ -37,14 +37,6 @@
     correlation key value. This is intentionally aligned with Camunda's "single correlation key" model.
   -->
 
-  <xs:simpleType name="implementation">
-    <xs:restriction base="xs:string">
-      <xs:enumeration value="activity"/>
-      <xs:enumeration value="delegated"/>
-      <xs:enumeration value="domainCommand"/>
-    </xs:restriction>
-  </xs:simpleType>
-
   <!-- Elements -->
 
   <xs:element name="workflowDefinition" type="ameide:workflowDefinitionType"/>
@@ -56,9 +48,8 @@
 
   <xs:element name="taskDefinition" type="ameide:taskDefinitionType"/>
   <xs:complexType name="taskDefinitionType">
-    <xs:attribute name="implementation" type="ameide:implementation" use="required"/>
     <xs:attribute name="type" type="xs:string" use="required"/>
-    <xs:attribute name="idempotencyKeyTemplate" type="xs:string" use="required"/>
+    <xs:attribute name="idempotencyKeyTemplate" type="xs:string" use="optional"/>
     <xs:attribute name="policyRef" type="xs:string" use="required"/>
   </xs:complexType>
 

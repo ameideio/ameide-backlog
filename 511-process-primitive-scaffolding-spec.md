@@ -1,14 +1,14 @@
 # Ameide BPMN Execution Profile v1 and Process Primitive Compiler v1
 
-Complete software implementation specification with zero open decisions
+Normative software implementation specification (profile + compiler + scaffold)
 
-This document is the **normative**, **fully closed** implementation specification for:
+This document is the **normative** implementation specification for:
 
 1. the **Ameide BPMN extension profile** (execution profile v1),
 2. the **BPMN linter/compiler** (Go, self-contained), and
 3. the **generated Process primitive** (Temporal worker + ingress router) produced from BPMN.
 
-It **supersedes** the “direction” wording in the backlog documents and removes every ambiguity by making each behavior either **required** or **rejected** by validation.  
+It defines a strict, Temporal-targeted BPMN profile intended to keep BPMN authoring Flowable/Camunda-friendly while remaining compilable into deterministic Temporal workflows.
 
 ---
 
@@ -28,7 +28,7 @@ This specification defines:
 
 * The **only supported BPMN subset** for compilation.
 * The **only supported Ameide extension elements** and their XML shapes.
-* The **only supported wait semantics** (receive/catch message waits only).
+* The **only supported wait semantics** (message waits and timer waits).
 * A **single normalized envelope** contract for inbound signaling.
 * The **Go implementation requirements** for:
 
@@ -44,8 +44,6 @@ Anything not defined here is FORBIDDEN, including (non-exhaustive):
 * any BPMN engine compatibility assumptions,
 * any general expression language (FEEL, scripts, JUEL, XPath, etc.),
 * boundary events, event subprocesses, compensation, transactions,
-* timer semantics,
-* parallel gateways / token concurrency,
 * multi-instance / loop characteristics,
 * call activities.
 
@@ -172,21 +170,26 @@ Only these BPMN element types participate in compilation:
 * `bpmn:sendTask`
 * `bpmn:userTask`
 * `bpmn:receiveTask`
-* `bpmn:intermediateCatchEvent` **with exactly one** `bpmn:messageEventDefinition`
+* `bpmn:intermediateCatchEvent` **with exactly one** `bpmn:messageEventDefinition` OR `bpmn:timerEventDefinition`
+* `bpmn:intermediateThrowEvent`
+* `bpmn:exclusiveGateway`
+* `bpmn:inclusiveGateway`
+* `bpmn:parallelGateway`
+* `bpmn:eventBasedGateway`
+* `bpmn:complexGateway`
 * `bpmn:message`
 
 Every other BPMN element type is FORBIDDEN and MUST cause a compile error.
 
 ### 4.3 Graph structure constraints
 
-After inlining subprocesses (per §4.6), the resulting directed graph MUST satisfy:
+The graph MUST satisfy:
 
 * Exactly one start node (the single process-level `bpmn:startEvent`).
 * Exactly one end node (the single process-level `bpmn:endEvent`).
 * Every node is reachable from the start node.
-* The graph has **no directed cycles**.
 
-If the graph contains a cycle, compilation MUST fail.
+Cycles are allowed. If you model loops, emitted progress facts MUST use `step_instance_id` to disambiguate runtime occurrences.
 
 ### 4.4 Sequence flow constraints
 
@@ -197,32 +200,36 @@ For each `bpmn:sequenceFlow`:
 
 For each node type:
 
-* `bpmn:startEvent` MUST have exactly 1 outgoing sequenceFlow and 0 incoming.
-* `bpmn:endEvent` MUST have exactly 1 incoming sequenceFlow and 0 outgoing.
-* `bpmn:serviceTask` MUST have exactly 1 incoming and exactly 1 outgoing.
-* `bpmn:sendTask` MUST have exactly 1 incoming and exactly 1 outgoing.
-* `bpmn:userTask` MUST have exactly 1 incoming and **at least 1** outgoing.
-* `bpmn:receiveTask` MUST have exactly 1 incoming and exactly 1 outgoing.
-* `bpmn:intermediateCatchEvent` MUST have exactly 1 incoming and exactly 1 outgoing.
-* `bpmn:subProcess` MUST have exactly 1 incoming and exactly 1 outgoing (as a boundary node).
+* `bpmn:startEvent` MUST have at least 1 outgoing sequenceFlow.
+* `bpmn:endEvent` MUST have at least 1 incoming sequenceFlow.
+* `bpmn:serviceTask`, `bpmn:sendTask`, `bpmn:userTask`, `bpmn:receiveTask`, `bpmn:intermediateCatchEvent`, `bpmn:intermediateThrowEvent`, `bpmn:subProcess` MUST have at least 1 incoming sequenceFlow.
+* `bpmn:*Gateway` MUST have at least 1 incoming and at least 1 outgoing sequenceFlow.
 
-### 4.5 Message waits
+Multiple outgoing sequence flows are allowed. Outgoing flow evaluation MUST be deterministic and MUST preserve BPMN document order.
 
-A message wait is expressed only by:
+### 4.5 Wait nodes (message and timer)
+
+A wait is expressed only by:
 
 * `bpmn:receiveTask` that references a `bpmn:message`, OR
-* `bpmn:intermediateCatchEvent` containing `bpmn:messageEventDefinition messageRef="..."`.
+* `bpmn:intermediateCatchEvent` containing exactly one `bpmn:messageEventDefinition messageRef="..."`, OR
+* `bpmn:intermediateCatchEvent` containing exactly one `bpmn:timerEventDefinition` with `bpmn:timeDuration`.
+
+Timer constraints:
+
+* `timeDuration` is the only supported timer shape (no `timeDate` / `timeCycle`).
 
 Any other wait shape is FORBIDDEN.
 
 ### 4.6 Subprocess compilation (inline semantics)
 
-Each `bpmn:subProcess` is inlined:
+Each `bpmn:subProcess` is treated as an embedded subprocess:
 
-* The subprocess MUST contain exactly one `bpmn:startEvent` and exactly one `bpmn:endEvent`.
-* Incoming flow to the subprocess node is rewired to the subprocess’ internal startEvent.
-* The subprocess’ internal endEvent is rewired to the outgoing flow of the subprocess node.
-* The subprocess node itself is not emitted as a runtime step; it is a structural container only.
+* The subprocess MUST contain exactly one direct `bpmn:startEvent` and at least one direct `bpmn:endEvent`.
+* The subprocess direct start event MUST be a none start event (no event definitions).
+* Runtime semantics are equivalent to implicit enter/leave:
+  * entering the subprocess schedules its internal start event,
+  * reaching a direct end event inside the subprocess leaves the subprocess and resumes outgoing flow from the subprocess container.
 
 ---
 
@@ -379,9 +386,7 @@ Attributes:
 Constraints:
 
 * `workflowType` MUST equal the BPMN process id (`bpmn:process@id`).
-* `workflowIdTemplate` MUST equal `${env.workflow_id}` exactly.
-
-Note: `env.workflow_id` exists only as a conceptual name here; because ingress routes directly by envelope.workflow_id, the workflowIdTemplate is fixed as above and serves as a contract assertion.
+* `workflowIdTemplate` MUST be a deterministic template (no general expression language) and MUST NOT depend on mutable runtime configuration.
 
 ### 9.2 Work binding `ameide:taskDefinition`
 
@@ -391,18 +396,13 @@ This element MUST exist exactly once per task.
 
 Attributes:
 
-* `implementation` REQUIRED and MUST be one of:
-
-  * `activity`
-  * `delegated`
-  * `domainCommand`
 * `type` REQUIRED (string, non-empty)
-* `idempotencyKeyTemplate` REQUIRED
+* `idempotencyKeyTemplate` OPTIONAL (compiler MAY provide a deterministic default)
 * `policyRef` REQUIRED
 
 Idempotency template constraints:
 
-* `idempotencyKeyTemplate` MUST include `${process_instance_id}` and `${step_id}`.
+* If `idempotencyKeyTemplate` is specified, it SHOULD include `${process_instance_id}` and `${step_id}`.
 * `idempotencyKeyTemplate` MUST NOT include any placeholder other than those allowed in §7.2.
 
 ### 9.3 Static metadata `ameide:taskHeaders`
@@ -506,17 +506,11 @@ The workflow MUST store the consumed `message_id` for the completed wait in work
 
 ---
 
-## 11. Delegated and domainCommand completion rule
+## 11. Task completion and explicit waits
 
-For any task with `implementation` equal to `delegated` or `domainCommand`:
-
-* The BPMN control-flow immediately after the task MUST reach a wait node (receiveTask or intermediateCatchEvent) before reaching any other executable node.
-
-Formally: following the task’s sole outgoing sequenceFlow, after traversing only `sequenceFlow` and structural `subProcess` inlining, the next executable node MUST be a wait node.
-
-If the next executable node is not a wait node, compilation MUST fail.
-
-This rule forbids implicit waiting inside the task definition.
+* All executable tasks compile to Temporal Activities and complete when the Activity returns.
+* If a task needs to orchestrate delegated async work, the workflow MUST model waiting explicitly using BPMN wait nodes (message/timer) compiled to workflow waits (Signals/Updates/Timers). Activities remain bounded “do work” and “check” units.
+* BPMN wait nodes (message/timer) are the only supported way to model long waits; workflows MUST NOT block inside Temporal Activities to wait for humans/external parties.
 
 ---
 
@@ -560,21 +554,22 @@ Where `CANONICAL_BYTES(IR)` is produced by this exact procedure:
 
    * If node is task:
 
-     * `task|<id>|<bpmnType>|<implementation>|<type>|<policyRef>|<idempotencyKeyTemplate>\n`
+     * `task|<id>|<bpmnType>|<type>|<policyRef>|<idempotencyKeyTemplate>\n`
      * For each header in document order: `header|<id>|<key>|<value>\n`
      * For each ioMapping entry in document order:
 
        * `in|<id>|<source>|<target>\n` or `out|<id>|<source>|<target>\n`
    * If node is wait:
 
-     * `wait|<id>|<bpmnType>|<messageId>|<messageName>|<correlationKeyTemplate>\n`
+     * For message wait: `wait|<id>|<bpmnType>|message|<messageId>|<messageName>|<correlationKeyTemplate>\n`
+     * For timer wait: `wait|<id>|<bpmnType>|timer|<timerDurationSeconds>\n`
    * If node is userTask:
 
      * `user|<id>|<bpmnType>|<updateName>\n`
    * If node is start/end:
 
      * `event|<id>|<bpmnType>\n`
-6. For each sequenceFlow sorted by sequenceFlow id ascending:
+6. For each sequenceFlow in BPMN document order:
 
    * `flow|<id>|<sourceRef>|<targetRef>\n`
 
@@ -660,8 +655,6 @@ For each task node:
 * Decode activity result into `map[string]any` named `result`.
 * Apply output ioMapping in order.
 * Advance to next node.
-
-For `delegated` and `domainCommand` tasks, there is no implicit wait; progression to the following wait node is via normal sequence flow.
 
 ### 13.6 User task update
 
@@ -806,17 +799,8 @@ The Ameide XSD MUST be exactly this (file path: `bpmn/ameide-bpmn-v1.xsd` inside
 
   <xs:element name="taskDefinition" type="ameide:taskDefinitionType"/>
   <xs:complexType name="taskDefinitionType">
-    <xs:attribute name="implementation" use="required">
-      <xs:simpleType>
-        <xs:restriction base="xs:string">
-          <xs:enumeration value="activity"/>
-          <xs:enumeration value="delegated"/>
-          <xs:enumeration value="domainCommand"/>
-        </xs:restriction>
-      </xs:simpleType>
-    </xs:attribute>
     <xs:attribute name="type" type="xs:string" use="required"/>
-    <xs:attribute name="idempotencyKeyTemplate" type="xs:string" use="required"/>
+    <xs:attribute name="idempotencyKeyTemplate" type="xs:string" use="optional"/>
     <xs:attribute name="policyRef" type="xs:string" use="required"/>
   </xs:complexType>
 

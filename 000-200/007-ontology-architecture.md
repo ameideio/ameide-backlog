@@ -23,7 +23,7 @@ Below is a consolidated **target architecture** for your modelling stack now tha
 | Link edge (global) | Semantics                                                                    | Created by                                              |
 | ------------------ | ---------------------------------------------------------------------------- | ------------------------------------------------------- |
 | `:REALISES`        | ArchiMate element *realised by* BPMN (e.g., `:BusinessProcess` → `:Process`) | Manual curation or heuristic matcher                    |
-| `:DECOMPOSES_TO`   | BPMN `Task` *decomposed into* a `wfdesc:Process` (AI agent flow)             | BPMN modeller adds `implementation="wfdesc"` annotation |
+| `:DECOMPOSES_TO`   | BPMN `Task` *decomposed into* a `wfdesc:Process` (AI agent flow)             | BPMN modeller adds an Ameide `bpmn:extensionElements` binding (e.g., `ameide:taskDefinition type="wfdesc.…"`) |
 | `:IMPLEMENTS`      | UML `Class` *implements or stores data for* a BPMN `DataObject`              | UML importer or data architect                          |
 | `:MONITORS`        | wfdesc `Agent` *emits metrics for* ArchiMate `ApplicationComponent`          | SRE / platform team                                     |
 

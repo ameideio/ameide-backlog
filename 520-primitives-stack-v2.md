@@ -90,7 +90,7 @@ This stack explicitly does not do the following:
 - **`stream_ref`**: a logical stream identifier in proto (e.g., `orders.facts`), bound to actual topics/subjects per environment via CRDs/runtime config.
 - **`binding_ref` / `endpoint_ref`**: logical references in proto used to bind to environment-specific transport configuration (Kafka subscriptions, HTTP endpoints, etc.).
 - **Activity-inline execution**: deterministic work executed directly inside a Process primitive’s Temporal Activity workers (workflow orchestrates; activity does the side effects).
-- **Activity-delegated execution**: work initiated by a Process Activity but executed by a different runtime boundary (Agent primitive, Integration primitive, KEDA/Job executor, or external executor); delegation is via an **intent** message, and completion is observed via **facts** (see `backlog/496-eda-principles.md` and `backlog/509-proto-naming-conventions.md`).
+- **Activity-delegated execution**: work initiated by a Process Activity but executed by a different runtime boundary (Agent primitive, Integration primitive, KEDA/Job executor, or external executor); the Activity submits an idempotent intent/command, and the Workflow waits explicitly (message/timer wait states) until completion can be observed deterministically. Facts remain audit/projection inputs; workflows must not advance by implicitly consuming fact topics.
 - **`process_definition_id`**: a stable identifier for a process definition (e.g., BPMN process key + version).
 - **`process_instance_id`**: a stable identifier for a long-running process instance (Temporal **WorkflowID** when Process is Temporal-backed).
 - **`process_run_id`**: the identifier for a specific execution run of a process instance (Temporal **RunID**; changes on `Continue-As-New`).
@@ -320,7 +320,7 @@ Temporal makes **orchestration** durable; the transactional outbox makes **fact 
 
 - Domains emit domain facts **after persistence** via outbox; runtimes do not publish domain facts directly from workflow code.
 - Process workflows orchestrate; Activities initiate side effects and are *at-least-once in practice*, so Activities and any Domain/Process commands they invoke MUST be idempotent.
-- When a workflow needs to change domain state, it submits a domain intent/command (RPC or intent topic); the response is treated as an ACK, and continuation is driven by facts/receipts.
+- When a workflow needs to change domain state, it submits a domain intent/command (RPC or intent topic); the response is treated as an ACK, and the Workflow advances via explicit BPMN wait states compiled to workflow waits (messages/timers) plus Activity results. Facts/receipts remain audit/projection inputs, not implicit internal step-completion control flow.
 
 ### 4b) Process progress facts (Kanban-ready baseline)
 

@@ -23,7 +23,7 @@ Define a **tight, lintable extension profile** such that:
 - workflow skeleton(s) / state-machine shape,
 - Activity stubs (side-effect boundaries),
 - Update handlers for gates (user decisions),
-- “await correlated fact/event” helpers and signal-routing stubs.
+- explicit wait-node (message/timer) wiring stubs (when used) and signal-routing stubs.
 
 **AI coding agent consumption (what happens next)**
 
@@ -197,23 +197,15 @@ Requiredness:
 
 Minimum fields:
 
-- `implementation` (required): one of
-  - `activity` — workflow schedules a Temporal Activity and advances on its result
-  - `delegated` — workflow schedules a Temporal Activity that requests external work (a side effect); completion is modeled via explicit wait node(s) with `ameide:subscription`
-  - `domainCommand` — workflow schedules a Temporal Activity that performs a domain write (a side effect); completion is modeled via explicit wait node(s) with `ameide:subscription`
-- `type` (required): stable identifier for the binding (activity type name / logical external job type / command key)
-- `idempotencyKeyTemplate` (required): stable idempotency key derivation for the side-effect boundary
+- `type` (required): stable identifier for the binding (Temporal Activity type name)
 - `policyRef` (required): reference to a named timeout/retry policy (see below)
-
-Why `implementation` cannot be inferred from BPMN:
-
-- BPMN can say “this is a serviceTask”, but it does not say whether completion is a return value (local activity) vs an awaited correlated fact/event (delegated/domain). That choice changes the workflow shape, state, and tests, so it must be explicit to scaffold deterministically.
+- `idempotencyKeyTemplate` (optional): stable idempotency key derivation for the side-effect boundary (a deterministic default may be provided by the compiler)
 
 Completion semantics (normative for v1):
 
-- `implementation="delegated"` and `implementation="domainCommand"` MUST NOT “implicitly wait” inside the task.
-- The BPMN model MUST include explicit wait node(s) (catch/receive wait) that carry `ameide:subscription` describing the completion event/fact.
-- This keeps “waiting is a contract on waits” true and prevents hidden control-flow embedded in task metadata.
+- All executable tasks compile to Temporal Activities and complete when the Activity returns.
+- If a task needs to orchestrate delegated async work, the workflow MUST model waiting explicitly using BPMN wait nodes (message/timer) compiled to workflow waits (Signals/Updates/Timers). Activities remain bounded “do work” and “check” units.
+- Broker-mediated facts remain audit/projection inputs; the workflow must not advance by implicitly consuming fact topics.
 
 Timeouts/retries:
 
@@ -355,9 +347,8 @@ Required rules:
 
 - The `bpmn:process` includes exactly one `ameide:workflowDefinition`.
 - Every executable automated node has exactly one `ameide:taskDefinition`.
-- Every `ameide:taskDefinition` has `implementation`, `type`, `idempotencyKeyTemplate`, and `policyRef`.
+- Every `ameide:taskDefinition` has `type` and `policyRef`.
 - Every explicit wait has exactly one `ameide:subscription` with `correlationKeyTemplate` and `messageIdPath` (and `messageName` unless it is attached to `bpmn:message`).
-- For `implementation in {delegated, domainCommand}`: at least one outgoing path MUST reach a supported explicit wait node (`bpmn:receiveTask` or `bpmn:intermediateCatchEvent`) that carries an `ameide:subscription` describing the completion event/fact.
 - Template placeholders MUST be from the allowed set, and `${state.<path>}` MUST use a `<path>` that follows the Path grammar.
 
 Recommended rules:
@@ -368,18 +359,16 @@ Recommended rules:
 
 ## Example snippets (abstract)
 
-### Delegated external job + explicit wait for completion
+### Delegated external job with an explicit message callback wait
 
 ```xml
 <bpmn:serviceTask id="Task_DoWork" name="Do work">
   <bpmn:extensionElements>
-    <ameide:taskDefinition implementation="delegated"
-                           type="example.external_job.v1"
+    <ameide:taskDefinition type="example.external_job.v1"
                            idempotencyKeyTemplate="example/${process_instance_id}/job/${state.job_key}"
                            policyRef="default" />
     <ameide:ioMapping>
       <ameide:input source="state.input_ref" target="request.input_ref" />
-      <ameide:output source="result.external_job_id" target="state.external_job_id" />
     </ameide:ioMapping>
   </bpmn:extensionElements>
 </bpmn:serviceTask>
@@ -388,7 +377,7 @@ Recommended rules:
 
 <bpmn:message id="Message_ExternalJobCompleted" name="ExternalJobCompleted">
   <bpmn:extensionElements>
-    <ameide:subscription correlationKeyTemplate="${state.external_job_id}"
+    <ameide:subscription correlationKeyTemplate="${state.job_key}"
                          messageIdPath="message_id"/>
   </bpmn:extensionElements>
 </bpmn:message>
@@ -396,8 +385,6 @@ Recommended rules:
 <bpmn:intermediateCatchEvent id="Wait_ExternalJobCompleted" name="ExternalJobCompleted">
   <bpmn:messageEventDefinition messageRef="Message_ExternalJobCompleted"/>
 </bpmn:intermediateCatchEvent>
-
-<bpmn:sequenceFlow id="Flow_2" sourceRef="Wait_ExternalJobCompleted" targetRef="Next_Node"/>
 ```
 
 ---

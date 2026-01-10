@@ -15,6 +15,8 @@
     This process is fully automated; UAT decisions are recorded per Requirement in Phase 1/acceptance.
   </bpmn:documentation>
 
+  <bpmn:message id="Message_PreviewReady" name="PreviewReady"/>
+
   <bpmn:collaboration id="Collaboration_transformation_r2d_phase2_workpackage_v1">
     <bpmn:participant id="Participant_transformation_r2d_phase2_workpackage_v1"
                       name="transformation.r2d.phase2.workpackage.v1"
@@ -27,7 +29,7 @@
     <bpmn:extensionElements>
       <ameide:workflowDefinition definitionId="transformation.r2d.phase2.workpackage.v1:527"
                                  workflowType="transformation_r2d_phase2_workpackage_v1"
-                                 workflowIdTemplate="transformation.r2d.phase2.workpackage.v1/${state.tenant_id}/${state.workpackage_id}"/>
+                                 workflowIdTemplate="transformation.r2d.phase2.workpackage.v1/${state.tenant_id}/${state.subject_id}"/>
     </bpmn:extensionElements>
 
     <bpmn:startEvent id="StartEvent_workpackage_created" name="Workpackage created">
@@ -43,8 +45,7 @@
         Outputs: patch/commits and structured evidence.
       </bpmn:documentation>
       <bpmn:extensionElements>
-        <ameide:taskDefinition implementation="delegated"
-                               type="transformation.r2d.phase2.workpackage.develop.v1"
+        <ameide:taskDefinition type="transformation.r2d.phase2.workpackage.develop.v1"
                                idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
                                policyRef="default"/>
       </bpmn:extensionElements>
@@ -57,8 +58,7 @@
         Failures set affected Requirements to Needs Revision with attached evidence.
       </bpmn:documentation>
       <bpmn:extensionElements>
-        <ameide:taskDefinition implementation="delegated"
-                               type="transformation.r2d.phase2.workpackage.test.v1"
+        <ameide:taskDefinition type="transformation.r2d.phase2.workpackage.test.v1"
                                idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
                                policyRef="default"/>
       </bpmn:extensionElements>
@@ -71,8 +71,7 @@
         Records PR URL(s) as deliverables linked back to each RequirementSliceVersion.
       </bpmn:documentation>
       <bpmn:extensionElements>
-        <ameide:taskDefinition implementation="delegated"
-                               type="transformation.r2d.phase2.workpackage.open_pr.v1"
+        <ameide:taskDefinition type="transformation.r2d.phase2.workpackage.open_pr.v1"
                                idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
                                policyRef="default"/>
       </bpmn:extensionElements>
@@ -85,24 +84,89 @@
         The preview environment is per PR; multiple Requirements may share the same preview URL.
       </bpmn:documentation>
       <bpmn:extensionElements>
-        <ameide:taskDefinition implementation="delegated"
-                               type="transformation.r2d.phase2.workpackage.apply_preview_label.v1"
+        <ameide:taskDefinition type="transformation.r2d.phase2.workpackage.apply_preview_label.v1"
                                idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
                                policyRef="default"/>
+        <ameide:ioMapping>
+          <ameide:output source="result.preview_key" target="state.preview_key"/>
+        </ameide:ioMapping>
       </bpmn:extensionElements>
     </bpmn:serviceTask>
 
-    <bpmn:serviceTask id="Task_wait_preview_ready"
-                      name="Wait for preview ready">
+    <bpmn:eventBasedGateway id="Gateway_wait_preview_ready" name="Wait for preview ready"/>
+
+    <bpmn:intermediateCatchEvent id="Catch_preview_ready" name="PreviewReady">
       <bpmn:documentation>
-        Waits for preview URL(s) to become reachable and records deliverables/evidence.
-        Must be implemented inside the Activity (poll/long-poll + heartbeat); do not model “await facts” as BPMN catch events.
+        Preferred completion path: wait for an explicit PreviewReady message correlated to the workpackage/PR.
       </bpmn:documentation>
       <bpmn:extensionElements>
-        <ameide:taskDefinition implementation="inline"
-                               type="transformation.r2d.phase2.workpackage.wait_preview_ready.v1"
+        <ameide:subscription correlationKeyTemplate="${state.preview_key}" messageIdPath="message_id"/>
+        <ameide:ioMapping>
+          <ameide:output source="envelope.payload_bytes" target="state.preview_ready_payload_bytes"/>
+        </ameide:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:messageEventDefinition messageRef="Message_PreviewReady"/>
+    </bpmn:intermediateCatchEvent>
+
+    <bpmn:intermediateCatchEvent id="Catch_preview_poll_timer" name="Poll preview status">
+      <bpmn:documentation>
+        Fallback completion path: timer-driven poll loop until preview is ready.
+      </bpmn:documentation>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT30S</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+
+    <bpmn:serviceTask id="Task_record_preview_ready"
+                      name="Record preview ready">
+      <bpmn:documentation>
+        Parses the PreviewReady payload and records preview URL(s) and other deliverable metadata into Domain + process facts.
+      </bpmn:documentation>
+      <bpmn:extensionElements>
+        <ameide:taskDefinition type="transformation.r2d.phase2.workpackage.record_preview_ready.v1"
                                idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
                                policyRef="default"/>
+        <ameide:ioMapping>
+          <ameide:input source="state.preview_ready_payload_bytes" target="request.preview_ready_payload_bytes"/>
+          <ameide:output source="result.preview_ready" target="state.preview_ready"/>
+          <ameide:output source="result.preview_url" target="state.preview_url"/>
+        </ameide:ioMapping>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_check_preview_ready"
+                      name="Check preview status">
+      <bpmn:documentation>
+        Checks whether preview is reachable and records evidence (used by the poll loop path).
+      </bpmn:documentation>
+      <bpmn:extensionElements>
+        <ameide:taskDefinition type="transformation.r2d.phase2.workpackage.check_preview_ready.v1"
+                               idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
+                               policyRef="default"/>
+        <ameide:ioMapping>
+          <ameide:input source="state.preview_key" target="request.preview_key"/>
+          <ameide:output source="result.preview_ready" target="state.preview_ready"/>
+          <ameide:output source="result.preview_url" target="state.preview_url"/>
+        </ameide:ioMapping>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:exclusiveGateway id="Gateway_preview_ready" name="Preview ready?"/>
+
+    <bpmn:serviceTask id="Task_capture_preview_digests"
+                      name="Capture deliverable digests">
+      <bpmn:documentation>
+        Records the immutable image digest(s) backing the preview so Phase 3 can promote exactly what was UAT’d.
+      </bpmn:documentation>
+      <bpmn:extensionElements>
+        <ameide:taskDefinition type="transformation.r2d.phase2.workpackage.capture_preview_digests.v1"
+                               idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
+                               policyRef="default"/>
+        <ameide:ioMapping>
+          <ameide:input source="state.preview_key" target="request.preview_key"/>
+          <ameide:input source="state.preview_url" target="request.preview_url"/>
+          <ameide:output source="result.preview_digests" target="state.preview_digests"/>
+        </ameide:ioMapping>
       </bpmn:extensionElements>
     </bpmn:serviceTask>
 
@@ -113,8 +177,7 @@
         UAT pass/fail is recorded per Requirement (not a workpackage-wide user task).
       </bpmn:documentation>
       <bpmn:extensionElements>
-        <ameide:taskDefinition implementation="delegated"
-                               type="transformation.r2d.phase2.workpackage.mark_uat_requested.v1"
+        <ameide:taskDefinition type="transformation.r2d.phase2.workpackage.mark_uat_requested.v1"
                                idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
                                policyRef="default"/>
       </bpmn:extensionElements>
@@ -130,9 +193,23 @@
     <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_develop" targetRef="Task_test"/>
     <bpmn:sequenceFlow id="Flow_3" sourceRef="Task_test" targetRef="Task_open_pr"/>
     <bpmn:sequenceFlow id="Flow_4" sourceRef="Task_open_pr" targetRef="Task_apply_preview_label"/>
-    <bpmn:sequenceFlow id="Flow_5" sourceRef="Task_apply_preview_label" targetRef="Task_wait_preview_ready"/>
-    <bpmn:sequenceFlow id="Flow_6" sourceRef="Task_wait_preview_ready" targetRef="Task_mark_uat_requested"/>
-    <bpmn:sequenceFlow id="Flow_7" sourceRef="Task_mark_uat_requested" targetRef="EndEvent_workpackage_complete"/>
+    <bpmn:sequenceFlow id="Flow_5" sourceRef="Task_apply_preview_label" targetRef="Gateway_wait_preview_ready"/>
+
+    <bpmn:sequenceFlow id="Flow_wait_message" sourceRef="Gateway_wait_preview_ready" targetRef="Catch_preview_ready"/>
+    <bpmn:sequenceFlow id="Flow_wait_timer" sourceRef="Gateway_wait_preview_ready" targetRef="Catch_preview_poll_timer"/>
+
+    <bpmn:sequenceFlow id="Flow_message_record" sourceRef="Catch_preview_ready" targetRef="Task_record_preview_ready"/>
+    <bpmn:sequenceFlow id="Flow_record_capture" sourceRef="Task_record_preview_ready" targetRef="Task_capture_preview_digests"/>
+
+    <bpmn:sequenceFlow id="Flow_timer_check" sourceRef="Catch_preview_poll_timer" targetRef="Task_check_preview_ready"/>
+    <bpmn:sequenceFlow id="Flow_check_decide" sourceRef="Task_check_preview_ready" targetRef="Gateway_preview_ready"/>
+
+    <bpmn:sequenceFlow id="Flow_preview_ready" sourceRef="Gateway_preview_ready" targetRef="Task_capture_preview_digests">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">state.preview_ready</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_preview_not_ready" sourceRef="Gateway_preview_ready" targetRef="Gateway_wait_preview_ready"/>
+
+    <bpmn:sequenceFlow id="Flow_capture_uat" sourceRef="Task_capture_preview_digests" targetRef="Task_mark_uat_requested"/>
+    <bpmn:sequenceFlow id="Flow_end" sourceRef="Task_mark_uat_requested" targetRef="EndEvent_workpackage_complete"/>
   </bpmn:process>
 </bpmn:definitions>
-

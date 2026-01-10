@@ -41,7 +41,7 @@ What is implemented in code today (Dec 2025):
     - records evidence elements linked via `ref:evidence:*`,
     - records a release element linked via `ref:release`,
     - creates and promotes a governance baseline.
-- WorkRequest orchestration path exists end-to-end in repo-mode tests (Domain + executor + process facts). Note: v0 used an ingress router to signal domain facts into workflows; v1 target is to wait inside Activities and keep broker facts projection-only (no internal EDA control flow).
+- WorkRequest orchestration path exists end-to-end in repo-mode tests (Domain + executor + process facts). Note: v0 used an ingress router to signal domain facts into workflows; v1 target is to model long waits explicitly as BPMN wait states compiled to workflow waits (Signals/Updates/Timers) and keep fact topics audit/projection-only (no implicit internal EDA control flow).
 - Cluster validation is E2E-only under `backlog/430-unified-test-infrastructure-v2-target.md` (Phase 3; Playwright) and assumes deployed dispatcher/executor/ingress/projection + Temporal wiring.
 
 What remains intentionally pending (target state):
@@ -96,12 +96,15 @@ Workflow steps often require deterministic tool execution (scaffolding, codegen,
 
 For the canonical end-to-end sequence (separating process semantics from infra mechanics), see `backlog/527-transformation-e2e-sequence.md`.
 
-**Execution substrate (normative; v1):** long-running tool/agent steps run via WorkRequests, but the workflow progresses on Activity completion (not on ingested facts):
+**Execution substrate (normative; v1):** long-running tool/agent steps run via WorkRequests, and the workflow progresses on **Activity results** plus **explicit BPMN wait states compiled to workflow waits** (not on implicitly ingested facts):
 
 - Each executable `serviceTask` compiles to a single Temporal Activity invocation.
 - The Activity either:
-  - executes inline (imperative work in the worker), or
-  - delegates by calling Domain `RequestWork` to create a Domain-owned `WorkRequest` (idempotent), then waits for completion (poll/long-poll + heartbeat) and returns a deterministic result to the workflow.
+  - executes inline (bounded imperative work in the worker), or
+  - delegates by calling Domain `RequestWork` to create a Domain-owned `WorkRequest` (idempotent) and returns a correlation handle (e.g., `work_request_id`) to workflow state.
+- Waiting for delegated completion MUST be modeled explicitly in BPMN and compiled to workflow waits:
+  - preferred: message callback wait (executor/domain emits a point-to-point completion message correlated to `work_request_id`),
+  - fallback: poll loop (timer wait → check-status Activity → gateway loop).
 - Domain emits `WorkRequested` facts after persistence (outbox) on `transformation.work.domain.facts.v1` (audit trail; pub/sub) and publishes `WorkExecutionRequested` intents to the appropriate execution queue.
 - Executors consume execution intents, run the work, and record outcomes/evidence back to Domain idempotently.
 - The workflow emits `ToolRunRecorded` / `GateDecisionRecorded` / `ActivityTransitioned` process facts using the Activity result (e.g., `work_request_id`, outcome summary, evidence refs).
@@ -130,16 +133,19 @@ v1 supports a deliberately small executable subset (expand later; any unsupporte
 
 - `startEvent`, `endEvent`
 - `sequenceFlow`
-- `serviceTask` (machine step; emits intents/commands)
-- `userTask` (human gate; maps to signals + approvals)
-- `exclusiveGateway` (branching; decision reads must be declared)
-- Collaboration constructs for boundaries: `collaboration`, `participant`, `messageFlow` (required for “scaffoldable” processes; see below)
+- `serviceTask` (machine work; side effects via Activities)
+- `userTask` (human gate; maps to Temporal Updates by default)
+- `intermediateCatchEvent` (message/timer waits; compile to workflow waits)
+- Gateways: `exclusiveGateway` (deterministic subset)
+- `subProcess` (embedded; structuring)
+- `message` (for message waits)
+- Collaboration constructs for boundaries (optional for single-process v1, required for cross-primitive modeling): `collaboration`, `participant`, `messageFlow`
 
 **Waits/timers (v1 stance):**
 
-- v1 does not require BPMN-native wait/timer constructs (e.g., `intermediateCatchEvent`, `timerEventDefinition`) to express “wait for an external event”.
-- “Wait” semantics for machine steps are expressed via Activities (e.g., `run_work_request` bindings): the Activity blocks (poll/long-poll + heartbeat) until completion and returns a result. Workflows MUST NOT advance by consuming broker facts as internal control flow.
-- If/when BPMN-native waits/timers are added, they MUST map to the same execution profile concepts and produce the same step evidence (process facts).
+- v1 supports BPMN-native wait states (`receiveTask`, message/timer `intermediateCatchEvent`) and compiles them to workflow waits (Signals/Updates/Timers).
+- Workflows MUST NOT block inside Temporal Activities to “wait for humans/external parties”; Activities are bounded “do work” units with timeouts/retries.
+- Workflows MUST NOT advance by implicitly consuming broker fact topics as internal control flow. If a message wait is used, it is an explicit modeled wait state and must be delivered on a boundary channel (point-to-point), not assumed from fact topics.
 
 ### 3.1.1 Supported BPMN subset (v2; planned and normative for compile-to-IR)
 
@@ -184,7 +190,7 @@ For deployable/scaffoldable workflows, every `messageFlow` MUST be representable
   - at least one declared **expected outcome** emitted by **B** (e.g., `expected_domain_facts`) correlated to that intent/work, and
   - correlation/causation propagation rules that allow projection to join step evidence to those domain facts (see `backlog/527-transformation-proto.md` §3.1).
 
-If the workflow must wait for completion of work performed by **B**, the wait MUST be implemented inside an Activity (poll/timeout/heartbeat) and returned as an Activity result; workflows MUST NOT advance by consuming broker facts as internal control flow.
+If the workflow must wait for completion of work performed by **B**, the wait MUST be modeled explicitly as a BPMN wait state (message/timer) and compiled to a workflow-level wait. Workflows MUST NOT advance by implicitly consuming broker fact topics as internal control flow.
 
 If a `messageFlow` exists but the execution profile cannot resolve the corresponding send/expect bindings, promotion MUST fail.
 
@@ -250,7 +256,7 @@ Execution profile requirements (conceptual shape; do not embed proto text):
     - `input_mapping` (required): explicit mapping from parent inputs/variables to child inputs (no implicit shared context)
     - `output_mapping` (required): explicit mapping from child outputs to parent variables/pins/evidence
     - `timeout_policy` / `retry_policy` (bounded; retries rely on idempotency and must be visible as process facts)
-  - `run_work_request` (optional): request execution via a Domain-owned WorkRequest (tool run or agent work) and define how the Activity waits for completion:
+  - `run_work_request` (optional): request execution via a Domain-owned WorkRequest (tool run or agent work) and define how the workflow waits for completion (message callback or poll loop):
     - `work_kind` ∈ `{tool_run, agent_work}`
     - `queue_ref` (logical; environment binds actual broker/subject)
     - `timeout_policy` / `retry_policy` (bounded; retries rely on idempotency)

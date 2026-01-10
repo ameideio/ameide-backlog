@@ -113,7 +113,7 @@ These are the minimum implementation capabilities required for this scenario to 
 - **Next:** If BPMN not used → **Skip** 2.2 and **Trigger** 2.3; else if model-only → **Trigger** 2.3; else if executable → **Trigger** 2.2a
 
 ### 2.2a Bind executable BPMN (only if executable)
-- **Input:** BPMN model + bindings (send intents / await facts / correlation rules).
+- **Input:** BPMN model + bindings (Activity types/policies/IO mappings; explicit waits only when an external message/timer is the intended control-flow surface).
 - **Output:** Promotable BPMN execution profile definition (recommended as an `ExtensionDefinition`).
 - **Next:** **Trigger** 2.3
 

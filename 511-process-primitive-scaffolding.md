@@ -163,8 +163,8 @@ Process scaffolds assume:
         - lifecycle **facts** (audit/outcomes) via outbox on the fact spine, and
         - a point‑to‑point execution **intent** on an operational execution queue (not a fact topic).
       - executors consume execution **intents** and record outcomes back to the owning Domain write surface idempotently; the Domain emits completion facts.
-      - workflow advancement is driven by **awaiting correlated facts/receipts**, not by direct runner responses.
-  - Agent and Integration primitives remain separate DUs with their own runtimes (LangGraph, NiFi); Process delegates to them via Activities and advances based on correlated outcomes.
+      - workflow advancement is driven by **Activity results**, **explicit BPMN wait states compiled to workflow waits** (Signals/Updates/Timers), and **explicit user task completions**. Activities are bounded “do work” units; long waits live in workflow waits.
+  - Agent and Integration primitives remain separate DUs with their own runtimes (LangGraph, NiFi); Process delegates to them via Activities and advances on the Activity’s returned result.
 
 - **Idempotency**:
   - Workflows must ignore domain facts where `aggregate_version <= lastSeenAggregateVersion`.  
@@ -188,7 +188,7 @@ Process scaffolds assume:
   - When emitting BPMN‑derived step progress, include both `step_id` (definition element id) and `step_instance_id` (runtime occurrence id) to support loops, multi‑instance tasks, and parallel tokens.
 
 - **Ameide BPMN extensions (scaffolding metadata)**:
-  - ProcessDefinitions MAY include machine-readable bindings in BPMN `extensionElements` (under an Ameide-owned namespace) to drive scaffolding (e.g., task ↔ Temporal Activity, userTask ↔ Temporal Update, task ↔ WorkRequest + awaited facts).
+  - ProcessDefinitions MAY include machine-readable bindings in BPMN `extensionElements` (under an Ameide-owned namespace) to drive scaffolding (e.g., task ↔ Temporal Activity, userTask ↔ Temporal Update, wait ↔ message subscription).
   - These extensions are **design-time compilation inputs**, not runtime configuration: the compiled workflow must still pin `process_definition_id` and remain deterministic.
   - See `backlog/511-process-primitive-scaffolding-bpmn-extension.md` for the execution-profile schema (required elements, completion/wait semantics, templates/path grammar, lint rules).
 
@@ -232,7 +232,7 @@ xmlns:ameide="https://ameide.io/schema/bpmn/extensions/v1"
 
 **Minimal extension surface (v1):**
 
-- `ameide:taskDefinition` — required on automated executable nodes; binds the node to an execution binding (`implementation`) plus stable `type`, `idempotencyKeyTemplate`, and a deterministic `policyRef`.
+- `ameide:taskDefinition` — required on automated executable nodes; binds the node to a Temporal Activity `type` plus a deterministic `policyRef` (and optional `idempotencyKeyTemplate`).
 - `ameide:subscription` — required for explicit waits; Camunda-aligned: declares `correlationKeyTemplate` (single correlation key) and `messageIdPath` for correlation + dedupe (and `messageName` unless attached to a `bpmn:message`).
 - `ameide:ioMapping` — recommended; deterministic input/output mapping (variable paths → request fields, response fields → variable paths).
 - `ameide:taskHeaders` — optional; small static key/value metadata passed to the side-effect boundary.
@@ -251,16 +251,19 @@ A BPMN activity scaffolds to one of:
 
 If delegated:
 
-- the Activity submits an **idempotent domain intent/command** that creates a Domain-owned **WorkRequest** (audit-grade), and
-- the workflow advances only by **awaiting correlated domain facts** (e.g., `WorkCompleted` / `WorkFailed`), not synchronous runner responses.
-- In the BPMN extension profile, “awaiting correlated facts” is represented with explicit BPMN wait nodes and a machine-readable await contract via `ameide:subscription` (either on the wait node itself or on the referenced `bpmn:message`; the await contract is not implied by the task).
+- the Activity submits an **idempotent domain intent/command** that creates a Domain-owned **WorkRequest** (audit-grade),
+- the workflow MUST represent waiting explicitly (message/timer wait states) and only use bounded Activities for “start/check” work, and
+- domain facts are emitted for audit/projection but workflows MUST NOT advance by implicitly consuming fact topics.
 
 **Facts / events (“what happened”)**
 
-Model waits explicitly using BPMN wait nodes with a declared await contract (`ameide:subscription` on the wait node or on its referenced `bpmn:message`):
+Model waits explicitly using BPMN wait nodes with a declared await contract (`ameide:subscription` on the wait node or on its referenced `bpmn:message`) for:
+1) human completions (user tasks),
+2) external callbacks, and
+3) poll loops (timer waits between check Activities).
 
 - what a step emits as **process facts** (e.g., `PhaseEntered` / `Awaiting` / `GateDecisionRecorded`),
-- what it awaits as **domain facts**, with explicit `correlationKeyTemplate` (single key) and a dedupe `messageIdPath`.
+- what it awaits as an **externally delivered message**, with explicit `correlationKeyTemplate` (single key) and a dedupe `messageIdPath`.
 
 Ingress routing note:
 
@@ -325,7 +328,7 @@ The scaffolder reads BPMN + extensions, builds an internal IR (nodes/edges/subpr
 - workflow skeleton(s),
 - activity stubs,
 - update handlers for user tasks,
-- helpers to “await correlated fact”.
+- helpers for explicit wait nodes (message/timer waits) when present.
 
 Editor support can start as raw XML in `extensionElements`, later upgraded via a moddle descriptor for `bpmn-js`.
 
@@ -333,18 +336,16 @@ Editor support can start as raw XML in `extensionElements`, later upgraded via a
 
 ### Examples (extensions)
 
-#### Example: delegated work + explicit wait for completion
+#### Example: delegated work with an explicit message callback wait
 
 ```xml
 <bpmn:serviceTask id="Task_DoWork" name="Do work">
   <bpmn:extensionElements>
-    <ameide:taskDefinition implementation="delegated"
-                           type="example.external_job.v1"
+    <ameide:taskDefinition type="example.external_job.v1"
                            idempotencyKeyTemplate="example/${process_instance_id}/job/${state.job_key}"
                            policyRef="default" />
     <ameide:ioMapping>
       <ameide:input source="state.input_ref" target="request.input_ref" />
-      <ameide:output source="result.external_job_id" target="state.external_job_id" />
     </ameide:ioMapping>
   </bpmn:extensionElements>
 </bpmn:serviceTask>
@@ -353,7 +354,7 @@ Editor support can start as raw XML in `extensionElements`, later upgraded via a
 
 <bpmn:message id="Message_ExternalJobCompleted" name="ExternalJobCompleted">
   <bpmn:extensionElements>
-    <ameide:subscription correlationKeyTemplate="${state.external_job_id}"
+    <ameide:subscription correlationKeyTemplate="${state.job_key}"
                          messageIdPath="message_id" />
   </bpmn:extensionElements>
 </bpmn:message>
@@ -422,6 +423,6 @@ Implementers (humans or coding agents) are expected to:
 - Ingress router using deterministic workflow IDs and `SignalWithStart`.  
 - Idempotency state present in workflow code (`lastSeenAggregateVersion`, flags).  
 - Process facts published via a port or activity (not directly from workflows), consistent with EDA rules in `496-eda-principles.md`.
-- Work execution posture is explicit in scaffold docs and stubs: deterministic steps run inline as Activities when feasible; delegated steps are requested via domain intents (execution intents on queues) and advanced by awaiting correlated facts/receipts.
+- Work execution posture is explicit in scaffold docs and stubs: deterministic steps run inline as Activities when feasible; delegated steps are requested via domain intents, and workflows wait via explicit BPMN wait states (messages/timers) before proceeding.
 
 Vertical slices like `506-scrum-vertical-v2.md` remain authoritative for **which workflows and facts** exist; this backlog only constrains the **scaffold shape and Temporal/EDA pattern** for Process primitives.

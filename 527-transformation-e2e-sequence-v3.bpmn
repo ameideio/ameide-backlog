@@ -9,22 +9,20 @@
                   targetNamespace="https://ameide.io/transformation/r2d/v1">
 
   <!--
-    This BPMN file is a structural representation of the R2D hierarchy from:
-      backlog/527-transformation-e2e-sequence.md
+    DEPRECATED (kept as a BPMN diagram for historical context).
+    Canonical R2D is modeled as three independent processes:
+      - backlog/527-transformation-r2d-phase1-triage.bpmn
+      - backlog/527-transformation-r2d-phase2-development-workpackage.bpmn
+      - backlog/527-transformation-r2d-phase3-release-package.bpmn
 
     Notes:
     - BPMN element ids cannot contain dots, so ids are normalized with underscores.
     - The human-readable `name` fields keep the canonical Ameide ids (dot-separated).
     - Subprocesses are modeled as embedded `bpmn:subProcess` so BPMN editors can drill down.
+    - This file reflects an older approach and intentionally does NOT model explicit BPMN wait states
+      (message/timer catch, boundary events). The current contract is: waits are modeled as BPMN wait
+      states and compiled to Workflow-level waits (Signals/Updates/Timers), not blocked Activities.
   -->
-
-  <!-- Message definitions (BPMN semantics for catch/throw events) -->
-  <bpmn:message id="Message_ExternalJobCompleted" name="ExternalJobCompleted">
-    <bpmn:extensionElements>
-      <ameide:subscription correlationKeyTemplate="${state.external_job_id}"
-                           messageIdPath="message_id"/>
-    </bpmn:extensionElements>
-  </bpmn:message>
 
   <bpmn:collaboration id="Collaboration_transformation_r2d_v1">
     <bpmn:participant id="Participant_transformation_r2d_v1"
@@ -32,8 +30,8 @@
                       processRef="transformation_r2d_v1"/>
   </bpmn:collaboration>
 
-  <!-- Master process -->
-  <bpmn:process id="transformation_r2d_v1" name="transformation.r2d.v1" isExecutable="true">
+	  <!-- Master process -->
+	  <bpmn:process id="transformation_r2d_v1" name="transformation.r2d.v1" isExecutable="true">
     <bpmn:extensionElements>
       <ameide:workflowDefinition definitionId="transformation.r2d.v1:527-v3"
                                  workflowType="transformation_r2d_v1"
@@ -64,166 +62,103 @@
     <bpmn:subProcess id="SubProcess_delivery_loop" name="transformation.r2d.delivery_loop.v1">
       <bpmn:startEvent id="StartEvent_delivery_loop" name="Start Delivery Loop"/>
 
-      <bpmn:serviceTask id="Task_code_change"
-                        name="transformation.r2d.delivery_loop.code_change.v1">
-        <bpmn:extensionElements>
-          <ameide:taskDefinition implementation="delegated"
-                                 type="transformation.r2d.delivery_loop.code_change.v1"
-                                 idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
-                                 policyRef="default"/>
-          <ameide:ioMapping>
-            <ameide:output source="result.external_job_id" target="state.external_job_id"/>
-          </ameide:ioMapping>
-        </bpmn:extensionElements>
-      </bpmn:serviceTask>
-
-      <bpmn:intermediateCatchEvent id="Wait_code_change_completed" name="ExternalJobCompleted">
-        <bpmn:messageEventDefinition messageRef="Message_ExternalJobCompleted"/>
-      </bpmn:intermediateCatchEvent>
+	      <bpmn:serviceTask id="Task_code_change"
+	                        name="transformation.r2d.delivery_loop.code_change.v1">
+	        <bpmn:extensionElements>
+	          <ameide:taskDefinition type="transformation.r2d.delivery_loop.code_change.v1"
+	                                 idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
+	                                 policyRef="default"/>
+	        </bpmn:extensionElements>
+	      </bpmn:serviceTask>
 
       <!-- B2: iterative tests (modeled as a looping task placeholder) -->
-      <bpmn:serviceTask id="Task_iterate_tests"
-                        name="transformation.r2d.delivery_loop.iterate_tests.v1">
-        <bpmn:extensionElements>
-          <ameide:taskDefinition implementation="delegated"
-                                 type="transformation.r2d.delivery_loop.iterate_tests.v1"
-                                 idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
-                                 policyRef="default"/>
-          <ameide:ioMapping>
-            <ameide:output source="result.external_job_id" target="state.external_job_id"/>
-          </ameide:ioMapping>
-        </bpmn:extensionElements>
-      </bpmn:serviceTask>
+	      <bpmn:serviceTask id="Task_iterate_tests"
+	                        name="transformation.r2d.delivery_loop.iterate_tests.v1">
+	        <bpmn:extensionElements>
+	          <ameide:taskDefinition type="transformation.r2d.delivery_loop.iterate_tests.v1"
+	                                 idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
+	                                 policyRef="default"/>
+	        </bpmn:extensionElements>
+	      </bpmn:serviceTask>
 
-      <bpmn:intermediateCatchEvent id="Wait_iterate_tests_completed" name="ExternalJobCompleted">
-        <bpmn:messageEventDefinition messageRef="Message_ExternalJobCompleted"/>
-      </bpmn:intermediateCatchEvent>
-
-      <bpmn:serviceTask id="Task_final_gate"
-                        name="transformation.r2d.delivery_loop.final_gate.v1">
-        <bpmn:extensionElements>
-          <ameide:taskDefinition implementation="delegated"
-                                 type="transformation.r2d.delivery_loop.final_gate.v1"
-                                 idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
-                                 policyRef="default"/>
-          <ameide:ioMapping>
-            <ameide:output source="result.external_job_id" target="state.external_job_id"/>
-          </ameide:ioMapping>
-        </bpmn:extensionElements>
-      </bpmn:serviceTask>
-
-      <bpmn:intermediateCatchEvent id="Wait_final_gate_completed" name="ExternalJobCompleted">
-        <bpmn:messageEventDefinition messageRef="Message_ExternalJobCompleted"/>
-      </bpmn:intermediateCatchEvent>
+	      <bpmn:serviceTask id="Task_final_gate"
+	                        name="transformation.r2d.delivery_loop.final_gate.v1">
+	        <bpmn:extensionElements>
+	          <ameide:taskDefinition type="transformation.r2d.delivery_loop.final_gate.v1"
+	                                 idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
+	                                 policyRef="default"/>
+	        </bpmn:extensionElements>
+	      </bpmn:serviceTask>
 
       <bpmn:endEvent id="EndEvent_delivery_loop" name="End Delivery Loop"/>
 
-      <bpmn:sequenceFlow id="Flow_deliv_1" sourceRef="StartEvent_delivery_loop" targetRef="Task_code_change"/>
-      <bpmn:sequenceFlow id="Flow_deliv_2" sourceRef="Task_code_change" targetRef="Wait_code_change_completed"/>
-      <bpmn:sequenceFlow id="Flow_deliv_3" sourceRef="Wait_code_change_completed" targetRef="Task_iterate_tests"/>
-      <bpmn:sequenceFlow id="Flow_deliv_4" sourceRef="Task_iterate_tests" targetRef="Wait_iterate_tests_completed"/>
-      <bpmn:sequenceFlow id="Flow_deliv_5" sourceRef="Wait_iterate_tests_completed" targetRef="Task_final_gate"/>
-      <bpmn:sequenceFlow id="Flow_deliv_6" sourceRef="Task_final_gate" targetRef="Wait_final_gate_completed"/>
-      <bpmn:sequenceFlow id="Flow_deliv_7" sourceRef="Wait_final_gate_completed" targetRef="EndEvent_delivery_loop"/>
-    </bpmn:subProcess>
+	      <bpmn:sequenceFlow id="Flow_deliv_1" sourceRef="StartEvent_delivery_loop" targetRef="Task_code_change"/>
+	      <bpmn:sequenceFlow id="Flow_deliv_2" sourceRef="Task_code_change" targetRef="Task_iterate_tests"/>
+	      <bpmn:sequenceFlow id="Flow_deliv_3" sourceRef="Task_iterate_tests" targetRef="Task_final_gate"/>
+	      <bpmn:sequenceFlow id="Flow_deliv_4" sourceRef="Task_final_gate" targetRef="EndEvent_delivery_loop"/>
+	    </bpmn:subProcess>
 
     <!-- Subprocess: Acceptance -->
     <bpmn:subProcess id="SubProcess_acceptance" name="transformation.r2d.acceptance.v1">
       <bpmn:startEvent id="StartEvent_acceptance" name="Start Acceptance"/>
 
-      <bpmn:serviceTask id="Task_preview_validate"
-                        name="transformation.r2d.acceptance.preview_validate.v1">
-        <bpmn:extensionElements>
-          <ameide:taskDefinition implementation="delegated"
-                                 type="transformation.r2d.acceptance.preview_validate.v1"
-                                 idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
-                                 policyRef="default"/>
-          <ameide:ioMapping>
-            <ameide:output source="result.external_job_id" target="state.external_job_id"/>
-          </ameide:ioMapping>
-        </bpmn:extensionElements>
-      </bpmn:serviceTask>
-
-      <bpmn:intermediateCatchEvent id="Wait_preview_validate_completed" name="ExternalJobCompleted">
-        <bpmn:messageEventDefinition messageRef="Message_ExternalJobCompleted"/>
-      </bpmn:intermediateCatchEvent>
+	      <bpmn:serviceTask id="Task_preview_validate"
+	                        name="transformation.r2d.acceptance.preview_validate.v1">
+	        <bpmn:extensionElements>
+	          <ameide:taskDefinition type="transformation.r2d.acceptance.preview_validate.v1"
+	                                 idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
+	                                 policyRef="default"/>
+	        </bpmn:extensionElements>
+	      </bpmn:serviceTask>
 
       <bpmn:userTask id="Task_accept_reject_gate"
                      name="transformation.r2d.acceptance.accept_reject_gate.v1"/>
 
-      <bpmn:endEvent id="EndEvent_acceptance" name="End Acceptance"/>
+	      <bpmn:endEvent id="EndEvent_acceptance" name="End Acceptance"/>
 
-      <bpmn:sequenceFlow id="Flow_acc_1" sourceRef="StartEvent_acceptance" targetRef="Task_preview_validate"/>
-      <bpmn:sequenceFlow id="Flow_acc_2" sourceRef="Task_preview_validate" targetRef="Wait_preview_validate_completed"/>
-      <bpmn:sequenceFlow id="Flow_acc_3" sourceRef="Wait_preview_validate_completed" targetRef="Task_accept_reject_gate"/>
-      <bpmn:sequenceFlow id="Flow_acc_4" sourceRef="Task_accept_reject_gate" targetRef="EndEvent_acceptance"/>
-    </bpmn:subProcess>
+	      <bpmn:sequenceFlow id="Flow_acc_1" sourceRef="StartEvent_acceptance" targetRef="Task_preview_validate"/>
+	      <bpmn:sequenceFlow id="Flow_acc_2" sourceRef="Task_preview_validate" targetRef="Task_accept_reject_gate"/>
+	      <bpmn:sequenceFlow id="Flow_acc_4" sourceRef="Task_accept_reject_gate" targetRef="EndEvent_acceptance"/>
+	    </bpmn:subProcess>
 
     <!-- Subprocess: Release -->
     <bpmn:subProcess id="SubProcess_release" name="transformation.r2d.release.v1">
       <bpmn:startEvent id="StartEvent_release" name="Start Release"/>
 
-      <bpmn:serviceTask id="Task_build_publish"
-                        name="transformation.r2d.release.build_publish.v1">
-        <bpmn:extensionElements>
-          <ameide:taskDefinition implementation="delegated"
-                                 type="transformation.r2d.release.build_publish.v1"
-                                 idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
-                                 policyRef="default"/>
-          <ameide:ioMapping>
-            <ameide:output source="result.external_job_id" target="state.external_job_id"/>
-          </ameide:ioMapping>
-        </bpmn:extensionElements>
-      </bpmn:serviceTask>
+	      <bpmn:serviceTask id="Task_build_publish"
+	                        name="transformation.r2d.release.build_publish.v1">
+	        <bpmn:extensionElements>
+	          <ameide:taskDefinition type="transformation.r2d.release.build_publish.v1"
+	                                 idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
+	                                 policyRef="default"/>
+	        </bpmn:extensionElements>
+	      </bpmn:serviceTask>
 
-      <bpmn:intermediateCatchEvent id="Wait_build_publish_completed" name="ExternalJobCompleted">
-        <bpmn:messageEventDefinition messageRef="Message_ExternalJobCompleted"/>
-      </bpmn:intermediateCatchEvent>
+	      <bpmn:serviceTask id="Task_gitops_promote"
+	                        name="transformation.r2d.release.gitops_promote.v1">
+	        <bpmn:extensionElements>
+	          <ameide:taskDefinition type="transformation.r2d.release.gitops_promote.v1"
+	                                 idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
+	                                 policyRef="default"/>
+	        </bpmn:extensionElements>
+	      </bpmn:serviceTask>
 
-      <bpmn:serviceTask id="Task_gitops_promote"
-                        name="transformation.r2d.release.gitops_promote.v1">
-        <bpmn:extensionElements>
-          <ameide:taskDefinition implementation="delegated"
-                                 type="transformation.r2d.release.gitops_promote.v1"
-                                 idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
-                                 policyRef="default"/>
-          <ameide:ioMapping>
-            <ameide:output source="result.external_job_id" target="state.external_job_id"/>
-          </ameide:ioMapping>
-        </bpmn:extensionElements>
-      </bpmn:serviceTask>
+	      <bpmn:serviceTask id="Task_rollout_verify"
+	                        name="transformation.r2d.release.rollout_verify.v1">
+	        <bpmn:extensionElements>
+	          <ameide:taskDefinition type="transformation.r2d.release.rollout_verify.v1"
+	                                 idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
+	                                 policyRef="default"/>
+	        </bpmn:extensionElements>
+	      </bpmn:serviceTask>
 
-      <bpmn:intermediateCatchEvent id="Wait_gitops_promote_completed" name="ExternalJobCompleted">
-        <bpmn:messageEventDefinition messageRef="Message_ExternalJobCompleted"/>
-      </bpmn:intermediateCatchEvent>
+	      <bpmn:endEvent id="EndEvent_release" name="End Release"/>
 
-      <bpmn:serviceTask id="Task_rollout_verify"
-                        name="transformation.r2d.release.rollout_verify.v1">
-        <bpmn:extensionElements>
-          <ameide:taskDefinition implementation="delegated"
-                                 type="transformation.r2d.release.rollout_verify.v1"
-                                 idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
-                                 policyRef="default"/>
-          <ameide:ioMapping>
-            <ameide:output source="result.external_job_id" target="state.external_job_id"/>
-          </ameide:ioMapping>
-        </bpmn:extensionElements>
-      </bpmn:serviceTask>
-
-      <bpmn:intermediateCatchEvent id="Wait_rollout_verify_completed" name="ExternalJobCompleted">
-        <bpmn:messageEventDefinition messageRef="Message_ExternalJobCompleted"/>
-      </bpmn:intermediateCatchEvent>
-
-      <bpmn:endEvent id="EndEvent_release" name="End Release"/>
-
-      <bpmn:sequenceFlow id="Flow_rel_1" sourceRef="StartEvent_release" targetRef="Task_build_publish"/>
-      <bpmn:sequenceFlow id="Flow_rel_2" sourceRef="Task_build_publish" targetRef="Wait_build_publish_completed"/>
-      <bpmn:sequenceFlow id="Flow_rel_3" sourceRef="Wait_build_publish_completed" targetRef="Task_gitops_promote"/>
-      <bpmn:sequenceFlow id="Flow_rel_4" sourceRef="Task_gitops_promote" targetRef="Wait_gitops_promote_completed"/>
-      <bpmn:sequenceFlow id="Flow_rel_5" sourceRef="Wait_gitops_promote_completed" targetRef="Task_rollout_verify"/>
-      <bpmn:sequenceFlow id="Flow_rel_6" sourceRef="Task_rollout_verify" targetRef="Wait_rollout_verify_completed"/>
-      <bpmn:sequenceFlow id="Flow_rel_7" sourceRef="Wait_rollout_verify_completed" targetRef="EndEvent_release"/>
-    </bpmn:subProcess>
+	      <bpmn:sequenceFlow id="Flow_rel_1" sourceRef="StartEvent_release" targetRef="Task_build_publish"/>
+	      <bpmn:sequenceFlow id="Flow_rel_2" sourceRef="Task_build_publish" targetRef="Task_gitops_promote"/>
+	      <bpmn:sequenceFlow id="Flow_rel_3" sourceRef="Task_gitops_promote" targetRef="Task_rollout_verify"/>
+	      <bpmn:sequenceFlow id="Flow_rel_4" sourceRef="Task_rollout_verify" targetRef="EndEvent_release"/>
+	    </bpmn:subProcess>
 
     <bpmn:endEvent id="EndEvent_r2d" name="End R2D"/>
 

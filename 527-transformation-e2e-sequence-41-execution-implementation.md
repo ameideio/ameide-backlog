@@ -7,7 +7,7 @@
 
 1) Enter `execution` (emit `PhaseEntered(execution)` as a process fact)  
 2) Request work (scaffold/codegen, agentic coding, verification) via Domain `RequestWork`  
-3) Activity waits for completion (poll/long-poll + heartbeat), returns `{work_request_id, outcome, evidence_refs}`  
+3) Workflow waits explicitly (message callback or timer-based poll loop) and uses bounded Activities to confirm completion; result is `{work_request_id, outcome, evidence_refs}`  
 4) Workflow records `ToolRunRecorded`/`ActivityTransitioned` and decides next step
 
 ## WorkRequest classes (v1 examples; see `backlog/527-transformation-proto.md`)
@@ -20,4 +20,3 @@
 - The AgentWork "coder" executor expects authenticated Codex CLI via an `auth.json` file.
 - In-cluster, infra mounts `Secret/codex-auth` and sets `CODEX_HOME=/codex-home` (initContainer copies `auth.json` into place).
 - If `codex-auth` is missing, the executor fails fast and records a failed WorkRequest outcome (Domain emits facts via outbox).
-

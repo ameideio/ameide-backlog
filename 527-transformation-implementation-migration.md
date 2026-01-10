@@ -337,7 +337,7 @@ WP‑B is implemented **proto-first** so orchestration and evidence do not drift
 1. Update protos first (intents/facts/process facts + evidence references), then run regen-diff gates (520).
 2. Implement Domain write surfaces + outbox facts for the new messages; add Domain tests for idempotency and “facts after persistence” (537).
 3. Implement runner/job behavior that consumes `WorkExecutionRequested` (execution queue intent) and records outcomes/evidence via Domain commands (idempotent).
-4. Implement Process orchestration (send intent → await facts → emit process facts) and Projection joins for timelines/citations.
+4. Implement Process orchestration (send intent → explicit workflow waits (message/timer) + check Activities → emit process facts) and Projection joins for timelines/citations.
 
 **Deliverables (CODE — `ameide` repo)**
 
@@ -349,7 +349,7 @@ WP‑B is implemented **proto-first** so orchestration and evidence do not drift
   - a WorkRequest **executor** entrypoint that executes exactly one WorkRequest per run (checkout `commit_sha` → run `ameide` actions → persist evidence → record outcome idempotently); this executor image is **devcontainer-derived** (full toolchain) and separate from the debug/admin workbench deployment
   - evidence descriptor shape that Process can cite in `ToolRunRecorded` (no log scraping)
 - Process:
-  - at least one workflow that requests a WorkRequest and awaits completion facts
+  - at least one workflow that requests a WorkRequest; workflow waits explicitly (message/timer) and uses check Activities before continuing
   - emits `ToolRunRecorded` + step transitions (`ActivityTransitioned`) with correlation to the WorkRequest
 - Projection:
   - materialize a run timeline that joins process facts to WorkRequest lifecycle facts with citations
@@ -608,7 +608,7 @@ Debug/admin mode (required in `local`/`dev`; not a processor):
 - The end-to-end run is covered by tests at the correct boundary layers (per 537):
   - Domain tests prove `WorkRequest` idempotency and fact emission-after-persistence.
   - Runner tests prove “ack only after durable outcome recorded” (at-least-once safe).
-  - Process tests prove “await facts then continue” and emit process facts deterministically.
+  - Process tests prove “advance on Activity result” and emit process facts deterministically.
   - Projection tests prove join/materialization for the execution timeline.
 
 #### A1) Domain primitive: TransformationKnowledgeCommandService

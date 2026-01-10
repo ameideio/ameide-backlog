@@ -26,13 +26,13 @@
     <bpmn:extensionElements>
       <ameide:workflowDefinition definitionId="transformation.r2d.phase1.triage.v1:527"
                                  workflowType="transformation_r2d_phase1_triage_v1"
-                                 workflowIdTemplate="transformation.r2d.phase1.triage.v1/${state.tenant_id}/${state.requirement_id}"/>
+                                 workflowIdTemplate="transformation.r2d.phase1.triage.v1/${state.tenant_id}/${state.subject_id}"/>
     </bpmn:extensionElements>
 
-    <bpmn:startEvent id="StartEvent_requirement_exists" name="Requirement exists">
+    <bpmn:startEvent id="StartEvent_publish_requested" name="Publish requested">
       <bpmn:documentation>
-        Triggered when a Requirement exists (drafting may have already happened via UI + Domain writes).
-        This workflow does not own the editor loop; it only governs publish/readiness.
+        Triggered when the user requests Publish/DoR for a Requirement (UI action).
+        Drafting/editing happens in UI + Domain writes and is not workflow-internal control flow.
       </bpmn:documentation>
     </bpmn:startEvent>
 
@@ -40,35 +40,76 @@
                       name="Validate publish preconditions">
       <bpmn:documentation>
         Deterministic validation: acceptance criteria present, repo/target set, required metadata present.
-        On failure: emit evidence + leave requirement in Drafting/Needs Revision (handled by Domain/UI).
+        On failure: emit evidence + mark requirement Needs Revision (handled by Domain/UI).
       </bpmn:documentation>
       <bpmn:extensionElements>
-        <ameide:taskDefinition implementation="inline"
-                               type="transformation.r2d.phase1.triage.validate_publish_preconditions.v1"
+        <ameide:taskDefinition type="transformation.r2d.phase1.triage.validate_publish_preconditions.v1"
+                               idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
+                               policyRef="default"/>
+        <ameide:ioMapping>
+          <ameide:output source="result.ok" target="state.publish_ok"/>
+          <ameide:output source="result.reason" target="state.publish_precondition_failure_reason"/>
+        </ameide:ioMapping>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:exclusiveGateway id="Gateway_publish_ok" name="Publish OK?"/>
+
+    <bpmn:serviceTask id="Task_pin_slice"
+                      name="Pin RequirementSliceVersion">
+      <bpmn:documentation>
+        Creates/pins a RequirementSliceVersion (immutable refs to markdown version + expectations + repo target).
+      </bpmn:documentation>
+      <bpmn:extensionElements>
+        <ameide:taskDefinition type="transformation.r2d.phase1.triage.pin_slice.v1"
+                               idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
+                               policyRef="default"/>
+        <ameide:ioMapping>
+          <ameide:output source="result.slice_version_id" target="state.slice_version_id"/>
+        </ameide:ioMapping>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_mark_ready_for_development"
+                      name="Mark requirement Ready for Development">
+      <bpmn:documentation>
+        Updates requirement status to Ready for Development and links the pinned slice version.
+      </bpmn:documentation>
+      <bpmn:extensionElements>
+        <ameide:taskDefinition type="transformation.r2d.phase1.triage.mark_ready_for_development.v1"
                                idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
                                policyRef="default"/>
       </bpmn:extensionElements>
     </bpmn:serviceTask>
 
-    <bpmn:userTask id="Task_publish_dor"
-                   name="Publish (DoR)">
+    <bpmn:serviceTask id="Task_mark_needs_revision"
+                      name="Mark requirement Needs Revision">
       <bpmn:documentation>
-        User action: Publish/DoR decision.
-        Output: creates/pins a RequirementSliceVersion (immutable refs to markdown version + expectations + repo target).
-        This is the first of two human decisions per Requirement (Publish/DoR + UAT outcome).
+        Server-side publish validation failed. Requirement remains in Drafting/Needs Revision with evidence attached.
       </bpmn:documentation>
-    </bpmn:userTask>
+      <bpmn:extensionElements>
+        <ameide:taskDefinition type="transformation.r2d.phase1.triage.mark_needs_revision.v1"
+                               idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
+                               policyRef="default"/>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
 
-    <bpmn:endEvent id="EndEvent_ready_for_development" name="Ready for development">
+    <bpmn:endEvent id="EndEvent_triage_complete" name="Triage complete">
       <bpmn:documentation>
-        Terminal of Phase 1. The Requirement is now Ready for Development (slice pinned).
-        Development is triggered by selecting one or more slices into a Development Workpackage.
+        Terminal of Phase 1.
+        On success: Requirement is Ready for Development (slice pinned).
+        On failure: Requirement is Needs Revision (no slice pinned).
       </bpmn:documentation>
     </bpmn:endEvent>
 
-    <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_requirement_exists" targetRef="Task_validate_publish_preconditions"/>
-    <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_validate_publish_preconditions" targetRef="Task_publish_dor"/>
-    <bpmn:sequenceFlow id="Flow_3" sourceRef="Task_publish_dor" targetRef="EndEvent_ready_for_development"/>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_publish_requested" targetRef="Task_validate_publish_preconditions"/>
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_validate_publish_preconditions" targetRef="Gateway_publish_ok"/>
+    <bpmn:sequenceFlow id="Flow_3_ok" sourceRef="Gateway_publish_ok" targetRef="Task_pin_slice">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">state.publish_ok</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_3_fail" sourceRef="Gateway_publish_ok" targetRef="Task_mark_needs_revision"/>
+    <bpmn:sequenceFlow id="Flow_4" sourceRef="Task_pin_slice" targetRef="Task_mark_ready_for_development"/>
+    <bpmn:sequenceFlow id="Flow_5" sourceRef="Task_mark_ready_for_development" targetRef="EndEvent_triage_complete"/>
+    <bpmn:sequenceFlow id="Flow_6" sourceRef="Task_mark_needs_revision" targetRef="EndEvent_triage_complete"/>
   </bpmn:process>
 </bpmn:definitions>
-

@@ -271,7 +271,7 @@ export async function CustomerOnboardingWorkflow(input: OnboardingInput): Promis
   2. `identity.generateEmailVerification(userId)` → send verify mail via `email.sendTemplate`.
   3. Wait for **EmailVerified** either via:
 
-     * Activity polling/webhook callback bridging to `Signal: EmailVerified(token)`, or
+     * Workflow wait on `Signal: EmailVerified(token)` (emitted by a webhook bridge), optionally with a timer-driven poll loop if webhooks are unavailable, or
      * Direct activity `identity.markEmailVerified(token)`.
   4. Reminder timers at 1h and 24h. Expire at 48h → signal parent (timeout).
 * **Signals**: `EmailVerified(token)`, `ResendEmail('verification')`, `UserAborted`.

@@ -89,7 +89,7 @@ Agent handover note (event-driven first):
 Execution substrate note (WorkRequests; Activity-driven):
 
 - Long-running tool runs and agent work are represented as Domain-owned `WorkRequest` records: Process requests work via Domain intents/commands; Domain emits `WorkRequested` facts after persistence on `transformation.work.domain.facts.v1` (audit trail), and emits `WorkExecutionRequested` execution intents after persistence onto dedicated execution queue topics (e.g., `transformation.work.queue.toolrun.verify.v1`, `transformation.work.queue.toolrun.generate.v1`, `transformation.work.queue.toolrun.verify.ui_harness.v1`, `transformation.work.queue.agentwork.coder.v1`). KEDA-scaled execution backends consume `WorkExecutionRequested` and record outcomes back into Domain idempotently.
-- Process workflows progress on Activity completion results; Activities may wait for WorkRequest completion (poll/long-poll + heartbeat) and return `{work_request_id, outcome, evidence_refs}`. Work domain facts remain audit/projection inputs, not workflow step-completion signals.
+- Process workflows progress on Activity completion results plus explicit workflow waits (message/timer). WorkRequests are started by Activities; completion is observed via an explicit message callback wait or a timer-based poll loop (timer wait → check-status Activity). Work domain facts remain audit/projection inputs, not implicit workflow step-completion signals.
 
 ## 3) Envelope invariants (per 496)
 

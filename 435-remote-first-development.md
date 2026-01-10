@@ -44,7 +44,7 @@ DevContainers are a **developer execution substrate** (interactive loop). Platfo
 
 - `backlog/527-transformation-capability.md` (execution substrate invariants)
 - `backlog/527-transformation-integration.md` (runner contract + evidence)
-- `backlog/527-transformation-process.md` (send intents / await facts; no hidden RPC coupling)
+- `backlog/527-transformation-process.md` (send intents; Activities wait/poll for durable completion; facts for audit/projections; no internal broker-mediated step progression)
 
 ## Bootstrap ownership
 

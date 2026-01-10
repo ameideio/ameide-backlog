@@ -14,6 +14,8 @@
     Output: promote/deploy/verify outcomes; on success, included Requirements become Released; on failure, they remain Approved for Release.
   </bpmn:documentation>
 
+  <bpmn:message id="Message_RolloutVerified" name="RolloutVerified"/>
+
   <bpmn:collaboration id="Collaboration_transformation_r2d_phase3_release_package_v1">
     <bpmn:participant id="Participant_transformation_r2d_phase3_release_package_v1"
                       name="transformation.r2d.phase3.release_package.v1"
@@ -26,7 +28,7 @@
     <bpmn:extensionElements>
       <ameide:workflowDefinition definitionId="transformation.r2d.phase3.release_package.v1:527"
                                  workflowType="transformation_r2d_phase3_release_package_v1"
-                                 workflowIdTemplate="transformation.r2d.phase3.release_package.v1/${state.tenant_id}/${state.release_package_id}"/>
+                                 workflowIdTemplate="transformation.r2d.phase3.release_package.v1/${state.tenant_id}/${state.subject_id}"/>
     </bpmn:extensionElements>
 
     <bpmn:startEvent id="StartEvent_release_package_created" name="Release package created">
@@ -41,26 +43,72 @@
         Creates/updates GitOps PR(s) to promote immutable image digests (dev → staging → prod) per policy.
       </bpmn:documentation>
       <bpmn:extensionElements>
-        <ameide:taskDefinition implementation="delegated"
-                               type="transformation.r2d.phase3.release_package.promote_gitops.v1"
+        <ameide:taskDefinition type="transformation.r2d.phase3.release_package.promote_gitops.v1"
                                idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
                                policyRef="default"/>
+        <ameide:ioMapping>
+          <ameide:output source="result.rollout_key" target="state.rollout_key"/>
+        </ameide:ioMapping>
       </bpmn:extensionElements>
     </bpmn:serviceTask>
 
-    <bpmn:serviceTask id="Task_rollout_verify"
-                      name="Verify rollout">
+    <bpmn:eventBasedGateway id="Gateway_wait_rollout_verified" name="Wait for rollout verified"/>
+
+    <bpmn:intermediateCatchEvent id="Catch_rollout_verified" name="RolloutVerified">
       <bpmn:documentation>
-        Verifies rollout/health of the promoted state.
-        Must be implemented inside the Activity (poll/long-poll + heartbeat), not via broker-driven catch events.
+        Preferred completion path: wait for an explicit RolloutVerified message correlated to the release package.
       </bpmn:documentation>
       <bpmn:extensionElements>
-        <ameide:taskDefinition implementation="inline"
-                               type="transformation.r2d.phase3.release_package.rollout_verify.v1"
+        <ameide:subscription correlationKeyTemplate="${state.rollout_key}" messageIdPath="message_id"/>
+        <ameide:ioMapping>
+          <ameide:output source="envelope.payload_bytes" target="state.rollout_verified_payload_bytes"/>
+        </ameide:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:messageEventDefinition messageRef="Message_RolloutVerified"/>
+    </bpmn:intermediateCatchEvent>
+
+    <bpmn:intermediateCatchEvent id="Catch_rollout_poll_timer" name="Poll rollout status">
+      <bpmn:documentation>
+        Fallback completion path: timer-driven poll loop until rollout is healthy.
+      </bpmn:documentation>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT30S</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+
+    <bpmn:serviceTask id="Task_record_rollout_verified"
+                      name="Record rollout verified">
+      <bpmn:documentation>
+        Parses the RolloutVerified payload and records rollout status/evidence into Domain + process facts.
+      </bpmn:documentation>
+      <bpmn:extensionElements>
+        <ameide:taskDefinition type="transformation.r2d.phase3.release_package.record_rollout_verified.v1"
                                idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
                                policyRef="default"/>
+        <ameide:ioMapping>
+          <ameide:input source="state.rollout_verified_payload_bytes" target="request.rollout_verified_payload_bytes"/>
+          <ameide:output source="result.rollout_ok" target="state.rollout_ok"/>
+        </ameide:ioMapping>
       </bpmn:extensionElements>
     </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_check_rollout_ok"
+                      name="Check rollout status">
+      <bpmn:documentation>
+        Checks whether rollout is healthy and records evidence (used by the poll loop path).
+      </bpmn:documentation>
+      <bpmn:extensionElements>
+        <ameide:taskDefinition type="transformation.r2d.phase3.release_package.check_rollout_ok.v1"
+                               idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
+                               policyRef="default"/>
+        <ameide:ioMapping>
+          <ameide:input source="state.rollout_key" target="request.rollout_key"/>
+          <ameide:output source="result.rollout_ok" target="state.rollout_ok"/>
+        </ameide:ioMapping>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:exclusiveGateway id="Gateway_rollout_ok" name="Rollout ok?"/>
 
     <bpmn:serviceTask id="Task_release_verify"
                       name="Run release verification">
@@ -69,8 +117,7 @@
         Produces evidence bundles used for audit and (optional) release acceptance.
       </bpmn:documentation>
       <bpmn:extensionElements>
-        <ameide:taskDefinition implementation="delegated"
-                               type="transformation.r2d.phase3.release_package.release_verify.v1"
+        <ameide:taskDefinition type="transformation.r2d.phase3.release_package.release_verify.v1"
                                idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
                                policyRef="default"/>
       </bpmn:extensionElements>
@@ -83,9 +130,22 @@
     </bpmn:endEvent>
 
     <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_release_package_created" targetRef="Task_promote_gitops"/>
-    <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_promote_gitops" targetRef="Task_rollout_verify"/>
-    <bpmn:sequenceFlow id="Flow_3" sourceRef="Task_rollout_verify" targetRef="Task_release_verify"/>
-    <bpmn:sequenceFlow id="Flow_4" sourceRef="Task_release_verify" targetRef="EndEvent_release_complete"/>
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_promote_gitops" targetRef="Gateway_wait_rollout_verified"/>
+
+    <bpmn:sequenceFlow id="Flow_wait_message" sourceRef="Gateway_wait_rollout_verified" targetRef="Catch_rollout_verified"/>
+    <bpmn:sequenceFlow id="Flow_wait_timer" sourceRef="Gateway_wait_rollout_verified" targetRef="Catch_rollout_poll_timer"/>
+
+    <bpmn:sequenceFlow id="Flow_message_record" sourceRef="Catch_rollout_verified" targetRef="Task_record_rollout_verified"/>
+
+    <bpmn:sequenceFlow id="Flow_timer_check" sourceRef="Catch_rollout_poll_timer" targetRef="Task_check_rollout_ok"/>
+    <bpmn:sequenceFlow id="Flow_check_decide" sourceRef="Task_check_rollout_ok" targetRef="Gateway_rollout_ok"/>
+
+    <bpmn:sequenceFlow id="Flow_rollout_ok" sourceRef="Gateway_rollout_ok" targetRef="Task_release_verify">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">state.rollout_ok</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_rollout_not_ok" sourceRef="Gateway_rollout_ok" targetRef="Gateway_wait_rollout_verified"/>
+
+    <bpmn:sequenceFlow id="Flow_record_verify" sourceRef="Task_record_rollout_verified" targetRef="Task_release_verify"/>
+    <bpmn:sequenceFlow id="Flow_end" sourceRef="Task_release_verify" targetRef="EndEvent_release_complete"/>
   </bpmn:process>
 </bpmn:definitions>
-
