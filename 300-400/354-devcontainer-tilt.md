@@ -1,6 +1,8 @@
 # Devcontainer Bootstrap Simplification
 
 > **Status – Historical Reference:** Remote-first development ([435-remote-first-development.md](../435-remote-first-development.md)) is the supported workflow, and any remaining local k3d bootstrap work should use Terraform per [444-terraform.md](../444-terraform.md). Keep this file for context on how Tilt assumed responsibility for local reconciliation; do not extend it for new remote-first initiatives.
+>
+> **Update (2026-01):** Tilt-based orchestration (`Tiltfile`, `scripts/dev/start-tilt.sh`, Tilt UI) is deprecated/removed from the canonical workflow. This document remains as historical context only.
 
 **Created:** Nov 2025  
 **Owner:** Platform DX / Developer Productivity
@@ -26,14 +28,14 @@ The DevContainer bootstrap script previously ran Helmfile status/sync checks, re
    - Buildx state persists across container restarts; the post-start script reuses the builder without recreating it.
 
 4. **Tooling updates (postCreate)**  
-   - Keep Tilt current (download the latest release if needed) and install Playwright browsers in the persistent cache.  
+   - *(Historical)* Keep Tilt current (download the latest release if needed) and install Playwright browsers in the persistent cache.  
    - Helm plugin installs remain idempotent (`helm diff`) for parity with CI.
 
 5. **Tilt launch (postCreate & postStart)**  
-   - Start Tilt via `scripts/dev/start-tilt.sh --detached`, verify the API (`/api/status`), then wait for `wait_for_tilt_services_ready` to report every `services`-labelled resource as `runtime=ok/update=ok`.  
-   - During rebuilds this happens at the end of `postCreateCommand`; on reopen/start the `postStartCommand` stops any leftover Tilt processes and repeats the same launch/wait sequence.  
-   - DevContainer bootstrap finishes once Tilt is healthy; no Helmfile commands or registry builds run beforehand.
-   - Principle: DevContainer scripts only bring up prerequisites (cluster, builder, tooling). Helm/Tilt orchestrate every deployment afterwards.
+   - *(Historical)* Tilt used to be launched via `scripts/dev/start-tilt.sh --detached` and served as the single orchestrator.
+   - **Current workflow:** Use Telepresence + the Ameide CLI:
+     - `ameide dev inner-loop verify` / `up` / `down` (interactive UI iteration)
+     - `ameide dev inner-loop-test` (strict verification phases + JUnit evidence)
 
 ## Tilt responsibilities
 

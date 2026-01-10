@@ -43,9 +43,13 @@ Docker builds executed from Tilt run inside BuildKit containers that live on Doc
 3. **DevContainer:** Hook the ensure script into the container’s startup (see “DevContainer Integration” below).
 4. **CI/CD:** Before invoking Tilt or standalone Buildx commands, run the ensure script (`scripts/infra/ensure-buildx-k8s.sh`) so the builder exists.
 
+# Update (2026-01)
+
+Tilt is no longer part of the canonical Ameide workflow. Any Tilt / Tiltfile / `scripts/dev/start-tilt.sh` references below are preserved for historical context only.
+
 ## DevContainer Integration
 
-- The `postCreateCommand` invokes `scripts/infra/ensure-buildx-k8s.sh` after k3d reconciliation so the `ameide-k8s` builder exists before Tilt starts (see `backlog/354-devcontainer-tilt.md` for the full bootstrap sequence).
+- The `postCreateCommand` invokes `scripts/infra/ensure-buildx-k8s.sh` after k3d reconciliation so the `ameide-k8s` builder exists before image builds.
 - Tilt owns all image builds once it comes up; no additional Docker commands run in the bootstrap script. This keeps registry imports aligned with the `packages:registry-images` local_resource.
 - Principle: DevContainer scripts stop at provisioning prerequisites (cluster + builder). Helm/Tilt layers own every deployment and reconciliation step once the workspace is ready.
 - Optionally set `AMEIDE_BUILDX_BUILDER` or `AMEIDE_BUILDX_NAMESPACE` via environment variables in the DevContainer config if per-developer overrides are needed.
@@ -54,7 +58,7 @@ Docker builds executed from Tilt run inside BuildKit containers that live on Doc
 ## CI/CD Guidance
 
 - CI jobs that run Tilt or standalone Buildx builds must call `scripts/infra/ensure-buildx-k8s.sh` after authenticating to the cluster.
-- Developers launching Tilt manually run `scripts/dev/start-tilt.sh`, which now invokes the ensure script automatically.
+- **Legacy:** Developers used to launch Tilt manually via `scripts/dev/start-tilt.sh` (now removed). The current workflow uses Telepresence + the Ameide CLI for inner-loop iteration.
 - If CI uses a different namespace, pass `AMEIDE_BUILDX_NAMESPACE=<namespace>` to the script.
 - When pushing to remote registries, update `infra/docker/buildkitd.toml` accordingly or provide an alternative config via `AMEIDE_BUILDKITD_CONFIG`.
 

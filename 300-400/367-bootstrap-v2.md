@@ -207,7 +207,7 @@ Local development now uses the `local.ameide.io` domain so hostnames match the u
 
 ### Phase 3: Telepresence integration (⏳ Pending)
 8. ✅ **Create telepresence bootstrap config** – `infra/environments/dev/bootstrap-telepresence.yaml` defines the remote context (`ameide-stg-aks`), marks `gitops.skip: true`, and enables auto-connect (see [434](434-unified-environment-naming.md#epic-env-4)).
-9. ✅ **Wire online-telepresence mode** – `.devcontainer/postCreate.sh` now reads the telepresence config, persists mode via `~/.devcontainer-mode.env`, switches the kube context, sets `TILT_REMOTE=1`, and calls `tools/dev/telepresence.sh connect` when `autoConnect` is enabled (see [432](432-devcontainer-modes-offline-online.md#epic-dc-4)). The workflow is documented in `docs/dev-workflows/telepresence.md`.
+9. ✅ **Wire Telepresence dev loop** – **Update (2026-01):** devcontainer “modes” and `tools/dev/telepresence.sh` were removed. Telepresence is now driven by the Ameide CLI: `ameide dev inner-loop verify` then `ameide dev inner-loop up/down` (see [492](492-telepresence.md)).
 
 ### Phase 4: Domain and naming standardization (⏳ Pending)
 10. ✅ **Domain rename** – `tilt.ameide.io` → `local.ameide.io` across DNS helpers, Gateway listeners, cert-manager values, and Tilt-only Helm values (see [434](434-unified-environment-naming.md#epic-env-1)).

@@ -7,20 +7,24 @@
 
 > **Status – Active Canonical Workflow:** This is the authoritative reference for day-to-day development. We are now officially hybrid: AKS + Telepresence remains the default inner loop, while Terraform-driven local k3d (see [444-terraform.md](444-terraform.md)) is the supported fallback for offline/air-gapped scenarios. Both flows must reconcile to the same GitOps state.
 
-> **Update (2026-01):** The `*-tilt.yaml` values overlays and the parallel `*-tilt` Helm release pattern are deprecated. Use baseline releases and rely on Telepresence intercept filtering (per-agent header routing) to avoid hijacking shared traffic.
+> **Update (2026-01):** Tilt-based orchestration (`Tiltfile`, `scripts/dev/start-tilt.sh`, `tools/dev/telepresence.sh`, `scripts/telepresence/*`) is deprecated and removed from the core repo. Any Tilt references below are preserved for historical context only.
+>
+> Use baseline releases and rely on Telepresence intercept filtering (per-agent header routing) through the `ameide` CLI:
+> - `ameide dev inner-loop up|down|verify` (UI hot reload; stable ingress)
+> - `ameide dev inner-loop-test` (Unit → Integration → E2E verification)
 
 ## Overview
 
-Pivot from dual-mode (offline-full k3d + online-telepresence) to a single **AKS + Telepresence + Tilt** model:
+Pivot from dual-mode (offline-full k3d + online-telepresence) to a single **AKS + Telepresence + `ameide` CLI** model:
 
 1. **ameide-gitops** (`ameideio/ameide-gitops`) owns all infrastructure-as-code (Argo CD, Helm, environments, bootstrap)
-2. **ameide** (`ameideio/ameide`) owns first-party application code + Tilt + Telepresence tooling
+2. **ameide** (`ameideio/ameide`) owns first-party application code + the `ameide` CLI + Telepresence tooling
 3. **No local k3d cluster** - AKS dev cluster is the target
 
 ## Goals
 
 - **Single cluster strategy** - All development happens against shared AKS dev cluster
-- **Simpler DevContainer** - Just `telepresence connect` + `tilt up`
+- **Simpler DevContainer** - Just `ameide dev inner-loop up` (Telepresence handled internally)
 - **GitOps purity** - Infrastructure changes go through ameide-gitops PRs
 - **Faster inner loop** - Telepresence intercepts bypass image build/push/deploy cycle
 - **Reduced divergence** - No more k3d vs AKS configuration drift
@@ -250,10 +254,9 @@ The **isolation pattern** from backlogs 373 and 424 is preserved:
 
 ### Phase 2: Simplify DevContainer (Remove k3d)
 
-> **Status Update (2025-12-03):** DevContainer in ameide-gitops simplified. Telepresence workflow
-> documented in `scripts/devcontainer/README.md`. Helper script (DC-14) not yet created; CLI
-> installation (DC-15) uses cluster-side Traffic Manager (chart v2.25.1) but DevContainer-side
-> CLI install is pending.
+> **Status Update (2026-01):** DevContainer is remote-first. Tilt-based orchestration and the
+> `tools/dev/telepresence.sh` helper script were removed; Telepresence is now driven by the Ameide CLI
+> (`ameide dev inner-loop verify/up/down`), with strict verification via `ameide dev inner-loop-test`.
 
 | Task | Description | Owner | Status |
 |------|-------------|-------|--------|
@@ -261,7 +264,7 @@ The **isolation pattern** from backlogs 373 and 424 is preserved:
 | **DC-11** | Remove k3d feature from devcontainer.json | - | ✅ Done |
 | **DC-12** | Remove ArgoCD bootstrap logic (Argo lives in AKS, managed by gitops) | - | ✅ Done |
 | **DC-13** | Add AKS credential setup (az login + kubelogin) | - | ✅ Done |
-| **DC-14** | Create `tools/dev/telepresence.sh` helper script | - | ⏳ Workflow in README, script not created |
+| **DC-14** | Provide a single Telepresence entrypoint | - | ✅ Done (`ameide dev inner-loop verify/up/down`) |
 | **DC-15** | Install Telepresence CLI in Dockerfile | - | ⏳ Cluster-side ready, CLI install pending |
 | **DC-16** | Remove `.devcontainer/lib/k3d.sh` and related modules | - | ✅ Done |
 
@@ -278,39 +281,13 @@ az aks get-credentials --resource-group Ameide --name ameide --overwrite-existin
 kubelogin convert-kubeconfig -l azurecli
 kubectl config set-context ameide-dev --namespace=ameide-dev >/dev/null 2>&1 || true
 
-echo "✅ Ready! Run './tools/dev/telepresence.sh connect' to connect to the cluster."
+echo "✅ Ready! Run './ameide dev inner-loop verify' then './ameide dev inner-loop up'."
 ```
 
 > **Note:** `telepresence connect` is an explicit developer step, not run automatically in postCreate.
 > This lets developers see connection errors clearly and choose their namespace/context.
 
-**Helper script `tools/dev/telepresence.sh`:**
-```bash
-#!/bin/bash
-set -euo pipefail
-
-case "${1:-}" in
-  connect)
-    telepresence connect --context ameide-dev --namespace ameide-dev
-    ;;
-  intercept)
-    SERVICE="${2:?Usage: $0 intercept <service> [port]}"
-    PORT="${3:-3000:3000}"
-    telepresence intercept "$SERVICE" --context ameide-dev --namespace ameide-dev --port "$PORT" --env-file=.env.telepresence
-    echo "Run: source .env.telepresence && <your-dev-command>"
-    ;;
-  status)
-    telepresence status
-    ;;
-  quit)
-    telepresence quit
-    ;;
-  *)
-    echo "Usage: $0 {connect|intercept|status|quit}"
-    exit 1
-    ;;
-esac
-```
+`ameide dev inner-loop verify` is the canonical preflight (connect + header-filtered routing check), followed by `ameide dev inner-loop up` for UI hot reload.
 
 ### Phase 3: Adapt Tiltfile for Remote Cluster
 

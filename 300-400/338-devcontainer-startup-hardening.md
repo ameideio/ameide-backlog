@@ -1,6 +1,8 @@
 > Note: Chart and values paths are now under gitops/ameide-gitops/sources (charts/values); any infra/kubernetes/charts references below are historical.
 >
 > **Status – Archived:** The remote-first workflow in [435-remote-first-development.md](../435-remote-first-development.md) replaces this bootstrap entirely. Retain this document only when maintaining the legacy local k3d bootstrap (now managed by Terraform per [444-terraform.md](../444-terraform.md)). New work should default to the remote-first path.
+>
+> **Update (2026-01):** Tilt-based orchestration (Tiltfile, `scripts/dev/start-tilt.sh`, Tilt UI) is deprecated/removed from the canonical workflow. Any Tilt references below are preserved for historical context only.
 
 # DevContainer Startup Hardening _(partially archived)_
 
@@ -17,7 +19,7 @@ Related backlog:
 - backlog/355 – Secrets Layer Modularization (Layer 15 refactor)
 - backlog/360 – Secret Guardrail Enforcement (gap log + CI/health checks)
 
-Ensure that “Reopen in Container” delivers a ready-to-code environment with no manual recovery steps: the local k3d cluster mirrors the repo, Helmfile converges, and platform smoke tests pass before Tilt starts.
+Ensure that “Reopen in Container” delivers a ready-to-code environment with no manual recovery steps: the local k3d cluster mirrors the repo, Helmfile converges, and platform smoke tests pass before developers start their inner-loop workflows.
 
 ## Declarative Building Blocks
 
@@ -29,7 +31,7 @@ Ensure that “Reopen in Container” delivers a ready-to-code environment with 
 | Platform deployment | `infra/kubernetes/helmfile.yaml`, `infra/kubernetes/helmfiles/{10,15,20,…}.yaml`, `infra/kubernetes/scripts/helmfile-sync.sh` | Apply layered Helmfiles in order (namespace bootstrap → secrets & certificates → core operators → control plane → auth & SSO → package registries → core/extended data plane → product services → QA smoke tests). The sync script drives the layers sequentially so cross-layer dependencies such as `namespace` remain satisfied, and per-layer Helm smoke suites plus `helmfile status` gate the flow. |
 | Health gates | `infra/kubernetes/charts/helm-test-jobs/`, `infra/kubernetes/charts/platform-smoke/`, `infra/kubernetes/environments/*/platform/platform-smoke.yaml`, `infra/kubernetes/scripts/run-helm-layer.sh`, `infra/kubernetes/scripts/infra-health-check.sh` | Helm-native test jobs validate each layer (namespace, secrets, operators, control plane, auth & SSO, registries, core/extended data plane) plus the platform smoke chart. The shared runner (`run-helm-layer.sh`) performs the sync + test cycle, captures Helm output, and degrades “pod log missing” races to warnings so Tilt never hard-fails after a successful suite. |
 | Secret bootstrap | `foundation-vault-bootstrap` (CronJob), `infra/kubernetes/scripts/run-helm-layer.sh` + `scripts/infra/bootstrap-db-migrations-secret.sh` | Vault is initialized/unsealed/seeded in-cluster, and the helper script creates the `db-migrations-local` secret (Flyway URL/user/password) during the Layer 42 sync so migrations run without manual intervention after every container restart. |
-| Observability | `/home/vscode/.devcontainer-setup.log`, Tilt UI (`http://localhost:10350`) | Provide a single log stream and visual status once the bootstrap exits cleanly. |
+| Observability | `/home/vscode/.devcontainer-setup.log` | Provide a single log stream and visual status once the bootstrap exits cleanly. |
 
 ## Bootstrap Flow (postCreateCommand)
 
@@ -48,7 +50,7 @@ Ensure that “Reopen in Container” delivers a ready-to-code environment with 
    - Re-runs `helmfile status`; success triggers Tilt auto-start, failure surfaces remediation guidance and stops the flow.
 
 3. **Tilt bring-up**  
-   `scripts/dev/start-tilt.sh` launches Tilt in detached mode. The bootstrap checks `http://127.0.0.1:10350/api/status`; if the API is unreachable, the script exits non-zero so developers see the failure immediately.
+   > **Deprecated (2026-01):** Tilt is no longer part of the canonical workflow. Use `ameide dev inner-loop verify` / `ameide dev inner-loop up` for Telepresence-driven cluster iteration instead.
 
 ## Verification Checklist
 
@@ -58,7 +60,6 @@ Run after post-create or when troubleshooting drift:
 - `k3d cluster get ameide` + `docker ps | grep k3d-dev-reg` — ensure the cluster and embedded registry exist.
 - `helmfile -e local status` — confirms no pending releases.
 - `infra/kubernetes/scripts/infra-health-check.sh` — reruns the layered Helm smoke suites.
-- `curl http://127.0.0.1:10350/api/status` — verifies Tilt is serving.
 
 ## Operational Commands
 
@@ -79,7 +80,6 @@ Run after post-create or when troubleshooting drift:
 | `scripts/infra/ensure-k3d-cluster.sh` recreates endlessly | Hash mismatch (config edited) or registry container missing | Inspect diffs in `infra/docker/local/k3d.yaml`; ensure Docker daemon is running. |
 | Helmfile fails fetching charts (`repo . not found`, `no such file`) | Vendored archive missing/outdated or local chart path typo | Run `infra/kubernetes/scripts/vendor-charts.sh`, confirm the archive/CRDs are committed, and fix the Helmfile path. |
 | `platform-smoke` tests fail | DNS rewrite, registry, or ExternalSecret regression | Inspect job logs (`kubectl logs -n ameide job/<name>`), check CoreDNS config, registry pods, and Vault secret materialisation. |
-| Tilt API unreachable | Tilt failed to start or crashed | Tail `/home/vscode/tilt.log`; rerun `scripts/dev/start-tilt.sh`. |
 
 ## Status & Next Steps
 

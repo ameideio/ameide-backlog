@@ -6,18 +6,22 @@
 
 ## Problem
 
-Remote-first development depends on Telepresence for every inner-loop. When it breaks we lose the ability to debug or ship changes. The `tools/dev/telepresence.sh verify` helper exists, but we lacked a durable playbook that:
+Remote-first development depends on Telepresence for every inner-loop. When it breaks we lose the ability to debug or ship changes. We want a durable playbook for the canonical verification entrypoint:
 
-- Describes the exact assertions the helper makes.
-- Documents the environment variables that gate different modes (connect-only vs full intercept).
+- `ameide dev inner-loop verify`
+
+This playbook exists so we can:
+
+- Describe the exact assertions the CLI makes.
+- Document the environment variables that gate different modes (connect-only vs full intercept) where applicable.
 - Captures known failure signatures along with commands we expect engineers to run before escalating.
-- Defines how Tilt and CI surface errors quickly.
+- Define how CI surfaces errors quickly.
 
 ## Objectives
 
-1. **Deterministic verification** – `./tools/dev/telepresence.sh verify` should execute the same sequence locally, under Tilt (`tilt up verify-telepresence`), and in CI.
+1. **Deterministic verification** – `ameide dev inner-loop verify` should execute the same sequence locally and in CI environments that have Telepresence capabilities.
 2. **Actionable logging** – Every phase is timestamped, commands retry with backoff, and failures automatically emit `telepresence status`/`telepresence list` to the console.
-3. **Namespace-accurate intercepts** – The helper now re-connects with the requested namespace before every intercept (Telepresence v2.25 dropped the `--namespace` flag), so verification still covers staging/prod overrides instead of whichever context Telepresence cached previously.
+3. **Namespace-accurate intercepts** – The CLI uses `telepresence connect --context ... --namespace ... -- <cmd>` so intercepts inherit the correct namespace (Telepresence v2.25 removed `--namespace` from `intercept`).
 4. **Failure matrices** – When verification fails, the backlog links to the remediation steps (context bootstrap, RBAC drift, traffic-manager bugs).
 
 ## Prerequisites
@@ -25,10 +29,18 @@ Remote-first development depends on Telepresence for every inner-loop. When it b
 - **RBAC** – the developer must belong to the `Ameide Telepresence Developers` Entra group (or one of the principals passed through `developer_role_assignments`). Terraform/Bicep now create the group on demand and assign the built-in `Azure Kubernetes Service RBAC Writer` role to it, so membership is enough to call `kubectl`/Telepresence without bespoke role assignments.
 - **Capabilities** – Telepresence requires `CAP_NET_ADMIN` to program routing rules. Codespaces-based GitOps containers do not expose this capability, so run the helper from your host (or a devcontainer with NET_ADMIN enabled) when you need a full intercept. Inside GitOps you can still collect diagnostics (`kubectl`, traffic-manager logs) and mark the run as “connectivity-only”.
 - **Contexts** – contexts are bootstrapped via `tools/dev/bootstrap-contexts.sh` (backlog 491). Target selection is explicit:
-  - `TILT_TELEPRESENCE_TARGET=ameide-aks`: missing context → helper bootstraps AKS credentials (requires `az login --use-device-code` + `kubelogin`).
-  - `TILT_TELEPRESENCE_TARGET=ameide-local`: missing context → hard error with a single “run local bootstrap” command.
+  - `AMEIDE_TELEPRESENCE_TARGET=ameide-aks`: missing context → bootstrap AKS credentials (requires `az login --use-device-code` + `kubelogin`).
+  - `AMEIDE_TELEPRESENCE_TARGET=ameide-local`: missing context → hard error with a single “run local bootstrap” command.
 
-## Verification flow (helper script)
+## Verification flow (CLI)
+
+Run:
+
+```bash
+ameide dev inner-loop verify
+```
+
+Implementation detail: it runs the equivalent of the flow below (connect → status/list → header-filtered intercept → routing proof → cleanup).
 
 | Step | Command | Notes |
 |------|---------|-------|
@@ -36,11 +48,11 @@ Remote-first development depends on Telepresence for every inner-loop. When it b
 | 2 | `telepresence connect --context <ctx> --namespace <ns>` | Uses defaults from `TELEPRESENCE_CONTEXT/TELEPRESENCE_NAMESPACE` or overrides. |
 | 3 | `telepresence status` | First health probe; failure increments the internal counter but does not abort. |
 | 4 | `telepresence list` | Ensures workloads are visible before attempting intercepts. |
-| 5 | `telepresence intercept <svc> --port <mapping> --env-file <tmp> -- bash -lc "$TELEPRESENCE_VERIFY_SCRIPT"` | Skipped when `TELEPRESENCE_SKIP_INTERCEPT=1`. The helper re-runs `telepresence connect --context <ctx> --namespace <ns>` first so the session inherits the correct namespace, and retries once before failing. |
+| 5 | `telepresence intercept <workload> --mechanism http --http-header X-Ameide-Agent=<id> --port 3001:http -- <verify-cmd>` | CLI proves stable-ingress routing hits the intercepted process (not the baseline) by validating a marker response header/body. |
 | 6 | `telepresence leave <svc>` | Best-effort cleanup via a “safe leave” wrapper; “already removed” errors are treated as success. |
 | 7 | `telepresence quit -s` | Disconnect once verification completes. |
 
-All stdout/stderr gets prefixed with `[telepresence-helper] <timestamp>` so multiple runs are easy to correlate.
+All stdout/stderr is written under `artifacts/agent-ci/` for correlation.
 
 ## Service wiring preflight (Telepresence-safe ports)
 
@@ -55,13 +67,13 @@ Expected for the primary HTTP port: `http targetPort=http` (not `http targetPort
 
 Also confirm the Service is not headless (`clusterIP: None`). Headless Services may still trigger Telepresence’s iptables init-container path.
 
-## Workload policy (baseline vs Tilt)
+## Workload policy (baseline vs intercept targets)
 
 Telepresence intercepts require Traffic Agent injection. In our GitOps posture, injection is **opt-in**: the traffic-manager uses `agentInjector.injectPolicy=WhenEnabled`, so traffic-agent sidecars are only injected when the workload is explicitly annotated.
 
 Our GitOps contract is environment-specific:
 
-- **Local + dev:** pick explicit intercept targets (preferred: `*-tilt` Deployments) and set `telepresence.io/inject-traffic-agent: enabled` (or the chart’s `telepresence.injectTrafficAgent: enabled`) only on those targets.
+- **Local + dev:** pick explicit intercept targets (workloads annotated with `telepresence.io/inject-traffic-agent: enabled`) only on those targets.
 - **Staging + prod:** keep workloads non-interceptable by default; if a workload is explicitly interceptable, it must be reviewed and time-bounded.
 
 ## GitOps enforcement check (ArgoCD config)
@@ -80,7 +92,7 @@ In our setup, Applications typically include `RespectIgnoreDifferences=true`, so
 If you’re in the `ameide-gitops` repo, you can run the guardrail script:
 
 ```bash
-NAMESPACE=ameide-local WORKLOAD=www-ameide-platform ./scripts/verify-telepresence-gitops-guardrails.sh
+NAMESPACE=ameide-local WORKLOAD=www-ameide-platform ./gitops/ameide-gitops/scripts/verify-telepresence-gitops-guardrails.sh
 ```
 
 GitOps posture reference (traffic-agent injection is opt-in):
@@ -92,15 +104,9 @@ GitOps posture reference (traffic-agent injection is opt-in):
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `TILT_TELEPRESENCE_TARGET` | `ameide-aks` | Selects which cluster the helper targets: `ameide-aks` or `ameide-local`. |
-| `TELEPRESENCE_TARGET` | (inherits) | Like `TILT_TELEPRESENCE_TARGET`, but for direct script use (Tilt sets `TILT_TELEPRESENCE_TARGET`). |
-| `TELEPRESENCE_CONTEXT` | target-derived | Cluster context to connect to. If missing and target is `ameide-aks`, the helper attempts `tools/dev/bootstrap-contexts.sh --target ameide-aks`. |
+| `AMEIDE_TELEPRESENCE_TARGET` | `ameide-aks` | Selects which cluster is targeted (`ameide-aks` or `ameide-local`). |
+| `TELEPRESENCE_CONTEXT` | target-derived | Cluster context to connect to. Bootstrap writes defaults into `~/.config/ameide/context.env`. |
 | `TELEPRESENCE_NAMESPACE` | target-derived | Namespace passed to `telepresence connect`. |
-| `TELEPRESENCE_VERIFY_WORKLOAD` | `www-ameide` (falls back to `TELEPRESENCE_DEFAULT_WORKLOAD`) | Target workload used for the intercept test. |
-| `TELEPRESENCE_VERIFY_PORT` | `3000:3000` (`DEFAULT_PORT`) | Local→remote port mapping for the verify intercept. |
-| `TELEPRESENCE_VERIFY_SCRIPT` | `echo telepresence-verify && sleep 1` | Command executed inside the intercept shell to prove envs propagate. Override to run service-specific smoke tests. |
-| `TELEPRESENCE_VERIFY_ENV_ROOT` | `${TELEPRESENCE_ENV_ROOT:-.telepresence-envs}` | Directory storing temporary env files for verify runs. |
-| `TELEPRESENCE_SKIP_INTERCEPT` | unset | When set (any value), verification stops after status/list. |
 
 ### Organization slug invariants
 
@@ -122,24 +128,24 @@ kubectl -n ${TELEPRESENCE_NAMESPACE:-ameide-dev} get role traffic-manager -o yam
 kubectl auth can-i --as system:serviceaccount:${TELEPRESENCE_NAMESPACE:-ameide-dev}:traffic-manager create pods/eviction -n ${TELEPRESENCE_NAMESPACE:-ameide-dev}
 ```
 
-If either command fails, sync `*-traffic-manager`, fix the RBAC templates under `sources/charts/third_party/telepresence/telepresence/2.25.1/`, and rerun verify. RBAC regressions show up in the helper’s failure matrix under the “intercept failed” row, but this fast check gives immediate signal in dev shells and CI logs.
+If either command fails, sync `*-traffic-manager`, fix the RBAC templates under `sources/charts/third_party/telepresence/telepresence/2.25.1/`, and rerun verify. RBAC regressions show up in the CLI’s failure matrix under the “intercept failed” row, but this fast check gives immediate signal in dev shells and CI logs.
 
 ## Failure signatures and remediation
 
-| Signature | Helper output | Most likely cause | Actions |
+| Signature | CLI output | Most likely cause | Actions |
 |-----------|---------------|-------------------|---------|
 | `kube context 'ameide-dev' not found` | Logged during `ensure_context_exists` | DevContainer lost AKS credentials | Run `tools/dev/bootstrap-contexts.sh` or `az aks get-credentials --resource-group Ameide --name ameide`. |
 | `telepresence connect verification failed` | Connect step exits non-zero | Azure credentials expired / traffic-manager unreachable | `az login --use-device-code`, then re-run verify. Inspect `kubectl -n ameide-dev logs deploy/traffic-manager`. |
-| `dial to socket /var/run/telepresence-daemon.socket failed ... permission denied` | Connect step fails before status/list | Stale Telepresence daemon socket in `/var/run` (locked-up root daemon, often after container restarts) | Run `sudo rm -f /var/run/telepresence-daemon.socket` (DevContainer) then retry. The helper also attempts this recovery automatically when it detects the signature. |
+| `dial to socket /var/run/telepresence-daemon.socket failed ... permission denied` | Connect step fails before status/list | Stale Telepresence daemon socket in `/var/run` (locked-up root daemon, often after container restarts) | Run `sudo rm -f /var/run/telepresence-daemon.socket` (DevContainer) then retry. The `ameide` CLI also attempts best-effort cleanup via `sudo -n` before connecting. |
 | `telepresence status command failed` + `list` fails | Telepresence daemon stuck | `telepresence quit -s` then retry; escalate if daemon keeps crashing. |
 | `intercept ... failed (context=X, namespace=Y)` | Intercept error block with `status/list` dumps | RBAC regression, workload not interceptable in this env, traffic-manager bug | `kubectl auth can-i --as <telepresence SA> create pods/eviction -n <ns>`, verify the workload is explicitly interceptable (`telepresence.io/inject-traffic-agent: enabled`) and not force-disabled, capture traffic-manager logs. |
 | `curl 127.0.0.1:<port>/healthz` works but `curl <podIP>:<port>/healthz` hangs (or probes flap after intercept) | Often surfaces as ArgoCD **Synced** but **Progressing** | Service `targetPort` is numeric and Telepresence uses iptables redirects that catch Pod-IP probe traffic | Convert the Service to `targetPort: <portName>` (named), restart the workload, and re-run the intercept. |
 | `connector.CreateIntercept: ... no active session` + daemon logs `exec: "iptables": executable file not found in $PATH` | DevContainer doesn’t have `iptables`, so the root daemon can’t program DNS/routing | Install `iptables` (e.g., `sudo apt-get update && sudo apt-get install -y iptables`) inside the DevContainer; re-run verify once packages are present. |
-| `telepresence intercept: error: unknown flag: --namespace` | Happens immediately after the CLI upgrade | Telepresence >=2.25 removed `--namespace` (and `--context`) flags from `intercept` | Update to the latest `tools/dev/telepresence.sh`, which now re-establishes the session via `telepresence connect --context ... --namespace ...` before starting the intercept. |
+| `telepresence intercept: error: unknown flag: --namespace` | Happens immediately after the CLI upgrade | Telepresence >=2.25 removed `--namespace` (and `--context`) flags from `intercept` | Don’t pass `--namespace` to `telepresence intercept`. Use `ameide dev inner-loop verify` (it uses `telepresence connect --namespace ... -- <cmd>` so the session inherits the correct namespace). |
 | `no active session` | `rpc error: code = Unavailable desc = no active session` | Known upstream bug tracked in reliability backlog | Collect logs, reference NO-SESSION-1 in [492-telepresence-reliability.md](492-telepresence-reliability.md#known-issues-dec-2025). |
 | `connector.Connect: NewTunnelVIF: netlink.RuleAdd: operation not permitted` | Immediate failure during the connect step | Environment lacks `CAP_NET_ADMIN` (GitOps devcontainer) | Run the helper from a shell that exposes NET_ADMIN (host, privileged devcontainer). You can still capture `kubectl` + traffic-manager diagnostics inside GitOps, but mark the run as “connectivity only” and skip intercept assertions. |
 | `connector.CreateIntercept: rpc error: code = DeadlineExceeded desc = context deadline exceeded` (local) | Intercept times out on `ameide-local` | k3d/k3s control-plane can’t reach Telepresence admission webhook due to default-deny `NetworkPolicy/deny-cross-environment` | Fix the cluster policy (preferred), or as a stopgap run `tools/dev/bootstrap-contexts.sh --target ameide-local` which applies a narrow `NetworkPolicy/allow-control-plane-webhooks` for Telepresence. |
-| `Envoy env vars missing` | Service runner fails fast with `AMEIDE_ENVOY_URL/NEXT_PUBLIC_ENVOY_URL not found` | GitOps values missing `services.www_ameide_platform.envoy.url` or `NEXT_PUBLIC_ENVOY_URL` | Update values, re-sync Argo, and rerun the Tilt service so `.telepresence-envs/www-ameide-platform.env` contains the Envoy endpoints. |
+| `Envoy env vars missing` | Service runner fails fast with `AMEIDE_ENVOY_URL/NEXT_PUBLIC_ENVOY_URL not found` | GitOps values missing `services.www_ameide_platform.envoy.url` or `NEXT_PUBLIC_ENVOY_URL` | Update values, re-sync Argo, and rerun `ameide dev inner-loop up`. |
 
 ## Escalation bundle
 
@@ -155,20 +161,18 @@ Attaching these files to the incident (or linking them in #platform-devx) gives 
 
 ## Automation hooks
 
-- **Tilt** – `tilt up verify-telepresence` invokes the helper with the same env vars used for service resources. The Tilt UI surfaces pass/fail alongside other local resources. Service resources themselves now run through `scripts/telepresence/intercept_service.sh` + `scripts/telepresence/run_service.sh`, so env-file logging and required-variable enforcement are consistent across verify and dev flows.
-- **CI (future)** – Add a lightweight GitHub Actions job that runs `./tools/dev/telepresence.sh verify --context ameide-dev --namespace ameide-dev` with `TELEPRESENCE_SKIP_INTERCEPT=1` to catch kube context drift without requiring intercept permissions in CI.
+- **CI (future)** – Add a lightweight GitHub Actions job that runs `ameide dev inner-loop verify` (or a connect-only smoke check, if CI cannot run full intercept due to missing `CAP_NET_ADMIN`) to catch kube context drift without requiring application changes.
 - **Observability** – Because every log line already includes ISO timestamps, we can redirect helper output to Loki/Grafana once we emit JSON lines (see reliability backlog for telemetry follow-ups).
 
 ## Acceptance criteria
 
 1. Documentation reflects the namespace-aware intercept changes (Dec 2025) and the upstream removal of the `--namespace` flag.
 2. Engineers can follow this playbook to triage Telepresence failures without pinging platform immediately.
-3. Tilt resource docs link here so future onboarding references a single source of truth.
+3. Onboarding docs link here so future onboarding references a single source of truth.
 4. Reliability backlog references this file for verification details instead of re-describing the same flow.
 
 ## References
 
-- `tools/dev/telepresence.sh` (verify implementation)
 - [435-remote-first-development.md](435-remote-first-development.md) (canonical DevContainer + Telepresence workflow)
 - [491-auto-contexts.md](491-auto-contexts.md)
 - [492-telepresence-reliability.md](492-telepresence-reliability.md)

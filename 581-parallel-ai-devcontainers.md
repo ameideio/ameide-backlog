@@ -131,9 +131,10 @@ Reference: [VS Code Dev Containers - Persist bash history](https://code.visualst
   - `.devcontainer/agent/devcontainer.json`: agent config, sets `AMEIDE_BOOTSTRAP_PROFILE=agent` and sets `AMEIDE_AGENT_ID=${localWorkspaceFolderBasename}`.
 - Bootstrap:
   - `.devcontainer/postCreate.sh` uses `AMEIDE_BOOTSTRAP_PROFILE` and skips remote context bootstrapping when `AMEIDE_BOOTSTRAP_PROFILE=agent` to avoid repeated side effects.
-- Telepresence wrappers:
-  - `scripts/telepresence/intercept_service.sh` uses agent-aware intercept naming and optional HTTP filtering (`AMEIDE_TELEPRESENCE_HTTP_FILTER=1`).
-  - `tools/dev/telepresence.sh intercept` mirrors the same agent-aware naming/filtering behavior.
+- Telepresence entrypoint:
+  - **Update (2026-01):** bash wrappers were removed; use the Ameide CLI as the single entrypoint:
+    - `ameide dev inner-loop verify` (Telepresence + header-filtered routing)
+    - `ameide dev inner-loop up/down` (UI hot reload + intercept)
 
 ## Acceptance criteria
 

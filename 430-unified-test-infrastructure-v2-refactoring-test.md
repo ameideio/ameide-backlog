@@ -15,7 +15,7 @@ Implement 430v2 end-to-end so that:
 
 - all tests (unit/integration/e2e) run under `ameide dev inner-loop-test`
 - Phase 1/2 are local-only and use native tooling (no packs/scripts, no modes)
-- Phase 3 is cluster-only and Playwright-only (Telepresence/Tilt harness)
+- Phase 3 is cluster-only and Playwright-only (Telepresence harness)
 - JUnit XML is produced for every phase, always (synthetic JUnit on early failure)
 
 Target contract: `backlog/430-unified-test-infrastructure-v2-target.md`
@@ -40,7 +40,7 @@ Update `ameide dev inner-loop-test` to:
   - Jest integration suite (repo-wide convention)
   - Pytest integration suite (repo-wide convention)
 - Phase 3:
-  - Telepresence/Tilt preflight + cleanup
+  - Telepresence preflight + cleanup
   - Playwright only
 
 Evidence contract:
@@ -95,4 +95,4 @@ After the repo is migrated and CI gates are green:
 - All phases emit JUnit XML evidence into a stable artifacts structure.
 - No test requires `INTEGRATION_MODE` to run.
 - No test requires `run_integration_tests.sh` to run in Phase 1/2.
-- Phase 3 is the only phase that can touch Telepresence/Tilt/Kubernetes.
+- Phase 3 is the only phase that can touch Telepresence/Kubernetes.

@@ -52,7 +52,12 @@ Re-run manually with `bash tools/dev/bootstrap-contexts.sh` if you blow away `~/
 
 ### 2. Telepresence defaults
 
-`tools/dev/telepresence.sh` remains the entry point, but the context defaults now come from `~/.config/ameide/context.env`, which `tools/dev/bootstrap-contexts.sh` writes and `.bashrc` sources automatically. The helper reads `TELEPRESENCE_CONTEXT`/`TELEPRESENCE_NAMESPACE`, so overriding them before calling `./tools/dev/telepresence.sh connect` switches environments with no further setup. The helper now refuses to run on Linux when Telepresence prerequisites (`iptables` for DNS/routing) are missing, and the DevContainer image + `postCreate.sh` ensure both `iptables` and `sshfs` are installed before bootstrap runs so remote env mounts/DNS work immediately. The lifecycle of this script (connect, intercept, verification, logging) is tracked in [492-telepresence.md](492-telepresence.md).
+Telepresence context defaults come from `~/.config/ameide/context.env`, which `tools/dev/bootstrap-contexts.sh` writes and `.bashrc` sources automatically. The `ameide` CLI consumes these defaults to run Telepresence connect/intercept as part of:
+
+- `ameide dev inner-loop up|down|verify`
+- `ameide dev inner-loop-test` (Phase 3)
+
+The DevContainer image + `postCreate.sh` ensure Telepresence prerequisites (`iptables` for DNS/routing and `sshfs`) are installed so intercepts work immediately. Operational troubleshooting remains tracked in [492-telepresence.md](492-telepresence.md).
 
 ### 3. Argo CD CLI contexts
 
@@ -86,7 +91,7 @@ trap cleanup_argocd_pf EXIT
 
 2. Run `argocd app list` without additional login steps.
 
-3. Intercept a service via `./tools/dev/telepresence.sh intercept www-ameide-platform 3000:3000` and verify traffic reaches the local process.
+3. Verify Telepresence + routing via `ameide dev inner-loop verify` and confirm `https://platform.local.ameide.io` is reachable with the printed routing header.
 
 4. Kill the port-forward (`pkill -f 'argocd-server 8443:443'`) and ensure the cleanup trap prevents orphaned processes.
 
