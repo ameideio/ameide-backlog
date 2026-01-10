@@ -54,8 +54,8 @@ These commands:
 3) **Phase 3: E2E** (cluster only, Playwright only)
 
 Invariants:
-- Phase 1 and Phase 2 **must not** interact with Kubernetes, Tilt, or Telepresence.
-- Cluster wiring (Telepresence/Tilt preflight/cleanup) is **Phase 3 only**.
+- Phase 1 and Phase 2 **must not** interact with Kubernetes or Telepresence.
+- Cluster wiring (Telepresence preflight/cleanup) is **Phase 3 only**.
 - Phase 0 must be able to prove the contract using vendor tooling “discovery/collect/list” capabilities and must emit JUnit evidence (synthetic if needed).
 
 ---
@@ -65,7 +65,7 @@ Invariants:
 ### Unit (Phase 1)
 
 - Local only; deterministic; fast.
-- No Kubernetes / Tilt / Telepresence.
+- No Kubernetes / Telepresence.
 - No network calls to “real” dependencies.
 - Uses the default unit runner for the language/tooling.
 
@@ -73,7 +73,7 @@ Invariants:
 
 - Local only.
 - Tests boundaries (serialization, adapters, client/server seams) against **mocks/stubs/in-memory fakes**.
-- No Kubernetes / Tilt / Telepresence.
+- No Kubernetes / Telepresence.
 - **No environment-driven branching** inside tests (“mode”). A test either belongs in Phase 2 or it does not exist.
 
 ### E2E (Phase 3)
@@ -81,7 +81,7 @@ Invariants:
 - Cluster only; remote-first.
 - **Playwright only**.
 - Playwright hits a real base URL (cluster ingress/gateway).
-- Telepresence/Tilt is allowed only as part of the Phase 3 harness (preflight + routing + cleanup).
+- Telepresence is allowed only as part of the Phase 3 harness (preflight + routing + cleanup).
 
 ---
 

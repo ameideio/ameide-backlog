@@ -5,8 +5,9 @@
 > This document describes the **dual-mode approach** (offline-full + online-telepresence).
 > The project is migrating to a **single remote-first mode** where:
 > - **No offline mode** – All development connects to shared remote AKS cluster
-> - **No local k3d** – DevContainer only needs telepresence + Tilt
+> - **No local k3d** – DevContainer only needs Telepresence prerequisites (Tilt removed)
 > - Infrastructure code moved to `ameide-gitops` repo
+> - Telepresence workflows are owned by the Ameide CLI (`ameide dev inner-loop verify/up/down`)
 >
 > See [435-remote-first-development.md](435-remote-first-development.md) for the new approach.
 
@@ -25,7 +26,7 @@
 
 ## Goals
 - Give contributors a predictable k3d-based DevContainer that provisions the full dev stack (Argo, GitOps apps, local registry, waits, and image builds) without special casing subsets.
-- Support an "online-telepresence" workflow that skips local cluster bootstrap, assumes a healthy remote AKS dev cluster, and lets Tilt/Telepresence target that context for rapid service iteration.
+- Support an "online-telepresence" workflow that skips local cluster bootstrap, assumes a healthy remote AKS dev cluster, and lets Telepresence + the Ameide CLI target that context for rapid service iteration.
 - Preserve the `*-tilt` split so locally-built services never fight Argo reconciliation, regardless of mode.
 
 ## Implementation Status: ✅ Offline full + Online telepresence
@@ -65,9 +66,9 @@ ApplicationSet (environments/dev/argocd/apps/ameide.yaml)
 - Runs in the DevContainer by default (`.devcontainer/postCreate.sh` without args).
 
 ### Online-telepresence
-- Loads `infra/environments/dev/bootstrap-telepresence.yaml`, persists the mode in `~/.devcontainer-mode.env`, and switches `kubectl` to the remote AKS context (`ameide-stg-aks`).
-- Installs the Telepresence CLI and calls `tools/dev/telepresence.sh connect --context <ctx> --namespace ameide` when `autoConnect: true`.
-- Sets `DEV_REMOTE_CONTEXT`/`TILT_REMOTE=1` so Tilt pushes to the staging repositories in GitHub Container Registry (`ghcr.io/ameideio/...`) and restricts allowed contexts to the AKS cluster.
+- **Update (2026-01):** Devcontainer “modes” were removed to reduce cognitive load. Remote-first dev uses a single bootstrap path + the Ameide CLI.
+- Installs the Telepresence CLI; the `ameide` CLI owns Telepresence connect/intercept as part of `ameide dev inner-loop up|down|verify` and `ameide dev inner-loop-test`.
+- Tilt-based orchestration is deprecated/removed from the core repo; do not rely on `TILT_REMOTE` or a repo `Tiltfile` as part of the remote-first workflow.
 - Documents the workflow in `docs/dev-workflows/telepresence.md`.
 
 ### Retired: Offline-minimal
@@ -89,9 +90,9 @@ ApplicationSet (environments/dev/argocd/apps/ameide.yaml)
 
 > **Note:** This epic is aligned with [434-unified-environment-naming.md](434-unified-environment-naming.md#epic-env-3) for telepresence implementation.
 
-- **DC-30 – Devcontainer bootstrap for online-telepresence** ✅ `.devcontainer/postCreate.sh` persists the mode, switches contexts, and logs mode selection.
-- **DC-31 – Telepresence connect helper** ✅ `tools/dev/telepresence.sh` wraps `telepresence connect|leave|status`, and the CLI is installed automatically inside the devcontainer.
-- **DC-32 – Tilt remote toggle (`TILT_REMOTE`)** ✅ `Tiltfile` reads `TILT_REMOTE=1`, restricts allowed contexts to AKS, and defaults the registry host to `ghcr.io/ameideio` so `registry_image()` pushes remote tags.
+- **DC-30 – Devcontainer bootstrap for online-telepresence** ✅ **Update (2026-01):** modes removed; devcontainer no longer persists mode files.
+- **DC-31 – Telepresence connect helper** ✅ Telepresence is installed automatically inside the DevContainer; `ameide dev inner-loop verify` and `ameide dev inner-loop up` are the canonical workflows.
+- **DC-32 – Tilt remote toggle (`TILT_REMOTE`)** ⚠️ Deprecated: Tilt-based workflows are removed from the core repo (historical context only).
 - **DC-33 – Telepresence bootstrap config** ✅ `infra/environments/dev/bootstrap-telepresence.yaml` describes the AKS context and auto-connect settings; `postCreate.sh` consumes it.
 
 **Blocker:** Remote AKS cluster must be migrated to `ameide-gitops` structure before telepresence mode is fully functional. See [434 Migration Needed](434-unified-environment-naming.md#migration-needed) for the cluster-side work.

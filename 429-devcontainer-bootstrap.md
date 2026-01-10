@@ -542,13 +542,18 @@ Potential follow-ups:
 
 ### Telepresence mode ([432](432-devcontainer-modes-offline-online.md), [434](434-unified-environment-naming.md))
 
-`online-telepresence` now loads `infra/environments/dev/bootstrap-telepresence.yaml`, persists the mode in `~/.devcontainer-mode.env`, sets `DEV_REMOTE_CONTEXT`/`TILT_REMOTE=1`, installs the Telepresence CLI, and invokes `tools/dev/telepresence.sh connect --context ameide-staging --namespace ameide-staging` when `autoConnect` is enabled. Tilt uses those env vars to push images to GitHub Container Registry (`ghcr.io/ameideio/...`) and restricts kube contexts to the AKS staging namespace. See [docs/dev-workflows/telepresence.md](../docs/dev-workflows/telepresence.md) for the end-to-end workflow.
+> **Update (2026-01):** The Tilt-based “devcontainer modes” and `tools/dev/telepresence.sh` helper script are deprecated/removed.
+> Telepresence is now driven by the Ameide CLI, and the dev UX is intentionally “no flags, no modes”.
 
-The helper at `tools/dev/telepresence.sh` now includes a `verify` mode that logs timestamped status, auto-creates missing kube contexts via `az aks get-credentials`, and optionally exercises a full intercept (`TELEPRESENCE_VERIFY_WORKLOAD`, defaults to `www-ameide`). When an intercept fails (e.g., “no active session”), the script automatically dumps `telepresence status` and `telepresence list` before exiting non-zero so failures surface in `tilt up verify-telepresence`. Use `TELEPRESENCE_SKIP_INTERCEPT=1` if you need a connectivity-only health check. The broader roadmap for this tooling (connectivity, intercept hygiene, observability) lives in [492-telepresence.md](492-telepresence.md).
+Current contract:
+- Bootstrap kube contexts once via `tools/dev/bootstrap-contexts.sh`.
+- Use `ameide dev inner-loop verify` to validate Telepresence + header-filtered intercept routing.
+- Use `ameide dev inner-loop up/down` for cluster-only UI hot reload.
+- Use `ameide dev inner-loop-test` for strict phase gating with JUnit evidence (Phase 0 → 3).
 
 ### Domain rename ([434](434-unified-environment-naming.md))
 
-The domain rename from `tilt.ameide.io` → `local.ameide.io` is complete. Gateway listeners, cert-manager SANs, and the Tilt-only Helm values all reference `*.local.ameide.io`; host-level dnsmasq helpers were removed now that we rely on the remote AKS cluster + Telepresence. See [367-bootstrap-v2.md](367-bootstrap-v2.md#38-domain-naming) for the authoritative list.
+The domain rename from `tilt.ameide.io` → `local.ameide.io` is complete. Gateway listeners and cert-manager SANs reference `*.local.ameide.io`; host-level dnsmasq helpers were removed now that we rely on the remote AKS cluster + Telepresence. See [367-bootstrap-v2.md](367-bootstrap-v2.md#38-domain-naming) for the authoritative list.
 
 ### Remote AKS bootstrap ([367](367-bootstrap-v2.md))
 

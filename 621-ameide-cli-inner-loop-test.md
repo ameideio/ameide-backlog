@@ -35,7 +35,7 @@ CI uses a sibling command that runs the same contract phases without cluster E2E
 
 - `backlog/468-testing-front-door.md` (front-door testing entrypoints; this backlog adds an agent-optimized inner-loop tool)
 - `backlog/430-unified-test-infrastructure-v2-target.md` (normative test contract: phases, native tooling, JUnit evidence)
-- `backlog/435-remote-first-development.md` (Tilt + Telepresence as the default cluster dev substrate)
+- `backlog/435-remote-first-development.md` (Telepresence as the default cluster dev substrate)
 - `backlog/581-parallel-ai-devcontainers.md` (parallel agent slots; header-filtered intercepts)
 - `.github/workflows/ci-core-quality.yml` (authoritative CI quality gate for PRs)
 
@@ -51,11 +51,6 @@ This backlog item is now **implemented** as a first-class Go CLI command:
   - Phase 1: `packages/ameide_core_cli/internal/innerloop/phase1.go`
   - Phase 2: `packages/ameide_core_cli/internal/innerloop/phase2.go`
   - Phase 3: `packages/ameide_core_cli/internal/innerloop/phase3_runner.go` + `packages/ameide_core_cli/internal/innerloop/phase3_*.go`
-- Tilt orchestration (Phase 3):
-  - `Tiltfile` resource `e2e-playwright-ci` runs the hidden CLI runner:
-    - Implementation detail: the CLI re-execs itself in small, hidden “phase3 scope” entrypoints so Telepresence can run a concrete process `-- <command>` while connected/intercepted.
-
-Legacy bash runner scripts remain in-tree for reference and parity comparison (do not delete yet):
 
 Legacy runner scripts have been removed; the canonical entrypoints are the CLI commands above.
 
@@ -87,7 +82,7 @@ Canonical tasks (toolchains directly):
   - Lockfile-aware install by detection: `pnpm install --frozen-lockfile` only when needed
   - `pnpm lint`
   - `pnpm typecheck`
-  - `pnpm test:unit`
+  - Jest unit suite (repo-wide `__tests__/unit/**`; orchestrated by the CLI with JUnit evidence)
 - **Python**
   - Lockfile-hash-aware venv sync by detection: `uv sync --all-packages --dev` only when needed
   - `uvx ruff check …` (targeted packages)
@@ -95,7 +90,7 @@ Canonical tasks (toolchains directly):
 - **Go**
   - `go test ./...` (default tags only; integration-tagged tests are excluded by Go build constraints)
 
-**Invariant:** Phase 1 must not require `kubectl`, `telepresence`, or `tilt`.
+**Invariant:** Phase 1 must not require `kubectl` or `telepresence`.
 
 ### Phase 2 — Integration tests (local mocked/stubbed only)
 
@@ -103,20 +98,20 @@ Canonical tasks (toolchains directly):
 
 Execution rules (opinionated, fail-fast):
 
-- No Kubernetes / Tilt / Telepresence.
+- No Kubernetes / Telepresence.
 - No environment “mode” variables (no `INTEGRATION_MODE`).
 - Use native tooling selectors per language (430v2):
   - **Go:** `go test -tags=integration ./...`
   - **Jest/TS:** repo-wide selection for `__tests__/integration/**` via Jest config
   - **Pytest/Python:** `@pytest.mark.integration` selection via pytest config
 
-### Phase 3 — E2E (cluster; Tilt + Telepresence + Playwright)
+### Phase 3 — E2E (cluster; Telepresence + Playwright)
 
 **Goal:** run Playwright E2E against a stable URL while validating local changes via Telepresence intercepts.
 
 Constraints / invariants:
 
-- Only Phase 3 may touch `kubectl`, `telepresence`, `tilt`.
+- Only Phase 3 may touch `kubectl` and `telepresence`.
 - Parallel-safe routing is mandatory:
   - Require Telepresence **HTTP header filtered** intercepts (`--http-header "X-Ameide-Agent=<id>"`)
   - Hard-fail if header filtering is unavailable (no global intercept fallback)
@@ -130,18 +125,15 @@ Constraints / invariants:
 
 Vendor-aligned orchestration shape:
 
-- Phase 3 invokes `tilt ci … -- --resources e2e-playwright-ci`
-- Tilt runs the hidden CLI runner:
-- which scopes `telepresence connect -- <cmd>` and `telepresence intercept -- <cmd>`
-  - (Implementation detail: Telepresence requires a process entrypoint; this is not a user-facing “mode” and is not part of the public contract.)
+- Phase 3 scopes `telepresence connect -- <cmd>` and `telepresence intercept -- <cmd>` via hidden CLI entrypoints.
+  - (Implementation detail: Telepresence requires a process entrypoint; these are hidden commands, not user-facing “modes”.)
 
 Prerequisites (must be explicit; no guesswork):
 
-- `tilt` installed and usable.
 - `telepresence` installed and compatible with header-filtered intercepts (Telepresence/traffic-manager >= 2.25).
 - A reachable Kubernetes context/namespace with the target workload (`www-ameide-platform`) and sidecar injection enabled.
 - Playwright test secrets present in-cluster (e.g., `playwright-int-tests-secrets` in the configured namespace).
-- E2E ingress host is fixed: `https://platform.local.ameide.io/` (Phase 3 must fail fast if ingress/auth prerequisites are missing).
+- E2E ingress host is fixed: `https://platform.local.ameide.io` (Phase 3 must fail fast if ingress/auth prerequisites are missing).
 
 Failure behavior:
 - If any prerequisite is missing, Phase 3 fails fast with an actionable message and still emits JUnit evidence under the run root.

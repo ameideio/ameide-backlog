@@ -4,14 +4,16 @@
 **Intent:** Fix the upstream connection resets on `/login`, reduce 70+ second SSR compilation times, and eliminate `/healthz` JSON parse errors. Root causes are blocking Redis/RPC operations in the SSR path, missing error handling, and layout coupling.
 
 > **Update (597):** Tenant routing for user traffic is issuer-first (OIDC `iss` issuer URL → server-side `issuer → tenant_id` mapping). Do not treat org discovery TIMEOUT as EMPTY (no `return []` on timeout); surface TIMEOUT/ERROR explicitly to avoid misrouting users into onboarding.
+>
+> **Update (2026-01):** Tilt-only releases (`*-tilt`) are deprecated/removed. Any references below to “Tilt” or `apps-*-tilt` workloads are preserved for historical context only.
 
 ---
 
 ## Symptoms
 
-1. **`/login` upstream resets:** Envoy logs show `upstream_reset_before_response_started{connection_termination}` for `/login` requests to both `platform.dev.ameide.io` (Argo baseline) and `platform.local.ameide.io` (Tilt).
+1. **`/login` upstream resets:** Envoy logs show `upstream_reset_before_response_started{connection_termination}` for `/login` requests to both `platform.dev.ameide.io` (Argo baseline) and `platform.local.ameide.io` (dev cluster / intercept).
 
-2. **70+ second compilation:** First request to `/login` on Tilt takes 70-90 seconds due to cascading SSR operations (Redis connect, org fetch, dynamic imports).
+2. **70+ second compilation:** First request to `/login` during a dev inner-loop intercept can take 70-90 seconds due to cascading SSR operations (Redis connect, org fetch, dynamic imports).
 
 3. **`/healthz` JSON error:** Occasional `SyntaxError: Unexpected end of JSON input` at `/healthz`, causing probe failures.
 

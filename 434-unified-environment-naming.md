@@ -475,21 +475,23 @@ To align with the new structure, the remote cluster needs:
 
 - **ENV-31 – Create telepresence connect helper script** ✅ Completed
 
-  `tools/dev/telepresence.sh` exposes `connect|leave|status`, defaults to context `ameide-dev` (override with `TELEPRESENCE_CONTEXT`) / namespace `ameide-dev`, and is invoked automatically from `postCreate.sh`.
+  > **Update (2026-01): Deprecated/removed.** The bash helper script was a v1 implementation detail and has been replaced by the Ameide CLI.
+  >
+  > Current entrypoint: `ameide dev inner-loop verify` (Telepresence + header-filtered routing), then `ameide dev inner-loop up/down` for UI hot reload.
 
 - **ENV-32 – Wire telepresence into online-telepresence mode** ✅ Completed
-  - `.devcontainer/postCreate.sh` reads the telepresence config, writes `~/.devcontainer-mode.env`, switches the kube context to whichever `ameide-{env}` context is requested (default `ameide-dev`), and auto-connects via `tools/dev/telepresence.sh` when `autoConnect: true`.
-  - Tilt picks up `DEV_REMOTE_CONTEXT`/`TILT_REMOTE=1` so remote registries/hosts are wired automatically.
+  > **Update (2026-01): Deprecated/removed.** Devcontainer “modes” were removed to reduce cognitive load.
+  >
+  > The devcontainer bootstraps kube contexts and installs Telepresence prerequisites, but does not persist modes or auto-connect.
 
 - **ENV-33 – Configure Tilt for remote mode (TILT_REMOTE)** ✅ Completed
-  - Add `TILT_REMOTE=1` environment variable support
-  - Update Tiltfile to switch registry/context based on env
-  - Update image push targets for remote registry (`ghcr.io/ameideio/*`)
-  - Maps to [432 DC-32](432-devcontainer-modes-offline-online.md#epic-dc-4--online-telepresence-mode)
+  > **Update (2026-01): Deprecated/removed.** Tilt is no longer part of the canonical inner loop; Telepresence + CLI owns the workflow.
 
 - **ENV-34 – Document telepresence workflow** ✅ Completed
 
-  `docs/dev-workflows/telepresence.md` captures prerequisites (Azure login + AKS access), connect/disconnect commands, and Tilt usage in remote mode.
+  > **Update (2026-01):** Canonical documentation lives in the repo root `README.md` and `.devcontainer/README.md`:
+  > - `ameide dev inner-loop verify` / `up` / `down`
+  > - `ameide dev inner-loop-test` (strict phases + JUnit evidence)
 
 ### Epic ENV-4 – Bootstrap Config Updates
 

@@ -162,7 +162,7 @@ INTEGRATION_MODE=repo|local|cluster
 Integration packs inevitably need additional inputs (service address, tenant IDs, seeded extension IDs, etc.). Rather than inventing ad-hoc names per service, adopt this convention immediately:
 
 - **Prefix:** `SERVICEPREFIX_FIELD` where `SERVICEPREFIX` matches the directory name in screaming snake case (e.g., `extensions-runtime` → `EXTENSIONS_RUNTIME`).
-- **Field vocabulary:** prefer `BASE_URL`, `GRPC_ADDRESS`, `TENANT_ID`, `ORG_ID`, `USER_ID`, `EXTENSION_ID`, `VERSION`, etc. Re-use existing terms from other packs before adding new ones.
+- **Field vocabulary:** prefer `GRPC_ADDRESS`, `TENANT_ID`, `ORG_ID`, `USER_ID`, `EXTENSION_ID`, `VERSION`, etc. (430v2 removes `BASE_URL` overrides; Playwright targets a fixed host.)
 - **Optional suffixes:** use `_DEV`, `_STAGING` etc. only if absolutely necessary; prefer a single variable whose value changes with `TEST_ENV`.
 
 CI must be able to verify that every pack declares its dependencies. Add a light-weight lint in `tools/integration-runner` (or a GitHub workflow) that:
