@@ -19,6 +19,8 @@ The intent is that **Terraform owns infra** (cluster, identities, Key Vault, sto
   - `.github/workflows/terraform-azure-plan.yaml`
   - `.github/workflows/terraform-azure-destroy.yaml`
 - Terraform workspace: `infra/terraform/azure`
+- Argo CD uses **multi-source** Applications and pulls CI-generated runtime facts from a **dedicated repo**:
+  - `https://github.com/ameideio/ameide-runtime-facts.git` (generated artifacts; CI-only writes)
 - Cluster model (today): **one AKS cluster** hosting namespaces `ameide-dev`, `ameide-staging`, `ameide-prod`.
   - If you intend to keep `prod` in the old subscription, the code needs to be split (this runbook assumes the cluster is in the new subscription).
 
@@ -198,6 +200,20 @@ Create secrets (names must match exactly):
 - `buf-token`
 - `langsmith-api-key`
 - `repository-database-url`
+
+---
+
+## 7) Runtime Facts Repo (Manual)
+
+Argo CD cannot reference multiple revisions of the **same** Git repository in a single multi-source Application, so runtime facts must live in a separate repo.
+
+Create/ensure:
+- GitHub repo `ameideio/ameide-runtime-facts` exists (private is fine).
+- The token used for Argo CD repo access (same as `ghcr-token` today) has read access to that repo.
+
+Notes:
+- CI publishes runtime facts into `runtime-facts/` in that repo on each successful apply.
+- Humans should never edit this repo; treat it as a generated artifact output.
 - `database-ssl`
 - `database-pool-max`
 - `database-pool-idle-timeout-ms`
