@@ -200,6 +200,12 @@ Create secrets (names must match exactly):
 - `buf-token`
 - `langsmith-api-key`
 - `repository-database-url`
+- `database-ssl`
+- `database-pool-max`
+- `database-pool-idle-timeout-ms`
+- `database-pool-connection-timeout-ms`
+- `go-proto-version`
+- `go-sdk-version`
 
 ---
 
@@ -214,19 +220,13 @@ Create/ensure:
 Notes:
 - CI publishes runtime facts into `runtime-facts/` in that repo on each successful apply.
 - Humans should never edit this repo; treat it as a generated artifact output.
-- `database-ssl`
-- `database-pool-max`
-- `database-pool-idle-timeout-ms`
-- `database-pool-connection-timeout-ms`
-- `go-proto-version`
-- `go-sdk-version`
 
 Then update GitHub variable:
 - `TF_ENV_SECRETS_KEYVAULT_NAME` → the created vault name
 
 ---
 
-## 7) Global Name Collision Checks (Manual)
+## 8) Global Name Collision Checks (Manual)
 
 Before running CI apply in a new subscription, check that globally-scoped names are available:
 
@@ -242,20 +242,19 @@ Also check for Key Vault soft-delete:
 
 ---
 
-## 8) Run CI Deployment
+## 9) Run CI Deployment
 
 Once prerequisites are satisfied:
 
 1. Run `.github/workflows/terraform-azure-plan.yaml` (optional)
 2. Run `.github/workflows/terraform-azure-apply.yaml` with:
    - `confirm=apply-azure`
-   - `verify_sso=true` (only once DNS and secrets are in place)
 
-If you are using Option B (manual DNS), set `verify_sso=false` until DNS is updated, then re-run with `verify_sso=true`.
+The apply workflow is considered successful only if the **verifiers pass** (TLS/443 + ArgoCD SSO + Platform SSO). There is intentionally no “skip SSO” option.
 
 ---
 
-## 9) Post-Deploy Verification (What “Done” Means)
+## 10) Post-Deploy Verification (What “Done” Means)
 
 CI apply is considered successful only if:
 - Terraform apply succeeds
