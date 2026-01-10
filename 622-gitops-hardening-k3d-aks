@@ -1,0 +1,279 @@
+---
+title: "622 – GitOps Hardening: k3d (local) + AKS (dev) parity"
+status: draft
+owners:
+  - platform-sre
+  - gitops
+---
+
+# 622 – GitOps Hardening: k3d (local) + AKS (dev) parity
+
+## Problem statement
+
+We must be able to iterate on **AKS dev** without breaking **local k3d**, and vice-versa.
+Every “fix” must be evaluated across **both targets** and must result in a configuration that is:
+
+- **Vendor-aligned** (Kubernetes + Azure AKS + OCI image supply chain).
+- **Deterministic** (no “works if you click it twice”; no silent fallbacks).
+- **Scoped** (cluster-scoped resources are owned once; env-scoped resources don’t fight each other).
+
+This backlog captures the current failure modes we observed and defines a **single, convergent approach** for both local and dev.
+
+## Scope
+
+### In scope
+
+- GitOps configuration parity for **local k3d** and **AKS dev**.
+- Cluster bootstrap and ArgoCD reconciliation hardening (render validity, image policy, scheduling).
+- Operator + data-plane correctness for both targets (Temporal operator/webhooks, Strimzi/Kafka scheduling, Gateway API routes).
+- CI guardrails that prevent “fix dev, break local”.
+
+### Out of scope
+
+- Re-architecting the entire app portfolio; we focus on minimum changes that restore full health and prevent regressions.
+- Terraform/provider changes unrelated to GitOps parity (tracked under `backlog/444-terraform-v2.md`).
+
+## Target state (definition of done)
+
+1. **Both targets converge** from a clean bootstrap:
+   - local: `k3d` + local terraform + GitOps bootstrap results in “baseline apps” green.
+   - dev: GitHub CI apply/verify results in “baseline apps” green.
+2. **No Argo ComparisonError** for applications that are declared “installed”.
+3. **No SharedResourceWarning** (cluster-scoped resource ownership is unambiguous).
+4. **No hostPort collisions** in multi-env AKS (dev/staging/prod share the same worker nodes).
+5. **Images are multi-arch** (linux/amd64 + linux/arm64) wherever local needs arm64 and AKS is amd64.
+6. CI includes a **render + conformance gate** for both local and dev overlays.
+
+## Current findings (AKS dev) and how they relate to local
+
+### A) Argo apps in `Unknown` due to `ComparisonError` (Helm render failure)
+
+**Observed in AKS dev:** ~48 apps show `sync=Unknown, health=Healthy` with `ComparisonError` caused by:
+
+- `Error: ... execution error ... image.ref is required`
+
+Example app: `dev-agent-echo-v0` fails to render because `.Values.image.ref` is required by the chart, but not set.
+
+**Why local didn’t break:** local has env-specific values files (e.g. `sources/values/env/local/apps/agent-echo-v0.yaml`) that pin `image.ref`. Dev/staging/prod do not have equivalent overlays for many of these apps.
+
+**Related backlogs / rules:**
+- `backlog/603-image-pull-policy.md` (contract: `image.ref` required + digest pinned; Argo render failures are correctness failures)
+- `backlog/465-applicationset-architecture-preview-envs-v2.md` (values layering + image.ref policy)
+
+**Remediation (parity-safe):**
+- Decide which of these apps are **actually installed** in AKS dev. For anything installed:
+  - Ensure `sources/values/env/dev/apps/<app>.yaml` exists and sets a digest-pinned `image.ref`.
+  - Ensure local keeps its own pinned refs (local may differ due to registry/mirror needs).
+- Add a CI gate that fails if any generated app would render with missing required keys (see §“CI guardrails”).
+
+### B) Temporal operator breaks dev (and blocks all `{env}-data-temporal`)
+
+**Observed in AKS dev:**
+- `cluster-temporal-operator` controller pod is `ImagePullBackOff`.
+- Error: `no match for platform in manifest: not found`
+- Impact: Temporal admission webhook has no endpoints → any `TemporalCluster` CR creation fails:
+  - `dev-data-temporal` fails with `failed calling webhook ... no endpoints available for service "temporal-operator-webhook-service"`
+
+**Why this is a k3d + AKS parity problem:**
+- AKS nodes are **linux/amd64**.
+- local dev (especially Apple Silicon) is often **linux/arm64**.
+- The patched operator image is currently being published as **arm64-only**, which “works locally for some devs” but fails in AKS.
+
+**Related backlogs / docs:**
+- `backlog/420-temporal-cnpg-dev-registry-runbook.md` (operator/webhook dependency chain; imagePullSecrets requirement)
+- `backlog/603-image-pull-policy.md` (digest pinning surfaces broken image reality)
+
+**Remediation (vendor-aligned):**
+- Publish the patched Temporal operator as a **multi-arch manifest list** (linux/amd64 + linux/arm64).
+  - Fix `.github/workflows/publish-temporal-operator.yaml` to build/push multi-platform, not `linux/arm64` only.
+- Repin the digest in `sources/values/_shared/cluster/temporal-operator.yaml` to the multi-arch digest.
+- Then resync order (in Argo or via CI bootstrap): `cluster-crds-temporal-operator` → `cluster-temporal-operator` → `{env}-data-temporal`.
+
+### C) Kafka is `Progressing` / `NotReady` due to stale “environment pool” scheduling
+
+**Observed in AKS dev:**
+- `dev-data-kafka-cluster` is `Synced/Progressing`.
+- Kafka pod(s) pending due to:
+  - nodeAffinity to `ameide.io/pool in [dev]` (no longer exists)
+  - tolerations for `ameide.io/environment=dev` are no longer meaningful in a shared pool.
+
+**Local behavior:**
+- Local override `sources/values/env/local/data/data-kafka-cluster.yaml` explicitly relaxes scheduling so Kafka can run even if PVs affinitize to the control-plane node.
+
+**Related backlogs:**
+- `backlog/421-argocd-strimzi-kafkanodepool-health.md` (Strimzi health + scheduling templating)
+- `backlog/444-terraform-v2.md` (direction: remove env-specific pools; use standard/spot split)
+
+**Remediation (parity-safe):**
+- Replace env-specific pool assumptions with a **provider-neutral node profile** strategy for stateful workloads:
+  - dev/AKS: target the “stateful/standard” capacity (today: shared `general` pool; future: dedicated standard pool).
+  - local/k3d: keep the “relax scheduling” tolerations (control-plane tolerations) so Kafka doesn’t stick Pending.
+- Concretely:
+  - Update `sources/values/env/{dev,staging,production}/data/data-kafka-cluster.yaml` to remove `ameide.io/pool in [<env>]` and instead target the new shared pool label (today: `ameide.io/pool=general`) or adopt a `stateful` node profile.
+
+### D) Gateway API validation failure blocks `cluster-gateway`
+
+**Observed in AKS dev:**
+- `cluster-gateway` is `OutOfSync/Missing`.
+- Sync error: `HTTPRoute "applicationset-webhook" is invalid: ... urlRewrite.path.type: Required value`
+
+**Local impact:**
+- This is a **schema correctness** issue; it will also break local once the same CRDs/validation are present.
+
+**Related backlog:**
+- `backlog/465-applicationset-architecture-preview-envs-v2.md` (requires `/api/applicationset-webhook` route)
+
+**Remediation (vendor-aligned):**
+- Fix `sources/charts/cluster/gateway/templates/httproute-applicationset-webhook.yaml` to set `urlRewrite.path.type` explicitly (e.g. `ReplaceFullPath`).
+- Add a conformance render check in CI so invalid Gateway API objects fail before merge.
+
+### E) Prometheus stacks: hostPort collisions after removing env-specific pools
+
+**Observed in AKS dev:**
+- `dev-platform-prometheus` is `Progressing`.
+- `prometheus-node-exporter` is a DaemonSet using `hostNetwork: true` and `hostPort 9100`.
+- In a shared-node cluster, multiple envs deploying node-exporter causes **port conflicts** and Pending pods.
+
+**Local behavior:**
+- Local runs only one “env” (local) on the cluster, so hostPort conflicts don’t show up.
+
+**Related backlog:**
+- `backlog/447-third-party-chart-tolerations.md` (DaemonSet hostPort conflicts across envs)
+- `backlog/454-coredns-cluster-scoped.md` (SharedResourceWarning is a misconfiguration pattern)
+
+**Remediation (vendor-aligned, multi-env-safe):**
+- Treat node-exporter (and any hostPort DaemonSet) as **cluster-scoped** and deploy it **once** per cluster.
+- For env-scoped Prometheus instances, scrape via label/namespace selectors, not by re-deploying node-exporter per env.
+- Update env overlays to disable per-env node-exporter in AKS dev (and staging/prod) once a cluster-scoped exporter exists.
+
+### F) Langfuse worker `ImagePullBackOff` due to incorrect digest pinning model
+
+**Observed in AKS dev:**
+- `platform-langfuse-worker` fails to pull: digest not found.
+
+**Root cause:**
+- The shared config sets one digest-pinned tag under `langfuse.image.tag`.
+- The chart reuses that tag for **both** web and worker images unless `langfuse.worker.image.tag` is set.
+- A digest for `ghcr.io/langfuse/langfuse@sha256:...` is not valid for `ghcr.io/langfuse/langfuse-worker@sha256:...`.
+
+**Local behavior:**
+- Local explicitly disables the worker (`worker.enabled: false`) to avoid worker health semantics issues, so the wrong digest is hidden locally.
+
+**Related backlog:**
+- `backlog/456-ghcr-mirror.md` (Langfuse image pitfalls, local arm64 vs mirror)
+- `backlog/450-argocd-service-issues-inventory.md` (Langfuse/Redis issues; rollout fragility)
+
+**Remediation (parity-safe, policy-aligned):**
+- Keep digest pinning, but pin **separately**:
+  - `langfuse.image.tag` → web image digest
+  - `langfuse.worker.image.tag` → worker image digest
+- Keep local override `worker.enabled: false` if still desired, but the shared defaults must be correct for dev/AKS.
+
+### G) Kubernetes Dashboard “shared resource” ownership
+
+**Observed in AKS dev:**
+- `dev-kubernetes-dashboard` / `staging-kubernetes-dashboard` can show `OutOfSync` with `SharedResourceWarning` when cluster-scoped objects are owned by multiple env apps.
+
+**Related backlog:**
+- `backlog/612-kubernetes-dashboard.md` (env deployment model)
+- `backlog/454-coredns-cluster-scoped.md` (SharedResourceWarning pattern)
+
+**Remediation (parity-safe):**
+- Ensure any cluster-scoped objects created by the dashboard chart are either:
+  - installed once at cluster scope, or
+  - namespaced / release-scoped such that env installs do not collide.
+
+## Cross-target “boundaries” (to prevent spaghetti)
+
+## Allowed target-specific deltas (explicit and intentional)
+
+These deltas are expected and must remain **explicitly scoped to env overlays** (not scattered conditionals):
+
+- **Local** keeps `k3d` + local Terraform for cluster lifecycle and fast iteration.
+- **Local** does not use Azure DNS / Let’s Encrypt DNS01; Azure Workload Identity helpers are disabled where appropriate.
+- **Local** must remain compatible with **linux/arm64** (common on Apple Silicon), while **AKS dev** is **linux/amd64**.
+- **Local** may need “relaxed scheduling” tolerations to allow stateful pods on control-plane nodes.
+
+Everything else should converge (same charts, same health semantics, same required values, same schema validation).
+
+### 1) Cluster-scoped vs env-scoped ownership
+
+**Cluster-scoped (one owner per cluster):**
+- CRDs and operators (cert-manager, external-secrets, strimzi, temporal-operator, cnpg, etc.)
+- Gateway / shared ingress dataplane and its “global” routes
+- Any hostPort DaemonSets (node-exporter)
+
+**Env-scoped (one owner per env namespace):**
+- App workloads and env-specific routes
+- Env-specific secrets materialization and seed jobs
+
+Rule: env-scoped apps must not create cluster-scoped objects with stable names unless they include env scoping in the name.
+
+### 2) Image supply chain contract (local + dev)
+
+- Any image used by both targets must be published as a **multi-arch manifest list** (amd64 + arm64).
+- GitOps pins **manifest list digests** (not single-arch digests) so both runtimes pull the correct platform.
+- Local may route images via a **local registry** (k3d) or a **GHCR mirror**, but the pinned reference must remain deterministic (digest pinned; no floating tags).
+- CI must detect:
+  - missing `:main` channel tags for local/dev automation
+  - missing multi-arch manifests
+  - missing required `image.ref` values for installed apps
+
+### 3) Scheduling contract (pools and profiles)
+
+We cannot rely on “env pools” if dev is a shared-node cluster.
+
+Target direction:
+- **Stateful services** → standard, non-preemptible capacity (future “stateful/standard” profile).
+- **Stateless services** → can prefer spot (future “spot” profile) but must safely fallback.
+- **Local** has no pools; its profile must be either “none” or “relaxed required + preferred”.
+
+Short-term compatibility:
+- Keep `config/node-profiles/none.yaml` for local.
+- Use `config/node-profiles/general-pool.yaml` for AKS until the stateful/spot split is introduced.
+- Remove remaining env-specific affinity/toleration assumptions from env overlays.
+
+## CI guardrails (must cover both local and dev)
+
+Add a GitHub Actions job (or extend existing gates) that, on every PR:
+
+1. Renders a representative set of Helm charts for:
+   - `env/local` with `config/node-profiles/none.yaml`
+   - `env/dev` with `config/node-profiles/general-pool.yaml`
+2. Validates:
+   - no Helm render errors (catches `image.ref is required`)
+   - Kubernetes schema conformance (catches invalid `HTTPRoute` / missing required fields)
+   - no duplicate cluster-scoped resource names across envs (catches SharedResourceWarning patterns)
+
+This is the enforcement mechanism that prevents “fix dev, break local”.
+
+## Seeding status (AKS dev)
+
+Dev seeding has run successfully:
+- `dev-platform-dev-data` is `Synced/Healthy`, and its PostSync hooks `platform-dev-data-dev-data-seed` and `platform-dev-data-dev-data-verify` succeeded.
+
+This aligns with the contract in `backlog/582-local-dev-seeding.md` (same seed/verify approach).
+
+## Work plan (prioritized)
+
+1. **Fix cluster-gateway HTTPRoute schema** (Gateway API `urlRewrite.path.type`).
+2. **Fix Temporal operator image publishing** to multi-arch; repin digest; restore webhook endpoints; unblock `{env}-data-temporal`.
+3. **Normalize Strimzi/Kafka scheduling** for shared-pool AKS (remove env-pool affinity).
+4. **Fix Langfuse worker digest pinning** (separate worker digest).
+5. **Eliminate hostPort collisions** (node-exporter cluster-scoped strategy for AKS).
+6. **Eliminate ComparisonError Unknown apps**:
+   - either add env overlays for dev (and any other installed env), or
+   - stop generating/installing those apps in AKS until image refs exist.
+7. **Add CI render+conformance gate** for local+dev overlays.
+
+## Related backlogs / references
+
+- `backlog/444-terraform-v2.md` (CI-owned AKS; remove env-specific pools; long-term standard/spot split)
+- `backlog/465-applicationset-architecture-preview-envs-v2.md` (values layering; gateway route requirement)
+- `backlog/582-local-dev-seeding.md` (seed/verify contract)
+- `backlog/603-image-pull-policy.md` / `backlog/602-image-pull-policy.md` (digest pinning + :main automation)
+- `backlog/420-temporal-cnpg-dev-registry-runbook.md` (Temporal operator/webhook and recovery)
+- `backlog/447-third-party-chart-tolerations.md` (DaemonSet hostPort conflicts)
+- `backlog/456-ghcr-mirror.md` (multi-arch + mirror pitfalls)
+- `backlog/612-kubernetes-dashboard.md` (dashboard deployment model)
+- `backlog/454-coredns-cluster-scoped.md` (SharedResourceWarning is misconfiguration)
