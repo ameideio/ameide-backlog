@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:ameide="https://ameide.io/schema/bpmn/extensions/v1"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_transformation_r2d_phase2_workpackage_v1"
+                  targetNamespace="https://ameide.io/transformation/r2d/phase2/workpackage/v1">
+
+  <bpmn:documentation>
+    Phase 2 (Development) — per DevelopmentWorkpackage.
+    Input: select N RequirementSliceVersions (immutable) into a workpackage.
+    Output: deliverables (PR(s), commit SHA(s), preview URL(s), evidence) and per-requirement status updates to UAT Requested.
+    This process is fully automated; UAT decisions are recorded per Requirement in Phase 1/acceptance.
+  </bpmn:documentation>
+
+  <bpmn:collaboration id="Collaboration_transformation_r2d_phase2_workpackage_v1">
+    <bpmn:participant id="Participant_transformation_r2d_phase2_workpackage_v1"
+                      name="transformation.r2d.phase2.workpackage.v1"
+                      processRef="transformation_r2d_phase2_workpackage_v1"/>
+  </bpmn:collaboration>
+
+  <bpmn:process id="transformation_r2d_phase2_workpackage_v1"
+                name="transformation.r2d.phase2.workpackage.v1"
+                isExecutable="true">
+    <bpmn:extensionElements>
+      <ameide:workflowDefinition definitionId="transformation.r2d.phase2.workpackage.v1:527"
+                                 workflowType="transformation_r2d_phase2_workpackage_v1"
+                                 workflowIdTemplate="transformation.r2d.phase2.workpackage.v1/${state.tenant_id}/${state.workpackage_id}"/>
+    </bpmn:extensionElements>
+
+    <bpmn:startEvent id="StartEvent_workpackage_created" name="Workpackage created">
+      <bpmn:documentation>
+        Triggered when a user creates a DevelopmentWorkpackage selecting N RequirementSliceVersions.
+      </bpmn:documentation>
+    </bpmn:startEvent>
+
+    <bpmn:serviceTask id="Task_develop"
+                      name="Develop (agentic)">
+      <bpmn:documentation>
+        Executes the coding agent/tooling against the selected slices.
+        Outputs: patch/commits and structured evidence.
+      </bpmn:documentation>
+      <bpmn:extensionElements>
+        <ameide:taskDefinition implementation="delegated"
+                               type="transformation.r2d.phase2.workpackage.develop.v1"
+                               idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
+                               policyRef="default"/>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_test"
+                      name="Test (repo suites)">
+      <bpmn:documentation>
+        Runs repo-defined unit/integration suites (ameide inner-loop posture) and records evidence.
+        Failures set affected Requirements to Needs Revision with attached evidence.
+      </bpmn:documentation>
+      <bpmn:extensionElements>
+        <ameide:taskDefinition implementation="delegated"
+                               type="transformation.r2d.phase2.workpackage.test.v1"
+                               idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
+                               policyRef="default"/>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_open_pr"
+                      name="Open PR(s)">
+      <bpmn:documentation>
+        Creates PR(s) for the workpackage (either one PR covering N requirements or one PR per requirement, per policy).
+        Records PR URL(s) as deliverables linked back to each RequirementSliceVersion.
+      </bpmn:documentation>
+      <bpmn:extensionElements>
+        <ameide:taskDefinition implementation="delegated"
+                               type="transformation.r2d.phase2.workpackage.open_pr.v1"
+                               idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
+                               policyRef="default"/>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_apply_preview_label"
+                      name="Apply preview label(s)">
+      <bpmn:documentation>
+        Applies preview label(s) to PR(s) to trigger preview environment creation.
+        The preview environment is per PR; multiple Requirements may share the same preview URL.
+      </bpmn:documentation>
+      <bpmn:extensionElements>
+        <ameide:taskDefinition implementation="delegated"
+                               type="transformation.r2d.phase2.workpackage.apply_preview_label.v1"
+                               idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
+                               policyRef="default"/>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_wait_preview_ready"
+                      name="Wait for preview ready">
+      <bpmn:documentation>
+        Waits for preview URL(s) to become reachable and records deliverables/evidence.
+        Must be implemented inside the Activity (poll/long-poll + heartbeat); do not model “await facts” as BPMN catch events.
+      </bpmn:documentation>
+      <bpmn:extensionElements>
+        <ameide:taskDefinition implementation="inline"
+                               type="transformation.r2d.phase2.workpackage.wait_preview_ready.v1"
+                               idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
+                               policyRef="default"/>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_mark_uat_requested"
+                      name="Mark requirements UAT requested">
+      <bpmn:documentation>
+        For each requirement in the workpackage, updates status to UAT Requested and notifies the user with preview URL(s).
+        UAT pass/fail is recorded per Requirement (not a workpackage-wide user task).
+      </bpmn:documentation>
+      <bpmn:extensionElements>
+        <ameide:taskDefinition implementation="delegated"
+                               type="transformation.r2d.phase2.workpackage.mark_uat_requested.v1"
+                               idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
+                               policyRef="default"/>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="EndEvent_workpackage_complete" name="Workpackage complete">
+      <bpmn:documentation>
+        Terminal of Phase 2. Deliverables exist; linked Requirements are in UAT Requested (or Needs Revision on failure).
+      </bpmn:documentation>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_workpackage_created" targetRef="Task_develop"/>
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_develop" targetRef="Task_test"/>
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="Task_test" targetRef="Task_open_pr"/>
+    <bpmn:sequenceFlow id="Flow_4" sourceRef="Task_open_pr" targetRef="Task_apply_preview_label"/>
+    <bpmn:sequenceFlow id="Flow_5" sourceRef="Task_apply_preview_label" targetRef="Task_wait_preview_ready"/>
+    <bpmn:sequenceFlow id="Flow_6" sourceRef="Task_wait_preview_ready" targetRef="Task_mark_uat_requested"/>
+    <bpmn:sequenceFlow id="Flow_7" sourceRef="Task_mark_uat_requested" targetRef="EndEvent_workpackage_complete"/>
+  </bpmn:process>
+</bpmn:definitions>
+

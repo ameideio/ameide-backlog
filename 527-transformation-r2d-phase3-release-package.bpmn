@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:ameide="https://ameide.io/schema/bpmn/extensions/v1"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_transformation_r2d_phase3_release_package_v1"
+                  targetNamespace="https://ameide.io/transformation/r2d/phase3/release-package/v1">
+
+  <bpmn:documentation>
+    Phase 3 (Release) — per ReleasePackage.
+    Input: select N Requirements in Approved for Release.
+    Output: promote/deploy/verify outcomes; on success, included Requirements become Released; on failure, they remain Approved for Release.
+  </bpmn:documentation>
+
+  <bpmn:collaboration id="Collaboration_transformation_r2d_phase3_release_package_v1">
+    <bpmn:participant id="Participant_transformation_r2d_phase3_release_package_v1"
+                      name="transformation.r2d.phase3.release_package.v1"
+                      processRef="transformation_r2d_phase3_release_package_v1"/>
+  </bpmn:collaboration>
+
+  <bpmn:process id="transformation_r2d_phase3_release_package_v1"
+                name="transformation.r2d.phase3.release_package.v1"
+                isExecutable="true">
+    <bpmn:extensionElements>
+      <ameide:workflowDefinition definitionId="transformation.r2d.phase3.release_package.v1:527"
+                                 workflowType="transformation_r2d_phase3_release_package_v1"
+                                 workflowIdTemplate="transformation.r2d.phase3.release_package.v1/${state.tenant_id}/${state.release_package_id}"/>
+    </bpmn:extensionElements>
+
+    <bpmn:startEvent id="StartEvent_release_package_created" name="Release package created">
+      <bpmn:documentation>
+        Triggered when a user creates a ReleasePackage selecting N Requirements in Approved for Release.
+      </bpmn:documentation>
+    </bpmn:startEvent>
+
+    <bpmn:serviceTask id="Task_promote_gitops"
+                      name="Promote via GitOps">
+      <bpmn:documentation>
+        Creates/updates GitOps PR(s) to promote immutable image digests (dev → staging → prod) per policy.
+      </bpmn:documentation>
+      <bpmn:extensionElements>
+        <ameide:taskDefinition implementation="delegated"
+                               type="transformation.r2d.phase3.release_package.promote_gitops.v1"
+                               idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
+                               policyRef="default"/>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_rollout_verify"
+                      name="Verify rollout">
+      <bpmn:documentation>
+        Verifies rollout/health of the promoted state.
+        Must be implemented inside the Activity (poll/long-poll + heartbeat), not via broker-driven catch events.
+      </bpmn:documentation>
+      <bpmn:extensionElements>
+        <ameide:taskDefinition implementation="inline"
+                               type="transformation.r2d.phase3.release_package.rollout_verify.v1"
+                               idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
+                               policyRef="default"/>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_release_verify"
+                      name="Run release verification">
+      <bpmn:documentation>
+        Runs automated verification suites (including Playwright where applicable) against the target environment.
+        Produces evidence bundles used for audit and (optional) release acceptance.
+      </bpmn:documentation>
+      <bpmn:extensionElements>
+        <ameide:taskDefinition implementation="delegated"
+                               type="transformation.r2d.phase3.release_package.release_verify.v1"
+                               idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
+                               policyRef="default"/>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="EndEvent_release_complete" name="Release complete">
+      <bpmn:documentation>
+        Terminal of Phase 3. On success, included Requirements are marked Released; otherwise they remain Approved for Release.
+      </bpmn:documentation>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_release_package_created" targetRef="Task_promote_gitops"/>
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_promote_gitops" targetRef="Task_rollout_verify"/>
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="Task_rollout_verify" targetRef="Task_release_verify"/>
+    <bpmn:sequenceFlow id="Flow_4" sourceRef="Task_release_verify" targetRef="EndEvent_release_complete"/>
+  </bpmn:process>
+</bpmn:definitions>
+
