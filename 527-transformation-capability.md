@@ -201,7 +201,7 @@ The chain is:
 
 3. **Tool runners (Integration executes; CLI is a tool)**
    - Some steps require deterministic tool execution (existing CLI scaffolding, `buf generate`, `ameide primitive verify`, tests/build/publish).
-   - Tool/agent execution is requested via a **WorkRequest** recorded in Domain (see “Execution substrate” below). In v1, WorkRequests are executed via **KEDA ScaledJob → Kubernetes Job per execution intent**, using a dedicated **executor** image (not the workbench/devcontainer): Domain emits `WorkExecutionRequested` execution intents after persistence onto the queue topics; Jobs consume those intents, execute, and record evidence back into Domain idempotently; Domain emits facts for the audit trail; Process awaits domain facts and emits process facts for the audit timeline. For parity/debugging, a separate long-lived workbench runs the devcontainer toolchain image (human attach/exec only; never consumes the queue).
+   - Tool/agent execution is requested via a **WorkRequest** recorded in Domain (see “Execution substrate” below). In v1, WorkRequests are executed via **KEDA ScaledJob → Kubernetes Job per execution intent**, using a dedicated **executor** image (not the workbench/devcontainer): Domain emits `WorkExecutionRequested` execution intents after persistence onto the queue topics; Jobs consume those intents, execute, and record evidence back into Domain idempotently; Domain emits facts for the audit trail; Activities wait for completion (poll/heartbeat) and return results to workflows; Process emits process facts for the audit timeline. For parity/debugging, a separate long-lived workbench runs the devcontainer toolchain image (human attach/exec only; never consumes the queue).
    - Outputs are captured as evidence bundles (attachments + structured summaries) and referenced from promotions/baselines and process facts.
 
 4. **Ameide primitives (realization outputs)**
@@ -230,7 +230,7 @@ Value streams (refine via `backlog/524-transformation-capability-decomposition.m
 1. Capability is realized by primitives (no monolith).
 2. Design-time vs runtime separation (design-time elements/definitions stored in Transformation; runtime workflows execute in Process primitives).
 3. 496-native EDA (intents vs facts, outbox for writers, idempotent consumers, sagas in Process primitives).
-4. No runtime RPC coupling (runtime workflows use bus intents/facts; operator reads are control-plane only).
+4. No runtime state coupling (workflows never rely on synchronous cross-primitive state coupling; side effects happen in Activities with explicit idempotency).
 5. Tenant isolation and traceability metadata on all messages.
 6. Typed design-time store (ArchiMate/BPMN/definitions as domain data; file formats are attachments only).
 7. Multi-methodology by profile (Scrum/TOGAF/PMI as profiles).
@@ -249,7 +249,7 @@ To make “ephemeral jobs from a queue” safe and interoperable without turning
    - writes artifacts to object storage,
    - records outcomes back into Domain via a Domain intent (idempotent).
 5. **Domain emits** `WorkCompleted`/`WorkFailed` (and links evidence bundles).
-6. **Process awaits** those domain facts, emits `ToolRunRecorded` / `GateDecisionRecorded` / `ActivityTransitioned` as process facts, and continues.
+6. **Activity waits** for completion (poll/timeout/heartbeat) and returns a result; **Process emits** `ToolRunRecorded` / `GateDecisionRecorded` / `ActivityTransitioned` as process facts, and continues.
 7. **Projection materializes** the joined run timeline (process facts + correlated domain facts) with citations.
 
 ### Kafka transport (normative)

@@ -99,7 +99,7 @@ Assertions must be on **durable state and facts**, not on “did a Pod exist”:
   - “ack/commit only after durable outcome + evidence recorded”
   - evidence descriptor schema is well-formed (and redaction rules hold)
 - Process:
-  - requests work (domain intent), awaits domain facts, emits process facts (`ToolRunRecorded`, `GateDecisionRecorded`, etc.)
+  - requests work (domain intent), waits via Activity completion results (poll/heartbeat), emits process facts (`ToolRunRecorded`, `GateDecisionRecorded`, etc.)
   - deterministic replay (Temporal workflow tests)
 - Projection:
   - joins domain + process facts into a capability run timeline with citations

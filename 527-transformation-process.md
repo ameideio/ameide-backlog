@@ -41,7 +41,7 @@ What is implemented in code today (Dec 2025):
     - records evidence elements linked via `ref:evidence:*`,
     - records a release element linked via `ref:release`,
     - creates and promotes a governance baseline.
-- WorkRequest orchestration path exists end-to-end in repo-mode tests (Domain + executor + router/ingress seam + Process facts).
+- WorkRequest orchestration path exists end-to-end in repo-mode tests (Domain + executor + process facts). Note: v0 used an ingress router to signal domain facts into workflows; v1 target is to wait inside Activities and keep broker facts projection-only (no internal EDA control flow).
 - Cluster validation is E2E-only under `backlog/430-unified-test-infrastructure-v2-target.md` (Phase 3; Playwright) and assumes deployed dispatcher/executor/ingress/projection + Temporal wiring.
 
 What remains intentionally pending (target state):
@@ -83,7 +83,7 @@ Methodology note (normative):
 
 - Processes **emit process facts only**; they do not emit domain facts.
 - All cross-domain writes occur via **domain intents / commands**; domains persist and emit facts.
-- **No synchronous cross-primitive state coupling:** runtime workflows MUST NOT rely on synchronous cross-primitive *state coupling* for correctness (no distributed transactions). Workflows MAY submit domain intents/commands via RPC or via an intent topic, but MUST treat any response as an ACK (not “updated truth”) and should normally advance on emitted domain facts/receipts.
+- **No synchronous cross-primitive state coupling:** runtime workflows MUST NOT rely on synchronous cross-primitive *state coupling* for correctness (no distributed transactions). Workflows MAY submit domain intents/commands via RPC or via an intent topic, but MUST treat any response as an ACK (not “updated truth”). Workflow step progression MUST be driven by workflow-local state, Activity results, and explicit user task completions (not by consuming broker facts as internal control flow).
 - **Reads are allowed but constrained:** runtime workflows may use projection-backed reads when necessary, and any “control-plane lookup” must be explicitly declared (timeout/retry posture) and never become a hidden dependency that recreates a distributed monolith.
 
 ### 2.1 Tool execution boundary (where CLI fits)
@@ -96,13 +96,15 @@ Workflow steps often require deterministic tool execution (scaffolding, codegen,
 
 For the canonical end-to-end sequence (separating process semantics from infra mechanics), see `backlog/527-transformation-e2e-sequence.md`.
 
-**Execution substrate (normative; v1):** long-running tool/agent steps run on an event-driven WorkRequest seam:
+**Execution substrate (normative; v1):** long-running tool/agent steps run via WorkRequests, but the workflow progresses on Activity completion (not on ingested facts):
 
-- Process requests execution via a Domain intent that creates a Domain-owned `WorkRequest` (idempotent).
-- Domain emits `WorkRequested` facts after persistence (outbox) on `transformation.work.domain.facts.v1` (audit trail; pub/sub).
-- Domain emits a `WorkExecutionRequested` **execution intent** after persistence (outbox) onto a dedicated execution queue topic (point-to-point).
-- KEDA ScaledJobs schedule Kubernetes Jobs (running the WorkRequest **executor** image) based on Kafka consumer group lag on the execution queue topics (Jobs consume `WorkExecutionRequested` and record results back to Domain idempotently).
-- Process awaits the resulting domain facts, then emits `ToolRunRecorded` / `GateDecisionRecorded` / `ActivityTransitioned` process facts for the audit timeline.
+- Each executable `serviceTask` compiles to a single Temporal Activity invocation.
+- The Activity either:
+  - executes inline (imperative work in the worker), or
+  - delegates by calling Domain `RequestWork` to create a Domain-owned `WorkRequest` (idempotent), then waits for completion (poll/long-poll + heartbeat) and returns a deterministic result to the workflow.
+- Domain emits `WorkRequested` facts after persistence (outbox) on `transformation.work.domain.facts.v1` (audit trail; pub/sub) and publishes `WorkExecutionRequested` intents to the appropriate execution queue.
+- Executors consume execution intents, run the work, and record outcomes/evidence back to Domain idempotently.
+- The workflow emits `ToolRunRecorded` / `GateDecisionRecorded` / `ActivityTransitioned` process facts using the Activity result (e.g., `work_request_id`, outcome summary, evidence refs).
 
 Kafka note (normative):
 
@@ -136,7 +138,7 @@ v1 supports a deliberately small executable subset (expand later; any unsupporte
 **Waits/timers (v1 stance):**
 
 - v1 does not require BPMN-native wait/timer constructs (e.g., `intermediateCatchEvent`, `timerEventDefinition`) to express “wait for an external event”.
-- “Wait” semantics are expressed via the execution profile (`await_domain_facts`) so the workflow can deterministically advance when a correlated domain fact arrives.
+- “Wait” semantics for machine steps are expressed via Activities (e.g., `run_work_request` bindings): the Activity blocks (poll/long-poll + heartbeat) until completion and returns a result. Workflows MUST NOT advance by consuming broker facts as internal control flow.
 - If/when BPMN-native waits/timers are added, they MUST map to the same execution profile concepts and produce the same step evidence (process facts).
 
 ### 3.1.1 Supported BPMN subset (v2; planned and normative for compile-to-IR)
@@ -153,6 +155,17 @@ v2 expands the executable subset to support **structured composition** and **non
 
 Guardrail: if a v2 construct is present but does not satisfy the resolution + mapping rules in §3.5.1 and §3.6, promotion MUST fail (no best-effort fallbacks).
 
+### 3.1.2 Transformation R2R profile (normative)
+
+For Transformation’s R2R governance workflows (the default “Transformation v2” posture), promoted ProcessDefinitions MUST satisfy a capability-specific restriction:
+
+- **At most two `userTask`s** are allowed:
+  1) **Requirements gate** (DoR / “ready to execute” baseline decision)
+  2) **Acceptance gate** (DoD / “accept for release” decision)
+- All other gates and validations MUST be modeled as `serviceTask`s that run deterministically (typically via `run_work_request` to delegated tool runs) and return results to the workflow.
+
+Promotion MUST fail for any ProcessDefinition that includes additional `userTask`s unless an explicit profile override is present and approved (capability policy).
+
 ### 3.2 Collaboration requirement (for “scaffoldable”)
 
 If a ProcessDefinition is marked “deployable/scaffoldable”, it MUST be a **Collaboration** diagram:
@@ -167,11 +180,13 @@ Single-process diagrams may exist for documentation and learning, but they are n
 For deployable/scaffoldable workflows, every `messageFlow` MUST be representable deterministically in the promoted execution profile (see 3.4.1), without guessing topic names from BPMN:
 
 - A `messageFlow` from participant **A → B** requires:
-  - at least one activity in participant **A** that **sends a domain intent** (`send_domain_intent`), and
-  - at least one activity in participant **B** that **awaits a domain fact** (`await_domain_facts`) correlated to that intent, and
-  - correlation/causation propagation rules that allow projection to join step evidence to domain facts (see `backlog/527-transformation-proto.md` §3.1).
+  - at least one activity in participant **A** that **sends a domain intent** (`send_domain_intent`) or delegates work (`run_work_request`), and
+  - at least one declared **expected outcome** emitted by **B** (e.g., `expected_domain_facts`) correlated to that intent/work, and
+  - correlation/causation propagation rules that allow projection to join step evidence to those domain facts (see `backlog/527-transformation-proto.md` §3.1).
 
-If a `messageFlow` exists but the execution profile cannot resolve the corresponding send/await bindings, promotion MUST fail.
+If the workflow must wait for completion of work performed by **B**, the wait MUST be implemented inside an Activity (poll/timeout/heartbeat) and returned as an Activity result; workflows MUST NOT advance by consuming broker facts as internal control flow.
+
+If a `messageFlow` exists but the execution profile cannot resolve the corresponding send/expect bindings, promotion MUST fail.
 
 #### 3.2.2 Participant → component identity rule (portable; no guessing)
 
@@ -229,13 +244,13 @@ Execution profile requirements (conceptual shape; do not embed proto text):
   - `activity_id`
   - `emit_process_facts`: which step transitions MUST be emitted (see `backlog/527-transformation-proto.md` §3.1)
   - `send_domain_intent` (optional): intent type + topic family + subject scope + idempotency key strategy
-  - `await_domain_facts` (optional): which facts (by type/subject) unblock the workflow and how correlation is computed
+  - `expected_domain_facts` (optional): which facts (by type/subject) represent the step’s expected outcomes/evidence and how correlation is computed (projection/mining contract; not workflow control flow)
   - `call_process` (optional; v2): invoke another ProcessDefinition as a subprocess (Call Activity semantics):
     - `called_process_definition_ref` (required): `{definition_id, version_id}` or `{definition_id, version_range}` depending on profile policy
     - `input_mapping` (required): explicit mapping from parent inputs/variables to child inputs (no implicit shared context)
     - `output_mapping` (required): explicit mapping from child outputs to parent variables/pins/evidence
     - `timeout_policy` / `retry_policy` (bounded; retries rely on idempotency and must be visible as process facts)
-  - `run_work_request` (optional): request execution via a Domain-owned WorkRequest (tool run or agent work) and define how the workflow waits for completion:
+  - `run_work_request` (optional): request execution via a Domain-owned WorkRequest (tool run or agent work) and define how the Activity waits for completion:
     - `work_kind` ∈ `{tool_run, agent_work}`
     - `queue_ref` (logical; environment binds actual broker/subject)
     - `timeout_policy` / `retry_policy` (bounded; retries rely on idempotency)
@@ -271,7 +286,7 @@ This keeps BPMN as the authoring and governance source of truth while making exe
 Vendor-aligned runtime guarantees (required):
 
 - **Activities are at-least-once in practice** (retries/crashes are normal). Therefore all `send_domain_intent` and `run_work_request` steps MUST propagate explicit idempotency keys, and Domain write surfaces MUST be idempotent on those keys.
-- **Signal ingestion requires dedupe + history planning**: when `await_domain_facts` is implemented as Kafka facts → ingress router → `SignalWithStart`, workflows MUST dedupe signal deliveries by `message_id` (especially across `Continue-As-New`) and use `Continue-As-New` for long-lived “entity workflow” histories.
+- **Long-running Activities must heartbeat**: any Activity that blocks waiting for external work MUST heartbeat and handle cancellation; the workflow progresses only on Activity completion results and explicit user task completions.
 - **Task queue ≠ broker topic**: Temporal task queues route Temporal tasks to Temporal workers; they are not pub/sub topics and are not used as the platform fact spine.
 
 ### 3.5.1 Compilation semantics for nested processes (v2)

@@ -316,7 +316,7 @@ v1 requires four sections (conceptual; schema-backed definition; do not embed pr
 
 - For each executable BPMN node (by `activity_id`):
   - emitted step evidence requirements (process facts)
-  - `send_domain_intent` / `await_domain_facts`
+  - `send_domain_intent` / `expected_domain_facts` / `run_work_request`
   - declared `allowed_reads`
   - timeout/retry policies (as applicable)
 
