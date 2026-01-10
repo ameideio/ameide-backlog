@@ -6,7 +6,7 @@
 This document lists the **manual, one-time prerequisites** for deploying the Ameide AKS environment via **GitHub CI** into a **new Azure subscription**, while keeping the **parent DNS zone `ameide.io`** in the existing subscription:
 
 - **Parent DNS subscription (kept)**: `92f1f4d0-00d9-4ffb-bce3-f2c3be49d748`
-- **Target AKS subscription (new)**: `AZURE_SUBSCRIPTION_ID` (GitHub Actions variable; change as needed)
+- **Target AKS subscription (new)**: `AZURE_SUBSCRIPTION_ID` (GitHub Actions variable)
 
 The intent is that **Terraform owns infra** (cluster, identities, Key Vault, storage, etc.) and **CI owns bootstrap + verification**, while we keep certain “account bootstrap” items manual because they are cross-cutting or sensitive.
 
@@ -33,8 +33,12 @@ These must be set in GitHub repo variables (environment `azure` if you use envir
 - `AZURE_SUBSCRIPTION_ID` (the **new** subscription where AKS will be deployed)
 - `AKS_LINUX_ADMIN_PUBLIC_KEY`
 - `DNS_PARENT_ZONE_NAME` = `ameide.io`
+- `DNS_PARENT_ZONE_SUBSCRIPTION_ID` = `92f1f4d0-00d9-4ffb-bce3-f2c3be49d748`
 - `DNS_PARENT_ZONE_RESOURCE_GROUP` = the RG that contains `ameide.io` **in the parent DNS subscription** (currently `Ameide`)
 - `TF_ENV_SECRETS_KEYVAULT_NAME` = name of the **CI secrets source** Key Vault (see below)
+
+Notes:
+- `DNS_PARENT_ZONE_SUBSCRIPTION_ID` is required for the `ameide.io` DNS-01 / AzureDNS flow; charts intentionally fail fast if it’s missing to avoid silently targeting the wrong subscription.
 
 ---
 
@@ -50,19 +54,35 @@ These must be set in GitHub repo variables (environment `azure` if you use envir
 Terraform needs to create:
 - AKS, networking, storage, identities, Key Vault, role assignments.
 
-**Recommended** (simplest):
-- Assign **Owner** on the new subscription scope to the CI principal.
+**Recommended minimal roles (practical + “no drift”):**
+- On the **target AKS subscription** (or the target RG scope if you keep everything in one RG):
+  - `Contributor`
+  - `User Access Administrator` (required because Terraform creates role assignments)
+- On the **parent DNS zone** (`ameide.io`) in the **old subscription**:
+  - `DNS Zone Contributor` (zone scope)
+  - `User Access Administrator` (zone scope; required because Terraform creates DNS role assignments for managed identities)
+- On the **Terraform state backend** (Azure Storage):
+  - `Storage Blob Data Contributor` (data plane) on the storage account or tfstate container
+- On the **CI secrets source** Key Vault:
+  - `Key Vault Secrets User` (read secrets)
 
-Alternative (more complex):
-- `Contributor` + `User Access Administrator` at required scopes (to create role assignments).
+Notes:
+- Assigning `Owner` works, but it is broader than needed and not recommended as the steady state.
+- Terraform also grants the current Terraform runner identity `Key Vault Secrets Officer` on the **cluster** Key Vault it creates (so CI can seed secrets post-apply).
+
+### 1.3 AKS API access model (CI bootstrap)
+
+- CI uses `az aks get-credentials` **without** `--admin` and authenticates via Entra ID (`kubelogin`).
+- Local (admin) accounts are disabled by default in the AKS module, so “admin kubeconfig” is not relied on.
+- Terraform grants the Terraform runner identity `Azure Kubernetes Service RBAC Cluster Admin` on the cluster (so the CI identity can bootstrap Argo CD).
 
 ---
 
 ## 2) Azure Resource Provider Registration (Manual)
 
-Because Terraform is configured not to auto-register providers (`resource_provider_registrations = "none"`), the new subscription must have required providers registered.
+Azure subscriptions must have resource providers registered before resources can be created. Terraform is configured to register core providers in the **new** subscription as needed; if provider registration is restricted in your tenant, pre-register the required providers before running CI apply.
 
-Minimum set to register:
+Practical minimum set for this repo’s Azure footprint:
 - `Microsoft.ContainerService`
 - `Microsoft.Compute`
 - `Microsoft.Network`
@@ -97,9 +117,16 @@ Goal: remote state + locking in Azure Storage.
 - A dedicated Storage Account + container `tfstate`.
 
 ### Current workflow behavior (implementation detail)
-- Workflows attempt to ensure the backend storage account/container exists, but **this requires**:
-  - permission to create/update Storage Account in the chosen backend RG
-  - permission to create blob containers
+- Workflows ensure the backend storage account/container exists using **Entra ID / OIDC auth only**.
+- Workflows **do not** use (or fall back to) Storage Account access keys.
+
+Required permissions for the CI identity:
+- Management plane: create storage account in the backend RG (e.g., `Contributor`)
+- Data plane: create/read blobs and acquire leases (locking) in the tfstate container:
+  - `Storage Blob Data Contributor` on the storage account or on the specific container
+
+Optional hardening after first successful apply:
+- Disable Shared Key authorization on the backend storage account (Entra-only).
 
 If you want strict separation and predictability:
 - Pre-create the backend RG + Storage Account + container manually once.
@@ -110,24 +137,26 @@ If you want strict separation and predictability:
 ## 5) DNS Model When `ameide.io` Stays in the Old Subscription (Manual)
 
 ### The key constraint
-Terraform in the **new subscription** cannot safely manage the **parent zone** `ameide.io` unless the CI identity also has access to the old subscription and Terraform is configured for cross-subscription DNS operations.
+The **parent zone** `ameide.io` stays in the old subscription, but the AKS cluster and child zones can live in the new subscription. For this to be predictable (“no drift”), CI must be able to update DNS **cross-subscription**.
 
 This affects:
 - `argocd.ameide.io` A record updates (cluster-level)
 - NS delegation records for `dev.ameide.io` and `staging.ameide.io` if those zones move
 
-### Option A (recommended): make DNS updates CI-managed cross-subscription
-Manual prerequisites:
-- Grant the CI principal at least **DNS Zone Contributor** on the parent DNS zone scope (old subscription).
+### Option A (default/recommended): CI-managed cross-subscription DNS (implemented)
+Prerequisites:
+- `DNS_PARENT_ZONE_SUBSCRIPTION_ID` points at the subscription that contains `ameide.io`.
+- CI identity has `DNS Zone Contributor` on the `ameide.io` zone scope in that subscription.
 
-Terraform/code prerequisite (future work):
-- Add a second `azurerm` provider alias for the DNS subscription and use it for:
-  - `data.azurerm_dns_zone.parent`
-  - parent zone A records (argocd)
-  - NS delegation records
+Behavior:
+- Terraform uses a second `azurerm` provider configuration (pointed at `DNS_PARENT_ZONE_SUBSCRIPTION_ID`) for:
+  - reading the parent zone
+  - creating NS delegation records for child zones
+  - creating/updating `argocd.ameide.io`
+  - creating/updating apex/wildcard records for production (`ameide.io`, `*.ameide.io`)
 
-### Option B (fastest now): keep DNS operations manual
-Manual steps each time you deploy a new cluster/public IP:
+### Option B (break-glass): manual DNS edits
+If CI cannot be granted access to the old subscription, you must manage these manually each time you redeploy:
 1. In the **old subscription** (parent zone), update:
    - `argocd.ameide.io` → the new cluster’s ArgoCD public IP
 2. If moving `dev.ameide.io` and `staging.ameide.io` zones to the new subscription:
@@ -155,7 +184,10 @@ Key Vault names are global. `ameide-ci-secrets` may already be taken.
 - Create a new Key Vault in the **new subscription** with a unique name (example pattern):
   - `ameidecisecrets<hash-or-suffix>`
 - Enable RBAC authorization.
-- Grant the CI principal `Key Vault Secrets User` on this vault.
+- Grant the CI principal `Key Vault Secrets User` on this vault (read).
+
+Notes:
+- The **cluster** Key Vault is created by Terraform and the Terraform runner identity is granted `Key Vault Secrets Officer` on it automatically (so CI can write secrets post-apply).
 
 ### 6.2 Populate required secret names (values are org-specific)
 Create secrets (names must match exactly):
@@ -217,3 +249,9 @@ CI apply is considered successful only if:
 - Envoy/edge listeners expose `443`
 - SSO verifiers pass
 
+---
+
+## Appendix: Runtime Facts Boundary (Generated, Non-Secret)
+
+- `runtime-facts` is a CI-generated branch, regenerated from Terraform outputs after each apply.
+- Treat it as an artifact: never hand-edit it, and keep it limited to non-secret “routing facts” (IPs, client IDs, resource IDs, subscription IDs).
