@@ -199,8 +199,8 @@ Rule: env-scoped apps must not create cluster-scoped objects with stable names u
   - Local: `arc-local`
   - AKS: `arc-aks`
 - Workflow routing is GitHub-driven only via `vars.AMEIDE_RUNS_ON` (no workflow defaults).
-- Runner registration is repo-scoped (`githubConfigUrl: https://github.com/ameideio/ameide-gitops`) to avoid org runner-group allowlist failures.
-  - Failure mode: other repos will not be able to use `arc-aks` unless they have their own runner set (or we switch back to org-scoped registration).
+- Runner registration is org-scoped (`githubConfigUrl: https://github.com/ameideio`), so multiple repos can use the same runner substrate.
+  - Failure mode: if runner groups restrict repo access, jobs may remain queued until the repo is allowed (or a dedicated runner set is deployed).
 
 ### BuildKit cross-arch support
 
