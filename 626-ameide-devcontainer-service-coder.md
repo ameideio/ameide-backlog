@@ -1,6 +1,6 @@
 ---
 title: "626 – AmeideDevContainerService (Coder-based, human workspaces in AKS dev)"
-status: draft
+status: active
 owners:
   - platform-devx
   - gitops
@@ -83,6 +83,13 @@ Related: `backlog/527-transformation-integration.md` (workbench pod is “not a 
 ### 3.1 Workspace lifecycle (cost control)
 
 - Workspaces must auto-stop when idle (dev-only does not mean “always on”).
+
+### 3.2 “Normal SSO” expectation (Keycloak is necessary, not sufficient)
+
+Even with `CODER_OIDC_*` configured against Keycloak, Coder still requires a **first user** to exist in its DB.
+Without it, Coder presents `/setup`.
+
+Decision (dev): **auto-bootstrap** the first admin user so humans go straight to Keycloak SSO without manual setup.
 
 ## 4) Dev environment contract (devcontainer alignment without Docker)
 

@@ -97,6 +97,9 @@ Preserve historical references as “Formerly AmeideCoder (renamed for clarity)�
 
 - Add a Coder OIDC integration doc slice that references the in-cluster Keycloak issuer and client configuration.
 - Ensure any legacy “admin password” workflows for developer tooling do not become the default for Coder.
+- Clarify the “first user” bootstrap requirement:
+  - OIDC config alone does not remove `/setup`; an initial admin user must exist in Coder’s DB.
+  - For dev, we auto-bootstrap an initial admin user so humans go straight to Keycloak SSO.
 
 ## 2.7 Template secret hygiene
 

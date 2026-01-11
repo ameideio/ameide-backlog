@@ -51,6 +51,25 @@ This backlog captures the current failure modes we observed and defines a **sing
 - The main parity blockers described here have been implemented in `ameide-gitops` (ARC runner parity + GitHub-variable routing, multi-arch runner/build support, and Docker Hub pull-rate limiting mitigations via mirroring).
 - Remaining work is mostly “guardrail + hygiene”: keep expanding CI render/conformance coverage, and keep separating “local-only stability knobs” from shared defaults.
 
+### Status note: platform-coder (AKS dev)
+
+While wiring `platform-coder` (Coder CE for AmeideDevContainerService), we hit three “parity-class” issues that map directly to this backlog’s goals (deterministic convergence, no manual clicks):
+
+1) **Vault/Keycloak client secret pipeline**
+   - Symptom: Coder pod failed because `keycloak-realm-oidc-clients` lacked `coder-client-secret`.
+   - Root cause: Vault policy for the Keycloak client patcher did not allow `secret/data/coder-*`.
+   - Fix: allow `secret/data/coder-*` writes so the patcher can persist/extract the Coder client secret.
+
+2) **Coder first-run `/setup`**
+   - Symptom: `coder.dev.ameide.io` served `/setup` despite Keycloak OIDC being configured.
+   - Root cause: Coder requires a “first user” record; OIDC alone does not create it.
+   - Fix: dev-only bootstrap Job creates an initial admin user so humans go straight to Keycloak SSO.
+
+3) **Postgres role password drift**
+   - Symptom: Coder crashed with `pq: password authentication failed for user "coder"`.
+   - Root cause: Vault/ESO password existed, but CNPG role password did not reliably converge without a reconcile mechanism (no superuser secret available).
+   - Fix: dev-only password reconcile CronJob (`kubectl exec` into CNPG primary) keeps DB roles aligned with Vault/ESO secrets.
+
 ## Current findings (AKS dev) and how they relate to local
 
 ### A) Docker Hub pull rate limiting blocked reconciliation (AKS) and was masked locally

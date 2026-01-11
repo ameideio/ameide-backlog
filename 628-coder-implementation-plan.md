@@ -1,6 +1,6 @@
 ---
 title: "628 – Implement Coder for AmeideDevContainerService (AKS dev-only) + delivery plan"
-status: draft
+status: active
 owners:
   - platform-devx
   - platform-sre
@@ -42,6 +42,7 @@ Build strategy:
 
 - Install Coder via a GitOps-managed Helm release (Argo CD Application) in AKS dev.
 - Configure `CODER_ACCESS_URL` to `https://coder.dev.ameide.io` and ensure ingress supports WebSockets.
+- Ensure “first user exists” is automated (otherwise `/setup` blocks “normal SSO”).
 
 ## 2) GitOps delivery shape (repo changes expected)
 

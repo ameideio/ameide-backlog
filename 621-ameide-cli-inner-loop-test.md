@@ -39,6 +39,13 @@ CI uses a sibling command that runs the same contract phases without cluster E2E
 - `backlog/581-parallel-ai-devcontainers.md` (parallel agent slots; header-filtered intercepts)
 - `.github/workflows/ci-core-quality.yml` (authoritative CI quality gate for PRs)
 
+## Relationship to AmeideDevContainerService (Coder workspaces)
+
+This command is designed for **workstation/local devcontainer** inner-loop flows where Telepresence is the substrate.
+
+In **Kubernetes-hosted human workspaces** (AmeideDevContainerService; 626/628), Telepresence is intentionally **not supported**
+(no `CAP_NET_ADMIN` / TUN device), so Phase 3 must be considered “not runnable” there.
+
 ## Implementation status (current)
 
 This backlog item is now **implemented** as a first-class Go CLI command:

@@ -56,6 +56,8 @@ Auth expectations:
 The smoke must also validate that OIDC is configured by checking:
 
 - Coder is configured to use the Keycloak issuer (configuration-level assertion; do not attempt browser automation).
+- The deployment is past first-run setup (bootstrap complete):
+  - `GET /api/v2/users/first` returns “initial user has already been created”.
 
 ### 1.2 Full E2E (includes PR + optional Codex)
 

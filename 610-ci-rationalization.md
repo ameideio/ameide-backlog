@@ -159,6 +159,20 @@ As of `2026-01-11`, `ameide-gitops` largely follows the scoping + cancellation p
 
 ### Achievements
 
+### New CI pressure source to manage: Coder workspaces E2E
+
+The AmeideDevContainerService (Coder-based human workspaces; 626/628/629) introduces a natural “full E2E” that is:
+
+- slow (workspace provision/build + app proxy verification)
+- secret-heavy (Coder token, GitHub bot token, optional Codex auth)
+- environment-scoped (AKS dev only)
+
+Required-check-safe recommendation:
+
+- Keep the Coder E2E as **workflow_dispatch** and/or scheduled (nightly), not as a required PR check.
+- If we want PR signal, add a fast “Coder smoke” gate that proves `coder.dev.ameide.io` is healthy and past `/setup`,
+  without creating PR spam (see 629).
+
 - **Required-check-safe scoping**: `GitOps / Gate` is the single required check and scopes work via a diff-based `changes` job + an always-run gate.
 - **Aggressive cancellation**: PR workflows use `concurrency` with `cancel-in-progress: true` (and workflow-unique groups to avoid cross-workflow cancellation).
 - **Runner routing is GitHub-config-driven**: most CI workflows run on `runs-on: ${{ vars.AMEIDE_RUNS_ON }}` (no workflow defaults), allowing switching between `arc-local` and `arc-aks`.
