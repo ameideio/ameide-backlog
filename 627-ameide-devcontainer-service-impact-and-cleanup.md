@@ -84,7 +84,7 @@ Preserve historical references as “Formerly AmeideCoder (renamed for clarity)�
   - Ensure Coder is dev-only enabled and does not introduce cross-env routing, shared public IP collisions, or node-pool affinity violations.
 - `backlog/463-multi-tenant-rbac-quotas.md` and `backlog/300-400/316-security.md`
   - Ensure workspace namespaces/pods have quotas/limits patterns, even if they are “dev-only”.
-- `backlog/603-image-pull-policy.md` and `backlog/622-gitops-hardening-k3d-aks`
+- `backlog/603-image-pull-policy.md` and `backlog/622-gitops-hardening-k3d-aks.md`
   - Define how workspace images are pinned (digest + multi-arch) or document a controlled exception if envbuilder builds dynamically.
 
 ### 2.5 Namespace label conventions
