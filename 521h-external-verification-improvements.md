@@ -10,6 +10,10 @@ Baseline: `backlog/521f-external-verification-baseline.md`
 
 Add new entries here when external verification behavior changes.
 
+### 2026-01-11
+
+- `ameideio/ameide`: removed the default fallback runner label (`arc-local`) from workflow `runs-on`; workflows now require `vars.AMEIDE_RUNS_ON` for runner routing (PR `#528`).
+
 ### 2026-01-08
 
 - CI flake hardening (Buf/BSR eventual consistency):
