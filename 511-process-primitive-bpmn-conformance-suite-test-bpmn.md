@@ -5,7 +5,7 @@
 Define the BPMN diagram(s) used by the Process conformance primitive so we can:
 
 - validate the Ameide BPMN execution profile via `verify-bpmn`
-- generate deterministically into Temporal workflow code (via the CLI toolchain)
+- deterministically produce Temporal workflow code via the CLI (as part of Process scaffolding) and fail verification if generated artifacts drift
 - execute the generated workflow under Temporal testsuite and assert behavior
 
 The BPMN diagram is not “documentation only”: it is an executable contract and must be kept honest via tests.

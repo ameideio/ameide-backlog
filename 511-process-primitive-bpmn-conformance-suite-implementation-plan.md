@@ -4,7 +4,7 @@
 
 Implement an end-to-end conformance gate proving that:
 
-`BPMN (profile) → CLI verify → deterministic generation → Temporal execution`
+`BPMN (profile) → CLI scaffold (writes generated artifacts) → CLI verify (drift/no-write) → Temporal execution`
 
 is correct for every supported BPMN construct in the current profile.
 
@@ -28,14 +28,14 @@ is correct for every supported BPMN construct in the current profile.
   - generation mapping
   - runtime observable
 
-### Phase 2 — Verification / generation tests (fast)
+### Phase 2 — Verification / scaffold-drift tests (fast)
 
 Add tests at the CLI/toolchain layer that:
 
 - run `verify-bpmn` on:
   - `conformance.bpmn` (must pass)
   - `negative/*.bpmn` (must fail with stable messages)
-- generate from `conformance.bpmn` and assert IR invariants:
+- generate from `conformance.bpmn` (via the same scaffolding step) and assert IR invariants:
   - step count and step ids are stable
   - wait-step subscription rules are enforced
   - unsupported constructs are rejected (no silent ignores)

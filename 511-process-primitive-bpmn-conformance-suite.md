@@ -17,7 +17,7 @@ We need a way to make “diagram must not lie” testable and continuously enfor
 Create a dedicated **conformance Process primitive** whose only purpose is to exercise every **supported** BPMN construct (Ameide BPMN Execution Profile) end-to-end:
 
 1. **Verify**: the CLI rejects anything outside the profile (`verify-bpmn` / `primitive verify`).
-2. **Generate**: the CLI produces deterministic workflow artifacts (e.g., `_gen.go`, `compile.lock.json`) and enforces “generated files match BPMN”.
+2. **Scaffold/refresh**: the CLI deterministically (re)writes generated workflow artifacts (e.g., `_gen.go`, `compile.lock.json`) as part of Process scaffolding.
 3. **Execute**: the CLI runs the conformance primitive’s Temporal tests (Go `testsuite.WorkflowTestSuite`) and asserts observable behavior.
 
 This becomes our **battle-tested** reference process for the CLI-enforced BPMN→Temporal contract.
