@@ -179,6 +179,43 @@ Rule: env-scoped apps must not create cluster-scoped objects with stable names u
 
 - `buildkit/binfmt` installs emulation for `amd64,arm64` so a runner on either arch can build both platforms when needed.
 
+### Telepresence traffic-manager scoping (local + AKS)
+
+We hit a convergence blocker where the per-environment Telepresence traffic-manager could:
+- CrashLoop under namespaced RBAC because it tried to `list namespaces` at cluster scope, and/or
+- Inject sidecars pointing at the wrong environment’s traffic-manager (cross-env `managerHost` drift).
+
+Fix direction (vendor-aligned and GitOps-owned):
+- Run traffic-manager with **namespaced RBAC** and scope it to exactly one environment namespace.
+- Ensure the rendered `ConfigMap/traffic-manager` sets `namespace-selector.yaml` to `operator: In` with `values: [ameide-<env>]` so the manager does not need cluster-wide namespace listing.
+
+Related tracking: see `backlog/492-telepresence-reliability.md`.
+
+### Local ClickHouse node placement (local-path PV binding)
+
+Local k3d’s `local-path` storage binds PVs to the node where the first consumer pod schedules. If ClickHouse initially schedules to the control-plane, later “avoid control-plane” hardening can strand the PVC on the wrong node.
+
+Fix direction:
+- Make local ClickHouse schedule to worker nodes deterministically (local-only affinity), and treat any required PVC deletion as an **operational local-only reset** (data loss acceptable locally).
+
+Related tracking: see `backlog/419-clickhouse-argocd-resiliency.md`.
+
+### Local Plausible ClickHouse DNS resolution
+
+Some clients fail to resolve short service names reliably in local, causing Plausible init/migrations to fail with NXDOMAIN-like errors. The local overlay must use an explicit FQDN for ClickHouse.
+
+Related tracking: see `backlog/422-plausible-argocd-alignment.md`.
+
+### Gateway API SSA ownership (avoid manual `kubectl patch`)
+
+Server-side apply field ownership matters. A one-off manual `kubectl patch` against Gateway API resources can steal `.spec.*` ownership and leave the Argo app permanently `OutOfSync` even though everything is Healthy.
+
+Fix direction:
+- Treat Git as the only steady-state writer for Argo-managed objects.
+- If you must recover ownership, do a one-time SSA apply with the Argo field manager and `--force-conflicts`, then avoid reintroducing out-of-band patches.
+
+Related tracking: see `backlog/450-argocd-service-issues-inventory.md`.
+
 ### 3) Scheduling contract (pools and profiles)
 
 We cannot rely on “env pools” if dev is a shared-node cluster.
