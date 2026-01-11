@@ -147,11 +147,11 @@ We carry forward the earlier principles and make them concrete here:
   * BPMN-compliant artifact + metadata (tenant, version, process type like L2O/O2C/T2C).
   * Defines process stages, tasks, gateways, and bindings to domains/agents.
   * Stored and versioned in the **Transformation Domain** with revisions & promotions (modelled via Transformation design tooling UIs).
-* **Process primitive** (runtime)
+  * **Process primitive** (runtime)
 
   * Logical unit that implements Temporal workflows whose behavior is informed by ProcessDefinitions:
 
-    * CLI/agents read ProcessDefinitions and generate or refactor workflow code in the Process primitive.
+    * CLI/agents read ProcessDefinitions and **scaffold/refresh** workflow code in the Process primitive; `verify` enforces drift checks between the definition inputs and generated outputs.
     * At runtime, the Process primitive runs its own workflow code; it does **not** fetch or interpret ProcessDefinitions on the hot path.
     * **Control plane vs runtime:** the Process operator may call Transformation synchronously to resolve and mount opaque ProcessDefinition bytes/config into the worker (control plane), but it does not interpret behavior semantics; runtime workflows must still integrate with Domains via the event bus only (see `499-process-operator.md`, `506-scrum-vertical-v2.md`).
     * Workflows map conceptual BPMN tasks to Domain primitive API calls and/or Agent primitive tools and handle business-level errors and compensations.

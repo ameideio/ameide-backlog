@@ -188,7 +188,7 @@ Notes:
 
 Placement (examples): `bpmn:serviceTask`, `bpmn:sendTask`, message throw events.
 
-Purpose: define the **execution binding** that the scaffolder must generate.
+Purpose: define the **execution binding** that the scaffolder must materialize into generated workflow code.
 
 Requiredness:
 

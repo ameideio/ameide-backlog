@@ -67,9 +67,9 @@ Python/pytest:
 - enforce `@pytest.mark.integration` for Phase 2
 - configure strict markers + JUnit output in pytest config
 
-### Step 4 — Make scaffolding generate v2 by default
+### Step 4 — Make scaffolding include v2 tests by default
 
-All scaffolders must generate:
+All scaffolders must include:
 
 - unit tests that run in Phase 1
 - integration tests that run in Phase 2 (mocked/stubbed only)
