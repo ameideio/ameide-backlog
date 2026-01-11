@@ -249,7 +249,7 @@ To make “ephemeral jobs from a queue” safe and interoperable without turning
    - writes artifacts to object storage,
    - records outcomes back into Domain via a Domain intent (idempotent).
 5. **Domain emits** `WorkCompleted`/`WorkFailed` (and links evidence bundles).
-6. **Activity waits** for completion (poll/timeout/heartbeat) and returns a result; **Process emits** `ToolRunRecorded` / `GateDecisionRecorded` / `ActivityTransitioned` as process facts, and continues.
+6. **Workflow waits** for completion (Signals/Updates; timers once supported) and continues; **Process emits** `ToolRunRecorded` / `GateDecisionRecorded` / `ActivityTransitioned` as process facts, and continues.
 7. **Projection materializes** the joined run timeline (process facts + correlated domain facts) with citations.
 
 ### Kafka transport (normative)

@@ -14,7 +14,7 @@
 ## Terminology
 
 - **Activity-inline execution:** work runs inside the Process primitive’s Temporal Activity worker.
-- **Activity-delegated execution:** an Activity initiates work elsewhere (via WorkRequest), then waits (poll/long-poll + heartbeat) and returns a result to the workflow.
+- **Activity-delegated execution:** an Activity initiates work elsewhere (via WorkRequest) and returns a correlation/result handle; the Workflow waits for completion (Signal/Update; timers once supported) and continues.
 
 ## Kanban phases (recommended)
 
@@ -45,4 +45,3 @@ Everything else MUST be automated via `serviceTask`/Activities/WorkRequests.
 6. **At-least-once everywhere**: Kafka delivery is at-least-once; Activities may run more than once; all writes MUST be idempotent.
 7. **No internal EDA control flow**: workflows MUST NOT advance step progression by consuming broker facts.
 8. **No “activities-only orchestration”**: long-lived state + gate decisions live in Workflows; Activities remain retryable side effects only (and may heartbeat while waiting).
-

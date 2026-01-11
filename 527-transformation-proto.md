@@ -86,10 +86,10 @@ Agent handover note (event-driven first):
 - Inter-agent/role delegation for delivery work (Product Owner→Solution Architect→Executor) is intentionally treated as a **separate handover seam** from the Transformation/Scrum domain/process seams above.
 - Canonical semantics live in `backlog/505-agent-developer-v2.md` (work intents/facts + evidence refs). Any interactive transport (e.g., A2A) is a binding over that seam, not a competing contract.
 
-Execution substrate note (WorkRequests; Activity-driven):
+Execution substrate note (WorkRequests; Workflow-driven):
 
 - Long-running tool runs and agent work are represented as Domain-owned `WorkRequest` records: Process requests work via Domain intents/commands; Domain emits `WorkRequested` facts after persistence on `transformation.work.domain.facts.v1` (audit trail), and emits `WorkExecutionRequested` execution intents after persistence onto dedicated execution queue topics (e.g., `transformation.work.queue.toolrun.verify.v1`, `transformation.work.queue.toolrun.generate.v1`, `transformation.work.queue.toolrun.verify.ui_harness.v1`, `transformation.work.queue.agentwork.coder.v1`). KEDA-scaled execution backends consume `WorkExecutionRequested` and record outcomes back into Domain idempotently.
-- Process workflows progress on Activity completion results; Activities may wait for WorkRequest completion (poll/long-poll + heartbeat) and return `{work_request_id, outcome, evidence_refs}`. Work domain facts remain audit/projection inputs, not workflow step-completion signals.
+- Process workflows progress via Workflow wait states (Signals/Updates; timers once supported) plus Activity results; Activities remain bounded and MUST NOT block waiting for external work. Work domain facts remain audit/projection inputs, not workflow step-completion signals.
 
 ## 3) Envelope invariants (per 496)
 

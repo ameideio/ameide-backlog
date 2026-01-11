@@ -41,7 +41,7 @@ What is implemented in code today (Dec 2025):
     - records evidence elements linked via `ref:evidence:*`,
     - records a release element linked via `ref:release`,
     - creates and promotes a governance baseline.
-- WorkRequest orchestration path exists end-to-end in repo-mode tests (Domain + executor + process facts). Note: v0 used an ingress router to signal domain facts into workflows; v1 target is to wait inside Activities and keep broker facts projection-only (no internal EDA control flow).
+- WorkRequest orchestration path exists end-to-end in repo-mode tests (Domain + executor + process facts). Note: v0 used an ingress router to signal domain facts into workflows; v1 target is to model long waits as **Workflow-level wait states** (Signals/Updates; timers once supported) and keep broker facts projection-only (no internal EDA control flow).
 - Cluster validation is E2E-only under `backlog/430-unified-test-infrastructure-v2-target.md` (Phase 3; Playwright) and assumes deployed dispatcher/executor/ingress/projection + Temporal wiring.
 
 What remains intentionally pending (target state):
@@ -96,12 +96,12 @@ Workflow steps often require deterministic tool execution (scaffolding, codegen,
 
 For the canonical end-to-end sequence (separating process semantics from infra mechanics), see `backlog/527-transformation-e2e-sequence.md`.
 
-**Execution substrate (normative; v1):** long-running tool/agent steps run via WorkRequests, but the workflow progresses on Activity completion (not on ingested facts):
+**Execution substrate (normative; v1):** long-running tool/agent steps run via WorkRequests; the workflow progresses via explicit **wait states** (Signals/Updates; timers once supported), not by consuming broker facts as internal control flow:
 
 - Each executable `serviceTask` compiles to a single Temporal Activity invocation.
 - The Activity either:
   - executes inline (imperative work in the worker), or
-  - delegates by calling Domain `RequestWork` to create a Domain-owned `WorkRequest` (idempotent), then waits for completion (poll/long-poll + heartbeat) and returns a deterministic result to the workflow.
+  - delegates by calling Domain `RequestWork` to create a Domain-owned `WorkRequest` (idempotent) and returns a deterministic correlation/result handle; completion is awaited at the Workflow level (message wait / signal/update), not by blocking the Activity.
 - Domain emits `WorkRequested` facts after persistence (outbox) on `transformation.work.domain.facts.v1` (audit trail; pub/sub) and publishes `WorkExecutionRequested` intents to the appropriate execution queue.
 - Executors consume execution intents, run the work, and record outcomes/evidence back to Domain idempotently.
 - The workflow emits `ToolRunRecorded` / `GateDecisionRecorded` / `ActivityTransitioned` process facts using the Activity result (e.g., `work_request_id`, outcome summary, evidence refs).
@@ -138,7 +138,7 @@ v1 supports a deliberately small executable subset (expand later; any unsupporte
 **Waits/timers (v1 stance):**
 
 - v1 does not require BPMN-native wait/timer constructs (e.g., `intermediateCatchEvent`, `timerEventDefinition`) to express “wait for an external event”.
-- “Wait” semantics for machine steps are expressed via Activities (e.g., `run_work_request` bindings): the Activity blocks (poll/long-poll + heartbeat) until completion and returns a result. Workflows MUST NOT advance by consuming broker facts as internal control flow.
+- “Wait” semantics are expressed at the **Workflow level** (Signals/Updates; timers once supported). Activities MUST NOT block waiting for external work; workflows MUST NOT advance by consuming broker facts as internal control flow.
 - If/when BPMN-native waits/timers are added, they MUST map to the same execution profile concepts and produce the same step evidence (process facts).
 
 ### 3.1.1 Supported BPMN subset (v2; planned and normative for compile-to-IR)
@@ -250,7 +250,7 @@ Execution profile requirements (conceptual shape; do not embed proto text):
     - `input_mapping` (required): explicit mapping from parent inputs/variables to child inputs (no implicit shared context)
     - `output_mapping` (required): explicit mapping from child outputs to parent variables/pins/evidence
     - `timeout_policy` / `retry_policy` (bounded; retries rely on idempotency and must be visible as process facts)
-  - `run_work_request` (optional): request execution via a Domain-owned WorkRequest (tool run or agent work) and define how the Activity waits for completion:
+  - `run_work_request` (optional): request execution via a Domain-owned WorkRequest (tool run or agent work) and define how the Workflow waits for completion:
     - `work_kind` ∈ `{tool_run, agent_work}`
     - `queue_ref` (logical; environment binds actual broker/subject)
     - `timeout_policy` / `retry_policy` (bounded; retries rely on idempotency)
@@ -286,7 +286,7 @@ This keeps BPMN as the authoring and governance source of truth while making exe
 Vendor-aligned runtime guarantees (required):
 
 - **Activities are at-least-once in practice** (retries/crashes are normal). Therefore all `send_domain_intent` and `run_work_request` steps MUST propagate explicit idempotency keys, and Domain write surfaces MUST be idempotent on those keys.
-- **Long-running Activities must heartbeat**: any Activity that blocks waiting for external work MUST heartbeat and handle cancellation; the workflow progresses only on Activity completion results and explicit user task completions.
+- **Activities are bounded**: long waits are modeled as Workflow wait states (Signals/Updates; timers once supported). For genuinely long-running compute Activities, use heartbeats and handle cancellation.
 - **Task queue ≠ broker topic**: Temporal task queues route Temporal tasks to Temporal workers; they are not pub/sub topics and are not used as the platform fact spine.
 
 ### 3.5.1 Compilation semantics for nested processes (v2)
