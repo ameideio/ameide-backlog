@@ -91,10 +91,10 @@ Recommended default:
 
 The compiler operates on a constrained, deterministic subset:
 
-- Allowed: `bpmn:process`, embedded `bpmn:subProcess` (structural grouping), `bpmn:startEvent`, `bpmn:endEvent`, `bpmn:sequenceFlow`, `bpmn:serviceTask`, `bpmn:sendTask`, `bpmn:userTask`, supported waits (above), `bpmn:message`.
-- Disallowed (compile error): gateways (any type), boundary events, event subprocess, timers, compensation, multi-instance.
+- Allowed: `bpmn:process`, embedded `bpmn:subProcess`, `bpmn:startEvent`, `bpmn:endEvent`, `bpmn:sequenceFlow`, `bpmn:serviceTask`, `bpmn:sendTask`, `bpmn:userTask`, supported waits (above), `bpmn:intermediateThrowEvent` (message), `bpmn:message`, and `bpmn:exclusiveGateway` (with a deterministic condition subset on outgoing `sequenceFlow/conditionExpression`).
+- Disallowed (compile error): `inclusiveGateway`, `parallelGateway`, `eventBasedGateway`, `complexGateway`, boundary events, event subprocess, timers, compensation, multi-instance, call activity.
 
-Embedded subprocesses are treated as **structural grouping only** in v1 compilation: they are flattened into the same compiled workflow control-flow (no separate workflow instances).
+Embedded subprocesses are supported as standard BPMN structure; v1 does not spawn separate workflow instances (no call activities). Subprocess entering/leaving is compiled via BPMN-faithful “enter container start → run internals → leave on container end” semantics.
 
 ### 7) IO mapping constraints (v1)
 
@@ -137,7 +137,7 @@ GitOps deploys two Deployments referencing the same image digest with different 
 This work is intentionally designed to fit the existing CLI lifecycle under `ameide primitive`:
 
 - `ameide primitive scaffold --kind process …` remains the canonical “create/refresh the Process skeleton” entrypoint.
-- `ameide primitive verify --kind process …` becomes the canonical enforcement gate in repo mode (BPMN contract + generated code up-to-date).
+- Primitive-level repo verification uses `ameide primitive verify --kind process --name <name> --mode repo`. Workspace-wide verification uses `ameide verify`.
 - `ameide primitive drift --kind process …` can detect “BPMN changed but generated code wasn’t regenerated”.
 - Publish images via CI to GHCR; GitOps consumes digest-pinned refs.
 
@@ -167,13 +167,12 @@ Commands:
   - workflowDefinition required
   - wait node type + subscription placement rules
   - template/path grammar rules
-  - delegated/domainCommand immediate-wait rule
 - `backlog/527-transformation-e2e-sequence-v3.bpmn` passes the Go linter with no errors.
 - `ameide primitive scaffold --kind process …` deterministically generates `*_gen.go` plus `bpmn/compile.lock.json` without needing external tools.
 - The generated process primitive builds a runner image that can run worker or ingress via args/entrypoint.
 
 ## Follow-ups (v2 candidates)
 
-- Gateways (exclusive/parallel) with explicitly defined compilation semantics.
+- Parallel/event-based gateway semantics (token concurrency) with explicitly defined compilation semantics.
 - Boundary message events and event subprocess (with strict scope/activation rules).
 - Typed payload contracts for subscriptions (optional schema binding).

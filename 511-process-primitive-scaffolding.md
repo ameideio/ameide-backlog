@@ -67,8 +67,7 @@ The BPMN-first, Go-only compiler refactor (lint + compile into generated code) i
 ameide primitive scaffold \
   --kind process \
   --name <name> \
-  --include-gitops \
-  --include-test-harness
+  --include-gitops
 ```
 
 This assumes:
@@ -85,7 +84,8 @@ The “happy path” for Process primitives is the existing `ameide primitive` l
 
 - `ameide primitive plan --kind process --name <name>`: suggests required files/tests and highlights drift.
 - `ameide primitive scaffold --kind process --name <name>`: creates/refreshes the repo skeleton.
-- `ameide primitive verify --kind process --name <name> --mode repo`: enforces repo guardrails (shape, tests, conventions).
+- `ameide primitive verify --kind process --name <name> --mode repo`: enforces repo guardrails (shape, compile freshness, conventions).
+- `ameide verify`: workspace-wide gate (repo-wide + all primitives).
 - Publish images via CI to GHCR; GitOps consumes digest-pinned refs.
 
 The BPMN→Temporal runner compiler work (v1) fits into this structure by making BPMN lint/compile part of the Process “repo mode” guardrails and the Process scaffold refresh loop. See `backlog/511-process-primitive-scaffolding-refactoring.md`.
@@ -156,15 +156,9 @@ Process scaffolds assume:
 
 - **Execution boundary (Activities; inline vs delegated)**:
   - Workflows MUST initiate all side effects via **Activities** (the side‑effect boundary); workflow code must not call external systems directly.
-  - Activities have two allowed execution modes:
-    - **Inline deterministic execution:** the Activity runs the deterministic work directly inside the Process worker (preferred when the toolchain/isolation fits the worker image).
-    - **Delegated execution:** the Activity requests work across a runtime boundary (agentic coding, NiFi flows, devcontainer/heavy toolchains, external executors). Delegation MUST follow `496-eda-principles.md` semantics:
-      - the Activity submits a **domain intent/command** (idempotent) to create a Domain-owned `WorkRequest` (audit), and the Domain emits:
-        - lifecycle **facts** (audit/outcomes) via outbox on the fact spine, and
-        - a point‑to‑point execution **intent** on an operational execution queue (not a fact topic).
-      - executors consume execution **intents** and record outcomes back to the owning Domain write surface idempotently; the Domain emits completion facts.
-      - workflow advancement is driven by **awaiting correlated facts/receipts**, not by direct runner responses.
-  - Agent and Integration primitives remain separate DUs with their own runtimes (LangGraph, NiFi); Process delegates to them via Activities and advances based on correlated outcomes.
+  - In the current compiler/profile (v1), **all executable work nodes compile to Temporal Activities** (there is no “delegated vs inline” mode in the BPMN schema).
+  - If an Activity starts an **external async job**, the BPMN MUST model the completion as an explicit **wait state** (receiveTask / message catch). The workflow advances only by **Workflow-level waits** (Signals/Updates), not by broker-mediated internal control flow.
+  - Agent and Integration primitives remain separate DUs with their own runtimes (LangGraph, NiFi); Process interacts with them via Activities and continues based on explicit wait states.
 
 - **Idempotency**:
   - Workflows must ignore domain facts where `aggregate_version <= lastSeenAggregateVersion`.  
@@ -188,7 +182,7 @@ Process scaffolds assume:
   - When emitting BPMN‑derived step progress, include both `step_id` (definition element id) and `step_instance_id` (runtime occurrence id) to support loops, multi‑instance tasks, and parallel tokens.
 
 - **Ameide BPMN extensions (scaffolding metadata)**:
-  - ProcessDefinitions MAY include machine-readable bindings in BPMN `extensionElements` (under an Ameide-owned namespace) to drive scaffolding (e.g., task ↔ Temporal Activity, userTask ↔ Temporal Update, task ↔ WorkRequest + awaited facts).
+  - ProcessDefinitions MAY include machine-readable bindings in BPMN `extensionElements` (under an Ameide-owned namespace) to drive scaffolding (e.g., task ↔ Temporal Activity, userTask ↔ Temporal Update, wait ↔ message subscription + correlation/dedupe).
   - These extensions are **design-time compilation inputs**, not runtime configuration: the compiled workflow must still pin `process_definition_id` and remain deterministic.
   - See `backlog/511-process-primitive-scaffolding-bpmn-extension.md` for the execution-profile schema (required elements, completion/wait semantics, templates/path grammar, lint rules).
 
@@ -232,8 +226,8 @@ xmlns:ameide="https://ameide.io/schema/bpmn/extensions/v1"
 
 **Minimal extension surface (v1):**
 
-- `ameide:taskDefinition` — required on automated executable nodes; binds the node to an execution binding (`implementation`) plus stable `type`, `idempotencyKeyTemplate`, and a deterministic `policyRef`.
-- `ameide:subscription` — required for explicit waits; Camunda-aligned: declares `correlationKeyTemplate` (single correlation key) and `messageIdPath` for correlation + dedupe (and `messageName` unless attached to a `bpmn:message`).
+- `ameide:taskDefinition` — required on automated executable nodes; binds the node to stable `type`, optional `idempotencyKeyTemplate`, and a deterministic `policyRef` (all such nodes compile to Temporal Activities in v1).
+- `ameide:subscription` — required for explicit waits; MUST be attached to the referenced `bpmn:message` and declares `correlationKeyTemplate` plus `messageIdPath="message_id"`.
 - `ameide:ioMapping` — recommended; deterministic input/output mapping (variable paths → request fields, response fields → variable paths).
 - `ameide:taskHeaders` — optional; small static key/value metadata passed to the side-effect boundary.
 - `ameide:updateDefinition` — optional; user tasks default to Temporal Updates with a deterministic default name.
@@ -246,14 +240,12 @@ This is the core “how we model commands/events/IO”: **the BPMN shape gives c
 
 A BPMN activity scaffolds to one of:
 
-- a **Temporal Activity** (side-effect boundary) when the work is “local enough”, or
-- a **delegated WorkRequest** pattern when execution is outside the worker (agentic toolchains, heavy environments, external executors).
+- a **Temporal Activity** (side-effect boundary).
 
-If delegated:
+If the work is **async outside the worker** (agentic toolchains, heavy environments, external executors), model it explicitly:
 
-- the Activity submits an **idempotent domain intent/command** that creates a Domain-owned **WorkRequest** (audit-grade), and
-- the workflow advances only by **awaiting correlated domain facts** (e.g., `WorkCompleted` / `WorkFailed`), not synchronous runner responses.
-- In the BPMN extension profile, “awaiting correlated facts” is represented with explicit BPMN wait nodes and a machine-readable await contract via `ameide:subscription` (either on the wait node itself or on the referenced `bpmn:message`; the await contract is not implied by the task).
+- the serviceTask Activity starts the external job and returns a correlation handle into workflow state, and
+- the workflow waits at an explicit BPMN wait node (receiveTask / message catch) until ingress delivers the completion as a Temporal Signal/Update that matches the declared `ameide:subscription` correlation key + `message_id` dedupe key.
 
 **Facts / events (“what happened”)**
 
@@ -333,13 +325,12 @@ Editor support can start as raw XML in `extensionElements`, later upgraded via a
 
 ### Examples (extensions)
 
-#### Example: delegated work + explicit wait for completion
+#### Example: async external work + explicit wait for completion
 
 ```xml
 <bpmn:serviceTask id="Task_DoWork" name="Do work">
   <bpmn:extensionElements>
-    <ameide:taskDefinition implementation="delegated"
-                           type="example.external_job.v1"
+    <ameide:taskDefinition type="example.external_job.v1"
                            idempotencyKeyTemplate="example/${process_instance_id}/job/${state.job_key}"
                            policyRef="default" />
     <ameide:ioMapping>
@@ -408,20 +399,20 @@ Implementers (humans or coding agents) are expected to:
 3. Update tests to assert correct behavior, idempotency, and (where appropriate) Continue‑As‑New behavior.
 4. For any side‑effect step, implement the step as an Activity:
    - run deterministically inline when feasible, or
-   - delegate via the WorkRequest + execution intent queue pattern when toolchain/isolation demands it,
-   - and advance the workflow only on correlated facts/receipts (not synchronous runner responses).
+   - start an external async job and return a correlation handle into workflow state,
+   - then advance only via an explicit BPMN wait state (receive/catch) satisfied by a Temporal Signal/Update carrying `correlation_key` + `message_id`.
 
 ---
 
 ## 5. Verification expectations
 
-`ameide primitive verify --kind process --name <name>` is expected to check:
+`ameide primitive verify --kind process --name <name> --mode repo` is expected to check:
 
 - Presence of `cmd/worker/main.go` and `cmd/ingress/main.go`.  
 - Temporal worker registration of workflows/activities under `internal/workflows/**` and `internal/activities/**`.  
 - Ingress router using deterministic workflow IDs and `SignalWithStart`.  
 - Idempotency state present in workflow code (`lastSeenAggregateVersion`, flags).  
 - Process facts published via a port or activity (not directly from workflows), consistent with EDA rules in `496-eda-principles.md`.
-- Work execution posture is explicit in scaffold docs and stubs: deterministic steps run inline as Activities when feasible; delegated steps are requested via domain intents (execution intents on queues) and advanced by awaiting correlated facts/receipts.
+- BPMN compile freshness: generated artifacts match `bpmn/process.bpmn` and `bpmn/policies.yaml` (no drift).
 
 Vertical slices like `506-scrum-vertical-v2.md` remain authoritative for **which workflows and facts** exist; this backlog only constrains the **scaffold shape and Temporal/EDA pattern** for Process primitives.

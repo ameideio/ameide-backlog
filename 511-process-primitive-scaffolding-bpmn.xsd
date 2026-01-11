@@ -37,11 +37,9 @@
     correlation key value. This is intentionally aligned with Camunda's "single correlation key" model.
   -->
 
-  <xs:simpleType name="implementation">
+  <xs:simpleType name="messageIdPath">
     <xs:restriction base="xs:string">
-      <xs:enumeration value="activity"/>
-      <xs:enumeration value="delegated"/>
-      <xs:enumeration value="domainCommand"/>
+      <xs:enumeration value="message_id"/>
     </xs:restriction>
   </xs:simpleType>
 
@@ -56,9 +54,8 @@
 
   <xs:element name="taskDefinition" type="ameide:taskDefinitionType"/>
   <xs:complexType name="taskDefinitionType">
-    <xs:attribute name="implementation" type="ameide:implementation" use="required"/>
     <xs:attribute name="type" type="xs:string" use="required"/>
-    <xs:attribute name="idempotencyKeyTemplate" type="xs:string" use="required"/>
+    <xs:attribute name="idempotencyKeyTemplate" type="xs:string" use="optional"/>
     <xs:attribute name="policyRef" type="xs:string" use="required"/>
   </xs:complexType>
 
@@ -92,16 +89,13 @@
 
   <xs:element name="subscription" type="ameide:subscriptionType"/>
   <xs:complexType name="subscriptionType">
-    <!-- messageName MAY be omitted when the subscription is attached to a bpmn:message; name is taken from bpmn:message@name. -->
-    <xs:attribute name="messageName" type="xs:string" use="optional"/>
     <xs:attribute name="correlationKeyTemplate" type="xs:string" use="required"/>
-    <xs:attribute name="messageIdPath" type="ameide:path" use="required"/>
+    <xs:attribute name="messageIdPath" type="ameide:messageIdPath" use="required"/>
   </xs:complexType>
 
   <xs:element name="updateDefinition" type="ameide:updateDefinitionType"/>
   <xs:complexType name="updateDefinitionType">
-    <xs:attribute name="name" type="xs:string" use="required"/>
-    <xs:attribute name="idempotencyKeyTemplate" type="xs:string" use="optional"/>
+    <xs:attribute name="name" type="xs:string" use="optional"/>
   </xs:complexType>
 
 </xs:schema>

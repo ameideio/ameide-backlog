@@ -55,7 +55,7 @@ Aligned (by intent)
 
 - Message waits are explicit BPMN wait nodes (catch/receive) and create an explicit subscription/wait contract (same mental model as message subscriptions existing only when a process reaches a wait point).
 - Correlation is frozen when entering a wait (matches the “subscription value is evaluated at activation and not updated” intuition).
-- `messageName` + optional `messageId` semantics exist as first-class concepts (name + dedupe).
+- `bpmn:message@name` + `message_id` dedupe semantics exist as first-class concepts (name + dedupe).
 - IO mapping is deterministic and ordered (Camunda-like “ioMapping” semantics without scripting).
 - Static headers exist as a small, literal metadata surface (Camunda-like “task headers” idea).
 
@@ -127,7 +127,7 @@ Example:
 
 - `ameide:workflowDefinition` on the `bpmn:process`
 - `ameide:taskDefinition` on executable automated work nodes
-- `ameide:subscription` for explicit waits (Camunda-aligned: attach to `bpmn:message` for message-based waits; otherwise attach directly to the wait node)
+- `ameide:subscription` for explicit waits (MUST be attached to the referenced `bpmn:message` in v1)
 
 **Nice-to-have**
 
@@ -137,8 +137,8 @@ Example:
 
 Why those two are required:
 
- - `taskDefinition` is required because BPMN does not define whether an automated task compiles to a local Activity, a delegated “request + explicit wait”, or a domain write boundary. Without this, the scaffold shape is guesswork.
-- `subscription` is required because BPMN wait nodes do not define a correlation key or a dedupe key; without them the scaffold cannot generate a correct “await correlated event/fact” shape.
+ - `taskDefinition` is required because BPMN does not define the policy/type/idempotency key surface needed for deterministic Activity execution.
+- `subscription` is required because BPMN wait nodes do not define a correlation key or a dedupe key; without them the scaffold cannot generate a correct “await correlated message” shape.
 
 ---
 
@@ -148,13 +148,12 @@ This matrix exists so validators and scaffolding do not drift into implicit heur
 
 | BPMN element type | Requires `ameide:taskDefinition` | Requires `ameide:subscription` | Notes |
 | --- | --- | --- | --- |
-| `bpmn:serviceTask` | Yes | No | Automated work boundary; execution binding must be explicit. |
-| `bpmn:sendTask` | Yes | No | Treat as automated work boundary (typically “emit”). |
-| `bpmn:scriptTask` | Yes (if allowed) | No | Allowed only if the “script” is implemented as an Activity; BPMN scripts are not executed. |
-| Message throw events (`bpmn:intermediateThrowEvent`, `bpmn:endEvent` with message semantics) | Yes | No | Emission is done via Activity/outbox/port. |
-| `bpmn:userTask` | No (default Update) | No | Compiles to Temporal Update by default; optional `ameide:updateDefinition`. |
-| `bpmn:receiveTask` | No | Yes | Explicit wait boundary. |
-| Message catch events (`bpmn:intermediateCatchEvent`) | No | Yes | Explicit wait boundary; must declare correlation + dedupe. |
+| `bpmn:serviceTask` | Yes | No | Automated work boundary; compiles to a Temporal Activity. |
+| `bpmn:sendTask` | Yes | No | Automated work boundary; compiles to a Temporal Activity. |
+| `bpmn:intermediateThrowEvent` (message) | Yes | No | Executable “publish message” step; compiles to a Temporal Activity. |
+| `bpmn:userTask` | No (default Update) | No | Compiles to Temporal Update by default; optional `ameide:updateDefinition@name`. |
+| `bpmn:receiveTask` | No | Yes | Explicit wait boundary (receiveTask@messageRef → referenced `bpmn:message`). |
+| `bpmn:intermediateCatchEvent` (message) | No | Yes | Explicit wait boundary (messageEventDefinition@messageRef → referenced `bpmn:message`). |
 
 Notes:
 
@@ -197,23 +196,17 @@ Requiredness:
 
 Minimum fields:
 
-- `implementation` (required): one of
-  - `activity` — workflow schedules a Temporal Activity and advances on its result
-  - `delegated` — workflow schedules a Temporal Activity that requests external work (a side effect); completion is modeled via explicit wait node(s) with `ameide:subscription`
-  - `domainCommand` — workflow schedules a Temporal Activity that performs a domain write (a side effect); completion is modeled via explicit wait node(s) with `ameide:subscription`
 - `type` (required): stable identifier for the binding (activity type name / logical external job type / command key)
-- `idempotencyKeyTemplate` (required): stable idempotency key derivation for the side-effect boundary
+- `idempotencyKeyTemplate` (optional): stable idempotency key derivation for the side-effect boundary (a deterministic default is applied if omitted)
 - `policyRef` (required): reference to a named timeout/retry policy (see below)
 
-Why `implementation` cannot be inferred from BPMN:
+Forbidden (v1):
 
-- BPMN can say “this is a serviceTask”, but it does not say whether completion is a return value (local activity) vs an awaited correlated fact/event (delegated/domain). That choice changes the workflow shape, state, and tests, so it must be explicit to scaffold deterministically.
+- `ameide:taskDefinition@implementation` MUST NOT be present (all executable tasks compile to Temporal Activities in v1).
 
 Completion semantics (normative for v1):
 
-- `implementation="delegated"` and `implementation="domainCommand"` MUST NOT “implicitly wait” inside the task.
-- The BPMN model MUST include explicit wait node(s) (catch/receive wait) that carry `ameide:subscription` describing the completion event/fact.
-- This keeps “waiting is a contract on waits” true and prevents hidden control-flow embedded in task metadata.
+- All executable work nodes compile to Temporal Activities; long waits are modeled as explicit BPMN wait states and compiled to Workflow waits (Signals/Updates), not “blocked Activities”.
 
 Timeouts/retries:
 
@@ -252,7 +245,7 @@ Constraints:
 Placement:
 
 - Message waits (`bpmn:intermediateCatchEvent` with `messageRef`): `ameide:subscription` MUST be on the referenced `bpmn:message/bpmn:extensionElements`.
-- Receive waits (`bpmn:receiveTask`): `ameide:subscription` MUST be on the wait node’s `bpmn:extensionElements`.
+- Receive waits (`bpmn:receiveTask`): `ameide:subscription` MUST be on the referenced `bpmn:message/bpmn:extensionElements` (receiveTask@messageRef).
 
 Purpose: define how a waiting point correlates incoming events/facts to a workflow execution and dedupes deliveries.
 
@@ -262,26 +255,25 @@ Requiredness:
 
 Minimum fields:
 
-- `messageName` (required unless attached to `bpmn:message`): logical message/event/fact name (Camunda mental model: “message name”)
 - `correlationKeyTemplate` (required): deterministic template that resolves to a single correlation key value
-- `messageIdPath` (required): where the dedupe key comes from (Camunda mental model: “messageId”; here expressed as a path)
+- `messageIdPath` (required): MUST equal `message_id` (dedupe key in the normalized envelope)
 
 Semantics:
 
 - correlation values are computed once when entering the wait state and treated as fixed for that wait.
 - `correlationKeyTemplate` is resolved once when entering the wait, producing a single correlation key value.
 - Incoming events/facts are matched by comparing the inbound correlation key value to the captured expected correlation key value (string equality).
-- `messageIdPath` uses the Path grammar and is used for dedupe; duplicate deliveries with the same message id MUST be ignored.
+- `messageIdPath="message_id"` is used for dedupe; duplicate deliveries with the same message id MUST be ignored.
 
 Inbound envelope requirement (normative for v1):
 
 - The ingress layer MUST deliver inbound messages/facts to workflows in a normalized envelope that contains:
   - `correlation_key` (string): the inbound correlation key value used for matching waits
-  - `message_id` (string): a stable idempotency key for dedupe (recommended default `messageIdPath="message_id"`)
+  - `message_id` (string): a stable idempotency key for dedupe
   - `message_name` (string): the logical message name/type (for message-based waits this SHOULD match `bpmn:message@name`)
 - `correlationKeyTemplate` is resolved from workflow state when entering the wait and compared against the inbound `correlation_key`.
 - In v1, the inbound correlation key value is always taken from `correlation_key` in the normalized envelope (it is not configurable per-subscription in BPMN).
-- `messageIdPath` is resolved against the inbound envelope/payload as received by the workflow; if a different envelope shape is used, the model MUST set `messageIdPath` accordingly.
+- In v1, `messageIdPath` is fixed to `message_id` to keep wait dedupe semantics unambiguous.
 
 Recommended BPMN modeling:
 
@@ -298,7 +290,7 @@ Default rule:
 
 Optional override:
 
-- `ameide:updateDefinition` MAY be used to set an explicit Update name and define an idempotency template.
+- `ameide:updateDefinition` MAY be used to set an explicit Update name.
 
 Notes:
 
@@ -355,9 +347,8 @@ Required rules:
 
 - The `bpmn:process` includes exactly one `ameide:workflowDefinition`.
 - Every executable automated node has exactly one `ameide:taskDefinition`.
-- Every `ameide:taskDefinition` has `implementation`, `type`, `idempotencyKeyTemplate`, and `policyRef`.
-- Every explicit wait has exactly one `ameide:subscription` with `correlationKeyTemplate` and `messageIdPath` (and `messageName` unless it is attached to `bpmn:message`).
-- For `implementation in {delegated, domainCommand}`: at least one outgoing path MUST reach a supported explicit wait node (`bpmn:receiveTask` or `bpmn:intermediateCatchEvent`) that carries an `ameide:subscription` describing the completion event/fact.
+- Every `ameide:taskDefinition` has `type` and `policyRef` (and may include `idempotencyKeyTemplate`).
+- Every explicit wait references a `bpmn:message` that has exactly one `ameide:subscription` with `correlationKeyTemplate` and `messageIdPath="message_id"`.
 - Template placeholders MUST be from the allowed set, and `${state.<path>}` MUST use a `<path>` that follows the Path grammar.
 
 Recommended rules:
@@ -373,8 +364,7 @@ Recommended rules:
 ```xml
 <bpmn:serviceTask id="Task_DoWork" name="Do work">
   <bpmn:extensionElements>
-    <ameide:taskDefinition implementation="delegated"
-                           type="example.external_job.v1"
+    <ameide:taskDefinition type="example.external_job.v1"
                            idempotencyKeyTemplate="example/${process_instance_id}/job/${state.job_key}"
                            policyRef="default" />
     <ameide:ioMapping>
