@@ -49,19 +49,19 @@ Set `AMEIDE_RUNS_ON` to:
 - `arc-local` to run on local k3d ARC, or
 - `arc-aks` to run on AKS ARC.
 
-### Repo-scoped runner registration (avoids org runner-group allowlists)
+### Org-scoped runner registration (shared across repos)
 
-The runner sets are registered to the repo (not the org) via:
-- `githubConfigUrl: https://github.com/ameideio/ameide-gitops`
+The runner sets are registered to the org via:
+- `githubConfigUrl: https://github.com/ameideio`
 
-This avoids “queued forever” failures when an org runner group does not allow the repo, but it also means these runners are intended for **`ameideio/ameide-gitops` only** unless we intentionally move back to org-scoped registration.
+This enables a shared runner substrate for multiple repos, but it makes **runner group governance** matter (which repos are allowed to use the group).
 
-### Failure mode: “jobs never start” when the repo doesn’t match
+### Failure mode: “jobs never start” when runner groups restrict the repo
 
-Because `arc-aks` is repo-scoped to `https://github.com/ameideio/ameide-gitops`, it will **not** pick up workflows from other repos (e.g. `ameideio/ameide`) even if those workflows set `runs-on: arc-aks`.
+If the org runner group used by the scale set does not allow a repo, jobs for that repo can sit in `queued` with no runner assigned (even if `runs-on: arc-aks` matches).
 
-- Symptom: jobs sit in `queued` with no runner assigned.
-- Resolution: either deploy a dedicated ARC runner set for that repo, or switch ARC registration back to org-scoped (`githubConfigUrl: https://github.com/ameideio`) and manage runner-group allowlists.
+- Symptom: jobs stay `queued` and ARC never scales up for them.
+- Resolution: allow the repo in the runner group, or deploy a dedicated runner set for that repo.
 - Note: GitHub does not queue literally forever; jobs will fail after GitHub’s max queue time (currently 24h).
 
 ### Runner image is multi-arch and digest pinned
