@@ -191,6 +191,20 @@ Fix direction (vendor-aligned and GitOps-owned):
 
 Related tracking: see `backlog/492-telepresence-reliability.md`.
 
+### Local Redis operator instability (k3d) vs Redis posture (AKS)
+
+We observed `cluster-redis-operator` (Spotahome `redis-operator`) stuck `Synced/Progressing` in local due to the operator **CrashLooping** around leader-election renewal under k3d/k3s (tight election deadlines and a single-node-ish control-plane can make this flaky).
+
+This was a *parity blocker* because local cluster health could not be “green by default” while AKS dev remained healthy.
+
+Fix direction (no band-aids, GitOps-owned):
+
+- **Local**: run the `data-redis-failover` chart in `mode: standalone` (a plain Redis StatefulSet) and disable the cluster-scoped `redis-operator` installation in the local ArgoCD overlay.
+- **Local**: apps connect directly to `redis-master:6379` (no Sentinel dependency).
+- **AKS dev**: can continue to use `mode: failover` + Sentinel where HA is desired.
+
+This keeps both targets convergent and green while making the local posture intentionally deterministic (single-master, minimal control-plane dependencies).
+
 ### Local ClickHouse node placement (local-path PV binding)
 
 Local k3d’s `local-path` storage binds PVs to the node where the first consumer pod schedules. If ClickHouse initially schedules to the control-plane, later “avoid control-plane” hardening can strand the PVC on the wrong node.
