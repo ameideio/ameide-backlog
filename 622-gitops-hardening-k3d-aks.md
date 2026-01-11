@@ -1,9 +1,11 @@
 ---
 title: "622 – GitOps Hardening: k3d (local) + AKS (dev) parity"
-status: draft
+status: active
 owners:
   - platform-sre
   - gitops
+created: 2026-01-10
+updated: 2026-01-11
 ---
 
 # 622 – GitOps Hardening: k3d (local) + AKS (dev) parity
@@ -43,6 +45,11 @@ This backlog captures the current failure modes we observed and defines a **sing
 4. **No hostPort collisions** in multi-env AKS (dev/staging/prod share the same worker nodes).
 5. **Images are multi-arch** (linux/amd64 + linux/arm64) wherever local needs arm64 and AKS is amd64.
 6. CI includes a **render + conformance gate** for both local and dev overlays.
+
+## Status (2026-01-11)
+
+- The main parity blockers described here have been implemented in `ameide-gitops` (ARC runner parity + GitHub-variable routing, multi-arch runner/build support, and Docker Hub pull-rate limiting mitigations via mirroring).
+- Remaining work is mostly “guardrail + hygiene”: keep expanding CI render/conformance coverage, and keep separating “local-only stability knobs” from shared defaults.
 
 ## Current findings (AKS dev) and how they relate to local
 

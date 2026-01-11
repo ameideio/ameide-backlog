@@ -65,7 +65,7 @@ We must be able to express:
 - storage class and PVC sizing
   - (default) ephemeral workspace storage sizing and limits
 
-Related hardening constraints: `backlog/519-gitops-fleet-policy-hardening.md`, `backlog/622-gitops-hardening-k3d-aks`.
+Related hardening constraints: `backlog/519-gitops-fleet-policy-hardening.md`, `backlog/622-gitops-hardening-k3d-aks.md`.
 
 ## 2.3 Template delivery pipeline (not GitOps-native)
 

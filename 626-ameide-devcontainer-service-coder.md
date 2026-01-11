@@ -98,7 +98,7 @@ Decision notes:
 - Envbuilder must be treated as part of the supply chain: versions pinned, images traceable, and policy aligned (digests, multi-arch) unless we explicitly define an exception.
 - Devcontainer lifecycle scripts (`onCreateCommand`, `postCreateCommand`, `postStartCommand`, etc.) run as part of workspace lifecycle; treat them as product code (avoid “slow apt-get every start” patterns unless intentional).
 
-Related: `backlog/603-image-pull-policy.md`, `backlog/622-gitops-hardening-k3d-aks`.
+Related: `backlog/603-image-pull-policy.md`, `backlog/622-gitops-hardening-k3d-aks.md`.
 
 ## 4.1 Envbuilder prerequisites (must be explicit)
 
