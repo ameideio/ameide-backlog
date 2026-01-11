@@ -67,8 +67,7 @@
       <bpmn:serviceTask id="Task_code_change"
                         name="transformation.r2d.delivery_loop.code_change.v1">
         <bpmn:extensionElements>
-          <ameide:taskDefinition implementation="delegated"
-                                 type="transformation.r2d.delivery_loop.code_change.v1"
+          <ameide:taskDefinition type="transformation.r2d.delivery_loop.code_change.v1"
                                  idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
                                  policyRef="default"/>
           <ameide:ioMapping>
@@ -85,8 +84,7 @@
       <bpmn:serviceTask id="Task_iterate_tests"
                         name="transformation.r2d.delivery_loop.iterate_tests.v1">
         <bpmn:extensionElements>
-          <ameide:taskDefinition implementation="delegated"
-                                 type="transformation.r2d.delivery_loop.iterate_tests.v1"
+          <ameide:taskDefinition type="transformation.r2d.delivery_loop.iterate_tests.v1"
                                  idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
                                  policyRef="default"/>
           <ameide:ioMapping>
@@ -102,8 +100,7 @@
       <bpmn:serviceTask id="Task_final_gate"
                         name="transformation.r2d.delivery_loop.final_gate.v1">
         <bpmn:extensionElements>
-          <ameide:taskDefinition implementation="delegated"
-                                 type="transformation.r2d.delivery_loop.final_gate.v1"
+          <ameide:taskDefinition type="transformation.r2d.delivery_loop.final_gate.v1"
                                  idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
                                  policyRef="default"/>
           <ameide:ioMapping>
@@ -134,8 +131,7 @@
       <bpmn:serviceTask id="Task_preview_validate"
                         name="transformation.r2d.acceptance.preview_validate.v1">
         <bpmn:extensionElements>
-          <ameide:taskDefinition implementation="delegated"
-                                 type="transformation.r2d.acceptance.preview_validate.v1"
+          <ameide:taskDefinition type="transformation.r2d.acceptance.preview_validate.v1"
                                  idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
                                  policyRef="default"/>
           <ameide:ioMapping>
@@ -166,8 +162,7 @@
       <bpmn:serviceTask id="Task_build_publish"
                         name="transformation.r2d.release.build_publish.v1">
         <bpmn:extensionElements>
-          <ameide:taskDefinition implementation="delegated"
-                                 type="transformation.r2d.release.build_publish.v1"
+          <ameide:taskDefinition type="transformation.r2d.release.build_publish.v1"
                                  idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
                                  policyRef="default"/>
           <ameide:ioMapping>
@@ -183,8 +178,7 @@
       <bpmn:serviceTask id="Task_gitops_promote"
                         name="transformation.r2d.release.gitops_promote.v1">
         <bpmn:extensionElements>
-          <ameide:taskDefinition implementation="delegated"
-                                 type="transformation.r2d.release.gitops_promote.v1"
+          <ameide:taskDefinition type="transformation.r2d.release.gitops_promote.v1"
                                  idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
                                  policyRef="default"/>
           <ameide:ioMapping>
@@ -200,8 +194,7 @@
       <bpmn:serviceTask id="Task_rollout_verify"
                         name="transformation.r2d.release.rollout_verify.v1">
         <bpmn:extensionElements>
-          <ameide:taskDefinition implementation="delegated"
-                                 type="transformation.r2d.release.rollout_verify.v1"
+          <ameide:taskDefinition type="transformation.r2d.release.rollout_verify.v1"
                                  idempotencyKeyTemplate="r2d/${process_instance_id}/${step_id}/${step_instance_id}"
                                  policyRef="default"/>
           <ameide:ioMapping>

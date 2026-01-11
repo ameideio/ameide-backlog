@@ -83,7 +83,7 @@ primitives/process/<name>/
     │   └── router_gen.go                   # generated: message filter + dispatch
     ├── process/
     │   └── state.go                        # human-owned: state helpers
-    └── tests/                              # optional (enabled by --include-test-harness)
+    └── tests/                              # optional (repo conventions / future harness)
 ```
 
 ### 2.1 Generated file ownership rule
@@ -101,7 +101,7 @@ The compiler **MUST NOT** modify any other file.
 The CLI **MUST** support this command, with exactly these flags:
 
 ```bash
-ameide primitive scaffold --kind process --name <name> --include-gitops --include-test-harness
+ameide primitive scaffold --kind process --name <name> [--include-gitops]
 ```
 
 This command **MUST** generate the directory structure in §2 and the initial `bpmn/process.bpmn` template file, `bpmn/policies.yaml`, and a runnable `cmd/worker` + `cmd/ingress`.
@@ -113,7 +113,9 @@ There is **no** standalone compile command in v1.
 Instead, compilation is an internal step invoked by:
 
 * `ameide primitive scaffold --kind process ...` (writes generated outputs), and
-* `ameide primitive verify --kind process ...` (compares generated outputs; no writes).
+* `ameide primitive verify --kind process --name <name> --mode repo` (compares generated outputs; no writes).
+
+Note: `ameide verify` is the workspace-wide gate (repo-wide + all primitives).
 
 The compiler behavior is:
 
@@ -129,7 +131,7 @@ The compiler behavior is:
 The CLI **MUST** support:
 
 ```bash
-ameide primitive verify --kind process --name <name>
+ameide primitive verify --kind process --name <name> --mode repo
 ```
 
 Behavior:
@@ -164,7 +166,7 @@ The compiler supports exactly one BPMN file per Process primitive: `bpmn/process
 Only these BPMN element types participate in compilation:
 
 * `bpmn:process`
-* `bpmn:subProcess` (embedded, expanded, inlined; see §4.6)
+* `bpmn:subProcess` (embedded)
 * `bpmn:startEvent`
 * `bpmn:endEvent`
 * `bpmn:sequenceFlow`
@@ -173,38 +175,41 @@ Only these BPMN element types participate in compilation:
 * `bpmn:userTask`
 * `bpmn:receiveTask`
 * `bpmn:intermediateCatchEvent` **with exactly one** `bpmn:messageEventDefinition`
+* `bpmn:intermediateThrowEvent` **with exactly one** `bpmn:messageEventDefinition`
+* `bpmn:exclusiveGateway`
 * `bpmn:message`
 
 Every other BPMN element type is FORBIDDEN and MUST cause a compile error.
 
 ### 4.3 Graph structure constraints
 
-After inlining subprocesses (per §4.6), the resulting directed graph MUST satisfy:
+The graph MUST satisfy:
 
-* Exactly one start node (the single process-level `bpmn:startEvent`).
-* Exactly one end node (the single process-level `bpmn:endEvent`).
-* Every node is reachable from the start node.
-* The graph has **no directed cycles**.
+* Exactly one direct process-level `bpmn:startEvent`.
+* Exactly one direct process-level `bpmn:endEvent`.
+* Every node is reachable from the process start event (including subprocess internals).
 
-If the graph contains a cycle, compilation MUST fail.
+Profile v1 does not define loop semantics (loop characteristics / multi-instance). Directed cycles are considered **unsupported** and will be rejected before v1 is considered complete. (Implementation note: cycle detection is not yet enforced in the compiler as of 2026-01.)
 
 ### 4.4 Sequence flow constraints
 
 For each `bpmn:sequenceFlow`:
 
 * `id`, `sourceRef`, and `targetRef` MUST exist.
-* `sourceRef` and `targetRef` MUST reference elements inside the same `bpmn:process` scope after inlining.
+* `sourceRef` and `targetRef` MUST reference nodes within the same `bpmn:process` (including embedded subprocesses).
 
 For each node type:
 
-* `bpmn:startEvent` MUST have exactly 1 outgoing sequenceFlow and 0 incoming.
-* `bpmn:endEvent` MUST have exactly 1 incoming sequenceFlow and 0 outgoing.
-* `bpmn:serviceTask` MUST have exactly 1 incoming and exactly 1 outgoing.
-* `bpmn:sendTask` MUST have exactly 1 incoming and exactly 1 outgoing.
-* `bpmn:userTask` MUST have exactly 1 incoming and **at least 1** outgoing.
-* `bpmn:receiveTask` MUST have exactly 1 incoming and exactly 1 outgoing.
-* `bpmn:intermediateCatchEvent` MUST have exactly 1 incoming and exactly 1 outgoing.
-* `bpmn:subProcess` MUST have exactly 1 incoming and exactly 1 outgoing (as a boundary node).
+* `bpmn:startEvent` MUST have at least 1 outgoing sequenceFlow.
+* `bpmn:endEvent` MUST have at least 1 incoming sequenceFlow.
+* `bpmn:serviceTask` MUST have at least 1 incoming sequenceFlow.
+* `bpmn:sendTask` MUST have at least 1 incoming sequenceFlow.
+* `bpmn:userTask` MUST have at least 1 incoming sequenceFlow.
+* `bpmn:receiveTask` MUST have at least 1 incoming sequenceFlow.
+* `bpmn:intermediateCatchEvent` MUST have at least 1 incoming sequenceFlow.
+* `bpmn:intermediateThrowEvent` MUST have at least 1 incoming sequenceFlow.
+* `bpmn:exclusiveGateway` MUST have at least 1 incoming and at least 1 outgoing sequenceFlow.
+* `bpmn:subProcess` MUST have at least 1 incoming sequenceFlow.
 
 ### 4.5 Message waits
 
@@ -217,12 +222,13 @@ Any other wait shape is FORBIDDEN.
 
 ### 4.6 Subprocess compilation (inline semantics)
 
-Each `bpmn:subProcess` is inlined:
+Each embedded `bpmn:subProcess` is compiled as a standard BPMN container with explicit runtime structure:
 
-* The subprocess MUST contain exactly one `bpmn:startEvent` and exactly one `bpmn:endEvent`.
-* Incoming flow to the subprocess node is rewired to the subprocess’ internal startEvent.
-* The subprocess’ internal endEvent is rewired to the outgoing flow of the subprocess node.
-* The subprocess node itself is not emitted as a runtime step; it is a structural container only.
+* The subprocess MUST contain exactly one direct `bpmn:startEvent` with no event definitions (noneStartEvent).
+* The subprocess MUST contain at least one direct `bpmn:endEvent` (noneEndEvent).
+* Entering the subprocess activates its internal startEvent.
+* Reaching a subprocess internal endEvent continues along the outgoing flows of the subprocess container.
+* The subprocess container itself is emitted as a runtime step (for container scoping and completion checks).
 
 ---
 
@@ -373,37 +379,28 @@ This element MUST exist exactly once.
 Attributes:
 
 * `definitionId` REQUIRED
-* `workflowType` REQUIRED
+* `workflowType` OPTIONAL (recommended: equals the BPMN process id, `bpmn:process@id`)
 * `workflowIdTemplate` REQUIRED
 
 Constraints:
 
-* `workflowType` MUST equal the BPMN process id (`bpmn:process@id`).
-* `workflowIdTemplate` MUST equal `${env.workflow_id}` exactly.
-
-Note: `env.workflow_id` exists only as a conceptual name here; because ingress routes directly by envelope.workflow_id, the workflowIdTemplate is fixed as above and serves as a contract assertion.
+* `workflowIdTemplate` may reference only `${state.<path>}` placeholders (no general expression language).
 
 ### 9.2 Work binding `ameide:taskDefinition`
 
-Placement: on every `bpmn:serviceTask` and every `bpmn:sendTask` under `bpmn:extensionElements`.
+Placement: on every executable automated node (`bpmn:serviceTask`, `bpmn:sendTask`, and message `bpmn:intermediateThrowEvent`) under `bpmn:extensionElements`.
 
 This element MUST exist exactly once per task.
 
 Attributes:
 
-* `implementation` REQUIRED and MUST be one of:
-
-  * `activity`
-  * `delegated`
-  * `domainCommand`
 * `type` REQUIRED (string, non-empty)
-* `idempotencyKeyTemplate` REQUIRED
+* `idempotencyKeyTemplate` OPTIONAL
 * `policyRef` REQUIRED
 
 Idempotency template constraints:
 
-* `idempotencyKeyTemplate` MUST include `${process_instance_id}` and `${step_id}`.
-* `idempotencyKeyTemplate` MUST NOT include any placeholder other than those allowed in §7.2.
+* If set, `idempotencyKeyTemplate` MUST NOT include any placeholder other than those allowed in §7.2.
 
 ### 9.3 Static metadata `ameide:taskHeaders`
 
@@ -499,28 +496,24 @@ An inbound envelope matches W if and only if:
 
 For a wait node W:
 
-* The first matching envelope completes the wait.
-* After completion, any further envelope with the same `(message_name, correlation_key)` is ignored.
+* The workflow MUST maintain a set of seen `message_id` values (workflow-local, persisted).
+* If an inbound envelope has `message_id` and that `message_id` has already been seen, it MUST be ignored (it MUST NOT complete any wait).
+* The first matching envelope with an unseen `message_id` completes the wait and records the `message_id` as seen.
 
-The workflow MUST store the consumed `message_id` for the completed wait in workflow state.
-
----
-
-## 11. Delegated and domainCommand completion rule
-
-For any task with `implementation` equal to `delegated` or `domainCommand`:
-
-* The BPMN control-flow immediately after the task MUST reach a wait node (receiveTask or intermediateCatchEvent) before reaching any other executable node.
-
-Formally: following the task’s sole outgoing sequenceFlow, after traversing only `sequenceFlow` and structural `subProcess` inlining, the next executable node MUST be a wait node.
-
-If the next executable node is not a wait node, compilation MUST fail.
-
-This rule forbids implicit waiting inside the task definition.
+This enables sequential waits on the same `(message_name, correlation_key)` while preventing a single delivery from satisfying multiple wait states.
 
 ---
 
-## 12. Compiler IR and definitionId
+## 11. Task execution model (v1)
+
+In profile v1, there is no task “implementation mode” (no delegated/domainCommand variants in the schema):
+
+* All executable work nodes (`serviceTask`, `sendTask`, message `intermediateThrowEvent`) compile to Temporal Activities.
+* Long waits are modeled as explicit BPMN wait nodes and compile to Workflow-level waits (Signals/Updates), not blocked Activities.
+
+---
+
+## 12. Compiler IR and digests
 
 ### 12.1 IR v1 contents
 
@@ -544,47 +537,21 @@ The compiler MUST build an IR containing:
 
 ### 12.2 Canonical digest algorithm
 
-The compiler MUST compute `definitionId` as:
+`ameide:workflowDefinition@definitionId` is a required, author-controlled identifier (version/checksum) that MUST change when semantics change.
 
-* `definitionId = "sha256:" + HEX(SHA256(CANONICAL_BYTES(IR)))`
+In addition, the compiler computes a stable IR digest (`ir_digest`) from a canonical serialization of the compiled IR. This digest:
 
-Where `CANONICAL_BYTES(IR)` is produced by this exact procedure:
+* is deterministic for a given BPMN + policies input,
+* is written to `bpmn/compile.lock.json`,
+* is NOT required to equal `workflowDefinition.definitionId` (it exists to detect drift and aid debugging).
 
-1. Write line: `IRv1\n`
-2. Write line: `process_id=<processId>\n`
-3. Write line: `workflow_type=<workflowType>\n`
-4. For each message sorted by message id ascending:
-
-   * `message|<id>|<name>|<correlationKeyTemplate>|message_id\n`
-5. For each node sorted by node id ascending:
-
-   * If node is task:
-
-     * `task|<id>|<bpmnType>|<implementation>|<type>|<policyRef>|<idempotencyKeyTemplate>\n`
-     * For each header in document order: `header|<id>|<key>|<value>\n`
-     * For each ioMapping entry in document order:
-
-       * `in|<id>|<source>|<target>\n` or `out|<id>|<source>|<target>\n`
-   * If node is wait:
-
-     * `wait|<id>|<bpmnType>|<messageId>|<messageName>|<correlationKeyTemplate>\n`
-   * If node is userTask:
-
-     * `user|<id>|<bpmnType>|<updateName>\n`
-   * If node is start/end:
-
-     * `event|<id>|<bpmnType>\n`
-6. For each sequenceFlow sorted by sequenceFlow id ascending:
-
-   * `flow|<id>|<sourceRef>|<targetRef>\n`
+Canonicalization details are intentionally mechanical (not a “semantic” authoring surface) and are treated as a compiler implementation detail; the resulting `ir_digest` value is the contract exported to the repo via `bpmn/compile.lock.json`.
 
 ### 12.3 Step instance id
 
-The runtime step instance id MUST be:
+The runtime `step_instance_id` MUST be a stable, monotonic counter per `step_id` within a workflow run, formatted as:
 
-* `<step_id>/1`
-
-Because the compiled graph is acyclic and each step executes at most once per workflow execution.
+* `<step_id>/<n>` where `n` starts at `1` and increments each time the step is scheduled.
 
 ---
 
@@ -656,32 +623,30 @@ For each task node:
 * Apply input ioMapping in order.
 * Compute idempotency key via template.
 * Load ActivityOptions from the resolved policyRef.
-* Execute Temporal Activity registered under `taskDefinition.type`.
+* Execute the Temporal Activity registered for the BPMN step id (the generated `ActivityName_<stepId>` constant). `taskDefinition.type` is passed as metadata (`TaskType`) to the Activity implementation; it is not used for dispatch.
 * Decode activity result into `map[string]any` named `result`.
 * Apply output ioMapping in order.
 * Advance to next node.
-
-For `delegated` and `domainCommand` tasks, there is no implicit wait; progression to the following wait node is via normal sequence flow.
 
 ### 13.6 User task update
 
 For each userTask node:
 
-* Register update handler named `Update_<userTaskId>`.
-* The update handler input type MUST be:
+* Register an Update handler named `Update_<userTaskId>` by default (or `ameide:updateDefinition@name` if set).
+* The Update handler input type MUST be:
 
 ```go
-type UserTaskUpdate struct {
-    OutgoingFlowID string
+type GateDecision struct {
+    Decision string `json:"decision"`
+    Reason   string `json:"reason"`
 }
 ```
 
-Semantics:
+Semantics (v1):
 
-* The update MUST validate `OutgoingFlowID` is one of the userTask’s outgoing sequenceFlow ids.
-* The workflow MUST set the next node as the targetRef of the selected sequenceFlow.
-
-If validation fails, the update MUST return error and MUST NOT advance the workflow.
+* The Update MUST require `Decision` to be non-empty.
+* The workflow MUST accept at most one decision per gate (reject duplicates).
+* The workflow consumes the decision when it reaches the userTask step and uses it to select the outgoing sequence flow.
 
 ---
 
@@ -804,19 +769,16 @@ The Ameide XSD MUST be exactly this (file path: `bpmn/ameide-bpmn-v1.xsd` inside
     <xs:attribute name="workflowIdTemplate" type="xs:string" use="required"/>
   </xs:complexType>
 
+  <xs:simpleType name="messageIdPath">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="message_id"/>
+    </xs:restriction>
+  </xs:simpleType>
+
   <xs:element name="taskDefinition" type="ameide:taskDefinitionType"/>
   <xs:complexType name="taskDefinitionType">
-    <xs:attribute name="implementation" use="required">
-      <xs:simpleType>
-        <xs:restriction base="xs:string">
-          <xs:enumeration value="activity"/>
-          <xs:enumeration value="delegated"/>
-          <xs:enumeration value="domainCommand"/>
-        </xs:restriction>
-      </xs:simpleType>
-    </xs:attribute>
     <xs:attribute name="type" type="xs:string" use="required"/>
-    <xs:attribute name="idempotencyKeyTemplate" type="xs:string" use="required"/>
+    <xs:attribute name="idempotencyKeyTemplate" type="xs:string" use="optional"/>
     <xs:attribute name="policyRef" type="xs:string" use="required"/>
   </xs:complexType>
 
@@ -848,12 +810,12 @@ The Ameide XSD MUST be exactly this (file path: `bpmn/ameide-bpmn-v1.xsd` inside
   <xs:element name="subscription" type="ameide:subscriptionType"/>
   <xs:complexType name="subscriptionType">
     <xs:attribute name="correlationKeyTemplate" type="xs:string" use="required"/>
-    <xs:attribute name="messageIdPath" type="xs:string" use="required"/>
+    <xs:attribute name="messageIdPath" type="ameide:messageIdPath" use="required"/>
   </xs:complexType>
 
   <xs:element name="updateDefinition" type="ameide:updateDefinitionType"/>
   <xs:complexType name="updateDefinitionType">
-    <xs:attribute name="name" type="xs:string" use="required"/>
+    <xs:attribute name="name" type="xs:string" use="optional"/>
   </xs:complexType>
 
 </xs:schema>
@@ -869,10 +831,9 @@ This v1 spec fixes all prior ambiguities by hard requirements:
 * dedupe id extraction: always `envelope.message_id`
 * waits: only `receiveTask` and `intermediateCatchEvent(message)`
 * subscriptions: only on `bpmn:message`
-* process identity: definition digest from IR canonical bytes; pinned in BPMN
-* workflow routing: always `envelope.workflow_id`
-* workflow type: always BPMN process id
-* user tasks: always Updates named `Update_<userTaskId>`
+* process identity: definition digest from IR canonical bytes; pinned in BPMN via `workflowDefinition.definitionId`
+* workflow type: recommended to equal BPMN process id (enforced by conventions, not required by the compiler)
+* user tasks: Updates named `Update_<userTaskId>` by default (overridable with `ameide:updateDefinition@name`)
 * policies: always from `bpmn/policies.yaml` with fully specified fields
 * compiler outputs: only `_gen.go` files and `compile.lock.json`
 
