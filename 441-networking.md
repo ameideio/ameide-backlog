@@ -717,7 +717,7 @@ spec:
 **Lessons Learned**:
 1. Global rate limiting requires additional infrastructure (Redis) that wasn't documented as a prerequisite
 2. Invalid policies attached to Gateway cause catastrophic failures (HTTP 500 for all routes)
-3. Local rate limiting (`rate-limit-auth`) works without Redis and remains enabled
+3. Local auth rate limiting works without Redis and remains enabled (as part of the per-route `BackendTrafficPolicy`)
 
 ### Phase 4: Component Policies (Future)
 17. [ ] Review existing minio/keycloak/kafka policies
