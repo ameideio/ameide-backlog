@@ -22,6 +22,13 @@ Create a dedicated **conformance Process primitive** whose only purpose is to ex
 
 This becomes our **battle-tested** reference process for the CLI-enforced BPMN→Temporal contract.
 
+## Runtime semantics (make it unambiguous)
+
+To keep authoring semantics aligned with Temporal execution:
+
+- BPMN **wait states** (e.g. `userTask`, message waits) compile to **Workflow-level waits** (Signals/Updates; timers only once supported by the profile).
+- BPMN **service work** (`serviceTask`) compiles to **Temporal Activities** (bounded “do work” units; no hidden long waits).
+
 ## Why this belongs under 511
 
 511 already defines:

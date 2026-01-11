@@ -30,7 +30,7 @@ This suite must include at least one scenario for every construct supported by t
 - `bpmn:endEvent` (none end only)
 - `bpmn:sequenceFlow`
 - `bpmn:serviceTask` with `ameide:taskDefinition`
-- `bpmn:userTask` (modeled wait state; completion via external update/signal)
+- `bpmn:userTask` (modeled wait state; completion via Temporal Update handler `Update_<userTaskId>`; Signals are not the default “completion” mechanism)
 - `bpmn:receiveTask` and/or `bpmn:intermediateCatchEvent` (message wait)
 - `bpmn:message` with `ameide:subscription` (or node-local subscription where supported)
 - `bpmn:exclusiveGateway` with deterministic conditions
@@ -89,8 +89,10 @@ Start → serviceTask “start job” → message wait → serviceTask “finali
 Asserts:
 
 - workflow blocks until message arrives
-- duplicate message IDs are ignored (idempotency)
-- wrong correlation key does not advance this workflow instance
+- routing is explicit and Temporal-shaped:
+  - wrong `workflow_id` routes to a different instance (must not affect this one)
+  - correct `workflow_id` but wrong `correlation_key` (or message name) must not advance
+- idempotency is explicit: duplicate `message_id` deliveries must not advance the workflow twice
 
 ### Scenario D — User task wait + completion
 
@@ -99,8 +101,9 @@ Start → userTask “approve” → serviceTask “post-approval work” → en
 Asserts:
 
 - workflow blocks at userTask
-- completion via update/signal advances exactly once
-- invalid completion (wrong step instance id) is rejected
+- completion via **Temporal Update** (`Update_<userTaskId>`) advances exactly once
+- repeated completion attempts must not advance twice (dedupe/no-op or stable error; pick one and make it true in runtime + tests)
+- invalid completion (e.g. choosing an outgoing flow that does not exist for the userTask) is rejected
 
 ### Scenario E — Subprocess scoping (only if supported)
 

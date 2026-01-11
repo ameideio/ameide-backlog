@@ -32,7 +32,7 @@ is correct for every supported BPMN construct in the current profile.
 
 Add tests at the CLI/toolchain layer that:
 
-- run `verify-bpmn` on:
+- run `verify-bpmn` (via `ameide primitive verify`) on:
   - `conformance.bpmn` (must pass)
   - `negative/*.bpmn` (must fail with stable messages)
 - generate from `conformance.bpmn` (via the same scaffolding step) and assert IR invariants:
@@ -59,9 +59,11 @@ Then assert:
 
 - service task ordering
 - XOR determinism
-- message wait blocking/unblocking behavior
-- user task wait completion behavior
-- idempotency rules (repeated completion signals/updates)
+- message wait blocking/unblocking behavior (via inbound envelope Signals; wrong correlation does not advance)
+- user task wait completion behavior (via Temporal Updates named `Update_<userTaskId>`)
+- idempotency rules:
+  - message waits: duplicate `message_id` deliveries do not advance twice
+  - user tasks: repeated completion attempts do not advance twice (dedupe/no-op or stable error; pick one and make it true)
 
 This is the minimum “battle-tested” runtime gate without requiring a live Temporal server or Kubernetes.
 
