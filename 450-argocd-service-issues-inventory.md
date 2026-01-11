@@ -112,6 +112,12 @@ Total applications: 200
 
 ## Update (2025-12-14): Local GitOps health fixes (devcontainer + k3d)
 
+### Update (2026-01): Devcontainer-service is optional/disabled in GitOps
+
+- The `platform-devcontainer-service` component lives under `environments/_optional/**` and is not part of the default ApplicationSet component discovery.
+- `sources/values/_shared/platform/platform-devcontainer-service.yaml` is currently a disabled placeholder (waiting on a digest-pinned runtime image + final deployment shape).
+- Any “devcontainer service” scheduling/health incidents below should be read as historical context from earlier experiments, not as a currently enabled baseline service.
+
 - Fixed `local-platform-keycloak-realm` being blocked by a failing PreSync hook: `platform-keycloak-realm-client-patcher` is now reproducible (no runtime GitHub tool downloads; Keycloak Admin REST + Kubernetes API patch for rotation ConfigMap).
 - Fixed `local-platform-gateway` sync failure on cross-namespace `ReferenceGrant` rendering: ensure core-group `group: ""` is rendered as a string (quoted), not YAML null.
 - Verified the local set converges after sync: `local-platform-gateway`, `local-inference`, `local-inference-gateway`, `local-data-pgadmin` reach `Synced/Healthy`.
@@ -451,7 +457,7 @@ Remediation approach (vendor-aligned, GitOps-idempotent):
 
 - `www.*` must render an environment-correct login link to `https://platform.<env>.ameide.io/login` **without baking configuration into the image**.
 - Until the `www-ameide` image reads runtime configuration, CI “Apply + Verify” will keep failing the platform verifier even if cluster + SSO plumbing is correct.
-  - `unable to read files... pattern environments/local/components/platform/**/component.yaml: open .../platform/developer/devcontainer-service/component.yaml: no such file or directory`
+- `unable to read files... pattern environments/local/components/platform/**/component.yaml: open .../platform/developer/devcontainer-service/component.yaml: no such file or directory`
 - **Root cause:** local curated `component.yaml` entries were committed as **git symlinks** pointing into `environments/_shared/**`. After refactoring optional workloads (e.g., `gitlab`, `devcontainer-service`) out of `_shared` into `environments/_optional/**`, those symlink targets no longer existed. Argo CD repo-server follows symlinks when reading git-generator files, so the generator fails hard and stops producing Applications.
 - **Remediation approach (vendor-aligned, GitOps-idempotent):**
   1. Keep optional workloads out of the baseline local component set (store them under `environments/_optional/**`).

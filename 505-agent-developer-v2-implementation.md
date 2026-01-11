@@ -42,7 +42,7 @@ This backlog is successful when:
 | **P1 – Transformation contracts** | New commands + event schemas, SDK regen | Transformation domain | 496, packages/ameide_core_proto | 🟡 In progress (proto draft) |
 | **P2 – AmeidePO Agent** | LangGraph DAG refactor + prompts | Agent runtime team | primitives/agent/ameide-coder, 504 guardrails | 🔴 Not started |
 | **P3 – AmeideSA Agent** | New LangGraph DAG + repo digest tool | Agent runtime team | SA DAG assets new work | 🔴 Not started |
-| **P4 – Executor runtime (AmeideCoder)** | Devcontainer service/runner, work handover consumption, evidence production (optional A2A binding) | DevX/Infracore | 504, Ameide CLI, 505-v2 handover | 🟡 Partial (devcontainer service exists w/ develop_in_container) |
+| **P4 – Executor runtime (AmeideCoder)** | Devcontainer service/runner, work handover consumption, evidence production (optional A2A binding) | DevX/Infracore | 504, Ameide CLI, 505-v2 handover | 🔴 Not started in GitOps (devcontainer service is still a placeholder/optional component) |
 | **P5 – Operator / CRD support** | `runtime_role`, REST binding annotations, tool grants | Operator team | 500 backlog | 🟡 Partial (runtime_type done) |
 | **P6 – CLI & tooling** | Repo bootstrap + codegen gates, prompt updates, `primitive verify` coverage | CLI team | 504, 505-v2 norms, 520 | 🟡 Partial |
 | **P7 – GitOps & env rollout** | CR manifests, ApplicationSet wiring | Platform SRE | 503, GitOps repo | 🔴 Not started |

@@ -42,7 +42,7 @@
 | **CLI guardrails (AmeideCoder tool)** | ✅ | `packages/ameide_core_cli/internal/commands/primitive.go` ships guardrail commands (describe, drift, plan, verify, etc.). These are tools for AmeideCoder, NOT workflow for AmeidePO. |
 | **AmeidePO LangGraph DAG** | ⚠️ Partial | `primitives/agent/ameide-coder/` needs refactoring to become AmeidePO. Current graph still has coding tools - must be removed. Product management DAG nodes (analyze, delegate, review, loop) TODO. |
 | **A2A Protocol** | ❌ Not started | A2A server (AmeideCoder) and client (AmeidePO) need implementation. AgentCard discovery, JSON-RPC endpoint, SSE streaming all TODO. |
-| **AmeideCoder (Devcontainer)** | ⚠️ Partial | `services/devcontainer_service` provides base runtime (`POST /v1/develop`). Needs A2A server endpoint and full tool palette (CLI is one tool among many). |
+| **AmeideCoder (Devcontainer)** | ⚠️ Partial | `services/devcontainer_service` provides base runtime (`POST /v1/develop`). Needs A2A server endpoint and full tool palette (CLI is one tool among many). **Note:** GitOps deployment of the devcontainer service is still a placeholder/optional component in `ameide-gitops` (not enabled by default). |
 | **EDA Integration** | ⚠️ Partial | EDA infrastructure exists (backlog 496). Event schemas for agent coordination (RequirementCreated, RequirementCompleted) need definition. |
 | **Workflow/Temporal metadata** | ⚠️ Deferred | Historical Stage-2 automation (`367-2-agent-orchestration-coding-agent.md`) remains as governance blueprint. Not part of A2A architecture. |
 

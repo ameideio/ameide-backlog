@@ -101,6 +101,8 @@ This is “per commit” if producer CI triggers `repository_dispatch`; otherwis
 - Publish digest-pinnable images for currently-disabled developer features (so they can be GitOps-managed without floating tags):
   - devcontainer service image
   - agent runtime image for `core-platform-coder`
+
+Update (2026-01): in `ameide-gitops`, the devcontainer service is currently an optional/disabled placeholder (`sources/values/_shared/platform/platform-devcontainer-service.yaml`). Enabling it still requires a digest-pinned (and ideally multi-arch) runtime image.
 - Publish internal mirror images as multi-arch manifest lists where local clusters can be arm64.
 
 ## Audit Commands

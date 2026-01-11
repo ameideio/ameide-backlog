@@ -396,6 +396,8 @@ Executor consumes work intents, produces work facts, and emits evidence artifact
 
 Optional (interactive/streaming binding): expose an A2A server surface that maps to the same `work_id` lifecycle.
 
+**Update (2026-01):** In `ameide-gitops`, the devcontainer service is currently represented by an optional component stub (under `environments/_optional/**`) and a disabled placeholder values file (`sources/values/_shared/platform/platform-devcontainer-service.yaml`). Treat AmeideCoder as a planned executor runtime until that component is enabled with a digest-pinned image and explicit NetworkPolicies.
+
 ---
 
 ## 8. Security posture
@@ -449,7 +451,7 @@ Cluster enforces:
 
 Older flows used:
 - A LangGraph “coder” agent calling a `develop_in_container` tool
-- Which invoked a devcontainer service endpoint (`/v1/develop`) to run shell commands
+- Which invoked an executor endpoint (historically documented as a devcontainer service endpoint like `/v1/develop`) to run shell commands
 
 This is now considered a **compatibility bridge** only.
 
