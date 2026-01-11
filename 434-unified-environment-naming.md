@@ -361,7 +361,7 @@ To align with the new structure, the remote cluster needs:
 | **MIGRATE-3** | ✅ Complete | `argocd/applicationsets/ameide.yaml` created |
 | **MIGRATE-4** | ✅ Complete | `bootstrap/configs/` exists |
 | **MIGRATE-5** | ✅ Complete | Namespaces `ameide-dev/staging/prod` exist on cluster |
-| **MIGRATE-6** | ✅ Complete | Contexts configured automatically via `.devcontainer/postCreate.sh` (calls `tools/dev/bootstrap-contexts.sh`) |
+| **MIGRATE-6** | ✅ Complete | Contexts configured via `tools/dev/bootstrap-contexts.sh` (typically run manually due to interactive `az login`, or automatically when `AMEIDE_AUTO_BOOTSTRAP=1`). |
 | **MIGRATE-7** | ✅ Complete | Single parametrized ApplicationSet in `argocd/applicationsets/ameide.yaml` |
 | **MIGRATE-8** | ⏳ Blocked | Requires MIGRATE-1 & MIGRATE-2 |
 | **MIGRATE-9** | ✅ Complete | Service URLs updated to use short names (Kubernetes DNS resolves within namespace) |
