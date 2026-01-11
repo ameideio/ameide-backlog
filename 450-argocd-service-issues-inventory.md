@@ -33,6 +33,17 @@ Total applications: 200
 
 **Clean-state note (image policy):** This inventory contains historical incidents from the “floating tags + pull-policy” era. The current GitOps target state is `backlog/602-image-pull-policy.md` / `backlog/603-image-pull-policy.md`: deploy digest-pinned refs and drive rollouts via Git PR write-back/promotion PRs. When reading older “missing `:main` tag” or “restart pods to pick up `:dev`” entries, treat them as superseded.
 
+## Update (2026-01-11): Local Gateway API GRPCRoute drift due to SSA field ownership (manual patch)
+
+- **Date/Env**: 2026-01-11 / local
+- **Argo app**: `local-platform-gateway`
+- **Symptom**: App stayed `OutOfSync` while resources were Healthy; OutOfSync resources were `GRPCRoute/{platform,threads,workflows,inference}`.
+- **Root cause**: A prior manual `kubectl patch` became a separate SSA field manager (`kubectl-patch`) owning `.spec.rules`, so Argo’s `ServerSideApply=true` could not reclaim ownership cleanly.
+- **Recovery (one-time, operational)**:
+  - Re-apply the rendered GRPCRoute manifests with SSA using `--field-manager=argocd-controller --force-conflicts` so GitOps re-owns the fields.
+  - Once ownership is restored, Argo returns to `Synced/Healthy` without any ignore rules or “forever force” settings.
+- **Prevent**: avoid `kubectl patch` against Argo-managed objects (especially Gateway API resources). Prefer Git changes; if an emergency patch is unavoidable, apply with the Argo field manager and capture the change as a follow-up Git PR immediately.
+
 ## Update (2026-01-03): Local bootstrap convergence incidents (Dex/Envoy, CNPG placement, hook jobs)
 
 - **Date/Env**: 2026-01-03 / local
