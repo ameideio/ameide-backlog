@@ -79,7 +79,9 @@ Steps (high-level):
 Implementation reference (current):
 
 - GitHub Actions runner workflow: `.github/workflows/coder-devcontainer-e2e.yaml`
-- The workflow overrides template parameters to use this repo (`ameide-gitops`) for PR operations, while keeping the template defaults targeted at `ameide`.
+- The workflow validates both templates:
+  - `ameide-dev` (smoke; no PR step)
+  - `ameide-gitops` (full E2E, including Codex + PR to this repo)
 
 ## 2) Secrets and identities
 

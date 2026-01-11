@@ -40,7 +40,9 @@ Build strategy:
 
 Implementation reference:
 
-- Workspace template Terraform: `sources/coder/templates/ameide-devcontainer-service/`
+- Workspace template Terraform:
+  - `sources/coder/templates/ameide-dev/` (template name `ameide-dev`)
+  - `sources/coder/templates/ameide-gitops/` (template name `ameide-gitops`)
 - Default repo/devcontainer contract: `github.com/ameideio/ameide` + `.devcontainer`
 - Web IDE: code-server sidecar exposed via `coder_app` (no runtime curl installs)
 

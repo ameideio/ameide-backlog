@@ -222,6 +222,8 @@ But: all overlays must be wired so it is “one value flip” to enable in other
 
 ## 9) Implementation notes (current)
 
-- Workspace template lives at `sources/coder/templates/ameide-devcontainer-service/` and defaults to `github.com/ameideio/ameide` with `.devcontainer`.
+- Coder templates (under the AmeideDevContainerService umbrella):
+  - `ameide-dev` at `sources/coder/templates/ameide-dev/` (defaults to `github.com/ameideio/ameide` with `.devcontainer`)
+  - `ameide-gitops` at `sources/coder/templates/ameide-gitops/` (defaults to `github.com/ameideio/ameide-gitops` with `.devcontainer/coder`)
 - code-server runs as a sidecar container (pinned image), not installed at runtime via curl.
 - Workspace RBAC is namespace-scoped and does not grant `secrets` read access by default.
