@@ -18,6 +18,10 @@ If we adopt **Coder-based human workspaces** (626), we must update existing docs
 
 This backlog lists what to update, what to deprecate, and what to remove.
 
+## 0.1 Decision: Coder Community Edition (CE) only
+
+We do not adopt paid Coder features. Any language that implies “browser-only enforced” must be removed or rewritten as “browser-first”.
+
 ## 1) Naming and terminology cleanup
 
 ### 1.1 Rename to avoid “Coder” overload
@@ -68,7 +72,7 @@ Preserve historical references as “Formerly AmeideCoder (renamed for clarity)�
   - Mark which parts are “local devcontainer on a workstation” vs “in-cluster human workspace”.
   - Remove/avoid assumptions that Azure CLI device auth is available inside a Kubernetes workspace.
 - `backlog/492-telepresence-verification.md`
-  - Keep “CAP_NET_ADMIN required” guidance, and explicitly scope which Telepresence assertions are expected in Kubernetes-hosted workspaces (likely “connectivity-only” unless we intentionally grant NET_ADMIN).
+  - Keep “CAP_NET_ADMIN required” guidance, and explicitly state Telepresence is not supported in Kubernetes-hosted workspaces (626); Telepresence remains a workstation/devcontainer workflow targeting AKS dev.
 - `backlog/624-devcontainer-context-isolation.md`
   - Keep as “local parallel devcontainers” (developer-mode) unless we explicitly extend it to workspace PVC isolation.
 
@@ -93,6 +97,11 @@ Preserve historical references as “Formerly AmeideCoder (renamed for clarity)�
 
 - Add a Coder OIDC integration doc slice that references the in-cluster Keycloak issuer and client configuration.
 - Ensure any legacy “admin password” workflows for developer tooling do not become the default for Coder.
+
+## 2.7 Template secret hygiene
+
+- Add an explicit policy statement: do not embed secret values in Coder templates; treat templates as readable by all template users.
+- Templates may reference Secret *names* (non-sensitive) and rely on runtime mounts/ExternalAuth, but must not carry credentials in cleartext.
 
 ## 3) GitOps implementation cleanup targets
 

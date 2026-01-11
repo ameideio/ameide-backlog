@@ -21,6 +21,10 @@ Define an automated validation flow for the Coder-based human workspace (626/628
 
 This is a **platform smoke/E2E**, not `ameide dev inner-loop-test` (which is Telepresence-centric per `backlog/621-ameide-cli-inner-loop-test.md`).
 
+## 0.0 Decision: Coder Community Edition (CE) only
+
+Tests must not rely on paid Coder features (e.g., browser-only enforcement, workspace proxies).
+
 ## 0.1 Scope clarifications
 
 - This test validates the **Coder workspace platform** and the **devcontainer parity** for `github.com/ameideio/ameide`.
@@ -35,11 +39,14 @@ Goal: catch “Coder is broken” quickly.
 Checks:
 
 1. Create workspace from template.
-2. `coder ssh` into the workspace and verify:
+2. Verify the app proxy path end-to-end (outside the workspace):
+   - fetch the code-server app URL via Coder API/CLI
+   - perform an authenticated HTTP request to the app URL and expect non-5xx
+3. `coder ssh` into the workspace and verify:
    - repo checkout works
    - toolchain presence (git + gh; and any mandatory Ameide tooling)
-3. Verify code-server health on localhost (via `curl http://127.0.0.1:<port>/healthz`).
-4. Delete workspace.
+4. Verify code-server health on localhost (via `curl http://127.0.0.1:<port>/healthz`).
+5. Delete workspace.
 
 Auth expectations:
 
@@ -112,3 +119,9 @@ E2E pass:
 - Test must not print secrets.
 - Test must run under restrictive NetworkPolicy posture once egress allowlists are in place (GitHub + coderd + DNS + optional OpenAI).
 - Workspace storage assumptions for tests: ephemeral (node-backed) is acceptable; tests must not assume persistence across workspace recreation.
+- Workspace auto-stop must be enabled by default (do not rely on tests to stop idle workspaces).
+
+## 6) Networking prerequisites for automation
+
+- `CODER_ACCESS_URL` must be reachable from the test runner, and ingress must support WebSockets.
+- If the chosen Coder CLI connection mode requires direct/UDP connectivity, the test runner environment must allow it; otherwise prefer running tests from an in-cluster runner network where the supported connection mode is known to work.

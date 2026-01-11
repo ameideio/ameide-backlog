@@ -19,6 +19,16 @@ Provide a **human-facing coding workspace** that runs **inside the AKS dev clust
 
 This backlog is **not** the automated/queue-driven coding executor (527 “coder agent”); see §1.
 
+## 0.0 Decision: Coder Community Edition (CE) only
+
+We stick to **Coder Community Edition** (no paid features).
+
+Implications:
+
+- We implement **browser-first**, not “browser-only enforced”.
+- The supported workflow is: Coder UI → code-server (VS Code Web) + web terminal.
+- We do not claim to block SSH/CLI access at the platform level; we simply do not make it the supported human workflow.
+
 ## 0.1 Access URL (environment-scoped)
 
 Expose Coder at an environment-qualified host:
@@ -70,6 +80,10 @@ Related: `backlog/527-transformation-integration.md` (workbench pod is “not a 
    - standard Ameide toolchain required for editing and repo workflows
 3. Developer makes changes, runs local/unit checks, pushes branch, opens PR.
 
+### 3.1 Workspace lifecycle (cost control)
+
+- Workspaces must auto-stop when idle (dev-only does not mean “always on”).
+
 ## 4) Dev environment contract (devcontainer alignment without Docker)
 
 We treat `.devcontainer/devcontainer.json` (in the **code repo**, default `github.com/ameideio/ameide`) as the primary environment contract, but we do **not** require Docker daemon in-cluster.
@@ -82,8 +96,25 @@ Decision notes:
 
 - If we require deterministic versions (kubectl/helm/argocd/codex/gh), we should prefer “build-time pinning” over “download on every start”.
 - Envbuilder must be treated as part of the supply chain: versions pinned, images traceable, and policy aligned (digests, multi-arch) unless we explicitly define an exception.
+- Devcontainer lifecycle scripts (`onCreateCommand`, `postCreateCommand`, `postStartCommand`, etc.) run as part of workspace lifecycle; treat them as product code (avoid “slow apt-get every start” patterns unless intentional).
 
 Related: `backlog/603-image-pull-policy.md`, `backlog/622-gitops-hardening-k3d-aks`.
+
+## 4.1 Envbuilder prerequisites (must be explicit)
+
+Define and pin:
+
+- envbuilder base image (digest pinned)
+- envbuilder builder image (digest pinned)
+- caching strategy:
+  - none (slowest, simplest), or
+  - registry-backed caching (requires push access and registry auth)
+
+## 4.2 Web IDE baseline (code-server)
+
+- Run code-server with `--auth none` (Coder is the auth boundary).
+- Expose code-server via a `coder_app`.
+- Use `/healthz` for readiness checks (see 629).
 
 ## 5) Identity, credentials, and storage
 
@@ -91,10 +122,11 @@ Related: `backlog/603-image-pull-policy.md`, `backlog/622-gitops-hardening-k3d-a
 
 Human workflows should use either:
 
-- interactive auth (GitHub CLI login / device flow), or
-- Coder external-auth integration (preferred long-term)
+- interactive auth (GitHub CLI login / device flow)
 
 No “cluster-wide bot” GitHub token should be mounted by default into human workspaces.
+
+Templates must never embed secret values; they may only reference Secret names (non-sensitive) and rely on runtime mounts.
 
 ### 5.2 Kubernetes identity
 
@@ -137,13 +169,25 @@ Related: `backlog/492-telepresence-verification.md:27-34`, `backlog/621-ameide-c
 We assume default-deny egress is the target posture (see `backlog/441-networking.md`), so the workspace needs explicit egress allowlists:
 
 - DNS (CoreDNS)
-- Coder control plane connectivity (workspace → coderd / workspace proxy)
+- Coder control plane connectivity (workspace → coderd)
 - Keycloak issuer endpoints (OIDC)
 - GitHub (clone/push/PR)
 - OpenAI endpoints (only if Codex is enabled in the human workspace)
 - Kubernetes API (in-cluster)
 
 If the cluster does not enforce egress yet, this backlog still defines the allowlist as a required artifact so we can adopt default-deny later without breaking workspaces.
+
+### 6.1 Coder connectivity requirements (baseline)
+
+- Workspace agent must be able to reach the Coder access URL (`CODER_ACCESS_URL`) over HTTP/HTTPS.
+- Ingress/proxy must support WebSockets (required for browser UX).
+
+### 6.2 Egress allowlists and FQDN reality
+
+Kubernetes NetworkPolicy is IP/label-based. If we require “only GitHub/OpenAI”, we must implement one of:
+
+- Cilium FQDN/network policies (if available in the cluster), or
+- an egress proxy/NAT gateway approach with allowlisting at the proxy.
 
 ## 7) Enablement matrix
 
@@ -161,3 +205,5 @@ But: all overlays must be wired so it is “one value flip” to enable in other
 3. Workspace cannot consume WorkRequests queues or act as an automated executor.
 4. Workspace can push a branch and open a PR to the repo’s configured base branch.
 5. GitOps overlays exist for all envs (enabled only in dev), and NetworkPolicy/quotas are defined.
+6. Coder CE posture is reflected in docs: browser-first is supported; “browser-only enforced” is not claimed.
+7. Workspaces auto-stop when idle.

@@ -16,6 +16,13 @@ Deliver the **Coder-based** human workspace described in `backlog/626-ameide-dev
 
 This backlog is about the **human workspace platform**, not the WorkRequests executor runtime.
 
+## 0.1 Decision: Coder Community Edition (CE) only
+
+We stick to **Coder Community Edition**:
+
+- no “browser-only enforced” requirements
+- do not rely on Premium features (e.g., workspace proxies, external provisioners)
+
 ## 1) Architecture summary (what we are implementing)
 
 Components:
@@ -31,6 +38,11 @@ Build strategy:
 
 - Required: **envbuilder** from repo `devcontainer.json` (no Docker daemon inside pods, no base-image fallback).
 
+## 1.1 Install mechanics (GitOps-owned)
+
+- Install Coder via a GitOps-managed Helm release (Argo CD Application) in AKS dev.
+- Configure `CODER_ACCESS_URL` to `https://coder.dev.ameide.io` and ensure ingress supports WebSockets.
+
 ## 2) GitOps delivery shape (repo changes expected)
 
 ### 2.1 New GitOps components (AKS dev enabled only)
@@ -41,7 +53,6 @@ Build strategy:
   - Coder namespace + services
   - NetworkPolicies (ingress/egress) for coderd and workspaces
   - OIDC configuration referencing in-cluster Keycloak issuer (see §3)
-  - optional workspace proxy config (if used)
 
 ### 2.2 Values contract requirements
 
@@ -55,6 +66,16 @@ We must be able to express:
   - (default) ephemeral workspace storage sizing and limits
 
 Related hardening constraints: `backlog/519-gitops-fleet-policy-hardening.md`, `backlog/622-gitops-hardening-k3d-aks`.
+
+## 2.3 Template delivery pipeline (not GitOps-native)
+
+Argo CD deploys Coder, but Coder templates are not Kubernetes manifests.
+
+Define:
+
+- where the Terraform template lives (repo/path)
+- how CI pushes template versions to Coder (Coder CLI/API) and promotes after E2E passes
+- how we keep the template version in sync with the GitOps release (operational runbook)
 
 ## 3) Security model (implementation requirements)
 
@@ -75,11 +96,19 @@ Requirements:
 - Keycloak has a dedicated OIDC client for Coder with redirect URIs for the configured access URL.
 - NetworkPolicy allows workspace → Keycloak issuer endpoints for auth flows where needed.
 
+## 3.2 Template secret hygiene
+
+- Do not embed secret values in templates (assume templates are readable by all template users).
+- Prefer Keycloak SSO for Coder and runtime secret mounts by Secret name when automation is required.
+
 ## 4) Implementation plan (phased)
 
 ### Phase 0 — Decisions (blockers to unblock implementation)
 
-1. Confirm envbuilder build strategy details (paths, caching, pinning) for strict `.devcontainer` parity (no fallback).
+1. Confirm envbuilder specifics for strict `.devcontainer` parity (no fallback):
+   - base image (digest pinned)
+   - builder image (digest pinned)
+   - caching strategy (none vs registry-backed) and registry auth
 2. Confirm naming:
    - automated executor: AmeideCodingAgent
    - human workspace: AmeideDevContainerService (or AmeideDevWorkspace)
@@ -87,6 +116,7 @@ Requirements:
    - if yes: namespace-scoped kube identity only
    - if no: document how developers debug cluster state (web terminal only, logs via platform, etc.)
 4. Telepresence stance (decided): Telepresence is not supported in Kubernetes-hosted workspaces; CLI must fail fast with a clear message and direct users to the supported in-cluster workflow.
+5. Workspace auto-stop/idle policy (decided): enable auto-stop on idle (default 30 minutes) for developer workspaces.
 
 ### Phase 1 — Control plane deploy (AKS dev only)
 
@@ -101,6 +131,7 @@ Requirements:
 2. Ensure repo clone + git/gh setup works.
 3. Ensure workspace identity/storage/network policies match 626.
 4. Ensure workspace default storage is ephemeral (node-backed) and sized appropriately.
+5. Prefer `coder_script` for lifecycle automation/glue (over legacy startup mechanisms) where we need deterministic “on start” behavior.
 
 ### Phase 3 — Operational hardening
 
