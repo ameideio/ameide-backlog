@@ -5,7 +5,7 @@
 Define the BPMN diagram(s) used by the Process conformance primitive so we can:
 
 - validate the Ameide BPMN execution profile via `verify-bpmn`
-- compile deterministically into Temporal workflow code
+- generate deterministically into Temporal workflow code (via the CLI toolchain)
 - execute the generated workflow under Temporal testsuite and assert behavior
 
 The BPMN diagram is not “documentation only”: it is an executable contract and must be kept honest via tests.
@@ -34,7 +34,7 @@ This suite must include at least one scenario for every construct supported by t
 - `bpmn:receiveTask` and/or `bpmn:intermediateCatchEvent` (message wait)
 - `bpmn:message` with `ameide:subscription` (or node-local subscription where supported)
 - `bpmn:exclusiveGateway` with deterministic conditions
-- `bpmn:subProcess` (only if supported by compiler semantics)
+- `bpmn:subProcess` (only if supported by the execution profile)
 
 **Unsupported (profile v1) — must have red fixtures**
 
@@ -44,19 +44,19 @@ This suite must include at least one scenario for every construct supported by t
 - parallel gateways and concurrency
 - compensation / transaction / call activity
 - end event definitions (terminate/error/message/etc)
-- any BPMN element that the compiler does not explicitly support (the diagram must not be silently ignored)
+- any BPMN element that the profile does not explicitly support (the diagram must not be silently ignored)
 
 ## Required `bpmn:documentation`
 
 Every node in the conformance diagram must include a `bpmn:documentation` element describing:
 
-1. **Compile mapping** (what the compiler is expected to generate)
+1. **Generation mapping** (what the CLI toolchain is expected to generate)
 2. **Runtime observable** (what the tests will assert)
 3. **Failure mode** (what must happen if inputs are invalid or the wrong signal arrives)
 
 Example (service task):
 
-- Compile mapping: “serviceTask → Temporal Activity `<TaskType>`”
+- Generation mapping: “serviceTask → Temporal Activity `<TaskType>`”
 - Runtime observable: “Activity invoked once; output merged into workflow-local state via io mapping”
 - Failure mode: “Activity retry semantics follow policyRef; failures surface as workflow failure (until typed outcomes exist)”
 
@@ -131,4 +131,3 @@ Examples:
 
 - Execution profile/spec: `backlog/511-process-primitive-scaffolding-spec.md`
 - Extension schema: `backlog/511-process-primitive-scaffolding-bpmn-extension.md`
-

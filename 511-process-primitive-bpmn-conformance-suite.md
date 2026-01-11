@@ -2,12 +2,12 @@
 
 ## Problem
 
-We are making BPMN a **canonical authoring format** for Processes, while executing on **Temporal** via compilation (BPMN → IR → generated Workflow code).
+We are making BPMN a **canonical authoring format** for Processes, while executing on **Temporal** via a deterministic toolchain that produces workflow code and runs it.
 
 The risk is permanent drift:
 
 - the **diagram semantics** imply Flowable/BPMN behavior,
-- but the **compiler/runtime** implements something else,
+- but the **CLI-enforced runtime behavior** implements something else,
 - and we only discover it when a real capability (e.g. Transformation) hits a corner case.
 
 We need a way to make “diagram must not lie” testable and continuously enforced.
@@ -16,11 +16,11 @@ We need a way to make “diagram must not lie” testable and continuously enfor
 
 Create a dedicated **conformance Process primitive** whose only purpose is to exercise every **supported** BPMN construct (Ameide BPMN Execution Profile) end-to-end:
 
-1. **Lint/verify**: `verify-bpmn` rejects anything outside the profile.
-2. **Compile**: the compiler generates deterministic workflow code and lockfile outputs.
-3. **Execute on Temporal**: run the generated workflow under Temporal’s Go testsuite and assert observable behavior.
+1. **Verify**: the CLI rejects anything outside the profile (`verify-bpmn` / `primitive verify`).
+2. **Generate**: the CLI produces deterministic workflow artifacts (e.g., `_gen.go`, `compile.lock.json`) and enforces “generated files match BPMN”.
+3. **Execute**: the CLI runs the conformance primitive’s Temporal tests (Go `testsuite.WorkflowTestSuite`) and asserts observable behavior.
 
-This becomes our **battle-tested** reference process for compiler/runtime correctness.
+This becomes our **battle-tested** reference process for the CLI-enforced BPMN→Temporal contract.
 
 ## Why this belongs under 511
 
@@ -28,7 +28,7 @@ This becomes our **battle-tested** reference process for compiler/runtime correc
 
 - the Process scaffold contract,
 - the BPMN execution profile,
-- and the compiler/generator responsibilities.
+- and the CLI responsibilities (scaffold/verify/test) that make the profile enforceable.
 
 This conformance suite is the missing **verification artifact** that proves 511’s contract works under a real Temporal execution.
 
@@ -41,7 +41,7 @@ This conformance suite is the missing **verification artifact** that proves 511�
 3. Negative BPMN fixtures that must be rejected:
    - e.g. `primitives/process/bpmn_conformance_v1/bpmn/negative/*.bpmn`
 4. Test suite:
-   - compiler/verify tests (fast, pure Go)
+   - CLI/toolchain verification tests (fast, pure Go)
    - Temporal execution tests (Go `testsuite.WorkflowTestSuite`) that execute the **generated workflow** and assert:
      - step ordering
      - wait-state semantics
@@ -55,7 +55,7 @@ This conformance suite is the missing **verification artifact** that proves 511�
 - The conformance primitive is runnable in CI without Kubernetes:
   - no k3d, no AKS, no Telepresence
   - Temporal is exercised via the Go SDK testsuite (deterministic replay)
-- A change that breaks compilation/runtime semantics must fail CI immediately.
+- A change that breaks the CLI-enforced runtime semantics must fail CI immediately.
 
 ## Scope (v1)
 
@@ -84,4 +84,3 @@ The conformance suite is versioned by the execution profile.
   - `backlog/430-unified-test-infrastructure-v2-target.md`
 - Process direction/examples:
   - `backlog/527-transformation-process.functional.normative.md`
-

@@ -4,7 +4,7 @@
 
 Implement an end-to-end conformance gate proving that:
 
-`BPMN (profile) → verify-bpmn → compiler → generated workflow code → Temporal execution`
+`BPMN (profile) → CLI verify → deterministic generation → Temporal execution`
 
 is correct for every supported BPMN construct in the current profile.
 
@@ -25,17 +25,17 @@ is correct for every supported BPMN construct in the current profile.
   - `bpmn/conformance.bpmn`
   - `bpmn/negative/*.bpmn`
 - Ensure every BPMN node includes `bpmn:documentation` describing:
-  - compile mapping
+  - generation mapping
   - runtime observable
 
-### Phase 2 — Compiler / verifier tests (fast)
+### Phase 2 — Verification / generation tests (fast)
 
-Add tests at the compiler layer that:
+Add tests at the CLI/toolchain layer that:
 
 - run `verify-bpmn` on:
   - `conformance.bpmn` (must pass)
   - `negative/*.bpmn` (must fail with stable messages)
-- compile `conformance.bpmn` and assert IR invariants:
+- generate from `conformance.bpmn` and assert IR invariants:
   - step count and step ids are stable
   - wait-step subscription rules are enforced
   - unsupported constructs are rejected (no silent ignores)
@@ -93,12 +93,11 @@ This should:
 - Removing support (or changing semantics) must be reflected by:
   - updated conformance BPMN documentation
   - updated tests that prove the new semantics
-- A compiler change that “silently ignores” a BPMN node must be caught by conformance tests.
+- A CLI/generation change that “silently ignores” a BPMN node must be caught by conformance tests.
 
 ## Cross-references
 
 - 511 execution profile/spec: `backlog/511-process-primitive-scaffolding-spec.md`
-- 511 compiler refactoring: `backlog/511-process-primitive-scaffolding-refactoring.md`
+- 511 toolchain refactoring: `backlog/511-process-primitive-scaffolding-refactoring.md`
 - Testing discipline: `backlog/537-primitive-testing-discipline.md`
 - Test contract: `backlog/430-unified-test-infrastructure-v2-target.md`
-
