@@ -6,7 +6,7 @@ owners:
   - release
   - sre
 created: 2025-12-27
-updated: 2025-12-30
+updated: 2026-01-11
 ---
 
 ## Summary
@@ -16,7 +16,7 @@ Move to a **single-trunk** development model where:
 - `main` is the only integration branch (all changes land via PR → `main`)
 - **dev environment tracks `main` via artifacts** (digest-pinned images), not via a long-lived `dev` branch
 - **staging/prod are promotions of immutable artifacts built from `main`** (build once → deploy many)
-- ARC (`arc-local`) is the default CI substrate; Docker-in-Docker is not required (BuildKit in-cluster)
+- ARC (via `AMEIDE_RUNS_ON`) is the default CI substrate; Docker-in-Docker is not required (BuildKit in-cluster)
 
 This eliminates duplicated “promotion PR” CI, reduces queued/cancelled runs, and aligns GitOps with environment promotion.
 
@@ -46,7 +46,7 @@ Related backlogs:
 2. **Build once, deploy many**: the same image digests move dev → staging → prod.
 3. **No duplicated CI**: no “full CI twice” on branch promotions.
 4. **Low-noise pipelines**: avoid creating workflow runs when paths are irrelevant.
-5. **ARC-first CI**: most PR/push verification runs on `arc-local` without Docker daemon semantics.
+5. **ARC-first CI**: most PR/push verification runs on ARC (`arc-local` or `arc-aks`) without Docker daemon semantics.
 
 ## Non-goals
 
@@ -91,9 +91,10 @@ Related backlogs:
 ### Runner switching (simple)
 
 - One variable to switch CI execution substrate per repo:
-  - `AMEIDE_RUNS_ON=arc-local` (default)
-  - `AMEIDE_RUNS_ON=ubuntu-latest` (fallback)
-- Publishing workflows should run on a **trusted substrate**; in `ameide-gitops` we keep ARC-first and treat `arc-local` as the trusted substrate (locked down and fork-guarded), so workflows should not hardcode `ubuntu-latest`.
+  - `AMEIDE_RUNS_ON=arc-aks` (recommended default)
+  - `AMEIDE_RUNS_ON=arc-local` (developer local cluster)
+  - `AMEIDE_RUNS_ON=ubuntu-latest` (GitHub-hosted)
+- Workflows should not hardcode runner selection; the GitHub variable controls routing.
 
 ## Required-check policy
 
@@ -196,12 +197,13 @@ Target behavior: **all code merges via PR → `main`**; “promotion” is GitOp
 2. Ensure Argo CD sync waves reflect “foundation → platform → workloads”.
 3. Confirm rollouts happen because Git changed (promotion PR merged), not because tags float.
 
-### F) ARC + BuildKit (local cluster)
+### F) ARC + BuildKit (local + AKS)
 
-1. Keep ARC default runner (`arc-local`) CI-friendly:
+1. Keep ARC runner sets CI-friendly (`arc-local` + `arc-aks`):
    - baseline tools in runner image (git/curl/tar/jq/yq/rg/skopeo/rsync/buildctl)
    - `AMEIDE_BUILDKIT_ADDR` injected into runner pods and set as repo variable
-2. Keep BuildKit in-cluster reachable (`buildkitd.buildkit.svc.cluster.local:1234`) and restrict access appropriately for local.
+   - runner image must be multi-arch (`linux/amd64` + `linux/arm64`) and pinned by manifest digest
+2. Keep BuildKit in-cluster reachable (`buildkitd.buildkit.svc.cluster.local:1234`) and restrict access appropriately.
 
 ### G) External integrations + release artifacts
 
