@@ -95,6 +95,7 @@ Related backlogs:
   - `AMEIDE_RUNS_ON=arc-local` (developer local cluster)
   - `AMEIDE_RUNS_ON=ubuntu-latest` (GitHub-hosted)
 - Workflows should not hardcode runner selection; the GitHub variable controls routing.
+  - Note: some operational workflows in `ameide-gitops` are intentionally still pinned to `ubuntu-latest` (e.g., Azure Terraform and registry mirroring); if we want them switchable too, use a separate GitHub variable for “ops” workflows rather than reusing the CI routing variable.
 
 ## Required-check policy
 
