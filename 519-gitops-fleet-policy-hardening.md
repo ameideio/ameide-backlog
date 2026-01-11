@@ -462,6 +462,10 @@ Example wrapper conventions:
 
 ## Implementation progress (image policy)
 
+### 2026-01-11
+
+- `ameide-gitops`: ARC runner image publishing + pinning updated to multi-arch (`linux/amd64,linux/arm64`) and pinned by manifest digest; BuildKit binfmt installs `amd64,arm64` to support cross-arch builds.
+
 ### 2025-12-26
 
 - `backlog/602-image-pull-policy.md` / `backlog/603-image-pull-policy.md`: clarified “local is automated, not an exception” and expanded the cross-repo checklist.

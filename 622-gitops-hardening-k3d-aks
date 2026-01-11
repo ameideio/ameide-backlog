@@ -63,13 +63,14 @@ This backlog captures the current failure modes we observed and defines a **sing
 
 ### B) Multi-arch image integrity (amd64 + arm64) is a hard requirement
 
-**Observed in AKS dev:** images pinned to a single-arch digest caused `no match for platform in manifest` on amd64 nodes.
+**Observed in AKS dev:** images pinned to a single-arch digest caused `no match for platform in manifest` on amd64 nodes (or `exec format error` when the wrong arch image was used).
 
 **Why this is a parity issue:** k3d (developer laptops) is often `linux/arm64`, AKS is `linux/amd64`. Any shared image must be a **manifest list** digest, not a single-arch digest.
 
 **Remediation:**
 - For smoke jobs: replace the broken `grpcurl-runner` digest with a multi-arch upstream (`fullstorydev/grpcurl`) mirrored to GHCR and pinned by digest.
 - For app images: only pin digests that are known multi-arch (see `backlog/603-image-pull-policy.md`).
+- For ARC: ensure the runner image is published as a multi-arch manifest list and GitOps pins the manifest digest (not an arch-specific digest).
 
 ### C) Cluster-scoped collisions across envs (SharedResourceWarning)
 
@@ -163,6 +164,20 @@ Rule: env-scoped apps must not create cluster-scoped objects with stable names u
   - missing `:main` channel tags for local/dev automation
   - missing multi-arch manifests
   - missing required `image.ref` values for installed apps
+
+## Implementation notes (2026-01)
+
+### ARC runner parity + routing
+
+- ARC runner sets exist in both targets:
+  - Local: `arc-local`
+  - AKS: `arc-aks`
+- Workflow routing is GitHub-driven only via `vars.AMEIDE_RUNS_ON` (no workflow defaults).
+- Runner registration is repo-scoped (`githubConfigUrl: https://github.com/ameideio/ameide-gitops`) to avoid org runner-group allowlist failures.
+
+### BuildKit cross-arch support
+
+- `buildkit/binfmt` installs emulation for `amd64,arm64` so a runner on either arch can build both platforms when needed.
 
 ### 3) Scheduling contract (pools and profiles)
 

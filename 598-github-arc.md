@@ -1,18 +1,22 @@
-# 598: GitHub Actions Runner Controller (ARC) — Local Cluster Install (Isolated Namespaces)
+# 598: GitHub Actions Runner Controller (ARC) — Cluster Runner Scale Sets (local + AKS)
 
-**Status:** Implemented (local)  
+**Status:** Implemented (local + AKS)  
 **Created:** 2025-12-24  
 **Owner:** Platform SRE / GitOps  
-**Scope:** Install GitHub’s Actions Runner Controller (ARC) **runner scale sets** in the **local k3d cluster only**, using **isolated namespaces** and the **official OCI Helm charts** (GHCR), without impacting Azure.
+**Scope:** Install GitHub’s Actions Runner Controller (ARC) **runner scale sets** in both the **local k3d cluster** and **AKS**, using **isolated namespaces** and the **official OCI Helm charts** (GHCR).
 
 ---
 
+## Historical context
+
+- **2025-12**: implemented **local-only** (`k3d`) ARC to unblock GitOps-first inner-loop work without depending on GitHub-hosted runners.
+- **2026-01**: extended the same model to **AKS** to make CI-owned cluster rollouts and verification deterministic across environments.
+
 ## Executive Summary
 
-We add **ARC** to the **local** Kubernetes cluster so we can run **GitHub Actions** workloads on-cluster (ephemeral runner pods, autoscaled), while keeping the install:
+We add **ARC** to the **local** Kubernetes cluster and **AKS** so we can run **GitHub Actions** workloads on-cluster (ephemeral runner pods, autoscaled), while keeping the install:
 
-- **Local-only** (must not appear in Azure)
-- **Namespace-isolated** from Ameide environment namespaces (`ameide-local`)
+- **Namespace-isolated** from Ameide environment namespaces (`ameide-local`, `ameide-dev`, `ameide-staging`, `ameide-prod`)
 - **GitOps-native** (Argo CD driven; no drift)
 - **Secret-safe** (no tokens committed; Secret comes from Vault via ExternalSecrets)
 
@@ -20,17 +24,51 @@ This installs:
 
 1) ARC CRDs (cluster-owned)  
 2) ARC controller (cluster-owned operator, `skipCrds: true`)  
-3) One runner scale set (env-scoped app; deploys into `arc-runners`)
+3) One runner scale set per cluster (cluster-scoped app; deploys into `arc-runners`)
 
 Pinned to chart version **`0.13.1`**.
+
+## Current state (2026-01)
+
+### Runner sets (one per cluster)
+
+- Local runner scale set name: `arc-local`
+- AKS runner scale set name: `arc-aks`
+
+### GitHub routing contract (no workflow defaults)
+
+This repo’s workflows route runners via a GitHub variable only:
+
+```yaml
+jobs:
+  build:
+    runs-on: ${{ vars.AMEIDE_RUNS_ON }}
+```
+
+Set `AMEIDE_RUNS_ON` to:
+- `arc-local` to run on local k3d ARC, or
+- `arc-aks` to run on AKS ARC.
+
+### Repo-scoped runner registration (avoids org runner-group allowlists)
+
+The runner sets are registered to the repo (not the org) via:
+- `githubConfigUrl: https://github.com/ameideio/ameide-gitops`
+
+This avoids “queued forever” failures when an org runner group does not allow the repo, but it also means these runners are intended for **`ameideio/ameide-gitops` only** unless we intentionally move back to org-scoped registration.
+
+### Runner image is multi-arch and digest pinned
+
+- Runner image: `ghcr.io/ameideio/arc-local-runner`
+- Must be a **multi-arch manifest list** (at least `linux/amd64` + `linux/arm64`).
+- GitOps pins the manifest digest (see `sources/values/_shared/cluster/github-arc-runner-set.yaml`).
 
 ---
 
 ## Non-goals
 
-- No ARC deployment to Azure environments (dev/staging/production).
-- No production-grade runner hardening beyond local needs.
-- No CI migration work; this only installs the runner substrate.
+- No org-wide runner pool / runner group policy design (repo-scoped by default).
+- No “trusted vs untrusted” runner isolation model beyond the current cluster boundaries.
+- No CI migration work; this backlog only installs the runner substrate + routing contract.
 
 ### Follow-on (separate backlog)
 
@@ -59,12 +97,12 @@ See `backlog/599-k8s-native-buildkit-builds-on-arc.md`.
 
 ### Workflow routing (`runs-on` contract)
 
-For runner scale sets, the workflow routing key is the **installation name** (`runnerScaleSetName`). Treat it as a contract:
+For runner scale sets, the workflow routing key is the **scale set name** (`runnerScaleSetName`). Treat it as a contract:
 
 ```yaml
 jobs:
   build:
-    runs-on: arc-local
+    runs-on: ${{ vars.AMEIDE_RUNS_ON }}
 ```
 
 ### Standard runner image (local)
@@ -73,7 +111,7 @@ jobs:
 
 - Image: `ghcr.io/ameideio/arc-local-runner`
 - Baseline tools include `git/curl/tar/jq/yq/rg/skopeo` and `buildctl` (for BuildKit builds)
-- GitOps pins the runner image digest (current: `sha-0c673b3c10ae@sha256:839c1a30fd0a3195ae61209131b67a480fe534723a9adf67e524dceda3830b55`)
+- GitOps pins the runner image digest in `sources/values/_shared/cluster/github-arc-runner-set.yaml`
   - Tooling includes `rsync` + `cosign` so workflows don’t carry installer glue.
 
 Image policy note:
@@ -107,105 +145,97 @@ ARC follows this exactly:
 - CRDs are applied as `cluster-crds-github-arc`
 - Controller is installed as `cluster-github-arc-controller` with `skipCrds: true`
 
-### Local-only allowlist (keeps Azure clean)
+### Overlay component discovery (local + Azure)
 
-Local env-scoped components are curated under:
+Cluster-scoped components are deployed by the cluster ApplicationSet (`argocd/applicationsets/cluster.yaml`).
+Overlays extend cluster component discovery:
 
-- `environments/local/components/**/component.yaml`
-
-Local also needs local-only cluster components, so we extend the local overlay so the **cluster** ApplicationSet additionally discovers:
-
-- `environments/local/components/cluster/**/component.yaml`
-
-Azure overlay remains unchanged (cluster appset only reads `_shared/components/cluster/**`).
+- Local overlay adds: `environments/local/components/cluster/**/component.yaml`
+- Azure overlay adds: `environments/azure/components/cluster/**/component.yaml`
 
 ---
 
-## Implementation Plan (GitOps)
+## Implementation (GitOps)
 
-### WP-1: CRDs (cluster, local-only)
+### WP-1: CRDs (cluster)
 
-- Component: `environments/local/components/cluster/crds/github-arc/component.yaml`
+- Components:
+  - Local: `environments/local/components/cluster/crds/github-arc/component.yaml`
+  - Azure: `environments/azure/components/cluster/crds/github-arc/component.yaml`
 - Values: `sources/values/_shared/cluster/crds-github-arc.yaml`
 - CRD file (vendored): `sources/charts/foundation/common/raw-manifests/files/github-arc-crds-0.13.1.yaml`
 
-### WP-2: Namespaces + defaults (cluster, local-only)
+### WP-2: Namespaces + defaults (cluster)
 
-- Component: `environments/local/components/cluster/configs/github-arc-namespaces/component.yaml`
+- Components:
+  - Local: `environments/local/components/cluster/configs/github-arc-namespaces/component.yaml`
+  - Azure: `environments/azure/components/cluster/configs/github-arc-namespaces/component.yaml`
 - Values: `sources/values/_shared/cluster/github-arc-namespaces.yaml`
 
-### WP-3: Controller (cluster, local-only)
+### WP-3: Controller (cluster)
 
-- Component: `environments/local/components/cluster/operators/github-arc-controller/component.yaml`
+- Components:
+  - Local: `environments/local/components/cluster/operators/github-arc-controller/component.yaml`
+  - Azure: `environments/azure/components/cluster/operators/github-arc-controller/component.yaml`
 - Values: `sources/values/_shared/cluster/github-arc-controller.yaml`
 - `serviceAccount.name` is fixed to `arc-gha-rs-controller` and is referenced by the runner scale set.
 
-### WP-4: Auth secret (cluster, local-only)
+### WP-4: Auth secret (cluster)
 
-- Component: `environments/local/components/cluster/secrets/github-arc-auth/component.yaml`
+- Components:
+  - Local: `environments/local/components/cluster/secrets/github-arc-auth/component.yaml`
+  - Azure: `environments/azure/components/cluster/secrets/github-arc-auth/component.yaml`
 - Values: `sources/values/_shared/cluster/github-arc-auth.yaml`
-- Materializes `Secret/arc-github-auth` in `arc-runners` from local Vault key `ghcr-token` (derived from `.env` `GHCR_TOKEN`; bootstrap convenience).
-- Local: `.env` secrets are seeded into local Vault by `infra/scripts/seed-local-secrets.sh` (invoked by `infra/scripts/deploy.sh local`); `GHCR_TOKEN` becomes Vault key `ghcr-token`.
-- Azure: Terraform can reconcile `.env` → Key Vault secrets when running `infra/scripts/deploy.sh azure` locally; GitHub Actions CI typically reads secrets from Key Vault (no `.env` in CI). ARC auth wiring remains local-only (revisit if promoting).
+- Materializes `Secret/arc-github-auth` in `arc-runners` via ExternalSecrets using the existing `ghcr-token` secret value (kept as-is for now).
 
-### WP-5: Runner scale set (env, local-only)
+### WP-5: Runner scale set (cluster)
 
-- Component: `environments/local/components/apps/runtime/github-arc-runner-set/component.yaml`
+Runner scale set is cluster-scoped (deployed once per cluster):
+
+- Components:
+  - Local: `environments/local/components/cluster/apps/github-arc-runner-set/component.yaml`
+  - Azure: `environments/azure/components/cluster/apps/github-arc-runner-set/component.yaml`
 - Values:
-  - `sources/values/_shared/apps/github-arc-runner-set.yaml`
-  - `sources/values/env/local/apps/github-arc-runner-set.yaml`
+  - Shared: `sources/values/_shared/cluster/github-arc-runner-set.yaml`
+  - Local override: `sources/values/cluster/local/github-arc-runner-set.yaml`
+  - Azure override: `sources/values/cluster/azure/github-arc-runner-set.yaml`
 - Argo sync posture: `SkipDryRunOnMissingResource=true`
 - `controllerServiceAccount` is set explicitly (required for GitOps / cross-namespace installs)
 - Local default container mode: `kubernetes-novolume`
 
-### WP-6: No DinD runner sets (local)
+### WP-6: No DinD runner sets
 
-Local ARC runners should not require Docker-in-Docker. The local cluster provides in-cluster BuildKit for image builds (`backlog/599-k8s-native-buildkit-builds-on-arc.md`), and workflows should avoid a Docker daemon dependency.
+ARC runners should not require Docker-in-Docker. Use in-cluster BuildKit for image builds (`backlog/599-k8s-native-buildkit-builds-on-arc.md`), and keep workflows free of Docker daemon assumptions.
 
 If a workflow truly requires Docker daemon semantics, run it on GitHub-hosted runners or introduce a separate, explicitly trusted runner set (out of scope for local ARC).
 
 ---
 
-## Definition of Done (local)
+## Definition of Done (local + AKS)
 
 - Argo CD Applications are `Synced` and `Healthy`:
   - `cluster-crds-github-arc`
   - `cluster-github-arc-namespaces`
   - `cluster-github-arc-controller`
-  - `local-github-arc-runner-set`
+  - `cluster-github-arc-runner-set`
 - Namespaces exist: `arc-systems`, `arc-runners`
-- A workflow in `ameideio/ameide` or `ameideio/ameide-gitops` runs with `runs-on: arc-local`
+- A workflow in `ameideio/ameide-gitops` runs with `runs-on: ${{ vars.AMEIDE_RUNS_ON }}` and succeeds on both `arc-local` and `arc-aks` when the variable is flipped.
 
 ---
 
 ## Workflow Onboarding (Other Repos)
 
-### 1) Route workflows to ARC
+### Scope note: these runners are repo-scoped
 
-Set the job `runs-on` to the ARC scale set name:
+Because the runner sets are registered to `https://github.com/ameideio/ameide-gitops`, they are not a shared org runner pool.
 
-```yaml
-runs-on: arc-local
-```
+If another repo needs ARC runners, choose one:
+- Deploy a dedicated runner set for that repo (recommended).
+- Switch ARC to org-scoped registration (`githubConfigUrl: https://github.com/ameideio`) and manage runner group allowlists (requires org admin governance).
 
-Recommended pattern (allows overriding per-repo with a GitHub **Variable**):
+### 2) Runner group access (org-scoped mode only)
 
-```yaml
-runs-on: ${{ vars.AMEIDE_RUNS_ON || 'arc-local' }}
-```
-
-Trunk-based note: with the single-trunk `main` model (`611`), CI should primarily be `pull_request` → `main` and `push` → `main` (no long-lived `dev` branch required for CI routing).
-
-Then, in each repo:
-
-- Create GitHub variable `AMEIDE_RUNS_ON=arc-local` (or set to `ubuntu-latest` to run on GitHub-hosted)
-- Ensure the repo is in the `ameideio` org (this local ARC install is org-attached via `githubConfigUrl: https://github.com/ameideio`)
-
-Note: org-level Actions variables are preferred, but may require elevated org permissions; if org variable management is restricted, use per-repo variables.
-
-### 2) Runner group access (optional but recommended)
-
-If you restrict runner groups, ensure the target repo is allowed to use the configured `runnerGroup` (default is `default`).
+If/when ARC is switched back to org-scoped registration, ensure the target repo is allowed to use the configured `runnerGroup`.
 
 ### 3) Security guardrail for PRs from forks
 
@@ -237,7 +267,7 @@ Once ARC is installed, the main operational pain point is container builds: self
 
 Adopt a k8s-native build strategy:
 
-- Run a cluster BuildKit daemon (local-only) and have workflows use `buildctl` to build/export (or push) images.
+- Run a cluster BuildKit daemon (cluster-scoped) and have workflows use `buildctl` to build/export (or push) images.
 - Keep publish workflows **dry-run by default** on `workflow_dispatch` so ARC verification remains safe.
 - Standardize on `AMEIDE_BUILDKIT_ADDR=tcp://buildkitd.buildkit.svc.cluster.local:1234` (org-level preferred; per-repo fallback is acceptable).
 - Prefer a repo/org variable for the BuildKit endpoint (example): `AMEIDE_BUILDKIT_ADDR=tcp://buildkitd.buildkit.svc.cluster.local:1234`.
@@ -255,5 +285,5 @@ Adopt a k8s-native build strategy:
 
 ## Open Questions
 
-- Keep org-level attachment (`githubConfigUrl: https://github.com/ameideio`) or scope to a repo?
-- Do we need a non-default `runnerGroup`, or stay in `default`?
+- Do we keep repo-scoped registration for deterministic access, or switch back to org-scoped (`githubConfigUrl: https://github.com/ameideio`) to serve multiple repos (requires runner group governance)?
+- If org-scoped: which `runnerGroup`/allowlist model do we adopt for isolation (and how do we prevent untrusted fork PR code from reaching self-hosted runners)?
