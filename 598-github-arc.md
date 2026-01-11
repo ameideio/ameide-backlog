@@ -56,6 +56,14 @@ The runner sets are registered to the repo (not the org) via:
 
 This avoids “queued forever” failures when an org runner group does not allow the repo, but it also means these runners are intended for **`ameideio/ameide-gitops` only** unless we intentionally move back to org-scoped registration.
 
+### Failure mode: “jobs never start” when the repo doesn’t match
+
+Because `arc-aks` is repo-scoped to `https://github.com/ameideio/ameide-gitops`, it will **not** pick up workflows from other repos (e.g. `ameideio/ameide`) even if those workflows set `runs-on: arc-aks`.
+
+- Symptom: jobs sit in `queued` with no runner assigned.
+- Resolution: either deploy a dedicated ARC runner set for that repo, or switch ARC registration back to org-scoped (`githubConfigUrl: https://github.com/ameideio`) and manage runner-group allowlists.
+- Note: GitHub does not queue literally forever; jobs will fail after GitHub’s max queue time (currently 24h).
+
 ### Runner image is multi-arch and digest pinned
 
 - Runner image: `ghcr.io/ameideio/arc-local-runner`
