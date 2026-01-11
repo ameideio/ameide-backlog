@@ -46,142 +46,87 @@ This backlog captures the current failure modes we observed and defines a **sing
 
 ## Current findings (AKS dev) and how they relate to local
 
-### A) Argo apps in `Unknown` due to `ComparisonError` (Helm render failure)
+### A) Docker Hub pull rate limiting blocked reconciliation (AKS) and was masked locally
 
-**Observed in AKS dev:** ~48 apps show `sync=Unknown, health=Healthy` with `ComparisonError` caused by:
+**Observed in AKS dev:** many pods failed with `429 Too Many Requests` from `docker.io`, leaving multiple Argo apps `Progressing/Degraded`.
 
-- `Error: ... execution error ... image.ref is required`
+**Why local didn’t show it consistently:** local k3d defaults to `imagePullPolicy: IfNotPresent` (see `sources/values/cluster/local/globals.yaml`) and tends to have warmer caches; AKS nodes were repeatedly pulling from Docker Hub.
 
-Example app: `dev-agent-echo-v0` fails to render because `.Values.image.ref` is required by the chart, but not set.
+**Remediation (parity-safe, vendor-aligned):**
+- Make `docker.io` a “do not depend on at runtime” registry for shared workloads.
+- Use:
+  - public mirrors for “docker library” images (see `backlog/456-ghcr-mirror.md` + shared values),
+  - a GHCR mirror for third-party images that don’t have a stable non-DockerHub source,
+  - CI-driven mirroring so the cluster never needs Docker Hub (see `.github/workflows/mirror-images.yaml`).
 
-**Why local didn’t break:** local has env-specific values files (e.g. `sources/values/env/local/apps/agent-echo-v0.yaml`) that pin `image.ref`. Dev/staging/prod do not have equivalent overlays for many of these apps.
+**Hard rule (avoid band-aids):** fix image sources in `sources/values/_shared/**` and `sources/values/env/**` (the ApplicationSet layering inputs). Do not “fix” in `sources/charts/shared-values/**` unless a chart explicitly consumes it.
 
-**Related backlogs / rules:**
-- `backlog/603-image-pull-policy.md` (contract: `image.ref` required + digest pinned; Argo render failures are correctness failures)
-- `backlog/465-applicationset-architecture-preview-envs-v2.md` (values layering + image.ref policy)
+### B) Multi-arch image integrity (amd64 + arm64) is a hard requirement
 
-**Remediation (parity-safe):**
-- Decide which of these apps are **actually installed** in AKS dev. For anything installed:
-  - Ensure `sources/values/env/dev/apps/<app>.yaml` exists and sets a digest-pinned `image.ref`.
-  - Ensure local keeps its own pinned refs (local may differ due to registry/mirror needs).
-- Add a CI gate that fails if any generated app would render with missing required keys (see §“CI guardrails”).
+**Observed in AKS dev:** images pinned to a single-arch digest caused `no match for platform in manifest` on amd64 nodes.
 
-### B) Temporal operator breaks dev (and blocks all `{env}-data-temporal`)
+**Why this is a parity issue:** k3d (developer laptops) is often `linux/arm64`, AKS is `linux/amd64`. Any shared image must be a **manifest list** digest, not a single-arch digest.
 
-**Observed in AKS dev:**
-- `cluster-temporal-operator` controller pod is `ImagePullBackOff`.
-- Error: `no match for platform in manifest: not found`
-- Impact: Temporal admission webhook has no endpoints → any `TemporalCluster` CR creation fails:
-  - `dev-data-temporal` fails with `failed calling webhook ... no endpoints available for service "temporal-operator-webhook-service"`
+**Remediation:**
+- For smoke jobs: replace the broken `grpcurl-runner` digest with a multi-arch upstream (`fullstorydev/grpcurl`) mirrored to GHCR and pinned by digest.
+- For app images: only pin digests that are known multi-arch (see `backlog/603-image-pull-policy.md`).
 
-**Why this is a k3d + AKS parity problem:**
-- AKS nodes are **linux/amd64**.
-- local dev (especially Apple Silicon) is often **linux/arm64**.
-- The patched operator image is currently being published as **arm64-only**, which “works locally for some devs” but fails in AKS.
+### C) Cluster-scoped collisions across envs (SharedResourceWarning)
 
-**Related backlogs / docs:**
-- `backlog/420-temporal-cnpg-dev-registry-runbook.md` (operator/webhook dependency chain; imagePullSecrets requirement)
-- `backlog/603-image-pull-policy.md` (digest pinning surfaces broken image reality)
+**Observed:** Kubernetes Dashboard installs per env can collide on cluster-scoped objects (`metrics-scraper` ClusterRole/Binding), producing `SharedResourceWarning` and preventing clean convergence.
 
-**Remediation (vendor-aligned):**
-- Publish the patched Temporal operator as a **multi-arch manifest list** (linux/amd64 + linux/arm64).
-  - Fix `.github/workflows/publish-temporal-operator.yaml` to build/push multi-platform, not `linux/arm64` only.
-- Repin the digest in `sources/values/_shared/cluster/temporal-operator.yaml` to the multi-arch digest.
-- Then resync order (in Argo or via CI bootstrap): `cluster-crds-temporal-operator` → `cluster-temporal-operator` → `{env}-data-temporal`.
+**Remediation:**
+- Keep the Dashboard env-scoped, but scope any cluster-scoped names per env.
+- Concrete implementation: set `metricsScraper.role` uniquely per env in:
+  - `sources/values/env/dev/platform/kubernetes-dashboard.yaml`
+  - `sources/values/env/staging/platform/kubernetes-dashboard.yaml`
+  - `sources/values/env/production/platform/kubernetes-dashboard.yaml`
+  - `sources/values/env/local/platform/kubernetes-dashboard.yaml`
+  while keeping shared defaults in `sources/values/_shared/platform/kubernetes-dashboard.yaml`.
 
-### C) Kafka is `Progressing` / `NotReady` due to stale “environment pool” scheduling
+### D) Secrets and pull credentials must be namespace-complete (Vault + ExternalSecrets)
 
-**Observed in AKS dev:**
-- `dev-data-kafka-cluster` is `Synced/Progressing`.
-- Kafka pod(s) pending due to:
-  - nodeAffinity to `ameide.io/pool in [dev]` (no longer exists)
-  - tolerations for `ameide.io/environment=dev` are no longer meaningful in a shared pool.
-
-**Local behavior:**
-- Local override `sources/values/env/local/data/data-kafka-cluster.yaml` explicitly relaxes scheduling so Kafka can run even if PVs affinitize to the control-plane node.
+**Observed:** `clickhouse-system` had `ExternalSecret` resources that referenced `SecretStore/ameide-vault`, but the SecretStore didn’t exist in that namespace. Result: `ghcr-pull` never materialized there and private image pulls failed (401).
 
 **Related backlogs:**
-- `backlog/421-argocd-strimzi-kafkanodepool-health.md` (Strimzi health + scheduling templating)
-- `backlog/444-terraform-v2.md` (direction: remove env-specific pools; use standard/spot split)
+- `backlog/446-namespace-isolation.md` (SecretStore is namespace-scoped)
+- `backlog/452-vault-rbac-isolation.md` (cross-namespace consumers must be explicitly declared)
+- `backlog/419-clickhouse-argocd-resiliency.md` (operator namespace + resiliency)
 
-**Remediation (parity-safe):**
-- Replace env-specific pool assumptions with a **provider-neutral node profile** strategy for stateful workloads:
-  - dev/AKS: target the “stateful/standard” capacity (today: shared `general` pool; future: dedicated standard pool).
-  - local/k3d: keep the “relax scheduling” tolerations (control-plane tolerations) so Kafka doesn’t stick Pending.
-- Concretely:
-  - Update `sources/values/env/{dev,staging,production}/data/data-kafka-cluster.yaml` to remove `ameide.io/pool in [<env>]` and instead target the new shared pool label (today: `ameide.io/pool=general`) or adopt a `stateful` node profile.
+**Remediation:**
+- Extend `extraSecretStores` to include `clickhouse-system` in:
+  - `sources/values/env/production/foundation/foundation-vault-secret-store.yaml`
+  - `sources/values/env/local/foundation/foundation-vault-secret-store.yaml`
 
-### D) Gateway API validation failure blocks `cluster-gateway`
+### E) Local must not require the cloud “runtime-facts repo” to render
 
-**Observed in AKS dev:**
-- `cluster-gateway` is `OutOfSync/Missing`.
-- Sync error: `HTTPRoute "applicationset-webhook" is invalid: ... urlRewrite.path.type: Required value`
+**Observed (local k3d):** Argo CD repo-server ComparisonErrors when it could not fetch `https://github.com/ameideio/ameide-runtime-facts.git`.
 
-**Local impact:**
-- This is a **schema correctness** issue; it will also break local once the same CRDs/validation are present.
+**Why this breaks parity:** local bootstrap should be self-contained (devs should not need access to a separate CI-owned repo to get a working local cluster).
 
-**Related backlog:**
-- `backlog/465-applicationset-architecture-preview-envs-v2.md` (requires `/api/applicationset-webhook` route)
+**Remediation (no drift):**
+- Patch the local overlay to source “runtime facts” from this repo for local only:
+  - `argocd/overlays/local/kustomization.yaml`
+- Provide an empty placeholder contract so Helm valueFiles always resolve:
+  - `runtime-facts/cluster/local/globals.yaml`
+  - `runtime-facts/env/local/globals.yaml`
 
-**Remediation (vendor-aligned):**
-- Fix `sources/charts/cluster/gateway/templates/httproute-applicationset-webhook.yaml` to set `urlRewrite.path.type` explicitly (e.g. `ReplaceFullPath`).
-- Add a conformance render check in CI so invalid Gateway API objects fail before merge.
+### F) Remaining “full health” work (must be solved without breaking local)
 
-### E) Prometheus stacks: hostPort collisions after removing env-specific pools
+These are still present in AKS and must be addressed with changes that also make sense for local:
 
-**Observed in AKS dev:**
-- `dev-platform-prometheus` is `Progressing`.
-- `prometheus-node-exporter` is a DaemonSet using `hostNetwork: true` and `hostPort 9100`.
-- In a shared-node cluster, multiple envs deploying node-exporter causes **port conflicts** and Pending pods.
+- Kafka `Progressing`: remove env-specific pool/affinity assumptions and converge on a provider-neutral node profile (see `backlog/421-argocd-strimzi-kafkanodepool-health.md` + `backlog/444-terraform-v2.md`).
+- Prometheus `Progressing`: avoid per-env hostPort DaemonSets in multi-env clusters; deploy node-exporter once at cluster scope (see `backlog/447-third-party-chart-tolerations.md`).
+- `dev-process-transformation-v0-ingress` CrashLoopBackOff: treat as an application-level failure (needs logs + config verification) but must be reproducible locally.
+- Gateways `Degraded` in staging/prod due to missing backend Service for GRPCRoutes: decide whether the routes are env-conditional or the backend must exist in those envs.
 
-**Local behavior:**
-- Local runs only one “env” (local) on the cluster, so hostPort conflicts don’t show up.
+### G) Guardrails (to prevent recurrence)
 
-**Related backlog:**
-- `backlog/447-third-party-chart-tolerations.md` (DaemonSet hostPort conflicts across envs)
-- `backlog/454-coredns-cluster-scoped.md` (SharedResourceWarning is a misconfiguration pattern)
-
-**Remediation (vendor-aligned, multi-env-safe):**
-- Treat node-exporter (and any hostPort DaemonSet) as **cluster-scoped** and deploy it **once** per cluster.
-- For env-scoped Prometheus instances, scrape via label/namespace selectors, not by re-deploying node-exporter per env.
-- Update env overlays to disable per-env node-exporter in AKS dev (and staging/prod) once a cluster-scoped exporter exists.
-
-### F) Langfuse worker `ImagePullBackOff` due to incorrect digest pinning model
-
-**Observed in AKS dev:**
-- `platform-langfuse-worker` fails to pull: digest not found.
-
-**Root cause:**
-- The shared config sets one digest-pinned tag under `langfuse.image.tag`.
-- The chart reuses that tag for **both** web and worker images unless `langfuse.worker.image.tag` is set.
-- A digest for `ghcr.io/langfuse/langfuse@sha256:...` is not valid for `ghcr.io/langfuse/langfuse-worker@sha256:...`.
-
-**Local behavior:**
-- Local explicitly disables the worker (`worker.enabled: false`) to avoid worker health semantics issues, so the wrong digest is hidden locally.
-
-**Related backlog:**
-- `backlog/456-ghcr-mirror.md` (Langfuse image pitfalls, local arm64 vs mirror)
-- `backlog/450-argocd-service-issues-inventory.md` (Langfuse/Redis issues; rollout fragility)
-
-**Remediation (parity-safe, policy-aligned):**
-- Keep digest pinning, but pin **separately**:
-  - `langfuse.image.tag` → web image digest
-  - `langfuse.worker.image.tag` → worker image digest
-- Keep local override `worker.enabled: false` if still desired, but the shared defaults must be correct for dev/AKS.
-
-### G) Kubernetes Dashboard “shared resource” ownership
-
-**Observed in AKS dev:**
-- `dev-kubernetes-dashboard` / `staging-kubernetes-dashboard` can show `OutOfSync` with `SharedResourceWarning` when cluster-scoped objects are owned by multiple env apps.
-
-**Related backlog:**
-- `backlog/612-kubernetes-dashboard.md` (env deployment model)
-- `backlog/454-coredns-cluster-scoped.md` (SharedResourceWarning pattern)
-
-**Remediation (parity-safe):**
-- Ensure any cluster-scoped objects created by the dashboard chart are either:
-  - installed once at cluster scope, or
-  - namespaced / release-scoped such that env installs do not collide.
+- CI must verify:
+  - render validity for both local and azure overlays (values layering),
+  - no runtime-critical pulls from Docker Hub for shared workloads,
+  - multi-arch digest validity for shared images,
+  - namespace completeness for SecretStore + ExternalSecrets where cross-namespace secrets are required.
 
 ## Cross-target “boundaries” (to prevent spaghetti)
 
@@ -241,30 +186,33 @@ Add a GitHub Actions job (or extend existing gates) that, on every PR:
    - `env/local` with `config/node-profiles/none.yaml`
    - `env/dev` with `config/node-profiles/general-pool.yaml`
 2. Validates:
-   - no Helm render errors (catches `image.ref is required`)
-   - Kubernetes schema conformance (catches invalid `HTTPRoute` / missing required fields)
-   - no duplicate cluster-scoped resource names across envs (catches SharedResourceWarning patterns)
+   - no Helm render errors (schema-required values must exist)
+   - Kubernetes schema conformance (Gateway API, CRD presence constraints)
+   - no duplicate cluster-scoped resource names across envs (SharedResourceWarning patterns)
+   - no runtime-critical pulls from `docker.io` for the AKS overlay (allowlist only if needed)
+   - multi-arch digest validity for shared images (manifest list, not single-arch)
 
 This is the enforcement mechanism that prevents “fix dev, break local”.
 
 ## Seeding status (AKS dev)
 
-Dev seeding has run successfully:
-- `dev-platform-dev-data` is `Synced/Healthy`, and its PostSync hooks `platform-dev-data-dev-data-seed` and `platform-dev-data-dev-data-verify` succeeded.
+Current evidence that baseline seeding/migrations ran:
+- `dev-platform-dev-data` is `Synced/Healthy`.
+- `job.batch/data-db-migrations` in `ameide-dev` completed successfully (`succeeded=1`).
 
 This aligns with the contract in `backlog/582-local-dev-seeding.md` (same seed/verify approach).
 
 ## Work plan (prioritized)
 
-1. **Fix cluster-gateway HTTPRoute schema** (Gateway API `urlRewrite.path.type`).
-2. **Fix Temporal operator image publishing** to multi-arch; repin digest; restore webhook endpoints; unblock `{env}-data-temporal`.
-3. **Normalize Strimzi/Kafka scheduling** for shared-pool AKS (remove env-pool affinity).
-4. **Fix Langfuse worker digest pinning** (separate worker digest).
-5. **Eliminate hostPort collisions** (node-exporter cluster-scoped strategy for AKS).
-6. **Eliminate ComparisonError Unknown apps**:
-   - either add env overlays for dev (and any other installed env), or
-   - stop generating/installing those apps in AKS until image refs exist.
-7. **Add CI render+conformance gate** for local+dev overlays.
+1. **Run CI image mirroring + resync** (Dashboard/Kong + smoke tools + any remaining DockerHub blockers).
+2. **Confirm secret plumbing is namespace-complete** (SecretStore + `ghcr-pull` in `clickhouse-system`).
+3. **Resolve remaining app-level Degraded states**:
+   - `dev-process-transformation-v0-ingress` CrashLoopBackOff (logs + config parity with local)
+   - staging/prod Gateway `Degraded` due to missing GRPC backend Service (decide env-conditional route vs deploy backend)
+4. **Normalize shared-cluster scheduling**:
+   - Kafka scheduling (remove env-specific pool assumptions)
+   - Prometheus hostPort DaemonSets (node-exporter strategy)
+5. **Add CI guardrails** (render + schema + image policy checks for local+dev).
 
 ## Related backlogs / references
 
