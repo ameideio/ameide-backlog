@@ -118,6 +118,11 @@ Decide and execute one of:
 2) **Keep** it for the automated executor runtime (AmeideCodingAgent) and create separate assets for the human workspace, or
 3) **Remove** the placeholder and replace it with explicit Coder-managed components.
 
+## 3.2 Workspace RBAC tightening
+
+If any implementation currently grants namespace-scoped `secrets` access to developer workspaces, remove it by default.
+Keep the workspace ServiceAccount limited to “developer operations” in its namespace (pods/logs/services/configmaps/etc.), and treat secret access as an explicit opt-in exception with clear justification.
+
 ## 4) Acceptance criteria
 
 1. The docs use unambiguous names: automated executor vs human workspace.

@@ -29,6 +29,7 @@ Tests must not rely on paid Coder features (e.g., browser-only enforcement, work
 
 - This test validates the **Coder workspace platform** and the **devcontainer parity** for `github.com/ameideio/ameide`.
 - This test does not validate Telepresence inside a Kubernetes-hosted workspace because Telepresence is **not supported** in this environment. Telepresence remains validated by existing CLI workflows/runbooks.
+- Any “branch → push → PR” step must run against a **bot-writable repo**; it must not assume write access to `ameideio/ameide`.
 
 ## 1) Test types
 
@@ -74,6 +75,11 @@ Steps (high-level):
 5. Commit, push branch.
 6. Create PR (GitHub CLI).
 7. Delete workspace (always).
+
+Implementation reference (current):
+
+- GitHub Actions runner workflow: `.github/workflows/coder-devcontainer-e2e.yaml`
+- The workflow overrides template parameters to use this repo (`ameide-gitops`) for PR operations, while keeping the template defaults targeted at `ameide`.
 
 ## 2) Secrets and identities
 

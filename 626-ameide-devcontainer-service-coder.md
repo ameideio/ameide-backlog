@@ -91,6 +91,11 @@ Without it, Coder presents `/setup`.
 
 Decision (dev): **auto-bootstrap** the first admin user so humans go straight to Keycloak SSO without manual setup.
 
+Implementation (dev):
+
+- Coder OIDC is configured via `sources/values/env/dev/platform/platform-coder.yaml`.
+- The first admin user is bootstrapped via an Argo hook Job + ExternalSecret in `sources/charts/platform/coder/templates/`.
+
 ## 4) Dev environment contract (devcontainer alignment without Docker)
 
 We treat `.devcontainer/devcontainer.json` (in the **code repo**, default `github.com/ameideio/ameide`) as the primary environment contract, but we do **not** require Docker daemon in-cluster.
@@ -214,3 +219,9 @@ But: all overlays must be wired so it is “one value flip” to enable in other
 5. GitOps overlays exist for all envs (enabled only in dev), and NetworkPolicy/quotas are defined.
 6. Coder CE posture is reflected in docs: browser-first is supported; “browser-only enforced” is not claimed.
 7. Workspaces auto-stop when idle.
+
+## 9) Implementation notes (current)
+
+- Workspace template lives at `sources/coder/templates/ameide-devcontainer-service/` and defaults to `github.com/ameideio/ameide` with `.devcontainer`.
+- code-server runs as a sidecar container (pinned image), not installed at runtime via curl.
+- Workspace RBAC is namespace-scoped and does not grant `secrets` read access by default.

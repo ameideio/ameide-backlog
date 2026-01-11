@@ -38,6 +38,12 @@ Build strategy:
 
 - Required: **envbuilder** from repo `devcontainer.json` (no Docker daemon inside pods, no base-image fallback).
 
+Implementation reference:
+
+- Workspace template Terraform: `sources/coder/templates/ameide-devcontainer-service/`
+- Default repo/devcontainer contract: `github.com/ameideio/ameide` + `.devcontainer`
+- Web IDE: code-server sidecar exposed via `coder_app` (no runtime curl installs)
+
 ## 1.1 Install mechanics (GitOps-owned)
 
 - Install Coder via a GitOps-managed Helm release (Argo CD Application) in AKS dev.
