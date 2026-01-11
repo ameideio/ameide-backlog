@@ -339,6 +339,18 @@ Remediation approach (vendor-aligned, GitOps-idempotent):
   - Running Redis in Sentinel mode locally (and enabling `redis-operator`) because `www-ameide-platform` uses Sentinel discovery for session storage.
 - Current status: `www-ameide-platform` is enabled locally and `infra/scripts/verify-platform-sso.sh --local` passes end-to-end.
 
+### Update (2026-01-11): local Redis is standalone (no Spotahome operator / Sentinel)
+
+We hit recurring local instability from the Spotahome `redis-operator` CrashLooping during leader-election renewal under k3d/k3s, leaving the local cluster permanently not-green.
+
+Decision (GitOps-owned, no band-aids):
+
+- Local runs `data-redis-failover` in `mode: standalone` (plain Redis StatefulSet; no `RedisFailover` CR).
+- Local disables installing the cluster-scoped `redis-operator`.
+- Local `www-ameide-platform` uses a direct Redis URL (`redis-master:6379`) instead of Sentinel discovery.
+
+AKS dev/staging/prod can continue to use RedisFailover + Sentinel where HA is required.
+
 ## Update (2025-12-18): Azure CI destroy reliability (PDBs + state locks)
 
 ### Symptom(s)
