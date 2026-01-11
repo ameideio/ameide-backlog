@@ -105,7 +105,7 @@ GitOps posture reference (traffic-agent injection is opt-in):
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `AMEIDE_TELEPRESENCE_TARGET` | `ameide-aks` | Selects which cluster is targeted (`ameide-aks` or `ameide-local`). |
-| `TELEPRESENCE_CONTEXT` | target-derived | Cluster context to connect to. Bootstrap writes defaults into `~/.config/ameide/context.env`. |
+| `TELEPRESENCE_CONTEXT` | target-derived | Cluster context to connect to. Bootstrap writes defaults into `~/.config/ameide/context.env` (inside the current DevContainer/slot). |
 | `TELEPRESENCE_NAMESPACE` | target-derived | Namespace passed to `telepresence connect`. |
 
 ### Organization slug invariants

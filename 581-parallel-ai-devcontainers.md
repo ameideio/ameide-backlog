@@ -105,16 +105,16 @@ Rationale: shared `~/.codex/auth.json` avoids local callback server contention a
 
 ## Bootstrap side effects (multi-container)
 
-Repeated bootstrap (Azure login, kube context wiring, port-forwards) across N containers creates churn and state coupling.
+Repeated bootstrap (Azure login, kube context wiring, port-forwards) across N containers creates churn and coupling.
 
 Recommendation:
 - Use `AMEIDE_BOOTSTRAP_PROFILE=primary|agent`
   - `primary`: human devcontainer; bootstrap is typically run manually because `az login --use-device-code` is interactive (set `AMEIDE_AUTO_BOOTSTRAP=1` to run it automatically during postCreate).
-  - `agent`: skips side effects and assumes shared state is already present.
+  - `agent`: skips bootstrap side effects by default; if `~/.config/ameide/context.env` is missing in that slot, run `tools/dev/bootstrap-contexts.sh`.
 
 ### Volume permissions
 
-Named Docker volumes are initialized with root ownership when first created. The `.devcontainer/postCreate.sh` script fixes ownership for all shared volumes (`~/.codex`, `~/.kube`, `~/.azure`, `~/.config/ameide`) using the VS Code Dev Containers recommended approach:
+Named Docker volumes are initialized with root ownership when first created. The `.devcontainer/postCreate.sh` script fixes ownership for all mounted config volumes (including `~/.codex`, `~/.kube`, `~/.azure`, `~/.config/ameide`) using the VS Code Dev Containers recommended approach:
 
 - Ensures mount points exist with `sudo mkdir -p`
 - Fixes ownership with `sudo chown -R $(id -u):$(id -g)`
@@ -127,8 +127,8 @@ Reference: [VS Code Dev Containers - Persist bash history](https://code.visualst
 ## Implementation (repo)
 
 - Devcontainer configs:
-  - `.devcontainer/devcontainer.json`: generic config, mounts shared volumes for `~/.codex`, `~/.azure`, `~/.kube`, `~/.config/ameide`.
-  - `.devcontainer/agent/devcontainer.json`: agent config, sets `AMEIDE_BOOTSTRAP_PROFILE=agent` and sets `AMEIDE_AGENT_ID=${localWorkspaceFolderBasename}`.
+  - `.devcontainer/devcontainer.json`: generic config; keeps `~/.codex` shared (auth), but isolates `~/.azure`, `~/.kube`, and `~/.config/ameide` per DevContainer to avoid context/subscription cross-talk.
+  - `.devcontainer/agent/devcontainer.json`: agent config; same isolation posture and sets `AMEIDE_BOOTSTRAP_PROFILE=agent` and `AMEIDE_AGENT_ID=${localWorkspaceFolderBasename}`.
 - Bootstrap:
   - `.devcontainer/postCreate.sh` uses `AMEIDE_BOOTSTRAP_PROFILE` and skips remote context bootstrapping when `AMEIDE_BOOTSTRAP_PROFILE=agent` to avoid repeated side effects.
 - Telepresence entrypoint:
