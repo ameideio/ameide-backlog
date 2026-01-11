@@ -42,3 +42,17 @@
 
 - Plausible can appear “broken” when ClickHouse is unavailable; the most common symptom is an initContainer/migration loop or a stuck pod.
 - In local, once ClickHouse was reconciled to a healthy `ClickHouseInstallation` state, deleting the stuck Plausible pod was enough for it to recreate cleanly and become Ready.
+
+## Addendum (2026-01-11): Local DNS / ClickHouse host must be explicit
+
+In local k3d, some runtimes/clients do not reliably use Kubernetes search suffixes (or they use a custom resolver config that behaves differently than “normal” glibc).
+
+**Observed failure mode**
+- Plausible init/migrate fails with DNS errors such as `Mint.TransportError :nxdomain`.
+- Root cause is that the ClickHouse host is configured as a short name and does not resolve in that client/runtime context.
+
+**Fix (local-only values)**
+- Configure Plausible’s ClickHouse host as a fully-qualified in-cluster name:
+  - `clickhouse-data-clickhouse.ameide-local.svc.cluster.local`
+
+This keeps Plausible deterministic in local without changing the cloud/AKS posture.

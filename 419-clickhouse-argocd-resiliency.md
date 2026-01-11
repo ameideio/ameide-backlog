@@ -96,6 +96,23 @@
   - allow the CHI Application to replace resources when needed (to clear stuck state cleanly),
   - and keep the operator namespace watch list explicitly covering `ameide-local`.
 
+## Addendum (2026-01-11): Local k3d PV binding + node placement (local-path)
+
+Local k3d uses the `local-path` StorageClass (default `WaitForFirstConsumer`). That means the **first scheduled pod** decides which node the PV is created on and bound to.
+
+**Observed failure mode**
+- ClickHouse pod gets scheduled on the k3d control-plane (before taints/placement constraints exist).
+- The PVC binds to the control-plane node.
+- Later we harden local by tainting/avoiding the control-plane, but the ClickHouse pod can no longer mount its PV on a worker → `Pending` or repeated reschedules → downstream apps (Plausible/Langfuse) fail.
+
+**GitOps fix**
+- Local ClickHouse is now explicitly scheduled away from control-plane nodes via nodeAffinity (local-only values).
+- This makes fresh bootstraps deterministic: the first consumer lands on an agent node, so the PV binds to a worker node.
+
+**Operational recovery (local only, destructive)**
+- If the PVC is already bound to the wrong node, you must delete the ClickHouse PVC(s) to allow rebinding on a worker node.
+- This is acceptable for local/dev tooling, but must never be used as a recovery pattern for AKS.
+
 ## Troubleshooting notes
 - **CRD presence check:** `kubectl get crd | grep clickhouse` must show all four; absence of `clickhouseinstallations` causes CHI sync failures.
 - **Argo panic “invalid memory address”:** the Argo CD application controller occasionally panics while diffing the `ClickHouseInstallation` resource, leaving `status.operationState.phase=Error` and `message="runtime error: invalid memory address or nil pointer dereference"` even though the CHI is `Synced/Healthy`. This is a bug in Kubernetes apimachinery’s `strategicpatch` code path, not in ClickHouse or our manifests.
