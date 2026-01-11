@@ -131,6 +131,34 @@ Local clusters hit recurring apiserver proxy `502` errors when calling admission
 
 This keeps the fix persistent across resyncs/recreates and reduces cascading leader-election loss/timeouts in controllers under load.
 
+## Update (2026-01-11): Namespaced traffic-manager scoping (per environment)
+
+We hit a real-world failure mode where Telepresence was configured for **namespaced RBAC** (`managerRbac.namespaced: true`) but the traffic-manager still attempted to compute its managed namespaces from a **cluster-wide namespace selector**.
+
+**Symptoms**
+- Argo apps `local-traffic-manager` / `{env}-traffic-manager` show `Progressing` and the traffic-manager Deployment can CrashLoop.
+- `kubectl -n <env> logs deploy/traffic-manager` shows:
+  - `unable to determine a static list of namespaces from given namespace selector`
+  - `error listing namespaces: namespaces is forbidden ... cannot list resource "namespaces" ... at the cluster scope`
+
+**Root cause**
+- The traffic-manager reads `namespace-selector.yaml` from `ConfigMap/traffic-manager`.
+- The vendor default selector (`NotIn kube-system,kube-node-lease`) requires the controller to list namespaces to resolve the final set. With namespaced RBAC, listing namespaces is forbidden, so the traffic-manager can fail fast.
+
+**GitOps fix (permanent, non-operational)**
+- When `managerRbac.namespaced: true`, render `namespace-selector.yaml` as an explicit allowlist:
+  - `operator: In`
+  - `values: [ameide-<env>]`
+- This is implemented by templating `sources/charts/third_party/telepresence/telepresence/2.25.1/templates/trafficManager-configmap.yaml` from `.Values.managerRbac.namespaces`.
+- Each environment declares its own namespace list (single namespace):
+  - `sources/values/env/local/platform/traffic-manager.yaml`
+  - `sources/values/env/dev/platform/traffic-manager.yaml`
+  - `sources/values/env/staging/platform/traffic-manager.yaml`
+  - `sources/values/env/production/platform/traffic-manager.yaml`
+
+**Expected behavior after fix**
+- Traffic-manager logs may still print `Listing namespaces is not permitted` (debug/info), but it must proceed with `Using fixed set of namespaces [ameide-<env>]` and stay `Ready`.
+
 ## Recent improvements
 
 - **RBAC alignment** – Telepresence Traffic Manager ClusterRole/Role templates now grant `create` on `pods/eviction`, matching the vendor guidance for v2.25.1 (mirrored in `sources/charts/third_party/telepresence/telepresence/2.25.1`). ArgoCD syncs `dev-traffic-manager`/`staging-traffic-manager` against the versioned chart path.
