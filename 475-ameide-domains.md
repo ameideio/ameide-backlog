@@ -378,7 +378,7 @@ To show that this is universal, take a generic **E2E Process X** (e.g. some futu
 2. **Design → Runtime deployment**
 
    * Transformation processes (Agile/TOGAF) lead to formal ProcessDefinitions + requirements.
-   * CLI/agents use those ProcessDefinitions and requirements to generate or evolve the Temporal workflow code for a Process primitive `ProcessX`.
+   * CLI/agents use those ProcessDefinitions and requirements to scaffold/refresh the Temporal workflow code for a Process primitive `ProcessX` (and use `verify` to enforce drift checks between inputs and generated outputs).
    * A Process primitive `ProcessX` is built and deployed; at runtime it executes its own workflow code informed by the ProcessDefinitions, but does **not** interpret BPMN/process definitions dynamically.
 
 3. **Domains reused**

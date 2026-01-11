@@ -169,7 +169,7 @@ Commands:
   - template/path grammar rules
   - delegated/domainCommand immediate-wait rule
 - `backlog/527-transformation-e2e-sequence-v3.bpmn` passes the Go linter with no errors.
-- `ameide primitive scaffold --kind process …` deterministically generates `*_gen.go` plus `bpmn/compile.lock.json` without needing external tools.
+- `ameide primitive scaffold --kind process …` deterministically writes the generated outputs (`*_gen.go`, `bpmn/compile.lock.json`) without needing external tools (and `ameide primitive verify` fails on drift).
 - The generated process primitive builds a runner image that can run worker or ingress via args/entrypoint.
 
 ## Follow-ups (v2 candidates)
