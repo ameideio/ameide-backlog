@@ -254,8 +254,10 @@ This pattern becomes even more valuable when the Agent primitive is fully autono
 Use `scripts/demo-agent-slice.sh` to exercise the entire slice against a cluster with the agent-operator deployed:
 
 ```bash
-./scripts/demo-agent-slice.sh --namespace primitives-dev
+./scripts/demo-agent-slice.sh --namespace <your-namespace>
 ```
+
+**Historical note:** earlier drafts used `primitives-dev`. That namespace is not assumed/provisioned as part of the GitOps fleet; run the demo against the namespace you want the sample Agent to live in.
 
 The script:
 1. Applies `operators/helm/examples/agent-sample.yaml` (same spec synced via GitOps).

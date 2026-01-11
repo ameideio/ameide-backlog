@@ -739,17 +739,21 @@ The E2E demo validates the full vertical slice by creating a Domain CR and verif
 
 This section tracks implementation gaps discovered during review. These must be addressed before declaring the vertical slice complete.
 
-### 11.1 GitOps Sample Hard-Codes Dev Namespace
+### 11.1 GitOps Sample Is Not Environment-Scoped (historically: `primitives-dev`)
 
 **Location**:
 - [`environments/_shared/primitives/domain/orders.yaml`](../gitops/ameide-gitops/environments/_shared/primitives/domain/orders.yaml)
 - [`environments/_shared/components/apps/primitives/orders/component.yaml`](../gitops/ameide-gitops/environments/_shared/components/apps/primitives/orders/component.yaml)
 
-**Issue**: The new GitOps-managed Domain sample deploys to `primitives-dev` with a bundled CNPG Cluster for every environment. That’s ideal for dev, but staging/production need different namespaces, storage classes, and potentially no sample workload at all.
+**Historical context**: Early drafts deployed the sample Domain to a dedicated `primitives-dev` namespace.
+
+**Update (2026-01)**: The GitOps sample no longer assumes a `primitives-dev` namespace; it renders into the **release namespace** (and the standalone sample manifest omits `metadata.namespace` so `kubectl apply -n <ns>` controls placement).
+
+**Issue**: The GitOps-managed Domain sample (and its bundled CNPG Cluster) is still treated as a shared, always-on component. That’s ideal for dev, but staging/production need different namespaces, storage classes, and potentially **no sample workload at all**.
 
 **Impact**: Higher environments risk carrying the dev sample (and test CNPG cluster) unless operators override the component manually.
 
-**Fix Required**: Add environment-specific values/overlays or guard the component behind an env allow list so only dev clusters sync the sample.
+**Fix Required**: Guard the sample behind an env allow list (dev-only), or provide environment-specific overlays for namespace/storage/policy so higher environments do not inherit the dev sample.
 
 ### 11.2 Verify Heuristics vs Toolchain
 

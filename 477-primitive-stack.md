@@ -216,8 +216,10 @@ For each primitive kind we keep a hard boundary:
 > **V2 alignment:** [505-agent-developer-v2.md](505-agent-developer-v2.md) defines three standard Agent primitives that live in this tree:
 > - **AmeidePO** (`runtime_role=product_owner`) – product decisions only, no repo/tool access.
 > - **AmeideSA** (`runtime_role=solution_architect`) – technical decomposition + A2A client.
-> - **AmeideCoder** (`runtime_role=a2a_server`) – devcontainer service exposing the A2A REST binding (`/v1/message:send`, `/v1/message:stream`, `/v1/tasks/*`).
+> - **AmeideCoder** (`runtime_role=a2a_server`) – executor runtime (devcontainer service and/or CI-like runner) that exposes the A2A REST binding (`/v1/message:send`, `/v1/message:stream`, `/v1/tasks/*`).
 > Process primitives remain separate (Temporal workers), but they orchestrate PO/SA via EDA events and never host agents themselves.
+
+> **Update (2026-01):** The GitOps repo currently contains only a placeholder/disabled devcontainer-service values file and an optional component definition; treat the in-cluster devcontainer service as planned, not shipped.
 
 **Agent operator (code, `operators/agent-operator`)**
 
