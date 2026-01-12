@@ -23,7 +23,7 @@ Define how Ameide maintains “memory” for agents in a way that is:
 This backlog is split into:
 
 1. **Curation**: how we author, version, deprecate, and validate memory.
-2. **Retrieval**: how agents find and consume memory deterministically (and when to use semantic retrieval).
+2. **Retrieval**: how agents find and consume memory via graph + embedding retrieval (and when to fall back to deterministic sources).
 
 ## 1) Problem statement
 
@@ -36,18 +36,27 @@ Human backlogs are long-form and exploratory; agents need short, current, enforc
 - what “done” means
 - where evidence lives
 
-### 1.2 Multiple sources of truth cause drift
+### 1.2 Agents are not only coders
+
+Agents operate in multiple roles:
+
+- **coding agents**: change code in a Git repo, run CLI checks, open PRs
+- **assistants in chat**: help humans define architecture and business processes that must be stored as **versioned elements** (e.g., BPMN processes, ArchiMate views, reference documents)
+
+“Memory” therefore cannot be treated as “coding instructions only”. It must include business and architecture artifacts as first-class, versioned knowledge.
+
+### 1.3 Multiple sources of truth cause drift
 
 In practice, agent guidance can come from:
 
-- repo-root `AGENTS.md` (hard rules)
-- template-scoped `AGENTS.md` (profile rules: code vs gitops vs sre)
-- backlog docs (design decisions and contracts)
-- CLI `--help` output (actual behavior)
+- **canonical element memory** (documents/diagrams stored as Elements + Versions)
+- `AGENTS.md` (coding agents only; execution guardrails while operating on a Git working tree)
+- backlog docs (a Git-view of memory docs; transitional)
+- CLI `--help` output (tool runtime truth)
 
 Without an explicit precedence model and validation gates, agents will follow stale or conflicting instructions.
 
-### 1.3 Submodule memory drift is real
+### 1.4 Submodule memory drift is real
 
 With backlogs in a separate repo/submodule, we can end up with:
 
@@ -58,41 +67,81 @@ We need a deliberate structure so “what an agent should do” stays aligned to
 
 ## 2) Definitions
 
-- **Memory artifact**: a short, agent-consumable contract (rules, runbooks, checklists, invariants).
-- **Backlog**: human-oriented design/decision record; may be longer and historical.
+- **Memory artifact**: a versioned element intended for agent context (raw Markdown, BPMN, ArchiMate, etc.).
+- **Backlog**: a document-shaped memory artifact (Markdown element), organized by architecture layer.
+- **Curation queue**: a queue of “memory candidates” awaiting consolidation and promotion into canonical memory.
 - **Profile**: an agent type/template with distinct guardrails (e.g., code/gitops/sre).
+- **AGENTS.md**: a Codex-oriented implementation mechanism that scopes **coding agent** behavior while operating on a Git working tree; it does not define the platform’s global memory system.
 - **Evidence**: machine-readable artifacts produced by the CLI (JUnit, logs, reports) that prove a check ran.
 - **Read context**: the precise state that was read (head/baseline/version) and why it is reproducible.
 
 ## 3) Memory model (big picture)
 
-### 3.1 Layered memory (authoritative precedence)
+### 3.1 Canonical memory lives in the element repository
+
+Canonical memory is stored as **Elements + Relationships + Versions** (303), written by domain primitives (527) and served by projection query services with `read_context` and `citations[]`.
+
+This includes:
+
+- raw Markdown (policies, runbooks, “backlogs”, reference docs)
+- BPMN process definitions and diagrams
+- ArchiMate models and views
+
+### 3.2 Organize memory by architecture layers (required)
+
+All memory artifacts are organized by architecture layers:
+
+- Strategy
+- Business
+- Application
+- Technology
+- Implementation & Migration
+
+This is not only an IA decision; it is a retrieval primitive. Agents should be able to filter and traverse memory by layer, and follow relationships across layers.
+
+### 3.3 Layered memory (authoritative precedence)
 
 From highest authority (must be obeyed) to lowest:
 
-1. **Template-scoped `AGENTS.md`** (profile-local guardrails and “how to operate here”)
-2. **Repo-root `AGENTS.md`** (global workflow and mandatory checks)
-3. **CLI contracts** (`ameide ... --help` + generated evidence layout) as runtime truth
-4. **Curated memory artifacts** (short docs indexed for retrieval)
-5. **Backlogs** (design intent, history, rationale)
+1. **Published memory elements** (promoted/published element versions and baselines)
+2. **Draft memory elements** (draft versions awaiting promotion)
+3. **Curation queue items** (explicitly non-authoritative)
+4. **CLI contracts** (`ameide ... --help` + generated evidence layout) as runtime truth for tool execution
+5. **`AGENTS.md` files** (coding agents only; local execution guardrails)
 
 Rule: when there is disagreement, higher layers win. Lower layers must be updated or marked superseded.
 
-### 3.2 Where memory lives (two planes)
+### 3.4 Where memory lives (two planes)
 
-1. **Git-curated memory (now):**
-   - `AGENTS.md` files (repo + templates)
-   - backlog repo (pinned as a submodule in the code repo)
+1. **Git-curated memory (bootstrap / transitional):**
+   - `AGENTS.md` files (coding agent instructions only)
+   - backlog repo/submodule (a Git-view of memory docs)
 
-2. **Platform memory (future):**
-   - store memory artifacts as **Elements + Versions** in the Transformation Domain (303/527),
-   - serve them via Projection query services with `read_context` and `citations[]`.
+2. **Platform memory (target):**
+   - store memory artifacts as **Elements + Versions** in the Transformation Domain (303/527)
+   - curate memory in the element editor (human-first)
+   - serve memory via Projection query services with `read_context` and `citations[]`
 
 The two-plane model allows us to start with Git (simple, reviewable) and evolve to auditable, queryable memory inside the platform.
 
 ## 4) Curation (how we create and maintain memory)
 
-### 4.1 Memory artifact types (curated, short)
+### 4.1 Curation queue (agents propose, curator promotes)
+
+Coding agents will rarely do a good job curating canonical memory while also shipping code.
+
+Decision: coding agents should **append to a curation queue** instead of directly editing canonical memory. A dedicated curator (human, or a dedicated “curator agent” with approval gates) consolidates and publishes.
+
+Assistants operating in chat (e.g., while defining a business process) may generate draft BPMN/ArchiMate/document elements, but those drafts still enter curation (draft state and/or queue) before becoming published memory.
+
+Minimum requirements for a queue item:
+
+- a proposed memory artifact kind (policy/contract/runbook/recipe/backlog/BPMN/ArchiMate)
+- scope and intended audience (coding vs business-process vs architecture)
+- citations/evidence pointers (CLI output, PR URLs, existing element IDs, etc.)
+- proposed destination (update existing canonical element vs create a new element)
+
+### 4.2 Memory artifact types (curated, multi-modal)
 
 We standardize a small set of memory artifact types:
 
@@ -100,9 +149,12 @@ We standardize a small set of memory artifact types:
 - **Contract**: stable interfaces/commands (CLI front doors, evidence layout).
 - **Runbook**: step-by-step operational procedure (usually for SRE profile).
 - **Recipe**: common workflow with guardrails (e.g., “make change → run tests → open PR”).
-- **Index**: machine-readable registry of memory artifacts (see §4.3).
+- **Backlog doc**: decision record organized by architecture layer (Markdown).
+- **BPMN**: business process definition (diagram) stored as a versioned element.
+- **ArchiMate**: architecture model/view stored as versioned elements.
+- **Index**: machine-readable registry of memory artifacts (see §4.4).
 
-### 4.2 Lifecycle and deprecation rules
+### 4.3 Lifecycle and deprecation rules
 
 Every memory artifact must declare:
 
@@ -111,11 +163,13 @@ Every memory artifact must declare:
 - `last_verified` (date) or a CI gate that implies verification
 - explicit **“superseded by”** links when status is not active
 
-### 4.3 Memory indexing (required for retrieval)
+### 4.4 Memory indexing (required for retrieval)
 
 We introduce a single “memory registry” index that is easy for agents and tools to consume:
 
 - `backlog/agent-memory/index.yaml` (future file; this backlog defines the requirement)
+
+Target-state note: the “index” should ultimately be served as a Projection query over memory elements (filterable by layer/profile/status), not as a hand-maintained file. The file is a bootstrap mechanism only.
 
 Each entry includes:
 
@@ -127,7 +181,7 @@ Each entry includes:
 - tags (e.g., `tests`, `gitops`, `security`, `cli`)
 - canonical link(s) (file path(s))
 
-### 4.4 Change management gates (prevent drift)
+### 4.5 Change management gates (prevent drift)
 
 Required checks:
 
@@ -140,30 +194,31 @@ Required checks:
 
 ## 5) Retrieval (how agents consume memory)
 
-### 5.1 Retrieval first principle: deterministic before semantic
+### 5.1 Retrieval first principle: embedding/graph-first
 
-Default retrieval should be deterministic and minimal:
+Default retrieval should be embedding/graph-first over the element repository:
 
-- read the nearest-scoped `AGENTS.md`
-- run the no-brainer CLI front door
-- consult curated memory artifacts via the registry index
+- graph neighborhood expansion over `ElementRelationship` (bounded depth)
+- semantic search over element versions (hybrid retrieval + RRF)
+- filter by architecture layer, profile, and status (published vs draft)
 
-Semantic retrieval (embeddings) is used when:
+Deterministic fallbacks exist when:
 
-- the agent is exploring, designing, or triaging unknown behavior
-- the deterministic sources do not answer the question
+- the agent is a **coding agent** operating on a Git working tree and needs local execution rules (`AGENTS.md`)
+- the element repository is unavailable
+- a runtime/tool contract must be verified directly (CLI help output)
 
 ### 5.2 Retrieval surfaces
 
 We standardize two retrieval surfaces:
 
-1. **Filesystem retrieval** (Git-curated memory):
-   - `AGENTS.md` discovery by directory scope
-   - memory registry + referenced short docs
-
-2. **Projection-backed retrieval** (platform memory; future):
-   - `getContext`/`semanticSearch` style tools as in `backlog/535-mcp-read-optimizations.md`
+1. **Projection-backed retrieval** (platform memory; target):
+   - `getContext` / `semanticSearch` style tools as in `backlog/535-mcp-read-optimizations.md`
    - always return `read_context` + `citations[]` for audit-grade use (see `backlog/527-transformation-projection.md`)
+
+2. **Filesystem retrieval** (bootstrap/fallback):
+   - `AGENTS.md` discovery (coding agents only)
+   - memory registry + Git-view docs (backlog submodule) when platform memory is unavailable
 
 ### 5.3 Retrieval output contract (agent-friendly)
 
@@ -176,11 +231,12 @@ When the agent requests memory, the system returns:
 
 ## 6) Implementation plan
 
-### 6.1 Now (Git-curated memory)
+### 6.1 Now (bootstrap + curation queue)
 
 - Keep backlogs in a dedicated repo (already done).
 - Define template profiles and require template-scoped `AGENTS.md` (see 650/654).
 - Add a memory registry index and enforce it in CI (new work).
+- Add a curation queue workflow and require coding agents to append candidates instead of editing canonical memory.
 
 ### 6.2 Next (CLI-assisted retrieval)
 
@@ -192,7 +248,7 @@ When the agent requests memory, the system returns:
 
 - Model curated memory artifacts as Elements in the Transformation Domain.
 - Serve them via Projection with citations and versioned references.
-- Use semantic retrieval for exploration, not for core guardrails.
+- Make embedding/graph retrieval the default; keep filesystem sources as fallback only.
 
 ## 7) Success criteria
 
@@ -200,6 +256,8 @@ When the agent requests memory, the system returns:
 - “What to run” and “what is forbidden” cannot silently drift from the CLI and templates.
 - Retrieval always produces a small answer with links to authoritative sources.
 - Deprecation is explicit and searchable; agents do not follow superseded instructions by default.
+- Coding agents do not directly mutate canonical memory; they produce curation-queue candidates with citations/evidence.
+- Business process and architecture artifacts (BPMN/ArchiMate/docs) are curated by humans in the element editor and stored as versioned elements.
 
 ## 8) References
 
