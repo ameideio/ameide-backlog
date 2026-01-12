@@ -227,6 +227,10 @@ Camunda requires valid OIDC client secrets. In this repo, the contract is:
 
 If `camunda-oidc-client-secrets` contains placeholder values, treat it as a **platform secret pipeline failure**, not a Camunda app bug.
 
+Operational note: the Orchestration Cluster consumes the OIDC client secret via an env var (`VALUES_ORCHESTRATION_CLIENT_SECRET`).
+When the secret rotates, the pod must restart to pick up the new value; otherwise users can see `/sso-callback` fail with
+`invalid_token_response` / `unauthorized_client` (401) during the auth-code exchange.
+
 ### C) Service-to-service tokens must include the Zeebe audience
 
 Connectors (and any other non-browser clients) authenticate to Zeebe Gateway using a **service account token** from Keycloak.
