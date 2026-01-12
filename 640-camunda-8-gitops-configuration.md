@@ -227,6 +227,18 @@ Camunda requires valid OIDC client secrets. In this repo, the contract is:
 
 If `camunda-oidc-client-secrets` contains placeholder values, treat it as a **platform secret pipeline failure**, not a Camunda app bug.
 
+### C) Service-to-service tokens must include the Zeebe audience
+
+Connectors (and any other non-browser clients) authenticate to Zeebe Gateway using a **service account token** from Keycloak.
+The Camunda chart defaults expect the token to include the audience `orchestration-api`.
+
+**If the token does not include `aud=orchestration-api`, Zeebe rejects it** (`UNAUTHENTICATED`, HTTP 401), and Connectors never becomes Ready.
+
+Repo standard:
+
+- Add a Keycloak client scope that injects the audience via `oidc-audience-mapper` (e.g. `orchestration-api-audience`).
+- Attach that scope to the relevant clients (`orchestration`, `connectors`) via the `platform-keycloak-realm` client reconciliation values.
+
 ## Target GitOps Shape (Files To Add)
 
 ### A) Vendoring entry (upstream chart pin)
@@ -296,6 +308,9 @@ All environment overlays are first-class and deploy the same logical Camunda sta
   - OIDC correctness (issuer discovery works; redirects match configured hostnames; token-based API call succeeds)
   - Zeebe gRPC reachability (in-cluster smoke can obtain a token and connect)
   - Basic “app is functioning” checks for Operate/Tasklist/Connectors (authenticated endpoint responds)
+
+Note: the Connectors bundle does not provide a “web UI” at `/connectors/` and can return a 500 at that path root; use
+`/connectors/actuator/health/readiness` (200) for reachability and readiness smoke tests.
 
 ## Dev/local seeding (fixed)
 
