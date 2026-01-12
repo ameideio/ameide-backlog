@@ -67,7 +67,7 @@ Non-sensitive configuration that can be safely stored in Git and rendered by Hel
 1. **Public Canonical URL** (browser-visible “this app” host)
    - Example: `https://platform.dev.ameide.io`
    - Source of truth: GitOps values (`auth.url`)
-   - Output env: `AUTH_URL`, `NEXTAUTH_URL`
+   - Output env: `AUTH_URL`
    - Must match:
      - Terraform DNS records (`platform.<env>.ameide.io`)
      - HTTPRoute hostnames for the app
@@ -99,8 +99,7 @@ Non-sensitive configuration that can be safely stored in Git and rendered by Hel
 - **`NEXT_PUBLIC_*`**: browser-reachable only. Never required for server-side RPC.
 - **`AUTH_*`**:
   - Authoritative (Auth.js v5): `AUTH_*` are the canonical settings/inputs.
-  - Compatibility: `NEXTAUTH_*` may be rendered as aliases for legacy libraries, but must not become the primary contract.
-  - `AUTH_URL` (and optional compatibility `NEXTAUTH_URL`) are settings (ConfigMap).
+  - `AUTH_URL` is a setting (ConfigMap).
   - `AUTH_TRUST_HOST` is a required setting behind gateways/proxies (ConfigMap).
   - `AUTH_SECRET` and provider secrets are secrets (ExternalSecrets).
 - **Test harness vars**:
@@ -187,7 +186,7 @@ Policy:
   - Fail template render if Auth.js proxy requirements are violated (canonical URL present but `AUTH_TRUST_HOST` not set true in gateway deployments).
 - Policy guardrails:
   - CI check rejects commits that add known secret patterns to values/configmaps.
-  - CI check ensures `AUTH_URL`/`NEXTAUTH_URL` are set for any environment where auth is enabled.
+  - CI check ensures `AUTH_URL` is set for any environment where auth is enabled.
   - CI check classifies `NEXT_PUBLIC_*` variables as build-time vs runtime and rejects environment-dependent “build-time” usage under digest promotion.
 
 ### Phase 2 – Reduce “duplicate URL knobs”
