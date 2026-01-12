@@ -160,3 +160,4 @@ The following are deprecated by this model:
 - Automation runtime: `backlog/651-agentic-coding-ameide-coding-agent.md`
 - CLI surface: `backlog/654-agentic-coding-cli-surface.md`
 - External executor profile (D365FO): `backlog/655-agentic-coding-365fo.md`
+- Agent memory (curation + retrieval): `backlog/656-agentic-memory.md`
