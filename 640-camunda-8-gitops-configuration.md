@@ -17,7 +17,7 @@ Document the **standard way** to deploy and operate **Camunda 8 (Self-Managed)**
 - Operator-first secrets: **Vault KV → External Secrets Operator → Kubernetes Secret**
 - Gateway API (HTTPRoute/GRPCRoute) instead of Ingress
 - CNPG-backed Postgres (shared cluster)
-- Environment overlays (`local`, `dev`, `staging`, `production`) deploy the same logical Camunda stack, with a single deliberate exception: **Web Modeler + Identity are enabled only in non-production environments** (`local`, `dev`, `staging`).
+- Environment overlays (`local`, `dev`, `staging`, `production`) deploy the same logical Camunda stack.
 
 This backlog is a **configuration and integration** guide (not an implementation PR by itself).
 
@@ -75,16 +75,17 @@ Translation:
 
 ### 4) “Combined Ingress host + paths is the only access pattern”
 
-Not applicable as a requirement:
-
-- Gateway API can do both host+path routing and multi-host routing. In `ameide-gitops` we use multi-host routing for Camunda 8.
+Upstream Camunda 8.8+ (“Orchestration Cluster”) serves **Operate and Tasklist from the same service** and derives their redirect URLs from a single root (`orchestration.security.authentication.oidc.redirectUrl`).
 
 Translation (fixed):
 
-- Use **multi-host** routing with the convention: `camunda-{component}.{env}.ameide.io`
-  - Examples: `camunda-operate.dev.ameide.io`, `camunda-tasklist.dev.ameide.io`
+- Use **single-host + path routing** for the Orchestration Cluster:
+  - `https://camunda.{env}.ameide.io/operate`
+  - `https://camunda.{env}.ameide.io/tasklist`
+- Route Connectors on the same host under `/connectors`:
+  - `https://camunda.{env}.ameide.io/connectors`
 
-In either case, redirect URIs and issuer URLs must match the chosen scheme.
+This keeps OIDC redirect handling correct and matches the upstream chart’s “combined web ingress” model (Ingress disabled; Gateway API provides the routes).
 
 ## Context (Repo)
 
@@ -141,17 +142,12 @@ Camunda 8 uses the existing **Ameide Keycloak** (no bundled Keycloak):
 
 ### 4) Networking + DNS (fixed)
 
-All externally reachable Camunda endpoints follow:
+Camunda 8 web UIs are exposed on a **single host** via Gateway API path routing:
 
-- `camunda-{component}.{env}.ameide.io`
-
-Components and protocols:
-
-- `camunda-operate.{env}.ameide.io` (HTTP)
-- `camunda-tasklist.{env}.ameide.io` (HTTP)
-- `camunda-connectors.{env}.ameide.io` (HTTP)
-- `camunda-webmodeler.{env}.ameide.io` (HTTP; `local`, `dev`, `staging` only)
-- `camunda-identity.{env}.ameide.io` (HTTP; `local`, `dev`, `staging` only)
+- `camunda.{env}.ameide.io` (HTTP)
+  - `/operate`
+  - `/tasklist`
+  - `/connectors`
 - `camunda-zeebe.{env}.ameide.io` (gRPC)
 
 All routes are implemented using Gateway API resources (no Kubernetes Ingress).
@@ -163,26 +159,20 @@ This GitOps standard deploys the following Camunda components:
 - Enabled in all environments:
   - `orchestration.enabled=true` (Zeebe + Operate + Tasklist)
   - `connectors.enabled=true`
-- Enabled in non-production only (`local`, `dev`, `staging`):
-  - `identity.enabled=true` (Management Identity; required for Web Modeler)
-  - `webModeler.enabled=true` (Camunda Web Modeler; limited to 5 users in non-production)
-- Disabled in production:
-  - `identity.enabled=false`
-  - `webModeler.enabled=false`
 - Disabled in all environments:
   - `console.enabled=false`
   - `optimize.enabled=false`
+  - `identity.enabled=false`
+  - `webModeler.enabled=false`
+- Future work:
+  - Web Modeler + Management Identity enablement is tracked in `backlog/642-camunda-web-modeler-identity-gitops.md`.
 - License:
   - No `global.license.*` secret is configured and no license material is shipped via GitOps.
 
-### 6) Databases (reuse CNPG Postgres; no chart Postgres subcharts)
+### 6) Databases (fixed)
 
-- Do not deploy Postgres dependency subcharts from `camunda-platform` (`identityPostgresql.enabled=false`, `webModelerPostgresql.enabled=false`).
-- Reuse the platform’s CNPG Postgres cluster and provision dedicated databases/users for:
-  - Management Identity
-  - Web Modeler
-- All DB credentials are sourced from Vault and materialized via ExternalSecrets.
-- Production has no Web Modeler / Identity database users because those components are disabled.
+- No external Postgres is required for the enabled component set (Orchestration Cluster + Connectors).
+- Any bundled Postgres dependency charts remain disabled (`identityPostgresql.enabled=false`, `webModelerPostgresql.enabled=false`).
 
 ### 7) Search backend (fixed)
 
@@ -219,7 +209,7 @@ Create:
 
 - `sources/charts/platform/camunda8/Chart.yaml` (dependency on vendored camunda-platform)
 - `sources/charts/platform/camunda8/values.yaml` (disabled by default)
-- `sources/charts/platform/camunda8/templates/httproute-*.yaml` for UIs (multi-host: `camunda-{component}.{env}.ameide.io`)
+- `sources/charts/platform/camunda8/templates/httproute-*.yaml` for UIs (single host `camunda.{env}.ameide.io` with path routing)
 - `sources/charts/platform/camunda8/templates/externalsecret-*.yaml` for secrets sourced from Vault
 
 ### D) Values layering
@@ -234,26 +224,23 @@ Create:
 
 ## Environment overlays requirement (fixed)
 
-All environment overlays are first-class and deploy the same logical Camunda stack, with Web Modeler intentionally excluded from production:
+All environment overlays are first-class and deploy the same logical Camunda stack:
 
 - `local` deploys the same stack into the local cluster.
 - `dev`, `staging`, and `production` deploy the same stack into their respective namespaces.
 - Per-environment overlays only change:
-  - hostnames (`{env}` in `camunda-{component}.{env}.ameide.io`)
+  - hostnames (via `{env}` in `{{ .Values.domain }}`)
   - sizing and scheduling (resources, replicas, node selectors/tolerations)
   - environment-specific infra wiring where required by the platform (e.g., storageClass, DNS zone inputs)
-  - component enablement for Web Modeler/Identity (enabled in `local`/`dev`/`staging`, disabled in `production`)
 
 ## Done definition (deployment + UX)
 
 “Done” means Camunda 8 is fully deployed and usable in **local**, **dev**, **staging**, and **production**:
 
 - All enabled services are deployed, Healthy, and reachable via:
-  - `camunda-operate.{env}.ameide.io` (HTTP)
-  - `camunda-tasklist.{env}.ameide.io` (HTTP)
-  - `camunda-connectors.{env}.ameide.io` (HTTP)
-  - `camunda-webmodeler.{env}.ameide.io` (HTTP; `local`/`dev`/`staging` only)
-  - `camunda-identity.{env}.ameide.io` (HTTP; `local`/`dev`/`staging` only)
+  - `camunda.{env}.ameide.io/operate` (HTTP)
+  - `camunda.{env}.ameide.io/tasklist` (HTTP)
+  - `camunda.{env}.ameide.io/connectors` (HTTP)
   - `camunda-zeebe.{env}.ameide.io` (gRPC)
 - OIDC is integrated with the existing Ameide Keycloak and **seeded** in dev/local with the required realm config (clients/redirect URIs/roles/users).
 - Smoke tests exist and pass for every enabled service (all envs):
@@ -261,8 +248,6 @@ All environment overlays are first-class and deploy the same logical Camunda sta
   - OIDC correctness (issuer discovery works; redirects match configured hostnames; token-based API call succeeds)
   - Zeebe gRPC reachability (in-cluster smoke can obtain a token and connect)
   - Basic “app is functioning” checks for Operate/Tasklist/Connectors (authenticated endpoint responds)
-  - Basic “app is functioning” checks for Web Modeler/Identity in `local`/`dev`/`staging` (authenticated endpoint responds)
-  - Production verification includes an explicit “not deployed” check for Web Modeler/Identity (no workloads and no routes in `production`)
 
 ## Dev/local seeding (fixed)
 

@@ -19,13 +19,11 @@ This is *not* “embed Camunda 8 Web Modeler UI”. It is:
 
 This integration uses **open-source libraries only** and does not require any Camunda commercial components.
 
-## Relationship to Camunda Web Modeler (enabled separately)
+## Relationship to Camunda Web Modeler (separate concern)
 
-Camunda Web Modeler is deployed as part of the Camunda 8 stack (see `backlog/640-camunda-8-gitops-configuration.md`) and is available at:
+Camunda Web Modeler is not part of the current `ameide-gitops` Camunda 8 standard (see `backlog/640-camunda-8-gitops-configuration.md` for the enabled component set).
 
-- `camunda-webmodeler.{env}.ameide.io`
-
-Web Modeler is deployed in `local`, `dev`, and `staging` only (not `production`).
+If Web Modeler is introduced later, treat it as a separate app surface with its own routing and auth requirements.
 
 The AMEIDE Platform BPMN editor plugin is a **separate experience** embedded in the platform UI:
 
