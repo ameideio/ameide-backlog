@@ -168,7 +168,10 @@ export function useRealtimeUpdates(resourceType: string, resourceId: string) {
   const [status, setStatus] = useState<'connected' | 'disconnected'>('disconnected');
   
   useEffect(() => {
-    const ws = new WebSocket(`${process.env.NEXT_PUBLIC_WS_URL}/ws`);
+    // Update (648): do not rely on NEXT_PUBLIC_* runtime URL knobs in cluster deployments.
+    // Use same-origin websocket endpoints derived at runtime.
+    const wsOrigin = window.location.origin.replace(/^http/, 'ws');
+    const ws = new WebSocket(`${wsOrigin}/ws`);
     
     ws.onopen = () => {
       setStatus('connected');

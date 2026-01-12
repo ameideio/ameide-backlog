@@ -123,9 +123,7 @@ We must stop mixing “public” and “server-only” endpoints.
    - Provide a dedicated env var (example: `AMEIDE_GRPC_BASE_URL`) via ConfigMap/Secret.
    - Do not rely on `NEXT_PUBLIC_*` variables for internal gRPC routing.
    - Concrete references (gitops repo):
-     - `gitops/ameide-gitops/sources/charts/apps/www-ameide-platform/templates/configmap.yaml` currently wires `NEXT_PUBLIC_ENVOY_URL` with a comment that server routes depend on it; this should be split into:
-      - `AMEIDE_GRPC_BASE_URL` (server-only) for gRPC upstream calls (internal gateway / DNS)
-      - `NEXT_PUBLIC_*` only for browser-facing configuration (or removed if not needed client-side)
+     - **Update (648):** `www-ameide-platform` now emits `AMEIDE_GRPC_BASE_URL` for server gRPC upstream calls and emits **no** `NEXT_PUBLIC_*` RPC endpoints for cluster deployments.
 
 - **Browser base URL**:
    - Browser should target `/api` (BFF) unless a dedicated public RPC route exists.
@@ -149,7 +147,7 @@ P0 — make gRPC-internal deterministically usable by server callers:
 3. For internal routes (`sectionName: grpc-internal`), omit `grpcRoutes.*.hostname` (or set it to `envoy-grpc`); do not set it to `api.<env>.ameide.io`.
 4. Split Next.js env vars so server calls do not depend on `NEXT_PUBLIC_ENVOY_URL`:
    - Add `AMEIDE_GRPC_BASE_URL` to `gitops/ameide-gitops/sources/charts/apps/www-ameide-platform/templates/configmap.yaml`
-   - Update app/server code to require server-only base URL and remove implicit reliance on `NEXT_PUBLIC_*` for internal gRPC.
+   - Update app/server code to require server-only base URL and keep browsers on same-origin BFF routes (`/api/*`).
 
 P1 — preempt route gaps and improve clarity:
 
@@ -218,8 +216,7 @@ Transport determinism fixes routing failures, but org/onboarding correctness sti
   - `gitops/ameide-gitops/sources/values/env/production/platform/platform-gateway.yaml`
 - **Platform GRPCRoute coverage**: added `ameide_core_proto.platform.v1.InvitationService` match in `gitops/ameide-gitops/sources/charts/apps/gateway/templates/grpcroute-platform.yaml`.
 - **Server-only vs public Envoy env vars**:
-  - `www-ameide-platform` now renders `AMEIDE_GRPC_BASE_URL` from `envoy.url` and requires `NEXT_PUBLIC_ENVOY_URL` from `envoy.publicUrl` in `gitops/ameide-gitops/sources/charts/apps/www-ameide-platform/templates/configmap.yaml`.
-  - `www-ameide` now follows the same split and adds `envoy.publicUrl` to env value files (`gitops/ameide-gitops/sources/charts/apps/www-ameide/templates/configmap.yaml` + `gitops/ameide-gitops/sources/values/env/*/apps/www-ameide.yaml`).
+  - **Update (648):** `www-ameide-platform` now renders `AMEIDE_GRPC_BASE_URL` from `envoy.url` and emits **no** `NEXT_PUBLIC_*` RPC endpoints for cluster deployments (browsers stay on BFF `/api/*`).
 - **Service port semantics**: platform Service/container port renamed to `grpc` and `appProtocol: grpc` in `gitops/ameide-gitops/sources/charts/apps/platform/templates/service.yaml`.
 
 ### Tests added
@@ -241,10 +238,10 @@ To run locally:
 - Public Envoy Service does not expose port `9000`; `envoy-<env-ns>-grpc-internal` exists as ClusterIP in `argocd`.
 - Confirm `www-ameide-platform-config` has both vars:
   - `AMEIDE_GRPC_BASE_URL=http://envoy-grpc:9000`
-  - `NEXT_PUBLIC_ENVOY_URL=https://api.<env>.ameide.io`
+  - and contains **no** `NEXT_PUBLIC_*` RPC vars.
 - Confirm platform Service port is `grpc` and has `appProtocol: grpc`.
 
 ### Remaining TODOs (non-GitOps)
 
-- `ameideio/ameide` (`services/www_ameide_platform`): remove server-side dependency on `NEXT_PUBLIC_ENVOY_URL`; require `AMEIDE_GRPC_BASE_URL` for server gRPC upstream; keep browser on Connect/BFF (`/api`).
-- CI/release: ensure images used by staging/prod integration jobs include the Next.js env-var change, then keep the test-job env wiring aligned (`AMEIDE_GRPC_BASE_URL` internal; `NEXT_PUBLIC_ENVOY_URL` public).
+- **Update (648):** `ameideio/ameide` (`services/www_ameide_platform`) now requires `AMEIDE_GRPC_BASE_URL` for server gRPC upstream and keeps browsers on BFF (`/api/*`).
+- CI/release: keep integration job env wiring aligned (`AMEIDE_GRPC_BASE_URL` internal).

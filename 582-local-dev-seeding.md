@@ -59,8 +59,9 @@ GitOps anchor (local):
 We also saw onboarding bootstrap report “Tenant provisioning is currently unavailable” when the server-side SDK tried to call the **public** Envoy URL instead of the in-cluster gRPC base URL.
 
 Policy:
-- Browser/client: use `NEXT_PUBLIC_*` URLs.
-- Server-to-server: use `AMEIDE_GRPC_BASE_URL` (or `AMEIDE_ENVOY_URL` where appropriate), never `NEXT_PUBLIC_ENVOY_URL`.
+- **Update (648):** cluster deployments must not rely on `NEXT_PUBLIC_*` env vars for environment-specific URLs.
+- Browser/client: use same-origin BFF routes (`/api/*`) and runtime-provided config (no compile-time `NEXT_PUBLIC_*`).
+- Server-to-server: use `AMEIDE_GRPC_BASE_URL` for internal gRPC upstream calls.
 
 Code anchor:
 - `../services/www_ameide_platform/lib/sdk/server-client.ts` (base URL precedence)

@@ -131,7 +131,7 @@ Code anchors:
 If a seeded persona cannot resolve tenant/org due to a transient platform outage (or protocol mismatch), the portal must render a degraded/error view and offer retry/sign-out. It must **not** switch into “needs onboarding” unless we are confident the user is truly unassigned.
 
 Code anchors:
-- Tenant resolution helper: `services/www_ameide_platform/lib/auth/auto-tenant.ts`
+- Tenant/org context is resolved from the Auth.js session token + platform membership fetch (no login-time “auto tenant” fixups): `services/www_ameide_platform/app/(auth)/auth.ts`
 - E2E contract: `services/www_ameide_platform/features/onboarding/__tests__/e2e/seeded-admin-no-onboarding.spec.ts`
 
 ### Onboarding (explicit provisioning lane)

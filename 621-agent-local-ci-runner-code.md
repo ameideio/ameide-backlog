@@ -1960,7 +1960,8 @@ func loadTelepresenceEnvAllowlist(path string) (map[string]string, error) {
 	}
 
 	ident := regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
-	allow := regexp.MustCompile(`^(AUTH_|NEXTAUTH_|NEXT_PUBLIC_|AMEIDE_|REDIS_|INFERENCE_|OTEL_|LOG_LEVEL$|DEPLOYMENT_ENVIRONMENT$|ENVIRONMENT$|PORT$|HOSTNAME$|SERVICE_VERSION$|WWW_AMEIDE_PLATFORM_ORG_ID$|NEXT_TELEMETRY_DISABLED$)`)
+	// Update (648): no NEXTAUTH_/NEXT_PUBLIC_ allowlisting for cluster runtime; Auth.js v5 uses AUTH_*
+	allow := regexp.MustCompile(`^(AUTH_|AMEIDE_|REDIS_|INFERENCE_|OTEL_|LOG_LEVEL$|DEPLOYMENT_ENVIRONMENT$|ENVIRONMENT$|PORT$|HOSTNAME$|SERVICE_VERSION$|NEXT_TELEMETRY_DISABLED$)`)
 	out := map[string]string{}
 	for k, v := range raw {
 		if !ident.MatchString(k) || !allow.MatchString(k) {
