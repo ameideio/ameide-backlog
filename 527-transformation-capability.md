@@ -4,6 +4,11 @@
 **Audience:** Architecture, platform engineering, operators/CLI, agent/runtime teams  
 **Scope:** Define **Transformation** as a *business capability* implemented as Ameide primitives (Domain/Process/Projection/Integration/UISurface/Agent), with 496-native EDA contracts.
 
+> Update (2026-01): the execution substrate sections in this doc (WorkRequests executed via KEDA-scaled Kubernetes Jobs; Telepresence-era dev workflows) are superseded as the platform default by:
+> - `backlog/651-agentic-coding-ameide-coding-agent.md` (Coder-backed tasks + Camunda orchestration)
+> - `backlog/653-agentic-coding-test-automation.md` (no Telepresence; preview env truth)
+> - `backlog/654-agentic-coding-cli-surface.md` (CLI front doors and profiles)
+
 This backlog is the capability definition counterpart to the method in `backlog/524-transformation-capability-decomposition.md`.
 
 **Use with:**

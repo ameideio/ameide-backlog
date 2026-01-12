@@ -1,8 +1,16 @@
 # 581 – Parallel AI Agents in VS Code Dev Containers
 
-**Status:** Draft  
+**Status:** Deprecated (historical; superseded by 650 suite)  
 **Owner:** Platform / Developer Experience  
 **Related backlogs:** [435-remote-first-development.md](435-remote-first-development.md), [492-telepresence-verification.md](492-telepresence-verification.md), [492-telepresence-reliability.md](492-telepresence-reliability.md), [433-codex-cli-057.md](433-codex-cli-057.md)
+
+> Superseded by the internal-only, Coder-based model:
+> - `backlog/650-agentic-coding-overview.md`
+> - `backlog/651-agentic-coding-ameide-coding-agent.md`
+> - `backlog/652-agentic-coding-dev-workspace.md`
+> - `backlog/654-agentic-coding-cli-surface.md`
+>
+> Parallelism is achieved via multiple workspaces/tasks and profile templates, not via Telepresence+DevContainer “agent slots”.
 
 ## Decision (golden path)
 

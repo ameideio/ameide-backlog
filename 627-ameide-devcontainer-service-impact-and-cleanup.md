@@ -1,6 +1,6 @@
 ---
 title: "627 – AmeideDevContainerService adoption: backlog + implementation impact (update/remove plan)"
-status: draft
+status: superseded
 owners:
   - platform-devx
   - gitops
@@ -8,6 +8,8 @@ created: 2026-01-11
 ---
 
 # 627 – AmeideDevContainerService adoption: backlog + implementation impact (update/remove plan)
+
+> Superseded by `backlog/650-agentic-coding-overview.md`, `backlog/652-agentic-coding-dev-workspace.md`, and `backlog/654-agentic-coding-cli-surface.md`.
 
 ## 0) Intent
 

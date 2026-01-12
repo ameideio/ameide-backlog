@@ -15,9 +15,10 @@ supersedes:
 
 Define a single, repo-wide, **low-cognitive-load** testing contract:
 
-- Local front door: `ameide dev inner-loop-test` (Phase 0/1/2/3)
+- Local front door: `ameide dev inner-loop-test` (Phase 0/1/2)
 - CI front door: `ameide ci test` (Phase 0/1/2)
-- Strict phases: **Unit → Integration → E2E**
+- Strict phases for the CLI front doors: **Contract → Unit → Integration**
+- Deployed-system E2E runs separately against preview environments (Playwright)
 - Native tooling per language (Go/Jest/Pytest/Playwright)
 - **No test “modes”** (`INTEGRATION_MODE` et al.)
 - **No per-component runner scripts** as the canonical execution path (no `run_integration_tests.sh`)
@@ -51,12 +52,20 @@ These commands:
 0) **Phase 0: Contract** (local only; vendor-driven discovery)
 1) **Phase 1: Unit** (local, pure)
 2) **Phase 2: Integration** (local, mocked/stubbed only)
-3) **Phase 3: E2E** (cluster only, Playwright only)
 
 Invariants:
 - Phase 1 and Phase 2 **must not** interact with Kubernetes or Telepresence.
-- Cluster wiring (Telepresence preflight/cleanup) is **Phase 3 only**.
 - Phase 0 must be able to prove the contract using vendor tooling “discovery/collect/list” capabilities and must emit JUnit evidence (synthetic if needed).
+
+### Deployed-system E2E (separate layer; not part of phases 0/1/2)
+
+E2E is “Phase 3” in the overall verification story, but it is intentionally decoupled from the “no-brainer” Phase 0/1/2 CLI front doors.
+
+E2E is run against a deployed target (preview environment ingress URL) and is executed via a separate CLI entrypoint:
+
+- run via `ameide ci e2e` (or equivalent)
+- Playwright only
+- merge gate truth comes from preview E2E, not from Telepresence
 
 ---
 
@@ -76,12 +85,11 @@ Invariants:
 - No Kubernetes / Telepresence.
 - **No environment-driven branching** inside tests (“mode”). A test either belongs in Phase 2 or it does not exist.
 
-### E2E (Phase 3)
+### E2E (preview environment; separate layer)
 
-- Cluster only; remote-first.
+- Deployed target only (preview environment ingress URL).
 - **Playwright only**.
-- Playwright hits a real base URL (cluster ingress/gateway).
-- Telepresence is allowed only as part of the Phase 3 harness (preflight + routing + cleanup).
+- Playwright hits a real base URL (preview ingress/gateway).
 
 ---
 
@@ -120,7 +128,7 @@ Pytest configs must:
 ### Playwright (E2E only)
 
 - E2E tests live under each UI/service’s Playwright location (existing Playwright conventions).
-- E2E is selected and executed only by Phase 3.
+- E2E is selected and executed only by the E2E runner (`ameide ci e2e` or equivalent), not by the “no-brainer” Phase 0/1/2 front doors.
 
 ---
 
@@ -176,5 +184,5 @@ This allowlist must be treated as a time-boxed migration artifact and should tre
 
 - `INTEGRATION_MODE` (or any “repo/local/cluster” mode variable) as part of test execution.
 - `run_integration_tests.sh` or “integration pack” scripts as required entrypoints for Phase 1/2.
-- Any “Phase 2 in cluster” execution (that is Phase 3).
+- Any Phase 2 execution that requires cluster access or privileged capabilities.
 - Skipping tests based on environment availability; missing deps must fail fast.

@@ -1,6 +1,6 @@
 ---
 title: "628 – Implement Coder for AmeideDevContainerService (AKS dev-only) + delivery plan"
-status: active
+status: superseded
 owners:
   - platform-devx
   - platform-sre
@@ -9,6 +9,8 @@ created: 2026-01-11
 ---
 
 # 628 – Implement Coder for AmeideDevContainerService (AKS dev-only) + delivery plan
+
+> Superseded by `backlog/650-agentic-coding-overview.md`, `backlog/652-agentic-coding-dev-workspace.md`, and `backlog/653-agentic-coding-test-automation.md`.
 
 ## 0) Goal
 

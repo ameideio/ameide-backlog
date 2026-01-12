@@ -1,11 +1,17 @@
 # 435 - Remote-First Development Architecture
 
-**Status:** Phase 1-2 Complete (core), Phases 3-5 Pending
+**Status:** Deprecated (historical; superseded by 650 suite)
 **Created:** 2024-12-02
 **Updated:** 2025-12-03
 **Supersedes:** 432 (DevContainer Modes), parts of 367 (Bootstrap v2), parts of 429 (DevContainer Bootstrap)
 
-> **Status – Active Canonical Workflow:** This is the authoritative reference for day-to-day development. We are now officially hybrid: AKS + Telepresence remains the default inner loop, while Terraform-driven local k3d (see [444-terraform.md](444-terraform.md)) is the supported fallback for offline/air-gapped scenarios. Both flows must reconcile to the same GitOps state.
+> Superseded by the internal-only, Coder-based model:
+> - `backlog/650-agentic-coding-overview.md`
+> - `backlog/652-agentic-coding-dev-workspace.md`
+> - `backlog/653-agentic-coding-test-automation.md`
+> - `backlog/654-agentic-coding-cli-surface.md`
+>
+> This document is preserved for historical context only; Telepresence-based remote-first development is no longer the platform default.
 
 > **Update (2026-01):** Tilt-based orchestration (`Tiltfile`, `scripts/dev/start-tilt.sh`, `tools/dev/telepresence.sh`, `scripts/telepresence/*`) is deprecated and removed from the core repo. Any Tilt references below are preserved for historical context only.
 >

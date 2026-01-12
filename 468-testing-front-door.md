@@ -29,7 +29,15 @@ For an AI agent (or an engineer) iterating locally and needing the fastest, most
 ameide dev inner-loop-test
 ```
 
-This is intentionally **not** the full PR gate and does not do image builds/publishing or GitOps work. It runs **unit → integration → e2e** and writes artifacts under `artifacts/agent-ci/<timestamp>/`.
+This is intentionally **not** the full PR gate and does not do image builds/publishing or GitOps work. It runs **Phase 0/1/2** (contract → unit → integration) and writes artifacts under `artifacts/agent-ci/<timestamp>/`.
+
+Deployed-system E2E runs separately against preview environments:
+
+```bash
+ameide ci e2e
+```
+
+Treat this as Phase 3 in the overall verification story: it is CLI-owned, deterministic, and gates merge via preview environments, but it is intentionally not bundled into the fast Phase 0/1/2 front door.
 
 ## Fast paths
 
@@ -42,7 +50,7 @@ The historical “integration pack” model (scripts + `INTEGRATION_MODE`) is **
 The v2 contract is:
 - Phase 1 (Unit): local, pure
 - Phase 2 (Integration): local, mocked/stubbed only
-- Phase 3 (E2E): cluster only, Playwright only
+- Deployed-system E2E: preview env ingress URL, Playwright only (not part of the “no-brainer” Phase 0/1/2 front door)
 
 Keep the pack section below for historical context only.
 

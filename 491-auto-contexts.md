@@ -1,7 +1,14 @@
 # 491 – DevContainer Auto-Contexts (kubectl, ArgoCD, Telepresence)
 
-**Status:** Draft  
+**Status:** Deprecated (historical; superseded by 650 suite)  
 **Owner:** Platform  
+
+> Superseded by the internal-only, Coder-based model:
+> - `backlog/650-agentic-coding-overview.md`
+> - `backlog/652-agentic-coding-dev-workspace.md`
+> - `backlog/654-agentic-coding-cli-surface.md`
+>
+> This doc is preserved for historical context only; the platform default is in-cluster workspaces/tasks with profile-scoped instructions, not workstation DevContainer bootstrap.
 
 ## Goal
 

@@ -1,3 +1,5 @@
+> Superseded by the internal-only, Coder-based model in `backlog/650-agentic-coding-overview.md` and `backlog/653-agentic-coding-test-automation.md`.
+
 # 621 — `ameide dev inner-loop-test` (Agent Inner-Loop Verification)
 
 ## Principles / invariants (non-negotiable)

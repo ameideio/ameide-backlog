@@ -1,5 +1,11 @@
 # Agentic Development Workflow (PR funnel)
 
+> Deprecated (historical): this doc assumes a `dev → main` promotion model and Telepresence-era “agent slots”.
+>
+> Superseded by:
+> - trunk-based `main` + GitOps promotion policy (see `backlog/611-trunk-based-main-and-gitops-environment-promotion.md`)
+> - internal-only, Coder-based model and CLI front doors in the 650 suite (`backlog/650-agentic-coding-overview.md`, `backlog/654-agentic-coding-cli-surface.md`)
+
 ## Goal
 Support predictable, auditable agentic development without direct writes to protected branches.
 
