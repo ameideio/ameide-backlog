@@ -37,7 +37,7 @@ The system encodes those rules in:
 
 ## 1) Decisions (inherited from 650; repeated for local clarity)
 
-- Execution is **internal-only**.
+- Execution is **internal-first** (external executors exist by exception; see 655).
 - Telepresence is **not supported**.
 - Dev environment contract is `.devcontainer/coder/devcontainer.json`.
 - Automation runs as ephemeral, workspace-backed executions (“tasks”).

@@ -50,7 +50,7 @@ No test layer depends on Telepresence or cluster network interception.
 
 ### 2.1 In scope
 
-- Define and standardize test layers for the internal-only, Coder-based model.
+- Define and standardize test layers for the internal-first, Coder-orchestrated model.
 - Define the CLI entrypoints and merge gate signals.
 - Define what gets deleted (Telepresence dependencies) from the test model.
 
@@ -100,6 +100,8 @@ Non-negotiables:
 - agents run this with no flags; the CLI owns discovery and runner selection
 - each phase emits JUnit (synthetic if needed)
 
+Note: for vendor-locked external executor profiles (e.g., D365FO), Phase 1/2 execution may be delegated to an external executor tool contract, but the agent still runs the same CLI front door and receives the same evidence shape (see 655).
+
 ### 4.3 Layer 3 — preview environment E2E (merge gate truth)
 
 Goal: validate the deployed system via real ingress URLs.
@@ -114,6 +116,8 @@ Decision: Phase 3 exists as a CLI-owned command surface:
 
 - `ameide e2e` / `ameide ci e2e` runs Playwright against the deployed preview URL (Phase 3)
 - Phase 3 is intentionally not bundled into the “no-brainer” Phase 0/1/2 front door so it remains fast and universally runnable
+
+Note: non-Kubernetes domains may define a different Phase 3 target (not an Argo preview environment). For D365FO, Phase 3 is defined in `backlog/655-agentic-coding-365fo.md`.
 
 ### 4.4 Layer 4 — automation tasks (repeatable helpers)
 
@@ -155,3 +159,4 @@ The following are deprecated by this model:
 - Developer environment: `backlog/652-agentic-coding-dev-workspace.md`
 - Automation runtime: `backlog/651-agentic-coding-ameide-coding-agent.md`
 - CLI surface: `backlog/654-agentic-coding-cli-surface.md`
+- External executor profile (D365FO): `backlog/655-agentic-coding-365fo.md`

@@ -24,7 +24,7 @@ Primary outcome: the CLI is the **cognitive-load absorber** so agents do not nee
 - how to produce evidence consistently
 - how to avoid leaving behind local/cluster state
 
-This backlog inherits the internal-only model from `backlog/650-agentic-coding-overview.md`.
+This backlog inherits the internal-first model from `backlog/650-agentic-coding-overview.md`.
 
 ## 1) Decisions (normative for the CLI surface)
 
@@ -61,6 +61,7 @@ The CLI surface must work consistently across agent profiles:
 - **code** profile (app/service/package changes)
 - **gitops** profile (GitOps-only changes)
 - **sre** profile (triage/diagnostics; typically stricter writes)
+- **365fo** profile (external executor; D365 Finance & Operations via Windows dev VM tooling)
 
 Profiles imply different guardrails and “allowed edits”.
 
@@ -100,10 +101,10 @@ Current command groups include:
 - `ameide doctor` (preflight deterministic requirements)
 - `ameide verify` (repo/primitives invariants)
 
-Current drift vs internal-only model:
+Current drift vs internal-first model:
 
-- `ameide dev inner-loop-test` currently advertises Phase 3 cluster E2E behavior, which conflicts with the internal-only test model where “no-brainer” verification is Phase 0/1/2 and deployed E2E is a separate preview-env layer.
-- `ameide dev inner-loop` is Telepresence-centric and is out of scope for the internal-only platform model.
+- `ameide dev inner-loop-test` currently advertises Phase 3 cluster E2E behavior, which conflicts with the internal-first test model where “no-brainer” verification is Phase 0/1/2 and deployed E2E is a separate preview-env layer.
+- `ameide dev inner-loop` is Telepresence-centric and is out of scope for the internal-first platform model.
 
 ## 5) Target CLI surface (to-be)
 
@@ -152,7 +153,7 @@ Guardrails complement (but do not replace) token/RBAC enforcement.
 Profile is detected in this order:
 
 1. Explicit repo-local marker file (authoritative):
-   - `.ameide/agent-profile` containing `code|gitops|sre`
+   - `.ameide/agent-profile` containing `code|gitops|sre|365fo`
 2. Workspace-provided environment:
    - `AMEIDE_AGENT_PROFILE=...` (set by the template)
 3. Heuristic fallback:
@@ -190,6 +191,15 @@ The template-scoped `AGENTS.md` defines additional instructions for the agent, b
   - app proxy reachability
   - workspace cleanup
 
+### 6.6 External executor profile (D365FO)
+
+For vendor-locked domains (D365FO), the CLI still presents the same front doors, but the implementation delegates execution to an external executor tool contract.
+
+Expected behavior for the `365fo` profile:
+
+- `ameide test` (Phase 0/1/2) calls the FO tool surface (MCP bridge → VM executor) for verification and emits JUnit evidence in the workspace/task run root.
+- `ameide e2e` (Phase 3) validates the full chain (Coder task → VM executor → git push → workspace mirror verification), as specified in `backlog/655-agentic-coding-365fo.md`.
+
 ## 7) Evidence and artifacts
 
 The CLI owns a deterministic artifacts layout under repo root:
@@ -208,8 +218,9 @@ Each phase produces JUnit in its phase directory.
 
 ## 9) References
 
-- Internal-only model: `backlog/650-agentic-coding-overview.md`
+- Internal-first model: `backlog/650-agentic-coding-overview.md`
 - Test automation layers: `backlog/653-agentic-coding-test-automation.md`
 - Test taxonomy contract: `backlog/430-unified-test-infrastructure-v2-target.md`
 - Front door history: `backlog/468-testing-front-door.md`
 - Prior inner-loop design (superseded): `backlog/621-ameide-cli-inner-loop-test.md`
+- External executor profile (D365FO): `backlog/655-agentic-coding-365fo.md`

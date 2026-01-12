@@ -1,5 +1,5 @@
 ---
-title: "650 – Agentic coding (internal-only, Coder-based) — overview"
+title: "650 – Agentic coding (internal-first, Coder-orchestrated) — overview"
 status: active
 owners:
   - platform-devx
@@ -9,11 +9,11 @@ suite: "650-agentic-coding"
 source_of_truth: true
 ---
 
-# 650 – Agentic coding (internal-only, Coder-based) — overview
+# 650 – Agentic coding (internal-first, Coder-orchestrated) — overview
 
 ## 0) Purpose
 
-Define a single, consistent, internal-only model for “agentic coding” at Ameide:
+Define a single, consistent, internal-first model for “agentic coding” at Ameide:
 
 - Humans develop in **Coder workspaces** (browser VS Code via code-server).
 - Automated code-changing runs as **ephemeral, workspace-backed executions** (“Coder tasks” in this doc suite).
@@ -31,12 +31,20 @@ The intended agent instruction stays minimal:
 
 ## 1) Decisions (normative; no forks in sub-docs)
 
-### 1.1 Internal-only execution
+### 1.1 In-cluster orchestration; internal-first execution
 
-All development and automation executes **inside the cluster**.
+Default: development and automation executes **inside the cluster**.
 
 - No “remote-from-laptop into cluster network” substrate is required for correctness.
 - CI orchestration can run anywhere, but code/test execution is in-cluster (workspaces, tasks, preview env jobs/runners).
+
+Exception (explicit): some domains have vendor-locked execution substrates (e.g., Dynamics 365 Finance & Operations development in a Windows dev VM + Visual Studio tooling).
+
+In those cases:
+
+- Orchestration still runs in-cluster (Coder workspace/task).
+- Execution may run on an external executor substrate, but only behind a strict tool contract and profile guardrails.
+- The CLI remains the front door; agents still run the same `ameide` commands.
 
 ### 1.2 No Telepresence (explicitly out of platform support)
 
@@ -57,7 +65,7 @@ We adopt **Coder Community Edition**.
 
 ### 1.4 Dev environment contract is Kubernetes-safe devcontainers
 
-The contract for a “developer machine” (human or automation) is:
+For in-cluster workspaces and task workspaces, the contract for a “developer machine” is:
 
 - `.devcontainer/coder/devcontainer.json`
 
@@ -89,6 +97,7 @@ Examples of first-class profiles:
 - **dev/code**: repository code changes (services/packages), fast tests, PRs
 - **gitops**: GitOps changes (Argo CD/apps/values), promotion workflows, minimal app code exposure
 - **sre**: diagnostics/triage tooling, stricter write guardrails
+- **external-executor** (vendor-locked): orchestration in-cluster, execution on a dedicated external substrate
 
 Each profile is expected to carry different guardrails (repo access, secrets, RBAC, allowed edits).
 
@@ -121,6 +130,7 @@ This makes the instructions:
 - Coder-backed task executions for automation (agent runs, preflight checks).
 - Preview environment E2E (Argo CD) as merge gate truth.
 - A single CLI “front door” for the agent inner loop that works in a Coder workspace.
+- Vendor-locked external executors that are orchestrated from in-cluster workspaces/tasks (see 655).
 
 ### 2.2 Out of scope
 
@@ -137,8 +147,9 @@ This makes the instructions:
 - **Preview environment:** per-PR Argo CD environment with real ingress hostnames.
 - **Inner loop:** dev server + fast tests in the workspace.
 - **Outer loop:** build + deploy + Playwright against preview URL.
- - **Agent profile (template):** a Coder template specialized for an agent type and its guardrails.
- - **Template instructions (`AGENTS.md`):** scoped rules that define what an agent may do in that profile.
+- **Agent profile (template):** a Coder template specialized for an agent type and its guardrails.
+- **Template instructions (`AGENTS.md`):** scoped rules that define what an agent may do in that profile.
+- **External executor:** a vendor-locked execution substrate controlled via a strict tool contract (e.g., a Windows dev VM service), orchestrated by an in-cluster agent.
 
 ## 4) Architecture (conceptual)
 
@@ -171,6 +182,8 @@ Deliverables (the 650 suite):
 - `backlog/651-agentic-coding-ameide-coding-agent.md`
 - `backlog/652-agentic-coding-dev-workspace.md`
 - `backlog/653-agentic-coding-test-automation.md`
+- `backlog/654-agentic-coding-cli-surface.md`
+- `backlog/655-agentic-coding-365fo.md`
 
 ## 6) Testing (how we prove this model works)
 
@@ -206,3 +219,4 @@ This suite supersedes the following *as the platform-level default model*:
 - Devcontainer contract: `.devcontainer/coder/devcontainer.json`
 - Suite docs: `backlog/651-agentic-coding-ameide-coding-agent.md`, `backlog/652-agentic-coding-dev-workspace.md`, `backlog/653-agentic-coding-test-automation.md`
 - CLI surface: `backlog/654-agentic-coding-cli-surface.md`
+- External executor profile (D365FO): `backlog/655-agentic-coding-365fo.md`
