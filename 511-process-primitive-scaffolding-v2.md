@@ -21,10 +21,9 @@ We adopt a single orchestration posture for Ameide business capabilities:
 
 In v2, a Process primitive is:
 
-- **A BPMN process definition** (and related assets) that is:
-  - versioned/promoted as design-time data (Transformation/Definition Registry posture),
-  - deployed to Zeebe as the **runtime program**, and
-  - observed via Camunda Operate/Tasklist for execution state and incidents.
+- **A BPMN process definition** (and related assets) that is deployed to Zeebe as the **runtime program**, and
+- **A single worker microservice** that implements *all* Zeebe job workers required by that BPMN (“process solution” packaging), and
+- **A verification + conformance test gate** that proves the diagram is deployable and that worker coverage exists.
 
 The Process primitive is **not** a Temporal worker image generated from BPMN.
 
@@ -32,13 +31,12 @@ The Process primitive is **not** a Temporal worker image generated from BPMN.
 
 We still want BPMN to be the coordination surface for agentic delivery, but with Zeebe as the executor:
 
-- **Zeebe/Camunda extensions** (engine-level) define what is runnable on Zeebe.
-  - Example intent: service task job type, retries, etc. (Zeebe needs runtime bindings.)
-- **Ameide extensions** (`ameide:*`) become **design-time contracts** that:
-  - declare what workers/agents must implement for each side effect,
-  - define idempotency/correlation/evidence requirements,
-  - drive scaffolding and verification (“coverage”) tooling,
-  - but are not relied on for runtime semantics.
+- **Zeebe/Camunda extensions** (engine-level) define what is runnable on Zeebe (e.g. `zeebe:taskDefinition type="..."` for service tasks, `zeebe:subscription` on messages).
+- **Ameide extensions** (`ameide:*`) are **design-time contracts** that drive:
+  - worker scaffolding (what side effects must exist),
+  - verification (lint + coverage),
+  - evidence/traceability requirements,
+  - but are **not** relied on for Zeebe runtime semantics.
 
 This preserves “BPMN is the single authoring truth” while preventing “engine semantics drift”:
 Zeebe executes BPMN; Ameide verifies that the process is safe/operable and that required worker capabilities exist.
@@ -64,7 +62,7 @@ Human approvals and decisions are expressed as BPMN user tasks and executed via:
 - Camunda Tasklist (default), or
 - Ameide UI bridging to Tasklist semantics (explicitly modeled; no hidden custom runtime).
 
-## 4) What the CLI/scaffolder does now (v2)
+## 4) What the CLI/scaffolder does now (v2, implemented)
 
 The CLI shifts from “compile BPMN into Temporal code” to “verify + scaffold worker contracts + deploy to Zeebe”:
 
@@ -80,9 +78,9 @@ Verification must answer:
   - required metadata exists (process identity, correlation rules, evidence expectations)
   - “diagram must not lie”: if a construct is present, we must have an execution + ops meaning for it
 
-3) **Do we have worker coverage for every side-effect step?**
-  - every service task/external task type maps to an owning primitive worker implementation
-  - ownership is explicit (no heuristics)
+3) **Do we have worker coverage for every side-effect step?** (Zeebe job types)
+  - every Zeebe job type declared in BPMN has a corresponding worker handler implementation
+  - ownership is explicit: by definition, the Process primitive owns the full set of workers for its BPMN
 
 ### 4.2 `scaffold` (developer/agent enablement)
 
@@ -90,12 +88,24 @@ Scaffolding is no longer “generate workflow code”.
 
 Instead it generates/updates:
 
-- a worker contract manifest (“these job types exist, these primitives own them, these APIs must be called”),
-- stub worker handlers in the owning primitive(s) where applicable (or at minimum TODO stubs + tests),
-- test fixtures that prove:
-  - the process can be deployed to Zeebe,
-  - workers can poll and complete a simple happy path,
-  - failures produce incidents and are observable.
+- a Zeebe-first Process primitive skeleton (BPMN + worker microservice),
+- deterministic worker artifacts generated from BPMN job types,
+- idempotent handler stubs per job type (created once, never overwritten),
+- a conformance suite that can deploy BPMN + drive workers in a real cluster.
+
+**Repository shape (scaffold output, high level):**
+
+```text
+primitives/process/<name>/
+├── bpmn/process.bpmn
+├── cmd/worker/main.go
+└── internal/worker/
+    ├── worker.go                  # runtime wiring (client + worker registration)
+    ├── handlers.go                # handler registry, shared helpers
+    ├── job_types_gen.go           # generated list of job types found in BPMN
+    ├── handlers_gen.go            # generated registration stubs
+    └── handler_<jobtype>.go       # implementation stubs (created if missing)
+```
 
 ## 5) What to deprecate (v1 artifacts)
 
@@ -104,7 +114,19 @@ The v1 stack is kept for historical context but deprecated:
 - BPMN→Temporal compilation, generated `_gen.go`, `compile.lock.json`-as-compiler output
 - Temporal testsuite-based BPMN execution semantics conformance (for BPMN-authored processes)
 
-## 6) Follow-up edits required in other backlogs
+## 6) Conformance suite and cluster requirements (implemented)
+
+The Process primitive posture is enforced by an end-to-end conformance suite that runs against the dev Camunda cluster:
+
+- `primitives/process/bpmn_conformance_v2` (deploy BPMN, start instances, activate/complete/fail jobs, publish messages, assert incidents).
+- Important vendor constraint: `/v2/jobs/activation` cannot be scoped to a single `processInstanceKey`, so the conformance runner deploys a per-run rewritten BPMN (unique process id + job types + message name) to avoid cross-run interference.
+
+Cluster wiring required for CI/M2M deployability:
+
+- OIDC `client-id-claim` must be `"azp"` so client_credentials tokens map to clients correctly.
+- A dedicated machine principal (e.g. `camunda-deployer`) must be mapped to an admin/deployer default role and have its secret present in-cluster (e.g. `camunda-oidc-client-secrets` key `deployer`).
+
+## 7) Follow-up edits required in other backlogs
 
 This decision implies updates to:
 
