@@ -61,6 +61,18 @@ The Ameide CLI remains the orchestration/guardrails tool, but its process respon
   - produces deployment manifests (GitOps references) for Zeebe definitions where applicable,
   - does not generate Temporal workflow code from BPMN.
 
+## CI conformance gate (runtime truth)
+
+To enforce “diagram must not lie” at runtime, we keep a cluster-backed conformance suite that:
+
+- deploys a BPMN fixture to Zeebe,
+- starts process instances for targeted segments,
+- activates/completes/fails jobs using an in-test worker loop,
+- publishes/correlates messages, and
+- asserts incidents are created for exhausted retries.
+
+Vendor constraint to account for: job activation cannot be scoped to a single process instance, so test fixtures must avoid cross-run job-type collisions (e.g. per-run job type namespace or per-run process id).
+
 ## Backlog mapping / replacements
 
 This v3 posture requires v2 backlog documents that assume “Temporal-backed Process primitives” to be deprecated and replaced by Zeebe-specific versions, notably:

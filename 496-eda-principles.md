@@ -73,6 +73,15 @@ Agent-to-agent (A2A) communication per [505-agent-developer-v2.md](505-agent-dev
   - domain/process write surfaces MUST be idempotent on that key.
 - **Kafka→Temporal signal ingestion requires dedupe:** if facts are routed into long-lived workflows via `SignalWithStart`, workflows MUST dedupe signals by `message_id` (especially across `Continue-As-New` boundaries).
 
+#### Process engines are not “EDA”
+
+If a BPMN-authored Process primitive runs on Camunda 8 / Zeebe:
+
+- Zeebe **jobs** and **job workers** are an orchestration runtime mechanism, not Ameide EDA.
+- They are not a substitute for cross-primitive integration contracts.
+
+**Rule**: EDA remains **between primitives**. Job workers implement side effects by calling other primitives via their command/write surfaces (RPC and/or intent topics), and observing the resulting facts via the bus where needed.
+
 #### Temporal complements outbox (standard orchestration + fact emission pattern)
 
 Temporal makes **orchestration** durable; the transactional outbox makes **fact emission** durable.

@@ -33,15 +33,28 @@ Instead of “generated workflow code drift”, we need:
 - a “coverage manifest” that enumerates required job types from BPMN and maps them to owning primitives/workers
 - verification that every job type has an implementation in the deployed environment
 
+### 4) Process primitive packaging becomes “BPMN + workers” (single deployable)
+
+For Transformation v2+ (Zeebe runtime), the Process primitive should be packaged as:
+
+- the Zeebe BPMN definition(s), and
+- one worker microservice that implements all job workers required by that BPMN.
+
+This keeps orchestration and its “glue” code co-owned and versioned together.
+
 ## What stays the same
 
 - Domains remain the system of record; domain intents/facts remain the canonical audit trail.
 - Process-level “facts” (if kept) remain derived/observational; they must not replace domain facts.
 - EDA envelope rules (tenant, traceability, idempotency) still apply to worker→domain interactions.
 
+## Operational notes (Zeebe API realities)
+
+- **Job activation is by job type**, not by process instance. A worker (or test runner) that activates `type=X` can receive jobs from any instance that has reached a service task with `type=X`.
+- For automated tests, this means you must avoid cross-run collisions (e.g. per-run job type namespace, or deploying per-run process ids with per-run job types).
+
 ## Immediate backlog edits required
 
 - `backlog/527-transformation-proto.md` must be deprecated and replaced by a Zeebe-first version that:
   - removes Temporal compilation terms as the BPMN execution posture,
   - defines the minimum new facts/intents to represent Zeebe deployment identity and worker coverage.
-
