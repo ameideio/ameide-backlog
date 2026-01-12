@@ -388,6 +388,18 @@ Vault fixture → ExternalSecret (keycloak-realm-oidc-clients) → Keycloak real
 Keycloak generates secret → client-patcher extracts → Vault → ExternalSecret syncs to consumers
 ```
 
+**Addendum (Camunda 8):**
+
+Camunda’s Orchestration + Connectors OIDC clients follow the same authority model:
+
+- Vault keys:
+  - `camunda-orchestration-oidc-client-secret`
+  - `camunda-connectors-oidc-client-secret`
+- Kubernetes consumer Secret (via ExternalSecrets):
+  - `camunda-oidc-client-secrets` (keys `orchestration`, `connectors`)
+
+If these remain placeholders, treat it as a **client-patcher/Vault policy/ExternalSecret refresh** failure (platform), not as an “app misconfiguration” inside Camunda.
+
 ---
 
 ## Remediation Backlog

@@ -70,6 +70,30 @@ While wiring `platform-coder` (Coder CE for AmeideDevContainerService), we hit t
    - Root cause: Vault/ESO password existed, but CNPG role password did not reliably converge without a reconcile mechanism (no superuser secret available).
    - Fix: dev-only password reconcile CronJob (`kubectl exec` into CNPG primary) keeps DB roles aligned with Vault/ESO secrets.
 
+### Status note: platform-camunda8 (AKS dev)
+
+While enabling the Camunda 8 baseline (`orchestration` + `connectors`) we hit “parity-class” issues that map to this backlog’s goals (deterministic convergence; no manual clicks):
+
+1) **Helm schema type mismatch in env overlays**
+   - Symptom: values like `clusterSize: 1` did not apply as intended.
+   - Root cause: upstream chart schema expects some topology parameters as **strings**, so number values can be rejected at render/apply time.
+   - Fix direction: keep topology values as quoted strings and add a render gate that fails on schema errors.
+
+2) **StatefulSet immutability on persistence changes**
+   - Symptom: Argo sync failed with “Forbidden: updates to statefulset spec … are forbidden”.
+   - Root cause: changing persistence/storage shape often changes immutable StatefulSet fields.
+   - Fix direction: treat storage shape changes as replace/migration tasks; only change replicas / pod template bits via upgrades.
+
+3) **OIDC templating scope / empty-host URLs**
+   - Symptom: runtime errors like `https://auth./realms/ameide` leading to crashloops and `500`s.
+   - Root cause: `tpl` rendering scope must reference values that exist in the subchart scope.
+   - Fix direction: derive issuer/redirects from a canonical, globally-present public base and add a CI “no empty-host URLs” guardrail.
+
+4) **Keycloak → Vault → ESO secret materialization**
+   - Symptom: placeholder client secrets lead to token `401` and application failures.
+   - Root cause: missing Vault policy paths / hook rerun semantics.
+   - Fix direction: treat as a platform secret pipeline issue; ensure Keycloak client-patcher can write required Vault paths and ExternalSecrets refresh behavior is deterministic.
+
 ## Current findings (AKS dev) and how they relate to local
 
 ### A) Docker Hub pull rate limiting blocked reconciliation (AKS) and was masked locally
