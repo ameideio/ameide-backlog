@@ -246,6 +246,12 @@ Policy:
 - CI is the only supported deployment path; GitOps promotion uses immutable digests.
 - A consistent naming scheme exists for URL variables, and tests do not require ad-hoc overrides to find the platform host.
 
+## Historical Context (Why This Exists)
+
+- We historically mixed “settings” into Kubernetes Secrets and “secrets” into values/ConfigMaps/CI env; this item defines a single contract to remove drift and guesswork.
+- We historically used NextAuth-era `NEXTAUTH_*` variables in some places; the contract is now Auth.js v5 `AUTH_*` only, and any remaining `NEXTAUTH_*` usage is migration debt to delete (not a supported interface).
+- We historically allowed manual cluster edits (`kubectl`, Argo UI) that could linger when drift correction wasn’t enforced; this item makes “Git desired state + Argo apply” the norm (with self-heal/RBAC as enforcement).
+
 ## Notes / Related Backlogs
 
 - Onboarding and cookie-domain alignment discussions: `319-onboarding-v2.md`.
