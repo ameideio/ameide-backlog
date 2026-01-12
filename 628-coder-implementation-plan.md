@@ -122,6 +122,10 @@ We use **Coder External Auth (GitHub)** as the source of truth for per-user GitH
 
 This eliminates the need for per-workspace Vault/ESO resources and avoids a shared bot token inside human workspaces.
 
+Operational note:
+
+- Each user must complete a one-time GitHub authorization in Coder (“External Auth → GitHub → Connect”) so Coder can mint per-user access tokens for envbuilder cloning.
+
 ## 4) Implementation plan (phased)
 
 ### Phase 0 — Decisions (blockers to unblock implementation)

@@ -93,6 +93,10 @@ This feature has two GitHub auth planes:
 1) **Coder External Auth (GitHub)** for envbuilder cloning private repos  
    Requirement: the CI user (identified by `CODER_SESSION_TOKEN`) must connect GitHub once in Coder so `coder external-auth access-token github` succeeds.
 
+   Dev status:
+
+   - The initial user `francescomagalini` has completed this GitHub authorization manually in `coder.dev.ameide.io`.
+
 2) **Bot/token for PR creation (E2E only)**  
    Use a bot token (or `github.token` scoped to the repo) with:
    - permission to push branches

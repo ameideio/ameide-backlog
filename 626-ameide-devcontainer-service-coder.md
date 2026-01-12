@@ -165,6 +165,10 @@ Hard rule:
 - No “cluster-wide bot” GitHub token is mounted by default into human workspaces.
 - Templates must never embed secret values; treat templates as readable by all template users.
 
+Operational note:
+
+- GitHub External Auth is a per-user OAuth authorization stored in the Coder DB; it typically requires a **one-time manual “Connect GitHub”** action per user (including any CI/headless user) and cannot be cleanly pre-seeded.
+
 ### 5.2 Kubernetes identity
 
 The workspace runs with a namespace-scoped ServiceAccount:
