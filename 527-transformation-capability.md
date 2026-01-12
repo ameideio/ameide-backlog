@@ -1,7 +1,7 @@
 # 527 — Transformation Capability (Define the capability, then realize it via primitives)
 
 > **DEPRECATED (2026-01-12):** This document assumes “Temporal-backed Process primitives” for BPMN-authored orchestration.  
-> Current direction: BPMN-authored Process primitives execute on **Camunda 8 / Zeebe**, with side effects implemented by primitives as workers; Temporal remains for coded platform workflows.  
+> Current direction: BPMN-authored Process primitives execute on **Camunda 8 / Zeebe**, with side effects implemented by primitives as workers; Temporal is platform-only and not part of Ameide business capabilities.  
 > See `backlog/527-transformation-capability-v2.md`.
 
 **Status:** Draft (scaffolds implemented; spec acceptance pending)  

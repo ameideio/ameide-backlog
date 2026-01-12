@@ -10,11 +10,11 @@ created: 2026-01-12
 
 ## 0) Decision summary (this replaces v1 compile-to-Temporal)
 
-We adopt a split orchestration strategy:
+We adopt a single orchestration posture for Ameide business capabilities:
 
 1. **BPMN-authored processes run on Camunda 8 / Zeebe.**
    - A “Process primitive” remains a first-class concept, but its runtime is **a BPMN definition deployed to Zeebe**, not a Temporal Workflow compiled from BPMN.
-2. **Temporal remains in the platform**, but is reserved for **platform workflows coded without BPMN design-time** (lower-level orchestration and internal platform automation).
+2. **Temporal is platform-only** (internal platform concerns) and is **not part of Ameide business capabilities** or BPMN-driven orchestration.
 3. **The BPMN→Temporal transpilation effort is discontinued** (no shims, no backward compatibility layers).
 
 ## 1) What “Process primitive” means in v2
@@ -108,7 +108,6 @@ The v1 stack is kept for historical context but deprecated:
 
 This decision implies updates to:
 
-- `backlog/520-primitives-stack-v2.md`: split orchestration substrates (Zeebe for BPMN processes; Temporal for coded platform workflows).
+- `backlog/520-primitives-stack-v2.md`: replace “Temporal-backed Process primitives” posture with Camunda-only capability orchestration (see `backlog/520-primitives-stack-v3.md`).
 - `backlog/527-transformation-*.md`: remove/replace compile-to-Temporal execution assumptions for BPMN-authored governance workflows; align “runnable BPMN” with Zeebe.
 - `backlog/511-*` v1 docs: mark deprecated and point to this document as the v2 direction.
-

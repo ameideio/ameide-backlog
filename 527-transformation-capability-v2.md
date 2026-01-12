@@ -13,14 +13,12 @@ The execution posture changes:
   - the BPMN definition (design-time truth),
   - deployed to Zeebe (runtime truth),
   - executed via Zeebe workers implemented by Ameide primitives (agents/integrations/domains).
-- **Temporal remains in the platform**, but is used for platform workflows authored as code without BPMN design-time.
+- **Temporal is platform-only** (internal platform concerns) and is **not part of Ameide business capabilities**.
 
 ## Design-time vs runtime (unchanged principle; different runtime)
 
 - **Design-time truth** lives in Transformation as versioned elements/definitions (BPMN, ArchiMate, docs).
-- **Runtime orchestration** is executed by the chosen orchestration runtime:
-  - Zeebe for BPMN processes
-  - Temporal for coded platform workflows
+- **Runtime orchestration** for Transformation governance BPMN executes on Zeebe.
 
 Domains remain the system of record; process engines do not become canonical truth stores.
 
@@ -52,4 +50,3 @@ Transformation governance requires design-time verification gates that enforce:
 - Worker coverage (every executable side-effect step has an owning worker implementation).
 
 If any required contract is missing, promotion/deployment must fail. No best-effort fallbacks.
-

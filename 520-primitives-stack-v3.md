@@ -1,15 +1,15 @@
-# Primitives Stack v3 (Backlog 520) — Zeebe for BPMN, Temporal for coded platform workflows
+# Primitives Stack v3 (Backlog 520) — Camunda-only orchestration for Ameide capabilities
 
 This document replaces `backlog/520-primitives-stack-v2.md` for the orchestration/runtime posture.
 
 ## Summary (the single decision that changes everything)
 
-We adopt a **dual-orchestrator** platform posture with strict scope:
+We adopt a Camunda-only orchestration posture for Ameide business capabilities:
 
 1. **BPMN-authored processes execute on Camunda 8 / Zeebe.**
    - BPMN is the runnable program (engine semantics).
-   - “Process primitive” remains a first-class concept, but for BPMN processes it means “BPMN definition + worker implementations + verification”, not “Temporal workflow service”.
-2. **Temporal remains part of the platform**, but is used for **platform workflows authored as code without BPMN design-time**.
+   - “Process primitive” remains a first-class concept, but it means “BPMN definition + worker implementations + verification”, not “Temporal workflow service”.
+2. **Temporal is platform-only** (internal platform concerns) and is **not part of Ameide business capabilities** or BPMN-driven orchestration.
 3. The BPMN→Temporal transpilation/compile-to-IR effort is **discontinued** (no backward compatibility layers).
 
 The non-negotiable rule still holds: **the diagram must not lie**.
@@ -33,7 +33,7 @@ The following v2 platform constitution remains true:
 
 **Now (v3):**
 - BPMN-authored Process primitives = Zeebe deployments + workers that implement side effects.
-- Temporal is not used as the execution engine for BPMN processes.
+- Temporal is not used as an execution engine for Ameide business capability orchestration.
 
 ### B) Meaning of BPMN extensions changes
 
@@ -67,4 +67,3 @@ This v3 posture requires v2 backlog documents that assume “Temporal-backed Pro
 
 - `backlog/511-*` Process primitive scaffolding/compiler docs (superseded by Zeebe-based direction).
 - `backlog/527-*` Transformation Process/Proto docs that assume compiled Workflow IR for Temporal execution.
-
