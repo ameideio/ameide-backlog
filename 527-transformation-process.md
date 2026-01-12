@@ -1,5 +1,9 @@
 # 527 Transformation — Process Primitive Specification
 
+> **DEPRECATED (2026-01-12):** This document specifies a “Temporal-backed” BPMN execution posture (compile-to-Temporal/IR).  
+> Current direction: BPMN-authored Process primitives execute on **Camunda 8 / Zeebe**; extensions document worker side-effects and are enforced by verify, not transpilation.  
+> See `backlog/527-transformation-process-v2.md`.
+
 **Status:** Draft (scaffold implemented; WorkRequest seam implemented; initial workflows implemented; BPMN/registry execution pending)  
 **Parent:** [527-transformation-capability.md](527-transformation-capability.md)
 
