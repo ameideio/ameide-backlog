@@ -152,7 +152,9 @@ This is the Definition of Done for the v2 Process primitive toolchain:
   - message publish/correlate behavior matches engine semantics,
   - timers are asserted as “not earlier” (may be later, within timeout),
   - incidents are created and observable when retries are exhausted,
-  - negative fixtures are rejected at verify time with stable errors.
+- negative fixtures are rejected at verify time with stable errors.
+
+See `backlog/511-process-primitive-scaffolding-v2-implementation-plan.md`.
 
 ## 5) What to deprecate (v1 artifacts)
 

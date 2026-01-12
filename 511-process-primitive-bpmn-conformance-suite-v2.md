@@ -163,3 +163,5 @@ This suite is “done” when it can be used as the repo front-door smoke for pr
 6. **Timer semantics proof**: timer-driven path is taken with “not earlier” assertion.
 7. **Incident semantics proof**: failing a job with no retries remaining yields an incident searchable for the instance.
 8. **Actionable diagnostics**: on failure/timeouts, the suite emits enough diagnostics (instance key, last sequence flows, incident search results, last activation failures) to debug quickly in dev.
+
+See `backlog/511-process-primitive-scaffolding-v2-implementation-plan.md`.
