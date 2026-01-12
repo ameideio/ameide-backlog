@@ -24,7 +24,9 @@ In v2, a Process primitive is:
 - **A BPMN process definition** (and related assets) that is:
   - versioned/promoted as design-time data (Transformation/Definition Registry posture),
   - deployed to Zeebe as the **runtime program**, and
-  - observed via Camunda Operate/Tasklist for execution state and incidents.
+  - observed via Camunda Operate/Tasklist for human visibility and troubleshooting.
+
+Automation and verification should primarily use the **Camunda 8 Orchestration Cluster REST API** (deployments, jobs, messages, incidents, variables/sequence flows).
 
 The Process primitive is **not** a Temporal worker image generated from BPMN.
 
@@ -83,6 +85,7 @@ Verification must answer:
 3) **Do we have worker coverage for every side-effect step?**
   - every service task/external task type maps to an owning primitive worker implementation
   - ownership is explicit (no heuristics)
+  - runtime conformance is validated against the engine (see `backlog/511-process-primitive-bpmn-conformance-suite-v2.md`)
 
 ### 4.2 `scaffold` (developer/agent enablement)
 
@@ -96,6 +99,18 @@ Instead it generates/updates:
   - the process can be deployed to Zeebe,
   - workers can poll and complete a simple happy path,
   - failures produce incidents and are observable.
+
+## 4.3 Conformance gate (v2)
+
+The v2 “diagram must not lie” guardrail is a **Zeebe runtime conformance suite**:
+
+- a single “coverage BPMN” fixture tested by **small, deterministic segments**
+- engine truth asserted via **Orchestration Cluster REST API** (not Operate/Tasklist APIs)
+- message semantics tested using buffering/uniqueness/cardinality behavior (TTL + messageId)
+- timer semantics asserted as “not earlier; may be later”
+- incidents asserted via engine incident search for the process instance
+
+See `backlog/511-process-primitive-bpmn-conformance-suite-v2.md`.
 
 ## 5) What to deprecate (v1 artifacts)
 

@@ -1,8 +1,8 @@
 # 511 – Process Primitive BPMN Conformance Suite (v1)
 
 > **DEPRECATED (2026-01-12):** This conformance suite validates the v1 “BPMN compiled/executed via Temporal” posture.  
-> New direction: BPMN-authored processes execute on Zeebe; conformance must shift to Zeebe-deploy + worker-coverage semantics.  
-> See `backlog/511-process-primitive-scaffolding-v2.md`.
+> New direction: BPMN-authored processes execute on Zeebe; conformance shifts to Zeebe deploy + worker coverage + Camunda runtime semantics.  
+> See `backlog/511-process-primitive-bpmn-conformance-suite-v2.md` and `backlog/511-process-primitive-scaffolding-v2.md`.
 
 This backlog documents the **implemented** conformance suite that keeps Ameide’s BPMN authoring semantics **Flowable-shaped** (where supported) and **Temporal-honest** (where executed), with a hard rule: **the diagram must not lie**.
 
