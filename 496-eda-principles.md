@@ -4,6 +4,9 @@
 **Audience:** Platform engineering, domain teams, AI agents, architects
 **Scope:** Canonical EDA principles for all Ameide primitives (Domain, Process, Projection, Integration, Agent, UISurface)
 
+> **Superseded (2026-01-12):** The repo now uses an explicit EDA v2 contract (facts-on-broker, commands via gRPC/Command Bus; no broker intents) that is referenced by protos and audits.  
+> See `backlog/496-eda-principles-v2.md`.
+
 > **Core Invariants**: EDA invariants §8-13 are defined in [470-ameide-vision.md](470-ameide-vision.md). This document provides the complete reference with implementation guidance.
 
 ## Grounding & contract alignment
