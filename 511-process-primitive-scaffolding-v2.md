@@ -107,14 +107,66 @@ primitives/process/<name>/
     └── handler_<jobtype>.go       # implementation stubs (created if missing)
 ```
 
-## 5) What to deprecate (v1 artifacts)
+## 4.3 Conformance gate (v2)
+
+The v2 “diagram must not lie” guardrail is a **Zeebe runtime conformance suite**:
+
+- a single “coverage BPMN” fixture tested by **small, deterministic segments**
+- engine truth asserted via **Orchestration Cluster REST API** (not Operate/Tasklist APIs)
+- message semantics tested using buffering/uniqueness/cardinality behavior (TTL + messageId)
+- timer semantics asserted as “not earlier; may be later”
+- incidents asserted via engine incident search for the process instance
+
+See `backlog/511-process-primitive-bpmn-conformance-suite-v2.md`.
+
+## 5) Definition of Done (scaffold + verify + deploy + smoke)
+
+This is the Definition of Done for the v2 Process primitive toolchain:
+
+### A) Scaffolding (repo state)
+
+- A new Process primitive exists with:
+  - a BPMN definition intended for Zeebe execution,
+  - one worker microservice that implements **all** BPMN job types used by that definition,
+  - CI/test wiring compatible with `./ameide dev inner-loop-test` (no ad-hoc runners).
+- The scaffold produces a worker entrypoint that:
+  - registers handlers for each `zeebe:taskDefinition type="..."`,
+  - calls other primitives only via the seams defined in `backlog/496-eda-principles-v2.md` (facts on broker; commands via gRPC/Command Bus),
+  - is idempotent and safe under retries.
+
+### B) Verification (gate)
+
+- `verify` fails fast with stable, actionable errors when:
+  - BPMN is not deployable to Zeebe (missing/bad runtime bindings),
+  - unsupported constructs exist (profile rejection),
+  - any job type is missing a worker handler in the Process primitive worker microservice,
+  - any required EDA v2 metadata contracts are violated (e.g., deprecated proto namespaces referenced).
+
+### C) Deployment (dev cluster)
+
+- The BPMN is deployed to Zeebe in the dev namespace (GitOps-driven).
+- The Process primitive worker microservice is deployed, healthy, and connected to Zeebe.
+
+### D) Smoke / conformance (dev cluster)
+
+- A conformance BPMN is used as the smoke gate (segment-based, deterministic).
+- Smokes run in-cluster (dev namespace) and prove:
+  - jobs can be activated/completed for every job type used,
+  - message publish/correlate behavior matches engine semantics,
+  - timers are asserted as “not earlier” (may be later, within timeout),
+  - incidents are created and observable when retries are exhausted,
+- negative fixtures are rejected at verify time with stable errors.
+
+See `backlog/511-process-primitive-scaffolding-v2-implementation-plan.md`.
+
+## 6) What to deprecate (v1 artifacts)
 
 The v1 stack is kept for historical context but deprecated:
 
 - BPMN→Temporal compilation, generated `_gen.go`, `compile.lock.json`-as-compiler output
 - Temporal testsuite-based BPMN execution semantics conformance (for BPMN-authored processes)
 
-## 6) Conformance suite and cluster requirements (implemented)
+## 7) Conformance suite and cluster requirements (implemented)
 
 The Process primitive posture is enforced by an end-to-end conformance suite that runs against the dev Camunda cluster:
 
@@ -126,7 +178,7 @@ Cluster wiring required for CI/M2M deployability:
 - OIDC `client-id-claim` must be `"azp"` so client_credentials tokens map to clients correctly.
 - A dedicated machine principal (e.g. `camunda-deployer`) must be mapped to an admin/deployer default role and have its secret present in-cluster (e.g. `camunda-oidc-client-secrets` key `deployer`).
 
-## 7) Follow-up edits required in other backlogs
+## 8) Follow-up edits required in other backlogs
 
 This decision implies updates to:
 
