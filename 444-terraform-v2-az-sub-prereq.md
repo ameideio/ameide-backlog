@@ -206,6 +206,11 @@ Create secrets (names must match exactly):
 - `database-pool-connection-timeout-ms`
 - `go-proto-version`
 - `go-sdk-version`
+- `coder-github-oauth-client-id` (Coder GitHub External Auth OAuth app)
+- `coder-github-oauth-client-secret` (Coder GitHub External Auth OAuth app)
+- `coder-bootstrap-admin-username` (seed initial Coder owner; skip `/setup`)
+- `coder-bootstrap-admin-email` (seed initial Coder owner; skip `/setup`)
+- `coder-bootstrap-admin-password` (seed initial Coder owner; skip `/setup`)
 
 ---
 

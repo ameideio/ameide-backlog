@@ -157,7 +157,8 @@ GitHub access is needed for two distinct purposes:
    Platform requirement:
 
    - Coder must be configured with a GitHub OAuth app (client id/secret) so External Auth can be used.
-   - In AKS dev this is provided via Vault → ExternalSecret → `Secret/coder-external-auth-github`.
+   - In AKS dev this is provided via the standard secret pipeline and materializes as `Secret/coder-external-auth-github`.
+     - Source secret names: `coder-github-oauth-client-id`, `coder-github-oauth-client-secret`.
 
 2) **Git operations inside the workspace (human workflow)**  
    Developers may use interactive auth (`gh auth login` / device flow) for pushing branches and opening PRs.

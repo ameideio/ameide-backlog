@@ -98,6 +98,9 @@ This feature has two GitHub auth planes:
    Dev status:
 
    - The initial user `francescomagalini` has completed this GitHub authorization manually in `coder.dev.ameide.io`.
+   - The platform must be configured with GitHub OAuth app credentials so the “External Auth → GitHub” button exists:
+     - `coder-github-oauth-client-id`
+     - `coder-github-oauth-client-secret`
 
 2) **Bot/token for PR creation (E2E only)**  
    Use a bot token (or `github.token` scoped to the repo) with:
