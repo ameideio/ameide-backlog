@@ -110,6 +110,18 @@ Requirements:
 - Do not embed secret values in templates (assume templates are readable by all template users).
 - Prefer Keycloak SSO for Coder and runtime secret mounts by Secret name when automation is required.
 
+## 3.3 GitHub private repo access (Option 1: Coder External Auth)
+
+We use **Coder External Auth (GitHub)** as the source of truth for per-user GitHub tokens:
+
+- Coder server is configured with `CODER_EXTERNAL_AUTH_0_*` (provider id `github`) and a GitHub OAuth app client id/secret.
+- The OAuth app credentials are delivered via Vault → ExternalSecret → `Secret/coder-external-auth-github`.
+- Templates use `data "coder_external_auth" "github"` and pass:
+  - `ENVBUILDER_GIT_USERNAME=x-access-token`
+  - `ENVBUILDER_GIT_PASSWORD=<per-user access token>`
+
+This eliminates the need for per-workspace Vault/ESO resources and avoids a shared bot token inside human workspaces.
+
 ## 4) Implementation plan (phased)
 
 ### Phase 0 — Decisions (blockers to unblock implementation)

@@ -132,13 +132,31 @@ Define and pin:
 
 ### 5.1 GitHub identity
 
-Human workflows should use either:
+GitHub access is needed for two distinct purposes:
 
-- interactive auth (GitHub CLI login / device flow)
+1) **Repo cloning for envbuilder (template build step)**  
+   This must work for private repos without a shared “cluster bot token”.
 
-No “cluster-wide bot” GitHub token should be mounted by default into human workspaces.
+   Decision (Option 1): use **Coder External Auth (GitHub)**:
 
-Templates must never embed secret values; they may only reference Secret names (non-sensitive) and rely on runtime mounts.
+   - Each developer connects GitHub once in the Coder UI (External Auth).
+   - Templates use `coder_external_auth` to obtain a **per-user** GitHub access token.
+   - envbuilder clones via:
+     - `ENVBUILDER_GIT_USERNAME=x-access-token`
+     - `ENVBUILDER_GIT_PASSWORD=<per-user token>`
+
+   Platform requirement:
+
+   - Coder must be configured with a GitHub OAuth app (client id/secret) so External Auth can be used.
+   - In AKS dev this is provided via Vault → ExternalSecret → `Secret/coder-external-auth-github`.
+
+2) **Git operations inside the workspace (human workflow)**  
+   Developers may use interactive auth (`gh auth login` / device flow) for pushing branches and opening PRs.
+
+Hard rule:
+
+- No “cluster-wide bot” GitHub token is mounted by default into human workspaces.
+- Templates must never embed secret values; treat templates as readable by all template users.
 
 ### 5.2 Kubernetes identity
 

@@ -79,6 +79,7 @@ Steps (high-level):
 Implementation reference (current):
 
 - GitHub Actions runner workflow: `.github/workflows/coder-devcontainer-e2e.yaml`
+- Smoke sync workflow (push templates + verify proxy + promote): `.github/workflows/coder-devcontainer-smoke.yaml`
 - The workflow validates both templates:
   - `ameide-dev` (smoke; no PR step)
   - `ameide-gitops` (full E2E, including Codex + PR to this repo)
@@ -87,10 +88,15 @@ Implementation reference (current):
 
 ### 2.1 GitHub
 
-Use a dedicated bot token with:
+This feature has two GitHub auth planes:
 
-- permission to push branches
-- permission to create PRs
+1) **Coder External Auth (GitHub)** for envbuilder cloning private repos  
+   Requirement: the CI user (identified by `CODER_SESSION_TOKEN`) must connect GitHub once in Coder so `coder external-auth access-token github` succeeds.
+
+2) **Bot/token for PR creation (E2E only)**  
+   Use a bot token (or `github.token` scoped to the repo) with:
+   - permission to push branches
+   - permission to create PRs
 
 ### 2.2 Codex (optional/extended)
 
