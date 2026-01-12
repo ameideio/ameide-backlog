@@ -179,6 +179,54 @@ This GitOps standard deploys the following Camunda components:
 - Use the chart’s bundled Elasticsearch (`global.elasticsearch.enabled=true`).
 - Disable OpenSearch (`global.opensearch.enabled=false`).
 
+## Vendor Hard Edges (Non-Negotiable)
+
+These are the constraints that *must* be treated as “install-time” decisions in GitOps. If we violate them, Argo will not converge by retrying; the only correct path is a deliberate replace/migration.
+
+### 1) Zeebe partitioning is not dynamically rescalable
+
+The upstream documentation states that the Orchestration cluster does not support dynamic scaling for at least some topology parameters (notably `partitionCount`). Treat the Orchestration cluster topology as immutable for an installed environment:
+
+- `orchestration.partitionCount`: **install-time only**
+- `orchestration.replicationFactor`: treat as install-time in practice
+- `orchestration.clusterSize`: can be reduced/increased, but only within the constraints of the installed topology and available capacity
+
+**Rule:** if an environment is installed with the wrong partitioning, do not “try to fix it via Helm upgrades”. Plan an environment replace/migration.
+
+### 2) StatefulSet storage shape/persistence changes are not upgrade-safe
+
+Kubernetes forbids updates to many StatefulSet spec fields (including volume claim templates). In practice:
+
+- Do **not** attempt to “flip persistence mode / storage shape” for Zeebe or Elasticsearch via in-place upgrades.
+- If persistence must change, treat it as a **replace/migration** task (new StatefulSet identity + controlled cutover).
+
+### 3) Values schema types matter (strings vs numbers)
+
+The upstream chart schema defines several topology values as **strings** (`"1"`, `"3"`, …). If env overlays provide numbers, Helm schema validation rejects the values and Argo cannot apply the intended configuration.
+
+**Rule:** keep `clusterSize`, `partitionCount`, and `replicationFactor` as **quoted strings** in values.
+
+## Guardrails (Prevent Recurrence)
+
+### A) Render-time URL sanity check (CI)
+
+Add a CI gate that fails if rendered manifests contain “empty-host” OIDC URLs like:
+
+- `https://auth./realms/ameide`
+- `https://camunda./...`
+
+This catches `tpl` scoping regressions early (before they become runtime `500`s / crashloops).
+
+### B) Secret authority / placeholder prevention
+
+Camunda requires valid OIDC client secrets. In this repo, the contract is:
+
+1. Keycloak generates client secrets
+2. `platform-keycloak-realm-client-patcher` extracts them and writes to Vault
+3. ExternalSecrets sync them into Kubernetes Secrets (e.g. `camunda-oidc-client-secrets`)
+
+If `camunda-oidc-client-secrets` contains placeholder values, treat it as a **platform secret pipeline failure**, not a Camunda app bug.
+
 ## Target GitOps Shape (Files To Add)
 
 ### A) Vendoring entry (upstream chart pin)
