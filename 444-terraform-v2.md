@@ -76,17 +76,51 @@ Local developer machines should run only:
 - `terraform validate` / `terraform plan -backend=false` for review
 - never `terraform apply` for cloud workspaces
 
+### CI-only mutation policy (no manual fixes)
+
+If we adopt “CI is the only responsible actor that changes configuration”, this must be true in practice:
+
+- **Cloud infrastructure is changed only by CI** (Terraform apply/destroy workflows).
+- **Runtime facts are written only by CI** (the `ameide-runtime-facts` repo/branch is CI-generated output; never hand-edited).
+- **Cluster desired state is changed only via Git commits** (ArgoCD reconciles; humans do not apply/patch live resources to “fix” drift).
+
+Hard rules (cloud clusters: AKS/EKS):
+
+- No manual `kubectl apply/patch/delete` against shared cloud clusters for platform services (Gateway/Envoy, Argo apps, Coder, etc.).
+- No manual Azure Portal changes for DNS record sets / load balancer IP association.
+- No manual commits to the runtime-facts repo/branch.
+- Read-only inspection is always allowed (`kubectl get/describe/logs`, Azure `az ... show/list`, etc.).
+
+Rationale:
+
+- Manual changes create a second source of truth; the next CI run (or ArgoCD reconciliation) will overwrite them, and “it worked yesterday” becomes untraceable.
+
+Break-glass policy:
+
+- If an emergency action is required (state lock, stuck destroy, broken deployment), it must be executed via the dedicated CI workflows (e.g. `terraform-azure-force-unlock`) and then followed by a normal CI apply that restores convergence.
+- Record the event as a Git change (issue/backlog note) so the next investigation is not tribal knowledge.
+
 ### Deterministic verification gates
 
 For cloud deploys, “Terraform succeeded” is not the finish line. CI should gate on:
 - Public IP association to AKS/EKS load balancers
 - TLS certificates ready
 - Envoy/Gateway listeners exposing `443`
+- DNS resolution correctness for critical hostnames (e.g. `*.dev.ameide.io` including `coder.dev.ameide.io`)
 - SSO verifiers passing
 
 Current scripts:
 - `infra/scripts/verify-argocd-sso.sh`
 - `infra/scripts/verify-platform-sso.sh`
+
+### Runtime facts invariants (must be enforced)
+
+For each environment `dev|staging|production`, CI must enforce:
+
+- The published runtime fact `azure.envoyPublicIpAddress` equals the reserved Envoy Public IP resource (`ameide-<env>-envoy-pip`) in the correct Azure subscription.
+- The environment DNS zone contains wildcard coverage (`@` and `*`) pointing at that Envoy public IP, so any declared route hostname resolves without adding per-app DNS records.
+
+If these invariants fail, CI must fail the deploy (do not “fix it manually”).
 
 ---
 
