@@ -61,7 +61,7 @@ The Ameide CLI remains the orchestration/guardrails tool, but its process respon
   - validates Zeebe deployability constraints,
   - validates worker coverage for all side-effect steps.
 - Scaffold:
-  - produces worker stubs/tests in the owning primitive repos,
+  - produces worker stubs/tests in the Process primitive (one worker microservice per BPMN-authored process primitive),
   - produces deployment manifests (GitOps references) for Zeebe definitions where applicable,
   - does not generate Temporal workflow code from BPMN.
 

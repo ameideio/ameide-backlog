@@ -8,7 +8,7 @@ Describe the real-world end-to-end sequence for Transformation governance when:
 
 - The governance process is authored in BPMN.
 - The BPMN executes on **Camunda 8 / Zeebe**.
-- Side effects are executed by **Ameide primitives** as Zeebe workers (agents/integrations), not inside the process engine.
+- Side effects are executed by the **Transformation Process primitive worker microservice** as Zeebe job workers (one worker service per process primitive), not inside the process engine.
 - Domains remain canonical truth; orchestration history is observable via Zeebe/Operate.
 
 ## High-level stages (Requirement → Development workpackage → Release package)
@@ -61,4 +61,3 @@ User actions:
   - fully covered by worker implementations for every side-effect task type.
 
 If any of the above is not true, promotion/deployment must fail (“diagram must not lie”).
-

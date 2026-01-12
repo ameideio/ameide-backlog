@@ -87,8 +87,8 @@ Verification must answer:
   - “diagram must not lie”: if a construct is present, we must have an execution + ops meaning for it
 
 3) **Do we have worker coverage for every side-effect step?**
-  - every service task/external task type maps to an owning primitive worker implementation
-  - ownership is explicit (no heuristics)
+  - every `zeebe:taskDefinition type="..."` is implemented by this Process primitive’s worker microservice
+  - ownership is explicit: the Process primitive owns its BPMN job types (no “shared worker” ambiguity)
   - runtime conformance is validated against the engine (see `backlog/511-process-primitive-bpmn-conformance-suite-v2.md`)
 
 ### 4.2 `scaffold` (developer/agent enablement)
@@ -98,7 +98,7 @@ Scaffolding is no longer “generate workflow code”.
 Instead it generates/updates:
 
 - a worker contract manifest (“these job types exist, these primitives own them, these APIs must be called”),
-- stub worker handlers in the owning primitive(s) where applicable (or at minimum TODO stubs + tests),
+- stub worker handlers inside the Process primitive worker microservice (or at minimum TODO stubs + tests),
 - test fixtures that prove:
   - the process can be deployed to Zeebe,
   - workers can poll and complete a simple happy path,

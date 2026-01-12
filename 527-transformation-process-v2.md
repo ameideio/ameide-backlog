@@ -8,7 +8,7 @@ Define the runtime posture for Transformation governance processes where:
 
 - BPMN is the canonical authoring format and the executable runtime program.
 - Execution is performed by **Camunda 8 / Zeebe**.
-- Side effects are performed by **Ameide primitives** as Zeebe workers.
+- Side effects are performed by the **Transformation Process primitive worker microservice** as Zeebe job workers (one worker service per process primitive).
 - Domains remain the system of record; process engines coordinate but do not own truth.
 
 ## 1) Execution model
@@ -17,9 +17,11 @@ Define the runtime posture for Transformation governance processes where:
 
 - **Zeebe** executes the BPMN process instance state machine (tokens, waits, timers, incidents).
 - **Workers** implement BPMN service tasks and other side-effect steps:
-  - Agent workers (agentic coding)
-  - Integration workers (tooling/external systems)
-  - Domain-facing workers (command submission to domain APIs)
+  - Agentic work steps (coding, review, drafting)
+  - Tooling/external system steps (GitHub, CI, ArgoCD)
+  - Domain-facing steps (command submission to domain APIs)
+
+All worker entrypoints live in the Process primitive worker microservice; it communicates with other primitives via the EDA/RPC seams defined in `backlog/496-eda-principles.md`.
 
 ### 1.2 Human tasks
 
@@ -63,4 +65,3 @@ Zeebe/Operate provide execution history. Ameide may still emit process facts for
 - portability of audit data outside Camunda.
 
 However, the process engine remains the primary execution history for BPMN processes; any “process facts” must not reintroduce hidden control flow outside Zeebe.
-
