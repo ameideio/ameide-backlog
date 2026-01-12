@@ -1,6 +1,6 @@
 ---
 title: "626 – AmeideDevContainerService (Coder-based, human workspaces in AKS dev)"
-status: active
+status: superseded
 owners:
   - platform-devx
   - gitops
@@ -8,6 +8,8 @@ created: 2026-01-11
 ---
 
 # 626 – AmeideDevContainerService (Coder-based, human workspaces in AKS dev)
+
+> Superseded by `backlog/650-agentic-coding-overview.md` and `backlog/652-agentic-coding-dev-workspace.md`.
 
 ## 0) Purpose
 

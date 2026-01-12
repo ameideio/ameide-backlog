@@ -1,8 +1,15 @@
 # 492 – Telepresence Verification Playbook
 
-**Status:** Draft  
+**Status:** Deprecated (historical; superseded by 650 suite)  
 **Owner:** Platform / Developer Experience  
 **Related backlogs:** [435-remote-first-development.md](435-remote-first-development.md), [434-unified-environment-naming.md](434-unified-environment-naming.md), [491-auto-contexts.md](491-auto-contexts.md), [492-telepresence-reliability.md](492-telepresence-reliability.md), [581-parallel-ai-devcontainers.md](581-parallel-ai-devcontainers.md)
+
+> Superseded by the internal-only, Coder-based model:
+> - `backlog/650-agentic-coding-overview.md`
+> - `backlog/653-agentic-coding-test-automation.md`
+> - `backlog/654-agentic-coding-cli-surface.md`
+>
+> This playbook is preserved for historical context only; Telepresence is not a platform dependency in the 650 suite.
 
 ## Problem
 

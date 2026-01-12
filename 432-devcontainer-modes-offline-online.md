@@ -10,6 +10,8 @@
 > - Telepresence workflows are owned by the Ameide CLI (`ameide dev inner-loop verify/up/down`)
 >
 > See [435-remote-first-development.md](435-remote-first-development.md) for the new approach.
+>
+> **Update (2026-01):** 435 itself is superseded by the internal-only, Coder-based model in `backlog/650-agentic-coding-overview.md`.
 
 > **Related documents:**
 > - [435-remote-first-development.md](435-remote-first-development.md) – **NEW**: Remote-first development (single mode)

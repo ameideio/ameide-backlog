@@ -9,6 +9,8 @@
 > - No local k3d cluster or ArgoCD bootstrap
 >
 > See [435-remote-first-development.md](435-remote-first-development.md) for the new approach.
+>
+> **Update (2026-01):** 435 itself is superseded by the internal-only, Coder-based model in `backlog/650-agentic-coding-overview.md`.
 
 > **Related documents:**
 > - [435-remote-first-development.md](435-remote-first-development.md) – **NEW**: Remote-first development architecture

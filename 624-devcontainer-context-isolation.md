@@ -1,8 +1,15 @@
 # 624 – DevContainer Context Isolation (kubectl + Azure + Ameide defaults)
 
-**Status:** Draft  
+**Status:** Deprecated (historical; superseded by 650 suite)  
 **Owner:** Platform / Developer Experience  
 **Related backlogs:** [491-auto-contexts.md](491-auto-contexts.md), [492-telepresence-verification.md](492-telepresence-verification.md), [581-parallel-ai-devcontainers.md](581-parallel-ai-devcontainers.md), [435-remote-first-development.md](435-remote-first-development.md), [613-codex-auth-json-secret.md](613-codex-auth-json-secret.md)
+
+> Superseded by the internal-only, Coder-based model:
+> - `backlog/650-agentic-coding-overview.md`
+> - `backlog/652-agentic-coding-dev-workspace.md`
+> - `backlog/654-agentic-coding-cli-surface.md`
+>
+> This doc is preserved for historical context only; the 650 suite achieves isolation via separate workspaces/tasks and agent profile templates rather than parallel workstation devcontainers.
 
 ## Problem
 

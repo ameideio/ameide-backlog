@@ -10,6 +10,8 @@ created: 2026-01-11
 
 # 629 – AmeideDevContainerService E2E + smoke test specification (Coder workspace)
 
+> Superseded by `backlog/650-agentic-coding-overview.md` and `backlog/653-agentic-coding-test-automation.md`.
+
 ## 0) Purpose
 
 Define an automated validation flow for the Coder-based human workspace (626/628) that proves:
