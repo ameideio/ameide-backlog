@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"
+                  id="Definitions_transformation_r2d_v1_zeebe"
+                  targetNamespace="https://ameide.io/transformation/r2d/v1">
+
+  <bpmn:process id="transformation_r2d_v1" name="transformation.r2d.v1" isExecutable="true">
+    <bpmn:documentation>
+Transformation R2D governance process (Zeebe runtime).
+
+Runtime model:
+- `bpmn:serviceTask` nodes create Zeebe jobs (by `zeebe:taskDefinition type`).
+- A single Process primitive worker microservice owns all job types for this BPMN and completes/fails jobs.
+- `bpmn:userTask` nodes represent explicit human decisions, completed via Tasklist (or Ameide UI bridged to Tasklist semantics).
+
+This BPMN is the canonical sequence shape for 527 and is intended to be executable on Camunda 8 / Zeebe.
+    </bpmn:documentation>
+
+    <bpmn:startEvent id="StartEvent_r2d" name="Start R2D"/>
+
+    <bpmn:subProcess id="SubProcess_requirements" name="transformation.r2d.requirements.v1">
+      <bpmn:documentation>
+Requirements stabilization and readiness gates.
+      </bpmn:documentation>
+      <bpmn:startEvent id="StartEvent_requirements" name="Start Requirements"/>
+
+      <bpmn:userTask id="Task_develop_requirement" name="transformation.r2d.requirements.develop_requirement.v1">
+        <bpmn:documentation>
+Human/agent collaboration to draft and stabilize requirement artifacts.
+        </bpmn:documentation>
+      </bpmn:userTask>
+
+      <bpmn:userTask id="Task_dor_gate" name="transformation.r2d.requirements.dor_gate.v1">
+        <bpmn:documentation>
+Definition-of-Ready (DoR) decision gate.
+        </bpmn:documentation>
+      </bpmn:userTask>
+
+      <bpmn:endEvent id="EndEvent_requirements" name="End Requirements"/>
+
+      <bpmn:sequenceFlow id="Flow_req_1" sourceRef="StartEvent_requirements" targetRef="Task_develop_requirement"/>
+      <bpmn:sequenceFlow id="Flow_req_2" sourceRef="Task_develop_requirement" targetRef="Task_dor_gate"/>
+      <bpmn:sequenceFlow id="Flow_req_3" sourceRef="Task_dor_gate" targetRef="EndEvent_requirements"/>
+    </bpmn:subProcess>
+
+    <bpmn:subProcess id="SubProcess_delivery_loop" name="transformation.r2d.delivery_loop.v1">
+      <bpmn:documentation>
+Delivery loop: implement changes and run verification (fully automated via workers).
+      </bpmn:documentation>
+      <bpmn:startEvent id="StartEvent_delivery_loop" name="Start Delivery Loop"/>
+
+      <bpmn:serviceTask id="Task_code_change" name="transformation.r2d.delivery_loop.code_change.v1">
+        <bpmn:documentation>
+Job type: transformation.r2d.delivery_loop.code_change.v1
+        </bpmn:documentation>
+        <bpmn:extensionElements>
+          <zeebe:taskDefinition type="transformation.r2d.delivery_loop.code_change.v1" retries="3"/>
+        </bpmn:extensionElements>
+      </bpmn:serviceTask>
+
+      <bpmn:serviceTask id="Task_iterate_tests" name="transformation.r2d.delivery_loop.iterate_tests.v1">
+        <bpmn:documentation>
+Job type: transformation.r2d.delivery_loop.iterate_tests.v1
+        </bpmn:documentation>
+        <bpmn:extensionElements>
+          <zeebe:taskDefinition type="transformation.r2d.delivery_loop.iterate_tests.v1" retries="3"/>
+        </bpmn:extensionElements>
+      </bpmn:serviceTask>
+
+      <bpmn:serviceTask id="Task_final_gate" name="transformation.r2d.delivery_loop.final_gate.v1">
+        <bpmn:documentation>
+Job type: transformation.r2d.delivery_loop.final_gate.v1
+        </bpmn:documentation>
+        <bpmn:extensionElements>
+          <zeebe:taskDefinition type="transformation.r2d.delivery_loop.final_gate.v1" retries="3"/>
+        </bpmn:extensionElements>
+      </bpmn:serviceTask>
+
+      <bpmn:endEvent id="EndEvent_delivery_loop" name="End Delivery Loop"/>
+
+      <bpmn:sequenceFlow id="Flow_deliv_1" sourceRef="StartEvent_delivery_loop" targetRef="Task_code_change"/>
+      <bpmn:sequenceFlow id="Flow_deliv_2" sourceRef="Task_code_change" targetRef="Task_iterate_tests"/>
+      <bpmn:sequenceFlow id="Flow_deliv_3" sourceRef="Task_iterate_tests" targetRef="Task_final_gate"/>
+      <bpmn:sequenceFlow id="Flow_deliv_4" sourceRef="Task_final_gate" targetRef="EndEvent_delivery_loop"/>
+    </bpmn:subProcess>
+
+    <bpmn:subProcess id="SubProcess_acceptance" name="transformation.r2d.acceptance.v1">
+      <bpmn:documentation>
+Acceptance stage: validate in preview and capture explicit accept/reject decision.
+      </bpmn:documentation>
+      <bpmn:startEvent id="StartEvent_acceptance" name="Start Acceptance"/>
+
+      <bpmn:serviceTask id="Task_preview_validate" name="transformation.r2d.acceptance.preview_validate.v1">
+        <bpmn:documentation>
+Job type: transformation.r2d.acceptance.preview_validate.v1
+        </bpmn:documentation>
+        <bpmn:extensionElements>
+          <zeebe:taskDefinition type="transformation.r2d.acceptance.preview_validate.v1" retries="3"/>
+        </bpmn:extensionElements>
+      </bpmn:serviceTask>
+
+      <bpmn:userTask id="Task_accept_reject_gate" name="transformation.r2d.acceptance.accept_reject_gate.v1">
+        <bpmn:documentation>
+Acceptance decision gate (accept/reject + feedback).
+        </bpmn:documentation>
+      </bpmn:userTask>
+
+      <bpmn:endEvent id="EndEvent_acceptance" name="End Acceptance"/>
+
+      <bpmn:sequenceFlow id="Flow_acc_1" sourceRef="StartEvent_acceptance" targetRef="Task_preview_validate"/>
+      <bpmn:sequenceFlow id="Flow_acc_2" sourceRef="Task_preview_validate" targetRef="Task_accept_reject_gate"/>
+      <bpmn:sequenceFlow id="Flow_acc_3" sourceRef="Task_accept_reject_gate" targetRef="EndEvent_acceptance"/>
+    </bpmn:subProcess>
+
+    <bpmn:subProcess id="SubProcess_release" name="transformation.r2d.release.v1">
+      <bpmn:documentation>
+Release stage: build/publish, GitOps promotion, rollout verification.
+      </bpmn:documentation>
+      <bpmn:startEvent id="StartEvent_release" name="Start Release"/>
+
+      <bpmn:serviceTask id="Task_build_publish" name="transformation.r2d.release.build_publish.v1">
+        <bpmn:documentation>
+Job type: transformation.r2d.release.build_publish.v1
+        </bpmn:documentation>
+        <bpmn:extensionElements>
+          <zeebe:taskDefinition type="transformation.r2d.release.build_publish.v1" retries="3"/>
+        </bpmn:extensionElements>
+      </bpmn:serviceTask>
+
+      <bpmn:serviceTask id="Task_gitops_promote" name="transformation.r2d.release.gitops_promote.v1">
+        <bpmn:documentation>
+Job type: transformation.r2d.release.gitops_promote.v1
+        </bpmn:documentation>
+        <bpmn:extensionElements>
+          <zeebe:taskDefinition type="transformation.r2d.release.gitops_promote.v1" retries="3"/>
+        </bpmn:extensionElements>
+      </bpmn:serviceTask>
+
+      <bpmn:serviceTask id="Task_rollout_verify" name="transformation.r2d.release.rollout_verify.v1">
+        <bpmn:documentation>
+Job type: transformation.r2d.release.rollout_verify.v1
+        </bpmn:documentation>
+        <bpmn:extensionElements>
+          <zeebe:taskDefinition type="transformation.r2d.release.rollout_verify.v1" retries="3"/>
+        </bpmn:extensionElements>
+      </bpmn:serviceTask>
+
+      <bpmn:endEvent id="EndEvent_release" name="End Release"/>
+
+      <bpmn:sequenceFlow id="Flow_rel_1" sourceRef="StartEvent_release" targetRef="Task_build_publish"/>
+      <bpmn:sequenceFlow id="Flow_rel_2" sourceRef="Task_build_publish" targetRef="Task_gitops_promote"/>
+      <bpmn:sequenceFlow id="Flow_rel_3" sourceRef="Task_gitops_promote" targetRef="Task_rollout_verify"/>
+      <bpmn:sequenceFlow id="Flow_rel_4" sourceRef="Task_rollout_verify" targetRef="EndEvent_release"/>
+    </bpmn:subProcess>
+
+    <bpmn:endEvent id="EndEvent_r2d" name="End R2D"/>
+
+    <bpmn:sequenceFlow id="Flow_r2d_1" sourceRef="StartEvent_r2d" targetRef="SubProcess_requirements"/>
+    <bpmn:sequenceFlow id="Flow_r2d_2" sourceRef="SubProcess_requirements" targetRef="SubProcess_delivery_loop"/>
+    <bpmn:sequenceFlow id="Flow_r2d_3" sourceRef="SubProcess_delivery_loop" targetRef="SubProcess_acceptance"/>
+    <bpmn:sequenceFlow id="Flow_r2d_4" sourceRef="SubProcess_acceptance" targetRef="SubProcess_release"/>
+    <bpmn:sequenceFlow id="Flow_r2d_5" sourceRef="SubProcess_release" targetRef="EndEvent_r2d"/>
+  </bpmn:process>
+</bpmn:definitions>
+
