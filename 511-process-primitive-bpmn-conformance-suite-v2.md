@@ -146,3 +146,20 @@ Instead, test:
 ### 4) Decommission v1 runtime semantics gate
 
 - Keep v1 fixtures for historical context only, but remove them from “required for merge” gates once v2 is green in CI.
+
+## Definition of Done (this conformance suite as a gate)
+
+This suite is “done” when it can be used as the repo front-door smoke for process primitives:
+
+1. **Single fixture, segmented tests**: the positive fixture BPMN exists and the suite runs segments A–G independently.
+2. **Cluster-first execution**: tests run against the dev Camunda cluster (no local runtime required) and are stable under backpressure (retry/backoff + timeouts).
+3. **Orchestration REST API only**: the runner uses Orchestration Cluster REST APIs for deployments/jobs/messages/sequence flows/incidents (Operate/Tasklist APIs are not required for assertions).
+4. **Worker coverage proof**: for every job type in the fixture BPMN, the suite can activate and complete at least one job and observe instance progression.
+5. **Message semantics proof**:
+   - TTL=0 publish before subscription does not progress,
+   - TTL>0 publish before subscription progresses once subscription opens,
+   - duplicate buffered `(name, correlationKey, messageId)` does not create a second buffered message,
+   - correlation is applied once (no tests assume “one message satisfies multiple waits”).
+6. **Timer semantics proof**: timer-driven path is taken with “not earlier” assertion.
+7. **Incident semantics proof**: failing a job with no retries remaining yields an incident searchable for the instance.
+8. **Actionable diagnostics**: on failure/timeouts, the suite emits enough diagnostics (instance key, last sequence flows, incident search results, last activation failures) to debug quickly in dev.
