@@ -28,7 +28,9 @@ In v2, a Process primitive is:
 
 Automation and verification should primarily use the **Camunda 8 Orchestration Cluster REST API** (deployments, jobs, messages, incidents, variables/sequence flows).
 
-The Process primitive is **not** a Temporal worker image generated from BPMN.
+In addition, the Process primitive includes a single **worker microservice image** that implements **all Zeebe job workers required by that BPMN** (all `zeebe:taskDefinition type="..."` in the process definition).
+
+The Process primitive is **not** a Temporal workflow service generated from BPMN.
 
 ## 2) BPMN extensions: what they mean now (design-time only)
 
@@ -51,11 +53,13 @@ Zeebe executes BPMN; Ameide verifies that the process is safe/operable and that 
 
 Zeebe orchestrates; **workers perform side effects**.
 
-In Ameide terms, the workers should be implemented as primitives:
+**Normative packaging rule (v2):** for BPMN-authored processes, the Zeebe workers live in the **Process primitive worker microservice** (one image per process primitive), not scattered across other primitives.
 
-- **Agent primitives**: implement coding/design tasks as Zeebe job workers.
-- **Integration primitives**: implement tool executions, CI operations, GitHub interactions, etc., as Zeebe job workers.
-- **Domain primitives**: remain the system of record; workers call domain APIs/commands; domains emit facts.
+Those workers may trigger work in other primitives, but they do so by following `backlog/496-eda-principles.md`:
+
+- **Domains** remain the system of record; they publish facts after persistence (outbox).
+- The Process primitive requests changes/work in other primitives using the chosen canonical EDA seam (RPC or bus intents, depending on the owning primitive’s ingress posture), and observes resulting facts/events.
+- If the BPMN uses message waits (`message catch` / `receiveTask`), the Process primitive is responsible for bridging external facts into Zeebe message correlation (explicit adapter behavior; no hidden engine semantics).
 
 The process engine MUST NOT become a canonical state store. It coordinates, it doesn’t own truth.
 

@@ -8,7 +8,11 @@ We adopt a Camunda-only orchestration posture for Ameide business capabilities:
 
 1. **BPMN-authored processes execute on Camunda 8 / Zeebe.**
    - BPMN is the runnable program (engine semantics).
-   - “Process primitive” remains a first-class concept, but it means “BPMN definition + worker implementations + verification”, not “Temporal workflow service”.
+   - “Process primitive” remains a first-class concept, but it means:
+     - **BPMN definition deployed to Zeebe**, plus
+     - **one worker microservice image that implements all Zeebe job types used by that BPMN**, plus
+     - verification/conformance (“diagram must not lie”),
+     not “Temporal workflow service”.
 2. **Temporal is platform-only** (internal platform concerns) and is **not part of Ameide business capabilities** or BPMN-driven orchestration.
 3. The BPMN→Temporal transpilation/compile-to-IR effort is **discontinued** (no backward compatibility layers).
 
@@ -32,7 +36,7 @@ The following v2 platform constitution remains true:
 - Process primitives = Temporal workflows + Activities/Updates, optionally derived from BPMN via compilation.
 
 **Now (v3):**
-- BPMN-authored Process primitives = Zeebe deployments + workers that implement side effects.
+- BPMN-authored Process primitives = Zeebe deployments + a Process worker microservice that implements all required job workers for that process.
 - Temporal is not used as an execution engine for Ameide business capability orchestration.
 
 ### B) Meaning of BPMN extensions changes
