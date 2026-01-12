@@ -1,5 +1,8 @@
 # 527 Transformation - E2E Execution Sequence (Triage; Functional)
 
+> **DEPRECATED (2026-01-12):** Superseded by the Zeebe-based sequence.  
+> See `backlog/527-transformation-e2e-sequence-v4.md`.
+
 **Status:** Draft  
 **Parent:** `backlog/527-transformation-e2e-sequence.md`
 
@@ -17,4 +20,3 @@ Turn intake into a promotable slice: gather context, draft artifacts, and conver
 
 - Draft artifacts ready for DoR gate
 - Optional: start a durable run and emit `PhaseEntered(phase_key=triage)` as a process fact
-

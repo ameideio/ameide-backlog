@@ -1,5 +1,9 @@
 # 511 – Process Primitive Scaffolding (Go, opinionated)
 
+> **DEPRECATED (2026-01-12):** This document describes the v1 direction: **BPMN compiled/transpiled into Temporal** for Process primitives.  
+> Current direction: **BPMN-authored processes execute on Zeebe (Camunda 8)**; Temporal is platform-only and not part of Ameide business capabilities.  
+> See `backlog/511-process-primitive-scaffolding-v2.md`.
+
 This backlog defines the **canonical target scaffold** for **Process** primitives.
 
 - **Audience:** AI agents, Go developers, CLI implementers

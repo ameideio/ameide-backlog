@@ -1,5 +1,8 @@
 # 527 Transformation - E2E Execution Sequence (Intake; Functional)
 
+> **DEPRECATED (2026-01-12):** Superseded by the Zeebe-based sequence.  
+> See `backlog/527-transformation-e2e-sequence-v4.md`.
+
 **Status:** Draft  
 **Parent:** `backlog/527-transformation-e2e-sequence.md`
 
@@ -20,4 +23,3 @@ Capture the initial question/need and establish enough scope context to decide w
 ## Constraints
 
 - No WorkRequest delegation is implied by intake; delegated work should be explicit and usually begins in `triage`/`execution`.
-

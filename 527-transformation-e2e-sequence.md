@@ -1,5 +1,9 @@
 # 527 Transformation - E2E Execution Sequence (Document Set Index)
 
+> **DEPRECATED (2026-01-12):** This E2E sequence set assumes a Temporal-backed orchestration posture for BPMN-authored processes.  
+> Current direction: BPMN-authored processes execute on **Camunda 8 / Zeebe**.  
+> See `backlog/527-transformation-e2e-sequence-v4.md`.
+
 **Status:** Draft (normative intent; implementation exists for Transformation work execution)  
 **Parent:** `backlog/527-transformation-capability.md`
 
@@ -25,4 +29,3 @@ This document is an index. The E2E execution sequence is split into a per-phase 
   - `backlog/527-transformation-e2e-sequence-terminal-implementation.md`
 
 Hard rule (shared across the set): workflows progress on workflow-local state, Activity results, and explicit user task completions; domain facts are audit/projection inputs and must not be used as internal workflow step-completion control flow.
-

@@ -1,5 +1,8 @@
 # 527 Transformation - E2E Execution Sequence (Release; Implementation)
 
+> **DEPRECATED (2026-01-12):** Superseded by the Zeebe-based sequence.  
+> See `backlog/527-transformation-e2e-sequence-v4.md`.
+
 **Status:** Draft  
 **Parent:** `backlog/527-transformation-e2e-sequence.md`
 
@@ -9,4 +12,3 @@
 | Build/publish artifacts | Activity requests publish step (or triggers CI via Integration) | Intent: publish execution intent; Facts: work lifecycle + evidence | CI/build system produces digest-pinned images | UI shows build status + produced digest(s) |
 | Promote environments | Activity waits for promotion outcome (poll/timeout/heartbeat) | Facts: release/promote outcomes emitted by owning domain(s) | GitOps promotion is a Git change per `backlog/611-trunk-based-main-and-gitops-environment-promotion.md` | UI shows promotion timeline + PR links |
 | Close the run | Emit terminal process fact | Fact: `RunCompleted` / `RunFailed` | Infra is operational only | UI shows final status + evidence pointers |
-

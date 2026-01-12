@@ -1,5 +1,8 @@
 # 527 Transformation - E2E Execution Sequence (Overview; Implementation)
 
+> **DEPRECATED (2026-01-12):** Superseded by the Zeebe-based sequence.  
+> See `backlog/527-transformation-e2e-sequence-v4.md`.
+
 **Status:** Draft  
 **Parent:** `backlog/527-transformation-e2e-sequence.md`  
 **Related:** `backlog/527-transformation-domain.md`, `backlog/527-transformation-proto.md`, `backlog/527-transformation-integration.md`
@@ -17,4 +20,3 @@
 7. Workflow emits process facts for the timeline; projection joins process facts + domain facts.
 
 Hard rule: executors (in-cluster or external) do not publish facts; they only call the owning Domain write surface; the Domain emits facts (outbox).
-

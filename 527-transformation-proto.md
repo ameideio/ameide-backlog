@@ -1,5 +1,9 @@
 # 527 Transformation — Proto Contract Specification
 
+> **DEPRECATED (2026-01-12):** This document includes compile-to-Temporal / “Temporal-backed execution” posture language for BPMN-authored processes.  
+> Current direction: BPMN-authored Process primitives execute on **Camunda 8 / Zeebe**; Temporal remains for coded platform workflows.  
+> See `backlog/527-transformation-proto-v2.md`.
+
 **Status:** Draft (core envelope unification pending; legacy UI façade removed)  
 **Parent:** [527-transformation-capability.md](527-transformation-capability.md)
 

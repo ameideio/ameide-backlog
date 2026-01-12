@@ -1,5 +1,9 @@
 # 511 – Process Primitive Scaffolding Refactoring (BPMN → Temporal runner, v1)
 
+> **DEPRECATED (2026-01-12):** This refactor plan is for the v1 “compile BPMN into Temporal runner code” approach.  
+> New direction: BPMN-authored processes execute on Zeebe (Camunda 8) and the transpilation effort is discontinued.  
+> See `backlog/511-process-primitive-scaffolding-v2.md`.
+
 This document closes the remaining “open questions” for the v1 BPMN extension profile and defines a single, consistent direction for refactoring the scaffolder into a **Go-only, self-contained compiler pipeline**.
 
 Scope: **compile BPMN + `ameide:*` extensions into a generic Temporal runner skeleton** that a coding agent can complete (activity bodies, ingress bindings, domain semantics).
