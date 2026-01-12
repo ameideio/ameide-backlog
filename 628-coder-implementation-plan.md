@@ -43,7 +43,7 @@ Implementation reference:
 - Workspace template Terraform:
   - `sources/coder/templates/ameide-dev/` (template name `ameide-dev`)
   - `sources/coder/templates/ameide-gitops/` (template name `ameide-gitops`)
-- Default repo/devcontainer contract: `github.com/ameideio/ameide` + `.devcontainer`
+- Default repo/devcontainer contract: `github.com/ameideio/ameide` + `.devcontainer/coder`
 - Web IDE: code-server sidecar exposed via `coder_app` (no runtime curl installs)
 
 ## 1.1 Install mechanics (GitOps-owned)
@@ -126,7 +126,7 @@ This eliminates the need for per-workspace Vault/ESO resources and avoids a shar
 
 ### Phase 0 — Decisions (blockers to unblock implementation)
 
-1. Confirm envbuilder specifics for strict `.devcontainer` parity (no fallback):
+1. Confirm envbuilder specifics for strict `.devcontainer/coder` parity (no fallback):
    - base image (digest pinned)
    - builder image (digest pinned)
    - caching strategy (none vs registry-backed) and registry auth
