@@ -1,5 +1,9 @@
 # Ameide BPMN Execution Profile v1 and Process Primitive Compiler v1
 
+> **DEPRECATED (2026-01-12):** This is the v1 spec for **BPMN → compiler → Temporal runner**.  
+> New direction: BPMN-authored processes execute on Zeebe; Ameide extensions become design-time worker contracts (no transpilation).  
+> See `backlog/511-process-primitive-scaffolding-v2.md`.
+
 Complete software implementation specification with zero open decisions
 
 This document is the **normative**, **fully closed** implementation specification for:

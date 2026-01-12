@@ -1,5 +1,9 @@
 # 511 – BPMN Extensions for Process Primitive Scaffolding (direction)
 
+> **DEPRECATED (2026-01-12):** This document describes Ameide BPMN extensions as compilation inputs for a Temporal-backed Process primitive (v1).  
+> New direction: BPMN-authored processes execute on Zeebe; Ameide extensions are design-time contracts for worker/agent side-effects and verification, not transpilation directives.  
+> See `backlog/511-process-primitive-scaffolding-v2.md`.
+
 This document captures the direction for an Ameide-owned **BPMN extension profile** that makes BPMN models **scaffoldable** into a **Temporal-backed Process primitive** with low ambiguity and strong validation.
 
 The point of these extensions is not to fully specify the implementation. The point is to make the model a **compilable contract** so scaffolding (and a coding agent) can produce a consistent, testable skeleton.
