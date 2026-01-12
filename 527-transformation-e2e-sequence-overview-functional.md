@@ -1,5 +1,8 @@
 # 527 Transformation - E2E Execution Sequence (Overview; Functional)
 
+> **DEPRECATED (2026-01-12):** Superseded by the Zeebe-based sequence.  
+> See `backlog/527-transformation-e2e-sequence-v4.md`.
+
 **Status:** Draft  
 **Parent:** `backlog/527-transformation-e2e-sequence.md`  
 **Related:** `backlog/520-primitives-stack-v2.md`, `backlog/496-eda-principles.md`, `backlog/527-transformation-process.md`
@@ -45,4 +48,3 @@ Everything else MUST be automated via `serviceTask`/Activities/WorkRequests.
 6. **At-least-once everywhere**: Kafka delivery is at-least-once; Activities may run more than once; all writes MUST be idempotent.
 7. **No internal EDA control flow**: workflows MUST NOT advance step progression by consuming broker facts.
 8. **No “activities-only orchestration”**: long-lived state + gate decisions live in Workflows; Activities remain retryable side effects only (and may heartbeat while waiting).
-

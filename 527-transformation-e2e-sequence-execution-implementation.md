@@ -1,5 +1,8 @@
 # 527 Transformation - E2E Execution Sequence (Execution; Implementation)
 
+> **DEPRECATED (2026-01-12):** Superseded by the Zeebe-based sequence.  
+> See `backlog/527-transformation-e2e-sequence-v4.md`.
+
 **Status:** Draft  
 **Parent:** `backlog/527-transformation-e2e-sequence.md`
 
@@ -20,4 +23,3 @@
 - The AgentWork "coder" executor expects authenticated Codex CLI via an `auth.json` file.
 - In-cluster, infra mounts `Secret/codex-auth` and sets `CODEX_HOME=/codex-home` (initContainer copies `auth.json` into place).
 - If `codex-auth` is missing, the executor fails fast and records a failed WorkRequest outcome (Domain emits facts via outbox).
-

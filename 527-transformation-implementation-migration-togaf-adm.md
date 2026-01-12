@@ -1,5 +1,8 @@
 # 527 Transformation — Implementation Plan (TOGAF ADM overlay)
 
+> **DEPRECATED (2026-01-12):** Superseded by the Zeebe-based Process primitive posture.  
+> See `backlog/527-transformation-process-v2.md`.
+
 **Status:** Draft  
 **Parent:** `backlog/527-transformation-implementation-migration.md`  
 **Scenario:** `backlog/527-transformation-scenario-togaf-adm.md`

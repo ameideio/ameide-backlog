@@ -1,5 +1,8 @@
 # 527 Transformation — Implementation Plan (target-state, no migration shims)
 
+> **DEPRECATED (2026-01-12):** This implementation plan assumes a Temporal-backed Process primitive posture for BPMN-authored processes.  
+> Current direction: BPMN-authored processes execute on **Camunda 8 / Zeebe**; see `backlog/527-transformation-process-v2.md`.
+
 **Status:** Draft (implementation in progress)  
 **Parent:** `backlog/527-transformation-capability.md`
 
