@@ -1285,8 +1285,8 @@ export async function POST(request: Request) {
 
 **www-ameide-platform:**
 - [ ] `AMEIDE_GRPC_BASE_URL` (server-only internal gRPC endpoint; `http://envoy-grpc:9000`)
-- [ ] `NEXT_PUBLIC_ENVOY_URL` (public/browser config; typically `https://api.<env>.ameide.io`)
-  - Cross-reference: see [589-rpc-transport-determinism.md](../589-rpc-transport-determinism.md) for the deterministic Connect (browser) vs gRPC (server) boundary and why `grpc-internal` must be non-public.
+- [ ] **Update (648):** no `NEXT_PUBLIC_*` RPC endpoints for cluster deployments; browsers use same-origin BFF routes (`/api/*`).
+  - Cross-reference: see [589-rpc-transport-determinism.md](../589-rpc-transport-determinism.md) for the deterministic browser/BFF vs server gRPC boundary and why `grpc-internal` must be non-public.
 
 ### Gateway Configuration
 
@@ -2353,8 +2353,7 @@ kubectl get svc -n ameide | grep threads
 ```bash
 # www-ameide-platform
 AMEIDE_GRPC_BASE_URL=http://envoy-grpc:9000
-NEXT_PUBLIC_ENVOY_URL=https://api.<env>.ameide.io
-NEXT_PUBLIC_TENANT_ID=atlas-org
+# Browsers use same-origin BFF routes (/api/*); no NEXT_PUBLIC_* RPC config in cluster deployments.
 
 # threads-service
 POSTGRES_HOST=postgres-platform-rw

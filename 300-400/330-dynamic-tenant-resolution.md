@@ -339,7 +339,7 @@ export async function GET(request: Request) {
 `www-ameide-platform` must derive **tenant + org** exclusively from the auth session (JWT claims + middleware headers), not from environment defaults.
 
 - Dev data determinism comes from **GitOps seeding + verification** (see [582 – Local Dev Seeding](../582-local-dev-seeding.md)), not app fallbacks.
-- Telepresence should only require connectivity-critical env vars (e.g., `AMEIDE_ENVOY_URL`, `NEXT_PUBLIC_ENVOY_URL`). Org defaults are deprecated/test-only.
+- **Update (648):** Telepresence should only require connectivity-critical env vars (e.g., `AMEIDE_GRPC_BASE_URL`). Org defaults and browser RPC env vars are not part of the runtime contract.
 
 If tests need an explicit org ID/slug, use a **test-only entrypoint/fixture** rather than runtime fallbacks (e.g. `WWW_AMEIDE_PLATFORM_ORG_ID` for integration tests).
 

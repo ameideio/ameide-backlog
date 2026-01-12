@@ -7,7 +7,7 @@
 **Status:** Draft  
 **Motivation:** Playwright and integration jobs now run inside the cluster, but our repo, Helm values, and docs still hard-code `platform.dev.ameide.io` on port 8443 (deprecated). Envoy only exposes HTTPS on 443 internally, so anything that insists on the old port stalls. We need one canonical development hostname on a subdomain we control (`*.dev.ameide.io`) and the default HTTPS port everywhere so laptops, CI, and cluster workloads behave identically without clashing with Bonjour/mDNS.
 
-> **Update:** Auth.js v5 contract uses `AUTH_URL` (+ `AUTH_TRUST_HOST=true` behind gateways/proxies). Cluster E2E for `www_ameide_platform` targets the ingress host via `AMEIDE_PLATFORM_BASE_URL` (not generic `BASE_URL`). See `backlog/648-config-secrets-taxonomy-ci-only-deploy.md`.
+> **Update:** Auth.js v5 contract uses `AUTH_URL` and enforces `trustHost: true` in application code (no `AUTH_TRUST_HOST` knob). Cluster E2E for `www_ameide_platform` targets the ingress host via `AMEIDE_PLATFORM_BASE_URL` (not generic `BASE_URL`). See `backlog/648-config-secrets-taxonomy-ci-only-deploy.md`.
 
 ---
 

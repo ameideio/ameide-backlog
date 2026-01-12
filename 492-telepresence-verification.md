@@ -121,8 +121,8 @@ GitOps posture reference (traffic-agent injection is opt-in):
 
 For `www-ameide-platform`, verification should focus on **connectivity-critical** env vars (not org defaults):
 
-- `AMEIDE_ENVOY_URL` – server-side Envoy endpoint for gRPC/Connect RPC (in-cluster: typically `http://envoy-grpc:9000`)
-- `NEXT_PUBLIC_ENVOY_URL` – browser-facing API base URL (e.g. `https://api.local.ameide.io`)
+- **Update (648):** `www-ameide-platform` no longer relies on browser RPC env vars (`NEXT_PUBLIC_*`) or server fallbacks.
+- `AMEIDE_GRPC_BASE_URL` – **server-only** Envoy endpoint for gRPC/Connect RPC (in-cluster: typically `http://envoy-grpc:9000`)
 
 Tenant + organization context must come from the **auth session** (JWT + middleware headers). Do **not** gate Telepresence verification on legacy org-default env vars (`AUTH_DEFAULT_ORG`, `NEXT_PUBLIC_DEFAULT_ORG`, `WWW_AMEIDE_PLATFORM_ORG_ID`); treat them as deprecated/test-only.
 
@@ -153,7 +153,7 @@ If either command fails, sync `*-traffic-manager`, fix the RBAC templates under 
 | `no active session` | `rpc error: code = Unavailable desc = no active session` | Known upstream bug tracked in reliability backlog | Collect logs, reference NO-SESSION-1 in [492-telepresence-reliability.md](492-telepresence-reliability.md#known-issues-dec-2025). |
 | `connector.Connect: NewTunnelVIF: netlink.RuleAdd: operation not permitted` | Immediate failure during the connect step | Environment lacks `CAP_NET_ADMIN` (GitOps devcontainer) | Run the helper from a shell that exposes NET_ADMIN (host, privileged devcontainer). You can still capture `kubectl` + traffic-manager diagnostics inside GitOps, but mark the run as “connectivity only” and skip intercept assertions. |
 | `connector.CreateIntercept: rpc error: code = DeadlineExceeded desc = context deadline exceeded` (local) | Intercept times out on `ameide-local` | k3d/k3s control-plane can’t reach Telepresence admission webhook due to default-deny `NetworkPolicy/deny-cross-environment` | Fix the cluster policy (preferred), or as a stopgap run `tools/dev/bootstrap-contexts.sh --target ameide-local` which applies a narrow `NetworkPolicy/allow-control-plane-webhooks` for Telepresence. |
-| `Envoy env vars missing` | Service runner fails fast with `AMEIDE_ENVOY_URL/NEXT_PUBLIC_ENVOY_URL not found` | GitOps values missing `services.www_ameide_platform.envoy.url` or `NEXT_PUBLIC_ENVOY_URL` | Update values, re-sync Argo, and rerun `ameide dev inner-loop up`. |
+| `Envoy env vars missing` | Service runner fails fast with `AMEIDE_GRPC_BASE_URL not set` | GitOps values missing `envoy.url` for `www-ameide-platform` | Update values, re-sync Argo, and rerun `ameide dev inner-loop up`. |
 
 ## Escalation bundle
 

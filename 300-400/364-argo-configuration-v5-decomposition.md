@@ -42,7 +42,7 @@ gitops/
 
 > **Values + charts layout:** environment overrides and charts now live inside the GitOps repo (`sources/values/<env>/{foundation,platform,apps,tests}` and `sources/charts/{foundation,platform-layers,apps,...}`). Component metadata references those paths via the `chart` block, so Argo needs only the GitOps repo to render everything.
 
-> **Required value (Dec 2025):** the `www-ameide-platform` chart must emit Envoy endpoints used by Telepresence/local dev (e.g. `AMEIDE_ENVOY_URL`, `NEXT_PUBLIC_ENVOY_URL`). Tenant/org defaults must come from the auth session; legacy org-default env vars are deprecated/test-only and should not gate Helm rendering.
+> **Update (648):** the `www-ameide-platform` chart must emit the **server-only** gRPC upstream base URL used by Telepresence/local dev (`AMEIDE_GRPC_BASE_URL`). Cluster deployments must not rely on browser RPC env vars (`NEXT_PUBLIC_*`). Tenant/org defaults must come from the auth session; legacy org-default env vars are deprecated/test-only and should not gate Helm rendering.
 
 ---
 

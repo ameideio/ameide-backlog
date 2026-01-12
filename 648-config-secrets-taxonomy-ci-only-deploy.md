@@ -73,22 +73,17 @@ Non-sensitive configuration that can be safely stored in Git and rendered by Hel
      - HTTPRoute hostnames for the app
      - Cookie domain scoping
 
-2. **Public API Gateway URL** (browser-visible API origin)
-   - Example: `https://api.dev.ameide.io`
-   - Source of truth: GitOps values (`envoy.publicUrl`)
-   - Output env: `NEXT_PUBLIC_ENVOY_URL`, `NEXT_PUBLIC_WS_URL` (see “Build-time vs runtime” below)
-
-3. **Internal RPC URL** (server-to-server inside cluster)
+2. **Internal RPC URL** (server-to-server inside cluster)
    - Example: `http://envoy-grpc:9000`
    - Source of truth: GitOps values (`envoy.url`)
    - Output env: `AMEIDE_GRPC_BASE_URL`
 
-4. **Identity Provider (IDP) Public Issuer**
+3. **Identity Provider (IDP) Public Issuer**
    - Example: `https://auth.dev.ameide.io/realms/ameide`
    - Source of truth: GitOps values (`keycloak.issuer`)
    - Output env: `AUTH_KEYCLOAK_ISSUER`
 
-5. **Identity Provider Internal Base** (optional)
+4. **Identity Provider Internal Base** (optional)
    - Example: `http://keycloak:8080`
    - Source of truth: GitOps values (`keycloak.internalBase`)
    - Output env: `AUTH_INTERNAL_KEYCLOAK_BASE`, plus derived token/userinfo/jwks/revoke endpoints where needed.
@@ -96,11 +91,13 @@ Non-sensitive configuration that can be safely stored in Git and rendered by Hel
 ### Environment Variable Categories
 
 - **`*_URL` / `*_BASE_URL`**: must be classified as either public canonical, public API, internal RPC, or IDP.
-- **`NEXT_PUBLIC_*`**: browser-reachable only. Never required for server-side RPC.
+- **Browser (`NEXT_PUBLIC_*`)**:
+  - **Not allowed for cluster deployments** in AMEIDE: client bundles must remain environment-invariant under digest promotion.
+  - Client-visible endpoints/config must be provided via **runtime mechanisms** (server-rendered config, bootstrap JSON, etc.), not compile-time `NEXT_PUBLIC_*`.
 - **`AUTH_*`**:
   - Authoritative (Auth.js v5): `AUTH_*` are the canonical settings/inputs.
   - `AUTH_URL` is a setting (ConfigMap).
-  - `AUTH_TRUST_HOST` is a required setting behind gateways/proxies (ConfigMap).
+  - `trustHost: true` is required in gateway/proxy deployments and is enforced in application code (not an env-var knob).
   - `AUTH_SECRET` and provider secrets are secrets (ExternalSecrets).
 - **Test harness vars**:
   - CI/e2e-only vars must be prefixed or clearly documented.
@@ -108,16 +105,65 @@ Non-sensitive configuration that can be safely stored in Git and rendered by Hel
 
 ### Build-time vs Runtime (Critical for Next.js + Digest Promotion)
 
-Next.js `NEXT_PUBLIC_*` variables are typically **inlined at build time into browser bundles**. This creates a fundamental constraint:
+Next.js `NEXT_PUBLIC_*` variables are **inlined at build time into browser bundles**. This creates a fundamental constraint:
 
 - If we promote **one immutable image digest** across environments (dev → staging → prod), then any **environment-specific value used in browser JS must not rely on build-time inlining**, otherwise dev values can leak into prod bundles.
 
 Policy:
 
-- Any value that varies per environment and is consumed by **client-side code** must be provided via a **runtime mechanism** (e.g., server-rendered config, API endpoint, HTML bootstrap) or we must accept **per-environment builds** for that frontend artifact.
-- Any `NEXT_PUBLIC_*` usage must be explicitly classified as either:
-  - **Build-time input** (requires per-env build) or
-  - **Runtime-provided to the browser** (do not rely on `NEXT_PUBLIC_*`).
+- For AMEIDE cluster deployments, **do not use `NEXT_PUBLIC_*` for environment-specific values**.
+- Client-visible config must be runtime-provided by the server (or derived from same-origin requests).
+
+## URL & Auth Variable Map (Where Values Live Today)
+
+This is the “answer in 60 seconds” map for URL-related inputs across Terraform, GitOps, Kubernetes, and CI.
+
+### Public hostnames (DNS + Gateway)
+
+- **Terraform (DNS)** owns the records:
+  - `platform.<env>.ameide.io` → Gateway/ingress address
+  - `auth.<env>.ameide.io` → Keycloak gateway route
+  - `api.<env>.ameide.io` → Envoy/API gateway route
+- **GitOps (Gateway API HTTPRoute)** owns the hostnames actually served by the cluster:
+  - `www-ameide-platform` HTTPRoute hostnames (must include `platform.<env>.ameide.io`)
+  - Keycloak HTTPRoute hostnames (must include `auth.<env>.ameide.io`)
+
+### Runtime settings (ConfigMaps via GitOps)
+
+`www-ameide-platform` must get these from a ConfigMap rendered by the `ameide-gitops` chart values:
+
+- `AUTH_URL`
+  - **Owner/source**: GitOps values (`auth.url`)
+  - **Surface**: `ConfigMap/www-ameide-platform-config` → pod env
+- `AMEIDE_GRPC_BASE_URL`
+  - **Owner/source**: GitOps values (`envoy.url`)
+  - **Surface**: ConfigMap → pod env
+- Keycloak settings (issuer + explicit endpoints)
+  - **Owner/source**: GitOps values (`keycloak.issuer`, `keycloak.authorizationUrl`, `keycloak.tokenUrl`, `keycloak.userinfoUrl`, `keycloak.jwksUrl`, `keycloak.revokeUrl`, optional `keycloak.internalBase`)
+  - **Surface**: ConfigMap → pod env
+
+### Runtime secrets (KV → ExternalSecrets → Kubernetes Secret)
+
+`www-ameide-platform` must get these from a Kubernetes `Secret` produced by ExternalSecrets:
+
+- `AUTH_SECRET`
+- `AUTH_KEYCLOAK_SECRET`
+- `AUTH_KEYCLOAK_ADMIN_CLIENT_SECRET`
+
+Contract:
+
+- **Owner/source**: Key Vault (KV)
+- **Delivery**: ExternalSecrets (ESO) → Kubernetes `Secret/www-ameide-platform-auth`
+- **Consumption**: Deployment `envFrom.secretRef` (no inline secret values in values/ConfigMaps)
+
+### Test-only base URL (CI/E2E runner)
+
+- `AMEIDE_PLATFORM_BASE_URL`
+  - **Owner/source**: CI/runner contract (not a runtime setting)
+  - **Where set today**:
+    - GitHub workflows (`.github/workflows/*`) often set it explicitly for dev-cluster runs.
+    - `ameide dev inner-loop-test` can derive it from the cluster HTTPRoute and export it for Playwright.
+  - **Used by**: Playwright baseURL (`services/www_ameide_platform/playwright.config.ts`)
 
 ## Repository Contract (Single Source of Truth)
 
@@ -135,7 +181,7 @@ Policy:
 - Owns per-environment values for:
   - canonical public host (`auth.url`)
   - cookie domain (`auth.cookies.domain`)
-  - gateway public/internal URLs (`envoy.publicUrl`, `envoy.url`)
+  - server-only gRPC base URL (`envoy.url`)
   - Keycloak issuer and endpoints (`keycloak.*`)
 
 ### Application Repos
@@ -183,18 +229,17 @@ Policy:
 - Helm guardrails:
   - Fail template render if any secret is set inline in values (except explicit dev-only fixtures when permitted).
   - Fail template render if canonical URL + HTTPRoute hostname mismatch (when both are present).
-  - Fail template render if Auth.js proxy requirements are violated (canonical URL present but `AUTH_TRUST_HOST` not set true in gateway deployments).
+  - Fail template render if any `NEXT_PUBLIC_*` keys are emitted for `www-ameide-platform` (cluster path).
 - Policy guardrails:
   - CI check rejects commits that add known secret patterns to values/configmaps.
   - CI check ensures `AUTH_URL` is set for any environment where auth is enabled.
-  - CI check classifies `NEXT_PUBLIC_*` variables as build-time vs runtime and rejects environment-dependent “build-time” usage under digest promotion.
+  - CI check rejects `NEXT_PUBLIC_*` usage for cluster deployments (digest promotion invariant).
 
 ### Phase 2 – Reduce “duplicate URL knobs”
 
 - Prefer a small set of source inputs in values:
   - `auth.url`, `auth.cookies.domain`
-  - `auth.trustHost` (render `AUTH_TRUST_HOST`)
-  - `envoy.url`, `envoy.publicUrl`, `websocket.publicUrl`
+  - `envoy.url`
   - `keycloak.issuer`, `keycloak.internalBase`
 - Derive the rest where possible (token/jwks/userinfo/revoke endpoints) to reduce per-env churn and drift.
 
@@ -221,7 +266,7 @@ Policy:
 
 - `helm template` renders for all env overlays without secret material in ConfigMaps.
 - Secret scan for values/templates rejects known sensitive keys.
-- ConfigMap contains required URL settings (canonical/public/internal) with expected formats.
+- ConfigMap contains required settings with expected formats (`AUTH_URL`, `AMEIDE_GRPC_BASE_URL`, Keycloak endpoints), and contains **no** `NEXT_PUBLIC_*` keys for cluster deployments.
 - ExternalSecrets manifests reference KV keys and do not inline secret values.
 
 ### Runtime Verification (Cluster)
@@ -233,7 +278,8 @@ Policy:
 - App pod has:
   - URL settings in env from ConfigMap,
   - secrets in env from Secret,
-  - no secrets present in ConfigMap.
+  - no secrets present in ConfigMap,
+  - no `NEXT_PUBLIC_*` runtime config for cluster deployments.
 - Login flow:
   - Cookies scoped correctly (`AUTH_COOKIE_DOMAIN`) so sessions survive redirects.
 - E2E/inner-loop tests:
@@ -254,6 +300,6 @@ Policy:
 
 ## Notes / Related Backlogs
 
-- Onboarding and cookie-domain alignment discussions: `319-onboarding-v2.md`.
-- E2E base URL expectations: `371-e2e-playwright.md`.
-- Domain standardization efforts: `366-local-domain-standardization.md`.
+- Onboarding and cookie-domain alignment discussions: `backlog/300-400/319-onboarding-v2.md`.
+- E2E base URL expectations: `backlog/300-400/371-e2e-playwright.md`.
+- Domain standardization efforts: `backlog/300-400/366-local-domain-standardization.md`.
