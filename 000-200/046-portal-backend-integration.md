@@ -467,8 +467,8 @@ AUTH0_ISSUER_BASE_URL=https://your-tenant.auth0.com
 AUTH0_CLIENT_ID=your-client-id
 AUTH0_CLIENT_SECRET=your-client-secret
 AUTH0_AUDIENCE=https://api.ameide.io
-NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=your-secret-key
+AUTH_URL=http://localhost:3000
+AUTH_SECRET=your-secret-key
 
 # Feature Flags
 NEXT_PUBLIC_ENABLE_WEBSOCKET=true

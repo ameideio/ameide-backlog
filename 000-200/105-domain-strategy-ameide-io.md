@@ -9,6 +9,8 @@
 
 **Related backlogs**: [589-rpc-transport-determinism.md](../589-rpc-transport-determinism.md), [417-envoy-route-tracking.md](../417-envoy-route-tracking.md), [454-coredns-cluster-scoped.md](../454-coredns-cluster-scoped.md)
 
+> **Update:** Auth.js v5 naming uses `AUTH_URL`/`AUTH_SECRET`. Any `NEXTAUTH_*` references in older docs are legacy and should not be introduced in new values/config.
+
 ## Executive Summary
 
 Implement consistent domain naming across all environments. Local development uses `.test` domains for safety, while staging/production use `.io` domains. This ensures OAuth flows work correctly in each environment.
@@ -1895,7 +1897,7 @@ Love it. Here’s a clean, incremental rollout where every step is independently
 ### Step 0.1 — Helm helpers + env naming
 
 **Goal:** Deterministic URLs across envs; no templating in values files.
-**Do:** Add `_helpers.tpl` (your `ameide.*` helpers). Standardize to `NEXTAUTH_URL` (keep `PLATFORM_URL` as fallback).
+**Do:** Add `_helpers.tpl` (your `ameide.*` helpers). Standardize to `AUTH_URL` (keep `PLATFORM_URL` as fallback).
 **Test:**
 
 ```bash
@@ -1976,7 +1978,7 @@ curl -i http://api.dev.ameide.io:8080/ameide.core.cqrs.query.v1.QueryService/Hea
 **Goal:** Full login flow using .test domains.
 **Status:** ✅ Complete - OAuth working with .test domains
 **Configuration:**
-* `NEXTAUTH_URL=https://platform.dev.ameide.io`
+* `AUTH_URL=https://platform.dev.ameide.io`
 * `AUTH_KEYCLOAK_ISSUER=http://auth.dev.ameide.io:4000/realms/ameide`
 
 ### Step 1.7 — Local TLS (✅ IMPLEMENTED)
@@ -2058,7 +2060,7 @@ curl -s https://auth.test.ameide.io/realms/ameide/.well-known/openid-configurati
 ### Step 3.4 — Platform on TEST
 
 **Goal:** `https://platform.test.ameide.io` login works.
-**Do:** Set `NEXTAUTH_URL=https://platform.test.ameide.io`. Update Keycloak client redirects to TEST URLs.
+**Do:** Set `AUTH_URL=https://platform.test.ameide.io`. Update Keycloak client redirects to TEST URLs.
 **Test:** Browser login success; session cookie scoped to `.test.ameide.io`.
 **Rollback:** Remove TEST redirect URIs; redeploy app with previous envs.
 
@@ -2145,7 +2147,7 @@ done
 ### Step 4.5 — Prod OAuth round-trip
 
 **Goal:** Login works at scale; sessions valid across subdomains.
-**Do:** Set `NEXTAUTH_URL=https://platform.ameide.io`; cookie domain `.ameide.io`.
+**Do:** Set `AUTH_URL=https://platform.ameide.io`; cookie domain `.ameide.io`.
 **Test:** Browser login; cross-subdomain API call succeeds; no mixed content/CORS.
 **Rollback:** Flip Ingress backends to old revision (blue/green).
 

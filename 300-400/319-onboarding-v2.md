@@ -112,7 +112,7 @@ During onboarding the system first **activates the tenant** (if still pending) a
 | Tenant catalog + API | `organizationService.createOrganization`, tenant status transitions, event emission. | `331-tenant-resolution.md` |
 | Onboarding wizard UX | Validates org slug/name, handles success/error messaging, refreshes session flags. | `324-user-org-settings.md` |
 | Session refresh | `session.user.hasRealOrganization` must rely solely on platform API responses—no “atlas” fallback. | `331-tenant-resolution.md` |
-| Cookie domain alignment | `AUTH_COOKIE_DOMAIN` / `NEXTAUTH_URL` must scope cookies to `.dev.ameide.io` so NextAuth sessions persist when proxied through ingress; localhost (`0.0.0.0:3001`) requests break the gating loop. | `331-tenant-resolution.md` |
+| Cookie domain alignment | `AUTH_COOKIE_DOMAIN` / `AUTH_URL` must scope cookies to `.dev.ameide.io` so Auth.js sessions persist when proxied through ingress; localhost (`0.0.0.0:3001`) requests break the gating loop. Ensure `AUTH_TRUST_HOST=true` behind gateways/proxies. | `331-tenant-resolution.md` |
 | Platform build pipeline | Deployments must ship a freshly built `services/platform/dist` bundle so organization membership creation runs during onboarding. | Ops release checklist |
 | Error handling | Provisioning failures must bubble to the caller; no silent retries or substitute records. | `333-realms.md` |
 | Platform org listing | `organizationService.listOrganizations` falls back to membership lookup when Keycloak groups are absent (new tenant realms). | `319-onboarding-v2.md` |
@@ -126,7 +126,7 @@ During onboarding the system first **activates the tenant** (if still pending) a
 3. **Tenant catalog telemetry** – `/api/v1/registrations/bootstrap` provisions pending tenants; add rate limiting, analytics, and abuse monitoring.  
 4. **Catalog events** – Wire `tenant.created` / `organization.created` emission into the orchestrator once the downstream event bus is ready.  
 5. **Metrics & auditing** – Capture onboarding completion events to feed analytics pipeline (`backlog/324-user-org-settings.md`).
-6. **Cookie domain config rollout** – Update Helm/Tilt values for `AUTH_COOKIE_DOMAIN`, `NEXTAUTH_URL`, and `allowedDevOrigins`, then redeploy `www-ameide-platform` so browser cookies target `.dev.ameide.io` and the middleware stops redirecting post-success sessions back to `/onboarding`.
+6. **Cookie domain config rollout** – Update Helm/Tilt values for `AUTH_COOKIE_DOMAIN`, `AUTH_URL`, and `allowedDevOrigins`, then redeploy `www-ameide-platform` so browser cookies target `.dev.ameide.io` and the middleware stops redirecting post-success sessions back to `/onboarding`.
 
 ---
 

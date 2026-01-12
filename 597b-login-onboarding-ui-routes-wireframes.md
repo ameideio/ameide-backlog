@@ -342,7 +342,7 @@ Codebase anchor: `services/www_ameide_platform/app/(auth)/auth.ts`
 ### C) Proxy config must be consistent with browser-visible origin
 
 Constraints:
-- Set canonical URL (`AUTH_URL` / `NEXTAUTH_URL`) consistently across environments.
+- Set canonical URL (`AUTH_URL`) consistently across environments.
 - Trust forwarded host/proto when behind ingress/telepresence so “expected origin” matches browser reality.
 
 Codebase anchors:

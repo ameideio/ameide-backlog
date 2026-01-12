@@ -7,6 +7,8 @@
 **Status:** Draft  
 **Motivation:** Playwright and integration jobs now run inside the cluster, but our repo, Helm values, and docs still hard-code `platform.dev.ameide.io` on port 8443 (deprecated). Envoy only exposes HTTPS on 443 internally, so anything that insists on the old port stalls. We need one canonical development hostname on a subdomain we control (`*.dev.ameide.io`) and the default HTTPS port everywhere so laptops, CI, and cluster workloads behave identically without clashing with Bonjour/mDNS.
 
+> **Update:** Auth.js v5 contract uses `AUTH_URL` (+ `AUTH_TRUST_HOST=true` behind gateways/proxies). Cluster E2E for `www_ameide_platform` targets the ingress host via `AMEIDE_PLATFORM_BASE_URL` (not generic `BASE_URL`). See `backlog/648-config-secrets-taxonomy-ci-only-deploy.md`.
+
 ---
 
 ## Objectives
@@ -32,7 +34,7 @@
 - Verify k3d nodeport still maps host 8443/443 externally without leaking into manifests.
 
 ### 3. Application & Auth Config
-- Change `AUTH_URL`, `NEXTAUTH_URL`, `NEXT_PUBLIC_PLATFORM_URL`, Keycloak `frontendUrl`, redirect URIs, and Vault secrets to `.dev.ameide.io` hostnames.
+- Change `AUTH_URL`, client-visible platform origin config (if any), Keycloak `frontendUrl`, redirect URIs, and secret placeholders to `.dev.ameide.io` hostnames.
 - Update Keycloak clients (realm configs + bootstrap scripts) so callback URLs accept `.dev.ameide.io`.
 - Reissue Playwright storage state after the domain change.
 
@@ -43,7 +45,7 @@
 
 ### 5. Validation & Rollout
 - Run Playwright + integration packs end-to-end with `.dev.ameide.io` to confirm no timeouts.
-- ⚠️ 2025-11-11 – Playwright auth-flow spec (`BASE_URL=E2E_CALLBACK_URL=https://platform.dev.ameide.io pnpm --filter www-ameide-platform test:e2e -- --project=chromium --workers=1 features/auth/__tests__/e2e/auth-flow.spec.ts`) could not complete because `/api/auth/providers` returned 404: the `www-ameide-platform` chart is pending install until `k3d-dev-reg:5000/ameide/www-ameide-platform:latest` is built/pushed. Re-run after the pod is healthy to regenerate storage state on the canonical 443 endpoint.
+- ⚠️ 2025-11-11 (historical) – A Playwright auth-flow spec could not complete because `/api/auth/providers` returned 404 when `www-ameide-platform` was not deployed (the then-local workflow relied on a local registry image). Local registry workflows are deprecated; the supported path is GHCR digests + GitOps/CI, and cluster E2E should be driven via `ameide dev inner-loop-test` so it derives `AMEIDE_PLATFORM_BASE_URL` from the HTTPRoute.
 - Spot-check manual browser login on `https://platform.dev.ameide.io` (after trusting the new cert) to ensure cookies/auth state behave.
 - Communicate migration steps to developers (new hosts entry or dnsmasq rule, re-login, repo search results).
 
@@ -104,7 +106,7 @@ Every infrastructure surface that still references `*.dev.ameide.io` or host por
 - `infra/kubernetes/values/infrastructure/grafana.yaml:1652` – set Grafana’s root URL + OAuth configs to the new hostname.
 
 ### Integration & Test Infrastructure
-- `infra/kubernetes/environments/local/integration-tests/e2e/playwright.yaml:4-6` and `infra/kubernetes/environments/staging/integration-tests/e2e/playwright.yaml:9-11` – update `BASE_URL` defaults and ensure staging/local values align after the rename.
+- `infra/kubernetes/environments/local/integration-tests/e2e/playwright.yaml:4-6` and `infra/kubernetes/environments/staging/integration-tests/e2e/playwright.yaml:9-11` – update `AMEIDE_PLATFORM_BASE_URL` defaults and ensure staging/local values align after the rename.
 - `infra/kubernetes/environments/local/integration-tests/envoy-proxy-service.yaml:4` – keep the direct Envoy proxy service as the only helper for in-cluster HTTPS access to `platform.dev.ameide.io:443` (legacy `port-proxy` Deployments/ConfigMaps have been removed).
 - `infra/kubernetes/environments/local/platform/inference.yaml:2` (doc comment) – update the reference for the public inference endpoint.
 
@@ -119,7 +121,7 @@ Every infrastructure surface that still references `*.dev.ameide.io` or host por
 - **DNS split-horizon** – Document and script a dnsmasq (or systemd-resolved) configuration that serves `dev.ameide.io` locally instead of relying solely on `/etc/hosts`. Owning the subdomain in a real DNS zone also prepares us for remote developer machines.
 - **Port 443 parity** – Plan the host-layer change from 8443 to 443. Options: grant k3d bind permissions, front it with a reverse proxy, or add authbind/CAP_NET_BIND_SERVICE in the DevContainer. Track this explicitly so docs/tests stop referencing the old port.
 - **Observability/OAuth cookie scope** – Ensure OAuth proxies (Grafana, Prometheus, Temporal, etc.) use environment-driven cookie domains and whitelist entries, and scope them to `.dev.ameide.io` using secure defaults.
-- **Shared test env config** – Consolidate Playwright/integration `BASE_URL` definitions into a single shared config (env file or YAML) so domain changes are one edit. Update docs to point tests at the new variable instead of hard-coded URLs.
+- **Shared test env config** – Consolidate Playwright/integration `AMEIDE_PLATFORM_BASE_URL` definitions into a single shared config (env file or YAML) so domain changes are one edit. Update docs to point tests at the new variable instead of hard-coded URLs.
 - **Rollback plan** – Add an operational playbook describing how to revert to `.dev.ameide.io` (DNS, cert-manager, Gateway values) if issues arise. Include communication + trust steps so on-call engineers can back out safely.
 
 ---

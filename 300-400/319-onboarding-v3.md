@@ -179,7 +179,7 @@ Temporal activities own the “ensure group membership” logic so retries remai
 2. **Week 2**
    - Implement compensation for realm provisioning failures.
    - Harden retries (per-section policies), add feature flags.
-   - Ensure cookie domain/host config is respected (AUTH_COOKIE_DOMAIN, NEXTAUTH_URL) so middleware gating works.
+   - Ensure cookie domain/host config is respected (`AUTH_COOKIE_DOMAIN`, `AUTH_URL`, `AUTH_TRUST_HOST=true`) so middleware gating works.
 3. **Week 3+**
    - Add Temporal-based reconcile job for stuck runs.
    - Split Realm-Provisioner worker if stronger isolation required.

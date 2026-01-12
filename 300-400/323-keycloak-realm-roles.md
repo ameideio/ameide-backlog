@@ -2649,7 +2649,7 @@ pnpm test --testPathPattern=multi-realm-auth.test.ts
 
 ```bash
 # Run E2E tests
-BASE_URL=https://platform.dev.ameide.io pnpm exec playwright test multi-realm.spec.ts
+AMEIDE_PLATFORM_BASE_URL=https://platform.dev.ameide.io pnpm exec playwright test multi-realm.spec.ts
 ```
 
 #### Step 3.3: Update Documentation (Week 2, Day 5)
