@@ -2,6 +2,9 @@
 
 This document tracks changes to Ameide CLI orchestration behavior over time (scaffolding/wiring workflows, convenience wrappers, and repo-aware automation).
 
+> **Update (2026-01, 670):** GitOps wiring is authored via a CI-owned workflow in the `ameide-gitops` repo (workflow → PR → merge).  
+> The CLI should **trigger** that workflow and must not directly write GitOps files into the GitOps repo/submodule as the canonical path. See `backlog/670-gitops-authoritative-write-path-for-scaffolding.md`.
+
 Baseline: `backlog/521a-external-generation-baseline.md`
 
 Companion docs:
@@ -44,7 +47,7 @@ Hard rule (see `backlog/520-primitives-stack-v2.md` §2b):
 Included:
 - `packages/ameide_core_cli/**` command behavior and templates
 - Repo layout conventions created/updated by the CLI (checked-in files)
-- GitOps wiring automation (writing to `gitops/ameide-gitops/**` and bumping submodule pointers)
+- GitOps wiring automation (triggering the GitOps repo workflow that opens PRs; no direct submodule writes as the canonical path)
 - “One-command” developer loops that call `buf generate`, tests, builds, and probes
 
 Not included:

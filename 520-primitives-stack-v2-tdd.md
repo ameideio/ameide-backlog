@@ -4,6 +4,9 @@ This document guides the end-to-end development of a single sample stack across 
 
 `proto shape` → `SDKs` → `skeleton generator` → `primitive runtime` → `operator reconcile` → `ArgoCD sync` → `in-cluster probe`
 
+> **Update (2026-01, 670):** GitOps wiring is no longer authored by local CLI writes into the GitOps repo/submodule.  
+> The authoritative write-path is: **trigger a GitOps repo workflow → PR → merge**, then ArgoCD discovery + sync. See `backlog/670-gitops-authoritative-write-path-for-scaffolding.md`.
+
 ## Non-Negotiables
 
 - Protobuf files under `packages/ameide_core_proto/src/` are the shape source.
@@ -34,7 +37,7 @@ Internal generation:
 - Keep generated glue in generated-only directories (gitignored).
 
 External wiring:
-- Use the CLI (`ameide primitive scaffold`) for repo wiring (runtime skeleton, GitOps components/values).
+- Use the CLI for repo wiring of the runtime skeletons/templates, but treat GitOps wiring as **CI-owned** (workflow → PR → merge) per `backlog/670-gitops-authoritative-write-path-for-scaffolding.md`.
 - Image publishing is performed by CI to GHCR and consumed by GitOps via digest-pinned refs.
 
 ## One TDD Outer Loop
@@ -45,7 +48,7 @@ Every vertical primitive implementation follows this sequence:
 2. Regenerate SDKs for all target languages (when proto changed).
 3. Build the local generator binary (when a plugin changed).
 4. Run `buf generate` with the primitive’s generation template (internal/gen glue, static outputs).
-5. Scaffold runtime + GitOps wiring with `ameide primitive scaffold` (proto-driven for Go primitives).
+5. Scaffold runtime code with `ameide primitive scaffold` (proto-driven for Go primitives). GitOps wiring is produced via the GitOps repo workflow (670) and merged to `main`.
 6. Implement the implementation-owned runtime behavior until the in-cluster probe passes.
 7. Publish images to GHCR via CI.
 8. Deploy via ArgoCD (GitOps components + values).

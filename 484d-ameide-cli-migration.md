@@ -2,6 +2,9 @@
 
 > **Deprecation notice (520):** This migration plan assumes a CLI scaffolder as the primary generator; that approach is deprecated. Canonical v2 uses **`buf generate`** (pinned plugins, deterministic outputs, generated-only roots, regen-diff CI gate). See `backlog/520-primitives-stack-v2.md`.
 
+> **Update (2026-01, 670):** GitOps wiring is authored via a CI-owned workflow in `ameide-gitops` (workflow → PR → merge).  
+> Any “CLI writes GitOps files” phase is superseded; the CLI should trigger the GitOps workflow instead. See `backlog/670-gitops-authoritative-write-path-for-scaffolding.md`.
+
 **Status:** Active
 **Audience:** Platform engineers, CLI implementers
 **Scope:** Legacy command migration, phased implementation plan
@@ -77,7 +80,7 @@ ameide primitive scaffold --kind domain --name orders --lang go --json
 ```
 
 **Flags:**
-- `--include-gitops=false` (default) – No GitOps generation
+- GitOps wiring is not generated directly by the CLI as the canonical path; it is authored via the GitOps repo workflow (670).
 - `--dry-run` – Show what would be created without writing
 
 **TDD alignment:**
@@ -93,14 +96,15 @@ ameide primitive scaffold --kind domain --name orders --lang go --json
 
 ### Phase 3: GitOps & Test Harness (Optional)
 
-**Goal:** For teams that want more automation, add GitOps and test infrastructure generation.
+**Goal:** For teams that want more automation, add GitOps and test infrastructure wiring via PR-based workflows.
 
 **Commands:**
 ```bash
-ameide primitive scaffold --include-gitops --json
-# Adds:
-#   - gitops/primitives/{kind}/{name}/values.yaml
-#   - gitops/primitives/{kind}/{name}/component.yaml
+ameide primitive gitops scaffold --kind <kind> --name <name> --version v0 --json
+# Opens a PR in `ameide-gitops` that adds:
+#   - `environments/_shared/components/**/component.yaml`
+#   - `sources/values/**.yaml`
+# per repo conventions (see 670).
 
 ameide primitive scaffold --include-test-harness --json
 # Adds:

@@ -2,6 +2,9 @@
 
 > **Deprecation notice (520):** Any workflow here that uses `ameide primitive scaffold` as the inner-loop generator is deprecated. Canonical v2 uses **`buf generate`** (pinned plugins, deterministic outputs, generated-only roots, regen-diff CI gate). See `backlog/520-primitives-stack-v2.md`.
 
+> **Update (2026-01, 670):** GitOps wiring is authored via a CI-owned workflow in `ameide-gitops` (workflow → PR → merge).  
+> Any `--include-gitops` “CLI writes GitOps files” flows are historical; the CLI should **trigger** the GitOps workflow, not write GitOps files directly. See `backlog/670-gitops-authoritative-write-path-for-scaffolding.md`.
+
 **Status:** Active
 **Audience:** AI agents (primary), developers (secondary)
 **Scope:** Primitive commands, TDD loop, agentic development sequence, verification checks
@@ -55,7 +58,10 @@ MCP adapter note:
 Example:
 
 ```bash
-ameide primitive scaffold --kind integration --name transformation-mcp-adapter --include-gitops --json
+ameide primitive scaffold --kind integration --name transformation-mcp-adapter --json
+
+# GitOps wiring (canonical): trigger a GitOps repo workflow that opens a PR (670)
+ameide primitive gitops scaffold --kind integration --name transformation-mcp-adapter --version v0 --json
 ```
 
 ---
@@ -92,7 +98,7 @@ These are **mechanical, repo-driven, and idempotent**:
 **Rules:**
 - **One-shot**: Scaffold only when folder doesn't exist. Never overwrite existing files.
 - **Generated marker**: generated-only roots (e.g., `primitives/**/internal/gen/**`, `build/generated/**`) may include markers like `CODEGEN: safe to delete, regenerate with 'buf generate'`.
-- **GitOps is optional**: Use `--include-gitops` flag; default is `false`
+- **GitOps is CI-owned**: the canonical path is workflow → PR → merge (670). The CLI may offer a “trigger PR” command, but should not directly write GitOps files as the authoritative mechanism.
 - **Tests must fail**: Scaffolded tests are not empty; they exercise the API and fail until implemented
 
 ### 2.2 Verify Only (Never Auto-Fix)
