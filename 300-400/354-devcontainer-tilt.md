@@ -35,7 +35,8 @@ The DevContainer bootstrap script previously ran Helmfile status/sync checks, re
    - *(Historical)* Tilt used to be launched via `scripts/dev/start-tilt.sh --detached` and served as the single orchestrator.
    - **Current workflow:** Use Telepresence + the Ameide CLI:
      - `ameide dev inner-loop verify` / `up` / `down` (interactive UI iteration)
-     - `ameide dev inner-loop-test` (strict verification phases + JUnit evidence)
+     - `ameide dev inner-loop-test` (Phase 0/1/2 only; strict verification + JUnit evidence)
+     - `ameide ci e2e` (cluster-only Playwright E2E)
 
 ## Tilt responsibilities
 

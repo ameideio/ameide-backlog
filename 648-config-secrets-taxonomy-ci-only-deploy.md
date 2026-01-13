@@ -103,7 +103,7 @@ Removed. This backlog defines the configuration contract for AMEIDE workloads: s
 - **`AUTH_*`**:
   - Authoritative (Auth.js v5): `AUTH_*` are the canonical settings/inputs.
   - `AUTH_URL` is a setting (ConfigMap).
-  - `trustHost: true` is required in gateway/proxy deployments and is enforced in application code (not an env-var knob).
+  - `AUTH_TRUST_HOST=true` is required in gateway/proxy deployments (fail-fast). Application code must require it, and GitOps must reject deployments where it is not explicitly set to `true`.
   - `AUTH_SECRET` and provider secrets are secrets (ExternalSecrets).
 - **Test harness vars**:
   - CI/e2e-only vars must be prefixed or clearly documented.
@@ -168,7 +168,7 @@ Contract:
   - **Owner/source**: CI/runner contract (not a runtime setting)
   - **Where set today**:
     - GitHub workflows (`.github/workflows/*`) often set it explicitly for dev-cluster runs.
-    - `ameide dev inner-loop-test` can derive it from the cluster HTTPRoute and export it for Playwright.
+    - `ameide ci e2e` can derive it from the cluster HTTPRoute when `AGENT_CI_KUBE_NAMESPACE` is set.
   - **Used by**: Playwright baseURL (`services/www_ameide_platform/playwright.config.ts`)
 
 ## Repository Contract (Single Source of Truth)

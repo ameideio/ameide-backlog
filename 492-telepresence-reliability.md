@@ -26,7 +26,7 @@ Remote-first on the shared AKS cluster (backlog 435) remains the default workf
 | Component | Location | Responsibility |
 |-----------|----------|----------------|
 | **DevContainer** | `.devcontainer/` | Installs Telepresence CLI (pinned v2.25.1) plus prerequisites (iptables/sshfs). |
-| **Ameide CLI** | `packages/ameide_core_cli/` | Canonical dev entrypoints that own Telepresence connect/intercept/cleanup with stable URLs (`ameide dev inner-loop up|down|verify`, `ameide dev inner-loop-test`). |
+| **Ameide CLI** | `packages/ameide_core_cli/` | Canonical dev entrypoints that own Telepresence connect/intercept/cleanup with stable URLs (`ameide dev inner-loop up|down|verify`). |
 | **Traffic Manager** | `argocd/{env}-traffic-manager` (chart `sources/charts/third_party/telepresence/telepresence/2.25.1`) | Handles session negotiation, intercept orchestration, Traffic Agent injection. |
 | **RBAC & GitOps** | `ameide-gitops` repo | ClusterRole/Role/Bindings for the traffic-manager (`pods/eviction`, serviceCIDRs), namespace defaults, Helm values. |
 

@@ -30,11 +30,12 @@ This backlog defines the **target state** for all automated tests in the codebas
 > - `run_integration_tests.sh` “packs”
 > - `tools/integration-runner/*`
 
-### Update (2026-01): agent inner-loop front door (v2)
+### Update (2026-01): CLI front doors (430v2)
 
-The agent-focused “no-brainer” verification front door is now:
+The agent-focused “no-brainer” verification front doors are now:
 
-- `ameide dev inner-loop-test` (unit → integration → e2e, fail-fast, no flags)
+- `ameide dev inner-loop-test` (Phase 0/1/2: contract → unit → integration; local-only)
+- `ameide ci e2e` (Phase 3: deployed-system E2E; cluster-only; Playwright-only)
 
 430v2 tightens this further:
 - no `INTEGRATION_MODE`

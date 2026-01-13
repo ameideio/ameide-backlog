@@ -97,13 +97,13 @@ Current command groups include:
 
 - `ameide ci test` (Phase 0/1/2)
 - `ameide ci e2e` (Playwright runner; accepts pass-through args)
-- `ameide dev inner-loop-test` (currently includes a cluster E2E phase)
+- `ameide dev inner-loop-test` (Phase 0/1/2 only; local-only)
 - `ameide doctor` (preflight deterministic requirements)
 - `ameide verify` (repo/primitives invariants)
 
 Current drift vs internal-first model:
 
-- `ameide dev inner-loop-test` currently advertises Phase 3 cluster E2E behavior, which conflicts with the internal-first test model where “no-brainer” verification is Phase 0/1/2 and deployed E2E is a separate preview-env layer.
+- `ameide dev inner-loop-test` is now aligned with the internal-first “no-brainer” verification model (Phase 0/1/2 only). Deployed-system E2E runs separately via `ameide ci e2e`.
 - `ameide dev inner-loop` is Telepresence-centric and is out of scope for the internal-first platform model.
 
 ## 5) Target CLI surface (to-be)
