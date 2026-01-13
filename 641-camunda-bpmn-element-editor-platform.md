@@ -4,7 +4,7 @@ status: draft
 owners:
   - platform
 created: 2026-01-12
-updated: 2026-01-12
+updated: 2026-01-13
 ---
 
 ## Summary
@@ -21,9 +21,9 @@ This integration uses **open-source libraries only** and does not require any Ca
 
 ## Relationship to Camunda Web Modeler (separate concern)
 
-Camunda Web Modeler is not part of the current `ameide-gitops` Camunda 8 standard (see `backlog/640-camunda-8-gitops-configuration.md` for the enabled component set).
+Camunda Web Modeler is tracked separately as a GitOps concern in `backlog/642-camunda-web-modeler-identity-gitops.md` (and is intended to be **dev-only** unless explicitly enabled elsewhere).
 
-If Web Modeler is introduced later, treat it as a separate app surface with its own routing and auth requirements.
+This backlog (641) remains about the **AMEIDE Platform UI** editor plugin. Do not conflate “use Web Modeler in the browser” with “build a BPMN editor into the platform app”.
 
 **Where Web Modeler lives (dev AKS):**
 
@@ -37,7 +37,7 @@ The AMEIDE Platform BPMN editor plugin is a **separate experience** embedded in 
 - It uses `bpmn-js` to edit BPMN XML stored in `Element.body`.
 - It is governed by the AMEIDE BPMN profile + Verify semantics.
 
-Both experiences are enabled: Web Modeler for users who want the Camunda-native UI, and the platform BPMN editor for the AMEIDE-native element workflow.
+Both experiences can coexist: Web Modeler for users who want the Camunda-native UI, and the platform BPMN editor for the AMEIDE-native element workflow.
 
 ## What We Learn From “Camunda Web Modeler” (And What We Don’t)
 

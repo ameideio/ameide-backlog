@@ -4,7 +4,7 @@ status: draft
 owners:
   - platform
 created: 2026-01-12
-updated: 2026-01-12
+updated: 2026-01-13
 ---
 
 ## Summary
@@ -78,9 +78,23 @@ Fix (GitOps-owned, vendor-compatible):
 
 Follow-up issue (dev): “Could not create the new project”
 
-- Symptom: Modeler UI shows “Yikes! Could not create the new project” and REST API returns `404` for `POST /internal-api/projects`.
-- Root cause: Web Modeler REST API denied access to the default organization id (`00000000-0000-0000-0000-000000000000`) because the user token did not include our org membership claim (we keep org membership in Keycloak groups).
-- Fix (GitOps): add the Keycloak client-scope `organizations` to the `web-modeler` client default scopes so the access token includes `org_groups` (derived from group membership like `/orgs/...`).
+- Symptom: Modeler UI shows “Yikes! Could not create the new project” and REST API returns `404` for `POST /internal-api/projects` (the REST API intentionally returns 404 on failed org authorization).
+- Root cause (vendor-aligned): Web Modeler authorizes org access based on **`permissions.<audience>`** in the access token. For the UI → REST API flow, the relevant audience is `web-modeler-api`, and the token must include permissions like `write:*` (and optionally `admin:*`) under `permissions.web-modeler-api`.
+- Fix (GitOps-owned, standard Keycloak): implement the Camunda Identity / Web Modeler token contract using **standard Keycloak protocol mappers** and **client roles**:
+  - Create a Keycloak client-scope `camunda-identity` with protocol mappers that emit:
+    - `permissions.web-modeler-api` from client roles on client `web-modeler-api`
+    - `permissions.web-modeler-public-api` from client roles on client `web-modeler-public-api`
+  - Ensure the `web-modeler` UI client has `camunda-identity` attached as a default scope.
+  - Create client roles `web-modeler-api:write:*` and `web-modeler-api:admin:*` and assign them to the platform admin group `/argocd-admin` (dev posture).
+
+Implementation note (where this lives in GitOps):
+
+- Keycloak reconciliation hook job: `sources/charts/foundation/operators-config/keycloak_realm/templates/client-patcher-job.yaml`
+- Client specs: `sources/values/env/dev/platform/platform-keycloak-realm.yaml` (and env equivalents)
+
+Operational note:
+
+- Tokens already issued before this change will not gain the new claims; use an incognito window or clear site data for `modeler.dev.ameide.io` after the GitOps sync.
 
 Operator note:
 
