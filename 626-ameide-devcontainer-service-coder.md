@@ -80,6 +80,10 @@ Related: `backlog/527-transformation-integration.md` (workbench pod is “not a 
    - git (clone of target repo + branch workflow)
    - kubectl context defaults scoped to the workspace namespace (if kubectl is included)
    - standard Ameide toolchain required for editing and repo workflows
+   - Codex out-of-the-box:
+     - `codex` CLI installed (pinned)
+     - Codex VS Code extension installed (`openai.chatgpt`, pinned)
+     - authentication pre-seeded from `Secret/codex-auth` (dev-only shared principal; see `backlog/613-codex-auth-json-secret.md`)
 3. Developer makes changes, runs local/unit checks, pushes branch, opens PR.
 
 ### 3.1 Workspace lifecycle (cost control)
@@ -112,6 +116,15 @@ Rationale:
 Required approach (Kubernetes-native; no fallbacks):
 
 - Use Coder’s devcontainer support via **envbuilder** (no Docker daemon requirement).
+
+### 4.1 Single-environment invariant (no “two worlds”)
+
+Decision: run **code-server inside the same workspace container** as the devcontainer toolchain (no code-server sidecar).
+
+Rationale:
+
+- VS Code Web integrated terminal must execute in the same environment as the toolchain (git/kubectl/gh/codex).
+- Avoids drift where the editor container and toolchain container diverge over time.
 
 Decision notes:
 

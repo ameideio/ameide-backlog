@@ -46,7 +46,7 @@ Implementation reference:
   - `sources/coder/templates/ameide-dev/` (template name `ameide-dev`)
   - `sources/coder/templates/ameide-gitops/` (template name `ameide-gitops`)
 - Default repo/devcontainer contract: `github.com/ameideio/ameide` + `.devcontainer/coder`
-- Web IDE: code-server sidecar exposed via `coder_app` (no runtime curl installs)
+- Web IDE: code-server runs inside the workspace container (single-environment invariant); installation is pinned and automated at startup.
 
 ## 1.1 Install mechanics (GitOps-owned)
 

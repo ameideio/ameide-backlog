@@ -1,6 +1,6 @@
 ---
 title: 613 – Codex `auth.json` as a Managed Secret (Local + Azure)
-status: draft
+status: implemented
 owners:
   - platform
 created: 2026-01-01
@@ -48,12 +48,24 @@ The Codex auth materialization is **GitOps-owned** as a dedicated component:
 
 - Component: `environments/_shared/components/foundation/secrets/codex-auth/component.yaml`
 - Values: `sources/values/_shared/foundation/foundation-codex-auth.yaml`
-  - Local enabled via `sources/values/env/local/foundation/foundation-codex-auth.yaml`
+  - Dev enabled via `sources/values/env/dev/foundation/foundation-codex-auth.yaml`
   - Other envs can enable by adding `codexAuth.enabled: true` in their env overlay.
 
 It creates:
 - `ExternalSecret/codex-auth-sync` (Vault → K8s)
 - `Secret/codex-auth` with a single key `auth.json` (decoded from base64)
+
+### Coder workspaces (implemented, dev-only)
+
+Human Coder workspaces run in dynamically created namespaces (`ameide-ws-*`), so they cannot rely on a namespace-scoped `SecretStore` pre-existing.
+
+We support this by:
+
+- `ClusterSecretStore` created by `foundation-vault-secret-store` when `vault.clusterSecretStore.enabled: true` (dev only).
+- `ClusterExternalSecret/coder-workspaces-codex-auth` (in `foundation-codex-auth`) that:
+  - selects Coder workspace namespaces by labels
+  - creates `ExternalSecret/codex-auth-sync` in each workspace namespace
+  - materializes `Secret/codex-auth` (key `auth.json`)
 
 ## Vault bootstrap sourcing (implemented)
 
