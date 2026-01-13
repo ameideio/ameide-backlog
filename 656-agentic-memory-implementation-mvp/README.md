@@ -10,6 +10,7 @@ This directory splits the MVP implementation into **end-to-end increments** (eac
 - Permission-trimmed retrieval (no post-hoc filtering).
 - Version-pinned citations (`{repository_id, element_id, version_id}`).
 - Execution agents are proposal-only writers (no direct canonical mutation).
+- One selector vocabulary (aligned to 527): `head | published | baseline_ref | version_ref`.
 
 ## Increments
 

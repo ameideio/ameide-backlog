@@ -34,13 +34,15 @@ Implement a minimal, stable `read_context` contract that agents can hardcode aga
 
 - `scope`: `{tenant_id, organization_id, repository_id}`
 - `principal`: `{principal_id, roles[], purpose}`
-- `selector`: `published` (default) OR `baseline_id` (explicit)
+- `selector` (aligned to 527): `published | baseline_ref | head | version_ref`
+  - Increment 1 MUST support `published` and `baseline_ref`
+  - if `baseline_ref`, `baseline_id` is required
 - `query` (string) OR `element_id` (direct fetch)
 
 **Response MUST include:**
 
 - `scope` echo
-- `baseline_selector_used`: `{kind: "published"|"baseline_id", baseline_id?}`
+- `selector_used`: `{kind: "published"|"baseline_ref", baseline_id}`
 - `items[]` where each item has:
   - `repository_id`, `element_id`, `version_id`
   - `title` (or stable label), `content` (full body or excerpt)
@@ -91,6 +93,9 @@ Even if the retrieval is keyword-first, store text in **structure-aware units** 
 Accepting a proposal must not silently overwrite newer truth.
 
 - A proposal is **stale** if its `targets_version.metadata.target_version_id` is not the currently-selected `published` (or explicitly-selected `baseline_id`) version for that element.
+- A proposal is **stale** if its `targets_version.metadata.target_version_id` is not the version selected by the proposal’s `target selector`:
+  - `selector=published` (resolved via the published baseline pointer), or
+  - `selector=baseline_ref` (explicit `baseline_id`).
 - If stale, the system MUST block `accept` and require a `rebase` first.
 - `rebase` creates a new proposal that targets the current version and links:
   - old proposal → new proposal via `ameide:curation.rebased_to` (REFERENCE).

@@ -349,8 +349,10 @@ All relationship `type_key`s are in the `ameide:curation.*` namespace.
 
 ### 6.3 Lifecycle and state transitions
 
-- **Create proposal** (agent/human) → `proposal_status = DRAFT`
-- **Submit for review** → `IN_REVIEW`
+- **Create proposal** (agent/human) → `proposal_status = DRAFT` (optional; creator-only)
+- **Submit proposal** → `PROPOSED`
+- **Triage** (curator) → `TRIAGED`
+- **Start review** (curator) → `IN_REVIEW`
 - **Accept** → create new `ElementVersion`(s) and link via `ACCEPTED_AS` → `ACCEPTED`
 - **Reject** → link decision via `REJECTED_BECAUSE` → `REJECTED`
 - **Withdraw** → `WITHDRAWN`
@@ -383,8 +385,14 @@ Proposals are not informal. The curation queue MUST be a defined state machine w
 
 Minimum recommended state progression:
 
-- `PROPOSED → TRIAGED → IN_REVIEW → ACCEPTED → PROMOTED`
+- `DRAFT` (optional, creator-only) → `PROPOSED → TRIAGED → IN_REVIEW → ACCEPTED`
 - plus terminal states: `REJECTED` (with rationale), `WITHDRAWN`
+
+**Important:** `ACCEPTED` is not the same as “published”.
+
+- `ACCEPTED` means “a new canonical version exists” (linked via `ameide:curation.accepted_as`).
+- “Published truth” changes only when a curator promotes by updating the repository’s **published baseline pointer** (see §7.1).
+- If UIs want to show `PROMOTED`, it should be a **computed view** (“accepted version is included in the published baseline”), not a proposal state.
 
 ---
 
@@ -394,13 +402,28 @@ This section defines the *read path* contract that agents must use.
 
 ### 7.1 Defaults and baseline selection
 
-- Retrieval returns **all relevant context**, but MUST give precedence to normative truth:
-  1. **Published/normative** (published pointers and/or a promoted baseline)
-  2. **Curated but not approved yet** (reviewed/validated, not promoted)
-  3. **Draft/proposals**
-  4. **Ingestion-only sources** (legacy backlog markdown, raw chat transcripts)
+Retrieval MUST be explicit about **which truth slice** it is operating on.
 
-Default mode for agents is “include all, rank by trust”, so knowledge does not stall while still privileging approved truth.
+**Selector vocabulary (aligned to 527):**
+
+- `published`: resolve the repository’s published baseline pointer → a concrete `baseline_id`
+- `baseline_ref`: an explicit `baseline_id`
+- `head`: “latest draft/head” (implementation-defined; typically “current state in the domain”)
+- `version_ref`: pin retrieval to specific version(s) or “as-of” semantics (projection-owned)
+
+**Defaults:**
+
+- Execution agents default to `selector=published` and SHOULD NOT include non-published items unless explicitly requested (see below).
+- Human UI/search defaults MAY include non-published items to support discovery, but MUST rank published truth above drafts/ingestion.
+
+**If non-published is included**, results MUST still be ordered by trust precedence:
+
+1. **Published/normative** (the published baseline)
+2. **Curated but not promoted yet** (reviewed/validated, not in published baseline)
+3. **Draft/proposals**
+4. **Ingestion-only sources** (legacy backlog markdown, raw chat transcripts)
+
+This avoids “knowledge stalls” without making “published truth” ambiguous: agents can opt into “research mode”, but the default stays safe and deterministic.
 
 ### 7.2 Relationship-aware hybrid retrieval
 
@@ -428,9 +451,13 @@ The retrieval projection implements a retrieval **pipeline** (not “vector sear
 ### 7.3 read_context API/tool surface (minimum)
 
 **Request**
-- `repository_id`
+- `scope`: `{tenant_id, organization_id, repository_id}`
+- `principal`: `{principal_id, roles[], purpose}`
 - `query` (text)
-- `baseline`: `PUBLISHED | DRAFT | BASELINE_ID`
+- `selector`: `published | baseline_ref | head | version_ref`
+  - if `baseline_ref`: `baseline_id` is required
+  - if `version_ref`: required version pin fields are required (projection-owned)
+- `include_non_published` (optional, default `false` for execution agents)
 - `version_intent` (optional): `CURRENT | AS_OF | DIFF` (projection-owned classifier may infer)
 - `filters` (optional):
   - `type_keys[]`, `element_kinds[]`
@@ -441,6 +468,7 @@ The retrieval projection implements a retrieval **pipeline** (not “vector sear
   - `max_tokens`, `max_items`
 
 **Response**
+- `selector_used` (resolved; for `published`, includes the resolved `baseline_id`)
 - `context_items[]` where each item includes:
   - `element_id`, `version_id`
   - `title/name`

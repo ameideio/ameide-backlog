@@ -197,7 +197,7 @@ Implement “what stage is this knowledge in?” via:
 
 - `Element.lifecycle_state` (e.g., `DRAFT`, `IN_REVIEW`, `CURATED`, `APPROVED`, `RETIRED`) and/or
 - curation metadata on proposal/decision elements (as defined in 656), and
-- baselines/promotion for “normative truth” (published pointers and promoted baselines).
+- baselines/promotion for “normative truth” via a repository **published baseline pointer** (see 656 §7.1).
 
 ### 3.2 Make the curation queue contract queryable with existing primitives
 
