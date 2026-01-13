@@ -132,6 +132,6 @@ Recommended dev flow (KV-only, reproducible):
 
 ## Acceptance criteria
 
-- Local: `infra/scripts/seed-codex-auth-local.sh` results in `ExternalSecret/codex-auth-sync` Ready and `Secret/codex-auth` present in `ameide-local`.
-- Azure: providing `env-codex-auth-json-b64` in AKV results in the same `Secret/codex-auth` in the target namespace once the component is enabled, without manual kubectl steps.
+- Local: `infra/scripts/seed-local-secrets.sh --namespace ameide-local` results in `ExternalSecret/codex-auth-sync` Ready and `Secret/codex-auth` present in `ameide-local`.
+- Azure: providing `codex-auth-json-b64` in AKV results in the same `Secret/codex-auth` in the target namespace once the component is enabled, without manual kubectl steps.
 - No secret content is committed to git, and operational docs warn against printing secrets.
