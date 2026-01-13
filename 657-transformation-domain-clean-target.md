@@ -2,7 +2,7 @@
 
 **Status:** Draft (target-state contract)  
 **Priority:** High  
-**Related:** `backlog/300-400/303-elements.md`, `backlog/496-eda-principles-v2.md`, `backlog/527-transformation-implementation-migration.md`, `backlog/656-agentic-memory.md`, `backlog/656-agentic-memory-implementation.md`
+**Related:** `backlog/300-400/303-elements.md`, `backlog/496-eda-principles-v3.md`, `backlog/527-transformation-implementation-migration.md`, `backlog/656-agentic-memory.md`, `backlog/656-agentic-memory-implementation.md`
 
 ---
 
@@ -13,7 +13,7 @@ We already have a working Transformation Domain primitive (`primitives/domain/tr
 This backlog defines the **clean target** (because we are not in production and can break compatibility):
 
 - **Memory-first:** the Transformation capability is the canonical substrate for organizational memory (Elements + Versions + Relationships + Baselines).
-- **EDA-correct (496 v2):** ingestion and read models are derived from **domain facts delivered via Knative Broker + Trigger** (CloudEvents); no DB tailing as the default posture; no direct Kafka topic coupling as a contract.
+- **EDA-correct (496 v3):** ingestion and read models are derived from **domain facts delivered via Kafka topics** (CloudEvents + Protobuf); no DB tailing as the default posture; Kafka topics are a contract surface in v3.
 - **Security-correct:** auth/RBAC is enforced at the **gRPC boundaries**, not only in HTTP routes or tool allowlists.
 - **Ontology-first:** ArchiMate-first when possible; backlogs are ingestion only (per 656).
 
@@ -24,7 +24,7 @@ This backlog defines the **clean target** (because we are not in production and 
 1. **Single repository of truth for memory.** Queue vs published is expressed via lifecycle/status + baselines in the same repository (no “second memory repo”). (`backlog/656-agentic-memory.md`)
 2. **Elements-only canonical storage.** No parallel canonical model for “docs vs BPMN vs diagrams”. (`backlog/300-400/303-elements.md`)
 3. **Projection is the only read path.** Browse/search/history/diff/context assembly are projection-owned. (`backlog/527-transformation-projection.md`)
-4. **Broker-first ingestion for projections (496 v2).** Projections receive domain/process facts via Knative Broker + Trigger delivery (CloudEvents HTTP binary protobuf). Kafka may be used under the hood, but Kafka topics are not a contract surface. (`backlog/496-eda-principles-v2.md`)
+4. **Kafka-first ingestion for projections (496 v3).** Projections receive domain/process facts via Kafka consumer groups (CloudEvents + Protobuf). Kafka topics are a contract surface. (`backlog/496-eda-principles-v3.md`)
 5. **Auth at gRPC boundaries.** Domain and Projection gRPC servers MUST enforce authN/authZ via interceptors (no “trust the caller” posture).
 
 ---
@@ -77,7 +77,7 @@ This backlog defines the **clean target** (because we are not in production and 
 
 It MUST NOT be the default posture for long-running environments once broker wiring is in place.
 
-**Clean target (496 v2):** projection receives facts via Broker + Trigger delivery; any Kafka coupling is an implementation detail behind Knative, not a service contract.
+**Clean target (496 v3):** projection receives facts via Kafka consumer groups; topic names are a contract surface (v3).
 
 ### 3.2 Remove proto/naming duplication instead of “mapping forever”
 
@@ -112,7 +112,7 @@ Rule: each increment must be a working, end-to-end implementation of **all loops
 ### Increment 1 — Minimal end-to-end (safe + citeable)
 
 - Read: keyword-only context retrieval via projection, but always returns `{element_id, version_id}` citations.
-- Messaging: facts are delivered to projections via Knative Broker + Trigger as CloudEvents (protobuf binary mode); inbox dedupe keys on `ce-id` (496 v2).
+- Messaging: facts are delivered to projections via Kafka as CloudEvents+Protobuf; inbox dedupe keys on CloudEvents `id` (496 v3).
 - Propose: `memory.propose` creates `ameide:curation.proposal` + `TARGETS_VERSION` pinning.
 - Curate: curator can list proposals and accept/reject (diff may be coarse: “full replacement body”).
 - Publish: curator can promote accepted versions into a baseline; `published` read_context works.

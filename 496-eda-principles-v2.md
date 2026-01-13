@@ -2,6 +2,9 @@
 
 ## Kubernetes Standard: Protobuf + CloudEvents + Knative Kafka Broker + Strimzi
 
+> **Superseded:** the inter-primitive runtime event plane is now standardized on Kafka topics (no Knative Eventing).  
+> See `backlog/496-eda-principles-v3.md`.
+
 **Status:** Active Standard (replaces `496-eda-principles.md`)  
 **Audience:** Platform engineering, domain teams, AI agents, architects  
 **Scope:** **All inter-primitive (microservice-to-microservice) messaging inside the Kubernetes cluster; not primitive-internal flows.**
