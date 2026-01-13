@@ -87,6 +87,7 @@ Notes:
 Goal: a single, no-flags command that is runnable in a Coder workspace and produces a fast, actionable failure.
 
 Decision: `ameide dev inner-loop-test` must be Telepresence-free and safe to run in-cluster.
+Update (2026-01): “safe to run in-cluster” here means “safe to run in a Coder workspace without Kubernetes/Telepresence access”; deployed-system E2E is separate.
 
 Proposed contract (phases; exact tools are implementation details):
 
@@ -151,6 +152,7 @@ Tasks complement the system by making repeatability cheap:
 The following are deprecated by this model:
 
 - Telepresence-based E2E execution for agent inner-loop verification (`backlog/621-ameide-cli-inner-loop-test.md` as currently written).
+- Telepresence-based E2E execution as an agent default; Phase 3 E2E is owned by `ameide ci e2e` (cluster-only; Playwright-only).
 - Telepresence verification backlogs as platform requirements (e.g., `backlog/492-telepresence-verification.md`).
 
 ## 9) References

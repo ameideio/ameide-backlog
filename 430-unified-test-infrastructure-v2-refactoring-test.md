@@ -13,9 +13,9 @@ parent: 430-unified-test-infrastructure-v2.md
 
 Implement 430v2 end-to-end so that:
 
-- all tests (unit/integration/e2e) run under `ameide dev inner-loop-test`
+- Phase 0/1/2 run under `ameide dev inner-loop-test` and `ameide ci test`
 - Phase 1/2 are local-only and use native tooling (no packs/scripts, no modes)
-- Phase 3 is cluster-only and Playwright-only (Telepresence harness)
+- Deployed-system E2E (Phase 3) is cluster-only and Playwright-only, run separately via `ameide ci e2e`
 - JUnit XML is produced for every phase, always (synthetic JUnit on early failure)
 
 Target contract: `backlog/430-unified-test-infrastructure-v2-target.md`
@@ -39,9 +39,8 @@ Update `ameide dev inner-loop-test` to:
   - `go test -tags=integration ./...`
   - Jest integration suite (repo-wide convention)
   - Pytest integration suite (repo-wide convention)
-- Phase 3:
-  - Telepresence preflight + cleanup
-  - Playwright only
+
+Deployed-system E2E (Phase 3) runs separately via `ameide ci e2e` (Playwright only).
 
 Evidence contract:
 - always write JUnit per phase

@@ -3,6 +3,8 @@
 This document turns `backlog/511-process-primitive-scaffolding-v2.md` and `backlog/511-process-primitive-bpmn-conformance-suite-v2.md` into a concrete repo plan.
 
 > **Superseded:** see `backlog/511-process-primitive-scaffolding-v3-implementation-plan.md` (aligns execution + test gates to `backlog/430-unified-test-infrastructure-v2-target.md` and codifies Request → Wait → Resume).
+>
+> **Update (2026-01):** `ameide dev inner-loop-test` is Phase 0/1/2 only (local-only). Any cluster-only gates described below must run via `ameide ci smoke` / `ameide ci e2e` (not via the inner-loop front door).
 
 ## Goal
 
@@ -76,7 +78,7 @@ Implement an in-cluster test runner that:
 
 ### 5) Front door wiring
 
-Wire the conformance runner into `./ameide dev inner-loop-test` as the Phase 3 (cluster) gate when pointed at the dev cluster context.
+Wire the conformance runner into `ameide ci smoke` as the cluster-only gate.
 
 ### 6) Migration / decommission
 
@@ -100,4 +102,4 @@ This plan is “done” when:
 - The conformance suite runs in the dev namespace and reliably proves:
   - deploy → run segments → assert engine semantics,
   - incidents and sequence flows are observable via Orchestration Cluster API.
-- `./ameide dev inner-loop-test` runs these smokes against the dev cluster and is the only required front door.
+- `ameide ci smoke` runs these smokes against the dev cluster (cluster-only), while `ameide dev inner-loop-test` stays Phase 0/1/2 only (local-only).

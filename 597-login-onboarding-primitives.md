@@ -30,7 +30,8 @@ This backlog defines:
 > **Update (2026-01): 430v2 contract**
 >
 > Any references in this doc to `INTEGRATION_MODE`, `tools/integration-runner`, or `run_integration_tests.sh` should be treated as legacy/historical. The normative execution contract is:
-> - `ameide dev inner-loop-test` (Unit → Integration → E2E)
+> - `ameide dev inner-loop-test` (Phase 0/1/2: contract → unit → integration; local-only)
+> - `ameide ci e2e` (cluster-only Playwright E2E)
 
 ## GitOps implications (ameide-gitops)
 

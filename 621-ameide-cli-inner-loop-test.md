@@ -11,14 +11,13 @@
 - Agent “instructions” must stay minimal:
   - **“If `ameide dev inner-loop-test` passes, the work is complete; if it fails, fix the first actionable error and rerun.”**
   - The tool absorbs environment complexity; the agent does not.
-- Ordering is strict: **unit → integration → e2e** (never do cluster/Telepresence work before local tests are green).
+- Ordering is strict: **contract → unit → integration** (never do cluster-only work before local tests are green).
 - The runner must be **as smart as possible internally** (discovery, caching, preflight, actionable failure messages) while remaining a **no-brainer UX**:
   - **no flags**, **no launch modes**, **no user-chosen parameters** (besides `--help`).
   - one default behavior; fail-fast on first failure.
 - Must be runnable in **CI and local** environments without host mutation or interactive prompts:
   - no host mutations (e.g., editing `/etc/hosts`)
   - no interactive prompts
-  - note: Phase 3 depends on Telepresence; in environments where Telepresence requires elevated privileges for its daemon, the environment must be preconfigured to run it non-interactively (e.g., NOPASSWD sudo in devcontainers/CI images).
 - Must leave the environment **clean after each run**:
   - no lingering background processes, intercepts, Telepresence daemons, or stray resources created by the run.
   - small on-disk caches/state that improve iteration are allowed, but must be explicit, bounded, and safe to delete.
@@ -26,7 +25,7 @@
 
 ## Objective
 
-Provide a **single, fail-fast, no-flags** CLI entrypoint that an interactive AI agent can run locally (and in CI) to validate changes end-to-end **without leaving state behind**:
+Provide a **single, fail-fast, no-flags** CLI entrypoint that an interactive AI agent can run locally (and in CI) to validate changes **without leaving state behind**:
 
 - `ameide dev inner-loop-test`
 
@@ -35,6 +34,11 @@ This is intentionally **not** “full CI”: it is an agentic inner-loop tool th
 CI uses a sibling command that runs the same contract phases without cluster E2E:
 
 - `ameide ci test` (Phase 0/1/2 only)
+
+Cluster-only verification runs via separate entrypoints:
+
+- `ameide ci smoke` (cluster-only smokes)
+- `ameide ci e2e` (cluster-only Playwright E2E)
 
 ## Cross-references
 
@@ -49,7 +53,7 @@ CI uses a sibling command that runs the same contract phases without cluster E2E
 This command is designed for **workstation/local devcontainer** inner-loop flows where Telepresence is the substrate.
 
 In **Kubernetes-hosted human workspaces** (AmeideDevContainerService; 626/628), Telepresence is intentionally **not supported**
-(no `CAP_NET_ADMIN` / TUN device), so Phase 3 must be considered “not runnable” there.
+(no `CAP_NET_ADMIN` / TUN device).
 
 ## Implementation status (current)
 
@@ -117,38 +121,21 @@ Execution rules (opinionated, fail-fast):
   - **Jest/TS:** repo-wide selection for `__tests__/integration/**` via Jest config
   - **Pytest/Python:** `@pytest.mark.integration` selection via pytest config
 
-### Phase 3 — E2E (cluster; Telepresence + Playwright)
+### Phase 3 — Cluster-only verification (separate commands; not part of `inner-loop-test`)
 
-**Goal:** run Playwright E2E against a stable URL while validating local changes via Telepresence intercepts.
+This backlog originally described a Phase 3 Telepresence-based E2E harness. The current 430v2 contract keeps the agent/human front door (`ameide dev inner-loop-test`) strictly Phase 0/1/2, and runs cluster-only checks separately:
+
+- `ameide ci smoke`
+- `ameide ci e2e`
 
 Constraints / invariants:
 
-- Only Phase 3 may touch `kubectl` and `telepresence`.
-- Parallel-safe routing is mandatory:
-  - Require Telepresence **HTTP header filtered** intercepts (`--http-header "X-Ameide-Agent=<id>"`)
-  - Hard-fail if header filtering is unavailable (no global intercept fallback)
-  - Playwright must send the routing header (implemented via Playwright config in `services/www_ameide_platform`)
-- No privileged host assumptions:
-  - never edits `/etc/hosts`
-  - uses FQDNs / in-cluster Service discovery and preflights to reject loopback/poisoned DNS
-- Cleanup is strict (workstation):
-  - no lingering intercept
-  - **always `telepresence quit -s`** at the start and end of Phase 3 to avoid stale sessions and guarantee cleanliness
-
-Vendor-aligned orchestration shape:
-
-- Phase 3 scopes `telepresence connect -- <cmd>` and `telepresence intercept -- <cmd>` via hidden CLI entrypoints.
-  - (Implementation detail: Telepresence requires a process entrypoint; these are hidden commands, not user-facing “modes”.)
-
-Prerequisites (must be explicit; no guesswork):
-
-- `telepresence` installed and compatible with header-filtered intercepts (Telepresence/traffic-manager >= 2.25).
-- A reachable Kubernetes context/namespace with the target workload (`www-ameide-platform`) and sidecar injection enabled.
-- Playwright test secrets present in-cluster (e.g., `playwright-int-tests-secrets` in the configured namespace).
-- E2E ingress host is fixed: `https://platform.local.ameide.io` (Phase 3 must fail fast if ingress/auth prerequisites are missing).
+- Cluster-only checks must be explicit, fail-fast, and leave no state behind.
+- Playwright base URL must be explicit and deterministic:
+  - `AMEIDE_PLATFORM_BASE_URL` (or HTTPRoute-derived host when running in-cluster with a namespace)
 
 Failure behavior:
-- If any prerequisite is missing, Phase 3 fails fast with an actionable message and still emits JUnit evidence under the run root.
+- If any prerequisite is missing, cluster-only checks fail fast with an actionable message and still emit JUnit evidence under the run root.
 
 ## Non-goals
 

@@ -34,7 +34,7 @@
    - Non-local envs fail fast if the Auth.js secret is missing; rotation is handled by updating the secret source without rebuilding images.
 
 3. **Auth.js configuration**
-   - `AUTH_URL` points to the publicly reachable host (no in-cluster-only ports); `trustHost: true` is enforced in application code (no `AUTH_TRUST_HOST` knob), and `AMEIDE_PLATFORM_BASE_URL` matches the same host the runner uses.
+   - `AUTH_URL` points to the publicly reachable host (no in-cluster-only ports); `AUTH_TRUST_HOST=true` is required behind gateways/proxies (fail-fast), and `AMEIDE_PLATFORM_BASE_URL` matches the same host the runner uses.
    - `/api/auth/providers` and `/api/auth/csrf` stay healthy; `/internal/auth-health` exposes a simple check for runner gates.
    - `AUTH_SECRET` comes from `playwright-int-tests-secrets`; services never boot without it outside local overlays.
 
