@@ -1,5 +1,7 @@
 # 527 Transformation — E2E Sequence (v4: Zeebe runtime for BPMN-authored processes)
 
+> Superseded by `backlog/527-transformation-e2e-sequence-v5.md` (adds the normative Request → Wait → Resume pattern for long-running steps). Kept for historical context.
+
 This document replaces the earlier “Temporal-based” E2E sequence narratives under `backlog/527-transformation-e2e-sequence*.md`.
 
 ## Intent
@@ -61,4 +63,3 @@ User actions:
   - fully covered by worker implementations for every side-effect task type.
 
 If any of the above is not true, promotion/deployment must fail (“diagram must not lie”).
-

@@ -8,6 +8,8 @@ created: 2026-01-12
 
 # 511 – Process Primitive Scaffolding (v2): BPMN executed by Zeebe
 
+> Superseded by `backlog/511-process-primitive-scaffolding-v3.md` (adds the normative Zeebe long-work pattern: request → wait → resume). Kept for historical context.
+
 ## 0) Decision summary (this replaces v1 compile-to-Temporal)
 
 We adopt a single orchestration posture for Ameide business capabilities:
