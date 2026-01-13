@@ -10,6 +10,16 @@
 
 ---
 
+## 0) Implementation anchors (primitives + proto)
+
+Increment 3 is where the retrieval and governance loops become “production-shaped”:
+
+- **Projection primitive:** hybrid retrieval (keyword + vectors), mode/budget parameters, graph-aware retrieval, index lifecycle management.
+- **Domain primitive:** validators as attachable evidence + policy-driven promotion gates (still expressed as canonical elements/versions/baselines).
+- **EDA posture:** facts remain the rebuild source; embeddings/graph indexes are projections (derived).
+
+See `backlog/656-agentic-memory-implementation.md` §5 and `backlog/535-mcp-read-optimizations.md` for the retrieval/indexing posture.
+
 ## 1) Read loop upgrades (hybrid + graph-aware retrieval)
 
 ### 1.1 Hybrid retrieval as default
