@@ -1,0 +1,206 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"
+                  id="Definitions_transformation_r2d_v2_zeebe"
+                  targetNamespace="https://ameide.io/transformation/r2d/v2">
+
+  <bpmn:message id="Message_work_completed_v1" name="work.completed.v1">
+    <bpmn:extensionElements>
+      <zeebe:subscription correlationKey="=work_id"/>
+    </bpmn:extensionElements>
+  </bpmn:message>
+
+  <bpmn:process id="transformation_r2d_v2" name="transformation.r2d.v2" isExecutable="true">
+    <bpmn:documentation>
+Transformation R2D governance process (Zeebe runtime, v2 semantics).
+
+Runtime model:
+- Service tasks are *request* steps: the worker durably requests external work and completes the Zeebe job quickly.
+- Long work is modeled as explicit wait states (message catch) and resumes via publish-message (TTL + messageId).
+- A single Process primitive worker microservice owns all job types for this BPMN.
+- User tasks represent explicit human decisions, completed via Tasklist (or Ameide UI bridged to Tasklist semantics).
+    </bpmn:documentation>
+
+    <bpmn:startEvent id="StartEvent_r2d" name="Start R2D"/>
+
+    <bpmn:subProcess id="SubProcess_requirements" name="transformation.r2d.requirements.v2">
+      <bpmn:documentation>
+Requirements stabilization and readiness gates.
+      </bpmn:documentation>
+      <bpmn:startEvent id="StartEvent_requirements" name="Start Requirements"/>
+
+      <bpmn:userTask id="Task_develop_requirement" name="transformation.r2d.requirements.develop_requirement.v1">
+        <bpmn:documentation>
+Human/agent collaboration to draft and stabilize requirement artifacts.
+        </bpmn:documentation>
+      </bpmn:userTask>
+
+      <bpmn:userTask id="Task_dor_gate" name="transformation.r2d.requirements.dor_gate.v1">
+        <bpmn:documentation>
+Definition-of-Ready (DoR) decision gate.
+        </bpmn:documentation>
+      </bpmn:userTask>
+
+      <bpmn:endEvent id="EndEvent_requirements" name="End Requirements"/>
+
+      <bpmn:sequenceFlow id="Flow_req_1" sourceRef="StartEvent_requirements" targetRef="Task_develop_requirement"/>
+      <bpmn:sequenceFlow id="Flow_req_2" sourceRef="Task_develop_requirement" targetRef="Task_dor_gate"/>
+      <bpmn:sequenceFlow id="Flow_req_3" sourceRef="Task_dor_gate" targetRef="EndEvent_requirements"/>
+    </bpmn:subProcess>
+
+    <bpmn:subProcess id="SubProcess_delivery_loop" name="transformation.r2d.delivery_loop.v2">
+      <bpmn:documentation>
+Delivery loop: request external work and resume via message completions.
+      </bpmn:documentation>
+      <bpmn:startEvent id="StartEvent_delivery_loop" name="Start Delivery Loop"/>
+
+      <bpmn:serviceTask id="Task_code_change_request" name="transformation.r2d.delivery_loop.code_change.request.v1">
+        <bpmn:documentation>
+Request code change work. Sets `work_id` and starts external execution.
+        </bpmn:documentation>
+        <bpmn:extensionElements>
+          <zeebe:taskDefinition type="transformation.r2d.delivery_loop.code_change.request.v1" retries="3"/>
+        </bpmn:extensionElements>
+      </bpmn:serviceTask>
+
+      <bpmn:intermediateCatchEvent id="Catch_code_change_completed" name="Wait code change completed">
+        <bpmn:documentation>
+Wait for `work.completed.v1` correlated by `work_id`.
+        </bpmn:documentation>
+        <bpmn:messageEventDefinition messageRef="Message_work_completed_v1"/>
+      </bpmn:intermediateCatchEvent>
+
+      <bpmn:serviceTask id="Task_tests_request" name="transformation.r2d.delivery_loop.tests.request.v1">
+        <bpmn:documentation>
+Request tests execution work. Sets new `work_id` before waiting.
+        </bpmn:documentation>
+        <bpmn:extensionElements>
+          <zeebe:taskDefinition type="transformation.r2d.delivery_loop.tests.request.v1" retries="3"/>
+        </bpmn:extensionElements>
+      </bpmn:serviceTask>
+
+      <bpmn:intermediateCatchEvent id="Catch_tests_completed" name="Wait tests completed">
+        <bpmn:documentation>
+Wait for `work.completed.v1` correlated by `work_id`.
+        </bpmn:documentation>
+        <bpmn:messageEventDefinition messageRef="Message_work_completed_v1"/>
+      </bpmn:intermediateCatchEvent>
+
+      <bpmn:serviceTask id="Task_final_gate_request" name="transformation.r2d.delivery_loop.final_gate.request.v1">
+        <bpmn:documentation>
+Request final gate work (e.g. open PR, label preview, capture digests).
+        </bpmn:documentation>
+        <bpmn:extensionElements>
+          <zeebe:taskDefinition type="transformation.r2d.delivery_loop.final_gate.request.v1" retries="3"/>
+        </bpmn:extensionElements>
+      </bpmn:serviceTask>
+
+      <bpmn:intermediateCatchEvent id="Catch_final_gate_completed" name="Wait final gate completed">
+        <bpmn:documentation>
+Wait for `work.completed.v1` correlated by `work_id`.
+        </bpmn:documentation>
+        <bpmn:messageEventDefinition messageRef="Message_work_completed_v1"/>
+      </bpmn:intermediateCatchEvent>
+
+      <bpmn:endEvent id="EndEvent_delivery_loop" name="End Delivery Loop"/>
+
+      <bpmn:sequenceFlow id="Flow_deliv_1" sourceRef="StartEvent_delivery_loop" targetRef="Task_code_change_request"/>
+      <bpmn:sequenceFlow id="Flow_deliv_2" sourceRef="Task_code_change_request" targetRef="Catch_code_change_completed"/>
+      <bpmn:sequenceFlow id="Flow_deliv_3" sourceRef="Catch_code_change_completed" targetRef="Task_tests_request"/>
+      <bpmn:sequenceFlow id="Flow_deliv_4" sourceRef="Task_tests_request" targetRef="Catch_tests_completed"/>
+      <bpmn:sequenceFlow id="Flow_deliv_5" sourceRef="Catch_tests_completed" targetRef="Task_final_gate_request"/>
+      <bpmn:sequenceFlow id="Flow_deliv_6" sourceRef="Task_final_gate_request" targetRef="Catch_final_gate_completed"/>
+      <bpmn:sequenceFlow id="Flow_deliv_7" sourceRef="Catch_final_gate_completed" targetRef="EndEvent_delivery_loop"/>
+    </bpmn:subProcess>
+
+    <bpmn:subProcess id="SubProcess_acceptance" name="transformation.r2d.acceptance.v2">
+      <bpmn:documentation>
+Acceptance stage: preview validation is requested as external work; accept/reject is a human task.
+      </bpmn:documentation>
+      <bpmn:startEvent id="StartEvent_acceptance" name="Start Acceptance"/>
+
+      <bpmn:serviceTask id="Task_preview_validate_request" name="transformation.r2d.acceptance.preview_validate.request.v1">
+        <bpmn:documentation>
+Request preview validation and evidence capture.
+        </bpmn:documentation>
+        <bpmn:extensionElements>
+          <zeebe:taskDefinition type="transformation.r2d.acceptance.preview_validate.request.v1" retries="3"/>
+        </bpmn:extensionElements>
+      </bpmn:serviceTask>
+
+      <bpmn:intermediateCatchEvent id="Catch_preview_validate_completed" name="Wait preview validation completed">
+        <bpmn:messageEventDefinition messageRef="Message_work_completed_v1"/>
+      </bpmn:intermediateCatchEvent>
+
+      <bpmn:userTask id="Task_accept_reject_gate" name="transformation.r2d.acceptance.accept_reject_gate.v1">
+        <bpmn:documentation>
+Acceptance decision gate (accept/reject + feedback).
+        </bpmn:documentation>
+      </bpmn:userTask>
+
+      <bpmn:endEvent id="EndEvent_acceptance" name="End Acceptance"/>
+
+      <bpmn:sequenceFlow id="Flow_acc_1" sourceRef="StartEvent_acceptance" targetRef="Task_preview_validate_request"/>
+      <bpmn:sequenceFlow id="Flow_acc_2" sourceRef="Task_preview_validate_request" targetRef="Catch_preview_validate_completed"/>
+      <bpmn:sequenceFlow id="Flow_acc_3" sourceRef="Catch_preview_validate_completed" targetRef="Task_accept_reject_gate"/>
+      <bpmn:sequenceFlow id="Flow_acc_4" sourceRef="Task_accept_reject_gate" targetRef="EndEvent_acceptance"/>
+    </bpmn:subProcess>
+
+    <bpmn:subProcess id="SubProcess_release" name="transformation.r2d.release.v2">
+      <bpmn:documentation>
+Release stage: request build/publish + GitOps promotion + rollout verify as external work.
+      </bpmn:documentation>
+      <bpmn:startEvent id="StartEvent_release" name="Start Release"/>
+
+      <bpmn:serviceTask id="Task_build_publish_request" name="transformation.r2d.release.build_publish.request.v1">
+        <bpmn:extensionElements>
+          <zeebe:taskDefinition type="transformation.r2d.release.build_publish.request.v1" retries="3"/>
+        </bpmn:extensionElements>
+      </bpmn:serviceTask>
+
+      <bpmn:intermediateCatchEvent id="Catch_build_publish_completed" name="Wait build/publish completed">
+        <bpmn:messageEventDefinition messageRef="Message_work_completed_v1"/>
+      </bpmn:intermediateCatchEvent>
+
+      <bpmn:serviceTask id="Task_gitops_promote_request" name="transformation.r2d.release.gitops_promote.request.v1">
+        <bpmn:extensionElements>
+          <zeebe:taskDefinition type="transformation.r2d.release.gitops_promote.request.v1" retries="3"/>
+        </bpmn:extensionElements>
+      </bpmn:serviceTask>
+
+      <bpmn:intermediateCatchEvent id="Catch_gitops_promote_completed" name="Wait GitOps promote completed">
+        <bpmn:messageEventDefinition messageRef="Message_work_completed_v1"/>
+      </bpmn:intermediateCatchEvent>
+
+      <bpmn:serviceTask id="Task_rollout_verify_request" name="transformation.r2d.release.rollout_verify.request.v1">
+        <bpmn:extensionElements>
+          <zeebe:taskDefinition type="transformation.r2d.release.rollout_verify.request.v1" retries="3"/>
+        </bpmn:extensionElements>
+      </bpmn:serviceTask>
+
+      <bpmn:intermediateCatchEvent id="Catch_rollout_verify_completed" name="Wait rollout verify completed">
+        <bpmn:messageEventDefinition messageRef="Message_work_completed_v1"/>
+      </bpmn:intermediateCatchEvent>
+
+      <bpmn:endEvent id="EndEvent_release" name="End Release"/>
+
+      <bpmn:sequenceFlow id="Flow_rel_1" sourceRef="StartEvent_release" targetRef="Task_build_publish_request"/>
+      <bpmn:sequenceFlow id="Flow_rel_2" sourceRef="Task_build_publish_request" targetRef="Catch_build_publish_completed"/>
+      <bpmn:sequenceFlow id="Flow_rel_3" sourceRef="Catch_build_publish_completed" targetRef="Task_gitops_promote_request"/>
+      <bpmn:sequenceFlow id="Flow_rel_4" sourceRef="Task_gitops_promote_request" targetRef="Catch_gitops_promote_completed"/>
+      <bpmn:sequenceFlow id="Flow_rel_5" sourceRef="Catch_gitops_promote_completed" targetRef="Task_rollout_verify_request"/>
+      <bpmn:sequenceFlow id="Flow_rel_6" sourceRef="Task_rollout_verify_request" targetRef="Catch_rollout_verify_completed"/>
+      <bpmn:sequenceFlow id="Flow_rel_7" sourceRef="Catch_rollout_verify_completed" targetRef="EndEvent_release"/>
+    </bpmn:subProcess>
+
+    <bpmn:endEvent id="EndEvent_r2d" name="End R2D"/>
+
+    <bpmn:sequenceFlow id="Flow_main_1" sourceRef="StartEvent_r2d" targetRef="SubProcess_requirements"/>
+    <bpmn:sequenceFlow id="Flow_main_2" sourceRef="SubProcess_requirements" targetRef="SubProcess_delivery_loop"/>
+    <bpmn:sequenceFlow id="Flow_main_3" sourceRef="SubProcess_delivery_loop" targetRef="SubProcess_acceptance"/>
+    <bpmn:sequenceFlow id="Flow_main_4" sourceRef="SubProcess_acceptance" targetRef="SubProcess_release"/>
+    <bpmn:sequenceFlow id="Flow_main_5" sourceRef="SubProcess_release" targetRef="EndEvent_r2d"/>
+  </bpmn:process>
+</bpmn:definitions>
+

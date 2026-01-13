@@ -4,9 +4,13 @@ status: draft
 owners:
   - platform
 created: 2026-01-12
+superseded_by:
+  - 511-process-primitive-scaffolding-v3.md
 ---
 
 # 511 – Process Primitive Scaffolding (v2): BPMN executed by Zeebe
+
+> **Superseded:** see `backlog/511-process-primitive-scaffolding-v3.md` (aligns process packaging + test posture to `backlog/430-unified-test-infrastructure-v2-target.md` and codifies Request → Wait → Resume for long work).
 
 ## 0) Decision summary (this replaces v1 compile-to-Temporal)
 

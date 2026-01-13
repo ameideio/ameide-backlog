@@ -1,5 +1,8 @@
 > Superseded by the internal-only, Coder-based model in `backlog/650-agentic-coding-overview.md` and `backlog/653-agentic-coding-test-automation.md`.
 
+> **Test contract update:** the normative v2 test contract is `backlog/430-unified-test-infrastructure-v2-target.md`.  
+> For the updated CLI posture, see `backlog/621-ameide-cli-inner-loop-test-v2.md`.
+
 # 621 — `ameide dev inner-loop-test` (Agent Inner-Loop Verification)
 
 ## Principles / invariants (non-negotiable)
