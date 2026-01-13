@@ -208,6 +208,24 @@ The upstream chart schema defines several topology values as **strings** (`"1"`,
 
 ## Guardrails (Prevent Recurrence)
 
+### 0) In-cluster smoke gate (ArgoCD, not CI)
+
+This repo’s “platform smoke” gate runs **inside ArgoCD** as **PostSync hook Jobs** (not in CI), so failures show up as:
+
+- Argo Application sync phase `Failed` / `Degraded` (fast feedback)
+- repeatable reruns via `scripts/argocd-force-sync.sh dev-platform-smoke`
+
+For Camunda baseline, the smoke must validate the public routes and OIDC wiring without requiring credentials:
+
+- `https://camunda.{env}.ameide.io/operate` returns `302` to `/oauth2/authorization/oidc` (browser-style request)
+- `https://camunda.{env}.ameide.io/tasklist` returns `302` to `/oauth2/authorization/oidc`
+- `https://camunda.{env}.ameide.io/connectors/actuator/health` returns `200` and `UP`
+
+Implementation location (dev today):
+
+- Values: `sources/values/env/dev/apps/platform-smoke.yaml`
+- Runner chart: `sources/charts/foundation/platform-smoke`
+
 ### A) Render-time URL sanity check (CI)
 
 Add a CI gate that fails if rendered manifests contain “empty-host” OIDC URLs like:

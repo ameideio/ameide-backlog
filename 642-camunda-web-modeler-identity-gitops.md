@@ -160,4 +160,13 @@ Extend the `platform/camunda8` wrapper chart with:
   - REST API (successful `/internal-api/login` and a stable authenticated session)
   - websockets endpoint (basic connectivity check)
 - In `production`, Web Modeler and Identity are not deployed and no routes exist.
-- A smoke test exists that validates the public routes and auth redirect correctness.
+- A smoke test exists that validates the public routes and auth redirect correctness, **wired through ArgoCD** (PostSync hook Jobs), not CI:
+  - Web Modeler UI: `https://modeler.dev.ameide.io/` returns `302` to `/login`
+  - Web Modeler REST API: `https://modeler-api.dev.ameide.io/` returns `401`
+  - Web Modeler WebSockets host: `https://modeler-ws.dev.ameide.io/` returns `404` (basic route is live)
+  - Identity UI: `https://identity.dev.ameide.io/` returns `302` to `/auth/login`
+
+Implementation location (dev today):
+
+- Values: `sources/values/env/dev/apps/platform-smoke.yaml`
+- Runner chart: `sources/charts/foundation/platform-smoke`

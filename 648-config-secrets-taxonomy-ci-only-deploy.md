@@ -219,6 +219,28 @@ Contract:
 - If we require fully declarative deletions, enable automated **prune** for those apps.
 - Argo RBAC must restrict “sync/override/edit live” to platform operators; product teams should change desired state via Git PRs only.
 
+### Smokes (in ArgoCD, not CI)
+
+“Smokes” are part of the **GitOps convergence contract** and must run **inside ArgoCD** as hook Jobs (PostSync), so that:
+
+- A deployment is not considered “done” unless the cluster can prove the public routes and required dependencies are reachable.
+- Failures surface in ArgoCD (the same control plane that applies desired state), not in ad-hoc manual checks.
+
+CI’s role is:
+
+- build/publish immutable artifacts (images, charts)
+- update desired state in Git (digests/values)
+
+ArgoCD’s role is:
+
+- apply desired state
+- run in-cluster smokes as part of the rollout gate
+
+Implementation note:
+
+- Today the smoke Jobs use minimal container images (e.g., curl/kubectl) and a small script wrapper to enforce deterministic assertions (expected `302/401/404/200`, expected headers, etc.).
+- If we ever adopt a strict “no shell in jobs” rule, we must replace the script wrappers with a single pinned “smoke runner” binary/image; otherwise smokes become too weak to act as a gate.
+
 ## Refactoring Plan
 
 ### Phase 0 – Inventory (no behavior change)
