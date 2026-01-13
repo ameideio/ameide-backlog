@@ -147,7 +147,7 @@ Note: Node 3F (Scaffold Integration) and Node 7C (Implement Integration) follow 
 
 **Context (read only)**
 - `backlog/509-proto-naming-conventions.md`
-- `backlog/496-eda-protobuf-ameide.md`, `backlog/496-eda-principles.md`
+- `backlog/496-eda-protobuf-ameide.md`, `backlog/496-eda-principles-v2.md`
 
 **Actions**
 - Define topic families and aggregator envelopes (domain intents/facts/process facts).

@@ -70,7 +70,7 @@ If Commerce publishes an MCP surface for agentic access, it is implemented as a 
 
 Integrations are boundary adapters and must be correct under at-least-once delivery:
 
-- Inbound webhooks/messages MUST be idempotent (inbox or natural keys) per `496-eda-principles.md` Principle 4.
+- Inbound webhooks/messages MUST be idempotent on CloudEvents `id` (inbox dedupe or convergent natural-key handling) per `backlog/496-eda-principles-v2.md` §2.4 and §5.3.
 - Prefer emitting integration outcome facts (optional `commerce.integration.facts.v1`) and/or domain/process facts that record results.
 - Long-running external coordination belongs in Process workflows (Temporal), not ad-hoc retry loops.
 - Always propagate `tenant_id` and correlation/causation metadata across calls/messages.

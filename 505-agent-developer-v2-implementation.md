@@ -12,7 +12,7 @@
 
 ## Grounding & cross-references
 
-- **Architecture grounding:** Executes the architecture defined in `505-agent-developer-v2.md` on top of the primitive/EDA foundations in `471-ameide-business-architecture.md`, `472-ameide-information-application.md`, `473-ameide-technology.md`, `475-ameide-domains.md`, `476-ameide-security-trust.md`, `477-primitive-stack.md`, and `496-eda-principles.md`.  
+- **Architecture grounding:** Executes the architecture defined in `505-agent-developer-v2.md` on top of the primitive/EDA foundations in `471-ameide-business-architecture.md`, `472-ameide-information-application.md`, `473-ameide-technology.md`, `475-ameide-domains.md`, `476-ameide-security-trust.md`, `477-primitive-stack.md`, and `496-eda-principles-v2.md`.  
 - **Scrum stack dependencies:** Uses the Scrum domain/process contracts from `300-400/367-1-scrum-transformation.md`, `506-scrum-vertical-v2.md`, and `508-scrum-protos.md` as the canonical data/event model that Process primitives, AmeidePO/AmeideSA, and AmeideCoder must obey.  
 - **Primitive & operator tracks:** Aligns workstreams with the primitive operator/vertical-slice backlogs (`498-domain-operator.md`, `499-process-operator.md`, `500-agent-operator.md`, `501-uisurface-operator.md`, `502-domain-vertical-slice.md`, `503-operators-helm-chart.md`, `504-agent-vertical-slice.md`), with Projection/Integration operators tracked as v2 work in `backlog/520-primitives-stack-v2.md`.  
 - **Navigation:** `507-scrum-agent-map.md` provides the cross-layer map this implementation plan plugs into; legacy notes and migration concerns remain in `505-agent-developer.md`.
@@ -330,7 +330,7 @@ Dependencies:
 - [505-agent-developer-v2.md](505-agent-developer-v2.md) – target architecture
 - [500-agent-operator.md](500-agent-operator.md) – CRD/operator status
 - [504-agent-vertical-slice.md](504-agent-vertical-slice.md) – CLI/operator guardrails
-- [496-eda-principles.md](496-eda-principles.md) – event contracts
+- [496-eda-principles-v2.md](496-eda-principles-v2.md) – event contracts
 - [477-primitive-stack.md](477-primitive-stack.md) – placement of primitives
 - [A2A Protocol](https://a2a-protocol.org/latest/specification/) – optional transport binding reference
 

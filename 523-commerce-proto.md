@@ -11,7 +11,7 @@ This document proposes a proto shape for commerce that makes the communication t
 
 It complements:
 
-- `496-eda-principles.md` (EDA invariants)
+- `496-eda-principles-v2.md` (EDA invariants; Kubernetes standard)
 - `509-proto-naming-conventions.md` (package/topic conventions)
 - `523-commerce*.md` (commerce decomposition)
 - `525-it4it-value-stream-mapping.md` (IT4IT value-stream lens)
@@ -77,10 +77,12 @@ Commerce should be able to bridge cleanly across brokers and HTTP without bespok
 - CloudEvents attributes (`id`, `type`, `source`, `subject`, `specversion`)
 - W3C Trace Context headers (`traceparent`, `tracestate`)
 
+**Kubernetes standard note:** for inter-primitive messaging in Kubernetes, CloudEvents is the canonical envelope and Protobuf payloads MUST NOT embed message metadata as the primary envelope (see `backlog/496-eda-principles-v2.md`). The `CommerceMessageMeta` shown below should be treated as **legacy/migration scaffolding** for older topic-family contracts.
+
 Every intent/fact MUST carry:
 
 - tenant isolation: `tenant_id` (required)
-- traceability: `message_id`, `correlation_id`, `causation_id`, and timestamps (see `496-eda-principles.md` Principle 8)
+- traceability: CloudEvents `id` (idempotency key) plus correlation/causation + tracing extensions (see `backlog/496-eda-principles-v2.md` §2.1–§2.4 and §7)
 - commerce scope: `site_id`, `sales_channel_id`, `stock_location_id`, `store_site_id` when applicable
 - event metadata that can map to CloudEvents + W3C trace context
 

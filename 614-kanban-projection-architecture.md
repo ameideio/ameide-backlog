@@ -9,7 +9,7 @@ It is intentionally aligned with:
 - `backlog/511-process-primitive-scaffolding.md` (Temporal-backed Process primitive contract)
 - `backlog/616-kanban-principles.md` (Kanban principles; projection-first UX)
 - `backlog/509-proto-naming-conventions.md` (topic families + process progress fact conventions)
-- `backlog/496-eda-principles.md` (facts are not requests; outbox discipline)
+- `backlog/496-eda-principles-v2.md` (facts are not requests; outbox discipline)
 - `backlog/513-uisurface-primitive-scaffolding.md` (UISurface reads from projections; no infra coupling)
 - `backlog/618-kanban-proto-contracts.md` (proto-first Kanban query + updates stream contracts)
 
@@ -53,7 +53,7 @@ Temporal visibility/search is designed for operational listing/filtering of work
 - Retention policies remove workflow data unless archival is configured.
 - Search attribute limits and indexing constraints make “rich card state” impractical.
 
-The Ameide platform requires projections to be **rebuildable, convergent, and correct under at-least-once delivery** (`backlog/520-primitives-stack-v2-projection.md`, `backlog/496-eda-principles.md`). Therefore Kanban must be backed by a projection store, not by Temporal visibility.
+The Ameide platform requires projections to be **rebuildable, convergent, and correct under at-least-once delivery** (`backlog/520-primitives-stack-v2-projection.md`, `backlog/496-eda-principles-v2.md`). Therefore Kanban must be backed by a projection store, not by Temporal visibility.
 
 ## Kanban contract (capability-agnostic)
 
@@ -144,7 +144,7 @@ Operational boards must remain bounded without relying on hard deletes.
 
 ### Domain facts (business truth)
 
-Domains emit **domain facts** via transactional outbox after persistence (`backlog/510-domain-primitive-scaffolding.md`, `backlog/496-eda-principles.md`).
+Domains emit **domain facts** via transactional outbox after persistence (`backlog/510-domain-primitive-scaffolding.md`, `backlog/496-eda-principles-v2.md`).
 
 These facts can drive card attributes such as:
 

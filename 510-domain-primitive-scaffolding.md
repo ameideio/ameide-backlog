@@ -32,7 +32,7 @@ This backlog defines the **canonical target scaffold** for **Domain** primitives
 
 - **Primitive stack:** `477-primitive-stack.md` (Domain primitives in `primitives/domain/{name}` and GitOps under `gitops/primitives/domain/{name}`).  
 - **Primitive/operator contract:** `495-ameide-operators.md` (shared CRD/spec/status patterns), `497-operator-implementation-patterns.md` (controller-runtime patterns), `498-domain-operator.md` (Domain operator implementation).  
-- **EDA / outbox principles:** `470-ameide-vision.md` (§8–13), `472-ameide-information-application.md` (§3.3), `496-eda-principles.md`.  
+- **EDA / outbox principles:** `470-ameide-vision.md` (§8–13), `472-ameide-information-application.md` (§3.3), `496-eda-principles-v2.md`.  
 - **CLI workflows & verification:** `484-ameide-cli-overview.md`, `484a-ameide-cli-primitive-workflows.md`, `484b-ameide-cli-proto-contract.md`, `484f-ameide-cli-scaffold-implementation.md`.
 - **Testing discipline:** `537-primitive-testing-discipline.md` (RED→GREEN TDD pattern, CI enforcement, per-primitive test invariants).  
 - **Domain operator / vertical slice:** `498-domain-operator.md`, `502-domain-vertical-slice.md`.  
@@ -109,7 +109,7 @@ gitops/primitives/domain/<name>/
 
 ## 3. Opinionated EDA pattern (Domain)
 
-Domain scaffolds must always follow the **outbox → dispatcher** pattern from `496-eda-principles.md`:
+Domain scaffolds must always follow the **outbox → dispatcher** pattern from `496-eda-principles-v2.md`:
 
 - **Domain handlers**
   - Operate on aggregates and **never import broker or Watermill packages**.
@@ -135,7 +135,7 @@ Domain scaffolds must always follow the **outbox → dispatcher** pattern from `
     - Aggregate linkage (`aggregate_type`, `aggregate_id`, `aggregate_version`)
 
 - **Postgres outbox adapter (`internal/adapters/postgres/outbox.go`)**
-  - Implements `EventOutbox` by writing JSON/bytes into an outbox table (see `496-eda-principles.md` for schema guidance).
+  - Implements `EventOutbox` by writing JSON/bytes into an outbox table (see `496-eda-principles-v2.md` for schema guidance).
   - Runs in the **same transaction** as the aggregate update.
 
 - **Dispatcher (`internal/dispatcher/dispatcher.go`, `cmd/dispatcher/main.go`)**
@@ -189,7 +189,7 @@ Implementers (humans or coding agents) are expected to:
 
 1. Replace `codes.Unimplemented` with real domain logic + outbox calls.  
 2. Replace `t.Fatalf` with real assertions (including checks that `mockOutbox` saw the right topic/event).  
-3. Keep the outbox usage aligned with the EDA rules from `496-eda-principles.md`.
+3. Keep the outbox usage aligned with the EDA rules from `496-eda-principles-v2.md`.
 
 ---
 

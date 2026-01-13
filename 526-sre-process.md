@@ -15,7 +15,7 @@ This document specifies the **sre-process** primitive — Temporal-backed workfl
 - [ ] Full 525 phase model is not implemented yet (pattern lookup → triage → remediation → verification → documentation).
 - [ ] Approval signals + risk-tier gating are not implemented yet.
 - [ ] Change verification, SLO burn monitoring, and alert correlation workflows are not implemented yet.
-- [ ] Durable broker subscription / event-driven ingress from `sre.domain.facts.v1` is not implemented yet (current ingress is a scaffold; target delivery semantics are Kafka consumer → ingress → `SignalWithStart`, with signal dedupe + `Continue-As-New` planning per `backlog/496-eda-principles.md`).
+- [ ] Durable broker subscription / event-driven ingress from `sre.domain.facts.v1` is not implemented yet (current ingress is a scaffold; target delivery semantics are Kafka consumer → ingress → `SignalWithStart`, with signal dedupe + `Continue-As-New` planning per `backlog/496-eda-principles-v2.md`).
 
 ## Clarifications requested (next steps)
 

@@ -28,7 +28,7 @@
 ## Grounding & cross-references
 
 - **Status & purpose:** Historical record of the original two-agent (PO + Coder) A2A model and Requirement-centric contracts; retained to explain existing assets and migration steps, but superseded by `505-agent-developer-v2.md`, `506-scrum-vertical-v2.md`, and `508-scrum-protos.md` for any new design or implementation.  
-- **Architecture grounding:** Built on the same primitive and vision backlogs as v2 (`470-ameide-vision.md`, `471-ameide-business-architecture.md`, `472-ameide-information-application.md`, `473-ameide-technology.md`, `475-ameide-domains.md`, `477-primitive-stack.md`, and `496-eda-principles.md`), but before the strict Scrum-aligned contract was introduced.  
+- **Architecture grounding:** Built on the same primitive and vision backlogs as v2 (`470-ameide-vision.md`, `471-ameide-business-architecture.md`, `472-ameide-information-application.md`, `473-ameide-technology.md`, `475-ameide-domains.md`, `477-primitive-stack.md`, and `496-eda-principles-v2.md`), but before the strict Scrum-aligned contract was introduced.
 - **Legacy consumers:** Older operator/CLI demos and A2A experiments that still reference Requirement events or direct domain RPCs should treat this file as migration guidance only and target the v2 contracts when updated. `504-agent-vertical-slice.md` and `500-agent-operator.md` now follow the v2 architecture.  
 - **Navigation:** `507-scrum-agent-map.md` and `505-agent-developer-v2-implementation.md` show how the new multi-agent stack replaces this design while preserving evidence from its implementation history.
 

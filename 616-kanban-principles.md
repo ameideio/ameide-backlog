@@ -12,7 +12,7 @@ It is intentionally aligned with:
 - `backlog/520-primitives-stack-v2-projection.md` (projection contract)
 - `backlog/511-process-primitive-scaffolding.md` (Temporal-backed Process contracts)
 - `backlog/509-proto-naming-conventions.md` (process progress facts identity + minimal vocabulary)
-- `backlog/496-eda-principles.md` (facts vs intents; outbox + idempotency)
+- `backlog/496-eda-principles-v2.md` (facts vs intents; outbox + idempotency)
 - `backlog/614-kanban-projection-architecture.md` (Kanban as a projection; recommended architecture)
 - `backlog/615-kanban-fullstack-reference.md` (full-stack reference implementation)
 - `backlog/618-kanban-proto-contracts.md` (proto-first Kanban query + updates stream contracts)
@@ -58,7 +58,7 @@ Kanban boards are **process-definition-centric**: one board corresponds to one `
 
 - Columns and card state MUST be derived deterministically from **facts** plus versioned/configurable mapping rules.
 - The UI MUST NOT maintain an imperative “card status” as the source of truth.
-- If the UI offers a “move card” interaction, it MUST issue a real domain/process **intent/command** and then reconcile to the projection truth (per `backlog/496-eda-principles.md`).
+- If the UI offers a “move card” interaction, it MUST issue a real domain/process **intent/command** and then reconcile to the projection truth (per `backlog/496-eda-principles-v2.md`).
 
 ### Principle 3: Phase-first progress is the default
 

@@ -1,267 +1,398 @@
----
-title: "656 – Agentic memory (curation + retrieval)"
-status: draft
-owners:
-  - platform-devx
-  - agents
-  - platform
-created: 2026-01-12
+# 656 — Agentic Memory: Organizational Memory, Curation, and Retrieval Contract
+
+**Epic:** Agentic Platform Foundations  
+**Status:** Draft (contract)  
+**Priority:** High  
+
 ---
 
-# 656 – Agentic memory (curation + retrieval)
+## 0) Summary
 
-## 0) Purpose
+This backlog defines the **platform contract for organizational memory** used by humans and agents:
 
-Define how Ameide maintains “memory” for agents in a way that is:
+- **What “memory” is:** a single repository-scoped, versioned **element graph** plus **baselines** that represent “published / normative truth”.
+- **How memory evolves:** humans curate directly; execution agents propose changes into the **same repository** using lifecycle/status; curators review and promote reviewed changes into baselines.
+- **How memory is organized:** **ArchiMate-first** when possible: the ontology (type keys + semantic relationships) is the primary structure; documents/BPMN/diagrams are additional views/evidence linked into the same graph.
+- **How memory is retrieved:** through **projection-owned hybrid retrieval** (semantic + relationship-aware graph expansion) that returns **read_context with citations**, exposed to agents primarily via **MCP tools**.
+- **AGENTS.md scope:** `AGENTS.md` is **coding-agent-only** guidance; it must not be treated as “organizational memory”. Agents interact with organizational memory only via the contracts defined here (read_context + proposals).
 
-- scoped (applies to the correct repo/template/profile)
-- authoritative (clear precedence)
-- retrievable under limited context windows
-- versioned (no silent drift)
-- auditable (what was read, why it was trusted)
+This is the canonical place where the agentic coding suite and chat assistants learn **how to read, cite, and propose updates** to the shared organizational memory.
 
-This backlog is split into:
+---
 
-1. **Curation**: how we author, version, deprecate, and validate memory.
-2. **Retrieval**: how agents find and consume memory via graph + embedding retrieval (and when to fall back to deterministic sources).
+## 1) Goals
 
-## 1) Problem statement
+1. Maintain a **single, trustworthy organizational memory** that lets humans and agents consistently define, evolve, and govern:
+   - business processes (e.g., BPMN)
+   - architecture artifacts (e.g., ArchiMate)
+   - supporting documents/decisions
+   - (explicit) *legacy backlog markdown* as **ingestion input**, not as the long-term organization mechanism
 
-### 1.1 “Docs are not memory”
+2. Let humans curate memory **directly in the element editor**, across multiple artifact types, with:
+   - clear lifecycle (draft → published → superseded)
+   - auditability of edits, reviews, and promotions
 
-Human backlogs are long-form and exploratory; agents need short, current, enforceable rules:
+3. Ensure agents can **reliably retrieve the right context** for tasks/conversations via:
+   - relationship-aware retrieval (graph expansion)
+   - semantic/hybrid search
+   - stable, citeable references (element/version citations)
 
-- one command to run
-- explicit guardrails (“don’t touch X”)
-- what “done” means
-- where evidence lives
+4. Prevent low-quality or conflicting updates by execution-focused agents by:
+   - routing writes into a **curation queue view** (status/lifecycle-based)
+   - requiring **review + promotion** before canonical “published truth” changes
 
-### 1.2 Agents are not only coders
+---
 
-Agents operate in multiple roles:
+## 2) Non-goals
 
-- **coding agents**: change code in a Git repo, run CLI checks, open PRs
-- **assistants in chat**: help humans define architecture and business processes that must be stored as **versioned elements** (e.g., BPMN processes, ArchiMate views, reference documents)
+1. Training or fine-tuning foundation models from organizational memory.
+2. A second canonical storage system (no “memory database” outside the element substrate).
+3. “Prompt-only” guardrails (permissions must be enforced by RBAC/policy and tool grants).
+4. Cross-tenant retrieval or cross-org retrieval (memory remains repository-scoped).
+5. Treating markdown backlogs as a durable “memory UX” surface (backlogs are an ingestion source; curated memory lives in the ArchiMate-first graph).
 
-“Memory” therefore cannot be treated as “coding instructions only”. It must include business and architecture artifacts as first-class, versioned knowledge.
+---
 
-### 1.3 Multiple sources of truth cause drift
+## 3) Reference architecture links (how 656 fits)
 
-In practice, agent guidance can come from:
+This backlog is intentionally **303-first** and **527/535-shaped**.
 
-- **canonical element memory** (documents/diagrams stored as Elements + Versions)
-- `AGENTS.md` (coding agents only; execution guardrails while operating on a Git working tree)
-- backlog docs (a Git-view of memory docs; transitional)
-- CLI `--help` output (tool runtime truth)
+### 3.1 Canonical substrate (303-first)
 
-Without an explicit precedence model and validation gates, agents will follow stale or conflicting instructions.
+- **303-elements.md** is the authoritative substrate and must be treated as the source of truth for:
+  - **Elements-only canonical storage** (no separate canonical model per notation; attachments/evidence are non-canonical blobs referenced from elements).
+  - **Version-pinned references** via `REFERENCE.target_version_id` for reproducible reads.
+  - **Baselines + promotion** as the mechanism for “published / normative truth”.
 
-### 1.4 Submodule memory drift is real
+(These are the invariants 656 relies on; 656 does not redefine them.)
 
-With backlogs in a separate repo/submodule, we can end up with:
+### 3.2 Retrieval is a Projection concern (527/535-shaped)
 
-- code at commit A but memory at commit B (or vice versa)
-- “pinned memory” that is accurate for older code but contradicts the current CLI
+- **527-transformation-projection.md** (line 20): projection owns browse/search/history/diff.
+- **535-mcp-read-optimizations.md** (line 1): embedding/vector/hybrid retrieval is a projection capability; agents consume it through `read_context` + citations.
+- **657-transformation-domain-clean-target.md**: defines the required “clean target” posture (Kafka-first ingestion + gRPC auth boundaries) so retrieval and memory writes are safe and EDA-correct.
 
-We need a deliberate structure so “what an agent should do” stays aligned to the code it runs.
+### 3.3 Agentic coding suite integration
+- **650-agentic-coding-overview.md**, **653-agentic-coding-test-automation.md**, **654-agentic-coding-cli-surface.md**: depend on memory.
+- **656** defines the memory contract those agents must use (read_context + propose-to-queue), so they stop treating memory as an external ad-hoc store.
 
-## 2) Definitions
+### 3.4 Chat assistant ingestion bridge
+- **367-0-feedback-intake.md** provides the pattern: AI-assisted capture → persisted as elements with provenance.
+- **656** generalizes this to: chat → structured, versioned elements (draft) → review/promotion.
 
-- **Memory artifact**: a versioned element intended for agent context (raw Markdown, BPMN, ArchiMate, etc.).
-- **Backlog**: a document-shaped memory artifact (Markdown element), organized by architecture layer.
-- **Curation queue**: a queue of “memory candidates” awaiting consolidation and promotion into canonical memory.
-- **Profile**: an agent type/template with distinct guardrails (e.g., code/gitops/sre).
-- **AGENTS.md**: a Codex-oriented implementation mechanism that scopes **coding agent** behavior while operating on a Git working tree; it does not define the platform’s global memory system.
-- **Evidence**: machine-readable artifacts produced by the CLI (JUnit, logs, reports) that prove a check ran.
-- **Read context**: the precise state that was read (head/baseline/version) and why it is reproducible.
+### 3.5 Guardrails and permissions prerequisites
+- **329-authz.md** and **322-rbac.md**: org isolation + RBAC.
+- **535-mcp-read-optimizations.md**: requires auth at query time to prevent data leakage.
 
-## 3) Memory model (big picture)
+---
 
-### 3.1 Canonical memory lives in the element repository
+## 4) Canonical organizational memory model (elements + versions + relationships)
 
-Canonical memory is stored as **Elements + Relationships + Versions** (303), written by domain primitives (527) and served by projection query services with `read_context` and `citations[]`.
+### 4.1 Definition of “memory”
 
-This includes:
+**Organizational memory** is:
 
-- raw Markdown (policies, runbooks, “backlogs”, reference docs)
-- BPMN process definitions and diagrams
-- ArchiMate models and views
+1. A repository-scoped element graph (elements, versions, relationships).
+2. One or more **baselines** that define what is “published / normative truth”.
 
-### 3.2 Organize memory by architecture layers (required)
+Embeddings, vector indexes, search rankings, and read_context assembly are **projection outputs**, not canonical state.
 
-All memory artifacts are organized by architecture layers:
+### 4.2 Element kinds and type_keys (recommended)
 
-- Strategy
-- Business
-- Application
-- Technology
-- Implementation & Migration
+All of the following are stored as Elements; differences are expressed via `element_kind` + namespaced `type_key`:
 
-This is not only an IA decision; it is a retrieval primitive. Agents should be able to filter and traverse memory by layer, and follow relationships across layers.
+- **ArchiMate-first canonical nodes/edges (preferred)**
+  - Canonical “memory meaning” SHOULD be expressed using `archimate:*` `type_key`s and standards-compliant relationship verbs when possible.
+  - This is what enables layer-aware organization and traversal without inventing a parallel “memory taxonomy”.
 
-### 3.3 Layered memory (authoritative precedence)
+- **Documents / Decisions / Policies (supporting)**
+  - `element_kind`: `DOCUMENT`
+  - `type_key`: `ameide:doc`, `ameide:decision`, `ameide:policy`
+  - These MUST be linked into the ontology graph via semantic/reference edges to relevant ArchiMate elements (so they’re not orphan blobs).
 
-From highest authority (must be obeyed) to lowest:
+- **BPMN artifacts**
+  - `element_kind`: `MODEL` / `VIEW` (depending on your platform convention)
+  - `type_key`: `bpmn:*` (standards-compliant profile) or `ameide:bpmn:*` (extended)
+  - BPMN elements SHOULD be connected to ArchiMate via semantic links where possible (e.g., process realization/traceability).
 
-1. **Published memory elements** (promoted/published element versions and baselines)
-2. **Draft memory elements** (draft versions awaiting promotion)
-3. **Curation queue items** (explicitly non-authoritative)
-4. **CLI contracts** (`ameide ... --help` + generated evidence layout) as runtime truth for tool execution
-5. **`AGENTS.md` files** (coding agents only; local execution guardrails)
+- **ArchiMate artifacts**
+  - `element_kind`: `MODEL` / `VIEW`
+  - `type_key`: `archimate:*` (standards-compliant profile) or `ameide:archimate:*` (extended)
 
-Rule: when there is disagreement, higher layers win. Lower layers must be updated or marked superseded.
+- **Ingestion-only (legacy backlogs, captured chat transcripts, raw imports)**
+  - `element_kind`: `DOCUMENT` (or `BINARY` when appropriate)
+  - `type_key`: `ameide:ingest.backlog_md`, `ameide:ingest.chat`, `ameide:ingest.import`
+  - These are evidence/sources for curators and agents, not the target structure for organizational memory.
 
-### 3.4 Where memory lives (two planes)
+- **Governance / curation records** (defined in §6; stored in the same repository)
+  - `element_kind`: `DOCUMENT` (or a dedicated `RECORD` kind if you support it)
+  - `type_key`: `ameide:curation.proposal`, `ameide:curation.review`, `ameide:curation.decision`
 
-1. **Git-curated memory (bootstrap / transitional):**
-   - `AGENTS.md` files (coding agent instructions only)
-   - backlog repo/submodule (a Git-view of memory docs)
+### 4.3 Relationship kinds and usage
 
-2. **Platform memory (target):**
-   - store memory artifacts as **Elements + Versions** in the Transformation Domain (303/527)
-   - curate memory in the element editor (human-first)
-   - serve memory via Projection query services with `read_context` and `citations[]`
+Relationship kinds remain exactly:
 
-The two-plane model allows us to start with Git (simple, reviewable) and evolve to auditable, queryable memory inside the platform.
+- `CONTAINMENT`: internal structure (document sections, model hierarchies)
+- `SEMANTIC`: domain meaning (realizes, depends-on, controls, etc.)
+- `REFERENCE`: evidence/attachments, version-pinned references, workflow anchors
 
-## 4) Curation (how we create and maintain memory)
+**Rule:** internal structure belongs in `CONTAINMENT` relationships, not in workspace folders.
 
-### 4.1 Curation queue (agents propose, curator promotes)
+---
 
-Coding agents will rarely do a good job curating canonical memory while also shipping code.
+## 5) Ingestion paths (how memory gets created/updated)
 
-Decision: coding agents should **append to a curation queue** instead of directly editing canonical memory. A dedicated curator (human, or a dedicated “curator agent” with approval gates) consolidates and publishes.
+This section defines *write paths* into organizational memory without mixing in retrieval.
 
-Assistants operating in chat (e.g., while defining a business process) may generate draft BPMN/ArchiMate/document elements, but those drafts still enter curation (draft state and/or queue) before becoming published memory.
+### 5.1 Human curation in the element editor
 
-Minimum requirements for a queue item:
+- Humans edit elements directly → a new `ElementVersion` is created.
+- Lifecycle changes (draft/published/superseded) are implemented via:
+  - metadata state on versions and/or
+  - baseline promotion and supersedes relationships
 
-- a proposed memory artifact kind (policy/contract/runbook/recipe/backlog/BPMN/ArchiMate)
-- scope and intended audience (coding vs business-process vs architecture)
-- citations/evidence pointers (CLI output, PR URLs, existing element IDs, etc.)
-- proposed destination (update existing canonical element vs create a new element)
+### 5.2 Import pipelines for external formats (BPMN, ArchiMate, documents)
 
-### 4.2 Memory artifact types (curated, multi-modal)
+- External files are first stored as **attachments/evidence** (non-canonical blobs).
+- Import transforms attachments into canonical elements/relationships.
+- The attachment remains linked as evidence to the resulting element versions.
 
-We standardize a small set of memory artifact types:
+### 5.3 Chat-to-draft capture (assistant intake bridge)
 
-- **Policy**: non-negotiable rules (security posture, “don’t edit gitops from code profile”).
-- **Contract**: stable interfaces/commands (CLI front doors, evidence layout).
-- **Runbook**: step-by-step operational procedure (usually for SRE profile).
-- **Recipe**: common workflow with guardrails (e.g., “make change → run tests → open PR”).
-- **Backlog doc**: decision record organized by architecture layer (Markdown).
-- **BPMN**: business process definition (diagram) stored as a versioned element.
-- **ArchiMate**: architecture model/view stored as versioned elements.
-- **Index**: machine-readable registry of memory artifacts (see §4.4).
+Generalize the feedback-intake pattern to all memory domains:
 
-### 4.3 Lifecycle and deprecation rules
+1. Capture a chat interaction into an **Intake element** (draft) with provenance:
+   - source channel (chat), participants, timestamps, agent/tool identifiers
+2. Transform Intake → draft canonical elements (e.g., a BPMN draft process + related doc).
+3. Route to curation workflow (review/promotion) before it becomes published truth.
 
-Every memory artifact must declare:
+### 5.4 Execution agents (coding, SRE, GitOps) write via proposals only
 
-- `status`: `draft|active|superseded|deprecated`
-- `owners`
-- `last_verified` (date) or a CI gate that implies verification
-- explicit **“superseded by”** links when status is not active
+- Execution-focused agents MUST NOT write directly to canonical “published truth”.
+- They produce **proposal elements** into the curation queue (see §6).
+- Execution agents MAY create “curated but not approved yet” content (status-limited), so retrieval can include it without waiting for full human approval.
 
-### 4.4 Memory indexing (required for retrieval)
+---
 
-We introduce a single “memory registry” index that is easy for agents and tools to consume:
+## 6) Curation queue (first-class governance objects)
 
-- `backlog/agent-memory/index.yaml` (future file; this backlog defines the requirement)
+This section defines the human-in-the-loop workflow that protects canonical memory quality.
 
-Target-state note: the “index” should ultimately be served as a Projection query over memory elements (filterable by layer/profile/status), not as a hand-maintained file. The file is a bootstrap mechanism only.
+Key rule: there is **one repository**; “queue vs published” is expressed via **lifecycle/status** and baselines, not by splitting repositories.
 
-Each entry includes:
+### 6.1 Core objects
 
-- id (stable key)
-- title
-- scope (repo/profile/path)
-- status
-- owners
-- tags (e.g., `tests`, `gitops`, `security`, `cli`)
-- canonical link(s) (file path(s))
+#### Proposal element
+- `type_key`: `ameide:curation.proposal`
+- Purpose: represent a suggested change, with evidence, provenance, and deterministic targets.
 
-### 4.5 Change management gates (prevent drift)
+Required metadata (minimum):
+- `proposal_status`: `DRAFT | IN_REVIEW | ACCEPTED | REJECTED | WITHDRAWN`
+- `proposed_by`: `{actor_type: human|agent, actor_id, tool_id}`
+- `proposal_summary`: short text
+- `proposal_change_kind`: `CREATE | UPDATE | LINK | UNLINK | SUPERSEDE`
+- `created_at`, `updated_at`
 
-Required checks:
+#### Review/Decision elements
+- `type_key`: `ameide:curation.review` and/or `ameide:curation.decision`
+- Purpose: capture reviewer discussion, validation results, acceptance/rejection rationale.
 
-- A change to the CLI that alters behavior must update either:
-  - CLI help output, or
-  - the corresponding memory artifact(s), or
-  - mark older memory as superseded
-- A change to template guardrails must update the template-scoped `AGENTS.md`.
-- A change to “one-command” workflows must update the relevant memory entry and keep it short.
+### 6.2 Required relationships (keys and semantics)
 
-## 5) Retrieval (how agents consume memory)
+All relationship `type_key`s are in the `ameide:curation.*` namespace.
 
-### 5.1 Retrieval first principle: embedding/graph-first
+1. `TARGETS_VERSION`
+   - `relationship_kind`: `REFERENCE`
+   - `type_key`: `ameide:curation.targets_version`
+   - From: proposal → target element
+   - **Requires** `target_version_id` to ensure deterministic review and reproducible reads.
 
-Default retrieval should be embedding/graph-first over the element repository:
+2. `PROPOSES`
+   - `relationship_kind`: `CONTAINMENT` or `REFERENCE` (implementation choice)
+   - `type_key`: `ameide:curation.proposes`
+   - From: proposal → one or more “change payload” sub-elements or attachments
+   - Used to attach structured patches, diff artifacts, generated models, or supporting docs.
 
-- graph neighborhood expansion over `ElementRelationship` (bounded depth)
-- semantic search over element versions (hybrid retrieval + RRF)
-- filter by architecture layer, profile, and status (published vs draft)
+3. `ACCEPTED_AS`
+   - `relationship_kind`: `REFERENCE`
+   - `type_key`: `ameide:curation.accepted_as`
+   - From: proposal → accepted element(s)
+   - **Requires** `target_version_id` to pin the exact new version(s) created during acceptance.
 
-Deterministic fallbacks exist when:
+4. `REJECTED_BECAUSE`
+   - `relationship_kind`: `REFERENCE`
+   - `type_key`: `ameide:curation.rejected_because`
+   - From: proposal → decision/reason element
 
-- the agent is a **coding agent** operating on a Git working tree and needs local execution rules (`AGENTS.md`)
-- the element repository is unavailable
-- a runtime/tool contract must be verified directly (CLI help output)
+### 6.3 Lifecycle and state transitions
 
-### 5.2 Retrieval surfaces
+- **Create proposal** (agent/human) → `proposal_status = DRAFT`
+- **Submit for review** → `IN_REVIEW`
+- **Accept** → create new `ElementVersion`(s) and link via `ACCEPTED_AS` → `ACCEPTED`
+- **Reject** → link decision via `REJECTED_BECAUSE` → `REJECTED`
+- **Withdraw** → `WITHDRAWN`
 
-We standardize two retrieval surfaces:
+### 6.4 Promotion to published truth
 
-1. **Projection-backed retrieval** (platform memory; target):
-   - `getContext` / `semanticSearch` style tools as in `backlog/535-mcp-read-optimizations.md`
-   - always return `read_context` + `citations[]` for audit-grade use (see `backlog/527-transformation-projection.md`)
+Acceptance does not automatically equal “published”.
 
-2. **Filesystem retrieval** (bootstrap/fallback):
-   - `AGENTS.md` discovery (coding agents only)
-   - memory registry + Git-view docs (backlog submodule) when platform memory is unavailable
+- Acceptance creates canonical versions.
+- A curator (or governed automation) then **promotes** those versions into the relevant baseline(s).
+- Promotion is auditable and repeatable.
 
-### 5.3 Retrieval output contract (agent-friendly)
+### 6.5 Curation queue UX (projection)
 
-When the agent requests memory, the system returns:
+A dedicated projection powers the queue:
 
-- the minimal “instruction payload” (what to do next)
-- the authoritative source path(s)
-- the `read_context` (when platform-backed)
-- citations/evidence pointers (when applicable)
+- list proposals by status, target, proposer, age, layer
+- show deterministic diff: proposal payload vs `TARGETS_VERSION`
+- run profile validators (BPMN/ArchiMate validity matrices) and show results
+- allow actions: approve/apply, request changes, reject
+- emit process facts for audit timelines
 
-## 6) Implementation plan
+---
 
-### 6.1 Now (bootstrap + curation queue)
+## 7) Retrieval and read_context contract (projection-owned)
 
-- Keep backlogs in a dedicated repo (already done).
-- Define template profiles and require template-scoped `AGENTS.md` (see 650/654).
-- Add a memory registry index and enforce it in CI (new work).
-- Add a curation queue workflow and require coding agents to append candidates instead of editing canonical memory.
+This section defines the *read path* contract that agents must use.
 
-### 6.2 Next (CLI-assisted retrieval)
+### 7.1 Defaults and baseline selection
 
-- Add CLI commands that help agents discover relevant memory:
-  - `ameide doctor` (already exists) expands to also report memory pointers and profile detection
-  - optional: `ameide memory show <topic>` backed by the registry index
+- Retrieval returns **all relevant context**, but MUST give precedence to normative truth:
+  1. **Published/normative** (published pointers and/or a promoted baseline)
+  2. **Curated but not approved yet** (reviewed/validated, not promoted)
+  3. **Draft/proposals**
+  4. **Ingestion-only sources** (legacy backlog markdown, raw chat transcripts)
 
-### 6.3 Future (platform memory as Elements)
+Default mode for agents is “include all, rank by trust”, so knowledge does not stall while still privileging approved truth.
 
-- Model curated memory artifacts as Elements in the Transformation Domain.
-- Serve them via Projection with citations and versioned references.
-- Make embedding/graph retrieval the default; keep filesystem sources as fallback only.
+### 7.2 Relationship-aware hybrid retrieval
 
-## 7) Success criteria
+The retrieval projection implements a two-stage pipeline:
 
-- An agent can start from any template profile and immediately find the correct rules and the one no-brainer command.
-- “What to run” and “what is forbidden” cannot silently drift from the CLI and templates.
-- Retrieval always produces a small answer with links to authoritative sources.
-- Deprecation is explicit and searchable; agents do not follow superseded instructions by default.
-- Coding agents do not directly mutate canonical memory; they produce curation-queue candidates with citations/evidence.
-- Business process and architecture artifacts (BPMN/ArchiMate/docs) are curated by humans in the element editor and stored as versioned elements.
+1. **Candidate recall** (hybrid)
+   - dense embeddings (vector)
+   - sparse keyword/metadata filters (type_key, layer, updated_at)
 
-## 8) References
+2. **Graph expansion**
+   - follow `CONTAINMENT` for local structure (sections, sub-processes)
+   - follow selected `SEMANTIC` edges for domain neighborhood
+   - cap expansion by depth/edge budget to control token/latency
 
-- Agentic coding suite (profiles, CLI front doors, templates): `backlog/650-agentic-coding-overview.md`, `backlog/654-agentic-coding-cli-surface.md`
-- Test evidence and citations: `backlog/430-unified-test-infrastructure-v2-target.md`, `backlog/527-transformation-projection.md`
-- Element graph substrate: `backlog/300-400/303-elements.md`, `backlog/527-transformation-domain.md`
-- Semantic retrieval posture: `backlog/535-mcp-read-optimizations.md`
+### 7.3 read_context API/tool surface (minimum)
+
+**Request**
+- `repository_id`
+- `query` (text)
+- `baseline`: `PUBLISHED | DRAFT | BASELINE_ID`
+- `filters` (optional):
+  - `type_keys[]`, `element_kinds[]`
+- `graph_expansion`:
+  - `depth`, `edge_types[]`, `max_nodes`
+- `budget`:
+  - `max_tokens`, `max_items`
+
+**Response**
+- `context_items[]` where each item includes:
+  - `element_id`, `version_id`
+  - `title/name`
+  - `excerpt` (or structured payload summary)
+  - `why_included` (relevance/recency/edge-path)
+  - **citations**: stable identifiers that pin the exact element version(s)
+
+Agents MUST surface citations in their outputs when they claim facts from memory.
+
+### 7.4 ArchiMate-first organization (layers come from the ontology)
+
+Primary organization should come from the ontology itself:
+
+- The ArchiMate layer and semantics come from `archimate:*` `type_key`s and semantic relationship verbs.
+- Documents/BPMN/diagrams SHOULD be connected to ArchiMate elements so traversal yields “why is this relevant?” without relying on external folder taxonomy.
+- `metadata.architecture_layer` MAY exist for ingestion-only sources, but it is not the primary long-term organization mechanism.
+
+---
+
+## 7.5 MCP-first access for agents
+
+Organizational memory is exposed to agents via **MCP tools** (projection-backed), not by “grep the repo”:
+
+- `memory.search` (hybrid/keyword now; semantic later)
+- `memory.get_context` (relationship-aware expansion with budgets)
+- `memory.get_element` / `memory.get_neighborhood` (deterministic reads by id/version)
+- `memory.propose` (create proposal elements + relationships)
+
+---
+
+## 8) Security, permissions, and guardrails
+
+### 8.1 Scoping and isolation
+
+All memory operations are scoped to `{tenant_id, organization_id, repository_id}`.
+
+### 8.2 RBAC and tool grants
+
+Define roles by capability, not by prompt:
+
+- **Curator**: can edit canonical elements, review proposals, and promote baselines.
+- **Contributor** (human): can create drafts and submit for review.
+- **Execution agent (coding)**: can read_context and write proposals; cannot promote.
+- **Execution agent (SRE/GitOps)**: may propose changes to runbooks/processes; cannot promote.
+
+### 8.3 Query-time authorization
+
+Retrieval projections MUST enforce authorization at query time:
+
+- respect repository membership
+- respect element-level visibility (if supported)
+- prevent cross-tenant leakage
+
+---
+
+## 9) Quality and evaluation
+
+### 9.1 Retrieval quality
+
+Create a regression harness with:
+
+- a suite of **golden queries** per domain (process, architecture, backlog)
+- expected “must include” context items (element/version ids)
+- metrics:
+  - Recall@K / MRR / nDCG on context items
+  - citation correctness (every cited item exists and matches the quoted claim)
+  - stability under graph growth (no catastrophic drift)
+
+### 9.2 Governance quality
+
+Measure:
+
+- proposal acceptance rate by agent type
+- average time-to-review and time-to-publish
+- validator failure rates (profile conformance)
+- conflict rate (multiple proposals targeting same versions)
+
+---
+
+## 10) Definition of Done (contract-level)
+
+This backlog is “done” when the following are true:
+
+1. The platform clearly defines: **memory = element repositories + baselines**, and retrieval is projection-owned.
+2. A **proposal-based curation queue** exists as first-class elements with:
+   - lifecycle states
+   - required metadata
+   - required relationships (`TARGETS_VERSION`, `ACCEPTED_AS`, etc.)
+3. A documented **read_context contract** exists with:
+   - baseline selection rules
+   - graph expansion controls
+   - citations pinned to element versions
+4. Execution agents are technically prevented (RBAC/tooling) from direct canonical edits.
+5. A retrieval regression harness exists and runs in CI for projection changes.
+
+---
+
+## 11) Follow-on backlogs (if not implemented inside 656)
+
+- **Curation Queue UX + projection**: full review UI, diff viewer, validator integration.
+- **Chat-to-draft intake generalized**: extend 367 feedback intake pattern beyond feature requests.
+- **Ontology conformance and mapping**: lock the ArchiMate profile constraints and cross-notation mapping rules (BPMN↔ArchiMate, doc↔element links).
+- **Retrieval evaluation datasets**: golden queries + multi-turn conversation recall tests.

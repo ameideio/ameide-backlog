@@ -375,11 +375,13 @@ For coding guardrails, the git provider (e.g., GitHub) is the **hard enforcement
 - **Sensitive paths are server-blocked:** push rulesets block `.github/workflows/**`, `CODEOWNERS`, and infra/release directories except for explicit human bypass actors.
 - **Evidence is captured:** runner outputs SHOULD include the relevant git provider policy snapshot (required checks, ruleset ids, branch namespace) so approvals and audits can prove “what was possible”.
 
-### 1.0.8 Transport bindings: CloudEvents (optional; boundary-only)
+### 1.0.8 Transport bindings: CloudEvents (mandatory in-cluster)
 
-Canonical semantics for Ameide EDA remain proto-defined envelopes + topic families (per `backlog/496-eda-principles.md`). CloudEvents is supported only as an optional **transport binding** at Integration boundaries (webhooks, external audit/event buses, partner integrations).
+For **inter-primitive (microservice-to-microservice) traffic inside Kubernetes**, CloudEvents is the **mandatory** envelope and Protobuf is the payload, per `backlog/496-eda-principles-v2.md`.
 
-Normative mapping (canonical → CloudEvents v1.0):
+At **Integration boundaries** (webhooks, external audit/event buses, partner integrations), Integration adapters MUST map inbound/outbound messages to the same CloudEvents contract used in-cluster so internal consumers see one consistent envelope.
+
+Normative mapping (legacy proto-envelope → CloudEvents v1.0):
 
 - `message_id` → `id`
 - producer identity → `source` (URI-reference; recommend controlled URNs like `urn:ameide:<kind>:<name>`)
@@ -387,13 +389,11 @@ Normative mapping (canonical → CloudEvents v1.0):
 - subject identity → `subject`
 - occurred timestamp → `time`
 - payload → `data` with `datacontenttype` (`application/protobuf` or `application/json`)
-- schema reference → `dataschema` (optional)
+- schema reference → `dataschema`
 
-Ameide-required invariants that do not fit core CloudEvents attributes MUST be carried as extension attributes (lowercase alphanumeric; no underscores). Minimum recommended set:
+Required invariants that do not fit core CloudEvents attributes MUST be carried as extension attributes (lowercase alphanumeric; no underscores). Minimum required set is defined in `backlog/496-eda-principles-v2.md` (tenant + correlation/causation + tracing). Transformation may also include additional identity extensions when needed, for example:
 
-- `tenantid`, `orgid`, `repositoryid`
-- `correlationid`, `causationid`
-- `traceparent` (and optional `tracestate`)
+- `orgid`, `repositoryid`
 
 **Execution substrate (coding/tool runs):**
 

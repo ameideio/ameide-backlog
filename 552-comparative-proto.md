@@ -7,7 +7,7 @@
 **Use with:**
 - Comparative implementations: `backlog/550-comparative-domain.md`
 - Domain-specific proto: `backlog/540-sales-proto.md`, `backlog/523-commerce.md`, `backlog/527-transformation-capability.md`, `backlog/526-sre-capability.md`
-- EDA principles: `backlog/496-eda-principles.md`, `backlog/496-eda-protobuf-ameide.md`
+- EDA principles: `backlog/496-eda-principles-v2.md`, `backlog/496-eda-protobuf-ameide.md`
 - Proto conventions: `backlog/509-proto-naming-conventions.md`
 - Buf tooling: `backlog/365-buf-sdks-v2.md`
 

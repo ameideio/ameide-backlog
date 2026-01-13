@@ -12,6 +12,10 @@ This document is the **Implementation & Migration** layer plan for delivering th
 >
 > Any references in this plan to “integration modes” (`INTEGRATION_MODE`) or pack scripts (`run_integration_tests.sh`) should be treated as legacy. The normative repo contract is `backlog/430-unified-test-infrastructure-v2-target.md` (Unit → Integration → E2E; cluster interaction only in E2E; JUnit evidence mandatory).
 
+> **Update (2026-01): memory-first clean target**
+>
+> Organizational memory is defined by `backlog/656-agentic-memory.md`. The clean-target refactor posture for the Transformation Domain/Projection that implements it is defined in `backlog/657-transformation-domain-clean-target.md` (Kafka-first ingestion, gRPC auth boundaries, proposal-only writes for execution agents).
+
 ---
 
 ## Layer header (Implementation & Migration)
@@ -73,6 +77,7 @@ This section is a lightweight status tracker against the work packages below.
 - [x] WP-A1 Domain: enterprise repository write model implemented (`primitives/domain/transformation`).
 - [x] WP-A2 Projection: enterprise repository read model implemented (`primitives/projection/transformation`).
 - [x] WP-A2 Ingestion: outbox → projection relay implemented (`primitives/projection/transformation/cmd/relay`).
+- [ ] WP-A2 Ingestion (clean target, 657): projection ingests from Kafka as the default runtime posture; relay is debug/recovery only.
 - [x] WP-A3 UISurface: existing ArchiMate editor wired to primitives (`services/www_ameide_platform`).
 - [x] WP-Z Deletion: legacy `services/*` backends removed (`services/graph`, `services/repository`, `services/transformation`).
 - [x] WP-Z GitOps cleanup: legacy `graph`/`transformation` app components removed and gateway no longer routes non-graph proto traffic through `graph`.
@@ -80,6 +85,7 @@ This section is a lightweight status tracker against the work packages below.
 - [x] WP-B (CODE) WorkRequests substrate: Domain WorkRequest record + facts + queue-topic fanout implemented; executor implemented (`primitives/integration/transformation-work-executor`).
 - [x] WP-B (CODE) Process ingress consumes Kafka domain facts (`PROCESS_INGRESS_SOURCE=kafka://`) and signals workflows (Temporal signals; deploy/wiring is a GitOps concern).
 - [x] WP-B (CODE) Domain dispatcher publishes outbox topics to Kafka by default (no topic prefix filter).
+- [ ] WP-B (SECURITY, 657): Domain + Projection gRPC services enforce authN/authZ at the boundary (no “trust internal callers” posture).
 - [x] WP-B (TEST) Capability tests exist (`capabilities/transformation/__tests__/integration`) with Phase 2 local integration coverage for the WorkRequest seam and Phase 3 E2E (Playwright) coverage where applicable.
 - [x] WP-B (TEST) Test contract alignment: follow `backlog/430-unified-test-infrastructure-v2-target.md` (no `INTEGRATION_MODE`; JUnit evidence; cluster interaction only in E2E).
 - [x] WP-B (CODE) UI harness verification suite exists (`transformation.verify.ui_harness.gateway_overlay.v1`) and is requested as `action_kind=verify` (no special E2E action kind); runner proves routing via Gateway API overlay marker and records `/artifacts/e2e/*`.

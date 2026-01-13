@@ -32,7 +32,7 @@ Below is a concrete blueprint that works well in practice.
 ## Grounding & cross-references
 
 - **Status:** Historical Scrum seam capturing the original Requirement-centric aggregates and process facts; retained for migration and reasoning about legacy events, but superseded by `506-scrum-vertical-v2.md` and `508-scrum-protos.md` for all new runtime work.  
-- **Architecture grounding:** Shares the same Domain/Process separation and event-only integration model described in `470-ameide-vision.md`, `472-ameide-information-application.md`, `475-ameide-domains.md`, and `496-eda-principles.md`, but uses pre-Scrum-cleanup terminology.  
+- **Architecture grounding:** Shares the same Domain/Process separation and event-only integration model described in `470-ameide-vision.md`, `472-ameide-information-application.md`, `475-ameide-domains.md`, and `496-eda-principles-v2.md`, but uses pre-Scrum-cleanup terminology.  
 - **Legacy dependents:** Earlier implementation notes in `505-agent-developer.md` and any stages that refer to `RequirementCreated/Completed/Failed`, `ItemReadyForDev`, or `PhaseGateReached` should be read through the mapping table in §1.1.1 of this file and migrated to the canonical Scrum nouns in 506‑v2/508.  
 - **Navigation:** `507-scrum-agent-map.md` positions this backlog as a historical reference for Stage 1/2; `505-agent-developer-v2.md` and `505-agent-developer-v2-implementation.md` show how the new architecture uses the canonical contracts instead.
 

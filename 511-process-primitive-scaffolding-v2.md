@@ -55,6 +55,15 @@ In Ameide terms, the workers should be implemented as primitives:
 
 The process engine MUST NOT become a canonical state store. It coordinates, it doesn’t own truth.
 
+### 3.3 Inter-primitive messaging posture (EDA v2)
+
+This backlog is about process execution on Zeebe, but the worker microservice is still a Kubernetes service and must follow the platform messaging standard:
+
+- Inter-primitive messaging inside Kubernetes follows `backlog/496-eda-principles-v2.md` (CloudEvents + Knative Broker/Trigger).
+- Any “ingress” component that consumes inter-primitive facts/intents MUST be a Trigger subscriber and MUST NOT rely on stdin JSONL envelopes as an operational posture.
+
+Zeebe job activation/completion is a Zeebe-internal mechanism; it does not replace the EDA v2 fact spine for canonical truth (domains still emit facts after commit via outbox).
+
 ### 3.2 Human tasks
 
 Human approvals and decisions are expressed as BPMN user tasks and executed via:
@@ -165,6 +174,12 @@ The v1 stack is kept for historical context but deprecated:
 
 - BPMN→Temporal compilation, generated `_gen.go`, `compile.lock.json`-as-compiler output
 - Temporal testsuite-based BPMN execution semantics conformance (for BPMN-authored processes)
+
+## 6.1 Legacy primitives to treat as non-normative
+
+The repo currently contains v1/legacy Process primitives that are Temporal/JSONL-shaped (e.g., `primitives/process/transformation_v2`, `primitives/process/bpmn_conformance_v1`).
+
+They are useful as historical reference, but they are **not the v2 target** and should not drive new work. The v2 target is “BPMN deployed to Zeebe + worker coverage + EDA v2 boundaries”.
 
 ## 7) Conformance suite and cluster requirements (implemented)
 

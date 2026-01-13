@@ -4,10 +4,13 @@
 > Current direction: BPMN-authored Process primitives execute on **Camunda 8 / Zeebe**; Temporal remains for coded platform workflows.  
 > See `backlog/527-transformation-proto-v2.md`.
 
+> **DEPRECATED (EDA v2 transport posture, 2026-01):** This document also assumes topic-family contracts and treats CloudEvents as a transport binding.  
+> The active inter-primitive messaging standard is `backlog/496-eda-principles-v2.md` (CloudEvents + Knative Broker/Trigger). Treat “topic families” as legacy guidance only; prefer CloudEvents `type` as the contract surface.
+
 **Status:** Draft (core envelope unification pending; legacy UI façade removed)  
 **Parent:** [527-transformation-capability.md](527-transformation-capability.md)
 
-This document specifies the **proto contracts** for the Transformation capability following `backlog/496-eda-principles.md` and `backlog/509-proto-naming-conventions.md`.
+This document specifies the **proto contracts** for the Transformation capability following `backlog/496-eda-principles-v2.md` and `backlog/509-proto-naming-conventions.md`.
 
 > **No embedded proto text.** This is a **file index + invariants** specification. Full proto definitions live in the canonical file locations and are the source of truth.
 
@@ -110,9 +113,11 @@ Execution invariants (additional; v1):
 
 - Work execution messages MUST include a stable `work_request_id` and a stable `client_request_id` / `idempotency_key` so retries and at-least-once delivery converge to one canonical outcome.
 
-## 3.0.1 Transport bindings: CloudEvents (optional; Integration-owned)
+## 3.0.1 Transport bindings: CloudEvents (mandatory in-cluster)
 
-Canonical semantics for Ameide EDA remain proto-defined envelopes + topic families. CloudEvents is an optional **transport binding** implemented by Integration adapters for interoperability with external systems.
+For inter-primitive (microservice-to-microservice) traffic inside Kubernetes, CloudEvents is the **mandatory** envelope and Protobuf is the payload, per `backlog/496-eda-principles-v2.md`.
+
+Integration adapters MUST map external systems to the same CloudEvents contract so internal consumers see one consistent envelope.
 
 Normative mapping (canonical → CloudEvents v1.0):
 
@@ -124,13 +129,9 @@ Normative mapping (canonical → CloudEvents v1.0):
 | subject identity | `subject` | Aggregate/process subject identifier (when meaningful) |
 | occurred timestamp | `time` | |
 | payload bytes/object | `data` | If publishing protobuf bytes, use `datacontenttype=application/protobuf` |
-| schema reference | `dataschema` | Optional but recommended when integrating across heterogeneous stacks |
+| schema reference | `dataschema` | Required for in-cluster inter-primitive traffic; at boundaries it is strongly recommended |
 
-Required Ameide invariants that do not fit core CloudEvents attributes MUST be carried as CloudEvents extension attributes (lowercase alphanumeric; no underscores). Minimum recommended set:
-
-- scope: `tenantid`, `orgid`, `repositoryid`
-- traceability: `correlationid`, `causationid`
-- tracing: `traceparent` (and optional `tracestate`) via W3C Trace Context conventions
+Required Ameide invariants that do not fit core CloudEvents attributes MUST be carried as CloudEvents extension attributes (lowercase alphanumeric; no underscores). Minimum required set is defined in `backlog/496-eda-principles-v2.md` (tenant + correlation/causation + tracing). Transformation may also include additional scope extensions such as `orgid` and `repositoryid` when needed.
 
 ## 3.1 Process-facts catalog (step events; to define)
 

@@ -3,7 +3,7 @@
 **Status:** Implemented (canonical files landed)
 **Parent:** `backlog/540-sales-capability.md`
 
-This document specifies the **proto contracts** for Sales following `496-eda-principles.md` and `509-proto-naming-conventions.md`.
+This document specifies the **proto contracts** for Sales following `496-eda-principles-v2.md` and `509-proto-naming-conventions.md`.
 
 > **No embedded proto text.** This document is a **file index + invariants**. The canonical proto files are the source of truth.
 
