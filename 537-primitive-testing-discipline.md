@@ -16,6 +16,13 @@
 
 > **Unified workflow:** See `backlog/671-primitive-development-workflow-unified.md` for the end-to-end primitive workflow and where each enforcement happens (core repo verify vs GitOps gate vs Argo smokes).
 
+## Responsibility split (non-negotiable)
+
+- `ameide primitive scaffold` and `ameide primitive verify` are **mechanical alignment tools** (structure, codegen drift, import policy, no unfinished scaffolds). They are **not** test runners.
+- `ameide test` is the **only in-repo test runner** (Phase 0/1/2 per 430v2; integration uses mocks/stubs; no Kubernetes/Telepresence).
+- `ameide test e2e` is the **deployed-system** test runner against a real target (preview/dev ingress), executed separately from Phase 0/1/2.
+- ArgoCD smokes are **the cluster execution venue** for minimal post-sync checks; smoke assertions must remain owned/versioned with the primitive (avoid a second “platform test suite” truth).
+
 ---
 
 ## Purpose
@@ -70,7 +77,7 @@ All primitive scaffolds generate **intentionally failing tests** (RED). This ens
 
 ### Universal Scaffold Marker
 
-All scaffold tests include the string `AMEIDE_SCAFFOLD` in their failure message. This marker is language-agnostic and scanned by `ameide primitive verify` (scaffold markers fail verification by default).
+All scaffold tests include the string `AMEIDE_SCAFFOLD` in their failure message. This marker is language-agnostic and is checked mechanically by `ameide primitive verify` (without running tests); leaving markers in place fails verification by default.
 
 **Go (Domain / Process / Projection / Integration):**
 
@@ -105,8 +112,9 @@ test("server responds to /healthz", async () => {
 
 1. **Scaffold** → Tests are generated in RED state with `AMEIDE_SCAFFOLD` marker
 2. **Implement** → Replace scaffold failures with real assertions, remove marker
-3. **Verify** → `ameide primitive verify --check tests` passes
-4. **Refactor** → Improve implementation while keeping tests green
+3. **Verify** → `ameide primitive verify` passes (mechanical alignment; does not run tests)
+4. **Test** → `ameide test` passes (Phase 0/1/2 per 430v2; in-repo only)
+5. **Refactor** → Improve implementation while keeping tests green
 
 ---
 
@@ -312,7 +320,7 @@ def test_agent_state_not_business_truth():
 
 1. **"No tests found" = FAIL.** Scaffolds always generate tests. If a primitive has no tests, something is wrong.
 2. **Scaffold markers must be replaced.** Any `AMEIDE_SCAFFOLD` marker in a test file causes `ameide primitive verify` to fail.
-3. **CI runs the same commands as `verify`.** The CLI's `verify --check tests` runs the same test commands CI runs—it's a wrapper, not a competing gate.
+3. **CI runs the same commands as `ameide test`.** Tests run only via `ameide test` (Phase 0/1/2) and `ameide test e2e` (deployed target). `ameide primitive verify` remains a mechanical alignment gate.
 
 ### 3.2 Phase Semantics (430v2)
 
@@ -329,7 +337,7 @@ Strict phases, clearly defined:
 ### 3.3 Verify Behavior
 
 ```bash
-ameide primitive verify --kind domain --name orders --check tests
+ameide test
 ```
 
 | Condition | Result |
@@ -337,18 +345,16 @@ ameide primitive verify --kind domain --name orders --check tests
 | All tests pass | **PASS** |
 | Tests exist but some fail | **FAIL** |
 | No tests found | **FAIL** (not WARN) |
-| `AMEIDE_SCAFFOLD` marker present | **FAIL** |
+| `AMEIDE_SCAFFOLD` marker present | **FAIL** (also fails `ameide primitive verify`) |
 
 ### 3.4 CI Workflow Integration
 
 ```yaml
-- name: Verify Primitive Tests
-  run: |
-    for kind in domain process projection integration uisurface agent; do
-      for name in $(ls primitives/$kind/ 2>/dev/null); do
-        ameide primitive verify --kind $kind --name $name --check tests
-      done
-    done
+- name: Verify Primitive Structure (mechanical)
+  run: ameide primitive verify --all
+
+- name: Run In-Repo Tests (Phase 0/1/2)
+  run: ameide test
 ```
 
 ---
@@ -530,33 +536,20 @@ describe("Server", () => {
 
 ## 5. Verification Command Integration
 
-The `ameide primitive verify` command includes testing as a first-class check:
+`ameide primitive verify` is a mechanical alignment gate. Tests run via `ameide test`:
 
 ```bash
-# Verify all checks including tests
+# Verify structural alignment (no tests executed)
 ameide primitive verify --kind domain --name orders
 
-# Verify only tests
-ameide primitive verify --kind domain --name orders --check tests
+# Run in-repo tests (Phase 0/1/2)
+ameide test
 
-# JSON output for CI
-ameide primitive verify --kind agent --name scribe --check tests --json
+# Run deployed-system E2E (preview/dev ingress)
+ameide test e2e
 ```
 
-**Verify Output Example:**
-```json
-{
-  "kind": "agent",
-  "name": "scribe",
-  "checks": {
-    "tests": {
-      "status": "FAIL",
-      "details": "2 tests passing, 1 test with AMEIDE_SCAFFOLD marker",
-      "scaffold_tests": ["tests/test_agent.py::test_agent_invoke"]
-    }
-  }
-}
-```
+`ameide primitive verify --json` should report structural/mechanical checks only (shape, imports, codegen drift, scaffold marker scan), not test execution results.
 
 ---
 
@@ -601,7 +594,7 @@ func TestEventEnvelopeMetadata(t *testing.T) {
 - RED scaffold tests in all primitive scaffolds (510, 511, 512, 513, 514)
 - `AMEIDE_SCAFFOLD` universal marker in scaffold test failures
 - `go test` / `pytest` / `npm test` in CI for primitives
-- `ameide primitive verify --check/--checks tests` runs language-appropriate tests and fails when no tests exist
+- `ameide test` runs language-appropriate tests and fails when no tests exist
 - Scaffold markers fail `ameide primitive verify` by default (any test file containing `AMEIDE_SCAFFOLD`)
 - `Codegen` drift gate (fails if generated outputs are stale)
 
@@ -670,7 +663,7 @@ This section documents gaps between this spec (537) and the current CLI implemen
 | `EDA` | Repo/Domain | Outbox/dispatcher/migration files exist |
 | `ProcessShape` | Repo/Process | Worker/ingress/workflow/state files exist |
 | `EventCoverage` | Repo | events/ directory has definitions |
-| `Tests` | Repo | Runs `go test` / `pytest` / `npm test` and **fails** if no tests exist |
+| `Tests` | Repo | Run only via `ameide test` (Phase 0/1/2 per 430v2); **fails** if no tests exist |
 | `Imports` | Repo | SDK-only policy enforcement |
 | `GitOps` | Repo | GitOps wiring is validated in the `ameide-gitops` GitOps gate (not as a local `--include-gitops` authoring path) |
 | `BufLint` | Repo | `buf lint` |
@@ -692,7 +685,6 @@ This section documents gaps between this spec (537) and the current CLI implemen
 
 **Implemented (CLI gate is real):**
 - Universal `AMEIDE_SCAFFOLD` marker in scaffold test failures (Go/Python/Node).
-- `ameide primitive verify --check/--checks tests` runs language-appropriate tests and **fails** when no tests exist.
 - Scaffold markers fail `ameide primitive verify` by default (any test file containing `AMEIDE_SCAFFOLD`).
 - `Codegen` check validates generated output freshness (TS via temp-tree generation+diff; Go/Python via proto vs generated-file timestamps).
 
@@ -737,10 +729,12 @@ This is the **ideal**, checklist-driven refactor set to bring the repo in line w
 
 ### 10.2 Verification Behavior (phase discipline enforcement)
 
-- [ ] `ameide primitive verify --check tests` must:
-  - [ ] FAIL when no tests exist.
+- [ ] `ameide primitive verify` must remain mechanical:
   - [ ] FAIL when any test file contains `AMEIDE_SCAFFOLD`.
-  - [ ] Classify and run tests under the v2 phases, emitting JUnit evidence.
+  - [ ] MUST NOT execute tests.
+- [ ] `ameide test` must:
+  - [ ] FAIL when no tests exist.
+  - [ ] Classify and run tests under the v2 phases (Phase 0/1/2), emitting JUnit evidence.
 - [ ] Ensure no CLI paths read `INTEGRATION_TEST_MODE`:
   - `packages/ameide_core_cli/internal/commands/primitive.go`
   - `packages/ameide_core_cli/internal/commands/primitive_commands.go`

@@ -25,6 +25,8 @@ This document is the canonical “how we build primitives” playbook and cross-
 3. **GitOps wiring is CI-owned.** Scaffolding GitOps wiring happens via `ameide-gitops` workflow → PR → merge (see 670). Local “write GitOps files” (e.g. `--include-gitops`) is historical and not the canonical path.
 4. **Secrets are KV-only; settings are Git-only.** (648)
 5. **Smokes run in ArgoCD.** CI validates renders and policy; cluster-level smokes are Argo hook jobs.
+   - Argo is the orchestrator (execution venue) only.
+   - Smoke assertions must be owned/versioned with the primitive (typically as a dedicated smoke image or a primitive-provided spec consumed by a stable runner), not as an ad-hoc “platform test suite” that becomes a second source of truth.
 
 ## Repos and responsibilities
 
@@ -43,7 +45,7 @@ Produces:
 Enforces (via `ameide primitive verify` + CI gates):
 - deterministic generation drift checks
 - import policy (SDK-only, no cross-primitive runtime imports)
-- tests and “no scaffold markers” discipline
+- mechanical scaffold alignment (expected files/paths/config, no scaffold placeholders)
 
 ### GitOps repo (`ameide-gitops`)
 
@@ -74,8 +76,8 @@ Enforces (via GitOps Gate + Argo smokes):
 ### Phase B — Scaffold runtime (core repo)
 
 4. Run `ameide primitive scaffold --kind <kind> --name <name> ...` to create the implementation skeleton.
-5. Implement the primitive until tests go GREEN.
-6. Run `ameide primitive verify --kind <kind> --name <name> --json` and fix all failures (imports, tests, codegen, etc.).
+5. Implement the primitive until `ameide test` is GREEN (Phase 0/1/2 in-repo only; integration uses mocks/stubs; no cluster/telepresence).
+6. Run `ameide primitive verify --kind <kind> --name <name> --json` and fix all failures (structure, imports, codegen drift, required files, etc.).
 
 **Policy references:** `backlog/514-primitive-sdk-isolation.md`, `backlog/537-primitive-testing-discipline.md`, `backlog/430-unified-test-infrastructure-v2-target.md`
 
@@ -114,12 +116,22 @@ Enforces (via GitOps Gate + Argo smokes):
 Strongly enforceable (deterministic):
 - Codegen drift (regen-diff semantics)
 - Import policy (SDK-only; no proto-source imports; no cross-primitive runtime imports)
-- Test presence and test execution (430v2); no `AMEIDE_SCAFFOLD` markers
-- Primitive shape checks (expected files for each kind)
+- Primitive shape checks (expected files/paths/config for each kind)
+- Scaffold placeholder hygiene (e.g., `AMEIDE_SCAFFOLD` markers) as a mechanical “no unfinished skeleton” check
 - Secret hygiene scans (no literals)
 
 Not enforceable as “truth” in core repo:
 - GitOps desired state correctness and Argo routing/smokes (those are GitOps repo + cluster concerns)
+- In-cluster behavior and health (that belongs to Argo smokes and/or `ameide test e2e` against a deployed target)
+
+### Enforced in `ameide test` (core repo CI)
+
+- Phase 0/1/2 in-repo tests only (per 430v2); integration uses mocks/stubs/fakes; no Kubernetes/Telepresence
+- Mandatory JUnit evidence for each phase
+
+### Enforced in `ameide test e2e` (deployed target, CI)
+
+- Deployed-system E2E against a real ingress/base URL (preview/dev), executed from CI as a separate layer from Phase 0/1/2
 
 ### Enforced in GitOps Gate (GitOps repo CI)
 
@@ -153,4 +165,3 @@ For a primitive change to be “done”:
 - Capability DAG (how to parallelize work): `backlog/533-capability-implementation-playbook.md`
 - Promotion mechanics: `backlog/611-trunk-based-main-and-gitops-environment-promotion.md`
 - Image policy: `backlog/602-image-pull-policy.md`, `backlog/603-image-pull-policy.md`
-

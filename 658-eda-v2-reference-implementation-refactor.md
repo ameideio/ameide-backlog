@@ -94,7 +94,7 @@ Each increment must implement a runnable end-to-end system across:
 - delivery loop (broker → trigger → subscriber)
 - consumer loop (inbox dedupe + idempotent effects)
 - failure loop (retry/backoff + DLQ)
-- verification loop (`ameide primitive verify` + tests)
+- verification loop (`ameide primitive verify` + `ameide test`)
 
 ### Increment 1 — Minimal compliant fact delivery (Domain → Projection)
 

@@ -18,7 +18,7 @@
 Implemented in repo:
 - [x] Shared MCP runtime module (`packages/ameide_mcp`) for Streamable HTTP muxing, PRM discovery, origin policy, and token verification hooks (capability-agnostic, leaf dependency).
 - [x] MCP adapter scaffold command: `ameide scaffold integration mcp-adapter --capability <cap>` (templates under `packages/ameide_core_cli/internal/commands/templates/integration/mcp_adapter/`).
-- [x] MCP adapter shape verification: `ameide primitive verify --check mcp` enforces the required files/tests for `*-mcp-adapter` Integration primitives.
+- [x] MCP adapter shape verification: `ameide primitive verify --check mcp` enforces required files/conventions for `*-mcp-adapter` Integration primitives (tests still run via `ameide test` per 430v2).
 - [x] Reference adapter (shape + conformance): `primitives/integration/sre-mcp-adapter` implements stdio + Streamable HTTP, PRM endpoint, origin allowlist, and unit tests; `ameide primitive verify --kind integration --name sre-mcp-adapter --mode repo` passes.
 - [!] Reference adapter (HTTP mux spine): `primitives/integration/transformation-mcp-adapter` uses `packages/ameide_mcp.NewHTTPMux(...)` and includes a smoke test; `ameide primitive verify --kind integration --name transformation-mcp-adapter --mode repo` passes but warns that transport/security tests are missing.
 

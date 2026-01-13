@@ -64,6 +64,11 @@ Workflow behavior:
    - `helm template` for the generated smoke values (helm-test-jobs chart, when enabled)
 3. Open a PR (branch-named deterministically).
 
+**Ownership note (aligned to 671/430v2):**
+- The GitOps repo owns the **orchestration** (Argo hook Jobs + wiring), not the test truth.
+- Smoke checks should be authored and versioned with the primitive (e.g., `ghcr.io/.../<primitive>-smoke@sha256:...`), with Argo simply executing them after sync.
+- The scaffolder may generate placeholder smoke wiring, but it must be treated as a temporary starter; primitives should converge to owning their assertions as code and publishing them as an image/artifact.
+
 ### B) CLI becomes a trigger (not a writer)
 
 In the `ameide` repo CLI:

@@ -690,7 +690,7 @@ ameide primitive scaffold \
 - [ ] `verify --check naming` validates RPC naming conventions
 - [ ] `verify --check eda` validates outbox/event wiring
 - [ ] `verify --check security` runs secret/vuln scans
-- [ ] `verify --check tests` executes unit/integration tests
+- [ ] `ameide test` executes unit/integration tests (Phase 0/1/2 per 430v2; in-repo only)
 
 ---
 

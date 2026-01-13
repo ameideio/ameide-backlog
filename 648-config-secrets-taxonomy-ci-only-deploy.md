@@ -228,6 +228,9 @@ See `backlog/671-primitive-development-workflow-unified.md` for the end-to-end �
 - A deployment is not considered “done” unless the cluster can prove the public routes and required dependencies are reachable.
 - Failures surface in ArgoCD (the same control plane that applies desired state), not in ad-hoc manual checks.
 
+**Responsibility boundary (aligned to 430v2/671):**
+- Argo orchestrates smoke execution, but smoke assertions must remain owned/versioned with the deployed primitive (avoid creating a second “platform test suite” truth in GitOps).
+
 CI’s role is:
 
 - build/publish immutable artifacts (images, charts)

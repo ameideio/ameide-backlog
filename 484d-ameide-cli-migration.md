@@ -48,7 +48,7 @@ Rather than building the full CLI at once, we implement in phases that deliver v
 ameide primitive describe --json    # What exists, what's expected, what's the delta
 ameide primitive drift --json       # SDK staleness, test coverage gaps, convention issues
 ameide primitive impact --json      # What consumers would be affected by a proto change
-ameide primitive verify --json      # Run tests, lint, breaking checks
+ameide primitive verify --json      # Mechanical alignment checks (shape/imports/codegen/scaffold markers; no test execution)
 ```
 
 **What's NOT included:**
@@ -59,7 +59,7 @@ ameide primitive verify --json      # Run tests, lint, breaking checks
 **Value:** Agents can reason about the codebase with structured data. They write code themselves but have guardrails to validate correctness.
 
 **Verification checks included:**
-- Test execution (pass/fail)
+- Mechanical checks only (test execution is owned by `ameide test` per 430v2)
 - Lint results (buf-lint, golangci-lint, eslint)
 - Security scans (secret scan, dependency vulns)
 - Command/event discipline (RPC naming, forbidden prefixes)
@@ -109,8 +109,7 @@ ameide primitive gitops scaffold --kind <kind> --name <name> --version v0 --json
 ameide primitive scaffold --include-test-harness --json
 # Adds:
 #   - __mocks__/ directory with client stubs
-#   - run_integration_tests.sh (430-compliant)
-#   - Mode-aware helper files
+#   - Minimal stub/fake wiring to support Phase 2 integration tests (still in-repo; no cluster)
 ```
 
 **Both remain optional flags**, not defaults.
