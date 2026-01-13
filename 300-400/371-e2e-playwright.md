@@ -7,6 +7,8 @@
 > - `backlog/430-unified-test-infrastructure-v2-target.md`
 >
 > The content below is retained for historical reference. All new work should follow 430v2.
+>
+> **Update (2026-01-13):** Configuration ownership and URL variable taxonomy is standardized in `backlog/648-config-secrets-taxonomy-ci-only-deploy.md` (KV-only secrets, ConfigMap-only settings, CI-only desired-state changes). Treat any knobs/fallbacks described below as legacy context only.
 
 ---
 

@@ -1,6 +1,8 @@
 > **DEPRECATED**: This backlog has been superseded by [428-onboarding.md](./428-onboarding.md).
 >
 > The content below is retained for historical reference. All new work should follow backlog 428.
+>
+> **Update (2026-01-13):** Configuration and secret-management policy is standardized in `backlog/648-config-secrets-taxonomy-ci-only-deploy.md`. Any “optional KV writes” or environment-specific auth fallbacks referenced below are legacy/historical and are not part of the current fail-fast contract.
 
 ---
 
