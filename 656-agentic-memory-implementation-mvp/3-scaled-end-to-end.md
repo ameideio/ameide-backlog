@@ -19,6 +19,14 @@
   - vector search over derived chunks
 - Keep strict metadata filters (baseline/lifecycle/validity/ACL) in both recall paths.
 
+**Implementation note (make constraints explicit):** baseline + lifecycle + validity + ACL filtering must be supported in the vector recall path. In practice this usually requires one (or a combination) of:
+
+- partitioned indexes (per tenant/org/repo) to keep ACL sets small,
+- storing high-signal filter metadata alongside embeddings (published/baseline membership, classification, lifecycle),
+- and/or doing bounded vector recall first, then a post-recall join/filter against authoritative baseline membership (with careful leakage controls).
+
+**Recommended default for this repo:** keep embeddings in the projection Postgres (`pgvector`) so baseline membership and ACL filtering are enforceable via SQL joins/filters, with optional per-repo partitioning when scale demands.
+
 ### 1.2 Embeddings are ephemeral artifacts
 
 Store embedding provenance per chunk:
@@ -34,6 +42,13 @@ Implement retrieval modes (projection-owned) for different query intents:
 - **Local/entity mode:** retrieve a seed set + bounded neighborhood expansion with explainable relationship traces.
 - **Global mode:** return higher-level summaries for broader questions (requires caching and stricter budgets).
 - **Drift/iterative mode:** multi-stage retrieval when initial recall is weak (budgeted, opt-in).
+
+**Mode budgets MUST be first-class request parameters:**
+
+- `mode`: `local|global|drift`
+- `budget`: e.g., `{max_candidates, max_hops, max_tokens, max_seconds}`
+
+Default budgets must be conservative; “global” mode should be opt-in.
 
 ### 1.4 Context distillation
 
@@ -110,3 +125,6 @@ Expand the harness:
 - scheduled re-embedding jobs when models change
 - caching keyed by `(baseline_id, query_hash, filters, mode)`
 
+Add a canary evaluation step for rollouts:
+
+- run the golden query suite against both blue and green indexes and compare ranking + citation sets before cutover.

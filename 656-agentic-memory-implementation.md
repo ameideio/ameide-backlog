@@ -330,6 +330,6 @@ This implementation plan is intentionally split so each increment is a concrete,
 
 ## 7) Open questions (explicit)
 
-1. Do we want memory baselines to be “latest PROMOTED baseline” or do we introduce an explicit “active published baseline pointer” per repository?
-2. Do we model curated memory as “documents/models” only, or do we add first-class `ameide:memory.claim` / `ameide:memory.decision` elements for higher retrieval precision?
-3. Which embedding provider/model is v1 (and how do we cost-control multi-tenant indexing)?
+1. Do we model curated memory as “documents/models” only, or do we add first-class `ameide:memory.claim` / `ameide:memory.decision` elements for higher retrieval precision?
+2. Which embedding provider/model is v1 (and how do we cost-control multi-tenant indexing)?
+3. Do we need a “staging baseline pointer” (in addition to published) to support policy-driven promotion plateaus?

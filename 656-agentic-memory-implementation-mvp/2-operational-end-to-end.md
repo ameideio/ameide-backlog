@@ -19,6 +19,11 @@ Classify:
 - procedural (“how do I …?”) → procedural-first
 - change (“what changed?”) → baseline diff mode
 
+Reserve a slot for query rewriting (even if minimal in v2):
+
+- acronym expansion and aliasing (repo-configured)
+- optional layer hints (e.g., bias to Application vs Technology if the repo defaults are known)
+
 ### 1.2 Trust ranking (computed, explainable)
 
 Introduce a computed trust/provenance score (projection-owned) and expose it in `why_included`:
@@ -28,6 +33,13 @@ Introduce a computed trust/provenance score (projection-owned) and expose it in 
 - approvals present
 - evidence count / references
 - validator results (pass/fail)
+
+**Contract detail (stability):** the score MUST include a small set of “hard signals” with clear polarity:
+
+- baseline membership: strong positive
+- superseded/retired: strong negative
+- validator fail: strong negative (or block by policy)
+- explicit approval: positive
 
 ### 1.3 Reranking (reduce noisy top-k)
 
@@ -60,6 +72,7 @@ Expand proposal metadata (minimum recommended):
 - `impacted_domains[]`
 - `target_read_context` (baseline id or published)
 - `security_classification` / visibility tag (if applicable)
+- `expected_outcome` (short; optimized for curator triage)
 
 ---
 
@@ -81,12 +94,21 @@ Before a proposal can be promoted:
 - “impact radius” view: what references this target (projection query)
 - security tag presence (if required by policy)
 
+Add conflict detection outputs (informational in v2):
+
+- “another open proposal targets this element/version”
+- “proposal was rebased from an older target”
+
 ---
 
 ## 4) Publish loop upgrades (baseline ergonomics)
 
 - Baseline compare becomes a first-class read model (“what changed between published and this proposal?”).
 - Promotion emits an auditable event trail that can be surfaced in timelines.
+
+Add a minimal policy stub so Increment 3 is incremental, not a redesign:
+
+- “high risk proposals require N approvers” (even if N=1 initially)
 
 ---
 
@@ -96,6 +118,8 @@ Before a proposal can be promoted:
 
 - scheduled backlog mirror (or operator task)
 - only create new versions when content changes
+
+**Define “content changed” deterministically:** compute hashes on normalized bodies (e.g., normalize line endings, trim trailing whitespace) to avoid churn-only versions.
 
 ### 5.2 Near-duplicate detection (copy hygiene)
 
@@ -112,6 +136,10 @@ Before a proposal can be promoted:
 - assert trust ordering (published beats ingestion)
 - assert “what changed” queries return diff items
 
+Add an explicit regression invariant:
+
+- when both ingested evidence and published truth match a query, published truth MUST outrank ingestion evidence (unless the query explicitly asks for ingestion evidence).
+
 ### 6.2 Retrieval trace logging
 
 Log the pipeline:
@@ -119,4 +147,3 @@ Log the pipeline:
 - query → routing decision → candidate set → filters/ACL decisions → rerank → graph expansion → context → citations
 
 This turns retrieval into operable infrastructure.
-
