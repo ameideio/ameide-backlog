@@ -128,3 +128,11 @@ Expand the harness:
 Add a canary evaluation step for rollouts:
 
 - run the golden query suite against both blue and green indexes and compare ranking + citation sets before cutover.
+
+**Reference scenario (v3):** “How do I run tests?”
+
+Use the same scenario, but now assert scaled retrieval properties:
+
+- Hybrid recall: the published SOP must be returned even when the query uses synonyms (“inner loop”, “unit test phases”, “phase zero”).
+- Graph mode: local/entity mode can expand from “Ameide CLI” / “Testing SOP” to linked elements (bounded, explainable traces).
+- CI evaluation: the golden suite for this scenario is a required gate for index/schema changes (drift + citation correctness).
