@@ -111,6 +111,7 @@ This prevents the CLI from drifting from GitOps conventions: the generator lives
 
 This backlog supersedes and/or clarifies prior guidance:
 
+- `backlog/671-primitive-development-workflow-unified.md` – Canonical end-to-end workflow (core repo → publish → GitOps wiring → enable → Argo smokes).
 - `backlog/648-config-secrets-taxonomy-ci-only-deploy.md` – CI-only desired state and “one way” principle.
 - `backlog/444-terraform-v2.md` – CI-first provisioning and “no manual mutation”.
 - `backlog/465-applicationset-architecture-preview-envs-v2.md` – ApplicationSet discovery model and security posture.

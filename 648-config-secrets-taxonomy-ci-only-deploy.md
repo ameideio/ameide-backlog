@@ -172,6 +172,8 @@ Contract:
 
 ## Repository Contract (Single Source of Truth)
 
+See `backlog/671-primitive-development-workflow-unified.md` for the end-to-end “one way” primitive workflow (core repo → publish → GitOps wiring → enable → Argo smokes).
+
 ### Terraform
 
 - Owns **DNS records** (e.g., `platform.<env>.ameide.io`, `api.<env>.ameide.io`, `auth.<env>.ameide.io`).

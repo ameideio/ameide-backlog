@@ -6,6 +6,8 @@ This document guides the end-to-end development of a single sample stack across 
 
 > **Update (2026-01, 670):** GitOps wiring is no longer authored by local CLI writes into the GitOps repo/submodule.  
 > The authoritative write-path is: **trigger a GitOps repo workflow → PR → merge**, then ArgoCD discovery + sync. See `backlog/670-gitops-authoritative-write-path-for-scaffolding.md`.
+>
+> **Unified workflow:** See `backlog/671-primitive-development-workflow-unified.md` for the canonical end-to-end primitive workflow (core repo → publish → GitOps wiring → enable → Argo smokes).
 
 ## Non-Negotiables
 

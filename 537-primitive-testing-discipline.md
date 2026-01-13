@@ -14,6 +14,8 @@
 > - per-component `run_integration_tests.sh` packs as the canonical path
 > - “integration in cluster” (cluster interaction is Phase 3 E2E only)
 
+> **Unified workflow:** See `backlog/671-primitive-development-workflow-unified.md` for the end-to-end primitive workflow and where each enforcement happens (core repo verify vs GitOps gate vs Argo smokes).
+
 ---
 
 ## Purpose
