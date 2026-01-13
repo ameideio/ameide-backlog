@@ -1,5 +1,7 @@
 # 511 – Process Primitive BPMN Conformance Suite (v2: Zeebe runtime)
 
+> **Superseded:** see `backlog/511-process-primitive-bpmn-conformance-suite-v3.md` (aligns cluster conformance execution with `backlog/430-unified-test-infrastructure-v2-target.md` by separating cluster-only smokes from Phase 0/1/2).
+
 This backlog defines the **new conformance gate** for BPMN-authored processes in Ameide:
 
 - BPMN is authored as “Flowable-shaped” (standards-aligned constructs where possible).

@@ -2,6 +2,8 @@
 
 This document turns `backlog/511-process-primitive-scaffolding-v2.md` and `backlog/511-process-primitive-bpmn-conformance-suite-v2.md` into a concrete repo plan.
 
+> **Superseded:** see `backlog/511-process-primitive-scaffolding-v3-implementation-plan.md` (aligns execution + test gates to `backlog/430-unified-test-infrastructure-v2-target.md` and codifies Request → Wait → Resume).
+
 ## Goal
 
 Deliver a repo front-door that, for a BPMN-authored Process primitive:
@@ -99,4 +101,3 @@ This plan is “done” when:
   - deploy → run segments → assert engine semantics,
   - incidents and sequence flows are observable via Orchestration Cluster API.
 - `./ameide dev inner-loop-test` runs these smokes against the dev cluster and is the only required front door.
-
