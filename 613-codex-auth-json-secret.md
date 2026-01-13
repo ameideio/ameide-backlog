@@ -69,36 +69,32 @@ We support this by:
 
 ## Vault bootstrap sourcing (implemented)
 
-`foundation-vault-bootstrap` now supports **optional secrets** that are synced into Vault when present in either local or Azure sources:
+`foundation-vault-bootstrap` copies selected secrets from the upstream secret source into Vault KVv2:
 
-- Configuration: `sources/values/_shared/foundation/foundation-vault-bootstrap.yaml`
-  - `secrets.optionalSecrets: ["codex-auth-json-b64"]`
+- **Azure**: Azure Key Vault → Vault (via Workload Identity)
+- **Local**: `Secret/vault-bootstrap-local-secrets` → Vault (local clusters)
 
-Behavior:
-- Local: if `vault-bootstrap-local-secrets` contains `codex-auth-json-b64`, bootstrap writes it to Vault.
-- Azure: if Azure Key Vault contains `env-codex-auth-json-b64` (or the configured prefix), bootstrap writes it to Vault.
-- If missing in both sources, it is skipped (not treated as required).
+For Azure, the dev cluster treats Codex auth as **required** (to avoid “it works on my machine” drift):
 
-## Local workflow (implemented)
+- Config: `sources/values/env/dev/foundation/foundation-vault-bootstrap.yaml`
+  - `azure.keyVault.requiredSecrets` includes `codex-auth-json-b64`
 
-### Files
+This causes vault-bootstrap to:
+1) read Key Vault secret `codex-auth-json-b64` (prefix is empty in managed clusters), and
+2) write Vault KV key `secret/codex-auth-json-b64` with field `value=<base64>`.
 
-- `infra/scripts/export-codex-auth-env.sh`: writes `CODEX_AUTH_JSON_B64` into `.env` or `.env.local`
-- `infra/scripts/seed-codex-auth-local.sh`: local helper that:
-  1) exports `auth.json` into the env file
-  2) seeds `Secret/vault-bootstrap-local-secrets` from `.env/.env.local`
-  3) waits for GitOps-owned `ExternalSecret/codex-auth-sync` to become Ready and `Secret/codex-auth` to appear
+## Local workflow (supported)
 
-### Commands
+Local clusters use the existing “local secrets” path:
 
-1) Login once:
+1) Login once (writes `~/.codex/auth.json`):
    - `codex login --device-auth`
 
-2) Export to `.env`:
-   - `infra/scripts/export-codex-auth-env.sh --file .env`
+2) Export the base64 blob into `.env.local` (do not commit):
+   - `CODEX_AUTH_JSON_B64=$(base64 -w0 ~/.codex/auth.json)`
 
-3) Seed K8s + Vault + ExternalSecrets:
-   - `infra/scripts/seed-codex-auth-local.sh --namespace ameide-local --env-file .env`
+3) Seed local bootstrap secrets from `.env/.env.local`:
+   - `infra/scripts/seed-local-secrets.sh --namespace ameide-local`
 
 ### Verification
 
@@ -107,14 +103,19 @@ Safe checks (do not print the secret content):
 - `kubectl -n ameide-local get externalsecret codex-auth-sync`
 - `kubectl -n ameide-local get secret codex-auth`
 
-## Azure/AKS workflow (implemented path; enable per env)
+## Azure/AKS workflow (implemented)
 
 Target state: treat `auth.json` like other external/third-party secrets.
 
-1) Store `env-codex-auth-json-b64` in **Azure Key Vault** (value = base64(auth.json)).
-2) `foundation-vault-bootstrap` copies it from AKV into Vault KV `secret/codex-auth-json-b64` (optional secret).
+1) Store `codex-auth-json-b64` in **Azure Key Vault** (value = base64(auth.json)).
+2) `foundation-vault-bootstrap` copies it from AKV into Vault KV `secret/codex-auth-json-b64` (dev requires it).
 3) Enable the GitOps component (`codexAuth.enabled: true`) in the target environment to materialize:
    - `ExternalSecret/codex-auth-sync` → `Secret/codex-auth` (with `auth.json`)
+
+Recommended dev flow (KV-only, reproducible):
+- Put `CODER_GITHUB_OAUTH_CLIENT_ID`, `CODER_GITHUB_OAUTH_CLIENT_SECRET` in `.env`
+- Put `CODEX_AUTH_JSON_B64` in `.env.local`
+- Run `infra/scripts/deploy.sh azure-secrets`
 
 ## Security considerations
 
@@ -123,27 +124,11 @@ Target state: treat `auth.json` like other external/third-party secrets.
 - Do not print secrets in logs (`kubectl get secret -o yaml` leaks values).
 - Rotation plan: re-run device auth → re-export → update source-of-truth → allow ExternalSecrets refresh.
 
-## Smoke test (implemented)
-
-`platform-secrets-smoke` includes an optional Codex auth CLI test:
-
-- Values: `sources/values/_shared/platform/platform-secrets-smoke.yaml`
-  - `codexAuthSmoke.enabled` (default false; enabled in local via `sources/values/env/local/platform/platform-secrets-smoke.yaml`)
-- Test name: `codex-auth-cli-smoke`
-
-It:
-- waits for `ExternalSecret/codex-auth-sync` Ready
-- downloads pinned `codex-cli` (`0.57.0` by default)
-- runs `codex login status` using the materialized `auth.json` (does not print credentials)
-
-Manual runner (useful for local clusters):
-- `infra/scripts/codex-auth-smoke.sh --namespace ameide-local`
-
 ## Open questions / follow-ups
 
 - Which workloads actually require Codex CLI ChatGPT login (vs API key)?
 - Do we want a `PushSecret` mirror (K8s → Vault) for this secret, or keep Vault as the only distribution layer?
-- If we standardize the Azure path, should we add `codex-auth-json-b64` to the Azure `env_secrets` documentation/runbooks so it is reconciled like other secrets?
+- If we standardize beyond dev, decide whether `codex-auth-json-b64` should be required (fail fast) or optional (best-effort).
 
 ## Acceptance criteria
 
