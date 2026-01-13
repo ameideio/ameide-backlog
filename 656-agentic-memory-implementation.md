@@ -39,6 +39,21 @@ The docs in this 656 suite must therefore name:
 - which proto service(s) are invoked
 - which facts are emitted/consumed (EDA), and what evidence is required for audit
 
+## 0.2 What changes vs the current backlog workflow (explicit)
+
+We currently use `backlog/**` markdown as the practical working knowledge base.
+
+This implementation plan changes the operating model:
+
+- `backlog/**` becomes an **ingestion source** (evidence) that is mirrored into the memory repository as `ameide:ingest.backlog_md` elements with provenance.
+- The “answerable truth” that agents and UI rely on becomes the **published baseline** over canonical Elements/Versions/Relationships.
+- Agents stop “reading the repo” and instead:
+  - call `memory.get_context` (MCP) / `GetContext` (projection RPC),
+  - receive `read_context + citations`,
+  - and propose updates via `memory.propose` (proposal-only writes).
+
+This is a deliberate move from “docs as memory” to “governed knowledge system with auditable retrieval”.
+
 ---
 
 ## 1) Inputs and constraints (what we must align to)
