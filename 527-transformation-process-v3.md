@@ -44,9 +44,11 @@ These are completed via Tasklist (or Ameide UI bridged to Tasklist semantics).
 
 Worker handlers must follow these seams:
 
-- **Commands/intents:** gRPC via the deployable Command Bus (EDA v2 posture).
+- **Commands/intents:** use the platform’s EDA v2 posture (`backlog/496-eda-principles-v2.md`) for inter-primitive delivery; gRPC is a command surface, not the routing spine.
 - **Facts/events:** broker facts are emitted by the owning primitive after commit; workers consume facts as at-least-once inputs.
 - **No internal control-flow via EDA:** progression is owned by Zeebe BPMN execution, not by broker event choreography.
+
+Clarification: `primitives/process/transformation_v3` is a **Zeebe worker service**, not a KEDA executor. Any long-running work it triggers should follow the standard “Executor Service subscriber” pattern (ACK fast + async execution) described in `backlog/658-eda-v2-reference-implementation-refactor.md`, and resume the process via BPMN waits/messages where appropriate.
 
 ## Verification posture
 
@@ -54,4 +56,3 @@ Promotion/deployment must be blocked unless:
 
 - the BPMN is deployable to Zeebe, and
 - the worker microservice has complete handler coverage for all job types in the BPMN.
-

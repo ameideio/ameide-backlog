@@ -16,6 +16,14 @@ This document is the **Implementation & Migration** layer plan for delivering th
 >
 > Organizational memory is defined by `backlog/656-agentic-memory.md`. The clean-target refactor posture for the Transformation Domain/Projection that implements it is defined in `backlog/657-transformation-domain-clean-target.md` (Kafka-first ingestion, gRPC auth boundaries, proposal-only writes for execution agents).
 
+> **Update (2026-01): clarify “KEDA vs Coder vs Executor”**
+>
+> This document still contains a legacy “WorkRequests + Kafka execution queue topics + KEDA ScaledJobs” execution substrate description.
+> That posture is **not** the platform default going forward:
+> - Code-changing automation defaults to **Coder workspaces + ephemeral task workspaces** (`backlog/650-agentic-coding-overview.md`).
+> - Inter-primitive background execution under EDA v2 defaults to a **Knative Trigger subscriber Executor Service** (ACK fast + async work) (`backlog/658-eda-v2-reference-implementation-refactor.md`).
+> Treat KEDA as a migration-era/local-dev implementation detail until this plan is refactored to the EDA v2 executor posture.
+
 ---
 
 ## Layer header (Implementation & Migration)

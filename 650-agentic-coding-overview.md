@@ -221,7 +221,7 @@ This suite supersedes the following *as the platform-level default model*:
 
 - Telepresence-centric inner-loop design: `backlog/621-ameide-cli-inner-loop-test.md`
 - “Remote-first development” as the default substrate: `backlog/435-remote-first-development.md`
-- KEDA-scaled, queue-depth executor pods as the default automation substrate: `backlog/527-*.md`
+- WorkRequests + KEDA + “execution queue topics” as the default automation substrate (legacy posture): `backlog/527-*.md`
 - Coder workspace docs that assume `.devcontainer/devcontainer.json` is primary: `backlog/626-*.md`, `backlog/628-*.md`, `backlog/629-*.md`
 
 ## 9) References

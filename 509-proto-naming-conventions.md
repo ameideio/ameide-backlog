@@ -248,6 +248,8 @@ Rules:
 
 **Legacy/exception note:** some older designs used **single-responsibility execution queues** (e.g., KEDA-triggered Jobs, devcontainer runners, external executors). This is **not** part of the Kubernetes standard routing plane; do not introduce new execution-queue “side busses” (see `backlog/496-eda-principles-v2.md`). If an execution queue exists during migration, treat it as an exception and constrain it as follows.
 
+Preferred pattern (standard): publish an intent CloudEvent to the Broker, route it via Trigger to an **Executor Service subscriber** (ACK fast + async work), and report outcomes back to the owning Domain so it emits facts after commit. See `backlog/658-eda-v2-reference-implementation-refactor.md`.
+
 Rules:
 
 - Execution queue payloads MUST be **intents** (requests), never facts (see `backlog/496-eda-principles-v2.md`).
@@ -259,6 +261,8 @@ Examples (Transformation):
 
 - `transformation.work.queue.toolrun.generate.v1` (tool-run execution intents)
 - `transformation.work.queue.agentwork.coder.v1` (agent-work execution intents)
+
+These example names are legacy/migration-era only; new work should prefer CloudEvents `type` naming and Broker/Trigger routing, not topic-shaped queue contracts.
 
 ---
 
