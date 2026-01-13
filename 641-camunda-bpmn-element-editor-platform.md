@@ -25,6 +25,13 @@ Camunda Web Modeler is not part of the current `ameide-gitops` Camunda 8 standar
 
 If Web Modeler is introduced later, treat it as a separate app surface with its own routing and auth requirements.
 
+**Where Web Modeler lives (dev AKS):**
+
+- Web Modeler (UI): `https://modeler.dev.ameide.io/`
+- Web Modeler (REST API): `https://modeler-api.dev.ameide.io/`
+- Web Modeler (WebSockets): `wss://modeler-ws.dev.ameide.io/`
+- Camunda Operate/Tasklist (Orchestration apps): `https://camunda.dev.ameide.io/`
+
 The AMEIDE Platform BPMN editor plugin is a **separate experience** embedded in the platform UI:
 
 - It uses `bpmn-js` to edit BPMN XML stored in `Element.body`.
