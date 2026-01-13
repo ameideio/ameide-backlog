@@ -1,5 +1,14 @@
 # Backlog Item 329: Authorization & Organization Isolation Architecture
 
+> **Status (2026-01): ACTIVE, but contains legacy schema examples**
+>
+> Some examples in this document reference legacy nouns/tables (e.g., `graph_id`, `archimate_elements`) from earlier iterations.
+>
+> **Interpretation rule (authoritative):**
+> - Repository scope is `{tenant_id, organization_id, repository_id}` (not `graph_id`).
+> - Canonical storage is Elements + Versions + Relationships; typed tables are historical. See `backlog/300-400/303-elements.md`.
+> - For agentic memory, “permission-trimmed retrieval” is a hard requirement: `backlog/656-agentic-memory.md`.
+
 **Status**: 🟡 Phase 2 In Progress
 **Priority**: P0 - Critical
 **Component**: Authorization, Security, Architecture

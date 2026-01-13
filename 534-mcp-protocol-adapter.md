@@ -577,6 +577,10 @@ read_context:
   type: object
   description: "Point-in-time read context for reproducible queries"
   properties:
+    selector:
+      type: string
+      description: "Selector mode (tool-specific default; for agent memory tools, default is published)"
+      enum: ["head", "published", "baseline_id", "as_of"]
     baseline_id:
       type: string
       description: "Query against a specific published baseline"
@@ -590,9 +594,10 @@ read_context:
 
 | Field | Description |
 |-------|-------------|
-| `revision_id` | Revision of the element at query time |
-| `baseline_id` | Baseline ID if queried against one (null for HEAD) |
-| `as_of` | Effective timestamp of the result |
+| `repository_id` | Repository scope of the cited item |
+| `element_id` | Stable element identifier |
+| `version_id` | Immutable element version (303/656) |
+| `read_context` | Effective read context used (selector/baseline/as_of) |
 
 **Why this matters:**
 - Agents making multiple calls in a session see consistent state

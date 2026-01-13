@@ -107,7 +107,7 @@ Content-Type: application/json
 ```http
 POST /deployments
 {
-  "revision_id": "rev_42",
+  "version_id": "v_42",
   "target": "camunda8",
   "deploy_as": "order-process"      // override BPMN id
 }

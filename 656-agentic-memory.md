@@ -84,6 +84,19 @@ This backlog is intentionally **303-first** and **527/535-shaped**.
 - **329-authz.md** and **322-rbac.md**: org isolation + RBAC.
 - **535-mcp-read-optimizations.md**: requires auth at query time to prevent data leakage.
 
+### 3.6 Deprecated / superseded documents (keep for history)
+
+The following documents are kept for historical context but should not be treated as implementation targets for organizational memory:
+
+- `backlog/300-400/304-context.md` (legacy “graph context” terminology; predates baseline-first memory + citation discipline).
+- `backlog/300-400/352-proto-review-graph.md` (implementation parity work; not an architecture target; “graph_id” is legacy naming).
+
+The following documents remain relevant, but must be read through the 303/656 lens:
+
+- `backlog/300-400/329-authz.md` (authz architecture; some schema examples use legacy nouns/tables).
+- `backlog/534-mcp-protocol-adapter.md` (MCP adapter shape; `read_context` + citations must align to 303/656).
+- `backlog/535-mcp-read-optimizations.md` (projection-owned retrieval; vector is derived; defaults and citation format must align to 656 for agent memory tools).
+
 ---
 
 ## 4) Canonical organizational memory model (elements + versions + relationships)
@@ -112,7 +125,7 @@ Retrieval MUST bias toward semantic/procedural published truth for “what is”
 The system must make “what is canonical” **machine-checkable**, not interpretive:
 
 - Every retrieval must make baseline/version selection explicit (`read_context`).
-- Every returned item must be version-pinned (`{element_id, version_id}` citations).
+- Every returned item must be version-pinned (`{repository_id, element_id, version_id}` citations).
 - Superseded content must be detectable and suppressible by default (e.g., `supersedes`/`superseded_by` semantics or explicit lifecycle).
 
 Optional but recommended validity semantics (version metadata; used for filtering/ranking):

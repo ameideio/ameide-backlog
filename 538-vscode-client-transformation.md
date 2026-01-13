@@ -360,9 +360,9 @@ AI tools can access pinned context via `vscode.getPinnedContext` tool.
 Backed by `transformation.semanticSearch` (535).
 
 **Citation discipline:** All search results include:
-- `revision_id` — The specific revision of the element
-- `baseline_id` — The baseline context (if querying a baseline)
-- `as_of` — Timestamp for point-in-time queries
+- `repository_id` — Repository scope
+- `element_id` + `version_id` — Immutable citation to canonical truth (303/656)
+- `read_context` — The effective selector (published/head/baseline/as_of)
 
 This enables AI tools to cite specific versions and supports audit trails.
 
@@ -584,7 +584,7 @@ Claude Code → submitArchitectureIntent → Domain
 7. Extension optionally exposes local MCP server for `vscode.*` tools only.
 8. Phase 1 delivers read-only access; writes require Phase 2 with Process governance.
 9. Tool access respects user's platform role permissions.
-10. All query results include citation metadata (revision_id, baseline_id, as_of).
+10. All query results include citation metadata (repository_id, element_id, version_id, read_context).
 11. Write operations route through Process primitives; no client-side approval gates.
 
 ---
