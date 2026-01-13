@@ -15,8 +15,7 @@ supersedes:
 
 Define a single, repo-wide, **low-cognitive-load** testing contract:
 
-- Local front door: `ameide dev inner-loop-test` (Phase 0/1/2)
-- CI front door: `ameide ci test` (Phase 0/1/2)
+- Front door: `ameide test` (Phase 0/1/2)
 - Strict phases for the CLI front doors: **Contract → Unit → Integration**
 - Deployed-system E2E runs separately against preview environments (Playwright)
 - Native tooling per language (Go/Jest/Pytest/Playwright)
@@ -39,8 +38,7 @@ Cross-references:
 
 All verification is driven through the CLI (no pack scripts/modes):
 
-- `ameide dev inner-loop-test`
-- `ameide ci test`
+- `ameide test`
 
 These commands:
 - runs phases in strict order (fail-fast)
@@ -63,7 +61,7 @@ E2E is “Phase 3” in the overall verification story, but it is intentionally 
 
 E2E is run against a deployed target (preview environment ingress URL) and is executed via a separate CLI entrypoint:
 
-- run via `ameide ci e2e` (or equivalent)
+- run via `ameide test e2e`
 - Playwright only
 - merge gate truth comes from preview E2E, not from Telepresence
 
@@ -128,7 +126,7 @@ Pytest configs must:
 ### Playwright (E2E only)
 
 - E2E tests live under each UI/service’s Playwright location (existing Playwright conventions).
-- E2E is selected and executed only by the E2E runner (`ameide ci e2e` or equivalent), not by the “no-brainer” Phase 0/1/2 front doors.
+- E2E is selected and executed only by the E2E runner (`ameide test e2e`), not by the “no-brainer” Phase 0/1/2 front door.
 
 ---
 

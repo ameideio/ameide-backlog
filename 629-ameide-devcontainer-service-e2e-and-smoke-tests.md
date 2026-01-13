@@ -21,7 +21,7 @@ Define an automated validation flow for the Coder-based human workspace (626/628
 - git workflow works (branch → push → PR)
 - (optional/extended) Codex can run inside the workspace to produce a deterministic change
 
-This is a **platform smoke/E2E**, not `ameide dev inner-loop-test` (which is Phase 0/1/2 local-only). Cluster checks are owned by `ameide ci smoke` / `ameide ci e2e`.
+This is a **platform smoke/E2E**, not `ameide test` (which is Phase 0/1/2 local-only). Cluster checks are owned by `ameide test smoke` / `ameide test e2e`.
 
 ## 0.0 Decision: Coder Community Edition (CE) only
 

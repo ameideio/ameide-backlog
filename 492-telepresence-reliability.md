@@ -170,7 +170,7 @@ We hit a real-world failure mode where Telepresence was configured for **namespa
 
 - **RBAC alignment** – Telepresence Traffic Manager ClusterRole/Role templates now grant `create` on `pods/eviction`, matching the vendor guidance for v2.25.1 (mirrored in `sources/charts/third_party/telepresence/telepresence/2.25.1`). ArgoCD syncs `dev-traffic-manager`/`staging-traffic-manager` against the versioned chart path.
 - **AKS role assignment automation** – `infra/terraform/azure` now creates the `Ameide Telepresence Developers` Entra ID group (object ID `f29f3bba-96e3-4faf-a6f5-6d8c595fe2d1`) and grants it the built-in **Azure Kubernetes Service RBAC Writer** role on the `ameide` cluster, replacing the manual “cluster-user” assignment attempts that failed earlier. Running `terraform -chdir=infra/terraform/azure apply` and a follow-up `plan` both return no drift.
-- **CLI resilience** – `ameide dev inner-loop*` and `ameide dev inner-loop-test`:
+- **CLI resilience** – `ameide dev inner-loop*`:
   - Always clean Telepresence state first (`telepresence quit -s`, stale socket cleanup).
   - Require HTTP header filtered intercepts (Telepresence/traffic-manager >= 2.25).
   - Write logs/artifacts under `artifacts/agent-ci/` for incident correlation.

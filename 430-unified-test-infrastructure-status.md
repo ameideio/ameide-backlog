@@ -18,13 +18,13 @@ This document tracks implementation progress against the target state defined in
 >
 > This status doc is preserved for historical tracking context of the v1 “integration packs / INTEGRATION_MODE” era.
 
-## Update (2026-01): inner-loop-test is now the agent front door
+## Update (2026-01): `ameide test` is now the agent front door
 
 The agent-oriented, no-flags verification tool is now:
 
-- `ameide dev inner-loop-test`
+- `ameide test`
 
-It runs Phase 0/1/2 only (contract → unit → integration; local-only). Deployed-system E2E (Phase 3) runs separately via `ameide ci e2e`.
+It runs Phase 0/1/2 only (contract → unit → integration; local-only). Deployed-system E2E (Phase 3) runs separately via `ameide test e2e`.
 
 This status doc still contains pack-based tracking notes for historical context, but “integration packs” are now considered legacy and will be removed/migrated.
 
@@ -218,7 +218,7 @@ Although operators don’t use `INTEGRATION_MODE`, the intent is analogous:
 - `getServerClient()` does not branch on `INTEGRATION_MODE`; runtime always uses the live transport.
 - `tests/scripts/run-playwright-e2e.mjs` enforces backlog 430: **Playwright E2E is cluster-only** and fails fast unless:
   - `INTEGRATION_MODE=cluster`
-  - `AMEIDE_PLATFORM_BASE_URL` is set (absolute URL; set by `ameide ci e2e` by deriving the platform ingress host from the cluster HTTPRoute)
+  - `AMEIDE_PLATFORM_BASE_URL` is set (absolute URL; set by `ameide test e2e` by reading `AUTH_URL` from `ConfigMap/www-ameide-platform-config`)
   - `WWW_AMEIDE_PLATFORM_E2E_NAMESPACE` + `WWW_AMEIDE_PLATFORM_E2E_SECRET_NAME` are set (persona secret source)
 - Playwright artifacts write to `/artifacts/e2e/*` (junit + report + traces/screenshots/videos) with no fallback paths.
 

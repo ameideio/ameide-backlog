@@ -73,13 +73,13 @@ Reference: `backlog/430-unified-test-infrastructure-v2-target.md`.
 
 ## 3.1 No ad-hoc “test scripts”
 
-Capability tests must not introduce ad-hoc runner scripts. They must run under `ameide dev inner-loop-test` so they are:
+Capability tests must not introduce ad-hoc runner scripts. They must run under `ameide test` so they are:
 
 - discoverable by CI,
 - artifact-producing (JUnit + logs),
 - enforceable as a quality gate.
 
-If a capability needs a convenience wrapper for developers, it must call `ameide dev inner-loop-test` (or a narrower repo-sanctioned wrapper), not create a parallel contract.
+If a capability needs a convenience wrapper for developers, it must call `ameide test` (or a narrower repo-sanctioned wrapper), not create a parallel contract.
 
 ---
 

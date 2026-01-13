@@ -14,7 +14,7 @@ supersedes:
 
 430v2 defines the **target-state** testing contract for the Ameide monorepo:
 
-- No-brainer front doors: `ameide dev inner-loop-test` and `ameide ci test` (runs Phase 0/1/2)
+- No-brainer front door: `ameide test` (runs Phase 0/1/2)
 - Strict phases for the front door: **Contract → Unit → Integration**
 - Deployed-system E2E runs separately against preview environments (Playwright)
 - Native tooling per language (Go/Jest/Pytest/Playwright)

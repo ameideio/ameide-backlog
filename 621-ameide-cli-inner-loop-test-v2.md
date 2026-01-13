@@ -17,15 +17,13 @@ This document exists to remove ambiguity created by older “Phase 3 via Telepre
 
 Per `backlog/430-unified-test-infrastructure-v2-target.md`:
 
-- `ameide dev inner-loop-test` runs **Phase 0/1/2 only** (local-only; no Kubernetes/Telepresence).
-- `ameide ci test` runs **Phase 0/1/2 only** (local-only; no Kubernetes/Telepresence).
+- `ameide test` runs **Phase 0/1/2 only** (local-only; no Kubernetes/Telepresence).
 - Deployed-system verification is split:
-  - `ameide ci e2e`: Playwright-only against preview ingress URLs.
-  - `ameide ci smoke` (name TBD): cluster-only smokes for runtime semantics (e.g., Zeebe conformance), not part of Phase 2.
+  - `ameide test e2e`: Playwright-only against the deployed platform URL read from `AUTH_URL` in `ConfigMap/www-ameide-platform-config`.
+  - `ameide test smoke`: cluster-only smokes for runtime semantics (e.g., Zeebe conformance), not part of Phase 2.
 
 ## Why this split exists
 
 - It keeps the “no-brainer” front doors stable (local-only, deterministic).
 - It prevents Phase 2 “integration” from silently becoming “cluster integration”.
 - It makes “diagram must not lie” runtime checks possible without breaking the local contract.
-

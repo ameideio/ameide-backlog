@@ -44,7 +44,7 @@ Primary posture:
 - All 4 BPMNs are deployable to Zeebe (dev).
 - Worker service is deployed and can activate/complete all job types.
 - EDA→Zeebe bridge is deployed and reliably starts/correlates processes from domain facts.
-- `ameide ci smoke` is green for v4 cluster scenarios.
+- `ameide test smoke` is green for v4 cluster scenarios.
 
 ## Vendor deployment consideration (request size)
 

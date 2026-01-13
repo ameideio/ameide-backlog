@@ -142,7 +142,7 @@ Instead, test:
 
 ### 3) Wire into the repo front door
 
-- Run the conformance suite as a Kubernetes Job in the dev namespace (same network + auth as the platform) and make it part of the repo cluster smoke front door (`ameide ci smoke`).
+- Run the conformance suite as a Kubernetes Job in the dev namespace (same network + auth as the platform) and make it part of the repo cluster smoke front door (`ameide test smoke`).
 - Make the conformance gate fail fast with actionable output (including URLs/ids for Operate troubleshooting when available).
 
 ### 4) Decommission v1 runtime semantics gate

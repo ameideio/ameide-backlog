@@ -34,8 +34,8 @@ This backlog defines the **target state** for all automated tests in the codebas
 
 The agent-focused “no-brainer” verification front doors are now:
 
-- `ameide dev inner-loop-test` (Phase 0/1/2: contract → unit → integration; local-only)
-- `ameide ci e2e` (Phase 3: deployed-system E2E; cluster-only; Playwright-only)
+- `ameide test` (Phase 0/1/2: contract → unit → integration; local-only)
+- `ameide test e2e` (Phase 3: deployed-system E2E; cluster-only; Playwright-only)
 
 430v2 tightens this further:
 - no `INTEGRATION_MODE`

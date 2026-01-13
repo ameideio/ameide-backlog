@@ -69,7 +69,7 @@ ApplicationSet (environments/dev/argocd/apps/ameide.yaml)
 
 ### Online-telepresence
 - **Update (2026-01):** Devcontainer “modes” were removed to reduce cognitive load. Remote-first dev uses a single bootstrap path + the Ameide CLI.
-- Installs the Telepresence CLI; the `ameide` CLI owns Telepresence connect/intercept as part of `ameide dev inner-loop up|down|verify` (the default `ameide dev inner-loop-test` is Phase 0/1/2 only).
+- Installs the Telepresence CLI; the `ameide` CLI owns Telepresence connect/intercept as part of `ameide dev inner-loop up|down|verify`. Verification front door is `ameide test` (Phase 0/1/2 only).
 - Tilt-based orchestration is deprecated/removed from the core repo; do not rely on `TILT_REMOTE` or a repo `Tiltfile` as part of the remote-first workflow.
 - Documents the workflow in `docs/dev-workflows/telepresence.md`.
 

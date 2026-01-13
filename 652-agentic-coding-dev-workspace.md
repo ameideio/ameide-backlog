@@ -135,7 +135,7 @@ Non-negotiables:
 ## 6) Testing
 
 - Platform smoke validates workspace provisioning and code-server reachability (see 653).
-- Developer fast checks are executed via `ameide dev inner-loop-test` (see 653).
+- Developer fast checks are executed via `ameide test` (see 653).
 
 ## 7) Risks / guardrails
 

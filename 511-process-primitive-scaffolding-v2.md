@@ -141,7 +141,7 @@ This is the Definition of Done for the v2 Process primitive toolchain:
 - A new Process primitive exists with:
   - a BPMN definition intended for Zeebe execution,
   - one worker microservice that implements **all** BPMN job types used by that definition,
-  - CI/test wiring compatible with `./ameide dev inner-loop-test` (no ad-hoc runners).
+  - CI/test wiring compatible with `ameide test` (no ad-hoc runners).
 - The scaffold produces a worker entrypoint that:
   - registers handlers for each `zeebe:taskDefinition type="..."`,
   - calls other primitives only via the seams defined in `backlog/496-eda-principles-v2.md` (facts on broker; commands via gRPC/Command Bus),

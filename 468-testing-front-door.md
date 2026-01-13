@@ -16,7 +16,7 @@
 If you run one thing before opening/merging a PR, run the same gate CI runs:
 
 ```bash
-ameide ci test
+ameide test
 ```
 
 This mirrors the 430v2 test contract phases in CI (Phase 0/1/2) and writes artifacts under `artifacts/agent-ci/`.
@@ -26,7 +26,7 @@ This mirrors the 430v2 test contract phases in CI (Phase 0/1/2) and writes artif
 For an AI agent (or an engineer) iterating locally and needing the fastest, most consistent “did I break anything?” signal with minimal cognitive overhead:
 
 ```bash
-ameide dev inner-loop-test
+ameide test
 ```
 
 This is intentionally **not** the full PR gate and does not do image builds/publishing or GitOps work. It runs **Phase 0/1/2** (contract → unit → integration) and writes artifacts under `artifacts/agent-ci/<timestamp>/`.
@@ -34,7 +34,7 @@ This is intentionally **not** the full PR gate and does not do image builds/publ
 Deployed-system E2E runs separately against preview environments:
 
 ```bash
-ameide ci e2e
+ameide test e2e
 ```
 
 Treat this as Phase 3 in the overall verification story: it is CLI-owned, deterministic, and gates merge via preview environments, but it is intentionally not bundled into the fast Phase 0/1/2 front door.
@@ -101,7 +101,7 @@ Acceptance harness details live in `tests/acceptance/README.md`.
 
 ## CI map
 
-- Core quality gate: `.github/workflows/ci-core-quality.yml` (tests: `ameide ci test`)
+- Core quality gate: `.github/workflows/ci-core-quality.yml` (tests: `ameide test`)
 - Integration packs: `.github/workflows/ci-integration-packs.yml`
 - Operators envtest: `.github/workflows/ci-operators-envtest.yml`
 - Operators acceptance: `.github/workflows/ci-operators-acceptance.yml`
