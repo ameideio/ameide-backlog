@@ -34,7 +34,7 @@ This is the canonical place where the agentic coding suite and chat assistants l
 
 3. Ensure agents can **reliably retrieve the right context** for tasks/conversations via:
    - relationship-aware retrieval (graph expansion)
-   - semantic/hybrid search
+   - modern retrieval pipeline (hybrid search + reranking + query routing)
    - stable, citeable references (element/version citations)
 
 4. Prevent low-quality or conflicting updates by execution-focused agents by:
@@ -96,6 +96,44 @@ This backlog is intentionally **303-first** and **527/535-shaped**.
 2. One or more **baselines** that define what is “published / normative truth”.
 
 Embeddings, vector indexes, search rankings, and read_context assembly are **projection outputs**, not canonical state.
+
+### 4.1.1 Memory types (semantic vs episodic vs procedural)
+
+Organizational memory must explicitly separate “what is true” from “what happened” and “how to do things”:
+
+- **Semantic memory (canonical truth):** published/baseline-scoped elements that define architecture, policies, standards, and business/process meaning.
+- **Procedural memory (how-to):** runbooks/SOPs/checklists that are still subject to curation and baselines, but retrieved with “how do I …” intent.
+- **Episodic memory (observations/audit):** run logs, agent outputs, timelines, investigations, and decision trails. These must be linkable as provenance/evidence, but should not become canonical truth by default.
+
+Retrieval MUST bias toward semantic/procedural published truth for “what is” / “how to”, and treat episodic items as supporting evidence unless explicitly requested.
+
+### 4.1.2 Machine-checkable trust contract (version drift prevention)
+
+The system must make “what is canonical” **machine-checkable**, not interpretive:
+
+- Every retrieval must make baseline/version selection explicit (`read_context`).
+- Every returned item must be version-pinned (`{element_id, version_id}` citations).
+- Superseded content must be detectable and suppressible by default (e.g., `supersedes`/`superseded_by` semantics or explicit lifecycle).
+
+Optional but recommended validity semantics (version metadata; used for filtering/ranking):
+
+- `effective_from`, `effective_to`
+- `applies_to_environment` (e.g., `local|dev|staging|prod`)
+- `applies_to_region` / `applies_to_tenant_segment` (as needed)
+
+These fields exist to mitigate “accurate-but-outdated” answers (version drift) and to allow deterministic scoping beyond semantic similarity.
+
+### 4.1.3 Trust + provenance score (computed signal)
+
+Retrieval ranking must be biased by a computed trust/provenance score (projection-owned), derived from:
+
+- lifecycle/baseline status (published > curated > draft > ingestion)
+- review/approval presence (who approved; when)
+- freshness/recency (and validity window if defined)
+- number and quality of supporting references/evidence
+- conformance/validator results (BPMN/ArchiMate/profile checks)
+
+This score is a ranking signal and an audit surface (explain “why this was included”); it is not canonical state.
 
 ### 4.2 Element kinds and type_keys (recommended)
 
@@ -250,6 +288,19 @@ A dedicated projection powers the queue:
 - allow actions: approve/apply, request changes, reject
 - emit process facts for audit timelines
 
+### 6.6 Proposal state machine (PR-grade governance)
+
+Proposals are not informal. The curation queue MUST be a defined state machine with required metadata sufficient for:
+
+- accountability (who proposed; provenance)
+- scoping (target baseline/read_context; impacted domains)
+- risk signaling (e.g., `risk_level`, `security_classification` where applicable)
+
+Minimum recommended state progression:
+
+- `PROPOSED → TRIAGED → IN_REVIEW → ACCEPTED → PROMOTED`
+- plus terminal states: `REJECTED` (with rationale), `WITHDRAWN`
+
 ---
 
 ## 7) Retrieval and read_context contract (projection-owned)
@@ -268,16 +319,26 @@ Default mode for agents is “include all, rank by trust”, so knowledge does n
 
 ### 7.2 Relationship-aware hybrid retrieval
 
-The retrieval projection implements a two-stage pipeline:
+The retrieval projection implements a retrieval **pipeline** (not “vector search + chunks”):
 
-1. **Candidate recall** (hybrid)
-   - dense embeddings (vector)
-   - sparse keyword/metadata filters (type_key, layer, updated_at)
+1. **Query intent + routing**
+   - classify intent: “what is true now?” vs “how do I?” vs “what changed?” vs “incident/trace”
+   - classify version intent: `published/baseline` default, explicit baseline/version when provided
 
-2. **Graph expansion**
+2. **Candidate recall (hybrid)**
+   - keyword/BM25 + vector search
+   - strict metadata filtering (baseline/lifecycle/validity/ACL)
+
+3. **Re-ranking**
+   - cross-encoder or model-based reranking to reduce noisy top-k
+
+4. **Graph expansion (relationship-aware)**
    - follow `CONTAINMENT` for local structure (sections, sub-processes)
    - follow selected `SEMANTIC` edges for domain neighborhood
    - cap expansion by depth/edge budget to control token/latency
+
+5. **Context distillation**
+   - compress retrieved items into a smaller, higher-signal bundle (projection-owned), retaining citations and relationship traces
 
 ### 7.3 read_context API/tool surface (minimum)
 
@@ -285,8 +346,10 @@ The retrieval projection implements a two-stage pipeline:
 - `repository_id`
 - `query` (text)
 - `baseline`: `PUBLISHED | DRAFT | BASELINE_ID`
+- `version_intent` (optional): `CURRENT | AS_OF | DIFF` (projection-owned classifier may infer)
 - `filters` (optional):
   - `type_keys[]`, `element_kinds[]`
+  - validity filters: `effective_at`, `applies_to_environment`, `applies_to_region`
 - `graph_expansion`:
   - `depth`, `edge_types[]`, `max_nodes`
 - `budget`:
@@ -297,8 +360,9 @@ The retrieval projection implements a two-stage pipeline:
   - `element_id`, `version_id`
   - `title/name`
   - `excerpt` (or structured payload summary)
-  - `why_included` (relevance/recency/edge-path)
+  - `why_included` (relevance + trust score components + edge-path)
   - **citations**: stable identifiers that pin the exact element version(s)
+  - optional: `relationship_trace[]` (which edges were traversed; explainable graph expansion)
 
 Agents MUST surface citations in their outputs when they claim facts from memory.
 
@@ -346,6 +410,14 @@ Retrieval projections MUST enforce authorization at query time:
 - respect element-level visibility (if supported)
 - prevent cross-tenant leakage
 
+### 8.4 Permission-trimmed retrieval (non-negotiable)
+
+Access control must be enforced **before** results reach an agent/model:
+
+- Retrieval must be permission-trimmed using metadata filters / ACL-aware indexes at the same granularity as retrieval (often chunk-level, not document-level).
+- Avoid “global embedding index + post-filtering” patterns that risk leakage or relevance pollution.
+- Retrieval requests must carry principal context (tenant/org/roles and purpose), and the projection must log the policy decision.
+
 ---
 
 ## 9) Quality and evaluation
@@ -357,9 +429,17 @@ Create a regression harness with:
 - a suite of **golden queries** per domain (process, architecture, backlog)
 - expected “must include” context items (element/version ids)
 - metrics:
-  - Recall@K / MRR / nDCG on context items
-  - citation correctness (every cited item exists and matches the quoted claim)
+  - context precision/recall and ranking quality (MRR/nDCG)
+  - citation correctness (every cited item exists and supports the quoted claim)
+  - version drift detection (prefers published/valid content; flags outdated hits)
   - stability under graph growth (no catastrophic drift)
+
+### 9.1.1 Observability (retrieval trace is operable infrastructure)
+
+Every retrieval run must be traceable end-to-end:
+
+- query → rewritten query/routing decision → candidate sets → filters applied → rerank results → graph expansion → final context → citations
+- include baseline/read_context and principal/purpose in logs/metrics (no PII by default)
 
 ### 9.2 Governance quality
 
@@ -396,3 +476,4 @@ This backlog is “done” when the following are true:
 - **Chat-to-draft intake generalized**: extend 367 feedback intake pattern beyond feature requests.
 - **Ontology conformance and mapping**: lock the ArchiMate profile constraints and cross-notation mapping rules (BPMN↔ArchiMate, doc↔element links).
 - **Retrieval evaluation datasets**: golden queries + multi-turn conversation recall tests.
+- **Index lifecycle**: blue/green index deployment, re-embedding jobs, drift monitoring, caching strategy.
