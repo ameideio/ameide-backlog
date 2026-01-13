@@ -122,11 +122,11 @@ Treat ArchiMate as the primary “meaning graph” when possible:
 - Curated memory SHOULD be captured as `archimate:*` elements and semantic relationships, so traversal is ontology-driven and layer-aware by design.
 - Documents/BPMN/diagrams remain first-class elements, but should link into ArchiMate elements so they are not the organization substrate.
 
-### 3.4 Broker-first ingestion is the default runtime posture (657 + 496 v2)
+### 3.4 Kafka-first ingestion is the default runtime posture (657 + 496 v3)
 
 Do not “accidentally depend” on DB tailing for correctness.
 
-- Projections must ingest domain/process facts via Knative Broker + Trigger delivery as the default posture (496 v2).
+- Projections must ingest domain/process facts via Kafka consumer groups as the default posture (496 v3).
 - Any outbox-tailing relay must be treated as local/debug/recovery only (657), not as a long-running dependency in environments.
 
 ### 3.4 Align `read_context` with 527 (avoid parallel contracts)

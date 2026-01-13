@@ -1,5 +1,8 @@
 # 658 — EDA v2 Reference Implementation Refactor (Knative Broker/Trigger + CloudEvents)
 
+> **Superseded:** the inter-primitive runtime event plane is now standardized on Kafka topics (no Knative Eventing).  
+> See `backlog/658-eda-v3-reference-implementation-refactor.md` and `backlog/496-eda-principles-v3.md`.
+
 **Status:** Draft (decision + plan)  
 **Priority:** High  
 **Standard:** `backlog/496-eda-principles-v2.md` (active; replaces v1)  
