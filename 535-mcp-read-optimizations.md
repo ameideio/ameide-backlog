@@ -365,15 +365,20 @@ queries:
         type: object
         properties:
           element_id: { type: string }
+          repository_id: { type: string, description: "Repository scope of the result" }
           element_name: { type: string }
           element_type: { type: string }
           layer: { type: string }
           score: { type: number }
           context: { type: string, description: "Contextual chunk that matched" }
-          # Citation metadata — always returned
-          revision_id: { type: string, description: "Element revision at query time" }
-          baseline_id: { type: string, description: "Baseline if queried against one" }
-          as_of: { type: string, format: date-time, description: "Effective timestamp of result" }
+          # Canonical citation + read context echo — always returned
+          version_id: { type: string, description: "Immutable version of the element (303/656)" }
+          read_context:
+            type: object
+            properties:
+              selector: { type: string }
+              baseline_id: { type: string }
+              as_of: { type: string, format: date-time }
 
   - name: getContext
     description: RAG-style retrieval - get relevant context for answering a question about the architecture
@@ -453,6 +458,10 @@ read_context:
   type: object
   description: "Point-in-time read context for reproducible queries"
   properties:
+    selector:
+      type: string
+      description: "Selector mode (tool-specific default; for agent memory tools, default is published)"
+      enum: ["head", "published", "baseline_id", "as_of"]
     baseline_id:
       type: string
       description: "Query against a specific published baseline"
@@ -465,17 +474,25 @@ read_context:
 **Citation metadata — MUST be returned in all query responses:**
 
 ```yaml
-# Citation fields — required in all query tool outputs
-revision_id:
+# Canonical citation — required in all query tool outputs
+repository_id:
   type: string
-  description: "Revision of the element at query time"
-baseline_id:
+  description: "Repository scope of the cited item"
+element_id:
   type: string
-  description: "Baseline ID if queried against one (null for HEAD)"
-as_of:
+  description: "Stable element identifier"
+version_id:
   type: string
-  format: date-time
-  description: "Effective timestamp of the result"
+  description: "Immutable element version (303/656); citeable and reproducible"
+
+# Read context echo (required for replay)
+read_context:
+  type: object
+  description: "The effective read context used to compute this result"
+  properties:
+    selector: { type: string }
+    baseline_id: { type: string }
+    as_of: { type: string, format: date-time }
 ```
 
 **Why citation discipline matters:**
@@ -486,7 +503,9 @@ as_of:
 4. **Governance** — Impact analysis and baseline comparisons require point-in-time queries
 
 **Implementation requirement:**
-- If `read_context` is omitted, query against HEAD (latest committed state)
+- If `read_context` is omitted, the tool MUST apply a documented default:
+  - for agent memory context tools (656), default is `selector=published` (published baseline pointer)
+  - for interactive browse/editor queries, default may be `selector=head`
 - If `baseline_id` is provided, query against that baseline's snapshot
 - If `as_of` is provided, use temporal query semantics (bi-temporal if supported)
 - Always include citation metadata in response, even for HEAD queries
@@ -502,9 +521,12 @@ as_of:
 CREATE TABLE semantic_chunks (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,
+    organization_id UUID NOT NULL,
+    repository_id UUID NOT NULL,
 
-    -- Source element reference
+    -- Source element/version reference (303)
     element_id UUID NOT NULL,
+    version_id UUID NOT NULL,
     element_type VARCHAR(100) NOT NULL,
     element_name VARCHAR(500) NOT NULL,
     layer VARCHAR(50) NOT NULL,
@@ -523,9 +545,9 @@ CREATE TABLE semantic_chunks (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
 
-    -- Constraints
-    CONSTRAINT fk_element FOREIGN KEY (element_id)
-        REFERENCES archimate_elements(id) ON DELETE CASCADE
+    -- Constraints (conceptual)
+    -- Do not couple this schema to legacy typed tables (e.g., archimate_*).
+    -- The implementation MUST be keyed by canonical provenance `{tenant_id, organization_id, repository_id, element_id, version_id}` (303/656).
 );
 
 -- Vector similarity index (IVF for scale)

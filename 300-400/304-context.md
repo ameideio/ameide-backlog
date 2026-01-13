@@ -2,6 +2,21 @@
 
 # 304: Systematic Context & Knowledge System for AI Agent
 
+> **Status (2026-01): HISTORICAL / SUPERSEDED**
+>
+> This document predates the current “organizational memory” contract and uses legacy terminology (notably `graph`/`graph_id`, and “folders as elements”).
+>
+> **Use instead (authoritative):**
+> - Canonical storage + scoping: `backlog/300-400/303-elements.md` (repository scope is `{tenant_id, organization_id, repository_id}`; workspace tree is separate from elements)
+> - Agentic organizational memory contract: `backlog/656-agentic-memory.md`
+> - Memory implementation increments: `backlog/656-agentic-memory-implementation.md`
+> - Retrieval + citation discipline: `backlog/527-transformation-proto.md` (read_context + citations), `backlog/535-mcp-read-optimizations.md` (projection-owned retrieval), `backlog/534-mcp-protocol-adapter.md` (MCP surfaces)
+>
+> **How to read legacy terms here:**
+> - “graph” ⇒ `repository_id`
+> - “knowledge base / memory” ⇒ governed element graph + baselines (not a vector store)
+> - “folders are elements” ⇒ **not canonical** in 303; repository navigation is the workspace tree
+
 ## Overview
 
 Design and implement a comprehensive context and knowledge system that:

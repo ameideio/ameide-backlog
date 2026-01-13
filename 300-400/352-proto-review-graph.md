@@ -1,5 +1,16 @@
 # 352 – Graph Proto Review Remediation
 
+> **Status (2026-01): IMPLEMENTATION-LEVEL / NOT AN ARCHITECTURE TARGET**
+>
+> Keep this document for historical remediation context (proto/service parity), but do not use it to infer canonical architecture.
+>
+> **Architecture anchors (authoritative):**
+> - Canonical storage: `backlog/300-400/303-elements.md`
+> - Legacy-to-target mapping (graph/ontology): `backlog/527-transformation-crossreference-303-ontology.md`
+> - Organizational memory contract: `backlog/656-agentic-memory.md`
+>
+> **Important:** the “graph” is a *projection/read surface* (and/or UX vocabulary). Canonical truth is Elements + Versions + Relationships; “graph_id” is legacy naming for `repository_id`.
+
 ## Context
 - Align the graph proto definitions with the actual service behaviour.
 - Close the gaps called out during the proto review (graph service stubs, SDK/frontend assumptions, repository element metadata).
