@@ -7,7 +7,7 @@
 **Status:** Draft  
 **Motivation:** Playwright and integration jobs now run inside the cluster, but our repo, Helm values, and docs still hard-code `platform.dev.ameide.io` on port 8443 (deprecated). Envoy only exposes HTTPS on 443 internally, so anything that insists on the old port stalls. We need one canonical development hostname on a subdomain we control (`*.dev.ameide.io`) and the default HTTPS port everywhere so laptops, CI, and cluster workloads behave identically without clashing with Bonjour/mDNS.
 
-> **Update:** Auth.js v5 contract uses `AUTH_URL`. In gateway/proxy deployments `AUTH_TRUST_HOST=true` is required (fail-fast). Cluster E2E for `www_ameide_platform` targets the ingress host via `AMEIDE_PLATFORM_BASE_URL` (not generic `BASE_URL`). See `backlog/648-config-secrets-taxonomy-ci-only-deploy.md`.
+> **Update:** Auth.js v5 contract uses `AUTH_URL`. In gateway/proxy deployments `AUTH_TRUST_HOST=true` is required (fail-fast). Cluster E2E for `www_ameide_platform` targets the deployed base URL from `AUTH_URL` and passes it to Playwright as `AMEIDE_PLATFORM_BASE_URL`. See `backlog/648-config-secrets-taxonomy-ci-only-deploy.md`.
 
 ---
 
@@ -45,7 +45,7 @@
 
 ### 5. Validation & Rollout
 - Run Playwright + integration packs end-to-end with `.dev.ameide.io` to confirm no timeouts.
-- ⚠️ 2025-11-11 (historical) – A Playwright auth-flow spec could not complete because `/api/auth/providers` returned 404 when `www-ameide-platform` was not deployed (the then-local workflow relied on a local registry image). Local registry workflows are deprecated; the supported path is GHCR digests + GitOps/CI, and cluster E2E should be driven via `ameide ci e2e` so it derives `AMEIDE_PLATFORM_BASE_URL` from the HTTPRoute.
+- ⚠️ 2025-11-11 (historical) – A Playwright auth-flow spec could not complete because `/api/auth/providers` returned 404 when `www-ameide-platform` was not deployed (the then-local workflow relied on a local registry image). Local registry workflows are deprecated; the supported path is GHCR digests + GitOps/CI, and cluster E2E should be driven via `ameide test e2e` so it reads `AUTH_URL` from `ConfigMap/www-ameide-platform-config` and passes it as `AMEIDE_PLATFORM_BASE_URL`.
 - Spot-check manual browser login on `https://platform.dev.ameide.io` (after trusting the new cert) to ensure cookies/auth state behave.
 - Communicate migration steps to developers (new hosts entry or dnsmasq rule, re-login, repo search results).
 

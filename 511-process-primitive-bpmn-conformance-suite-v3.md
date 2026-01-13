@@ -55,12 +55,11 @@ The cluster suite proves the engine truth:
 ## Entry points (proposed contract)
 
 - Local contract/unit/integration:
-  - `ameide dev inner-loop-test` (Phase 0/1/2)
-  - `ameide ci test` (Phase 0/1/2)
+  - `ameide test` (Phase 0/1/2)
 - Cluster semantics smoke (separate):
-  - `ameide ci smoke` (or `ameide ci cluster-smoke`) runs `go test -tags=cluster ...` and produces JUnit.
+  - `ameide test smoke` runs `go test -tags=cluster ...` and produces JUnit.
 - Preview environment E2E (separate):
-  - `ameide ci e2e` runs Playwright against preview ingress URLs.
+  - `ameide test e2e` runs Playwright against preview ingress URLs.
 
 ## Definition of Done (v3 conformance)
 
@@ -68,4 +67,3 @@ Done when:
 - No cluster-dependent tests are selectable by the Phase 2 `integration` build tag.
 - Cluster semantics can be executed deterministically via the dedicated smoke entrypoint and produces JUnit evidence.
 - The conformance fixture covers message buffering/uniqueness and supports the Request → Wait → Resume template (see `backlog/511-process-primitive-scaffolding-v3.md`).
-

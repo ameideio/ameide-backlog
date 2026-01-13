@@ -551,7 +551,8 @@ Current contract:
 - Bootstrap kube contexts once via `tools/dev/bootstrap-contexts.sh`.
 - Use `ameide dev inner-loop verify` to validate Telepresence + header-filtered intercept routing.
 - Use `ameide dev inner-loop up/down` for cluster-only UI hot reload.
-- Use `ameide dev inner-loop-test` for strict phase gating with JUnit evidence (Phase 0 → 3).
+- Use `ameide test` for strict phase gating with JUnit evidence (Phase 0 → 2).
+- Use `ameide test e2e` for deployed-system E2E (Phase 3).
 
 ### Domain rename ([434](434-unified-environment-naming.md))
 

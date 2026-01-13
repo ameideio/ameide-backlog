@@ -95,15 +95,15 @@ The CLI must assume it is being run under a profile’s instruction scope (agent
 
 Current command groups include:
 
-- `ameide ci test` (Phase 0/1/2)
-- `ameide ci e2e` (Playwright runner; accepts pass-through args)
-- `ameide dev inner-loop-test` (Phase 0/1/2 only; local-only)
+- `ameide test` (Phase 0/1/2)
+- `ameide test e2e` (Playwright runner; no flags; reads base URL from `ConfigMap/www-ameide-platform-config`)
+- `ameide test` (Phase 0/1/2 only; local-only)
 - `ameide doctor` (preflight deterministic requirements)
 - `ameide verify` (repo/primitives invariants)
 
 Current drift vs internal-first model:
 
-- `ameide dev inner-loop-test` is now aligned with the internal-first “no-brainer” verification model (Phase 0/1/2 only). Deployed-system E2E runs separately via `ameide ci e2e`.
+- `ameide test` is now aligned with the internal-first “no-brainer” verification model (Phase 0/1/2 only). Deployed-system E2E runs separately via `ameide test e2e`.
 - `ameide dev inner-loop` is Telepresence-centric and is out of scope for the internal-first platform model.
 
 ## 5) Target CLI surface (to-be)
@@ -113,14 +113,13 @@ Current drift vs internal-first model:
 The CLI surface is organized by intent:
 
 - **`ameide test`**: no-brainer verification front door (Phase 0/1/2) for agents and humans
-- **`ameide e2e`**: deployed-system E2E runner (Playwright) against a provided base URL (preview env truth)
-- **`ameide smoke`**: platform smoke (Coder/template provisioning; not product E2E)
+- **`ameide test e2e`**: deployed-system E2E runner (Playwright) against the deployed platform base URL (read from `AUTH_URL` in `ConfigMap/www-ameide-platform-config`)
+- **`ameide test smoke`**: cluster-only smoke (non-E2E) for runtime semantics (e.g., Zeebe conformance)
 - **`ameide verify`**: repo/primitives invariants (structural correctness)
 - **`ameide doctor`**: toolchain and environment preflight (deterministic readiness)
 
 Notes:
 
-- `ameide ci ...` is an execution context, not a different contract. CI should call the same front doors (or stable aliases).
 - Profile selection is implicit (workspace/task template) or explicit (profile file); it must not require user flags.
 
 ### 5.2 Core front doors (no flags)
@@ -130,11 +129,11 @@ Notes:
    - produces evidence under a stable run root
    - never touches cluster networking, Telepresence, or privileged capabilities
 
-2. `ameide e2e`
+2. `ameide test e2e`
    - runs Phase 3: Playwright against a deployed target (preview env truth)
    - is intentionally not part of the Phase 0/1/2 front door
 
-3. `ameide smoke`
+3. `ameide test smoke`
    - validates platform plumbing (Coder + template provisioning + code-server reachability)
    - does not validate the product itself
 
@@ -168,7 +167,7 @@ The template-scoped `AGENTS.md` defines additional instructions for the agent, b
 
 - default: `ameide test`
 - optional interactive checks: start dev server inside workspace
-- deployed truth: `ameide e2e` runs against preview env URL (typically driven by CI)
+- deployed truth: `ameide test e2e` runs against preview env URL (typically driven by CI)
 
 ### 6.2 Agent execution (Coder task; code profile)
 
@@ -178,15 +177,15 @@ The template-scoped `AGENTS.md` defines additional instructions for the agent, b
 
 ### 6.3 CI verification (repo gate)
 
-- `ameide test` (or alias `ameide ci test`) for Phase 0/1/2
+- `ameide test` for Phase 0/1/2
 
 ### 6.4 CI deployed-system truth (preview env)
 
-- `ameide e2e` (or alias `ameide ci e2e`) against preview base URL(s) (Phase 3)
+- `ameide test e2e` against preview base URL(s) (Phase 3)
 
 ### 6.5 Platform smoke (Coder/template)
 
-- `ameide smoke` (or `ameide ci smoke`) to validate:
+- `ameide test smoke` to validate:
   - template provisioning
   - app proxy reachability
   - workspace cleanup
@@ -198,7 +197,7 @@ For vendor-locked domains (D365FO), the CLI still presents the same front doors,
 Expected behavior for the `365fo` profile:
 
 - `ameide test` (Phase 0/1/2) calls the FO tool surface (MCP bridge → VM executor) for verification and emits JUnit evidence in the workspace/task run root.
-- `ameide e2e` (Phase 3) validates the full chain (Coder task → VM executor → git push → workspace mirror verification), as specified in `backlog/655-agentic-coding-365fo.md`.
+- `ameide test e2e` (Phase 3) validates the full chain (Coder task → VM executor → git push → workspace mirror verification), as specified in `backlog/655-agentic-coding-365fo.md`.
 
 ## 7) Evidence and artifacts
 
@@ -213,7 +212,7 @@ Each phase produces JUnit in its phase directory.
 
 ## 8) Deprecations / replacements
 
-- Replace `ameide dev inner-loop-test` with `ameide test` as the canonical front door for agents (Phase 0/1/2 only).
+- Done (2026-01): `ameide test` replaced `ameide dev inner-loop-test` as the canonical front door for agents (Phase 0/1/2 only).
 - Remove Telepresence-centric workflows (`ameide dev inner-loop`) from the primary platform model; if retained temporarily, they live under an explicit `legacy` namespace and are not agent defaults.
 
 ## 9) References

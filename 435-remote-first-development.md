@@ -17,8 +17,8 @@
 >
 > Use baseline releases and rely on Telepresence intercept filtering (per-agent header routing) through the `ameide` CLI:
 > - `ameide dev inner-loop up|down|verify` (UI hot reload; stable ingress)
-> - `ameide dev inner-loop-test` (Phase 0/1/2 only; contract → unit → integration; local-only)
-> - `ameide ci smoke` / `ameide ci e2e` (cluster-only smoke/E2E; no Telepresence)
+> - `ameide test` (Phase 0/1/2 only; contract → unit → integration; local-only)
+> - `ameide test smoke` / `ameide test e2e` (cluster-only smoke/E2E; no Telepresence)
 
 ## Overview
 
@@ -263,7 +263,7 @@ The **isolation pattern** from backlogs 373 and 424 is preserved:
 
 > **Status Update (2026-01):** DevContainer is remote-first. Tilt-based orchestration and the
 > `tools/dev/telepresence.sh` helper script were removed; Telepresence is now driven by the Ameide CLI
-> (`ameide dev inner-loop verify/up/down`), with strict verification via `ameide dev inner-loop-test`.
+> (`ameide dev inner-loop verify/up/down`), with strict verification via `ameide test`.
 
 | Task | Description | Owner | Status |
 |------|-------------|-------|--------|

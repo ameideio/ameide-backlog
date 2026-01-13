@@ -82,11 +82,11 @@ Notes:
 - This is not Playwright E2E for the product; it is platform plumbing validation.
 - Smoke should include a “first-user bootstrapped” assertion for the Coder control plane (no `/setup` state).
 
-### 4.2 Layer 2 — developer inner loop (`ameide dev inner-loop-test`)
+### 4.2 Layer 2 — developer inner loop (`ameide test`)
 
 Goal: a single, no-flags command that is runnable in a Coder workspace and produces a fast, actionable failure.
 
-Decision: `ameide dev inner-loop-test` must be Telepresence-free and safe to run in-cluster.
+Decision: `ameide test` must be Telepresence-free and safe to run in-cluster.
 Update (2026-01): “safe to run in-cluster” here means “safe to run in a Coder workspace without Kubernetes/Telepresence access”; deployed-system E2E is separate.
 
 Proposed contract (phases; exact tools are implementation details):
@@ -115,7 +115,7 @@ Requirements:
 
 Decision: Phase 3 exists as a CLI-owned command surface:
 
-- `ameide e2e` / `ameide ci e2e` runs Playwright against the deployed preview URL (Phase 3)
+- `ameide test e2e` runs Playwright against the deployed preview URL (Phase 3)
 - Phase 3 is intentionally not bundled into the “no-brainer” Phase 0/1/2 front door so it remains fast and universally runnable
 
 Note: non-Kubernetes domains may define a different Phase 3 target (not an Argo preview environment). For D365FO, Phase 3 is defined in `backlog/655-agentic-coding-365fo.md`.
@@ -129,7 +129,7 @@ Tasks complement the system by making repeatability cheap:
 
 ## 5) Implementation plan
 
-- Make `ameide dev inner-loop-test` the no-brainer phases 0/1/2 front door for humans and agents in workspaces.
+- Make `ameide test` the no-brainer phases 0/1/2 front door for humans and agents in workspaces.
 - Standardize a “platform smoke” workflow that validates Coder control plane + template provisioning + code-server reachability.
 - Standardize preview environment E2E execution and connect it to PR merge gating.
 - Provide an optional “preflight task” runner that executes the inner loop in a clean ephemeral workspace (see 651).
@@ -152,7 +152,7 @@ Tasks complement the system by making repeatability cheap:
 The following are deprecated by this model:
 
 - Telepresence-based E2E execution for agent inner-loop verification (`backlog/621-ameide-cli-inner-loop-test.md` as currently written).
-- Telepresence-based E2E execution as an agent default; Phase 3 E2E is owned by `ameide ci e2e` (cluster-only; Playwright-only).
+- Telepresence-based E2E execution as an agent default; Phase 3 E2E is owned by `ameide test e2e` (cluster-only; Playwright-only).
 - Telepresence verification backlogs as platform requirements (e.g., `backlog/492-telepresence-verification.md`).
 
 ## 9) References

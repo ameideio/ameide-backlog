@@ -32,7 +32,7 @@ For each affected backlog doc:
 3) Keep the legacy content intact under a clearly labeled section:
    - “Legacy (v1 dual-mode / packs)”
 4) Where the doc defines CLI behavior, align it to:
-   - `ameide dev inner-loop-test` as the front door
+   - `ameide test` as the front door
    - strict phases
    - JUnit evidence
 
@@ -88,7 +88,7 @@ Commonly referenced by:
 
 These docs must be updated so that:
 - pack scripts are explicitly **legacy**
-- Phase 1/2 are executed via native tooling, orchestrated by `ameide dev inner-loop-test`
+- Phase 1/2 are executed via native tooling, orchestrated by `ameide test`
 
 ---
 

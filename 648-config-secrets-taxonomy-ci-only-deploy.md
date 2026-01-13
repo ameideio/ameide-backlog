@@ -167,8 +167,7 @@ Contract:
 - `AMEIDE_PLATFORM_BASE_URL`
   - **Owner/source**: CI/runner contract (not a runtime setting)
   - **Where set today**:
-    - GitHub workflows (`.github/workflows/*`) often set it explicitly for dev-cluster runs.
-    - `ameide ci e2e` can derive it from the cluster HTTPRoute when `AGENT_CI_KUBE_NAMESPACE` is set.
+    - `ameide test e2e` reads `AUTH_URL` from `ConfigMap/www-ameide-platform-config` and passes it to Playwright as `AMEIDE_PLATFORM_BASE_URL` (and verifies it matches the HTTPRoute host).
   - **Used by**: Playwright baseURL (`services/www_ameide_platform/playwright.config.ts`)
 
 ## Repository Contract (Single Source of Truth)
@@ -311,7 +310,7 @@ Implementation note:
 - Login flow:
   - Cookies scoped correctly (`AUTH_COOKIE_DOMAIN`) so sessions survive redirects.
 - E2E/inner-loop tests:
-  - `./ameide dev inner-loop-test` passes (mandatory agent check).
+  - `./ameide test` passes (mandatory agent check).
 
 ## Acceptance Criteria
 

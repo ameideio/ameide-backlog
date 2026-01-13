@@ -9,8 +9,8 @@ This file is generated for review/traceability. It snapshots the current impleme
 > This snapshot is historical and includes legacy references (Tilt/Telepresence, “unit → integration → e2e” wording) that are no longer part of the normative 430v2 contract.
 >
 > Current contract:
-> - `ameide dev inner-loop-test` runs Phase 0/1/2 only (local-only; no Kubernetes/Telepresence)
-> - deployed-system E2E runs via `ameide ci e2e` (cluster-only; Playwright-only)
+> - `ameide test` runs Phase 0/1/2 only (local-only; no Kubernetes/Telepresence)
+> - deployed-system E2E runs via `ameide test e2e` (cluster-only; Playwright-only)
 >
 > Treat `backlog/430-unified-test-infrastructure-v2-target.md` as authoritative.
 

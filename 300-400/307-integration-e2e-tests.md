@@ -518,7 +518,7 @@ Service image builds continue to live in the per-service pipelines. The integrat
 **Architecture**:
 - Image built from `mcr.microsoft.com/playwright:v1.49.0-jammy`
 - Installs dependencies via `pnpm install --no-frozen-lockfile` (cached via Docker layers)
-- Runner entrypoint is the CLI (`ameide ci e2e`); job values should not invoke bash wrappers
+- Runner entrypoint is the CLI (`ameide test e2e`); job values should not invoke bash wrappers
 - Writes junit/HTML/video artifacts to `/artifacts` (emptyDir volume)
 - Pack definition lives in `tests/playwright-runner/config.yaml`, enabling `pnpm test:e2e` (a thin wrapper around the integration runner) to target the same Helm release in `local`, `staging`, or `production` via `--env=<env>`.
 - Runner uploads those artifacts to `s3://integration-test-artifacts/<env>/<service>/<timestamp>/` when `INTEGRATION_ARTIFACT_BUCKET` is configured (MinIO endpoint exposed via `INTEGRATION_ARTIFACT_ENDPOINT`). Engineers can fetch them with `aws s3 ls --endpoint-url <minio> s3://integration-test-artifacts/...` or `mc cp` without needing pod access.

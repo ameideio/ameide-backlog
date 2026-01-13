@@ -491,7 +491,7 @@ To align with the new structure, the remote cluster needs:
 
   > **Update (2026-01):** Canonical documentation lives in the repo root `README.md` and `.devcontainer/README.md`:
   > - `ameide dev inner-loop verify` / `up` / `down`
-  > - `ameide dev inner-loop-test` (strict phases + JUnit evidence)
+  > - `ameide test` (strict phases + JUnit evidence)
 
 ### Epic ENV-4 – Bootstrap Config Updates
 

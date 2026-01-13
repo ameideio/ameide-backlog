@@ -18,7 +18,7 @@ Document the consolidated structure for policy guardrails, local/CI runners, and
   - `check_go_replaces.sh` — in `release` channel forbids ameide-sdk-go replaces; `workspace` channel logs expected replaces.
   - `enforce_build_secrets.sh` — BuildKit secrets required (no ARG/ENV tokens).
   - TS helpers in `scripts/policy/ts/`: `rewrite_lock.sh`, `rewrite_manifests.py` for publish-time rewrites.
-- **Local/CI test gate:** `ameide ci test` runs the 430v2 contract (Phase 0/1/2) and emits JUnit evidence under `artifacts/agent-ci/`.
+- **Local/CI test gate:** `ameide test` runs the 430v2 contract (Phase 0/1/2) and emits JUnit evidence under `artifacts/agent-ci/`.
 - **Docs:** `docs/quality-checks.md` summarizes the structure and entrypoints.
 
 ## Workflows using the new runner
