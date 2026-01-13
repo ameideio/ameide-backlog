@@ -318,46 +318,13 @@ MVP acceptance:
 
 ---
 
-## 6) Delivery increments (each increment advances all loops)
+## 6) MVP delivery increments (split)
 
-Rule: each increment must be a runnable, end-to-end implementation of **all loops** (read/propose/curate/publish/ingest/quality), with increasing capability and automation.
+This implementation plan is intentionally split so each increment is a concrete, end-to-end deliverable (not “implement part of the stack”).
 
-### 6.1 The loops (always present)
-
-1. **Read loop:** retrieve memory context with `read_context + citations` (projection-backed; MCP-first).
-2. **Propose loop:** execution agents write proposals only.
-3. **Curate loop:** curators review proposals against version-pinned targets and accept/reject.
-4. **Publish loop:** accepted changes are promoted into baselines / normative truth.
-5. **Ingest loop:** sources enter as ingestion elements and are linked as evidence.
-6. **Quality loop:** tests/harnesses prevent drift and enforce contracts.
-
-### Increment 1 — Minimal end-to-end (safe + citeable)
-
-- Read: keyword/metadata retrieval only, but always returns `{element_id, version_id}` citations.
-- Messaging: the retrieval projection is fed via Broker/Trigger delivery (CloudEvents protobuf binary mode); dedupe uses CloudEvents `id` (496 v2).
-- Propose: `memory.propose` creates proposal elements + `TARGETS_VERSION` pinning; payload can be “full replacement doc body” initially.
-- Curate: list proposals + accept/reject; acceptance creates new versions and links `ACCEPTED_AS`.
-- Publish: baseline promotion works and `published` read_context selects normative truth.
-- Ingest: backlog mirror can be run manually to produce `ameide:ingest.backlog_md` sources with provenance.
-- Quality: smoke tests validate retrieve → propose → accept → promote → retrieve(published).
-
-### Increment 2 — Operational end-to-end (ranked trust + deterministic diffs)
-
-- Read: trust ranking is implemented and explicit (published > curated > draft/proposal > ingestion).
-- Propose: structured change kinds (`CREATE/UPDATE/LINK/UNLINK/SUPERSEDE`) plus evidence attachments.
-- Curate: deterministic diffs against `TARGETS_VERSION` for docs and relationship changes; reviewer actions are RBAC-gated.
-- Publish: baseline compare / “what changed” evidence is queryable and citeable.
-- Ingest: ingestion is scheduled + idempotent; chat intake can create ingestion/proposal elements with provenance.
-- Quality: a small golden-query harness exists + governance contract tests (version pinning, RBAC, promotion).
-
-### Increment 3 — Scaled end-to-end (hybrid retrieval + CI gates)
-
-- Read: hybrid retrieval (pgvector + keyword) with bounded graph expansion; baseline selectors are supported.
-- Propose: multi-target proposals with validator outputs attached as evidence.
-- Curate: profile validators (ArchiMate/BPMN) run as gates and are visible in review UX.
-- Publish: promotions are policy/evidence-driven and emit auditable facts; publish is the default read_context.
-- Ingest: multi-format imports (BPMN/ArchiMate/docs) enter as evidence; durable meaning remains ArchiMate-first.
-- Quality: retrieval quality metrics + drift detection are CI-gated; deterministic E2E workflows exist.
+- Increment 1: `backlog/656-agentic-memory-implementation-mvp/1-minimal-end-to-end.md`
+- Increment 2: `backlog/656-agentic-memory-implementation-mvp/2-operational-end-to-end.md`
+- Increment 3: `backlog/656-agentic-memory-implementation-mvp/3-scaled-end-to-end.md`
 
 ---
 
