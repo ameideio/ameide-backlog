@@ -127,7 +127,36 @@ Example (existing, in-tree): `packages/ameide_core_proto/src/ameide_core_proto/t
 - stable semantic identities for messages
 - projection rebuildability from facts
 
-### 3.8 Deprecated / superseded documents (keep for history)
+### 3.8 Current vs target: backlog-as-memory → governed organizational memory
+
+This section exists to make the transition explicit for teams currently using `backlog/**` as the primary knowledge workflow.
+
+#### As-is (today): backlog repo is the working “memory”
+
+- Source of truth is implicit: “whatever is in markdown” + “whatever humans remember”.
+- Retrieval is manual (ripgrep/search) and has no machine-checkable `read_context`, no trust ranking, and no permission trimming beyond repo access.
+- Governance is PR-based but does not produce a consistent, queryable audit trail for agents (no version-pinned citations as a contract).
+
+This is fine for early exploration, but it is structurally vulnerable to:
+
+- **version drift** (“accurate but outdated” answers),
+- **copy drift** (duplicated docs diverge),
+- **unsafe retrieval** (agents can cite or leak things they shouldn’t),
+- **low interoperability** (no stable query surface across UI/CLI/agents).
+
+#### To-be (target): backlogs are ingestion evidence; curated memory is the element graph
+
+- Backlog markdown is ingested into the memory repository as evidence elements (`type_key=ameide:ingest.backlog_md`) with provenance (repo+commit+path).
+- Curated truth is expressed as Elements + Versions + Relationships (ArchiMate-first when possible), then promoted into a published baseline.
+- Agents retrieve via Projection and MUST receive `read_context` + version-pinned citations `{repository_id, element_id, version_id}`.
+- Execution agents are **proposal-only** writers; only curators publish/promote.
+
+#### Practical rule (until fully implemented)
+
+- Keep writing backlogs for exploration, but treat them as **inputs** to curation.
+- “Published truth” lives in the governed memory repository (once the published baseline pointer exists), not in `backlog/**`.
+
+### 3.9 Deprecated / superseded documents (keep for history)
 
 The following documents are kept for historical context but should not be treated as implementation targets for organizational memory:
 
