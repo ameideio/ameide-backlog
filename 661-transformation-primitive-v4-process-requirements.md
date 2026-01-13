@@ -24,7 +24,7 @@ This document specifies the **Requirements** Zeebe process for Transformation v4
 ## Start trigger (EDA → Zeebe)
 
 Start message:
-- `messageName`: `com.ameide.transformation.fact.transformation.requested.v1`
+- `messageName`: `io.ameide.transformation.fact.transformation.requested.v1`
 - `correlationKey`: `requirements_batch_id`
 
 Required variables on start:
@@ -35,11 +35,15 @@ Required variables on start:
 ## Functional flow (happy path)
 
 1) **Request analysis** (optional, automated)
-- Service task job type: `transformation.requirements.analysis.request.v1`
+- Service task job type: `transformation.requirements.agent.request.v1`
 - Output variables: `work_id`, `work_kind`
 
 2) **Wait analysis**
-- Message catch on completion correlated by `work_id`
+- Event-based gateway waits for one of:
+  - `io.ameide.agent.fact.run.completed.v1`
+  - `io.ameide.agent.fact.run.needs_input.v1`
+  - `io.ameide.agent.fact.run.failed.v1`
+  correlated by `work_id`
 
 Receive-task/message-catch errors must be modeled explicitly:
 - either a dedicated `work.failed.v1` message, or
@@ -61,7 +65,7 @@ Also include a “no response” timer boundary that routes to triage.
 - Worker emits intent/command to Transformation domain.
 
 6) **Wait for domain fact (truth)**
-- Message catch on `com.ameide.transformation.fact.requirements.published.v1`
+- Message catch on `io.ameide.transformation.fact.requirements.published.v1`
 - Correlation key: `requirements_batch_id`
 
 ## Analysis executor contract (LangGraph) (normative)
@@ -77,9 +81,20 @@ If Requirements uses LangGraph as the analysis executor, the process solution MU
 ## Outputs (domain facts)
 
 The domain emits:
-- `com.ameide.transformation.fact.requirement.ready_for_delivery.v1` (one per requirement)
+- `io.ameide.transformation.fact.requirement.ready_for_delivery.v1` (one per requirement)
   - includes `delivery_batch_id` assignment (batching decision)
   - includes `requirement_id`, `transformation_id`
+
+## Status (as of 2026-01-13)
+
+Implemented in repo (not yet deployed):
+- Requirements BPMN exists in `primitives/process/transformation_v4/bpmn/process.bpmn` under process id `transformation_requirements_v4`.
+- Worker job types are scaffolded for `transformation.requirements.agent.request.v1` and `transformation.requirements.publish.request.v1`.
+
+Pending:
+- Implement the real worker handlers (request must emit agent intent + domain command).
+- Implement the pre-cluster contract test coverage (see `backlog/666-...`) as the local gate.
+- Tasklist user task assignment + forms are specified but not yet wired to real UI/forms.
 
 ## Failure / rework (minimal modeled outcomes)
 

@@ -33,6 +33,22 @@ This document is the **non-repeating** foundation for:
 - Keep the repository **430-aligned**:
   - Phase 0/1/2 are local-only (`ameide test`); cluster semantics live in `ameide test smoke`; Playwright E2E lives in `ameide test e2e`.
 
+## Status (as of 2026-01-13)
+
+Implemented in repo (not yet deployed):
+- `primitives/process/transformation_v4/bpmn/process.bpmn` contains the **four v4 processes** and uses `io.ameide.*` message names.
+- `primitives/domain/transformation` was refactored to a minimal v4 R2D command surface + v4 fact stable types.
+- v4 agent scaffolds exist for all 3 agent kinds:
+  - `primitives/agent/transformation-requirements-v4` (langgraph)
+  - `primitives/agent/transformation-delivery-v4` (coder_task)
+  - `primitives/agent/transformation-acceptance-v4` (llm_one_shot)
+- Repo verification/scaffolding guardrails were tightened to keep `ameide primitive verify --mode repo` green.
+
+Pending / blocked (cluster not ready yet):
+- Kafka→Zeebe ingress implementation and deployed wiring.
+- Deployed-system smokes (Argo PostSync) and cluster-backed runtime conformance.
+- Kanban projection end-to-end (domain facts → projection → UI).
+
 ## Non-goals (v4)
 
 - “Process engine as system of record”: Zeebe state is not canonical truth.

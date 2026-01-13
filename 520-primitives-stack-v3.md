@@ -79,3 +79,8 @@ This v3 posture requires v2 backlog documents that assume “Temporal-backed Pro
 
 - `backlog/511-*` Process primitive scaffolding/compiler docs (superseded by Zeebe-based direction).
 - `backlog/527-*` Transformation Process/Proto docs that assume compiled Workflow IR for Temporal execution.
+
+## Naming posture (event types)
+
+Event type namespaces are owned by Ameide and use `io.ameide.*` (not `com.ameide.*`).
+This matters because Zeebe message names are mapped directly from CloudEvent `type` strings (`messageName == ce.type`).

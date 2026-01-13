@@ -24,7 +24,7 @@ This document specifies the **Delivery batch** Zeebe process for Transformation 
 ## Start trigger (EDA → Zeebe)
 
 Start message:
-- `messageName`: `com.ameide.transformation.fact.requirement.ready_for_delivery.v1`
+- `messageName`: `io.ameide.transformation.fact.requirement.ready_for_delivery.v1`
 - `correlationKey`: `delivery_batch_id`
 
 Required variables on first start:
@@ -65,7 +65,7 @@ Implement the aggregation window as an explicit loop:
 - Exit on timer/human action
 
 2) **Delivery work (per requirement; multi-instance)**
-- Service task job type: `transformation.delivery.coder.request.v1` (or equivalent executor request)
+- Service task job type: `transformation.delivery.coder.request.v1` (agent kind: CODER_TASK)
 - Wait for completion correlated by `work_id` using one of:
   - message `work.completed.v1` (success), or
   - message `work.failed.v1` (failure), or a single completion message with `status` that is branched on immediately.
@@ -91,7 +91,7 @@ Parallel multi-instance execution is allowed only when:
 
 3) **Record deliverable in domain**
 - Service task job type: `transformation.delivery.deliverable.record.request.v1`
-- Wait for domain fact (optional): `com.ameide.transformation.fact.deliverable.recorded.v1`
+- Wait for domain fact (optional): `io.ameide.transformation.fact.deliverable.ready_for_acceptance.v1` (v4 minimal path)
 
 4) **Run tests / validations (per deliverable)**
 - Service task job type: `transformation.delivery.tests.request.v1`
@@ -104,8 +104,21 @@ Parallel multi-instance execution is allowed only when:
 
 6) **Mark ready for acceptance (domain)**
 - Service task job type: `transformation.delivery.complete.request.v1`
-- Domain emits `com.ameide.transformation.fact.deliverable.ready_for_acceptance.v1`
+- Domain emits `io.ameide.transformation.fact.deliverable.ready_for_acceptance.v1`
   including `acceptance_batch_id`.
+
+## Status (as of 2026-01-13)
+
+Implemented in repo (not yet deployed):
+- Delivery BPMN exists in `primitives/process/transformation_v4/bpmn/process.bpmn` under process id `transformation_delivery_batch_v4`.
+- Aggregation is implemented in BPMN as:
+  - `transformation.delivery.batch.init.v1`
+  - repeated message catch on `io.ameide.transformation.fact.requirement.ready_for_delivery.v1` (correlated by `delivery_batch_id`)
+  - `transformation.delivery.batch.collect_append.v1`
+
+Pending:
+- Implement the real delivery job handlers (Coder request, tests, record deliverable, complete batch).
+- Decide whether Delivery completion flows via primitive facts (preferred) or process completion ingress (only for non-primitive executors).
 
 ## Failure / rework (minimal modeled outcomes)
 
