@@ -47,6 +47,8 @@ Implementation reference:
   - `sources/coder/templates/ameide-gitops/` (template name `ameide-gitops`)
 - Default repo/devcontainer contract: `github.com/ameideio/ameide` + `.devcontainer/coder`
 - Web IDE: code-server runs inside the workspace container (single-environment invariant); installation is pinned and automated at startup.
+- Template packaging: shared workspace Terraform is vendored under each template directory (pushed templates cannot import out-of-tree modules).
+- Codex UX (dev-only): templates install the pinned Codex CLI + install the pinned Codex VS Code extension (`openai.chatgpt`) and pre-seed authentication from `Secret/codex-auth` (see `backlog/613-codex-auth-json-secret.md`).
 
 ## 1.1 Install mechanics (GitOps-owned)
 

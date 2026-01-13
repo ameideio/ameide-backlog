@@ -270,5 +270,11 @@ But: all overlays must be wired so it is “one value flip” to enable in other
 - Coder templates (under the AmeideDevContainerService umbrella):
   - `ameide-dev` at `sources/coder/templates/ameide-dev/` (defaults to `github.com/ameideio/ameide` with `.devcontainer/coder`)
   - `ameide-gitops` at `sources/coder/templates/ameide-gitops/` (defaults to `github.com/ameideio/ameide-gitops` with `.devcontainer/coder`)
-- code-server runs as a sidecar container (pinned image), not installed at runtime via curl.
+- Template packaging rule: `coder templates push -d <dir>` uploads only that directory, so shared Terraform code is vendored under each template (no out-of-tree module imports).
+- Single-environment invariant: code-server runs in the **same workspace container** as the toolchain (no sidecar).
+- code-server install is runtime-pinned (downloaded from `coder/code-server` release artifacts) and started with `--auth none` on `127.0.0.1` with `/healthz` readiness.
+- Codex VS Code extension is installed deterministically by downloading a pinned VSIX from Open VSX (`openai.chatgpt`) and installing from the VSIX path.
+- Codex auth seeding is deterministic:
+  - `Secret/codex-auth` is mounted and copied to `$HOME/.codex/auth.json` (chmod 0600)
+  - `$HOME/.codex/config.toml` sets `cli_auth_credentials_store = "file"` so both the CLI and VS Code extension use the same file-backed cache
 - Workspace RBAC is namespace-scoped and does not grant `secrets` read access by default.

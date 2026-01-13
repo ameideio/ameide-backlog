@@ -110,7 +110,10 @@ Principles:
 
 Minimum deliverable:
 
-- Codex CLI usable in the workspace (pinned, reproducible install).
+- Codex is usable in the workspace **out of the box**:
+  - Codex CLI installed (pinned)
+  - Codex VS Code extension installed in code-server (`openai.chatgpt`, pinned)
+  - authentication pre-seeded from `Secret/codex-auth` (dev-only shared principal) using file-backed credentials (`cli_auth_credentials_store = "file"`) so CLI and extension share the same cache (see `backlog/613-codex-auth-json-secret.md`)
 
 Optional deliverable:
 
