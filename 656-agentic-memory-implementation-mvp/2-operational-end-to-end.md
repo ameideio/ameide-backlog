@@ -9,6 +9,16 @@
 
 ---
 
+## 0) Implementation anchors (primitives + proto)
+
+Increment 2 expands the same primitives from Increment 1:
+
+- **Domain primitive:** adds PR-grade proposal metadata handling and deterministic diff/rebase/accept semantics; publishes auditable facts.
+- **Projection primitive:** adds trust ranking + reranking + diff read models and emits retrieval trace logs.
+- **Integration/MCP + CLI:** switch agents to the “front door” retrieval/propose APIs so no tool re-implements ranking/diff logic.
+
+See `backlog/656-agentic-memory-implementation.md` §5 for the “by primitive” implementation spec.
+
 ## 1) Read loop upgrades (retrieval pipeline engineering)
 
 ### 1.1 Query intent routing (minimal)

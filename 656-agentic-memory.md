@@ -84,7 +84,50 @@ This backlog is intentionally **303-first** and **527/535-shaped**.
 - **329-authz.md** and **322-rbac.md**: org isolation + RBAC.
 - **535-mcp-read-optimizations.md**: requires auth at query time to prevent data leakage.
 
-### 3.6 Deprecated / superseded documents (keep for history)
+### 3.6 Runtime realization (primitives, not a standalone system)
+
+This contract is implemented **by Ameide primitives** (Application layer). “Memory” is not a new storage system; it is a governed use of the canonical element substrate.
+
+**Canonical capability that implements memory (today):** Transformation.
+
+**Primitives involved (ideal target):**
+
+- **Domain primitive (canonical writes):** persists Elements/Versions/Relationships/Baselines + proposal/decision artifacts and emits facts via outbox.
+  - Implementation: `primitives/domain/transformation`
+  - Proto contracts live under: `packages/ameide_core_proto/src/ameide_core_proto/transformation/**`
+- **Projection primitive (all reads):** browse/search/history/diff + `read_context + citations` + retrieval pipeline (hybrid + graph expansion) and projection-owned trust scoring.
+  - Implementation: `primitives/projection/transformation`
+- **Process primitive (governance orchestration, optional plateau):** when promotion/review is modeled as BPMN, the process engine coordinates; primitives do side effects; domains persist truth.
+  - Reference posture: `backlog/527-transformation-capability-v2.md`
+- **Integration primitive (agent interface):** MCP tools/resources call projection reads + domain writes; agents do not speak directly to databases.
+  - Existing shape: `backlog/534-mcp-protocol-adapter.md`
+- **Agent primitive (execution):** coding/SRE/GitOps agents consume `read_context` and are **proposal-only** writers; they do not publish.
+- **UISurface primitive (human UI):** element editor + governance UI for proposal review/promotion.
+
+### 3.7 Proto + event identity conventions (repo-aligned)
+
+This repository already expresses “what happened” and “where to deliver it” in proto options:
+
+- Proto packages for Transformation commonly use a reverse-DNS prefix `io.ameide.*` (example: `io.ameide.transformation.knowledge.v1`).
+- Domain facts encode:
+  - a stable semantic identity (`stable_type`)
+  - a logical delivery stream reference (`stream_ref`)
+
+Example (existing, in-tree): `packages/ameide_core_proto/src/ameide_core_proto/transformation/knowledge/v1/transformation_knowledge_facts.proto`.
+
+**How this interacts with EDA (ideal state):**
+
+- Inter-primitive messages are carried in a **CloudEvents envelope** (see the active `backlog/496-eda-principles-*` spec).
+- `ce-type` SHOULD be the proto-declared stable semantic identity (today: `stable_type`).
+- `ce-id` is the global idempotency key; consumers dedupe on it (inbox).
+
+656 does not require choosing one delivery plane (Broker/Trigger vs direct Kafka topics). It requires:
+
+- deterministic ids, dedupe, and replay semantics
+- stable semantic identities for messages
+- projection rebuildability from facts
+
+### 3.8 Deprecated / superseded documents (keep for history)
 
 The following documents are kept for historical context but should not be treated as implementation targets for organizational memory:
 

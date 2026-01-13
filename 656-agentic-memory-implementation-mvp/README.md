@@ -36,3 +36,18 @@ This scenario exercises all loops (Read → Propose → Curate → Publish → I
 - **Increment 1:** single “memory smoke” proves the scenario end-to-end, including permission trimming and citation discipline.
 - **Increment 2:** golden queries + deterministic diff/rebase checks for the same scenario; retrieval trace logs are required.
 - **Increment 3:** CI-gated retrieval evaluation + drift/citation correctness metrics; blue/green index canary runs the golden suite before cutover.
+
+## Where this lands (repo primitives + proto seams)
+
+These increments are implemented by the Transformation capability primitives; “memory” is not a separate storage system.
+
+- **Domain primitive (canonical writes):** `primitives/domain/transformation`
+  - Proto: `io.ameide.transformation.knowledge.v1.*`, `io.ameide.transformation.governance.v1.*`
+  - Ideal façade: `io.ameide.transformation.memory.v1.*` (front door RPCs for propose/accept/promote)
+- **Projection primitive (all reads + retrieval):** `primitives/projection/transformation`
+  - Proto: `io.ameide.transformation.knowledge.v1.*`, `io.ameide.transformation.governance.v1.*`
+  - Ideal façade: `io.ameide.transformation.memory.v1.*` (front door RPCs for get_context/search)
+- **Integration primitive (agent interface):** MCP adapter (see `backlog/534-mcp-protocol-adapter.md`)
+  - Tools: `memory.get_context`, `memory.propose`, etc. map 1:1 to the front door RPCs
+
+EDA context (facts → projection) is governed by the active `backlog/496-eda-principles-*` spec; the memory contract requires outbox/inbox + citeable reads, regardless of delivery plane.

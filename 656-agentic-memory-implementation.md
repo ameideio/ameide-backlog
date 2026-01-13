@@ -2,8 +2,10 @@
 
 **Parent (contract):** `backlog/656-agentic-memory.md`  
 **Related (canonical substrate):** `backlog/300-400/303-elements.md`  
-**Related (retrieval):** `backlog/527-transformation-projection.md`, `backlog/535-mcp-read-optimizations.md`  
+**Related (retrieval + MCP):** `backlog/527-transformation-projection.md`, `backlog/535-mcp-read-optimizations.md`, `backlog/534-mcp-protocol-adapter.md`  
+**Related (proto + EDA):** `backlog/527-transformation-proto.md`, `backlog/496-eda-principles-v2.md`, `backlog/509-proto-naming-conventions-v2.md`, `backlog/520-primitives-stack-v2.md`  
 **Related (clean target refactor):** `backlog/657-transformation-domain-clean-target.md`  
+**Related (Transformation execution posture):** `backlog/527-transformation-capability-v2.md`  
 **Status:** Proposal (implementation plan)  
 **Priority:** High  
 
@@ -19,6 +21,23 @@ Turn the **contract** in `backlog/656-agentic-memory.md` into a concrete, builda
 - the system is safe (RBAC + tool grants), auditable, and testable
 
 This document is intentionally implementation-oriented: services, schemas, APIs, UI surfaces, and verification.
+
+## 0.1 What “implementation” means here (repo-aligned)
+
+This is not a standalone “memory service”.
+
+The target implementation is a **composition of primitives** (Application layer):
+
+- **Domain primitive** (`primitives/domain/transformation`): canonical writes (elements/versions/relationships + governance + proposals) and outbox facts.
+- **Projection primitive** (`primitives/projection/transformation`): *all* reads (browse/search/history/diff) plus retrieval pipeline (`read_context + citations`).
+- **Integration primitive** (MCP adapter): agent-facing tools calling Domain/Projection RPCs (no direct DB access).
+- **Process primitive** (optional plateau): BPMN “review/publish” orchestration posture (Zeebe), where primitives implement workers and Domains persist truth.
+
+The docs in this 656 suite must therefore name:
+
+- which primitive owns each loop step
+- which proto service(s) are invoked
+- which facts are emitted/consumed (EDA), and what evidence is required for audit
 
 ---
 
@@ -50,6 +69,33 @@ From `backlog/527-transformation-projection.md` and `backlog/535-mcp-read-optimi
 - browse/search/history/diff must be **projection-backed**
 - semantic retrieval is a **projection capability** (pgvector + hybrid retrieval)
 - auth must be enforced at query time; results must be citeable and reproducible
+
+### 1.4 Proto + EDA posture (496/509/527/520)
+
+This backlog must not invent a parallel “memory protocol”.
+
+**Proto-first contracts (generated SDKs, not ad-hoc JSON):**
+
+- Domain and Projection gRPC services are defined under `packages/ameide_core_proto/src/ameide_core_proto/**`.
+- Implementations must follow the `520` stack discipline: `buf generate` is canonical; generated roots are clobber-safe; drift is caught by regen-diff CI.
+
+**EDA-correct between primitives:**
+
+- Between primitives, messages are carried in a CloudEvents envelope (see the active `backlog/496-eda-principles-*` spec).
+- Producers use transactional outbox; consumers use inbox dedupe (CloudEvents `id`).
+- Protobuf payloads do not embed message metadata for inter-primitive traffic; metadata lives in CloudEvents.
+
+**Repo reality today (important for 656):**
+
+- Transformation facts already declare a stable semantic identity and delivery stream ref in proto options:
+  - `stable_type` (semantic identity)
+  - `stream_ref` (logical delivery stream)
+  - Example: `packages/ameide_core_proto/src/ameide_core_proto/transformation/knowledge/v1/transformation_knowledge_facts.proto`
+
+**Ideal mapping (make it explicit for implementers):**
+
+- `stable_type` SHOULD map to CloudEvents `type` (and be the contract surface used for routing/filters).
+- `stream_ref` binds to the delivery plane (Broker/Trigger or Kafka topics) via runtime config/CRDs (never hardcoded into business logic).
 
 ---
 
@@ -89,9 +135,40 @@ Delivered building blocks:
    - enforcement currently mostly happens in web routes (Next.js) and in inference tool allowlists.
 5. **Projection ingestion posture is not “clean target” yet**:
    - bridge-mode outbox tailing exists;
-   - the clean target (657) requires Broker/Trigger delivery (496 v2) as the normative runtime posture (no direct Kafka topic coupling as a contract).
+   - the clean target (657) requires EDA-correct delivery as the normative runtime posture (see `backlog/657-transformation-domain-clean-target.md` and the active `backlog/496-eda-principles-*` spec), not “DB tailing forever”.
 6. **Backlog-as-memory ingestion** (git markdown → elements) is not implemented.
 7. **Chat-to-draft ingestion** exists as a pattern (367-0) but is not generalized to “memory capture”.
+
+### 2.5 Existing proto surfaces we build on (do not reinvent)
+
+656 should be implemented by extending and composing existing Transformation services, not by inventing a parallel API surface.
+
+**Domain command surfaces (canonical writes):**
+
+- `io.ameide.transformation.knowledge.v1.TransformationKnowledgeCommandService`
+  - Proto: `packages/ameide_core_proto/src/ameide_core_proto/transformation/knowledge/v1/transformation_knowledge_command_service.proto`
+- `io.ameide.transformation.governance.v1.TransformationGovernanceCommandService`
+  - Proto: `packages/ameide_core_proto/src/ameide_core_proto/transformation/governance/v1/transformation_governance_command_service.proto`
+
+**Projection query surfaces (all reads):**
+
+- `io.ameide.transformation.knowledge.v1.TransformationKnowledgeQueryService`
+  - Proto: `packages/ameide_core_proto/src/ameide_core_proto/transformation/knowledge/v1/transformation_knowledge_query_service.proto`
+- `io.ameide.transformation.governance.v1.TransformationGovernanceQueryService`
+  - Proto: `packages/ameide_core_proto/src/ameide_core_proto/transformation/governance/v1/transformation_governance_query_service.proto`
+
+**Fact identity + streams (EDA):**
+
+- Knowledge facts: `packages/ameide_core_proto/src/ameide_core_proto/transformation/knowledge/v1/transformation_knowledge_facts.proto`
+  - Example semantic identities: `io.ameide.transformation.knowledge.fact.ElementCreated.v1`, `...ElementVersionCreated.v1`
+  - Example stream binding: `transformation.knowledge.domain.facts.v1`
+- Governance facts: `packages/ameide_core_proto/src/ameide_core_proto/transformation/governance/v1/transformation_governance_facts.proto`
+  - Example stream binding: `transformation.governance.domain.facts.v1`
+
+**Implication (ideal target):**
+
+- 656 work should add retrieval/context assembly + curation “front doors”, but the underlying persistence remains elements + baselines.
+- Agents should not need to know “how to assemble a proposal element + relationship pins” to propose safely; prefer dedicated RPCs and MCP tools that encode those invariants.
 
 ---
 
@@ -126,16 +203,41 @@ Treat ArchiMate as the primary “meaning graph” when possible:
 
 Do not “accidentally depend” on DB tailing for correctness.
 
-- Projections must ingest domain/process facts via Kafka consumer groups as the default posture (496 v3).
+- Projections must ingest domain/process facts via the platform’s EDA delivery plane as the default posture:
+  - if running the Kafka-first posture (496 v3), use Kafka consumer groups
+  - if running the Broker/Trigger posture (496 v2), use Broker/Trigger delivery filtered on CloudEvents `type`
 - Any outbox-tailing relay must be treated as local/debug/recovery only (657), not as a long-running dependency in environments.
 
-### 3.4 Align `read_context` with 527 (avoid parallel contracts)
+### 3.5 Align `read_context` with 527 (avoid parallel contracts)
 
 Adopt the 527 selector model for any memory retrieval surface:
 
 - `head | published | baseline_ref | version_ref`
 
 Even if we implement memory-only first, we must not introduce a second incompatible `read_context` vocabulary.
+
+### 3.6 Define “memory front doors” (proto + MCP) as a dev-spec surface
+
+This is the missing “connected to the repo” layer: implementers need a stable, explicit interface that matches how Ameide builds everything else (proto → generated SDKs → primitives).
+
+**Rule:** do not require clients (agents, CLI, UI) to construct low-level “element CRUD + relationship pinning” payloads to perform memory operations.
+
+Instead, define a narrow **memory façade** with:
+
+- **Projection reads**: `GetContext`, `Search`, `GetReadContext` returning `read_context + citations`.
+- **Domain writes**: `ProposeChange`, `RebaseProposal`, `AcceptProposal`, `RejectProposal`, `PromotePublishedBaselinePointer`.
+
+**Where it lives (ideal target):**
+
+- Proto package: `io.ameide.transformation.memory.v1` (or `...curation.v1` + `...retrieval.v1` if you prefer splitting read vs write).
+- Implemented by Transformation Domain/Projection primitives (façade methods can be implemented as thin adapters around existing repositories).
+- Exposed to agents primarily via MCP tools that map 1:1 to these RPCs (see `backlog/534-mcp-protocol-adapter.md`).
+
+**Why this is worth the refactor:**
+
+- reduces drift across agent/CLI/UI implementations
+- makes authorization and audit inevitable (gRPC interceptors + consistent evidence)
+- keeps “memory” from becoming an accidental second protocol surface outside the proto stack
 
 ---
 
@@ -155,7 +257,7 @@ Implementation:
 
 MVP acceptance:
 - works for documents/backlogs + basic graph expansion
-- citations always include `{element_id, version_id}`
+- citations always include `{repository_id, element_id, version_id}`
 
 ### 4.2 Flow B — Execution agent proposes a memory change (write path)
 
@@ -221,100 +323,143 @@ MVP acceptance:
 
 ---
 
-## 5) Workstreams (what to build)
+## 5) Development specification (ideal target; refactor-friendly)
 
-### 5.1 Data model + schemas
+This section is intentionally “close to build”: it names concrete primitives, proto seams, and the EDA flow that makes the loops real in this repo.
 
-1. **Repository seeding**
-   - ensure a single org memory repository exists (bootstrap script / operator task)
+### 5.1 Domain primitive (Transformation) — canonical writes + governance
 
-2. **Curation object conventions**
-   - formalize the `type_key` and required metadata keys from 656
-   - formalize relationship keys and their directionality (no “implementation choice” ambiguity)
+**Code location:** `primitives/domain/transformation`
 
-3. **Semantic retrieval storage (projection)**
-   - implement pgvector-backed tables and indexes in the projection DB (per 535)
-   - store per-chunk provenance: `{tenant_id, org_id, repository_id, element_id, version_id}`
+**Responsibilities (must be true):**
 
-### 5.2 Service/API surfaces
+- Persist canonical state: Elements + ElementVersions + ElementRelationships + workspace assignments + baselines.
+- Enforce invariants on proposal/decision artifacts (656 type_keys + required relationship pinning).
+- Enforce RBAC at the gRPC boundary (no “UI-only auth” posture).
+- Emit facts via transactional outbox for every accepted write (496).
 
-1. **Auth interceptors for gRPC**
-   - add unary/stream interceptors to domain + projection servers
-   - validate JWT (or mTLS identity) and map to `{tenant_id, org_id, role_codes}`
-   - enforce:
-     - only privileged roles can perform “approval/promotion” actions (baseline submit/approve/promote)
-     - execution agents can only create/update proposals and draft/curated (non-approved) content
-     - execution agents cannot mutate `published_version_id` pointers (directly or indirectly)
+**Proto surfaces (existing):**
 
-2. **Retrieval RPC(s)**
-   - add `GetReadContext` / `GetContext` / `SemanticSearch` (naming per 535) to the projection query service(s)
-   - return `read_context` + `citations[]`
+- `io.ameide.transformation.knowledge.v1.TransformationKnowledgeCommandService`
+- `io.ameide.transformation.governance.v1.TransformationGovernanceCommandService`
 
-3. **Curation workflow RPC(s)**
-   - optional (MVP can use generic element CRUD)
-   - recommended to add:
-     - `ListProposals(filters...)`
-     - `AcceptProposal(proposal_id, ...)`
-     - `RejectProposal(proposal_id, reason)`
+**Refactor (recommended, ideal): introduce explicit memory “front door” RPCs**
 
-### 5.3 Projection build-out
+Clients should not assemble low-level element CRUD payloads to do memory operations safely.
 
-1. **Curation queue projection**
-   - materialize “proposal list” read model with filters (status/target/age/layer)
-   - materialize “proposal diff inputs” (target pinned version + proposed payload refs)
+Define one of:
 
-2. **Semantic indexing pipeline**
-   - consume domain facts (element created/updated, relationship created/updated)
-   - produce contextual chunks:
-     - document text
-     - plus bounded relationship context (title/type/neighbor names)
-   - embed asynchronously and upsert into `semantic_chunks`
+- `io.ameide.transformation.memory.v1.TransformationMemoryCommandService` (preferred), or
+- add methods on existing command services (acceptable but mixes responsibilities).
 
-3. **Governance-aware retrieval**
-   - default retrieval reads against “published”
-   - support baseline_ref selection for deterministic runs
+Minimum operations (must exist by Increment 1/2):
 
-### 5.4 UI surfaces
+- `ProposeChange` (creates `ameide:curation.proposal` + `targets_version` pin + payload)
+- `RebaseProposal` (re-targets a proposal to the current selected version; links `rebased_to`)
+- `AcceptProposal` / `RejectProposal` (writes new ElementVersion on accept; writes decision artifacts always)
+- `PromotePublishedBaselinePointer` (or equivalent) so `selector=published` is deterministic
 
-1. **Curation queue UI**
-   - list proposals, view details, show target version, show proposed payload
-   - actions: accept/reject/withdraw
+**Invariant checks (must be enforced server-side):**
 
-2. **Baseline UX (memory publishing)**
-   - extend existing governance page to:
-     - create baseline
-     - add items
-     - submit/approve/promote
+- proposals MUST include `ameide:curation.targets_version` with `REFERENCE.metadata.target_version_id`
+- accept MUST block if proposal is stale relative to the selected `read_context`
+- accept MUST create a new `ElementVersion` and link `accepted_as` pinned to that version
 
-### 5.5 CLI + agent integrations
+### 5.2 Projection primitive (Transformation) — all reads + retrieval pipeline
 
-1. **CLI “no-brainer” entry points**
-   - add `ameide memory context` (retrieval → citations)
-   - add `ameide memory propose` (create proposal element + relationships)
-   - add `ameide memory sync-backlogs` (mirror job)
+**Code location:** `primitives/projection/transformation`
 
-2. **Inference tools**
-   - add tool(s) calling semantic/context retrieval RPCs (replacing ad-hoc list+filter loops)
-   - ensure tool grants match the “propose-only” write model
+**Responsibilities (must be true):**
 
-3. **MCP exposure (primary)**
-   - implement an MCP server (or MCP adapter) as the standard agent interface to memory:
-     - `memory.search`, `memory.get_context`, `memory.get_element`, `memory.propose`
-   - back the tools by projection reads + domain command writes (no direct DB access).
+- Provide all browse/search/history/diff read surfaces.
+- Provide the retrieval pipeline (keyword → hybrid → rerank → graph expansion → distillation), but always return citeable results.
+- Enforce permission trimming at query time (principal/scope/roles/purpose), not after results are assembled.
+- Materialize curation queue read models (list proposals, diffs, conflicts, evidence) so UI/agents don’t re-implement joins.
 
-### 5.6 Testing and verification
+**Proto surfaces (existing):**
 
-1. **Contract tests (service-level)**
-   - proposals must include `targets_version` with `target_version_id`
-   - accept must create a new version and link `accepted_as` pinned to that version
-   - unauthorized principals cannot mutate canonical memory
+- `io.ameide.transformation.knowledge.v1.TransformationKnowledgeQueryService`
+- `io.ameide.transformation.governance.v1.TransformationGovernanceQueryService`
 
-2. **Retrieval regression harness (535 + 656)**
-   - golden queries + expected version-pinned results
-   - drift detection when graph grows
+**Refactor (recommended, ideal): introduce explicit memory retrieval RPCs**
 
-3. **E2E UI tests**
-   - create proposal → accept → promote baseline → verify published pointer changes
+Define one of:
+
+- `io.ameide.transformation.memory.v1.TransformationMemoryQueryService` (preferred), or
+- extend `TransformationKnowledgeQueryService` (acceptable but mixes responsibilities).
+
+Minimum operations (Increment 1): `GetContext` (keyword-only recall is fine) that returns:
+
+- `read_context` (effective selector and resolved baseline id)
+- `items[]` and `citations[]` (each citation includes `{repository_id, element_id, version_id}`)
+- `why_included` per item (minimal)
+
+Increment 2+: add:
+
+- “what changed?” baseline diff reads
+- retrieval trace output (routing → filters → rerank → expansion → citations) for operability
+
+Increment 3+: add:
+
+- hybrid recall (BM25/tsvector + pgvector) with baseline+ACL filtering
+- retrieval mode + budget parameters (`local|global|drift`, bounded)
+
+### 5.3 Integration primitive — MCP as the agent interface (no bespoke protocols)
+
+**Responsibilities:**
+
+- Expose `memory.*` tools over MCP that map 1:1 to the memory front door RPCs.
+- Enforce tool grants (“execution agents propose, curators publish”) in addition to backend RBAC.
+
+**Contract anchor:** `backlog/534-mcp-protocol-adapter.md`
+
+Minimum MCP tools (v1):
+
+- `memory.get_context` → Projection `GetContext`
+- `memory.propose` → Domain `ProposeChange`
+
+### 5.4 UISurface — curator and editor UX
+
+**Responsibilities:**
+
+- Curator can list proposals, view pinned targets, see diffs, accept/reject/rebase, and promote published truth.
+- UI must consume projection read models; it must not join domain tables directly.
+
+### 5.5 Agent + CLI integration (reduce cognitive load)
+
+**CLI (primary “front door” for agents running locally or in tasks):**
+
+- `ameide memory context` calls `memory.get_context` and prints citations
+- `ameide memory propose` creates a pinned proposal
+- `ameide memory sync-backlogs` runs the ingestion mirror
+
+**Agent runtime:**
+
+- Agents must treat `read_context` as mandatory input/output, and must cite only what was returned.
+
+### 5.6 EDA implementation notes (what flows where)
+
+**What matters for 656 (regardless of delivery plane):**
+
+- Domain emits facts after persist; projection ingests them idempotently.
+- Facts must be sufficient to rebuild:
+  - curation queue read models
+  - baseline pointer state
+  - retrieval indexes (chunks/embeddings) as derived artifacts
+
+If you add explicit “proposal accepted/rejected” facts, they must still be derivable from canonical element/governance facts (no split-brain).
+
+### 5.7 Testing (tie each increment to a runnable verification surface)
+
+Use the scenario-driven plan in:
+
+- `backlog/656-agentic-memory-implementation-mvp/README.md`
+
+and ensure each increment produces:
+
+- **Increment 1:** one end-to-end smoke (permission trimming + citations + proposal lifecycle).
+- **Increment 2:** golden queries + deterministic diff/rebase assertions + trace logs.
+- **Increment 3:** CI-gated evaluation + blue/green index canary comparing ranking + citation sets.
 
 ---
 

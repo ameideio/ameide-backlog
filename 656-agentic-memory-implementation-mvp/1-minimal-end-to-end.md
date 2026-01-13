@@ -13,6 +13,17 @@ This increment intentionally prioritizes **version drift prevention** and **perm
 
 ---
 
+## 0) Implementation anchors (primitives + proto)
+
+This increment is implemented inside the Transformation primitives:
+
+- **Domain primitive** (`primitives/domain/transformation`): proposal creation + accept/reject + published baseline pointer writes (RBAC enforced at gRPC boundary).
+  - Proto: `io.ameide.transformation.knowledge.v1.*` and `io.ameide.transformation.governance.v1.*`
+  - Ideal: add a dedicated “memory front door” RPC surface (see `backlog/656-agentic-memory-implementation.md` §5.1).
+- **Projection primitive** (`primitives/projection/transformation`): keyword-first `GetContext` returning `read_context + citations` (permission-trimmed).
+  - Ideal: add “memory front door” query RPCs (see `backlog/656-agentic-memory-implementation.md` §5.2).
+- **Integration primitive (MCP):** `memory.get_context` and `memory.propose` map to those RPCs (see `backlog/534-mcp-protocol-adapter.md`).
+
 ## 1) Read loop (projection)
 
 ### 1.1 Retrieval contract
