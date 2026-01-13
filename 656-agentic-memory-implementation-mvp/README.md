@@ -5,9 +5,14 @@ This directory splits the MVP implementation into **end-to-end increments** (eac
 **Contract:** `backlog/656-agentic-memory.md`  
 **Overview plan:** `backlog/656-agentic-memory-implementation.md`
 
+## Non-negotiables (all increments)
+
+- Permission-trimmed retrieval (no post-hoc filtering).
+- Version-pinned citations (`{repository_id, element_id, version_id}`).
+- Execution agents are proposal-only writers (no direct canonical mutation).
+
 ## Increments
 
 1. `backlog/656-agentic-memory-implementation-mvp/1-minimal-end-to-end.md`
 2. `backlog/656-agentic-memory-implementation-mvp/2-operational-end-to-end.md`
 3. `backlog/656-agentic-memory-implementation-mvp/3-scaled-end-to-end.md`
-
