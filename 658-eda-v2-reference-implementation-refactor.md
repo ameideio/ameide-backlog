@@ -40,6 +40,8 @@ Those are incompatible with 496 v2, which makes:
 - **Knative Broker + Trigger mandatory** as the routing spine,
 - **direct Kafka topic coupling forbidden** as an inter-service contract.
 
+Clarification: this backlog is about the **inter-primitive execution substrate** (Broker/Trigger delivery + executor). It does **not** replace the developer/agent code-changing substrate in `backlog/650-agentic-coding-overview.md` (Coder workspaces + ephemeral “task workspaces” for PR automation).
+
 ---
 
 ## 3) What “refactor the reference implementation” means (scope)
