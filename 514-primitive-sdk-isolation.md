@@ -70,11 +70,11 @@ This backlog is **normative** for new primitives and for CLI/scaffold behavior. 
   - Domain:
     - Required: `--kind domain --name <name>`.
     - Implied: `--lang go`.
-    - Optional: `--include-gitops`, `--include-test-harness`.
+    - Optional: `--include-test-harness` (repo-local). GitOps wiring is CI-owned (see `backlog/670-gitops-authoritative-write-path-for-scaffolding.md`).
   - Process:
     - Required: `--kind process --name <name>`.
     - Implied: `--lang go`.
-    - Optional: `--include-gitops`, `--include-test-harness`.
+    - Optional: `--include-test-harness` (repo-local). GitOps wiring is CI-owned (see `backlog/670-gitops-authoritative-write-path-for-scaffolding.md`).
   - Agent:
     - Required: `--kind agent --name <name>`.
     - Implied: `--lang python`.
@@ -133,7 +133,7 @@ This section describes how the existing primitive-scaffolding backlogs must be i
   - `src/proto/index.ts` wraps SDK clients, and runtime code avoids `@ameide/core-proto` imports.
 - Under 514:
   - That policy becomes a **general primitive rule** (P1/P2); UISurface is the reference example.
-  - UISurface scaffolds should not acquire additional flags beyond `--kind`, `--name`, `--include-gitops`, `--include-test-harness`.
+  - UISurface scaffolds should not acquire additional flags beyond `--kind`, `--name`, and repo-local test wiring such as `--include-test-harness`. GitOps wiring is handled via the GitOps repo workflow (670).
 
 ---
 
@@ -143,7 +143,8 @@ This section describes how the existing primitive-scaffolding backlogs must be i
 
 - `ameide primitive scaffold` must:
   - Enforce canonical language per kind (P4).
-  - Accept `--include-gitops` and `--include-test-harness` uniformly.
+  - Treat GitOps wiring as CI-owned (670); any `--include-gitops` “write GitOps files” behavior is historical and should not be the canonical path.
+  - Accept `--include-test-harness` uniformly.
   - Avoid introducing proto-path dependencies into primitive scaffolds:
     - Domain/Process scaffolds are SDK- and shape-only; proto analysis lives in plan/impact/verify, not scaffold.
     - Agent/UISurface scaffolds remain SDK/HTTP-focused and do not accept proto-path as a required flag.

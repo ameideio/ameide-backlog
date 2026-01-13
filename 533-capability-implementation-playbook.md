@@ -198,7 +198,7 @@ Note: Node 3F (Scaffold Integration) and Node 7C (Implement Integration) follow 
 - Confirm no RED scaffold tests remain (any `AMEIDE_SCAFFOLD` markers cause `ameide primitive verify` to fail).
 - Run `buf lint` and `buf breaking` on proto changes.
 - Run regen-diff to ensure generated outputs are committed.
-- Validate GitOps manifests (if `--include-gitops` was used).
+- Validate GitOps wiring via the GitOps repo PR workflows (670) and the `ameide-gitops` GitOps gate (no local `--include-gitops` canonical path). See `backlog/670-gitops-authoritative-write-path-for-scaffolding.md`.
 
 **Outputs**
 - All primitives pass verification checks.

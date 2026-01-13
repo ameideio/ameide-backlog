@@ -5,6 +5,11 @@ This backlog defines the **canonical target scaffold** for **UISurface** primiti
 - **Audience:** UI engineers, AI agents, CLI implementers
 - **Scope:** One opinionated TypeScript-first web app pattern (Next.js or equivalent), aligned with `backlog/520-primitives-stack-v2.md` and `services/www_ameide_platform/backlog/SDK_USAGE.md` (SDK-only calls, projection-driven reads). The CLI orchestrates repo/GitOps wiring; `buf generate` + plugins handle deterministic generation (SDKs, generated-only glue).
 
+> **Update (2026-01, 670): CI-owned GitOps wiring**
+>
+> - GitOps wiring is authored in `ameide-gitops` via the CI-owned scaffolding workflow (workflow → PR → merge). See `backlog/670-gitops-authoritative-write-path-for-scaffolding.md`.
+> - UISurface scaffolding in the core repo creates runtime code + tests; it does not directly write GitOps files as the canonical path.
+
 ---
 
 ## Primitive/operator alignment
@@ -62,7 +67,6 @@ UISurface primitives are deployed web applications. The target scaffold is a Typ
 ameide primitive scaffold \
   --kind uisurface \
   --name <name> \
-  --include-gitops \
   --include-test-harness
 ```
 
@@ -70,7 +74,6 @@ This creates a UISurface primitive under:
 
 ```text
 primitives/uisurface/<name>/
-gitops/primitives/uisurface/<name>/
 ```
 
 ---
@@ -103,11 +106,15 @@ primitives/uisurface/<name>/
 ├── tests/
 │   └── *.test.ts
 └── internal/gen/                         # Generated-only artifacts (if any)
+```
 
-gitops/primitives/uisurface/<name>/
-├── values.yaml
-├── component.yaml
-└── kustomization.yaml
+GitOps wiring (canonical, 670):
+
+```text
+environments/_shared/components/apps/primitives/uisurface-<name>-<version>/component.yaml
+sources/values/_shared/apps/uisurface-<name>-<version>.yaml
+environments/_shared/components/apps/primitives/uisurface-<name>-<version>-smoke/component.yaml   # optional
+sources/values/_shared/apps/uisurface-<name>-<version>-smoke.yaml                                 # optional
 ```
 
 ---

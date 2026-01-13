@@ -2,6 +2,10 @@
 
 Tracks CLI scaffold behavior — what repo-owned files the CLI creates per primitive type.
 
+> **Update (2026-01, 670): CI-owned GitOps scaffolding**
+>
+> GitOps wiring is authored in `ameide-gitops` via a CI-owned workflow (workflow → PR → merge). The CLI should trigger that workflow rather than writing GitOps files directly as the canonical path. See `backlog/670-gitops-authoritative-write-path-for-scaffolding.md`.
+
 Companion docs:
 - Internal generation baseline (Buf/plugins): `backlog/521b-internal-generation-baseline.md`
 - External generation improvements log: `backlog/521d-external-generation-improvements.md`
@@ -44,7 +48,7 @@ The CLI is a first-class tool for both humans and coding agents (not a manual-on
 ### Allowed / expected (CLI orchestrator)
 
 - Create and maintain repo-owned project skeletons (module dirs, `go.mod`/`pyproject.toml`, Dockerfiles, `cmd/` entrypoints, READMEs/checklists).
-- Drive multi-step workflows: run `buf lint`/`buf breaking`/`buf generate`, run tests, build images, wire GitOps manifests/CR templates, and open PRs.
+- Drive multi-step workflows: run `buf lint`/`buf breaking`/`buf generate`, run tests, build images, trigger GitOps wiring PR workflows (670), and open PRs.
 - Provide convenience wrappers (e.g., `ameide dev check`) that run the same checks CI runs, without becoming the canonical gate.
 
 ### Not allowed (CLI orchestrator)

@@ -105,10 +105,12 @@ The compiler **MUST NOT** modify any other file.
 The CLI **MUST** support this command, with exactly these flags:
 
 ```bash
-ameide primitive scaffold --kind process --name <name> [--include-gitops]
+ameide primitive scaffold --kind process --name <name>
 ```
 
 This command **MUST** generate the directory structure in §2 and the initial `bpmn/process.bpmn` template file, `bpmn/policies.yaml`, and a runnable `cmd/worker` + `cmd/ingress`.
+
+GitOps wiring for the Process primitive is handled via the `ameide-gitops` CI scaffolding workflow (670), not by local `--include-gitops` writes.
 
 ### 3.2 Compile command
 

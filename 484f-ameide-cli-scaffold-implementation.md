@@ -11,6 +11,10 @@
 > **Update (2026-01): 430v2 contract**
 >
 > This doc is already deprecated for generation, but it also contains v1-era “integration pack / `INTEGRATION_MODE` / `run_integration_tests.sh`” assumptions. Treat `backlog/430-unified-test-infrastructure-v2-target.md` as authoritative for current test semantics.
+>
+> **Update (2026-01, 670): CI-owned GitOps scaffolding**
+>
+> Any `--include-gitops` “CLI writes GitOps files” behavior in this document is historical. Canonical GitOps wiring is authored in `ameide-gitops` via CI-owned workflow → PR → merge. See `backlog/670-gitops-authoritative-write-path-for-scaffolding.md`.
 
 ---
 
@@ -59,10 +63,10 @@ ameide primitive scaffold \
 | Agent | Python only | 5 .tmpl files | ✅ | ✅ | [504](504-agent-vertical-slice.md) |
 | UISurface | Go, TS, Python | Inline | ✅ | ✅ | TODO (507) |
 
-**Notes:**
+**Notes (historical):**
 - Agent primitives use dedicated Go templates for consistent wiring checklists
 - Domain/Process/UISurface use inline code generation in `primitive_scaffold.go`
-- All kinds support `--include-gitops` for Argo CD ApplicationSet integration
+- `--include-gitops` support is no longer the canonical GitOps wiring path; GitOps wiring is CI-owned per 670.
 - Vertical slice docs own primitive-specific scaffold details (operator + CLI + GitOps end-to-end)
 
 ---
@@ -172,7 +176,9 @@ The agent README.md template includes:
 
 ## 5. GitOps Manifest Structure
 
-When `--include-gitops` is specified, scaffolding creates:
+Historical note: older CLI scaffolding described here created GitOps wiring locally. The canonical path is now CI-owned (670).
+
+When `--include-gitops` is specified (legacy behavior), scaffolding creates:
 
 ```
 gitops/primitives/{kind}/{name}/
@@ -216,8 +222,14 @@ ameide primitive scaffold \
   --name orders \
   --proto-path packages/ameide_core_proto/src/ameide_core_proto/transformation/v1/transformation_service.proto \
   --lang go \
-  --include-gitops \
   --json
+```
+
+GitOps wiring is CI-owned (670). Trigger the GitOps repo workflow to open a PR:
+
+```bash
+gh -R ameideio/ameide-gitops workflow run scaffold-primitive-gitops.yaml \
+  -f kind=domain -f name=orders -f version=v0 -f with_smoke=true -f env=dev
 ```
 
 ### Step 3: Verify RED state
@@ -296,7 +308,7 @@ Tests should **fail** at this point (RED state per TDD). The agent's job is to i
 1. **One-shot scaffolding**: Scaffold only when folder doesn't exist. Never overwrite existing files.
 2. **Tests must fail**: Scaffolded tests call real handlers and fail until implemented (RED state).
 3. **No business logic**: CLI generates wiring only; agents write meaning.
-4. **GitOps is optional**: Use `--include-gitops` flag; default is `false`.
+4. **GitOps wiring is CI-owned**: GitOps wiring is authored via the `ameide-gitops` workflow (670), not by local `--include-gitops` writes.
 5. **Generated marker**: Files include `// CODEGEN: safe to delete, regenerate with 'ameide primitive scaffold'`
 
 > See [484e §4](484e-ameide-cli-industry-patterns.md#4-anti-patterns-to-avoid) for anti-patterns including regeneration hell and magic comments.

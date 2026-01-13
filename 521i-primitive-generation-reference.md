@@ -23,6 +23,7 @@ See also:
 |---------|------|---------|----------|
 | **Repo-owned files** | CLI (`ameide scaffold`) | go.mod, Dockerfile, handlers, README | `primitives/{kind}/{name}/` |
 | **Generated-only files** | Buf (`buf generate`) | gRPC stubs, SDK types, registration glue | `internal/gen/`, `gen/` |
+| **GitOps wiring** | `ameide-gitops` CI workflow (670) | component.yaml + values YAML (workload + optional smoke) | `environments/_shared/components/**` + `sources/values/**` |
 
 **Hard rule (520 §2b):** Everything derived from protobuf descriptors is reproducible by running `buf generate` in a clean checkout. Everything else is CLI scaffolding and checked-in scaffold templates.
 

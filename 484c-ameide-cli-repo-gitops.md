@@ -11,6 +11,10 @@
 > **Update (2026-01): testing contract is 430v2**
 >
 > Treat `backlog/430-unified-test-infrastructure-v2-target.md` as the normative contract (strict phases; native tooling; JUnit evidence). Any references in this doc to `INTEGRATION_MODE`, `tools/integration-runner`, or `run_integration_tests.sh` are legacy.
+>
+> **Update (2026-01, 670): CI-owned GitOps scaffolding**
+>
+> GitOps wiring is authored in `ameide-gitops` via the CI-owned scaffolding workflow (workflow → PR → merge). The CLI should trigger that workflow, not write GitOps files directly as the canonical path. See `backlog/670-gitops-authoritative-write-path-for-scaffolding.md`.
 
 ---
 
@@ -21,7 +25,7 @@ The CLI operates across **two logical repositories** (which may be consolidated 
 | Repo | Contains | CLI Focus |
 |------|----------|-----------|
 | **Core repo** | Code, proto, SDKs, operators, CRD *schemas* | `describe`, `drift`, `verify`, `scaffold` (code) |
-| **GitOps repo** | CRD *instances*, environment values, ApplicationSets | `scaffold --include-gitops`, `verify --gitops` |
+| **GitOps repo** | CRD *instances*, environment values, ApplicationSets | trigger CI scaffolding workflow (670), promotion PRs, GitOps gate validation |
 
 **Key distinction:**
 - **CRD schemas/kinds + operators** live in the **core repo** (`operators/*-operator/`).
@@ -120,7 +124,7 @@ ameide-gitops/  # or gitops/ subdirectory in monorepo
 - **CRD schemas** (what a Domain/Process/Agent/UISurface looks like) → **core repo**
 - **CRD instances** (the actual orders Domain, the actual l2o Process) → **GitOps repo**
 - **Operators** (code that reconciles CRs into Deployments) → **core repo**
-- The CLI scaffolds **code** in core repo; **CRD instances** go in gitops repo (via `--include-gitops`)
+- The CLI scaffolds **code** in core repo; GitOps wiring/CRD instances are created via the GitOps repo workflow (670) and land via PR merge.
 
 ### 3.4 Migration from Current Structure
 
@@ -186,7 +190,7 @@ Per 430v2, verify must:
 
 The CLI aligns with environment naming and GitOps structure from [434-unified-environment-naming.md](434-unified-environment-naming.md).
 
-### 5.1 Scaffolded GitOps Structure
+### 5.1 Scaffolded GitOps Structure (CI-owned)
 
 ```
 environments/_shared/components/apps/primitives/<kind>-<name>-v0/component.yaml

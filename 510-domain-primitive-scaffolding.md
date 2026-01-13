@@ -9,6 +9,11 @@ This backlog defines the **canonical target scaffold** for **Domain** primitives
 >
 > - Scaffolding should avoid optional flags by default (no “include-*” zoo); generated primitives should include the repo-required shape (including GitOps stubs and tests) without extra switches.
 > - Test scaffolding should align with `backlog/430-unified-test-infrastructure-v2-target.md` (Unit/Integration/E2E phases; native tooling; JUnit evidence; no `INTEGRATION_MODE`; no `run_integration_tests.sh` packs as the canonical path).
+>
+> **Update (2026-01, 670): CI-owned GitOps wiring**
+>
+> - GitOps wiring is authored in `ameide-gitops` via the CI-owned scaffolding workflow (workflow → PR → merge). See `backlog/670-gitops-authoritative-write-path-for-scaffolding.md`.
+> - Domain scaffolding in the core repo creates runtime code + tests only; it does not directly write GitOps files as the canonical path.
 
 ---
 
@@ -30,7 +35,7 @@ This backlog defines the **canonical target scaffold** for **Domain** primitives
 
 ## Grounding & cross‑references
 
-- **Primitive stack:** `477-primitive-stack.md` (Domain primitives in `primitives/domain/{name}` and GitOps under `gitops/primitives/domain/{name}`).  
+- **Primitive stack:** `477-primitive-stack.md` (Domain primitives in `primitives/domain/{name}`; GitOps wiring is in `ameide-gitops` under `environments/_shared/components/**` + `sources/values/**`).  
 - **Primitive/operator contract:** `495-ameide-operators.md` (shared CRD/spec/status patterns), `497-operator-implementation-patterns.md` (controller-runtime patterns), `498-domain-operator.md` (Domain operator implementation).  
 - **EDA / outbox principles:** `470-ameide-vision.md` (§8–13), `472-ameide-information-application.md` (§3.3), `496-eda-principles-v2.md`.  
 - **CLI workflows & verification:** `484-ameide-cli-overview.md`, `484a-ameide-cli-primitive-workflows.md`, `484b-ameide-cli-proto-contract.md`, `484f-ameide-cli-scaffold-implementation.md`.
@@ -58,8 +63,16 @@ ameide primitive scaffold \
 
 ```text
 primitives/domain/<name>/
-gitops/primitives/domain/<name>/
 ```
+
+GitOps wiring for the Domain is created in the `ameide-gitops` repo and lands under:
+
+```text
+environments/_shared/components/apps/primitives/domain-<name>-<version>/component.yaml
+sources/values/_shared/apps/domain-<name>-<version>.yaml
+```
+
+via the authoritative workflow described in `backlog/670-gitops-authoritative-write-path-for-scaffolding.md`.
 
 ---
 
@@ -96,13 +109,13 @@ primitives/domain/<name>/
     └── ...
 ```
 
-GitOps stubs are always scaffolded (no `--include-gitops` flag):
+GitOps wiring is authored in the `ameide-gitops` repo via the CI-owned scaffolding workflow (670):
 
 ```text
-gitops/primitives/domain/<name>/
-├── values.yaml                          # Domain Deployment + dispatcher settings
-├── component.yaml                       # Argo CD component descriptor
-└── kustomization.yaml                   # Kustomize stub
+environments/_shared/components/apps/primitives/domain-<name>-<version>/component.yaml
+sources/values/_shared/apps/domain-<name>-<version>.yaml
+environments/_shared/components/apps/primitives/domain-<name>-<version>-smoke/component.yaml   # optional
+sources/values/_shared/apps/domain-<name>-<version>-smoke.yaml                                 # optional
 ```
 
 ---

@@ -13,6 +13,11 @@ This backlog defines the **canonical target scaffold** for **Process** primitive
 >
 > - Scaffolding should avoid optional flags by default (no “include-*” zoo); generated primitives should include the repo-required shape (including GitOps stubs and tests) without extra switches.
 > - Test scaffolding should align with `backlog/430-unified-test-infrastructure-v2-target.md` (Unit/Integration/E2E phases; native tooling; JUnit evidence; no `INTEGRATION_MODE`; no `run_integration_tests.sh` packs as the canonical path).
+>
+> **Update (2026-01, 670): CI-owned GitOps wiring**
+>
+> - GitOps wiring is authored in `ameide-gitops` via the CI-owned scaffolding workflow (workflow → PR → merge). See `backlog/670-gitops-authoritative-write-path-for-scaffolding.md`.
+> - Any `--include-gitops` “CLI writes GitOps files” flows in this document are historical.
 
 ---
 
@@ -70,8 +75,7 @@ The BPMN-first, Go-only compiler refactor (lint + compile into generated code) i
 ```bash
 ameide primitive scaffold \
   --kind process \
-  --name <name> \
-  --include-gitops
+  --name <name>
 ```
 
 This assumes:
@@ -126,13 +130,13 @@ primitives/process/<name>/tests/
 └── run_integration_tests.sh             # 430‑aligned integration runner
 ```
 
-GitOps with `--include-gitops`:
+GitOps wiring (canonical, 670):
 
 ```text
-gitops/primitives/process/<name>/
-├── values.yaml                          # Worker + ingress Deployments, Temporal config
-├── component.yaml                       # Argo CD component descriptor
-└── kustomization.yaml                   # Kustomize stub
+environments/_shared/components/apps/primitives/process-<name>-<version>/component.yaml
+sources/values/_shared/apps/process-<name>-<version>.yaml
+environments/_shared/components/apps/primitives/process-<name>-<version>-smoke/component.yaml   # optional
+sources/values/_shared/apps/process-<name>-<version>-smoke.yaml                                 # optional
 ```
 
 ---

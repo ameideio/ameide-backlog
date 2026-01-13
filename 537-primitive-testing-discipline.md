@@ -641,7 +641,7 @@ This section documents gaps between this spec (537) and the current CLI implemen
 - EDA pattern baked into Domain scaffolds (outbox/dispatcher/migrations)
 - RED test pattern scaffolded with failure messages
 - `go.work` auto-wiring for Go modules
-- GitOps manifest generation (`--include-gitops`)
+- GitOps wiring is CI-owned in `ameide-gitops` (workflow → PR → merge) per `backlog/670-gitops-authoritative-write-path-for-scaffolding.md`
 - Test harness script generation (`--include-test-harness`)
 
 **Current Scaffold Test Patterns:**
@@ -670,7 +670,7 @@ This section documents gaps between this spec (537) and the current CLI implemen
 | `EventCoverage` | Repo | events/ directory has definitions |
 | `Tests` | Repo | Runs `go test` / `pytest` / `npm test` and **fails** if no tests exist |
 | `Imports` | Repo | SDK-only policy enforcement |
-| `GitOps` | Repo | Component.yaml + values.yaml exist |
+| `GitOps` | Repo | GitOps wiring is validated in the `ameide-gitops` GitOps gate (not as a local `--include-gitops` authoring path) |
 | `BufLint` | Repo | `buf lint` |
 | `BufBreaking` | Repo | `buf breaking --against main` |
 | `MCPAdapter` | Repo/Integration | MCP adapter shape validation |

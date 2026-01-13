@@ -425,10 +425,16 @@ ameide primitive scaffold --kind process --name tenancy-onboarding --proto-path 
 ameide primitive scaffold --kind integration --name tenancy-idp-provisioner --proto-path packages/ameide_core_proto/src/ameide_core_proto/tenancy/integration/v1/idp_provisioner_service.proto --include-test-harness
 ```
 
-Optional: add GitOps scaffolding (writes under `gitops/ameide-gitops/...` in this repo’s submodule):
+GitOps wiring (canonical, 670): trigger the `ameide-gitops` scaffolding workflow (workflow → PR → merge). Local `--include-gitops` writes are historical and should not be used as the canonical path.
 
 ```bash
-ameide primitive scaffold --kind domain --name tenancy --proto-path packages/ameide_core_proto/src/ameide_core_proto/tenancy/core/v1/tenancy_command_service.proto --include-gitops --include-test-harness
+# Option 1: manually run the GitOps workflow from the GitHub UI:
+# - repo: ameideio/ameide-gitops
+# - workflow: "Scaffold Primitive GitOps (PR)"
+#
+# Option 2: run it via gh (until the core repo CLI grows a thin trigger command):
+gh -R ameideio/ameide-gitops workflow run scaffold-primitive-gitops.yaml \
+  -f kind=domain -f name=tenancy -f version=v0 -f with_smoke=true -f env=dev
 ```
 
 UISurface / Agent primitives do not require `--proto-path`:

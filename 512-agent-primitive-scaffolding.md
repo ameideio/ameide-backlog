@@ -5,6 +5,11 @@ This backlog defines the **canonical target scaffold** for **Agent** primitives.
 - **Audience:** AI agents, Python developers, CLI implementers
 - **Scope:** One opinionated Python pattern (FastAPI + LangGraph), aligned with `backlog/520-primitives-stack-v2.md` and `514-primitive-sdk-isolation.md` (SDK-only, self-contained primitives). The CLI orchestrates repo/GitOps wiring; `buf generate` + plugins handle deterministic generation (SDKs, generated-only glue).
 
+> **Update (2026-01, 670): CI-owned GitOps wiring**
+>
+> - GitOps wiring is authored in `ameide-gitops` via the CI-owned scaffolding workflow (workflow → PR → merge). See `backlog/670-gitops-authoritative-write-path-for-scaffolding.md`.
+> - Agent scaffolding in the core repo creates runtime code + tests; it does not directly write GitOps files as the canonical path.
+
 ---
 
 ## Primitive/operator alignment
@@ -51,7 +56,6 @@ Agents use a dedicated Python scaffold with a single recommended pattern:
 ameide primitive scaffold \
   --kind agent \
   --name <name> \
-  --include-gitops \
   --include-test-harness
 ```
 
@@ -59,7 +63,6 @@ This creates an Agent primitive under:
 
 ```text
 primitives/agent/<name>/
-gitops/primitives/agent/<name>/
 ```
 
 ---
@@ -85,13 +88,13 @@ primitives/agent/<name>/
     └── test_agent.py                    # Failing test (RED)
 ```
 
-GitOps with `--include-gitops`:
+GitOps wiring (canonical, 670):
 
 ```text
-gitops/primitives/agent/<name>/
-├── values.yaml                          # Deployment, secrets, model config
-├── component.yaml                       # Argo CD component descriptor
-└── kustomization.yaml                   # Kustomize stub
+environments/_shared/components/apps/primitives/agent-<name>-<version>/component.yaml
+sources/values/_shared/apps/agent-<name>-<version>.yaml
+environments/_shared/components/apps/primitives/agent-<name>-<version>-smoke/component.yaml   # optional
+sources/values/_shared/apps/agent-<name>-<version>-smoke.yaml                                 # optional
 ```
 
 ---
