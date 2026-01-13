@@ -77,12 +77,14 @@ Support proposal payloads beyond “replace body”:
 
 Expand proposal metadata (minimum recommended):
 
-- `proposal_status` state machine: `PROPOSED → TRIAGED → IN_REVIEW → ACCEPTED → PROMOTED` + terminal states
+- `proposal_status` state machine: `DRAFT (optional) → PROPOSED → TRIAGED → IN_REVIEW → ACCEPTED` + terminal states
 - `risk_level` (low/med/high)
 - `impacted_domains[]`
-- `target_read_context` (baseline id or published)
+- `target_read_context` (selector vocabulary aligned to 527: `published|baseline_ref|head|version_ref`)
 - `security_classification` / visibility tag (if applicable)
 - `expected_outcome` (short; optimized for curator triage)
+
+**Note:** “promoted” is not a proposal state. It is a **publish outcome** (“the accepted version is now included in the published baseline pointer”).
 
 ---
 
