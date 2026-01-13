@@ -13,7 +13,7 @@ Scope: **compile BPMN + `ameide:*` extensions into a generic Temporal runner ske
 - `backlog/511-process-primitive-scaffolding.md` (canonical Process primitive shape and runtime posture).
 - `backlog/511-process-primitive-scaffolding-bpmn-extension.md` (v1 execution profile: required `ameide:*` elements + semantics).
 - `backlog/472-ameide-information-application.md` (explicit “BPMN → Temporal compilation”, pinned `process_definition_id`, no runtime BPMN interpretation).
-- `backlog/496-eda-principles.md` (at-least-once, idempotency, envelope/trace propagation norms).
+- `backlog/496-eda-principles-v2.md` (at-least-once, idempotency, envelope/trace propagation norms).
 - `backlog/499-process-operator.md` and `backlog/495-ameide-operators.md` (operator/primitive boundary; infra vs business logic).
 - `backlog/514-primitive-sdk-isolation.md` (Process primitives call other primitives via SDKs only).
 - `backlog/554-comparative-process.md` (worker+ingress pattern, SignalWithStart posture, runner packaging comparisons).

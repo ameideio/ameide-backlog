@@ -21,7 +21,7 @@
 
 ## Grounding & cross-references
 
-- **Architecture grounding:** Builds on the primitive/EDA foundations in `470-ameide-vision.md`, `471-ameide-business-architecture.md`, `472-ameide-information-application.md`, `473-ameide-technology.md`, `475-ameide-domains.md`, `477-primitive-stack.md`, and `496-eda-principles.md`.  
+- **Architecture grounding:** Builds on the primitive/EDA foundations in `470-ameide-vision.md`, `471-ameide-business-architecture.md`, `472-ameide-information-application.md`, `473-ameide-technology.md`, `475-ameide-domains.md`, `477-primitive-stack.md`, and `496-eda-principles-v2.md`.  
 - **Stage 1 (Transformation Scrum profile):** Anchors to `300-400/367-1-scrum-transformation.md` and the `transformation_scrum_*` protos in `508-scrum-protos.md` as the Scrum system-of-record.  
 - **Stage 2 (Process primitives):** Uses the runtime seam in `506-scrum-vertical-v2.md` and Process operator semantics from `499-process-operator.md` to place Temporal workflows in the stack.  
 - **Stage 3 (Agents & tooling):** Maps AmeidePO/AmeideSA/AmeideCoder architecture in `505-agent-developer-v2.md` and implementation plan in `505-agent-developer-v2-implementation.md` onto the primitive/operator/CLI patterns in `500-agent-operator.md`, `504-agent-vertical-slice.md`, and the 484a–484f CLI backlogs.
@@ -36,11 +36,11 @@
 | **Stage 1 – Transformation (Scrum profile)** | Store Scrum data (Product Backlog, Product Backlog Items, Sprints, Increments) and UI/policy | `367-1-scrum-transformation.md`, `508-scrum-protos.md` | Methodology YAML, `transformation_scrum_*` protos/schema updates, portal workflows |
 | **Stage 2 – Process primitive(s)** | Temporal workflows for timeboxes, process fact emission | `506-scrum-vertical-v2.md`, `499-process-operator.md` | Process CRDs, Temporal workers, event contracts |
 | **Stage 3 – Agent execution** | AmeidePO/AmeideSA/AmeideCoder role mappings, executor runtime | `505-agent-developer-v2.md`, `505-agent-developer-v2-implementation.md`, `500/504` | Agent Definitions, work handover topics, CLI guardrails (optional A2A binding) |
-| **Support – Primitive placement & EDA** | Ensure consistent boundaries/application layout | `477-primitive-stack.md`, `496-eda-principles.md` | Placement diagrams, event invariants |
+| **Support – Primitive placement & EDA** | Ensure consistent boundaries/application layout | `477-primitive-stack.md`, `496-eda-principles-v2.md` | Placement diagrams, event invariants |
 | **Support – CLI orchestrator & guardrails** | Tooling agents use internally | `484a-ameide-cli-primitive-workflows.md` … `484f`, `520-primitives-stack-v2.md`, `backlog/521c-internal-generation-improvements.md`, `backlog/521d-external-generation-improvements.md` | Orchestration wrappers (Buf under the hood), repo/gitops handling, prompts, CI guardrails |
 | **Support – Operator specs** | Runtime control planes | `495-ameide-operators.md`, `500-agent-operator.md`, `498/499/501` | CRDs, helm charts, GitOps overlays |
 
-Supporting invariants: `477-primitive-stack.md` (placement of primitives) and `496-eda-principles.md` (event semantics).
+Supporting invariants: `477-primitive-stack.md` (placement of primitives) and `496-eda-principles-v2.md` (event semantics).
 
 ---
 

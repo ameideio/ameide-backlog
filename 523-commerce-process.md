@@ -33,7 +33,7 @@ Process protos define workflow envelopes and process facts; operators remain ope
 
 Processes implement sagas and cross-domain invariants under eventual consistency:
 
-- Consume domain facts (at-least-once) and orchestrate workflows per `496-eda-principles.md` Principle 5.
+- Consume domain facts (at-least-once) and orchestrate workflows under eventual consistency per `backlog/496-eda-principles-v2.md` §12 and §6.
 - Request changes through domain commands (RPC) or domain intents (topic); never bypass single-writer domains.
 - Emit process facts to `commerce.process.facts.v1` so orchestration progress is observable and debuggable.
 - Use explicit workflow IDs/idempotency keys; expect duplicates and retries everywhere.

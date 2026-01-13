@@ -12,7 +12,7 @@ Canonical references:
 
 - Elements-only canonical storage: `backlog/300-400/303-elements.md`
 - Transformation capability & primitive specs: `backlog/527-transformation-capability.md`
-- EDA invariants: `backlog/496-eda-principles.md`
+- EDA invariants: `backlog/496-eda-principles-v2.md`
 - Projection + vector posture: `backlog/520-primitives-stack-v2-projection.md`, `backlog/535-mcp-read-optimizations.md`
 
 ---
@@ -22,7 +22,7 @@ Canonical references:
 | Legacy concept / wording | Target concept | Meaning under 303/527 | Canonical reference(s) | Notes |
 |---|---|---|---|---|
 | `graph_id` | `repository_id` | Repository scope identifier used everywhere; no separate `graph_id` in new contracts. | `backlog/300-400/303-elements.md` | Treat `graph_id` in older docs as a historical name for repository identity. |
-| “Graph service” as a writer | Domain primitive writes; Graph is read-only | Canonical writes happen in Domain primitives; Graph is projection-only. | `backlog/470-ameide-vision.md`, `backlog/496-eda-principles.md` | Graph may still exist as a traversal-optimized projection, but never as a write surface. |
+| “Graph service” as a writer | Domain primitive writes; Graph is read-only | Canonical writes happen in Domain primitives; Graph is projection-only. | `backlog/470-ameide-vision.md`, `backlog/496-eda-principles-v2.md` | Graph may still exist as a traversal-optimized projection, but never as a write surface. |
 | “Graph DB is the canonical store” | Postgres is canonical; graph is derived | The graph structure is stored as `ElementRelationship` rows; graph traversal can be implemented as a projection/read model. | `backlog/300-400/303-elements.md`, `backlog/527-transformation-projection.md` | A dedicated graph DB is optional infrastructure; it is never canonical truth. |
 | “Vector DB is canonical knowledge” | Vector index is a Projection read model | Embeddings are derived from element-version content and keyed by `{element_id, version_id}` provenance. | `backlog/520-primitives-stack-v2-projection.md`, `backlog/535-mcp-read-optimizations.md` | Projection owns embedding/indexing; domains do not depend on vectors. |
 | Work item as primary object | Element as primary object | “Change”, “requirement”, “deliverable”, “story”, “deliverable package”, “run”, etc. are all represented as Elements + links. | `backlog/300-400/303-elements.md`, `backlog/527-transformation-domain.md` | UI may use work-item vocabulary; storage remains elements. |

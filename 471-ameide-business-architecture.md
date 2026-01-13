@@ -25,7 +25,7 @@
 
 - **Primitive & tenancy model:** Applies the primitive-kind and tenant/organization invariants from `470-ameide-vision.md` to concrete business constructs (tenants, orgs, domains, processes, agents, workspaces, projections, integrations) that are later realized as primitives/CRDs in `472-ameide-information-application.md`, `473-ameide-technology.md`, `477-primitive-stack.md`, and `520-primitives-stack-v2.md`.  
 - **Transformation/Scrum context:** Treats Transformation (including Agile/Scrum/TOGAF ADM) as “just another domain + processes + agents,” providing the business framing that the Scrum stack (`367-1-scrum-transformation.md`, `506-scrum-vertical-v2.md`, `508-scrum-protos.md`) and agent backlogs (`505-agent-developer-v2*.md`) specialize.  
-- **Downstream consumers:** Service catalog, operator, and CLI backlogs (`475-ameide-domains.md`, `481-service-catalog.md`, `495-ameide-operators.md`, `496-eda-principles.md`, `484a-484f`) rely on these business concepts when describing primitive portfolios and guardrails.
+- **Downstream consumers:** Service catalog, operator, and CLI backlogs (`475-ameide-domains.md`, `481-service-catalog.md`, `495-ameide-operators.md`, `496-eda-principles-v2.md`, `484a-484f`) rely on these business concepts when describing primitive portfolios and guardrails.
 
 ---
 

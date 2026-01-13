@@ -9,7 +9,7 @@ This document defines naming and packaging rules for proto contracts. For the re
 ## Grounding & contract alignment
 
 - **Architecture grounding:** Extends the proto‑first, SDK‑first contract chain defined in `470-ameide-vision.md` and `472-ameide-information-application.md` into concrete naming rules, so packages across domains, Transformation, Process, Agents, and CLI stay coherent.  
-- **EDA & runtime seams:** Aligns with the event‑driven rules in `496-eda-principles.md` and the Scrum runtime seam in `506-scrum-vertical-v2.md` / `508-scrum-protos.md`, ensuring domain/process/agent messages share a consistent envelope and naming style.  
+- **EDA & runtime seams:** Aligns with the event‑driven rules in `496-eda-principles-v2.md` and the Scrum runtime seam in `506-scrum-vertical-v2.md` / `508-scrum-protos.md`, ensuring domain/process/agent messages share a consistent envelope and naming style.  
 - **Primitive & operator ecosystem:** Provides a shared naming baseline for proto references used by primitives and operators (`495-ameide-operators.md`, `498-domain-operator.md`, `499-process-operator.md`, `500-agent-operator.md`, `501-uisurface-operator.md`, `502-domain-vertical-slice.md`, `503-operators-helm-chart.md`, `504-agent-vertical-slice.md`).  
 - **Scrum & agent stack:** Treats the Scrum packages in `508-scrum-protos.md` and the agent contracts in `505-agent-developer-v2.md` / `505-agent-developer-v2-implementation.md` as exemplars of these conventions; treat older packages that diverge as historical and track migrations explicitly.
 
@@ -146,7 +146,11 @@ Other domains follow the same pattern (`<Context>Command`, `<Context>Event` or `
 
 ## 4. Envelope & identity types
 
-To keep EDA semantics consistent (per `496-eda-principles.md`), all event‑carrying packages share a common envelope shape inside their own context:
+For **inter-primitive (microservice-to-microservice) traffic in Kubernetes**, CloudEvents is the canonical envelope and Protobuf payloads MUST NOT embed message metadata; see `496-eda-principles-v2.md`.
+
+This section describes the **legacy “envelope-in-proto” pattern** (e.g., `*MessageMeta`) used by some existing contracts. Treat it as backward compatibility guidance; do not introduce new envelope-in-proto patterns without an explicit migration rationale.
+
+To keep EDA semantics consistent (per `496-eda-principles-v2.md`), all event‑carrying packages that still use envelope-in-proto SHOULD retain consistent naming and semantics inside their own context:
 
 - **Message envelope:** `ScrumMessageMeta` (for Scrum); other contexts define analogous types (`OrdersMessageMeta`, etc.) and retain the same semantics.
 - **Subject/routing key:** `ScrumSubject` – `product_id`, `sprint_id`, `product_backlog_item_id`, etc.  
@@ -211,6 +215,8 @@ This vocabulary is intentionally small so it remains feasible under Temporal his
 
 ## 5. Topic naming
 
+In the Kubernetes standard, services route by CloudEvents `type` via Knative Broker/Triggers; Kafka topic names are a platform implementation detail and are not an inter-service contract. The conventions below are therefore **legacy** (useful for understanding older topic-family contracts and migrations).
+
 Topic (or subject/stream) names are logical; encode class and version and map 1:1 to the aggregator message types:
 
 - `scrum.domain.intents.v1` → payload `ameide_core_proto.transformation.scrum.v1.ScrumDomainIntent`.  
@@ -240,11 +246,11 @@ Rules:
 
 ### 5.2 Operational execution queues (non-spine)
 
-Some implementations require **single-responsibility execution queues** (e.g., KEDA-triggered Jobs, devcontainer runners, external executors). These are **not** part of the EDA “fact spine” and are not named using the `<context>.<class>.<kind>.v<major>` taxonomy above.
+**Legacy/exception note:** some older designs used **single-responsibility execution queues** (e.g., KEDA-triggered Jobs, devcontainer runners, external executors). This is **not** part of the Kubernetes standard routing plane; do not introduce new execution-queue “side busses” (see `backlog/496-eda-principles-v2.md`). If an execution queue exists during migration, treat it as an exception and constrain it as follows.
 
 Rules:
 
-- Execution queue payloads MUST be **intents** (requests), never facts (see `backlog/496-eda-principles.md`).
+- Execution queue payloads MUST be **intents** (requests), never facts (see `backlog/496-eda-principles-v2.md`).
 - Outcomes MUST be recorded via the owning domain/process write surface; the owner emits facts after persistence (outbox) for audit and orchestration continuation.
 - Execution queue names MUST be capability-scoped, versioned (`.v<major>`), and unambiguously operational (include `queue` in the name).
 - Temporal **Task Queues are not Kafka topics**: they deliver Temporal workflow/activity tasks to Temporal workers and are not modeled as broker topics in this section.

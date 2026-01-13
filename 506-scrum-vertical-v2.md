@@ -17,7 +17,7 @@ The Scrum wording used below follows the **official Scrum Guide**: Scrum Team ac
 
 - **Role in architecture:** Canonical Scrum runtime seam between Transformation (Scrum domain) and Process primitives; defines envelopes, topics, and Temporal workflow structure.  
 - **Domain side:** Builds on `300-400/367-1-scrum-transformation.md` and the `transformation_scrum_*` protos in `508-scrum-protos.md`; Transformation persists Scrum artifacts and emits the domain facts referenced here.  
-- **Process side:** Consumed by Process primitives described in `499-process-operator.md` and positioned in the primitive stack by `477-primitive-stack.md`; Temporal workflows must obey the intent/fact separation and idempotency rules in this backlog and the EDA rules in `496-eda-principles.md`.  
+- **Process side:** Consumed by Process primitives described in `499-process-operator.md` and positioned in the primitive stack by `477-primitive-stack.md`; Temporal workflows must obey the intent/fact separation and idempotency rules in this backlog and the EDA rules in `496-eda-principles-v2.md`.  
 - **Agents & tooling:** `505-agent-developer-v2.md` and `505-agent-developer-v2-implementation.md` describe how AmeidePO/AmeideSA/AmeideCoder react to process/domain facts from this seam; `495-ameide-operators.md` and `502-domain-vertical-slice.md` provide shared operator/condition vocabulary; `507-scrum-agent-map.md` locates this contract at Stage 2 in the Scrum stack.
 - **IT4IT mapping lens:** How this seam fits “requirement → running” streams (R2D/R2F/D2C): `525-it4it-value-stream-mapping.md`
 - **Capability implementation DAG:** `backlog/533-capability-implementation-playbook.md` (generic DAG; 506 is a concrete instantiation of the end-to-end seam proof).
@@ -586,7 +586,7 @@ This section sketches a **bottom‑up path** to implementing the contract above 
    _Implementation checklist (Layer 1):_  
    - [ ] Transformation DB schema extended with Scrum tables and outbox aligned to `ameide_core_proto.transformation.scrum.v1` (e.g. `db/flyway/sql/transformation/V3__scrum_domain.sql` defining `transformation.scrum_*` tables and `transformation.scrum_domain_outbox`).  
    - [ ] Intent handlers in the Transformation domain primitive (`primitives/domain/transformation`) persist aggregates and write `ScrumDomainFact` rows with monotonic `aggregate_version` using `ScrumAggregateRef` and `ScrumDomainFactSchema`.  
-   - [ ] An outbox dispatcher (following `496-eda-principles.md` and the Graph outbox pattern in `services/graph/src/graph/events/outbox.ts`) publishes serialized `ScrumDomainFact` envelopes to `scrum.domain.facts.v1`.  
+- [ ] An outbox dispatcher (following `496-eda-principles-v2.md` and the Graph outbox pattern in `services/graph/src/graph/events/outbox.ts`) publishes serialized `ScrumDomainFact` envelopes to `scrum.domain.facts.v1`.  
    - [ ] `ScrumQueryService` RPC handlers are implemented in the Transformation domain primitive (`primitives/domain/transformation`) and exposed via the platform gateway (see `transformation_scrum_query.proto` and `367-1-scrum-transformation.md` for routing expectations).  
 
 3. **Layer 2 – Process primitive(s) (Temporal governor)**  
@@ -594,7 +594,7 @@ This section sketches a **bottom‑up path** to implementing the contract above 
    - Workflows implement the structure in §7, keep only derived state, and dedupe by `aggregate_version` + “already emitted” flags for process facts.  
    - All writes back to the domain are published as intents on `scrum.domain.intents.v1`; all additional emissions are process facts on `scrum.process.facts.v1`.
    _Implementation checklist (Layer 2):_  
-   - [ ] Ingress router process subscribes to `scrum.domain.facts.v1` and calls `SignalWithStart` on Temporal workflows using deterministic IDs (e.g. `product/{product_id}/sprint/{sprint_id}`), as described in §7 and `496-eda-principles.md`.  
+- [ ] Ingress router process subscribes to `scrum.domain.facts.v1` and calls `SignalWithStart` on Temporal workflows using deterministic IDs (e.g. `product/{product_id}/sprint/{sprint_id}`), as described in §7 and `496-eda-principles-v2.md`.  
    - [ ] `SprintWorkflow` and `SprintBacklogItemWorkflow` implemented per §7 inside a dedicated Process primitive (e.g. `primitives/process/scrum`), owning timers, signals, and child workflow orchestration but not domain persistence.  
    - [ ] Ingress router explicitly pins Temporal `WorkflowIDReusePolicy` for `SignalWithStart` (do not rely on defaults); add a test that asserts the selected policy for the primary workflows.  
    - [ ] Idempotency state (`last_seen_aggregate_version`, “already emitted” flags for each process fact) is persisted in workflow state and/or a dedicated process-side table to handle replays and `ContinueAsNew`.  

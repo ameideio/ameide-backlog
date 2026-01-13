@@ -169,7 +169,7 @@ Example output:
 
 ### 3.3 Event Reliability Checks (EDA)
 
-`verify` enforces EDA reliability principles from [472 §3.3](472-ameide-information-application.md) and [496-eda-principles.md](496-eda-principles.md):
+`verify` enforces EDA reliability principles from [472 §3.3](472-ameide-information-application.md) and [496-eda-principles-v2.md](496-eda-principles-v2.md):
 
 | Check | Rule | Severity |
 |-------|------|----------|
@@ -727,4 +727,4 @@ primitives/uisurface/{name}/
 | [472-ameide-information-application §2.8.6, §3.3](472-ameide-information-application.md) | CQRS, outbox, idempotency patterns |
 | [476-ameide-security-trust](476-ameide-security-trust.md) | Security verification hooks |
 | [477-primitive-stack §5.2](477-primitive-stack.md) | Human-gated agentic workflow |
-| [496-eda-principles](496-eda-principles.md) | Full EDA reference |
+| [496-eda-principles-v2](496-eda-principles-v2.md) | Full EDA reference |

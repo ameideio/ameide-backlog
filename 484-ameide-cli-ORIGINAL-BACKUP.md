@@ -324,7 +324,7 @@ $ ameide primitive verify domain/sales
 - Outbox pattern: [472 §3.3.1.1](472-ameide-information-application.md)
 - Idempotency/Inbox: [472 §3.3.2](472-ameide-information-application.md)
 - Multi-tenant isolation: [472 §3.3.7](472-ameide-information-application.md)
-- Full EDA principles: [496-eda-principles.md](496-eda-principles.md)
+- Full EDA principles: [496-eda-principles-v2.md](496-eda-principles-v2.md)
 
 #### 4.0.2.4 Agentic Verification in the Development Process
 

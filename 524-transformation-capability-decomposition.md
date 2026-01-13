@@ -3,7 +3,7 @@
 This document generalizes the methodology used for `523-commerce*` into a repeatable **Transformation Domain** workflow:
 
 1. Define a **business capability** as value streams + nouns + invariants.
-2. Define **EDA contracts** (commands/intents, domain facts, process facts, queries, integration ports) per `496-eda-principles.md`.
+2. Define **EDA contracts** (commands/intents, domain facts, process facts, queries, integration ports) per `496-eda-principles-v2.md`.
 3. Decompose into **Ameide primitives (Application Components)** (Domain/Process/Projection/Integration/UISurface/Agent) per `520-primitives-stack-v2.md`.
 
 The output is a set of artifacts that can be stored as Transformation workspace nodes (ArchiMate models/views, Markdown, BPMN) and then used by agents/CLI/operators to scaffold and deploy the runtime.
@@ -97,7 +97,7 @@ Each business process must declare:
 
 Deliverable: message topology and catalogs.
 
-Rules (from `496-eda-principles.md`):
+Rules (from `496-eda-principles-v2.md`):
 
 - Commands/intents are imperative business verbs; avoid CRUD.
 - Domain facts are immutable and past tense; emitted via transactional outbox.
@@ -183,7 +183,7 @@ This step treats capability development as ongoing **Architecture Change Managem
 ## Guardrails (how the system enforces the methodology)
 
 - CI gates enforce proto/package/topic conventions (`509-proto-naming-conventions.md`).
-- Plugins/codegen enforce required envelope metadata and idempotency scaffolds (`496-eda-principles.md`).
+- Plugins/codegen enforce required envelope metadata and idempotency scaffolds (`496-eda-principles-v2.md`).
 - Operators make runtime assumptions true (DB present, migrations, outbox dispatcher deployed, conditions surfaced) (`520-primitives-stack-v2.md`).
 
 ## Suggested “Capability skeleton” template

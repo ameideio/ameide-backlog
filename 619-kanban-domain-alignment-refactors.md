@@ -13,7 +13,7 @@ This backlog tracks the required refactorings across capabilities to align exist
 - `backlog/509-proto-naming-conventions.md` (process progress facts identity + minimal vocabulary)
 - `backlog/511-process-primitive-scaffolding.md` (Temporal-backed Process contract)
 - `backlog/520-primitives-stack-v2.md` (platform constitution)
-- `backlog/496-eda-principles.md` (facts are not requests; outbox + idempotency)
+- `backlog/496-eda-principles-v2.md` (facts are not requests; outbox + idempotency)
 
 ## Decision (single option)
 

@@ -3,7 +3,7 @@
 **Status:** Implemented (v1 proto pack) / In progress (capability adoption)
 **Parent:** [526-sre-capability.md](526-sre-capability.md)
 
-This document specifies the **proto contracts** for the SRE capability following `496-eda-principles.md` and `509-proto-naming-conventions.md`.
+This document specifies the **proto contracts** for the SRE capability following `496-eda-principles-v2.md` and `509-proto-naming-conventions.md`.
 
 > **No embedded proto text.** Following the lesson from 508 (Scrum protos), this document is a **file index + invariants** specification. Full proto definitions live in the canonical file locations and are the source of truth. Embedding proto text in backlog docs causes drift.
 

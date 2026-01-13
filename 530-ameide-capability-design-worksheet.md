@@ -10,7 +10,7 @@
 - ArchiMate vocabulary/verbs: `backlog/529-archimate-alignment-470plus.md`
 - Capability method: `backlog/524-transformation-capability-decomposition.md`
 - Capability implementation DAG: `backlog/533-capability-implementation-playbook.md`
-- EDA contract rules: `backlog/496-eda-principles.md`, `backlog/496-eda-protobuf-ameide.md`
+- EDA contract rules: `backlog/496-eda-principles-v2.md`, `backlog/496-eda-protobuf-ameide.md`
 - Primitives pipeline: `backlog/470-ameide-vision.md`, `backlog/477-primitive-stack.md`, `backlog/520-primitives-stack-v2.md`
 
 ## Layer header (cross-layer worksheet)
@@ -95,7 +95,7 @@ Map them like this:
 
 Use these rules while filling the contract inventory:
 
-- **Classify by state ownership, not by producer.** A UISurface/Agent can emit a *Domain intent*; a Process primitive can emit a *Process fact*; classification is about whose state changes or is being asserted (`backlog/496-eda-principles.md`).
+- **Classify by state ownership, not by producer.** A UISurface/Agent can emit a *Domain intent*; a Process primitive can emit a *Process fact*; classification is about whose state changes or is being asserted (`backlog/496-eda-principles-v2.md`).
 - **Stable topic families, not event-per-topic, by default.** Prefer one topic family per semantic class and one aggregator message per topic family (intents/facts/process facts) to minimize routing drift (`backlog/496-eda-protobuf-ameide.md`).
 - **“Facts are events; intents are requests.”** Transport may be evented, but semantics remain: facts assert state change, intents request behavior.
 

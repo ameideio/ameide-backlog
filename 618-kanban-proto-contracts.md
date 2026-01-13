@@ -11,7 +11,7 @@ It is intentionally aligned with:
 - `backlog/616-kanban-principles.md` (Kanban UX principles; interaction streams are out-of-band)
 - `backlog/615-kanban-fullstack-reference.md` (full-stack reference)
 - `backlog/509-proto-naming-conventions.md` (topic families + process progress fact identity/vocabulary)
-- `backlog/496-eda-principles.md` (facts are not requests; outbox discipline)
+- `backlog/496-eda-principles-v2.md` (facts are not requests; outbox discipline)
 - `backlog/511-process-primitive-scaffolding.md` (Temporal-backed Process contract; progress facts emitted via activities/ports)
 
 ## Decision (single option)

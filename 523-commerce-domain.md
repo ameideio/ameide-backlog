@@ -92,8 +92,8 @@ Rule of thumb:
 
 Domains are the single-writer for their aggregates and the authoritative producers of **domain facts (Application Events)**:
 
-- Commands/intents use business verbs (avoid CRUD) per `496-eda-principles.md` Principle 1.
-- State change and fact emission is atomic via transactional outbox per Principle 3.
+- Commands/intents use business verbs (avoid CRUD) per `backlog/484a-ameide-cli-primitive-workflows.md` and intent/fact semantics in `backlog/496-eda-principles-v2.md`.
+- State change and fact emission is atomic via transactional outbox per `backlog/496-eda-principles-v2.md` §5.1.
 - Consumers assume at-least-once; emitted facts must support idempotency/ordering (aggregate ref + monotonic version).
 
 Topic families (v1):

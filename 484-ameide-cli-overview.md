@@ -209,4 +209,4 @@ ameide config set <k> <v> # Update config value
 | [470-ameide-vision](470-ameide-vision.md) | Core invariants including EDA (§8-13) |
 | [472-ameide-information-application](472-ameide-information-application.md) | CQRS, command/event patterns |
 | [477-primitive-stack](477-primitive-stack.md) | Repo layout, operator structure |
-| [496-eda-principles](496-eda-principles.md) | Full EDA reference |
+| [496-eda-principles-v2](496-eda-principles-v2.md) | Full EDA reference |

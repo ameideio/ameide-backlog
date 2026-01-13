@@ -7,7 +7,7 @@
 This backlog defines the **canonical target scaffold** for **Process** primitives.
 
 - **Audience:** AI agents, Go developers, CLI implementers
-- **Scope:** One opinionated Temporal/EDA pattern, aligned with `backlog/520-primitives-stack-v2.md`, `backlog/496-eda-principles.md`, and `514-primitive-sdk-isolation.md` (SDK-only). The CLI orchestrates repo/GitOps wiring; `buf generate` + plugins handle deterministic generation (SDKs, generated-only glue).
+- **Scope:** One opinionated Temporal/EDA pattern, aligned with `backlog/520-primitives-stack-v2.md`, `backlog/496-eda-principles-v2.md`, and `514-primitive-sdk-isolation.md` (SDK-only). The CLI orchestrates repo/GitOps wiring; `buf generate` + plugins handle deterministic generation (SDKs, generated-only glue).
 
 > **Update (2026-01): no-brainer scaffolding + 430v2 test contract**
 >
@@ -36,7 +36,7 @@ This backlog defines the **canonical target scaffold** for **Process** primitive
 ## Grounding & cross‑references
 
 - **Primitive stack:** `477-primitive-stack.md` (Process primitives in `primitives/process/{name}`).  
-- **EDA / idempotency:** `470-ameide-vision.md`, `472-ameide-information-application.md`, `496-eda-principles.md`.  
+- **EDA / idempotency:** `470-ameide-vision.md`, `472-ameide-information-application.md`, `496-eda-principles-v2.md`.  
 - **CLI workflows:** `484-ameide-cli-overview.md`, `484a-ameide-cli-primitive-workflows.md`, `484f-ameide-cli-scaffold-implementation.md`.  
 - **Primitive/operator contract:** `495-ameide-operators.md`, `497-operator-implementation-patterns.md`.
 - **Testing discipline:** `537-primitive-testing-discipline.md` (RED→GREEN TDD pattern, Temporal determinism/replay testing, CI enforcement).
@@ -394,7 +394,7 @@ Scaffolded tests:
 - Are RED by default:
   - invoke workflows through the Temporal test harness,
   - assert TODO behavior,
-  - provide comments pointing to `506-scrum-vertical-v2.md` / `496-eda-principles.md` for the expected behavior and Temporal’s determinism/idempotency constraints.
+  - provide comments pointing to `506-scrum-vertical-v2.md` / `496-eda-principles-v2.md` for the expected behavior and Temporal’s determinism/idempotency constraints.
 
 Implementers (humans or coding agents) are expected to:
 
@@ -416,7 +416,7 @@ Implementers (humans or coding agents) are expected to:
 - Temporal worker registration of workflows/activities under `internal/workflows/**` and `internal/activities/**`.  
 - Ingress router using deterministic workflow IDs and `SignalWithStart`.  
 - Idempotency state present in workflow code (`lastSeenAggregateVersion`, flags).  
-- Process facts published via a port or activity (not directly from workflows), consistent with EDA rules in `496-eda-principles.md`.
+- Process facts published via a port or activity (not directly from workflows), consistent with EDA rules in `496-eda-principles-v2.md`.
 - BPMN compile freshness: generated artifacts match `bpmn/process.bpmn` and `bpmn/policies.yaml` (no drift).
 
 Vertical slices like `506-scrum-vertical-v2.md` remain authoritative for **which workflows and facts** exist; this backlog only constrains the **scaffold shape and Temporal/EDA pattern** for Process primitives.

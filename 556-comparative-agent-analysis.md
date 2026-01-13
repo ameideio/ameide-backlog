@@ -594,7 +594,7 @@ pydantic = "*"
 - `550-comparative-domain.md` - Domain primitive analysis
 - `551-comparative-integration.md` - Integration primitive analysis
 - `553-comparative-uisurface-analysis.md` - UISurface primitive analysis
-- `496-eda-principles.md` - EDA contract rules for agents
+- `496-eda-principles-v2.md` - EDA contract rules for agents
 - `500-agent-operator.md` - Agent operator and runtime roles
 - `477-primitive-stack.md` - Original primitive stack definition
 

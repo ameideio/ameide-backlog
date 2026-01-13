@@ -505,4 +505,4 @@ This integrates with:
 | [365-buf-sdks-v2](365-buf-sdks-v2.md) | SDK generation, Buf integration |
 | [430v2 unified test infrastructure](430-unified-test-infrastructure-v2.md) | Test phases and JUnit evidence for verify |
 | [472 §3.3](472-ameide-information-application.md) | EDA patterns referenced in verify output |
-| [496-eda-principles](496-eda-principles.md) | Full EDA checklist |
+| [496-eda-principles-v2](496-eda-principles-v2.md) | Full EDA checklist |

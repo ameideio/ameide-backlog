@@ -17,7 +17,7 @@ It is intentionally **checklist-driven** and capability-spanning: it covers **pr
 - `backlog/520-primitives-stack-v2-projection.md` (Projection invariants)
 - `backlog/511-process-primitive-scaffolding.md` (Temporal Process contract)
 - `backlog/509-proto-naming-conventions.md` (topic families + progress fact identity/vocabulary)
-- `backlog/496-eda-principles.md` (facts are not requests; outbox discipline)
+- `backlog/496-eda-principles-v2.md` (facts are not requests; outbox discipline)
 - `backlog/430-unified-test-infrastructure-v2-target.md` (test philosophy: strict phases + JUnit evidence)
 
 ## Target (single “clean” end state)

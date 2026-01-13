@@ -94,7 +94,7 @@ This stack explicitly does not do the following:
 - **`stream_ref`**: a logical stream identifier in proto (e.g., `orders.facts`), bound to actual topics/subjects per environment via CRDs/runtime config.
 - **`binding_ref` / `endpoint_ref`**: logical references in proto used to bind to environment-specific transport configuration (Kafka subscriptions, HTTP endpoints, etc.).
 - **Activity-inline execution**: deterministic work executed directly inside a Process primitive’s Temporal Activity workers (workflow orchestrates; activity does the side effects).
-- **Activity-delegated execution**: work initiated by a Process Activity but executed by a different runtime boundary (Agent primitive, Integration primitive, KEDA/Job executor, or external executor); delegation is via an **intent** message, and completion is observed via **facts** (see `backlog/496-eda-principles.md` and `backlog/509-proto-naming-conventions.md`).
+- **Activity-delegated execution**: work initiated by a Process Activity but executed by a different runtime boundary (Agent primitive, Integration primitive, KEDA/Job executor, or external executor); delegation is via an **intent** message, and completion is observed via **facts** (see `backlog/496-eda-principles-v2.md` and `backlog/509-proto-naming-conventions.md`).
 - **`process_definition_id`**: a stable identifier for a process definition (e.g., BPMN process key + version).
 - **`process_instance_id`**: a stable identifier for a long-running process instance (Temporal **WorkflowID** when Process is Temporal-backed).
 - **`process_run_id`**: the identifier for a specific execution run of a process instance (Temporal **RunID**; changes on `Continue-As-New`).
@@ -320,7 +320,7 @@ Hard rule: do not place per-environment topic names/broker URLs in proto; bind t
 
 ### 4a) Temporal complements outbox (required)
 
-Temporal makes **orchestration** durable; the transactional outbox makes **fact emission** durable (see `backlog/496-eda-principles.md`).
+Temporal makes **orchestration** durable; the transactional outbox makes **fact emission** durable (see `backlog/496-eda-principles-v2.md`).
 
 - Domains emit domain facts **after persistence** via outbox; runtimes do not publish domain facts directly from workflow code.
 - Process workflows orchestrate; Activities initiate side effects and are *at-least-once in practice*, so Activities and any Domain/Process commands they invoke MUST be idempotent.
@@ -342,25 +342,18 @@ Rules:
 - **Idempotent emission:** progress facts are emitted via idempotent Activities/ports (at-least-once Activities are the default reality).
 - **Ops visibility baseline:** Processes SHOULD set a minimal, non-PII set of Temporal Search Attributes for listing/filtering (definition id, phase key, tenant, primary business key, execution status). Search Attributes are for ops/debug; product UI reads from projections/query services.
 
-**CloudEvents compatibility**
+**CloudEvents standard (Kubernetes)**
 
-CloudEvents is an optional **transport binding** for interoperability at system boundaries. It is not a second canonical semantic model: canonical semantics remain Ameide’s proto-defined envelopes + topic families (per `backlog/496-eda-principles.md`).
+For inter-primitive (microservice-to-microservice) traffic inside Kubernetes, CloudEvents is the **mandatory envelope** and Protobuf is the payload, routed via Knative Broker/Triggers (see `backlog/496-eda-principles-v2.md`).
 
-To reduce bespoke “event envelope” design and improve interoperability, Integration adapters MAY map emitted facts/events to **CloudEvents**:
+Guidance:
 
-- Map `event_fact.type` → CloudEvents `type` (stable identifier).
-- Emit a CloudEvents `id` (derived from the idempotency key or an explicit event id), `source` (producer identity), `time`, and (when relevant) `subject`.
-- Carry schema pointers via CloudEvents `dataschema` and content type via `datacontenttype` where applicable.
-- Keep `stream_ref` as a *logical routing identifier* (topic/subject binding) outside the CloudEvents attribute set.
+- Treat `event_fact.type` (or equivalent stable type identifier) as the source for CloudEvents `type`.
+- Use CloudEvents `id` as the idempotency/dedupe key.
+- Carry schema pointers via CloudEvents `dataschema` and content type via `datacontenttype`.
+- Treat `stream_ref` as a logical identifier only (the platform binds to broker/topic details).
 
-When mapping to CloudEvents, Ameide-required invariants that do not fit core CloudEvents attributes MUST be carried as CloudEvents extension attributes (naming: lowercase alphanumeric; no underscores). Minimum recommended set:
-
-- `tenantid`, `orgid`, `repositoryid`
-- `correlationid`, `causationid`
-
-**Trace context**
-
-Propagate distributed tracing consistently by carrying W3C Trace Context (e.g., `traceparent`) alongside CloudEvents (headers/attributes depending on transport). This avoids inventing a separate tracing metadata scheme per primitive.
+Required invariants not covered by core CloudEvents attributes MUST be carried as CloudEvents extension attributes (lowercase alphanumeric; no underscores). The minimum required set is defined in `backlog/496-eda-principles-v2.md` (tenant + correlation/causation + tracing); contexts may define additional identity extensions such as `orgid` and `repositoryid` if needed.
 
 ### 5) Operator↔runtime contract (baseline)
 

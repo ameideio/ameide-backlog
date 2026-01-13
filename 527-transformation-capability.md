@@ -20,7 +20,7 @@ This backlog is the capability definition counterpart to the method in `backlog/
 - Capability worksheet: `backlog/530-ameide-capability-design-worksheet.md`
 - Capability implementation DAG: `backlog/533-capability-implementation-playbook.md`
 - ArchiMate vocabulary/verbs: `backlog/529-archimate-alignment-470plus.md`
-- EDA contract rules: `backlog/496-eda-principles.md`, `backlog/496-eda-protobuf-ameide.md`
+- EDA contract rules: `backlog/496-eda-principles-v2.md` (Kubernetes standard), plus legacy notes in `backlog/496-eda-protobuf-ameide.md`
 - Proto conventions: `backlog/509-proto-naming-conventions.md`
 - Primitives stack guardrails: `backlog/520-primitives-stack-v2.md`
 - Legacy mapping (historical docs → target): `backlog/527-transformation-crossreference-303-ontology.md`
@@ -426,8 +426,8 @@ MCP is a **compatibility interface**, not the canonical tool runtime. Tool defin
 
 **Interoperability posture (CloudEvents):**
 
-- Canonical semantics remain Ameide’s proto-defined envelopes + topic families.
-- CloudEvents is supported only as an optional **transport binding** at Integration boundaries (webhooks, external audit/event buses). A versioned mapping is defined in `backlog/527-transformation-proto.md`.
+- For inter-primitive (microservice-to-microservice) traffic in Kubernetes, CloudEvents + Protobuf is the canonical contract per `backlog/496-eda-principles-v2.md`.
+- Integration adapters MUST map external messages into the same CloudEvents envelope used in-cluster; any “binding definition” is a versioned mapping document, not a separate semantic standard.
 
 **Definitions to prevent drift (v1):**
 
