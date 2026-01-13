@@ -1,6 +1,6 @@
 ---
 title: 670 – GitOps Authoritative Write-Path for Primitive Scaffolding
-status: draft
+status: active
 owners:
   - gitops
   - platform
@@ -48,8 +48,8 @@ We do not have a single, deterministic, CI-owned path for **scaffolding GitOps w
 
 Add a workflow in `ameide-gitops`:
 
-- `workflow_dispatch`: `scaffold-primitive-gitops.yaml` (name indicative)
-- inputs: `kind`, `name`, `version` (default `v0`), `with_smoke` (default `true`), `enable_envs` (default `dev` only)
+- `workflow_dispatch`: `.github/workflows/scaffold-primitive-gitops.yaml`
+- inputs: `kind`, `name`, `version`, `with_smoke`, optional `env`
 
 Workflow behavior:
 
@@ -58,11 +58,10 @@ Workflow behavior:
    - `sources/values/_shared/apps/<kind>-<name>-<version>.yaml` (default `enabled: false`)
    - `environments/_shared/components/apps/primitives/<kind>-<name>-<version>-smoke/component.yaml` (optional)
    - `sources/values/_shared/apps/<kind>-<name>-<version>-smoke.yaml` (optional)
-   - `sources/values/env/dev/apps/<kind>-<name>-<version>.yaml` (optional enablement; default dev-only)
+   - `sources/values/env/<env>/apps/<kind>-<name>-<version>.yaml` (optional; default `enabled: false`)
 2. Run guardrails:
-   - `kustomize build` (apps/cluster overlays)
-   - `helm template` for impacted charts
-   - repo policy checks (image policy, value lint, etc.) where applicable
+   - `helm template` for the generated workload values (raw manifests chart)
+   - `helm template` for the generated smoke values (helm-test-jobs chart, when enabled)
 3. Open a PR (branch-named deterministically).
 
 ### B) CLI becomes a trigger (not a writer)
@@ -128,3 +127,16 @@ As of this backlog, the following are considered **historical** where they imply
 
 - `ameide primitive scaffold --include-gitops` as the *primary* mechanism to create GitOps files.
 - Any guidance that implies developers/agents should manually add/patch GitOps wiring in-place without using the GitOps repo’s generator workflow.
+
+## Implementation (landed)
+
+This backlog is implemented in `ameide-gitops`:
+
+- Generator: `scripts/scaffold-primitive-gitops.py`
+  - Validates inputs and refuses overwrites unless `--force`.
+  - Defaults to safe, inert desired state: workloads are scaffolded as `enabled: false` with `image.ref: ""`.
+  - Smoke scaffolding is supported; smoke tests are **opt-in** (to avoid failing in envs where the workload remains disabled).
+- CI workflow: `.github/workflows/scaffold-primitive-gitops.yaml`
+  - Runs the generator on `workflow_dispatch`.
+  - Validates by running `helm template` with the generated values.
+  - Opens a PR via `peter-evans/create-pull-request`.

@@ -198,6 +198,7 @@ Contract:
 
 - Build images and publish to `ghcr.io` (immutable digests).
 - Create GitOps promotion PRs by copying digests forward (dev → staging → prod).
+- Scaffold new GitOps wiring (components/values) via CI-owned PR workflows (no local CLI writes as the canonical path). See `backlog/670-gitops-authoritative-write-path-for-scaffolding.md`.
 - Must not “kubectl apply” Argo-managed resources directly.
 
 ## Required Platform Defaults (Enforcement)
