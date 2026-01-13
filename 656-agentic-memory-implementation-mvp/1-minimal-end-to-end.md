@@ -146,3 +146,10 @@ Smoke must also assert permission trimming:
 Add one negative assertion to prevent “freeform memory” leaks:
 
 - answers produced by agent workflows must only cite `{repository_id, element_id, version_id}` that came from `read_context.items[].citations[]` (no invented citations).
+
+**Reference scenario (v1):** “How do I run tests?”
+
+- Seed evidence by ingesting the relevant backlog markdown as `ameide:ingest.backlog_md`.
+- Publish one canonical “Testing SOP” doc element into the published baseline.
+- Query: “how do I run Phase 0/1/2 tests?” must return the published SOP first, with version-pinned citations.
+- Proposal: update the SOP (simple body replacement) and require stale detection + rebase before accept.

@@ -147,3 +147,12 @@ Log the pipeline:
 - query → routing decision → candidate set → filters/ACL decisions → rerank → graph expansion → context → citations
 
 This turns retrieval into operable infrastructure.
+
+**Reference scenario (v2):** “How do I run tests?”
+
+Expand the Increment 1 scenario with:
+
+- Golden query: “how do I run Phase 0/1/2 tests?” returns the published SOP and cites `{repository_id, element_id, version_id}`.
+- Golden query: “what changed about the testing SOP?” returns baseline diff items and cites both versions.
+- Regression: when ingestion evidence and published SOP both match, published SOP outranks evidence (unless query asks for evidence).
+- Trace: the retrieval trace for these queries is captured and stored with the run (routing → filters → rerank → graph expansion → citations).
