@@ -1,5 +1,7 @@
 # 527 Transformation — Process Primitive Specification (v3: Zeebe “process solution” packaging)
 
+> Superseded by `backlog/527-transformation-process-v4.md` (tightens Zeebe semantics for long-running steps: request → wait → resume by message). Kept for historical context.
+
 This document supplements `backlog/527-transformation-process-v2.md` with **implementation-facing** details now that we are scaffolding the process as a Zeebe “process solution”.
 
 ## Intent
