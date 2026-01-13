@@ -1,6 +1,6 @@
 ---
 title: 668 – Transformation Primitive v4 (Implementation Plan)
-status: draft
+status: superseded
 owners:
   - transformation
   - platform
@@ -10,6 +10,13 @@ created: 2026-01-13
 # 668 – Transformation Primitive v4 (Implementation Plan)
 
 > **Superseded:** see `backlog/668-transformation-primitive-v4-implementation-plan-v2.md` (capability-complete: domain + process + agent + projection; upstream refactors + test success criteria).
+
+## Status (as of 2026-01-13)
+
+This document is kept for historical context only.
+
+Current plan of record:
+- `backlog/668-transformation-primitive-v4-implementation-plan-v2.md`
 
 This is the execution checklist for the v4 spec set:
 - `backlog/660-transformation-primitive-v4-goals-invariants.md`

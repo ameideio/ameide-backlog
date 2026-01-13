@@ -29,7 +29,8 @@ This document defines how Transformation v4 processes interact with other primit
 
 - **Agent primitives / Integration primitives** are executors:
   - invoked via request→wait→resume pattern
-  - publish completion messages (directly or via completion ingress)
+  - primitive executors emit facts via Kafka (EDA); Kafka→Zeebe ingress resumes processes (messageName == stable_type)
+  - non-primitive executors resume via the process-solution completion ingress (Publish Message; poll-first where required)
 
 ## Domain Kanban model (v4)
 

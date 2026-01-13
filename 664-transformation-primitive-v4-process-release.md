@@ -24,7 +24,7 @@ This document specifies the **Release batch** Zeebe process for Transformation v
 ## Start trigger (EDA → Zeebe)
 
 Start message:
-- `messageName`: `com.ameide.transformation.fact.deliverable.accepted.v1`
+- `messageName`: `io.ameide.transformation.fact.deliverable.accepted.v1`
 - `correlationKey`: `release_batch_id`
 
 Required variables on first start:
@@ -69,5 +69,18 @@ Every long-running wait must also have a “no response” timer boundary that r
 
 6) **Mark released in domain**
 - Service task job type: `transformation.release.record_released.request.v1`
-- Domain emits `com.ameide.transformation.fact.deliverable.released.v1` (per deliverable)
-- Optional: `com.ameide.transformation.fact.transformation.completed.v1` when all deliverables released.
+- Domain emits `io.ameide.transformation.fact.release.batch.ready.v1` (v4 minimal path for chaining)
+- (future) `io.ameide.transformation.fact.deliverable.released.v1` / `io.ameide.transformation.fact.transformation.completed.v1`
+
+## Status (as of 2026-01-13)
+
+Implemented in repo (not yet deployed):
+- Release BPMN exists in `primitives/process/transformation_v4/bpmn/process.bpmn` under process id `transformation_release_batch_v4`.
+- Aggregation is implemented in BPMN as:
+  - `transformation.release.batch.init.v1`
+  - repeated message catch on `io.ameide.transformation.fact.deliverable.accepted.v1` (correlated by `release_batch_id`)
+  - `transformation.release.batch.collect_append.v1`
+
+Pending:
+- Implement the real job handlers (build/publish, gitops promote, rollout verify, complete).
+- Decide final “released” domain fact set once release pipeline is implemented.

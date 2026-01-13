@@ -36,6 +36,21 @@ This document defines the v4 test plan aligned to `backlog/430-unified-test-infr
   - processes start/correlate via Kafka→Zeebe ingress
   - request→wait→resume works end-to-end
 
+## Pre-cluster contract test (repo-only; mandatory until cluster is ready)
+
+Until the dev cluster is ready, the “wire everything together” contract is a **repo-only** test suite that proves:
+
+- message name alignment (no `com.ameide.*`; `io.ameide.*` only),
+- BPMN message subscriptions use the correct correlation keys,
+- generated worker registry (`internal/worker/*_gen.go`) matches the BPMN job types,
+- the three v4 agents exist and match the intended kinds (langgraph / coder_task / llm_one_shot).
+
+This contract is implemented as a Go test inside the process primitive:
+- `primitives/process/transformation_v4/internal/tests/contract_repo_test.go`
+
+Run locally (no Kubernetes, no Telepresence):
+- `go test ./primitives/process/transformation_v4/internal/tests -count=1`
+
 ## Cluster smoke scenarios (minimum set)
 
 1) Requirements process starts
@@ -53,7 +68,7 @@ Add one smoke that proves the analysis request→wait→resume seam end-to-end:
 
 2) Requirements publish → Delivery batch starts
 - Complete DoR gate (simulate user task completion)
-- Assert domain emits `requirement.ready_for_delivery`
+- Assert domain emits `io.ameide.transformation.fact.requirement.ready_for_delivery.v1`
 - Assert Kafka→Zeebe ingress starts/correlates Delivery batch instance by `delivery_batch_id`.
 
 3) Delivery request→wait→resume loop works
@@ -70,11 +85,11 @@ Add one separate cluster smoke that proves the Coder executor seam end-to-end (w
 - assert the process advances and captures evidence refs/links.
 
 4) Acceptance batch chain
-- Domain emits `deliverable.ready_for_acceptance`
+- Domain emits `io.ameide.transformation.fact.deliverable.ready_for_acceptance.v1`
 - Acceptance process aggregates and reaches decision gate.
 
 5) Release batch chain
-- Domain emits `deliverable.accepted`
+- Domain emits `io.ameide.transformation.fact.deliverable.accepted.v1`
 - Release process runs request steps and records release in domain.
 
 ## Playwright E2E (preview) scope

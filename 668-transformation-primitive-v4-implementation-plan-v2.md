@@ -20,13 +20,26 @@ This plan turns the v4 spec set (660–667) into an incremental, implementable d
 
 ## Definition of Done (v4)
 
-Done means, in dev:
+Done means, in dev (when the cluster is ready):
 
 1. All four v4 BPMN processes are deployed to Zeebe (Requirements / Delivery / Acceptance / Release).
 2. The v4 worker microservice is deployed and owns all job types used by those BPMNs.
 3. Deployed-system assertions run as a primitive-owned **smoke binary** executed by ArgoCD PostSync hook jobs (same image digest as the worker).
 4. `ameide primitive verify --kind process --name transformation_v4` is green (design-time + unit/integration per 430).
 5. At least one end-to-end scenario is proven (domain fact → process start → user task → request→wait→resume → next domain fact), using the real Kafka→Zeebe ingress and real primitives (no manual correlation).
+
+## Current status (as of 2026-01-13)
+
+Completed in core repo (not yet deployed):
+- v4 BPMN exists with four processes in `primitives/process/transformation_v4/bpmn/process.bpmn`.
+- v4 domain proto facts exist (`io.ameide.transformation.r2d.v4.*`) and use `stable_type` strings that match BPMN message names.
+- v4 agent scaffolds exist for all 3 agent kinds (langgraph / coder_task / llm_one_shot).
+- Repo-only contract test exists: `primitives/process/transformation_v4/internal/tests/contract_repo_test.go`.
+
+Pending / blocked by cluster readiness:
+- Kafka→Zeebe ingress microservice and deployed wiring.
+- Argo PostSync smoke job wiring (primitive-owned smokes).
+- Projection (Kanban) end-to-end and UI E2E.
 
 ## Responsibility split (non-negotiable)
 
@@ -48,14 +61,27 @@ Owns:
 
 ## Increment plan
 
-Each increment is “done” only when:
+Each increment is “done” only when its success criteria are met.
 
-- unit + integration tests are green locally (430),
-- `ameide primitive verify` is green,
-- the dev cluster deploy is healthy,
-- Argo PostSync smoke job is green.
+Until the dev cluster is ready, the acceptance criteria are **repo-only**:
+- unit/integration tests are green locally (430 Phase 0/1/2),
+- `ameide primitive verify --mode repo` is green,
+- the v4 repo-only contract test is green (`backlog/666-transformation-primitive-v4-e2e-tests.md`).
 
-### Increment 0 — Process solution is deployable and smokable (process-only)
+### Increment 0 — Repo-only contract (no cluster)
+
+Goal: lock the v4 “diagram must not lie” wiring contract before any deployment exists.
+
+Deliver:
+- the v4 repo-only contract test remains green as the single local front door:
+  - message names (`io.ameide.*` only),
+  - correlation keys match the spec,
+  - generated worker job types match BPMN,
+  - v4 agent scaffolds exist and match kinds.
+
+This increment is complete when `go test ./primitives/process/transformation_v4/internal/tests` is green.
+
+### Increment 1 — Process solution is deployable and smokable (process-only)
 
 Goal: prove the process primitive can be deployed and exercised in Zeebe without relying on a local cluster harness.
 
@@ -70,7 +96,7 @@ Deliver:
   - asserts no incidents for happy paths.
 - The primitive image contains both `worker` and `smoke` binaries and ships BPMN/forms as runtime resources.
 
-### Increment 1 — Kafka→Zeebe ingress (primitive facts start/resume processes)
+### Increment 2 — Kafka→Zeebe ingress (primitive facts start/resume processes)
 
 Goal: remove “manual publish to Zeebe” from capability flow.
 
@@ -78,7 +104,7 @@ Deliver:
 - Kafka→Zeebe ingress consumes v4 domain/agent facts from Kafka (CloudEvents envelope per 496 v3) and publishes Zeebe messages using **Publish Message** (TTL buffering; retry/backoff on 503).
 - Replay safety is owned by Kafka offsets + primitive idempotency; do not rely on Zeebe `messageId` as global dedupe.
 
-### Increment 2 — Domain + projection (Kanban truth)
+### Increment 3 — Domain + projection (Kanban truth)
 
 Goal: make domain canonical truth and projections sufficient to power Kanban.
 
@@ -87,7 +113,7 @@ Deliver:
 - Projection materializes Kanban-ready views from domain facts (cross-reference the Kanban/projection backlogs).
 - Capability smoke asserts observable Kanban progression for a minimal scenario.
 
-### Increment 3 — Agent primitive wiring (3 agent kinds)
+### Increment 4 — Agent primitive wiring (3 agent kinds)
 
 Goal: make agent execution a first-class primitive seam used by the v4 processes.
 
@@ -98,7 +124,7 @@ Deliver:
   - `CODER_TASK` (poll-first completion).
 - Transformation and conformance include at least one example of each kind.
 
-### Increment 4 — Capability E2E (domain + process + agent + projection)
+### Increment 5 — Capability E2E (domain + process + agent + projection)
 
 Goal: prove the entire capability, not just the BPMN.
 
@@ -111,4 +137,3 @@ Deliver:
   - Delivery completes one request→wait→resume loop and reaches final gate.
 - The smoke job remains deterministic (no UI; no Playwright).
   UI E2E remains owned by `ameide ci e2e` (Playwright) and is not conflated with process smokes (430/671).
-

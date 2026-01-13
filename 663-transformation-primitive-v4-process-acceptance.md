@@ -23,7 +23,7 @@ This document specifies the **Acceptance batch** Zeebe process for Transformatio
 ## Start trigger (EDA → Zeebe)
 
 Start message:
-- `messageName`: `com.ameide.transformation.fact.deliverable.ready_for_acceptance.v1`
+- `messageName`: `io.ameide.transformation.fact.deliverable.ready_for_acceptance.v1`
 - `correlationKey`: `acceptance_batch_id`
 
 Required variables on first start:
@@ -65,7 +65,20 @@ Decision variables (normative):
 - optional: `acceptance_feedback`
 
 4) **Write decision to domain**
-- Service task job type: `transformation.acceptance.record_decision.request.v1`
+- Service task job type: `transformation.acceptance.decision.record.request.v1`
 - Domain emits:
-  - `com.ameide.transformation.fact.deliverable.accepted.v1` (includes `release_batch_id`), or
-  - `com.ameide.transformation.fact.deliverable.rework_requested.v1` (points back to delivery semantics).
+  - `io.ameide.transformation.fact.deliverable.accepted.v1` (includes `release_batch_id`)
+  - (future) `io.ameide.transformation.fact.deliverable.rework_requested.v1` (not in minimal v4 yet)
+
+## Status (as of 2026-01-13)
+
+Implemented in repo (not yet deployed):
+- Acceptance BPMN exists in `primitives/process/transformation_v4/bpmn/process.bpmn` under process id `transformation_acceptance_batch_v4`.
+- Aggregation is implemented in BPMN as:
+  - `transformation.acceptance.batch.init.v1`
+  - repeated message catch on `io.ameide.transformation.fact.deliverable.ready_for_acceptance.v1` (correlated by `acceptance_batch_id`)
+  - `transformation.acceptance.batch.collect_append.v1`
+
+Pending:
+- Choose the v4 human-decision shape (per-deliverable vs batch review) and encode it with `zeebe:userTask` + assignments + form refs.
+- Implement the real job handlers (preview validation + decision record).

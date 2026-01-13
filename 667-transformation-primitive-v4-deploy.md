@@ -46,6 +46,12 @@ Primary posture:
 - EDA→Zeebe bridge is deployed and reliably starts/correlates processes from domain facts.
 - `ameide test smoke` is green for v4 cluster scenarios.
 
+## Pre-cluster deliverable (until dev is ready)
+
+Before the dev cluster is available, the deploy plan is considered “blocked”, but we still require:
+- repo-only contract test is green (`backlog/666-transformation-primitive-v4-e2e-tests.md`),
+- `ameide primitive verify --mode repo` is green for the v4 primitives.
+
 ## Vendor deployment consideration (request size)
 
 If BPMN deployments include additional resources (e.g., forms) in the same multipart request, enforce an explicit maximum payload size and keep deployments small enough to avoid REST API request-size limits. Configure the orchestration cluster API gateway limits explicitly if needed.
