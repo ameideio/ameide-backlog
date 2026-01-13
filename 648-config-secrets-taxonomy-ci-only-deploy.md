@@ -20,9 +20,9 @@ This backlog establishes a **single end-to-end contract**: where configuration b
 
 ## Goal (Non-Negotiable)
 
-1. **Secrets live only in a Key Vault (KV) as the source of truth** and are delivered to Kubernetes via **ExternalSecrets**.
-   - Cloud: Azure Key Vault is the source of truth. If an in-cluster Vault exists, it is a CI/bootstrap-fed cache only (no “secret generation” or “Keycloak-generated secret extraction” as a steady-state writer).
-   - Local: Vault KV may act as the source of truth (seeded from `.env/.env.local`) to keep local reproducible without cloud dependencies.
+1. **Secrets live only in Key Vault (KV) as the source of truth** and are delivered to Kubernetes via **ExternalSecrets**.
+   - Cloud: Azure Key Vault is the source of truth.
+   - Local: a local KV instance may be used for local clusters, but the contract is identical: KV is the only writable secret store and Kubernetes receives secrets only via ExternalSecrets.
    - Note: syncing KV → Kubernetes necessarily materializes values as Kubernetes `Secret` objects; clusters must enforce **encryption at rest** for Secrets and **least-privilege RBAC** to read them.
 2. **Settings live only in GitOps values → rendered ConfigMaps** (ArgoCD-managed).
 3. **CI is the only supported path to change desired state** (PRs to Git).
@@ -64,12 +64,7 @@ Non-sensitive configuration that can be safely stored in Git and rendered by Hel
 
 ### “Product-managed secret state” (allowed exception)
 
-Some secret-like material is **owned and stored by a product’s database/state** and is not viable to “force into KV”:
-
-- Coder External Auth tokens (stored in Coder DB per user)
-- Session stores / internal signing keys generated and managed by the product (when applicable)
-
-**Rule:** Treat this as **product state** (backup/restore, RBAC, retention), not as “a KV secret we sync with ExternalSecrets”.
+Removed. This backlog defines the configuration contract for AMEIDE workloads: secrets are stored in KV and delivered via ExternalSecrets. Product-specific internal state is out of scope for this taxonomy.
 
 ## Taxonomy (Required)
 
@@ -150,7 +145,7 @@ This is the “answer in 60 seconds” map for URL-related inputs across Terrafo
   - **Owner/source**: GitOps values (`envoy.url`)
   - **Surface**: ConfigMap → pod env
 - Keycloak settings (issuer + explicit endpoints)
-  - **Owner/source**: GitOps values (`keycloak.issuer`, `keycloak.authorizationUrl`, `keycloak.tokenUrl`, `keycloak.userinfoUrl`, `keycloak.jwksUrl`, `keycloak.revokeUrl`, optional `keycloak.internalBase`)
+  - **Owner/source**: GitOps values (`keycloak.issuer`, `keycloak.internalBase`, plus any required static defaults)
   - **Surface**: ConfigMap → pod env
 
 ### Runtime secrets (KV → ExternalSecrets → Kubernetes Secret)

@@ -5,6 +5,8 @@
 **Owner:** Platform Architecture / DX  
 **Related:** `backlog/300-400/306-rpc-runtime-alignment.md`, `backlog/300-400/393-ameide-sdk-import-policy.md`, `backlog/428-onboarding.md`, `backlog/300-400/329-authz.md`, `backlog/300-400/333-realms.md`, `backlog/582-local-dev-seeding.md`, `backlog/540-sales-domain.md`, `backlog/527-transformation-agent.md`
 
+> **Update (2026-01-13):** This item assumes the “one contract” configuration posture in `backlog/648-config-secrets-taxonomy-ci-only-deploy.md` (fail-fast settings, KV-only secrets, GitOps-only desired state). Any runtime transport determinism work should not introduce compatibility shims or fallback configuration knobs.
+
 ---
 
 ## Executive Summary
