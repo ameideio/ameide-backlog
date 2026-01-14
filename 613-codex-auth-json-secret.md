@@ -32,7 +32,7 @@ Related:
 - `backlog/451-secrets-management.md` (secrets architecture)
 - `backlog/444-terraform.md` (local terraform + local secret seeding)
 
-## Target state (big-bang; slots-only)
+## Target state (slots-only)
 
 We do not use a “default account”. We use numeric account slots only:
 
@@ -150,7 +150,7 @@ Recommended dev flow (KV-only, reproducible):
 - Azure: providing `codex-auth-json-b64-0..2` in AKV results in `Secret/codex-auth-0..2` in the target namespace once the component is enabled, without manual kubectl steps.
 - No secret content is committed to git, and operational docs warn against printing secrets.
 
-## Definition of done (big-bang; slots-only)
+## Definition of done (slots-only)
 
 - No `codex-auth-json-b64` / `codex-auth` “default” keys exist in the desired-state docs; only `-0`, `-1`, `-2`.
 - AKV contains `codex-auth-json-b64-0..2` and vault-bootstrap successfully copies them into Vault KV.

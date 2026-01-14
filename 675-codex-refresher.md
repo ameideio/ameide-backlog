@@ -6,7 +6,7 @@ Codex CLI ChatGPT auth uses `$CODEX_HOME/auth.json`. Refreshing the token can ro
 
 In this repo, `Secret/codex-auth-<slot>` and `Secret/codex-auth-rotating-<slot>` are **materialized by ExternalSecrets** from Vault/KeyVault. That means “patching the Secret” is the wrong long-term write target (it will be overwritten).
 
-### Target state (big-bang; no `default`)
+### Target state (no `default`)
 
 We do not use a “default account”. We use **account slots** only:
 
@@ -26,15 +26,7 @@ Each slot is a full stack of:
 - Rotating K8s Secret: `codex-auth-rotating-N` (key: `auth.json`)
 - Refresher CronJob: `codex-auth-refresher-N`
 
-Big-bang implication: before GitOps applies this, **AKV must already contain all seed keys** (`codex-auth-json-b64-0`, `-1`, `-2`) or bootstrap/external-secrets will fail.
-
-Pragmatic phase-1 (supported):
-
-- Keep **single seeded account** for now:
-  - AKV must contain the legacy seed key `codex-auth-json-b64` (or `codex-auth-json-b64-0` if/when you migrate seeding).
-  - Vault bootstrap mirrors that value into `codex-auth-json-b64-0` and `codex-auth-json-b64-rotating-0`.
-- Slots `1` and `2` can exist as placeholders (empty `auth.json`) and are treated as **depleted/unusable** until seeded.
-- Only `CronJob/codex-auth-refresher-0` is enabled in phase-1; add `-1/-2` once those slots are seeded.
+Before GitOps applies this, **AKV must contain all seed keys** (`codex-auth-json-b64-0`, `-1`, `-2`) or bootstrap/external-secrets will fail.
 
 ### Design (two secrets per slot)
 
@@ -115,16 +107,14 @@ All resources are declared in Git and reconciled by Argo CD:
 4) Switch automated consumers to use rotating secret:
 - all automated consumers mount `codex-auth-rotating-0` (or a slot-selection mechanism when multi-slot is enabled).
 
-### Definition of done (big-bang; slots-only)
+### Definition of done (slots-only)
 
 **Seeding**
 
 - Azure Key Vault contains:
-  - Phase-1: `codex-auth-json-b64` (legacy seed) or `codex-auth-json-b64-0`
-  - Big-bang: `codex-auth-json-b64-0`, `codex-auth-json-b64-1`, `codex-auth-json-b64-2`
+  - `codex-auth-json-b64-0`, `codex-auth-json-b64-1`, `codex-auth-json-b64-2`
 - Vault contains:
-  - Phase-1: `secret/codex-auth-json-b64-0` (mirrored from legacy seed) and placeholder keys for slots 1/2
-  - Big-bang: `secret/codex-auth-json-b64-0..2` (copied from AKV)
+  - `secret/codex-auth-json-b64-0..2` (copied from AKV)
   - `secret/codex-auth-json-b64-rotating-0..2` (created by mirror or refresher)
 
 **GitOps / ESO**
@@ -138,8 +128,7 @@ All resources are declared in Git and reconciled by Argo CD:
 **Refresher**
 
 - ArgoCD app `foundation-codex-auth-refresher` is `Synced/Healthy`.
-- Phase-1: `CronJob/codex-auth-refresher-0` exists and has a successful Job run after the last rotation window.
-- Big-bang: `CronJob/codex-auth-refresher-0..2` exist and have a successful Job run after the last rotation window.
+- `CronJob/codex-auth-refresher-0..2` exist and have a successful Job run after the last rotation window.
 - Refresher logs show refresh + Vault write succeeded without printing secret content.
 
 **Consumer contract**
