@@ -32,13 +32,26 @@ Related:
 - `backlog/451-secrets-management.md` (secrets architecture)
 - `backlog/444-terraform.md` (local terraform + local secret seeding)
 
+## Target state (big-bang; slots-only)
+
+We do not use a “default account”. We use numeric account slots only:
+
+- `0`, `1`, `2` (extendable)
+
+Each slot has its own seed auth key and its own Kubernetes Secret materialization:
+
+- Vault/AKV key: `codex-auth-json-b64-<slot>` (field: `value`, base64(auth.json))
+- K8s Secret: `codex-auth-<slot>` (key: `auth.json`, decoded from base64)
+
+Automated consumers should mount the rotating secret produced by the refresher (`Secret/codex-auth-rotating-<slot>`), not the seed secret (see `backlog/675-codex-refresher.md`).
+
 ## Decision: represent the file as base64
 
 `.env` is line-oriented; raw JSON is error-prone to quote/escape. We store the file as a single-line base64 blob:
 
-- Env var: `CODEX_AUTH_JSON_B64=<base64(auth.json)>`
-- Canonical secret key name after sanitization: `codex-auth-json-b64`
-  - This becomes a Vault KV key: `secret/codex-auth-json-b64` with field `value=<base64>`
+- Env var (per slot): `CODEX_AUTH_JSON_B64_<slot>=<base64(auth.json)>` (e.g. `CODEX_AUTH_JSON_B64_0=...`)
+- Canonical secret key name after sanitization: `codex-auth-json-b64-<slot>`
+  - This becomes a Vault KV key: `secret/codex-auth-json-b64-<slot>` with field `value=<base64>`
 
 ExternalSecrets should use `decodingStrategy: Base64` to turn that blob back into the literal `auth.json` bytes.
 
@@ -52,8 +65,8 @@ The Codex auth materialization is **GitOps-owned** as a dedicated component:
   - Other envs can enable by adding `codexAuth.enabled: true` in their env overlay.
 
 It creates:
-- `ExternalSecret/codex-auth-sync` (Vault → K8s)
-- `Secret/codex-auth` with a single key `auth.json` (decoded from base64)
+- `ExternalSecret/codex-auth-sync-<slot>` (Vault → K8s)
+- `Secret/codex-auth-<slot>` with a single key `auth.json` (decoded from base64)
 
 ### Coder workspaces (implemented, dev-only)
 
@@ -64,8 +77,8 @@ We support this by:
 - `ClusterSecretStore` created by `foundation-vault-secret-store` when `vault.clusterSecretStore.enabled: true` (dev only).
 - `ClusterExternalSecret/coder-workspaces-codex-auth` (in `foundation-codex-auth`) that:
   - selects Coder workspace namespaces by labels
-  - creates `ExternalSecret/codex-auth-sync` in each workspace namespace
-  - materializes `Secret/codex-auth` (key `auth.json`)
+  - creates `ExternalSecret/codex-auth-sync-<slot>` in each workspace namespace
+  - materializes `Secret/codex-auth-<slot>` (key `auth.json`)
 
 ## Vault bootstrap sourcing (implemented)
 
@@ -77,11 +90,11 @@ We support this by:
 For Azure, the dev cluster treats Codex auth as **required** (to avoid “it works on my machine” drift):
 
 - Config: `sources/values/env/dev/foundation/foundation-vault-bootstrap.yaml`
-  - `azure.keyVault.requiredSecrets` includes `codex-auth-json-b64`
+  - `azure.keyVault.requiredSecrets` includes `codex-auth-json-b64-0`, `codex-auth-json-b64-1`, `codex-auth-json-b64-2`
 
 This causes vault-bootstrap to:
-1) read Key Vault secret `codex-auth-json-b64` (prefix is empty in managed clusters), and
-2) write Vault KV key `secret/codex-auth-json-b64` with field `value=<base64>`.
+1) read Key Vault secret `codex-auth-json-b64-<slot>` (prefix is empty in managed clusters), and
+2) write Vault KV key `secret/codex-auth-json-b64-<slot>` with field `value=<base64>`.
 
 ## Local workflow (supported)
 
@@ -91,7 +104,7 @@ Local clusters use the existing “local secrets” path:
    - `codex login --device-auth`
 
 2) Export the base64 blob into `.env.local` (do not commit):
-   - `CODEX_AUTH_JSON_B64=$(base64 -w0 ~/.codex/auth.json)`
+   - `CODEX_AUTH_JSON_B64_0=$(base64 -w0 ~/.codex/auth.json)` (repeat for `_1`, `_2` when adding slots)
 
 3) Seed local bootstrap secrets from `.env/.env.local`:
    - `infra/scripts/seed-local-secrets.sh --namespace ameide-local`
@@ -100,21 +113,22 @@ Local clusters use the existing “local secrets” path:
 
 Safe checks (do not print the secret content):
 
-- `kubectl -n ameide-local get externalsecret codex-auth-sync`
-- `kubectl -n ameide-local get secret codex-auth`
+- `kubectl -n ameide-local get externalsecret codex-auth-sync-0`
+- `kubectl -n ameide-local get secret codex-auth-0`
+- (repeat for `-1`, `-2` when enabled)
 
 ## Azure/AKS workflow (implemented)
 
 Target state: treat `auth.json` like other external/third-party secrets.
 
-1) Store `codex-auth-json-b64` in **Azure Key Vault** (value = base64(auth.json)).
-2) `foundation-vault-bootstrap` copies it from AKV into Vault KV `secret/codex-auth-json-b64` (dev requires it).
+1) Store `codex-auth-json-b64-0..2` in **Azure Key Vault** (value = base64(auth.json) per slot).
+2) `foundation-vault-bootstrap` copies it from AKV into Vault KV `secret/codex-auth-json-b64-0..2` (dev requires them).
 3) Enable the GitOps component (`codexAuth.enabled: true`) in the target environment to materialize:
-   - `ExternalSecret/codex-auth-sync` → `Secret/codex-auth` (with `auth.json`)
+   - `ExternalSecret/codex-auth-sync-0..2` → `Secret/codex-auth-0..2` (with `auth.json`)
 
 Recommended dev flow (KV-only, reproducible):
 - Put `CODER_GITHUB_OAUTH_CLIENT_ID`, `CODER_GITHUB_OAUTH_CLIENT_SECRET` in `.env`
-- Put `CODEX_AUTH_JSON_B64` in `.env.local`
+- Put `CODEX_AUTH_JSON_B64_0..2` in `.env.local`
 - Run `infra/scripts/deploy.sh azure-secrets`
 
 ## Security considerations
@@ -128,10 +142,16 @@ Recommended dev flow (KV-only, reproducible):
 
 - Which workloads actually require Codex CLI ChatGPT login (vs API key)?
 - Do we want a `PushSecret` mirror (K8s → Vault) for this secret, or keep Vault as the only distribution layer?
-- If we standardize beyond dev, decide whether `codex-auth-json-b64` should be required (fail fast) or optional (best-effort).
+- If we standardize beyond dev, decide whether `codex-auth-json-b64-0..2` should be required (fail fast) or optional (best-effort).
 
 ## Acceptance criteria
 
-- Local: `infra/scripts/seed-local-secrets.sh --namespace ameide-local` results in `ExternalSecret/codex-auth-sync` Ready and `Secret/codex-auth` present in `ameide-local`.
-- Azure: providing `codex-auth-json-b64` in AKV results in the same `Secret/codex-auth` in the target namespace once the component is enabled, without manual kubectl steps.
+- Local: `infra/scripts/seed-local-secrets.sh --namespace ameide-local` results in `ExternalSecret/codex-auth-sync-0..2` Ready and `Secret/codex-auth-0..2` present in `ameide-local`.
+- Azure: providing `codex-auth-json-b64-0..2` in AKV results in `Secret/codex-auth-0..2` in the target namespace once the component is enabled, without manual kubectl steps.
 - No secret content is committed to git, and operational docs warn against printing secrets.
+
+## Definition of done (big-bang; slots-only)
+
+- No `codex-auth-json-b64` / `codex-auth` “default” keys exist in the desired-state docs; only `-0`, `-1`, `-2`.
+- AKV contains `codex-auth-json-b64-0..2` and vault-bootstrap successfully copies them into Vault KV.
+- ExternalSecrets materialize `Secret/codex-auth-0..2` in environment namespaces and workspace namespaces (dev fan-out).

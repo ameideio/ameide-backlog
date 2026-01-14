@@ -91,10 +91,12 @@ Goal
 
   - The Codex auth refresher (`backlog/675-codex-refresher.md`) uses the same `codex app-server` transport and handshake.
   - Refresh is triggered by calling `account/read` with `{"refreshToken": true}`, then reading the updated `$CODEX_HOME/auth.json` from disk.
+  - Target auth model is slot-based (no `default`): consumers should mount `Secret/codex-auth-rotating-0` (or select among `0..2`) and copy it into a writable `$CODEX_HOME/auth.json` before spawning app-server.
 
   Related: historical monitoring (rate limits/credits)
 
   - The Codex monitor (`backlog/675-codex-monitor.md`) builds on this same retrieval API to export rate-limit windows as Prometheus metrics for historical storage + alerting.
+  - For in-cluster consumers without Prometheus access, it also publishes a non-sensitive K8s status snapshot per slot (e.g., `Secret/codex-account-status-0`).
 
   Secondary (lower-level) option
 
