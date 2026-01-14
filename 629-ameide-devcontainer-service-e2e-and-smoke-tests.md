@@ -47,7 +47,8 @@ Checks:
    - perform an authenticated HTTP request to the app URL and expect non-5xx
 3. `coder ssh` into the workspace and verify:
    - repo checkout works
-   - toolchain presence (git + gh; and any mandatory Ameide tooling)
+   - toolchain presence (git + gh + codex; and any mandatory Ameide tooling)
+   - Codex VS Code extension is installed in code-server (`openai.chatgpt`)
 4. Verify code-server health on localhost (via `curl http://127.0.0.1:<port>/healthz`).
 5. Delete workspace.
 
@@ -113,6 +114,7 @@ Preferred posture for automation inside Kubernetes is file-based auth, not inter
 
 - `Secret/codex-auth` providing `auth.json`
 - `CODEX_HOME` set to the mount location
+- `cli_auth_credentials_store = "file"` set in `config.toml` so both CLI and extension use the same cache
 
 Related: `backlog/613-codex-auth-json-secret.md`, `backlog/527-transformation-e2e-sequence-execution-implementation.md`.
 
