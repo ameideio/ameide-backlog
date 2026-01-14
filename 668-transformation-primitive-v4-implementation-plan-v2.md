@@ -5,7 +5,7 @@ owners:
   - transformation
   - platform
 created: 2026-01-13
-updated: 2026-01-13
+updated: 2026-01-14
 supersedes:
   - 668-transformation-primitive-v4-implementation-plan.md
 ---
@@ -28,13 +28,20 @@ Done means, in dev (when the cluster is ready):
 4. `ameide primitive verify --kind process --name transformation_v4` is green (design-time + unit/integration per 430).
 5. At least one end-to-end scenario is proven (domain fact → process start → user task → request→wait→resume → next domain fact), using the real Kafka→Zeebe ingress and real primitives (no manual correlation).
 
-## Current status (as of 2026-01-13)
+## Current status (as of 2026-01-14)
 
 Completed in core repo (not yet deployed):
 - v4 BPMN exists with four processes in `primitives/process/transformation_v4/bpmn/process.bpmn`.
 - v4 domain proto facts exist (`io.ameide.transformation.r2d.v4.*`) and use `stable_type` strings that match BPMN message names.
-- v4 agent scaffolds exist for all 3 agent kinds (langgraph / coder_task / llm_one_shot).
+- v4 agent scaffolds exist for all 3 agent kinds:
+  - `primitives/agent/transformation-requirements-v4` (LangGraph),
+  - `primitives/agent/transformation-delivery-v4` (Coder Task),
+  - `primitives/agent/transformation-acceptance-v4` (LLM one-shot).
 - Repo-only contract test exists: `primitives/process/transformation_v4/internal/tests/contract_repo_test.go`.
+- Repo-only domain + projection wiring contract exists (Fake infra, real primitives):
+  - `go test -tags=integration ./primitives/domain/transformation/internal/tests -count=1`
+  - this proves outbox→dispatcher headers, inbox dedupe, and replay safety without Kafka/Zeebe.
+- Shared local test utilities live in `packages/ameide_testkit_go/*` (embedded Postgres, SQL migrations, fake Kafka log).
 
 Pending / blocked by cluster readiness:
 - Kafka→Zeebe ingress microservice and deployed wiring.

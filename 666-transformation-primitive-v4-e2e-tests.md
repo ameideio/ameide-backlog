@@ -50,6 +50,7 @@ This contract is implemented as a Go test inside the process primitive:
 
 Run locally (no Kubernetes, no Telepresence):
 - `go test ./primitives/process/transformation_v4/internal/tests -count=1`
+- `go test -tags=integration ./primitives/domain/transformation/internal/tests -count=1`
 
 ## Cluster smoke scenarios (minimum set)
 

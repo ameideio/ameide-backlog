@@ -73,6 +73,8 @@ To enforce “diagram must not lie” at runtime, we keep a cluster-backed confo
 
 Vendor constraint to account for: job activation cannot be scoped to a single process instance, so test fixtures must avoid cross-run job-type collisions (e.g. per-run job type namespace or per-run process id).
 
+Vendor “physics” to make explicit: Zeebe job `timeout` is the **lease duration** after which the engine may reassign a job; it is not an “execution time budget”. This is why the platform default is short, idempotent request handlers and explicit BPMN wait states for long work.
+
 ## Backlog mapping / replacements
 
 This v3 posture requires v2 backlog documents that assume “Temporal-backed Process primitives” to be deprecated and replaced by Zeebe-specific versions, notably:
