@@ -14,7 +14,40 @@ Status
   - Verified outcomes:
       - AKS has one node pool (`system`) on `Standard_B8ms`, labelled `ameide.io/pool=general`.
       - Envoy public IPs for dev/staging/prod are all attached to the AKS LoadBalancer.
-      - PVCs observed in-cluster are on `managed-csi` (no `managed-csi-premium`).
+  - PVCs observed in-cluster are on `managed-csi` (no `managed-csi-premium`).
+
+Follow-up: Shrink Stateful Disks (Billing Tiers)
+
+  - Motivation: disk `size:` values like `5Gi`, `10Gi`, `20Gi`, `50Gi`, `100Gi`, `200Gi` often bill at the next tier anyway.
+    We standardize to tier-aligned sizes (P/E tiers): `4Gi`, `8Gi`, `16Gi`, `32Gi`.
+  - Rule of thumb:
+      - dev/staging: ≤ `16Gi` per PVC
+      - production: ≤ `32Gi` per PVC (this cluster is still not production-grade; data loss acceptable)
+  - Important: Kubernetes cannot shrink PVCs in place. Realizing smaller requested sizes requires **recreating** PVCs (and often their controllers).
+
+CI-Driven Migration (Option A: Snapshot + Recreate)
+
+  - Authoritative write path: use Git + CI (break-glass workflow) and let ArgoCD reconcile.
+  - Workflow: `.github/workflows/aks-pvc-snapshot-recreate.yaml`
+  - Script: `scripts/aks/pvc-snapshot-recreate.sh`
+  - What it does:
+      1) Snapshots Azure Disks backing selected PVCs (rollback point)
+      2) Stops/scales down the workload
+      3) Deletes immutable controllers/CRs where required (StatefulSet `volumeClaimTemplates` are immutable)
+      4) Deletes PVCs so new disks are provisioned at the smaller sizes
+      5) Waits for PVC recreation and validates requested sizes
+
+  - Components covered (current cluster inventory):
+      - observability: `grafana`, `loki`, `tempo`, `prometheus`, `alertmanager`
+      - data/platform: `minio`, `clickhouse`, `pgadmin`, `nifi`, `postgres`, `camunda8`, `kafka`, `vault`
+
+Execution order (run one-by-one)
+
+  - Merge Git size changes first, wait for ArgoCD to pick them up.
+  - Then run the workflow per environment and per component (or small batches), starting with `snapshot-only` if you want a dry-run.
+  - After each component:
+      - Verify `kubectl -n <ns> get pvc -o wide` shows the new size tiers
+      - Verify pods recover (smoke check)
 
 Context
 
