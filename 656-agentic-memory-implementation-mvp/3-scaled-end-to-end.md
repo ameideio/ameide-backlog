@@ -1,5 +1,9 @@
 # 656 — Agentic Memory MVP Increment 3: Scaled End-to-End (Hybrid + Graph Modes + CI Gates)
 
+**Current status (2026-01-14): not started**
+
+Increment 3 depends on Increment 2 (trust ranking + tracing + golden queries) and adds hybrid retrieval (BM25+vectors), graph retrieval modes, and index lifecycle management. None of this is implemented yet.
+
 **Goal:** keep the same end-to-end loops, but make retrieval and governance scale and stay stable as the graph grows:
 
 - hybrid retrieval (BM25 + vectors) with model/versioned embeddings

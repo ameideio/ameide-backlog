@@ -10,6 +10,15 @@
 
 ---
 
+## 0.1 Repo status notes (2026-01-14)
+
+Partial alignment work has already landed in the Ameide repo even though this backlog is marked “superseded”:
+
+- `io.ameide.transformation.work.v1.WorkExecutionRequested` does **not** embed an envelope (`meta` is reserved), consistent with the 496 CloudEvents envelope rule.
+- The transformation work executor consumes CloudEvents headers (`ce-id`, `ce-correlationid`, `ce-causationid`, `ce-traceparent`, `ce-tracestate`) instead of expecting in-proto metadata.
+
+This is compatible with both “EDA v2 (Knative)” and “EDA v3 (Kafka)” at the message contract level; the remaining work is the delivery plane standardization.
+
 ## 0) Question
 
 Should we refactor the existing “reference implementation” (Transformation + WorkRequests/execution substrate + verify tooling) to comply with **EDA v2**?

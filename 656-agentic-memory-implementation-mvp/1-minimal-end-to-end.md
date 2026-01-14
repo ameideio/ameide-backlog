@@ -1,5 +1,11 @@
 # 656 — Agentic Memory MVP Increment 1: Minimal End-to-End (Safe + Citeable)
 
+**Current status (2026-01-14): partially delivered**
+
+- Delivered: `GetReadContext` query RPC exists and returns version-pinned citations for `published|baseline_ref|version_ref|head` (head is MVP-limited to explicit `element_ids`).
+- Delivered: local verification front door `ameide test` runs Phase 0/1/2 (no cluster) deterministically for agents.
+- Not delivered: permission trimming (authZ), keyword recall, ingestion jobs, proposal/curation/publish end-to-end flows, and the Increment 1 scenario smoke.
+
 **Goal:** ship one complete loop that is safe, deterministic, and usable by agents/humans:
 
 - **Read:** retrieve citeable context (version-pinned)

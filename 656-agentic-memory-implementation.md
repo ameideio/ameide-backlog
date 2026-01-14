@@ -6,7 +6,7 @@
 **Related (proto + EDA):** `backlog/527-transformation-proto.md`, `backlog/496-eda-principles-v2.md`, `backlog/509-proto-naming-conventions-v2.md`, `backlog/520-primitives-stack-v2.md`  
 **Related (clean target refactor):** `backlog/657-transformation-domain-clean-target.md`  
 **Related (Transformation execution posture):** `backlog/527-transformation-capability-v2.md`  
-**Status:** Proposal (implementation plan)  
+**Status:** In progress (partial delivered; see §2.4)  
 **Priority:** High  
 
 ---
@@ -143,7 +143,10 @@ Delivered building blocks:
 ### 2.4 Major gaps vs the 656 contract
 
 1. **No semantic/hybrid retrieval implementation** (535 explicitly says none exists).
-2. **No standardized `read_context + citations`** returned by query surfaces (527 lists this as not yet delivered).
+2. **`read_context + citations` is only partially delivered**:
+   - `GetReadContext` exists on `io.ameide.transformation.knowledge.v1.TransformationKnowledgeQueryService`.
+   - Projection handler exists and returns version-pinned citations for `published|baseline_ref|version_ref|head` (MVP head requires `element_ids`).
+   - Missing: principal/purpose modeling, permission trimming, keyword-based recall, trust ranking, and the end-to-end scenario smoke/golden suite.
 3. **No curation queue UX/workflow** (proposal types and review flows are not implemented as an end-to-end experience).
 4. **RBAC enforcement is not implemented at the gRPC boundaries**:
    - domain/projection gRPC servers are created without auth interceptors (`grpc.NewServer()` in `primitives/**/cmd/main.go`);
@@ -153,6 +156,16 @@ Delivered building blocks:
    - the clean target (657) requires EDA-correct delivery as the normative runtime posture (see `backlog/657-transformation-domain-clean-target.md` and the active `backlog/496-eda-principles-*` spec), not “DB tailing forever”.
 6. **Backlog-as-memory ingestion** (git markdown → elements) is not implemented.
 7. **Chat-to-draft ingestion** exists as a pattern (367-0) but is not generalized to “memory capture”.
+
+### 2.6 Recent repo changes that unblock Increment 1 (status sync)
+
+As of **2026-01-14**, the following repo work aligns with Increment 1 prerequisites:
+
+- `GetReadContext` RPC + SDK generation landed (proto + Go/TS/Python SDKs).
+- Projection implements `GetReadContext` and has unit coverage for non-happy paths.
+- `ameide test` Phase 0/1/2 runs Go across `go.work` modules deterministically (agents can run one front door).
+- Transformation Work executor no longer expects an in-proto “meta” envelope for `WorkExecutionRequested`; it parses CloudEvents headers (aligns with 496 envelope rules).
+- Transformation repo-only tests were moved out of capability folders; capability is Phase 3 E2E only.
 
 ### 2.5 Existing proto surfaces we build on (do not reinvent)
 

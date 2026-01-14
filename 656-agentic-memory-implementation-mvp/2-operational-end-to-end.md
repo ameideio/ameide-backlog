@@ -1,5 +1,9 @@
 # 656 — Agentic Memory MVP Increment 2: Operational End-to-End (Trust + Diffs + Pipeline Knobs)
 
+**Current status (2026-01-14): not started**
+
+Increment 1 groundwork exists (`GetReadContext` + Phase 0/1/2 test front door), but none of the Increment 2 operational features (trust ranking, deterministic diffs, pre-merge checks, golden queries, tracing) are implemented yet.
+
 **Goal:** keep the same end-to-end loops as Increment 1, but make the system operationally usable for real teams:
 
 - deterministic diffs and review ergonomics
