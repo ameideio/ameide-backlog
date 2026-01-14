@@ -205,6 +205,7 @@ Target behavior: **all code merges via PR → `main`**; “promotion” is GitOp
    - `AMEIDE_BUILDKIT_ADDR` injected into runner pods and set as repo variable
    - runner image must be multi-arch (`linux/amd64` + `linux/arm64`) and pinned by manifest digest
 2. Keep BuildKit in-cluster reachable (`buildkitd.buildkit.svc.cluster.local:1234`) and restrict access appropriately.
+   - BuildKit must remain stable under occasional “rebuild everything” events (diff-scoped matrix is not a guarantee of small fanout). See `599-k8s-native-buildkit-builds-on-arc.md` for the required HA + persistent cache posture.
 
 ### G) External integrations + release artifacts
 

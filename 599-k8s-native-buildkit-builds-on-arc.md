@@ -42,8 +42,11 @@ We already rely on BuildKit features (e.g. `RUN --mount=type=secret`) for safe b
 ### Deployed resources
 
 - Namespace: `buildkit`
-- Deployment: `buildkitd` (image: `docker.io/moby/buildkit@sha256:86c0ad9d1137c186e9d455912167df20e530bdf7f7c19de802e892bb8ca16552`)
-- Service: `buildkitd` (ClusterIP) on port `1234`
+- StatefulSet: `buildkitd` (image: `ghcr.io/ameideio/mirror/buildkit@sha256:86c0ad9d1137c186e9d455912167df20e530bdf7f7c19de802e892bb8ca16552`)
+  - 2 replicas for availability under parallel builds.
+  - Per-pod PVC-backed cache mounted at `/var/lib/buildkit` to avoid cold-cache rebuild storms and to survive pod restarts.
+- PodDisruptionBudget: `buildkitd` (`minAvailable: 1`)
+- Service: `buildkitd` (ClusterIP) on port `1234` (load-balances across StatefulSet pods)
 - NetworkPolicy: restrict ingress to `arc-runners` (and same-namespace)
 - DaemonSet: `binfmt` (installs emulation for `amd64,arm64` to support cross-arch builds)
 
@@ -80,6 +83,41 @@ GitOps sources:
 
 - BuildKit needs outbound access to registries and build inputs (common: `ghcr.io`, `registry-1.docker.io`, npm, Go proxy, BSR).
 - Runner pods need working cluster DNS and CA trust; if default-deny egress is introduced later, add explicit allowances for `arc-runners` and `buildkit`.
+
+### Stability under parallel builds (why the StatefulSet + PVC matters)
+
+`CD / Service Images` can legitimately fan out into many concurrent image builds (especially when shared build inputs change and we rebuild everything).
+If `buildkitd` is deployed as a single pod with an `emptyDir` state volume, “full rebuild” events turn into:
+
+- cold-cache downloads (registries + language package managers + Go module proxy) repeated across many builds
+- high memory / CPU pressure on the single builder
+- intermittent client failures like:
+  - `dial tcp ...:1234: i/o timeout`
+  - `frontend grpc server closed unexpectedly`
+  - Go module proxy fetch timeouts (`proxy.golang.org ... TLS handshake timeout`)
+
+The required posture is therefore:
+
+- availability: at least 2 builder replicas behind the Service
+- persistence: PVC-backed `/var/lib/buildkit` so caches survive restarts and reduce repeated network fetches
+- health: readiness/liveness probes so the Service doesn’t route to unhealthy builders
+
+### Debugging / runbook
+
+Fast connectivity check from ARC runner namespace:
+
+- `gitops/ameide-gitops/scripts/local/test-buildkit.sh`
+
+If builds fail from CI with `dial tcp ...:1234: i/o timeout`:
+
+- confirm `Service/buildkitd` has ready endpoints (`kubectl -n buildkit get endpoints buildkitd -o yaml`)
+- confirm builders are Ready (`kubectl -n buildkit get pods -l app.kubernetes.io/name=buildkitd -o wide`)
+- check builder logs for OOM/restarts (`kubectl -n buildkit logs -l app.kubernetes.io/name=buildkitd --tail=200`)
+
+If builds fail with `proxy.golang.org ... TLS handshake timeout`:
+
+- first verify builder connectivity is healthy (above)
+- then treat it as an egress/reliability issue; persistent BuildKit cache reduces the frequency and blast radius of these failures
 
 ---
 
