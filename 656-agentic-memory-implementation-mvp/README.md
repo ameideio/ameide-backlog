@@ -5,6 +5,11 @@ This directory splits the MVP implementation into **end-to-end increments** (eac
 **Contract:** `backlog/656-agentic-memory.md`  
 **Overview plan:** `backlog/656-agentic-memory-implementation.md`
 
+## Current repo status (2026-01-14)
+
+- Increment 1 is **partially** delivered: `GetReadContext` exists (selector + version-pinned citations), and Phase 0/1/2 verification via `ameide test` is green.
+- Not yet delivered: permission-trimmed retrieval (authZ), keyword/semantic recall, ingestion jobs, curation queue UX, publish/promotion workflows, and the scenario smoke test.
+
 ## Non-negotiables (all increments)
 
 - Permission-trimmed retrieval (no post-hoc filtering).
