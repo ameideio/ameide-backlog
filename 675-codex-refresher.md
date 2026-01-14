@@ -28,6 +28,14 @@ Each slot is a full stack of:
 
 Big-bang implication: before GitOps applies this, **AKV must already contain all seed keys** (`codex-auth-json-b64-0`, `-1`, `-2`) or bootstrap/external-secrets will fail.
 
+Pragmatic phase-1 (supported):
+
+- Keep **single seeded account** for now:
+  - AKV must contain the legacy seed key `codex-auth-json-b64` (or `codex-auth-json-b64-0` if/when you migrate seeding).
+  - Vault bootstrap mirrors that value into `codex-auth-json-b64-0` and `codex-auth-json-b64-rotating-0`.
+- Slots `1` and `2` can exist as placeholders (empty `auth.json`) and are treated as **depleted/unusable** until seeded.
+- Only `CronJob/codex-auth-refresher-0` is enabled in phase-1; add `-1/-2` once those slots are seeded.
+
 ### Design (two secrets per slot)
 
 We keep the existing pipeline **as-is** for initial/manual auth seeding, and introduce a second secret for refreshed credentials:
@@ -112,9 +120,11 @@ All resources are declared in Git and reconciled by Argo CD:
 **Seeding**
 
 - Azure Key Vault contains:
-  - `codex-auth-json-b64-0`, `codex-auth-json-b64-1`, `codex-auth-json-b64-2`
+  - Phase-1: `codex-auth-json-b64` (legacy seed) or `codex-auth-json-b64-0`
+  - Big-bang: `codex-auth-json-b64-0`, `codex-auth-json-b64-1`, `codex-auth-json-b64-2`
 - Vault contains:
-  - `secret/codex-auth-json-b64-0..2` (copied from AKV)
+  - Phase-1: `secret/codex-auth-json-b64-0` (mirrored from legacy seed) and placeholder keys for slots 1/2
+  - Big-bang: `secret/codex-auth-json-b64-0..2` (copied from AKV)
   - `secret/codex-auth-json-b64-rotating-0..2` (created by mirror or refresher)
 
 **GitOps / ESO**
@@ -128,7 +138,8 @@ All resources are declared in Git and reconciled by Argo CD:
 **Refresher**
 
 - ArgoCD app `foundation-codex-auth-refresher` is `Synced/Healthy`.
-- `CronJob/codex-auth-refresher-0..2` exist and have a successful Job run after the last rotation window.
+- Phase-1: `CronJob/codex-auth-refresher-0` exists and has a successful Job run after the last rotation window.
+- Big-bang: `CronJob/codex-auth-refresher-0..2` exist and have a successful Job run after the last rotation window.
 - Refresher logs show refresh + Vault write succeeded without printing secret content.
 
 **Consumer contract**

@@ -115,6 +115,10 @@ Model slots explicitly (consistent with refresher):
 - Alerts fire when thresholds are crossed (dry-run OK).
 - `Secret/codex-account-status-0..2` exist (in env + workspace namespaces) so consumers can inspect them before using a slot.
 
+Phase-1 note:
+
+- If only slot `0` is seeded, slots `1` and `2` are expected to report `depleted=true` (missing/empty auth) until they are seeded.
+
 ### Definition of done (big-bang; slots-only)
 
 - Auth inputs exist for all slots (seed + rotating), per `backlog/675-codex-refresher.md`.
