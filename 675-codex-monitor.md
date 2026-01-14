@@ -24,6 +24,18 @@ Persist and visualize Codex `/status`-equivalent fields (especially rate-limit w
   - optional: `config/read` + `thread/start` for additional metadata (no token-spending turn required)
   - reference protocol: `backlog/675-codex.md`
 
+### Consumer state decision (K8s-visible; per-slot; Secret)
+
+Consumers (especially Coder tasks) need a fast, in-cluster preflight signal to avoid using an exhausted slot.
+
+Decision:
+
+- Publish **one object per slot**: `Secret/codex-account-status-<slot>` with `status.json`
+- Treat missing/empty rotating `auth.json` as **depleted/unusable** (reason: `missing_auth`)
+- Treat inability to authenticate to Codex (e.g. `account/rateLimits/read` auth error) as **depleted/unusable** (reason: `auth_error`)
+
+Even though this payload is non-sensitive, using a Secret keeps the distribution pipeline consistent (Vault → ESO → K8s) and makes workspace fan-out straightforward.
+
 ### K8s-native architecture (recommended)
 
 Expose the data as Prometheus metrics; store history in Prometheus (and optionally remote-write to long-term storage like Thanos/Mimir).
