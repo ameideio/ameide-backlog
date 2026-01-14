@@ -31,10 +31,28 @@ Consumers (especially Coder tasks) need a fast, in-cluster preflight signal to a
 Decision:
 
 - Publish **one object per slot**: `Secret/codex-account-status-<slot>` with `status.json`
-- Treat missing/empty rotating `auth.json` as **depleted/unusable** (reason: `missing_auth`)
-- Treat inability to authenticate to Codex (e.g. `account/rateLimits/read` auth error) as **depleted/unusable** (reason: `auth_error`)
+- Treat missing/empty `auth.json` as **unusable** (reason: `empty_auth_json`)
+- Treat invalid `auth.json` JSON as **unusable** (reason: `invalid_auth_json`)
+- Treat inability to authenticate/poll Codex as **unusable** (reason: `codex_error`)
+- Compute a simple selection score so consumers can pick the least depleted slot:
+  - `score` = min remaining percent across windows (`0..100`, higher is better)
 
 Even though this payload is non-sensitive, using a Secret keeps the distribution pipeline consistent (Vault → ESO → K8s) and makes workspace fan-out straightforward.
+
+### Status schema (consumer contract)
+
+`Secret/codex-account-status-<slot>` key `status.json`:
+
+- `status`: `ok|error|bootstrap` (human-friendly)
+- `ok`: boolean (poll succeeded)
+- `usable`: boolean (consumer is allowed to use this slot)
+- `depleted`: boolean (hard stop signal)
+- `score`: int `0..100` (higher = less depleted; used for `auto` selection)
+- `reason`: string (e.g. `empty_auth_json`, `invalid_auth_json`, `depleted`, `codex_error`)
+- `ts_epoch`: unix seconds (freshness check)
+- `windows`: sanitized rate-limit window snapshots (no tokens)
+
+Backwards compatibility: during rollout, consumers also accept the legacy schema `{status:"ok", depleted:false}` when `usable` is missing.
 
 ### K8s-native architecture (recommended)
 
@@ -117,10 +135,27 @@ Model slots explicitly (consistent with refresher):
 
 ### Definition of done (slots-only)
 
-- Auth inputs exist for all slots (seed + rotating), per `backlog/675-codex-refresher.md`.
+- Auth inputs exist for the configured slots (seed + rotating), per `backlog/675-codex-refresher.md`.
 - ArgoCD app for the monitor is `Synced/Healthy` and creates `Deployment/Service/ServiceMonitor` per slot.
 - `codex_monitor_up{slot="0..2"} == 1` and updates at least once per polling interval.
-- `Secret/codex-account-status-0..2` update periodically and include `depleted` + reset/remaining fields (no secret material).
+- `Secret/codex-account-status-<slot>` update periodically and include `usable` + `score` (no secret material).
 - Coder tasks (and any other Codex consumers) implement a preflight:
   - read `codex-account-status-<slot>`
-  - fail fast (or pick another slot) when `depleted=true` or remaining is below policy threshold.
+  - fail fast (or pick another slot) when `usable=false` or `depleted=true`
+  - when multiple slots are usable, pick the highest `score`.
+
+### E2E deployment + verification (GitOps)
+
+1) Seed auth into the “source” Key Vault (manual):
+   - `codex-auth-json-b64-0`, `codex-auth-json-b64-1` (and `-2` when ready)
+2) Run the Azure apply workflow to sync secrets into the cluster Key Vault.
+3) Publish the monitor image (manual workflow):
+   - GitHub Actions: `Publish Codex Monitor Image`
+   - Take the output digest and pin it in `sources/values/env/dev/foundation/foundation-codex-monitor.yaml`.
+4) Let ArgoCD reconcile; then verify (read-only):
+   - `kubectl -n ameide-dev get deploy | rg 'codex-monitor-(0|1)'`
+   - `kubectl -n ameide-dev get secret | rg 'codex-account-status-(0|1)'`
+   - `kubectl -n ameide-dev get secret codex-account-status-0 -o jsonpath='{.data.status\\.json}' | base64 -d`
+5) Consumer verification:
+   - Create a Coder workspace with `codex_account_slot=auto`
+   - Verify `cat $HOME/.codex/account_slot` picks the slot with the higher `score`.

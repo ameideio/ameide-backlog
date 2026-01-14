@@ -10,7 +10,7 @@ In this repo, `Secret/codex-auth-<slot>` and `Secret/codex-auth-rotating-<slot>`
 
 We do not use a “default account”. We use **account slots** only:
 
-- `0`, `1`, `2` (extendable later)
+- `0`, `1`, `2` (extendable later; environments may provision a subset)
 
 Each slot is a full stack of:
 
@@ -26,7 +26,11 @@ Each slot is a full stack of:
 - Rotating K8s Secret: `codex-auth-rotating-N` (key: `auth.json`)
 - Refresher CronJob: `codex-auth-refresher-N`
 
-Before GitOps applies this, **AKV must contain all seed keys** (`codex-auth-json-b64-0`, `-1`, `-2`) or bootstrap/external-secrets will fail.
+Before GitOps applies this, **AKV must contain all seed keys for the configured slots**.
+
+- In this repo, slots are configured per environment in `codexAuth.accounts` (GitOps values).
+- CI copies the configured seed keys from the “source Key Vault” into the cluster Key Vault.
+- Slot `2` is treated as optional in CI to support “2 out of 3” provisioning while we ramp up.
 
 ### Design (two secrets per slot)
 
@@ -68,6 +72,8 @@ The slot model is the multi-account model:
 - One CronJob per slot: `codex-auth-refresher-<slot>`
 
 This isolates failure, credentials, and blast radius per slot.
+
+Important: do not seed the same account into multiple slots. Multiple refreshers for the same underlying account can trigger `refresh_token_reused`.
 
 ### Image approach (tiny dedicated image)
 
@@ -111,24 +117,23 @@ All resources are declared in Git and reconciled by Argo CD:
 
 **Seeding**
 
-- Azure Key Vault contains:
-  - `codex-auth-json-b64-0`, `codex-auth-json-b64-1`, `codex-auth-json-b64-2`
+- Azure Key Vault contains seed keys for the configured slots (e.g. dev: `codex-auth-json-b64-0`, `codex-auth-json-b64-1`).
 - Vault contains:
-  - `secret/codex-auth-json-b64-0..2` (copied from AKV)
-  - `secret/codex-auth-json-b64-rotating-0..2` (created by mirror or refresher)
+  - `secret/codex-auth-json-b64-<slot>` (copied from AKV)
+  - `secret/codex-auth-json-b64-rotating-<slot>` (created by mirror or refresher)
 
 **GitOps / ESO**
 
 - ArgoCD app `foundation-codex-auth` is `Synced/Healthy`.
 - In `ameide-dev`, ExternalSecrets are `Ready=True` for:
-  - `codex-auth-sync-0..2` → `Secret/codex-auth-0..2`
-  - `codex-auth-rotating-sync-0..2` → `Secret/codex-auth-rotating-0..2`
+  - `codex-auth-sync-<slot>` → `Secret/codex-auth-<slot>`
+  - `codex-auth-rotating-sync-<slot>` → `Secret/codex-auth-rotating-<slot>`
 - Workspace fan-out (dev) creates the same `codex-auth-rotating-0..2` secrets in `ameide-ws-*` namespaces.
 
 **Refresher**
 
 - ArgoCD app `foundation-codex-auth-refresher` is `Synced/Healthy`.
-- `CronJob/codex-auth-refresher-0..2` exist and have a successful Job run after the last rotation window.
+- `CronJob/codex-auth-refresher-<slot>` exist and have a successful Job run after the last rotation window.
 - Refresher logs show refresh + Vault write succeeded without printing secret content.
 
 **Consumer contract**
