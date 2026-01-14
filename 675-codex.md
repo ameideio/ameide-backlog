@@ -92,6 +92,10 @@ Goal
   - The Codex auth refresher (`backlog/675-codex-refresher.md`) uses the same `codex app-server` transport and handshake.
   - Refresh is triggered by calling `account/read` with `{"refreshToken": true}`, then reading the updated `$CODEX_HOME/auth.json` from disk.
 
+  Related: historical monitoring (rate limits/credits)
+
+  - The Codex monitor (`backlog/675-codex-monitor.md`) builds on this same retrieval API to export rate-limit windows as Prometheus metrics for historical storage + alerting.
+
   Secondary (lower-level) option
 
   - If you only need rate limits and have ChatGPT auth, Codex internally fetches them from a backend usage endpoint via BackendClient::get_rate_limits() (codex-rs/backend-
