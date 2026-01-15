@@ -39,7 +39,7 @@ This increment does **not** attempt workspace image parity or agent entrypoints 
 
 ## Target (AKS ameide / dev)
 
-- Che UI host: `che.dev.ameide.io`
+- Che UI host (env convention): `che.<env>.ameide.io` (dev = `che.dev.ameide.io`)
 - Workspace/public endpoint host pattern: `*.dev.ameide.io` (dev-only, see Risks)
 - OIDC issuer: `https://auth.dev.ameide.io/realms/ameide`
 
