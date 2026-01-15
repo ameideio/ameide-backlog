@@ -42,6 +42,7 @@ This increment does **not** attempt workspace image parity or agent entrypoints 
 - Che UI host (env convention): `che.<env>.ameide.io` (dev = `che.dev.ameide.io`)
 - Workspace/public endpoints: not exposed via wildcard in this increment (see Routing Strategy)
 - OIDC issuer: `https://auth.dev.ameide.io/realms/ameide`
+- Che instance is deployed once per cluster; this increment enables Che in `dev` only.
 
 ## Deliberate deviation: Gateway API (Envoy) instead of Ingress
 
