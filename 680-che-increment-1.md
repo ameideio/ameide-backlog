@@ -40,8 +40,25 @@ This increment does **not** attempt workspace image parity or agent entrypoints 
 ## Target (AKS ameide / dev)
 
 - Che UI host (env convention): `che.<env>.ameide.io` (dev = `che.dev.ameide.io`)
-- Workspace/public endpoint host pattern: `*.dev.ameide.io` (dev-only, see Risks)
+- Workspace/public endpoints: not exposed via wildcard in this increment (see Routing Strategy)
 - OIDC issuer: `https://auth.dev.ameide.io/realms/ameide`
+
+## Deliberate deviation: Gateway API (Envoy) instead of Ingress
+
+Upstream Che on AKS guidance assumes an Ingress controller (e.g. NGINX Ingress) and Che components that create Kubernetes `Ingress` resources will be routable.
+
+This increment deliberately deviates:
+
+- We expose the Che “front door” (`Service/che-gateway`) via **Gateway API** (`HTTPRoute`) on Envoy Gateway.
+- We do **not** install an Ingress controller for Che.
+
+Implication:
+
+- Che UI + IDE flows that stay on `https://che.dev.ameide.io/...` are expected to work.
+- DevWorkspace public endpoints that are exposed by creating Kubernetes `Ingress` resources may NOT work until we either:
+  - add an Ingress controller, or
+  - validate/configure a Che routing strategy that keeps endpoints on the single Che host (no per-endpoint Ingress), or
+  - extend the Gateway listeners/HTTPRoutes in a way that does not hijack unrelated `*.dev.ameide.io` hostnames.
 
 ## Vendor prerequisites (make CR-created workspaces usable)
 
@@ -61,10 +78,22 @@ Hard rule: no manual `kubectl apply/patch/delete` to “fix” cloud resources. 
   - Installs CRDs + `Deployment/che-operator` + webhooks.
 - `platform-che` (disabled by default; enabled in dev)
   - Creates `CheCluster` (apiVersion `org.eclipse.che/v2`) in `ameide-dev`.
-  - Creates `HTTPRoute` to expose `Service/che-gateway:8080` on:
-    - `che.dev.ameide.io`
-    - `*.dev.ameide.io` (for workspace/public endpoints)
-  - Creates `ExternalSecret` to materialize the Che OAuth secret required by Che (`Secret` key `oAuthSecret` + label `app.kubernetes.io/part-of=che.eclipse.org`).
+  - Creates `HTTPRoute` to expose `Service/che-gateway:8080` on `che.dev.ameide.io`.
+  - Creates `ExternalSecret` to materialize the Che OAuth secret required by Che:
+    - `CheCluster.spec.networking.auth.oAuthSecret` is set to the Secret *name* (not the secret value).
+    - The referenced Secret contains key `oAuthSecret` and is labeled `app.kubernetes.io/part-of=che.eclipse.org`.
+
+### 1.1 CheCluster minimum auth config (explicit)
+
+This increment MUST explicitly configure these `CheCluster` fields (dev values shown):
+
+- `spec.networking.hostname: che.dev.ameide.io`
+- `spec.networking.domain: dev.ameide.io` (workspace base domain; may evolve with routing strategy)
+- `spec.networking.auth.identityProviderURL: https://auth.dev.ameide.io/realms/ameide`
+- `spec.networking.auth.oAuthClientName: che`
+- `spec.networking.auth.oAuthSecret: che-oauth-secret` (Secret name; value is stored in the Secret, not in the CR)
+
+Note: TLS is terminated at Envoy Gateway for `che.dev.ameide.io` in this increment; we do not require Che to manage per-Ingress TLS secrets.
 
 ### 2) Add Keycloak OIDC client for Che (dev realm)
 
@@ -93,6 +122,8 @@ Che consumes the secret via ExternalSecrets (no GitHub credentials in workspaces
   - `kubectl -n argocd get application | rg 'dev-platform-che'`
 - Che operator is running:
   - `kubectl -n ameide-dev get deploy,pod | rg -i 'che-operator'`
+- DevWorkspace operator is present (Che dependency):
+  - `kubectl get crd | rg -i '^devworkspaces\\.workspace\\.devfile\\.io'`
 - Che gateway service exists:
   - `kubectl -n ameide-dev get svc che-gateway`
 - CheCluster is Active:
@@ -102,5 +133,4 @@ Che consumes the secret via ExternalSecrets (no GitHub credentials in workspaces
 
 ## Risks / known sharp edges
 
-- `*.dev.ameide.io` wildcard routing can catch “unknown” dev subdomains and send them to Che. Existing explicit host routes (e.g. `coder.dev.ameide.io`, `platform.dev.ameide.io`) should still win, but this needs to be kept in mind.
-- If this becomes problematic, follow-up increment should move workspace/public endpoints to a dedicated base domain (e.g. `*.ws.dev.ameide.io`) which requires both DNS + Gateway listener changes.
+- Workspace/public endpoints may be exposed by Che via Kubernetes `Ingress` resources; those will not be reachable without an Ingress controller or a validated single-host routing strategy.
