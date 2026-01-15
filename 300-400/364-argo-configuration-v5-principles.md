@@ -1,5 +1,7 @@
 Below is a **vendor‑backed audit checklist** you can run against your repo(s) and clusters to ensure the implementation is 100% aligned with Argo CD / ApplicationSet guidance. Each principle includes a **source link to official docs** so you (or auditors) can verify behavior and wording directly.
 
+> **UI performance:** See `backlog/681-argocd-ui-performance.md` for tuning notes with ~400 Applications.
+
 > **Repo structure refresher:** Helm charts & values now live inside the GitOps repo (`sources/charts/**`, `sources/values/**`), and component folders (`gitops/ameide-gitops/environments/<env>/components/<tier>`) hold metadata only. ApplicationSets pull everything from this repo via the Git generator and render Helm directly.
 
 ---

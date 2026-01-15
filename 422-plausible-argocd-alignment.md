@@ -1,5 +1,7 @@
 # 422: Plausible ArgoCD alignment (dev)
 
+> **UI performance:** See `backlog/681-argocd-ui-performance.md` for tuning notes with ~400 Applications.
+
 ## What Plausible now does
 
 - **External DBs only.** `DATABASE_URL` points to the CNPG Postgres service (`platform-postgres-clusters-rw.ameide.svc:5432/plausible`) using the CNPG-owned secret `plausible-db-credentials` (username/password keys). `CLICKHOUSE_DATABASE_URL` / `_READ` point to the Altinity ClickHouse HTTP endpoint on 8123 with creds from `clickhouse-auth` (user `plausible`).

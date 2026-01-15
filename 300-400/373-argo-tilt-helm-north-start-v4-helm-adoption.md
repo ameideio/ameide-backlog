@@ -1,5 +1,7 @@
 # 373 – Argo + Tilt Helm adoption (logging & pruning) **DEPRECATED** (see backlog/424-tilt-www-ameide-separate-release.md)
 
+> **UI performance:** See `backlog/681-argocd-ui-performance.md` for tuning notes with ~400 Applications.
+
 Details for the Tilt helm-adoption helper referenced in backlog/373-argo-tilt-helm-north-start-v4.md.
 
 ## What the helper does

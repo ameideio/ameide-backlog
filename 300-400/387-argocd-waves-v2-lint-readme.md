@@ -1,5 +1,7 @@
 # RollingSync lint report helper
 
+> **UI performance:** See `backlog/681-argocd-ui-performance.md` for tuning notes with ~400 Applications.
+
 This note explains how to regenerate and interpret `backlog/387-argocd-waves-v2-lint.md`.
 
 - **Entry point:** `./wave_lint.sh` in repo root. It wraps the original Python lint inline and runs it with `python3`.

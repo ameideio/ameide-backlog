@@ -1,5 +1,7 @@
 Current Argo CD wave layout (dev), aligned to what is defined in `gitops/ameide-gitops` today.
 
+> **UI performance:** See `backlog/681-argocd-ui-performance.md` for tuning notes with ~400 Applications.
+
 - Foundation: 10 -> 20 -> 30 -> 40 -> 50 -> 60 -> 99
 - Platform: 29 -> 31 -> 30 -> 32 -> 39
 - Data core: 30 -> 31 -> 39

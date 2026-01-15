@@ -1,5 +1,7 @@
 # backlog/364 – Argo configuration v5 (Helmfile decomposition detail)
 
+> **UI performance:** See `backlog/681-argocd-ui-performance.md` for tuning notes with ~400 Applications.
+
 This appendix expands the migration plan: for **each helmfile layer** under `infra/kubernetes/helmfiles`, it lists every release, the target **GitOps component path**, and the **ApplicationSet tier/wave** we’ll assign. Use this table when you move charts from Helmfile → GitOps.
 
 > **Helmfile retention policy:** even after a layer is migrated, keep the Helmfile record checked into git so engineers can continue to run `helm template` (or automation like `render.sh`) when they need freshly rendered YAML. Add a `# RENDER-ONLY` comment to the top of migrated Helmfiles to remind folks they must not be applied to clusters.

@@ -1,5 +1,7 @@
 # 450 – ArgoCD Service Issues Inventory
 
+> **UI performance:** See `backlog/681-argocd-ui-performance.md` for tuning notes with ~400 Applications.
+
 **Status**: Partially Resolved (CI/CD blocking staging/prod)
 **Created**: 2025-12-04
 **Updated**: 2026-01-03

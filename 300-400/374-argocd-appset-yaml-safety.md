@@ -1,5 +1,7 @@
 # 374 – ArgoCD ApplicationSet YAML Safety
 
+> **UI performance:** See `backlog/681-argocd-ui-performance.md` for tuning notes with ~400 Applications.
+
 ## Context
 During the devcontainer bootstrap, the `kubectl apply` step failed while loading ApplicationSets (`apps.yaml`, `data-services.yaml`, etc.). The manifests contained inline Go template expressions such as:
 

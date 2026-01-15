@@ -1,5 +1,7 @@
 # backlog/364 – Argo configuration v3 (bootstrap plan)
 
+> **UI performance:** See `backlog/681-argocd-ui-performance.md` for tuning notes with ~400 Applications.
+
 This note consolidates the decisions discussed for promoting Argo CD to the first-class bootstrap artifact outside Tilt, aligning with our **v3 GitOps shape** while keeping the developer inner loop lightweight.
 
 ---

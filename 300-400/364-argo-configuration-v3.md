@@ -1,5 +1,7 @@
 Below is a clean, vendor‑aligned **v3** design for Argo CD GitOps. It describes an ideal end‑state using current Argo CD semantics and official patterns—intentionally independent of any prior versions. After you review, we can do a separate mapping from v2 → v3.
 
+> **UI performance:** See `backlog/681-argocd-ui-performance.md` for tuning notes with ~400 Applications.
+
 ---
 
 # Argo CD GitOps Hierarchy – **v3 (vendor‑aligned)**

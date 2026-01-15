@@ -1,5 +1,7 @@
 # 445: ArgoCD Namespace Isolation
 
+> **UI performance:** See `backlog/681-argocd-ui-performance.md` for tuning notes with ~400 Applications.
+
 ## Status: Implemented
 
 ## Summary

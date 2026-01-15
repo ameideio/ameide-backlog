@@ -1,5 +1,7 @@
 # 377: Remove Argo band-aids and enforce clean drift-free syncs
 
+> **UI performance:** See `backlog/681-argocd-ui-performance.md` for tuning notes with ~400 Applications.
+
 ## Checklist
 - [x] Inventory all missing `_shared` and `dev` value files (foundation/platform/data/apps) and create stubs so Helm rendering no longer needs `ignoreMissingValueFiles`
 - [x] Remove `ignoreMissingValueFiles` from foundation/data/platform/apps ApplicationSets and validate rendering

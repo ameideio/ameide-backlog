@@ -1,5 +1,7 @@
 # 373 – Argo + Tilt + Helm North Star v4 – Implementation Checklist
 
+> **UI performance:** See `backlog/681-argocd-ui-performance.md` for tuning notes with ~400 Applications.
+
 This checklist tracks the concrete steps to make v4 reproducible: Argo owns the baseline with auto-sync + `selfHeal=false`, Tilt overlays images only, and leftover resources never block installs.
 
 ## Current status (2025-11-16)

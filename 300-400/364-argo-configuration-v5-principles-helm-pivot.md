@@ -1,5 +1,7 @@
 > Note: Chart and values paths are now under gitops/ameide-gitops/sources (charts/values); any infra/kubernetes/charts references below are historical.
 
+> **UI performance:** See `backlog/681-argocd-ui-performance.md` for tuning notes with ~400 Applications.
+
 # backlog/364 – Argo configuration v5 (Helm pivot blueprint)
 
 We already decomposed most Helmfile releases into `gitops/ameide-gitops/environments/dev/components/**`, but the legacy `infra/kubernetes` tree (charts, values, Helmfile orchestration) still exists and keeps growing. This note captures:

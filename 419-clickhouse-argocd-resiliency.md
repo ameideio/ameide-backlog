@@ -1,5 +1,7 @@
 # 419 – ClickHouse + Argo CD resiliency and rollout contract
 
+> **UI performance:** See `backlog/681-argocd-ui-performance.md` for tuning notes with ~400 Applications.
+
 > **Cross-References (Deployment Architecture Suite)**:
 >
 > | Document | Purpose |

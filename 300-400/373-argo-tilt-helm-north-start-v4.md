@@ -1,4 +1,6 @@
 > **⚠️ DEPRECATED – SUPERSEDED BY [435-remote-first-development.md](435-remote-first-development.md)**
+
+> **UI performance:** See `backlog/681-argocd-ui-performance.md` for tuning notes with ~400 Applications.
 >
 > This document describes the **Argo + Tilt + k3d** local cluster workflow.
 > The project has migrated to a **remote-first model** where:

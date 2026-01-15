@@ -1,5 +1,7 @@
 > Note: Chart and values paths are now under gitops/ameide-gitops/sources (charts/values); any infra/kubernetes/charts references below are historical.
 
+> **UI performance:** See `backlog/681-argocd-ui-performance.md` for tuning notes with ~400 Applications.
+
 # ArgoCD Digest-Based Deployment Requirements
 
 **Status**: 📝 Documentation  

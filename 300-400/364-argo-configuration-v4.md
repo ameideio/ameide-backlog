@@ -1,5 +1,7 @@
 # backlog/364 – Argo configuration v4 (bootstrap + GitOps contract)
 
+> **UI performance:** See `backlog/681-argocd-ui-performance.md` for tuning notes with ~400 Applications.
+
 Version 4 collapses the vendor-aligned GitOps design and the bootstrap execution plan into a single source of truth. It keeps Argo CD as layer 00, spells out how devcontainer bootstrap owns installation, and reiterates the hierarchy, guardrails, and patterns we expect everywhere else.
 
 ---

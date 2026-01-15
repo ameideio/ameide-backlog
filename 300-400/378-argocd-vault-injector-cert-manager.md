@@ -1,5 +1,7 @@
 # 378: ArgoCD Vault injector TLS via cert-manager (vendor-aligned)
 
+> **UI performance:** See `backlog/681-argocd-ui-performance.md` for tuning notes with ~400 Applications.
+
 > **Scope:** Applies to every environment where Vault injector relies on cert-manager. Cloud clusters consume Azure-issued wildcard/CA chains, while Terraform-managed local clusters reuse the same chart with a SelfSigned → CA Issuer pattern (see [444-terraform.md](../444-terraform.md#local-target-safeguards)). The operational guidance below covers both; local simply points the Issuer at the in-cluster CA secrets.
 
 ## Why

@@ -1,5 +1,7 @@
 # 423: Temporal ArgoCD recovery (operator-based)
 
+> **UI performance:** See `backlog/681-argocd-ui-performance.md` for tuning notes with ~400 Applications.
+
 > ✅ **Current deployment model:** Temporal is deployed via the community Temporal operator (`cluster-temporal-operator`) and per-environment `TemporalCluster`/`TemporalNamespace` resources (`data-temporal`).
 
 ## What is supposed to exist

@@ -1,5 +1,7 @@
 # backlog/364 – Argo configuration v5 (Helmfile → ApplicationSet migration)
 
+> **UI performance:** See `backlog/681-argocd-ui-performance.md` for tuning notes with ~400 Applications.
+
 Goal: retire every `infra/kubernetes/helmfiles/*.yaml` release from the **runtime apply path** and manage **all infra/platform/app workloads** via Argo CD **ApplicationSets** that implement the **wave + health gating** model described in the vendor-aligned reference.
 
 > We are keeping the Helmfiles in-repo as **rendering blueprints** (developers still run `helm template` against them when bumping chart versions), but once a layer is migrated those Helmfiles must not be applied to a cluster. Treat them as documentation + input to chart rendering only.

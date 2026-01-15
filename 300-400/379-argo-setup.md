@@ -1,5 +1,7 @@
 # backlog/379 – Argo setup notes (devcontainer + prod posture)
 
+> **UI performance:** See `backlog/681-argocd-ui-performance.md` for tuning notes with ~400 Applications.
+
 ## Requirements
 - Single HTTPS entrypoint on 443 across dev/staging/prod; no HTTP path.
 - Devcontainer must auto-run bootstrap with the HTTPS port-forward (`0.0.0.0:8443 -> 443`), no manual commands; host access should work via this forward (or the forwarded VS Code port).

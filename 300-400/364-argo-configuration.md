@@ -1,5 +1,7 @@
 # 364 – Argo Configuration Hardening
 
+> **UI performance:** See `backlog/681-argocd-ui-performance.md` for tuning notes with ~400 Applications.
+
 ## Summary
 
 - Argo CD now sources every environment directly from the GitOps tree (`infra/kubernetes/gitops/argocd/parent/apps-root-<env>.yaml`), with GitHub for staging/production and the local workspace (`file:///workspace`) for devcontainers, fulfilling the single-source-of-truth story and eliminating the old Gitea dependency.

@@ -1,5 +1,7 @@
 Let’s make this concrete with a small but realistic setup:
 
+> **UI performance:** See `backlog/681-argocd-ui-performance.md` for tuning notes with ~400 Applications.
+
 * **App:** `nextjs-shop`
 * **DB:** Postgres
 * **Migration job:** runs Prisma / SQL migrations

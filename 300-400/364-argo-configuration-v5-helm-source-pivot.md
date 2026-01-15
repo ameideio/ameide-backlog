@@ -1,5 +1,7 @@
 > Note: Chart and values paths are now under gitops/ameide-gitops/sources (charts/values); any infra/kubernetes/charts references below are historical.
 
+> **UI performance:** See `backlog/681-argocd-ui-performance.md` for tuning notes with ~400 Applications.
+
 # backlog/364 – Helm-source pivot for Argo configuration v5
 
 We are extending the v5 migration from Helmfile → Argo CD by switching **all components** (foundation, platform, data, apps) from “committed rendered YAML” to **Helm-sourced Applications**. ApplicationSets + RollingSync remain the orchestrator, but every layer now relies on Helm charts as the single manifest source.

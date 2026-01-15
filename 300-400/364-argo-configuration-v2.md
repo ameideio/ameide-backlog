@@ -1,5 +1,7 @@
 # 364 – Argo Configuration (Hierarchy v2)
 
+> **UI performance:** See `backlog/681-argocd-ui-performance.md` for tuning notes with ~400 Applications.
+
 ## Context
 
 The first GitOps pass mirrored Helmfile “layers” (10/12/15/…​) directly into a single `argocd-apps.yaml`. After splitting Helmfile selectors to get better signal (e.g., `vault-core`, `secrets-temporal`), that monolith became impossible to review or own. We also blurred the line between:

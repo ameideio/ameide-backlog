@@ -1,5 +1,7 @@
 # backlog/382 – ArgoCD dependency hardening & secrets gating
 
+> **UI performance:** See `backlog/681-argocd-ui-performance.md` for tuning notes with ~400 Applications.
+
 **Created:** Nov 2025  
 **Owner:** Platform DX / Infrastructure  
 **Related:** backlog/362-unified-secret-guardrails-v2.md, backlog/367-bootstrap-v2.md

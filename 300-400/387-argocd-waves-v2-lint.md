@@ -1,5 +1,7 @@
 # RollingSync inventory (generated)
 
+> **UI performance:** See `backlog/681-argocd-ui-performance.md` for tuning notes with ~400 Applications.
+
 - components root: `/workspaces/ameide-core/gitops/ameide-gitops/environments/dev/components`
 - application set: `/workspaces/ameide-core/gitops/ameide-gitops/environments/dev/argocd/apps/ameide.yaml`
 
