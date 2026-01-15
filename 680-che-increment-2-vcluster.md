@@ -45,6 +45,27 @@ Provide a working Che UI on `che.dev.ameide.io` where:
   - The vCluster API server is configured with Keycloak OIDC, so Kubernetes authn/authz works the way Che expects.
   - Workloads still run on AKS nodes; the difference is which Kubernetes API server performs auth + RBAC decisions.
 
+In other words, vCluster is **control-plane isolation** (auth + RBAC), not network isolation.
+
+### Optional dev workflow: Tilt/hot-reload against the host cluster
+
+If we want “hot-reload” workflows without changing where traffic enters the platform:
+
+- Che + DevWorkspace control plane runs in the vCluster.
+- The workspace Pod (devcontainer) still runs on the host cluster (via vCluster sync).
+- Inside the devcontainer, developers can run Tilt targeting the **host** cluster API context (not the vCluster):
+  - `tilt up --context <host> --namespace <dev-namespace>`
+  - Tiltfile should include `allow_k8s_contexts([...])` guardrails.
+
+Important: our cloud GitOps rules still apply. Tilt-driven writes to shared AKS must be explicitly scoped (dedicated dev namespaces, least-privilege RBAC) and must not be treated as the authoritative mutation path for platform resources (Git → CI → ArgoCD remains authoritative).
+
+## Two kubeconfigs model (recommended)
+
+To make the “workspace runs here, deploy there” story explicit:
+
+- **vCluster kubeconfig/context**: used by Che components for workspace lifecycle and Kubernetes RBAC evaluation (inside the vCluster control plane).
+- **host cluster kubeconfig/context**: optionally mounted into the devcontainer for developer tools (Tilt, kubectl) to deploy into a dedicated host namespace with least privilege.
+
 ## Target (AKS ameide / dev)
 
 - Public Che UI host: `che.dev.ameide.io`
@@ -67,6 +88,12 @@ Add a new GitOps component (dev only):
     - client ID / audiences aligned with the token Che forwards (see “identityToken” note)
     - username claim mapping + groups claim mapping
   - Exposes the vCluster API server via an internal `Service` only (no public ingress).
+
+If we intend to support the “two kubeconfigs” model, this increment should also define:
+
+- host-side developer namespaces (per-dev or per-run),
+- a least-privilege ServiceAccount + Role/RoleBinding for Tilt in those namespaces, and
+- a secure path to mount a kubeconfig for that ServiceAccount into the devcontainer.
 
 ### 2) Register vCluster as an ArgoCD destination (dev only)
 
@@ -127,4 +154,3 @@ This increment must explicitly record which token is used and ensure the vCluste
 
 - vCluster introduces an additional control plane component; we must track its resource footprint and failure modes.
 - Mapping/sync behavior (namespaces, services, routes) must be carefully scoped so Che is reachable on `che.dev.ameide.io` without hijacking other dev traffic.
-
