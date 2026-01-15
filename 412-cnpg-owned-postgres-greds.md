@@ -9,11 +9,14 @@ Here's a north star doc you can paste into Notion/Confluence/ADR with minimal ed
 > | [464-chart-folder-alignment.md](464-chart-folder-alignment.md) | Chart at `sources/charts/foundation/operators-config/postgres_clusters` |
 > | [426-keycloak-config-map.md](426-keycloak-config-map.md) | OIDC patterns (Keycloak also uses CNPG credentials) |
 > | [467-backstage.md](467-backstage.md) | Backstage DB credentials (uses `backstage` template) |
+> | [683-cnpg.md](683-cnpg.md) | CNPG platform notes (Azure Disk RWO, update strategy, pooler naming, backups) |
 >
 > **Secrets Architecture**:
 > - [462-secrets-origin-classification.md](./462-secrets-origin-classification.md) – Secret origin taxonomy (this doc is the exemplar for "Cluster-Managed: Operator-Owned" secrets)
 > - [418-secrets-strategy-map.md](./418-secrets-strategy-map.md) – Overall secrets strategy
 > - [451-secrets-management.md](./451-secrets-management.md) – External secrets flow (Azure KV → Vault → K8s)
+>
+> **CNPG suite:** [683-cnpg.md](683-cnpg.md) · [412-cnpg-owned-postgres-greds.md](412-cnpg-owned-postgres-greds.md) · [440-storage-concerns.md](440-storage-concerns.md) · [420-temporal-cnpg-dev-registry-runbook.md](420-temporal-cnpg-dev-registry-runbook.md) · [489-pgadmin-keycloak-oidc.md](489-pgadmin-keycloak-oidc.md) · [531-local-cnpg-placement-vs-control-plane-taints.md](531-local-cnpg-placement-vs-control-plane-taints.md)
 
 ---
 

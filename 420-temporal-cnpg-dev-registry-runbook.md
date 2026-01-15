@@ -14,6 +14,9 @@
 > - [425-vendor-schema-ownership.md](425-vendor-schema-ownership.md) – Vendor schema patterns
 > - [435-remote-first-development.md](435-remote-first-development.md) – Canonical DevContainer + Telepresence workflow
 > - [456-ghcr-mirror.md](456-ghcr-mirror.md) – GHCR mirroring for Temporal images
+> - [683-cnpg.md](683-cnpg.md) – CNPG platform notes (Azure Disk RWO, update strategy, pooler naming, backups)
+>
+> **CNPG suite:** [683-cnpg.md](683-cnpg.md) · [412-cnpg-owned-postgres-greds.md](412-cnpg-owned-postgres-greds.md) · [440-storage-concerns.md](440-storage-concerns.md) · [420-temporal-cnpg-dev-registry-runbook.md](420-temporal-cnpg-dev-registry-runbook.md) · [489-pgadmin-keycloak-oidc.md](489-pgadmin-keycloak-oidc.md) · [531-local-cnpg-placement-vs-control-plane-taints.md](531-local-cnpg-placement-vs-control-plane-taints.md)
 
 > ⚠️ **Legacy workflow:** References to the k3d dev registry (`k3d-ameide.localhost:5001`) describe the previous local-cluster model. With the remote-first pivot (backlog/435), dev builds push directly to ACR and run on AKS; keep these notes only for historical incident context.
 >

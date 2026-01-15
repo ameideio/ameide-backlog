@@ -6,6 +6,9 @@
 > - [442-environment-isolation.md](442-environment-isolation.md) – Environment isolation
 > - [434-unified-environment-naming.md](434-unified-environment-naming.md) – Environment naming conventions
 > - [240-cluster-rightsizing.md](240-cluster-rightsizing.md) – Cluster resource planning
+> - [683-cnpg.md](683-cnpg.md) – CNPG platform notes (Azure Disk RWO, update strategy, pooler naming, backups)
+>
+> **CNPG suite:** [683-cnpg.md](683-cnpg.md) · [412-cnpg-owned-postgres-greds.md](412-cnpg-owned-postgres-greds.md) · [440-storage-concerns.md](440-storage-concerns.md) · [420-temporal-cnpg-dev-registry-runbook.md](420-temporal-cnpg-dev-registry-runbook.md) · [489-pgadmin-keycloak-oidc.md](489-pgadmin-keycloak-oidc.md) · [531-local-cnpg-placement-vs-control-plane-taints.md](531-local-cnpg-placement-vs-control-plane-taints.md)
 
 ## Implementation Status (2025-12-04)
 

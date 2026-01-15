@@ -3,7 +3,9 @@
 **Status**: Draft  
 **Created**: 2025-12-08  
 **Owner**: Platform / Data Plane  
-**Related**: [417-envoy-route-tracking.md](417-envoy-route-tracking.md) · [485-keycloak-oidc-client-reconciliation.md](485-keycloak-oidc-client-reconciliation.md) · [487-keycloak-client-secret-rotation.md](487-keycloak-client-secret-rotation.md) · [451-secrets-management.md](451-secrets-management.md)
+**Related**: [417-envoy-route-tracking.md](417-envoy-route-tracking.md) · [485-keycloak-oidc-client-reconciliation.md](485-keycloak-oidc-client-reconciliation.md) · [487-keycloak-client-secret-rotation.md](487-keycloak-client-secret-rotation.md) · [451-secrets-management.md](451-secrets-management.md) · [683-cnpg.md](683-cnpg.md)
+
+> **CNPG suite:** [683-cnpg.md](683-cnpg.md) · [412-cnpg-owned-postgres-greds.md](412-cnpg-owned-postgres-greds.md) · [440-storage-concerns.md](440-storage-concerns.md) · [420-temporal-cnpg-dev-registry-runbook.md](420-temporal-cnpg-dev-registry-runbook.md) · [489-pgadmin-keycloak-oidc.md](489-pgadmin-keycloak-oidc.md) · [531-local-cnpg-placement-vs-control-plane-taints.md](531-local-cnpg-placement-vs-control-plane-taints.md)
 
 ---
 

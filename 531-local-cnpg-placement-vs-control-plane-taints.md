@@ -5,6 +5,8 @@
 
 > **Status – Implemented (Local):** Track and fix local k3d scheduling + PV placement so control-plane stability policies (tainted server node) don’t break operator-managed stateful workloads (CNPG/Postgres).
 
+> **CNPG suite:** [683-cnpg.md](683-cnpg.md) · [412-cnpg-owned-postgres-greds.md](412-cnpg-owned-postgres-greds.md) · [440-storage-concerns.md](440-storage-concerns.md) · [420-temporal-cnpg-dev-registry-runbook.md](420-temporal-cnpg-dev-registry-runbook.md) · [489-pgadmin-keycloak-oidc.md](489-pgadmin-keycloak-oidc.md) · [531-local-cnpg-placement-vs-control-plane-taints.md](531-local-cnpg-placement-vs-control-plane-taints.md)
+
 ## Summary
 
 Local k3d bootstraps taint the control-plane node (`k3d-ameide-server-0`) as `NoSchedule` to reduce apiserver stalls. In some runs, CNPG’s Postgres PVC is provisioned with node affinity pinned to the control-plane node (local-path `WaitForFirstConsumer`), leaving the Postgres pod `Pending` once the taint is applied. This cascades into Keycloak failing to start and ArgoCD Dex crashlooping (OIDC issuer unreachable).
