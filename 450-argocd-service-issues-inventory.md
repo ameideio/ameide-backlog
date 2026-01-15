@@ -610,6 +610,20 @@ Verification:
   2. Bind Services to the Terraform-managed PIPs **by name** (cloud-provider supported): set `service.beta.kubernetes.io/azure-pip-name: <pip-name>` (and `service.beta.kubernetes.io/azure-load-balancer-resource-group`) so the cloud provider attaches the existing PIP and does not attempt to create `kubernetes-*` PIPs.
   3. Re-verify with: `kubectl -n argocd get svc envoy-argocd-cluster-* -o wide` (expect `status.loadBalancer.ingress.ip`), then `curl -I https://argocd.ameide.io/`.
 
+### Update (2026-01-14): ArgoCD endpoint times out despite LoadBalancer provisioned (`externalTrafficPolicy: Local` + zero ready endpoints)
+
+- **Env:** `azure` (AKS)
+- **Symptom:** `https://argocd.ameide.io/` is not reachable (TCP connect timeout), even though the Envoy LoadBalancer Service has a valid `status.loadBalancer.ingress.ip`.
+- **Observed evidence:**
+  - `Service/envoy-argocd-cluster-*` has `type=LoadBalancer` and a stable Public IP, but `curl -I https://argocd.ameide.io/` hangs/times out.
+  - The Service uses `externalTrafficPolicy: Local` and `Endpoints/envoy-argocd-cluster-*` shows **no ready addresses** (only `notReadyAddresses`).
+  - `Gateway/argocd/cluster` reports `Programmed=False` with `NoResources` (Envoy replicas unavailable), and Envoy readiness returns `503` with `x-envoy-immediate-health-check-fail: true`.
+- **Root cause:** `externalTrafficPolicy: Local` makes the Azure LB send traffic only to nodes with a **local ready endpoint**. With a single (or effectively single) ready proxy pod, any node/pod readiness issue can blackhole the public endpoint.
+- **Fix (GitOps, target state):**
+  - Set the cluster gateway Envoy Service to `externalTrafficPolicy: Cluster` and run **2 proxy replicas** with a zero-downtime rollout strategy (`maxUnavailable: 0`) and a proxy PDB (`minAvailable: 1`).
+  - Code reference: `ameide-gitops` commit `3278ca33` (“fix(cluster-gateway): harden ArgoCD ingress”).
+- **Related reliability fix:** ArgoCD reconciliation can be disrupted by `argocd-repo-server` restart loops when probes are too aggressive under load; we relaxed probe timeouts via `ameide-gitops` commit `82023553` (“fix(argocd): relax repo-server probe timeouts”).
+
 ### Update (2025-12-17): ArgoCD SSO broken (Dex upstream Keycloak issuer misconfigured)
 
 - **Env:** `azure` (AKS)

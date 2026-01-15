@@ -309,6 +309,14 @@ Add synthetic monitoring for:
 57267c9 refactor(cluster): clean cluster-scoped config structure (464)
 ```
 
+### Update (2026-01-14): Recurrence — LB blackholed by `externalTrafficPolicy: Local` when no proxy endpoints are Ready
+
+- **Symptom:** `https://argocd.ameide.io/` timed out even though the LoadBalancer Service had a valid Public IP.
+- **Evidence:** `Endpoints/envoy-argocd-cluster-*` had no ready addresses, and Envoy `/ready` returned `503` with `x-envoy-immediate-health-check-fail: true`.
+- **Root cause:** `externalTrafficPolicy: Local` makes the LB route only to nodes with a local ready endpoint; if the only proxy pod is not Ready (or on an unhealthy node), the public endpoint is blackholed.
+- **Fix (GitOps, target state):** set `externalTrafficPolicy: Cluster`, run 2 proxy replicas with `maxUnavailable: 0`, and add a proxy PDB. Code reference: `ameide-gitops` commit `3278ca33`.
+- **Related reliability fix:** relaxed `argocd-repo-server` probe timeouts to prevent restart loops during manifest generation spikes (`ameide-gitops` commit `82023553`).
+
 ### Service Recreation Details
 
 The manually-created Service will be managed by envoy-gateway going forward. However, if envoy-gateway is restarted or the Gateway is recreated, it may create a new Service with a different name/hash.
