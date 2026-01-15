@@ -69,6 +69,12 @@ Rules:
 - Treat lifecycle scripts as product code (fast, deterministic, minimal network fetches).
 - Prefer build-time pinning over “download tools every start”.
 
+### 4.1.1 Storage (dev default)
+
+- `/workspaces` is persistent via a per-workspace PVC (StorageClass `managed-csi-premium`, size `16Gi` fixed).
+- Stopping a workspace must not delete the workspace namespace/PVC; deletion is the intentional “data destroy” event.
+- `$HOME` is ephemeral unless we add a separate PVC (future option).
+
 ### 4.2 code-server app exposure
 
 Workspace must expose code-server through a Coder app proxy surface (vendor-aligned pattern):

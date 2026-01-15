@@ -66,5 +66,6 @@ Update (2026-01-15): workspace health hardening + orphan cleanup
     - keep `startup_script` minimal and non-fatal; move setup into `coder_script`
     - use the vendor-supported `code-server` module instead of hand-managed daemon logic
     - remove Codex CLI/version knobs; install “latest” best-effort so transient failures do not flip workspaces unhealthy
+  - Storage: switch `/workspaces` from `emptyDir` to a per-workspace `managed-csi-premium` PVC (`16Gi`) so stop/start and pod reschedules keep the repo + editor caches.
   - Added a break-glass GitHub workflow to delete orphaned Coder workspace namespaces when Coder state diverges from cluster resources:
     - `.github/workflows/aks-delete-orphan-coder-namespace.yaml`

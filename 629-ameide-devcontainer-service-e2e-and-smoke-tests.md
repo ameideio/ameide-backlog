@@ -50,7 +50,11 @@ Checks:
    - toolchain presence (git + gh + codex; and any mandatory Ameide tooling)
    - (optional) Codex VS Code extension is installed in code-server (`openai.chatgpt`)
 4. Verify code-server health on localhost (via `curl http://127.0.0.1:<port>/healthz`).
-5. Delete workspace.
+5. Verify stop/start persistence (default `/workspaces` PVC):
+   - create a marker file under `/workspaces`
+   - stop workspace and confirm the workspace namespace + PVC still exist
+   - start workspace and confirm the marker file is still present
+6. Delete workspace.
 
 Auth expectations:
 
@@ -145,7 +149,7 @@ E2E pass:
 - Test must be self-cleaning (workspace deletion on failure).
 - Test must not print secrets.
 - Test must run under restrictive NetworkPolicy posture once egress allowlists are in place (GitHub + coderd + DNS + optional OpenAI).
-- Workspace storage assumptions for tests: ephemeral (node-backed) is acceptable; tests must not assume persistence across workspace recreation.
+- Workspace storage assumptions for tests: do not assume persistence across workspace deletion; stop/start should preserve `/workspaces`.
 - Workspace auto-stop must be enabled by default (do not rely on tests to stop idle workspaces).
 
 ## 6) Networking prerequisites for automation

@@ -201,12 +201,21 @@ The workspace runs with a namespace-scoped ServiceAccount:
 
 ### 5.3 Persistent storage
 
-Ephemeral node storage is acceptable. Default workspace storage can be per-workspace `emptyDir`:
+Default workspace storage is persistent for `/workspaces` via a per-workspace PVC:
 
-- `/workspaces` (repo clone, caches)
-- `/home/<user>` (editor settings, extensions)
+- `/workspaces` (repo clone, caches, code-server install + extensions)
+  - StorageClass: `managed-csi-premium`
+  - Size: `16Gi` (fixed)
+- `$HOME` remains ephemeral unless we explicitly add a separate PVC for it.
 
-Optional: add a feature flag later for PVC-backed persistence if we need faster warm starts or stable editor state.
+Stop/start semantics (dev):
+
+- Stopping a workspace stops the running workload but retains the workspace namespace and PVC so `/workspaces` survives pod restarts.
+- Deleting a workspace deletes the namespace, which deletes the PVC and its backing disk (AKS dynamic PVs typically reclaim with `Delete`).
+
+Cost posture:
+
+- Stopped workspaces still reserve a premium disk; enforce idle cleanup via workspace lifecycle policies.
 
 Do not share mutable credential state between workspaces by default (avoids cross-talk described in `backlog/624-devcontainer-context-isolation.md`).
 
