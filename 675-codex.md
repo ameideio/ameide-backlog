@@ -1,3 +1,11 @@
+## Codex app-server protocol reference (/status fields)
+
+This is the protocol reference used by:
+
+- `backlog/675-codex-broker.md` (broker polls `account/rateLimits/read` for depletion status)
+- `backlog/675-codex-monitor.md` (historical rate limits/credits monitoring)
+- `backlog/675-codex-refresher.md` (forced token refresh / rotation)
+
 Goal
 
   - Programmatically retrieve the same underlying “status” data that /status displays: effective config + session/thread metadata + token usage + account rate limits/credits.
@@ -86,6 +94,12 @@ Goal
       - account/rateLimits/updated (limits snapshot)
       - turn/completed (turn lifecycle confirmation)
   7. Aggregate into one “status object” and return/print.
+
+  Related: session broker (parallel consumers)
+
+  - The Codex broker (`backlog/675-codex-broker.md`) uses this same app-server surface to:
+      - poll `account/rateLimits/read` for account depletion, and
+      - avoid `refresh_token_reused` by leasing distinct `auth.json` sessions per consumer.
 
   Related: auth refresh automation
 

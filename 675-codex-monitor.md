@@ -1,5 +1,9 @@
 ## Codex monitor (GitOps-owned; historical rate limits/credits)
 
+### Status
+
+Legacy (slot-based). Keep this for the current `0/1/2` implementation and migration safety, but new consumers should target the generalized broker model in `backlog/675-codex-broker.md` (n accounts, n sessions, lease-based allocation) which can expose the same depletion metrics across accounts.
+
 ### Goal
 
 Persist and visualize Codex `/status`-equivalent fields (especially rate-limit windows, resets, credits/remaining %) **historically** per Codex slot, so we can:
@@ -27,6 +31,8 @@ Persist and visualize Codex `/status`-equivalent fields (especially rate-limit w
 ### Consumer state decision (K8s-visible; per-slot; Secret)
 
 Consumers (especially Coder tasks) need a fast, in-cluster preflight signal to avoid using an exhausted slot.
+
+In the broker model (`backlog/675-codex-broker.md`), consumers should not read per-slot Secrets directly; they should ask the broker for a leased session and optionally consume broker-provided account depletion snapshots. The monitor remains useful as a transitional interface for `codex-account-status-<slot>` while Coder/Che templates are migrated.
 
 Decision:
 

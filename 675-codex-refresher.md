@@ -1,5 +1,9 @@
 ## Codex auth refresher (GitOps-owned; slot-based; daily)
 
+### Status
+
+Legacy (slot-based). Keep this for the current `0/1/2` implementation and migration safety, but new consumers should target the generalized broker model in `backlog/675-codex-broker.md` (n accounts, n sessions, lease-based allocation).
+
 ### Problem
 
 Codex CLI ChatGPT auth uses `$CODEX_HOME/auth.json`. Refreshing the token can rotate the refresh token; if we refresh repeatedly from a stale file, we can hit `refresh_token_reused`.
@@ -11,6 +15,8 @@ In this repo, `Secret/codex-auth-<slot>` and `Secret/codex-auth-rotating-<slot>`
 We do not use a “default account”. We use **account slots** only:
 
 - `0`, `1`, `2` (extendable later; environments may provision a subset)
+
+This document describes the **slot-based refresher**. In the broker model (`backlog/675-codex-broker.md`), token rotation becomes a **session lifecycle** concern with exclusive leases; the refresher remains useful as a transitional mechanism for the existing slot secrets (`codex-auth-rotating-N`).
 
 Each slot is a full stack of:
 
@@ -58,6 +64,7 @@ We keep the existing pipeline **as-is** for initial/manual auth seeding, and int
    - `initialize` → `initialized`
    - `account/read` with `{"refreshToken": true}` (forces refresh)
    - optional verify: `account/rateLimits/read`
+   - reference protocol: `backlog/675-codex.md`
 3. Reads the updated `$CODEX_HOME/auth.json` from disk (never prints it).
 4. Writes base64(auth.json) into Vault KV at `secret/<rotatingVaultKey>` under field `value`.
 5. Exits **non-zero** if refresh or write fails (and must not overwrite the rotating key on failure).
