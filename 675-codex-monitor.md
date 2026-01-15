@@ -2,7 +2,12 @@
 
 ### Status
 
-Legacy (slot-based). Keep this for the current `0/1/2` implementation and migration safety, but new consumers should target the generalized broker model in `backlog/675-codex-broker.md` (n accounts, n sessions, lease-based allocation) which can expose the same depletion metrics across accounts.
+Legacy (slot-based). New work should target the generalized broker model in `backlog/675-codex-broker.md` (n accounts, n sessions, lease-based allocation). This monitor should only remain while any consumers still depend on per-slot `codex-account-status-<slot>` signals.
+
+### Implementation status (GitOps)
+
+- The broker GitOps scaffolding exists and is deployed in dev with a placeholder image to validate the platform wiring; see `backlog/675-codex-broker.md`.
+- No new investment is planned in the slot-based monitor once the broker publishes per-account depletion metrics directly (Prometheus/Grafana).
 
 ### Goal
 

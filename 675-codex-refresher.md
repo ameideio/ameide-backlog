@@ -2,7 +2,12 @@
 
 ### Status
 
-Legacy (slot-based). Keep this for the current `0/1/2` implementation and migration safety, but new consumers should target the generalized broker model in `backlog/675-codex-broker.md` (n accounts, n sessions, lease-based allocation).
+Legacy (slot-based). New work should target the generalized broker model in `backlog/675-codex-broker.md` (n accounts, n sessions, lease-based allocation). This refresher should only remain while any consumers still depend on per-slot rotating Secrets (`codex-auth-rotating-N`).
+
+### Implementation status (GitOps)
+
+- The broker GitOps scaffolding exists and is deployed in dev with a placeholder image to validate the platform wiring; see `backlog/675-codex-broker.md`.
+- The broker model eliminates shared-refresh-token collisions by leasing distinct sessions per consumer; that makes “refreshing a shared rotating slot secret” an anti-pattern in the clean target state.
 
 ### Problem
 

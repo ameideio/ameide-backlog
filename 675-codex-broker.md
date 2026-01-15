@@ -27,6 +27,22 @@ Provide a GitOps-owned service that:
 - Letting two consumers concurrently write the same session’s `auth.json`.
 - Providing “default” accounts; selection is explicit or `auto`.
 
+### Implementation status (GitOps)
+
+As of `ameideio/ameide-gitops` commit `1a12a027d0fa5522097ab96ca94b8b709af2aa0b`:
+
+- GitOps wiring exists (clean target-state scaffolding):
+  - Helm chart: `sources/charts/apps/codex-broker/`
+  - Shared values: `sources/values/_shared/apps/codex-broker.yaml`
+  - ArgoCD component: `environments/_shared/components/apps/runtime/codex-broker/component.yaml`
+- Postgres plumbing is in place for atomic leasing/indexing:
+  - `Database/postgres-ameide-codex-broker` creates `codex_broker` owned by `codex_broker`.
+  - `ExternalSecret/codex-broker-db-credentials` materializes `Secret/codex-broker-db-credentials` for the app.
+- Vault bootstrap includes the broker role/policy scaffolding for `codex-broker` (Kubernetes auth role + policy).
+- Dev is enabled with a placeholder image (`ghcr.io/stefanprodan/podinfo:6.6.1`) to validate GitOps end-to-end (Deployment/Service/ServiceMonitor/DB secret path); staging/production remain disabled pending a real broker image.
+
+Still missing (intentionally): the actual broker application image (API + UI + lease/session logic). Until that exists, the GitOps layer only validates deployment and secret/database wiring.
+
 ### Vocabulary (generalized)
 
 - **Account**: who you are logged in as (a Codex/ChatGPT identity). Accounts have shared rate limits/credits.

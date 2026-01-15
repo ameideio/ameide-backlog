@@ -6,6 +6,10 @@ This is the protocol reference used by:
 - `backlog/675-codex-monitor.md` (historical rate limits/credits monitoring)
 - `backlog/675-codex-refresher.md` (forced token refresh / rotation)
 
+Implementation status (GitOps)
+
+  - The `codex-broker` GitOps scaffolding (Deployment/Service/ServiceMonitor + Postgres/Vault wiring) is implemented in `ameideio/ameide-gitops` and validated in `dev` with a placeholder image; the real broker application still needs to implement these protocol calls.
+
 Goal
 
   - Programmatically retrieve the same underlying “status” data that /status displays: effective config + session/thread metadata + token usage + account rate limits/credits.
