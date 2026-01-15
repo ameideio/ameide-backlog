@@ -75,6 +75,7 @@ Workspace must expose code-server through a Coder app proxy surface (vendor-alig
 
 - Start code-server with `--auth none`.
 - Use `/healthz` for readiness/smoke checks.
+- Prefer the vendor-supported code-server module (vs ad-hoc daemon management in `startup_script`).
 
 ### 4.3 Template-scoped `AGENTS.md` (required)
 
@@ -111,9 +112,10 @@ Principles:
 Minimum deliverable:
 
 - Codex is usable in the workspace **out of the box**:
-  - Codex CLI installed (pinned)
-  - Codex VS Code extension installed in code-server (`openai.chatgpt`, pinned)
-  - authentication pre-seeded from `Secret/codex-auth` (dev-only shared principal) using file-backed credentials (`cli_auth_credentials_store = "file"`) so CLI and extension share the same cache (see `backlog/613-codex-auth-json-secret.md`)
+  - Codex CLI installed (best-effort; **no pin/version knob**; “latest” by default)
+  - Codex VS Code extension installed in code-server (`openai.chatgpt`, best-effort; no pin)
+  - authentication pre-seeded via slot secrets (`Secret/codex-auth-rotating-0..2` preferred; falls back to `Secret/codex-auth-0..2`) using file-backed credentials (`cli_auth_credentials_store = "file"`) so CLI and extension share the same cache (see `backlog/613-codex-auth-json-secret.md`)
+  - resilience: Codex installs must not block workspace readiness; failures are surfaced in script logs but should not flip the workspace to unhealthy
 
 Optional deliverable:
 

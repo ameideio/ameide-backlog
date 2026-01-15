@@ -59,3 +59,12 @@ Follow-ups (recommended)
   - Decide whether template publishing must be Argo-driven (PostSync hook Job) or may remain CI-driven:
       - CI-driven (current) avoids storing a long-lived Coder token in-cluster and can run on GitHub-hosted runners (independent of ARC health).
       - Argo-driven implies storing/passing a long-lived Coder admin token via Vault/ESO, and operating a Job with the right egress/auth to publish templates after a DB reset.
+
+Update (2026-01-15): workspace health hardening + orphan cleanup
+
+  - Vendor-aligned template refactor landed in the GitOps repo:
+    - keep `startup_script` minimal and non-fatal; move setup into `coder_script`
+    - use the vendor-supported `code-server` module instead of hand-managed daemon logic
+    - remove Codex CLI/version knobs; install “latest” best-effort so transient failures do not flip workspaces unhealthy
+  - Added a break-glass GitHub workflow to delete orphaned Coder workspace namespaces when Coder state diverges from cluster resources:
+    - `.github/workflows/aks-delete-orphan-coder-namespace.yaml`

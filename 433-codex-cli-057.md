@@ -1,5 +1,10 @@
 # 433 – Codex CLI 0.57.0 Pin
 
+Update (2026-01-15): Coder workspaces unpinned by default
+
+- The Coder workspace templates moved to “best-effort latest” installs for Codex CLI + the VS Code extension (no version knobs) to avoid workspace startup failures on transient network issues.
+- This document is no longer the default policy for Coder workspaces; treat it as historical context / a regression-playbook if we intentionally reintroduce pinning for a specific incident.
+
 ## Context
 
 - The default CLI delivered with the VS Code extension was `codex-cli 0.61.1-alpha.1`, but the workspace needs to remain on **0.57.0** until we explicitly qualify newer releases.

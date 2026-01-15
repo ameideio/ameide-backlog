@@ -81,9 +81,9 @@ Related: `backlog/527-transformation-integration.md` (workbench pod is “not a 
    - kubectl context defaults scoped to the workspace namespace (if kubectl is included)
    - standard Ameide toolchain required for editing and repo workflows
    - Codex out-of-the-box:
-     - `codex` CLI installed (pinned)
-     - Codex VS Code extension installed (`openai.chatgpt`, pinned)
-     - authentication pre-seeded from `Secret/codex-auth` (dev-only shared principal; see `backlog/613-codex-auth-json-secret.md`)
+     - `codex` CLI installed (best-effort; **no pin/version knob**; “latest” by default)
+     - Codex VS Code extension installed (`openai.chatgpt`, best-effort; no pin)
+     - authentication pre-seeded via slot secrets (`Secret/codex-auth-rotating-0..2` preferred; falls back to `Secret/codex-auth-0..2`; see `backlog/613-codex-auth-json-secret.md`)
 3. Developer makes changes, runs local/unit checks, pushes branch, opens PR.
 
 ### 3.1 Workspace lifecycle (cost control)
@@ -279,9 +279,14 @@ But: all overlays must be wired so it is “one value flip” to enable in other
   - `ameide-gitops` at `sources/coder/templates/ameide-gitops/` (defaults to `github.com/ameideio/ameide-gitops` with `.devcontainer/coder`)
 - Template packaging rule: `coder templates push -d <dir>` uploads only that directory, so shared Terraform code is vendored under each template (no out-of-tree module imports).
 - Single-environment invariant: code-server runs in the **same workspace container** as the toolchain (no sidecar).
-- code-server install is runtime-pinned (downloaded from `coder/code-server` release artifacts) and started with `--auth none` on `127.0.0.1` with `/healthz` readiness.
-- Codex VS Code extension is installed deterministically by downloading a pinned VSIX from Open VSX (`openai.chatgpt`) and installing from the VSIX path.
+- code-server is managed via the vendor-supported code-server module (started with `--auth none` and `/healthz` readiness).
+- Codex VS Code extension is installed best-effort via `code-server --install-extension openai.chatgpt` (no pinned VSIX).
 - Codex auth seeding is deterministic:
-  - `Secret/codex-auth` is mounted and copied to `$HOME/.codex/auth.json` (chmod 0600)
+  - a Codex slot secret is selected and copied to `$HOME/.codex/auth.json` (chmod 0600)
   - `$HOME/.codex/config.toml` sets `cli_auth_credentials_store = "file"` so both the CLI and VS Code extension use the same file-backed cache
 - Workspace RBAC is namespace-scoped and does not grant `secrets` read access by default.
+
+Update (2026-01-15): vendor-aligned workspace bootstrap
+
+- Keep `startup_script` minimal and non-fatal; move non-trivial setup into `coder_script` resources (per vendor direction).
+- Remove version knobs for Codex tooling; installs are “latest” and best-effort to avoid blocking workspace readiness.
