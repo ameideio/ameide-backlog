@@ -94,6 +94,7 @@ Update (2026-01-15): make template rehydration reliable after DB resets
 
 - Dev cluster/namespace recreation can yield a fresh CNPG-backed Coder database (templates disappear).
 - Keep a reproducible “rehydrate templates” workflow that can run without manual intervention; avoid short-lived CI session tokens that expire weekly.
+- Incident log: `backlog/677-coder-dev-templates-disappeared-after-cluster-recreate.md`.
 
 ## 3) Security model (implementation requirements)
 

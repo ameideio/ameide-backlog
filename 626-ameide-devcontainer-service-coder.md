@@ -106,6 +106,7 @@ Update (2026-01-15): templates and “first user” after cluster recreate
 
   - If the dev cluster/namespace is recreated, CNPG PVCs can be recreated and the Coder DB will be fresh (templates/users gone).
   - Recovery procedure in dev is: ensure first-user bootstrap is enabled, then re-publish templates from Git via the CI workflow `.github/workflows/coder-devcontainer-e2e.yaml`.
+  - Incident log: `backlog/677-coder-dev-templates-disappeared-after-cluster-recreate.md`.
 
 ## 4) Dev environment contract (devcontainer alignment without Docker)
 
