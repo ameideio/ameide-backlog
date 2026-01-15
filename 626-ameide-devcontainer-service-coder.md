@@ -102,6 +102,11 @@ Implementation (dev):
 - Coder OIDC is configured via `sources/values/env/dev/platform/platform-coder.yaml`.
 - The first admin user is bootstrapped via an Argo hook Job + ExternalSecret in `sources/charts/platform/coder/templates/`.
 
+Update (2026-01-15): templates and “first user” after cluster recreate
+
+  - If the dev cluster/namespace is recreated, CNPG PVCs can be recreated and the Coder DB will be fresh (templates/users gone).
+  - Recovery procedure in dev is: ensure first-user bootstrap is enabled, then re-publish templates from Git via the CI workflow `.github/workflows/coder-devcontainer-e2e.yaml`.
+
 ## 4) Dev environment contract (devcontainer alignment without Docker)
 
 We treat the repo’s devcontainer definition as the environment contract, but we do **not** require Docker daemon in-cluster.

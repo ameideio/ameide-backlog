@@ -90,6 +90,11 @@ Define:
 - how CI pushes template versions to Coder (Coder CLI/API) and promotes after E2E passes
 - how we keep the template version in sync with the GitOps release (operational runbook)
 
+Update (2026-01-15): make template rehydration reliable after DB resets
+
+- Dev cluster/namespace recreation can yield a fresh CNPG-backed Coder database (templates disappear).
+- Keep a reproducible “rehydrate templates” workflow that can run without manual intervention; avoid short-lived CI session tokens that expire weekly.
+
 ## 3) Security model (implementation requirements)
 
 Hard requirements:
