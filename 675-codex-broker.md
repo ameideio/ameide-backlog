@@ -1,15 +1,11 @@
 ## Codex broker (GitOps-owned; n accounts; n sessions; lease-based)
 
-### Status
-
-Proposed target state. `backlog/675-codex-monitor.md` and `backlog/675-codex-refresher.md` remain useful as slot-based migration/compatibility layers while consumers move to broker leases.
-
 ### Problem
 
 Codex ChatGPT auth uses rotating refresh tokens persisted to `$CODEX_HOME/auth.json`.
 If two independent runtimes share the same `auth.json` (same refresh-token chain) they will eventually race a refresh: one rotates the token and the other hits `refresh_token_reused` and becomes unusable.
 
-The current slot model (`0/1/2`) plus `codex-auth-refresher`/`codex-monitor` addresses **account selection** and **depletion awareness**, but it assumes a small fixed number of accounts and does not provide a general mechanism for:
+Typical “shared auth file” approaches address **account selection** and **depletion awareness**, but they do not provide a general mechanism for:
 
 - allocating **exclusive** auth “sessions” to concurrent consumers (devcontainers, tasks, jobs)
 - scaling to **n accounts** with **n sessions** per account (many concurrent consumers) without `refresh_token_reused`
@@ -347,15 +343,6 @@ Lease TTL + heartbeat only protects exclusivity if consumers stop using the sess
 - **Broker unavailable / network partition**: consumers fail closed when they cannot renew; broker should avoid allocating new leases while unhealthy.
 - **All sessions leased**: broker returns a clear “no available sessions” response (HTTP 429 + `Retry-After` is reasonable).
 - **Auth sync CAS conflict**: consumer re-fetches latest auth and retries upload only if its local auth differs (or skips if unchanged).
-
-### Migration plan (from slots 0/1/2)
-
-1) Introduce broker in dev with `n` accounts mapped to current slots:
-   - accounts: `slot-0`, `slot-1`, `slot-2` (or better, stable `account_id`s)
-   - sessions: one per account initially (mirrors current behavior)
-2) Update Coder templates to support broker selection behind a feature flag.
-3) Add additional sessions per account for parallelism.
-4) Optionally deprecate slot-only selection once broker is stable.
 
 ### Definition of done
 
