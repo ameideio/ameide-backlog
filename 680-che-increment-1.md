@@ -43,6 +43,13 @@ This increment does **not** attempt workspace image parity or agent entrypoints 
 - Workspace/public endpoint host pattern: `*.dev.ameide.io` (dev-only, see Risks)
 - OIDC issuer: `https://auth.dev.ameide.io/realms/ameide`
 
+## Vendor prerequisites (make CR-created workspaces usable)
+
+If we create a test workspace via Kubernetes APIs (not via the Che dashboard):
+
+- The `DevWorkspace` MUST include `spec.contributions` for the IDE (or we must prove Che default editor applies to CR-created workspaces).
+- The user namespace must already exist (user has logged into Che at least once, or we pre-provision it).
+
 ## GitOps delivery plan (authoritative path)
 
 Hard rule: no manual `kubectl apply/patch/delete` to “fix” cloud resources. All mutation is Git → CI → ArgoCD.
@@ -97,4 +104,3 @@ Che consumes the secret via ExternalSecrets (no GitHub credentials in workspaces
 
 - `*.dev.ameide.io` wildcard routing can catch “unknown” dev subdomains and send them to Che. Existing explicit host routes (e.g. `coder.dev.ameide.io`, `platform.dev.ameide.io`) should still win, but this needs to be kept in mind.
 - If this becomes problematic, follow-up increment should move workspace/public endpoints to a dedicated base domain (e.g. `*.ws.dev.ameide.io`) which requires both DNS + Gateway listener changes.
-
