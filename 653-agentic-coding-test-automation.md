@@ -81,6 +81,8 @@ Notes:
 
 - This is not Playwright E2E for the product; it is platform plumbing validation.
 - Smoke should include a “first-user bootstrapped” assertion for the Coder control plane (no `/setup` state).
+- Naming note: this repo also has an in-cluster ArgoCD app commonly called “platform-smoke” that validates public routing/control-plane HTTP endpoints; that is complementary, but it does not replace the workspace-provisioning smoke checks listed above.
+- Implementation note (current): the workspace-provisioning platform smoke is implemented as GitHub Actions workflows (`.github/workflows/coder-devcontainer-smoke.yaml`, `.github/workflows/coder-devcontainer-e2e.yaml`) and is intentionally GitHub-hosted so it remains independent of the in-cluster ARC runner fleet.
 
 ### 4.2 Layer 2 — developer inner loop (`ameide test`)
 

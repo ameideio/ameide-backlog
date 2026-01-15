@@ -107,6 +107,7 @@ Update (2026-01-15): templates and “first user” after cluster recreate
   - If the dev cluster/namespace is recreated, CNPG PVCs can be recreated and the Coder DB will be fresh (templates/users gone).
   - Recovery procedure in dev is: ensure first-user bootstrap is enabled, then re-publish templates from Git via the CI workflow `.github/workflows/coder-devcontainer-e2e.yaml`.
   - Incident log: `backlog/677-coder-dev-templates-disappeared-after-cluster-recreate.md`.
+  - Clarification: the in-cluster ArgoCD “platform-smoke” component only validates routing/control-plane health; the platform smoke that proves workspace provisioning and app proxy path is currently owned by the GitHub workflows described in `backlog/653-agentic-coding-test-automation.md`.
 
 ## 4) Dev environment contract (devcontainer alignment without Docker)
 

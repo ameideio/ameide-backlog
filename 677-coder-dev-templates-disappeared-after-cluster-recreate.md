@@ -56,4 +56,6 @@ Follow-ups (recommended)
   - Decide whether dev Coder DB is “ephemeral by design”:
       - If yes: keep the “rehydrate templates via CI” workflow as the documented recovery procedure.
       - If no: add CNPG backups (object storage) and/or adjust reclaim policy (Retain) in the storage layer.
-  - Consider making template publishing Argo-driven (PostSync hook Job) if “Argo is the orchestrator” is a hard requirement.
+  - Decide whether template publishing must be Argo-driven (PostSync hook Job) or may remain CI-driven:
+      - CI-driven (current) avoids storing a long-lived Coder token in-cluster and can run on GitHub-hosted runners (independent of ARC health).
+      - Argo-driven implies storing/passing a long-lived Coder admin token via Vault/ESO, and operating a Job with the right egress/auth to publish templates after a DB reset.
