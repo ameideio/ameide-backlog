@@ -173,6 +173,13 @@ In dev, treat old user namespaces as disposable artifacts. Practically:
 - If the UI keeps calling an old namespace (and you still see `403 Forbidden`), log out and back in (or use an incognito window) to force a new session and namespace resolution.
 - Prefer verifying the namespace Che is using via the Che namespace discovery endpoint (`/api/kubernetes/namespace`) and then check RBAC in that namespace.
 
+For stable and deterministic behavior (recommended once we move beyond ad-hoc dev testing), prefer the vendor-supported approach:
+
+- Set `CheCluster.spec.devEnvironments.defaultNamespace.autoProvision: false`
+- Pre-provision namespaces and annotate them with `che.eclipse.org/username: <canonical-username>`
+
+Note: namespace templates require `<username>` or `<userid>`, and username sanitization affects the final namespace name.
+
 ## Risks / known sharp edges
 
 - vCluster introduces an additional control plane component; we must track its resource footprint and failure modes.
