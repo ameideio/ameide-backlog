@@ -152,6 +152,16 @@ E2E pass:
 - Workspace storage assumptions for tests: do not assume persistence across workspace deletion; stop/start should preserve `/workspaces`.
 - Workspace auto-stop must be enabled by default (do not rely on tests to stop idle workspaces).
 
+## 5.1 Bootstrap diagnostics (Envbuilder/Coder)
+
+- Coder templates build from `.devcontainer/coder`; workstation `postCreate` does not run in these workspaces.
+- Envbuilder currently runs `postCreateCommand` as root in this flow; avoid relying on `$HOME` for user-visible artifacts unless the script writes to `/home/vscode`.
+- Post-create logs are written to `/workspaces/.devcontainer/logs/coder-postCreate.log` (world-readable) for fast inspection.
+- Workspace build logs include a `[workspace-bootstrap]` summary (devcontainer path, feature list, postCreate command, and tail of the postCreate log).
+- For failures, check:
+  - workspace pod logs in `ameide-ws-<workspace-id>` (envbuilder build output)
+  - Coder control-plane logs (`kubectl -n ameide-dev logs deploy/coder`) for app proxy errors
+
 ## 6) Networking prerequisites for automation
 
 - `CODER_ACCESS_URL` must be reachable from the test runner, and ingress must support WebSockets.
