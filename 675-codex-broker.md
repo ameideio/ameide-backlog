@@ -34,13 +34,15 @@ Current state (implemented in `ameideio/ameide-gitops`):
 - Broker application exists and is deployed in dev:
   - App source/image: `images/codex-broker/` (Go)
   - Dev image is digest-pinned (see `ameideio/ameide-gitops/sources/values/env/dev/apps/codex-broker.yaml`)
-    - Example (2026-01-16): `ghcr.io/ameideio/codex-broker@sha256:9d1c5179bbcf22921e1d5033a91778ea0af75e42590e064582ffa9d84df8f3e7`
+    - Example (2026-01-16): `ghcr.io/ameideio/codex-broker@sha256:040284aa5ef13b4970ef1305ee0f258f002c443b980c5503522b4e9d8b9da79c`
 - Storage model matches the intended architecture:
   - Vault KVv2 holds session material (`auth.json`)
   - Postgres holds non-secret metadata + atomic leases/indexing
 - UI exists and is protected by Keycloak OIDC (realm role gate):
   - UI entry: `https://codex-broker.dev.ameide.io/ui/`
   - OIDC callback: `/auth/callback` (PKCE enabled)
+  - UI styling: GitHub Primer CSS, with light/dark/auto theme toggle (client-side; stored in localStorage)
+  - Rollout verification: `GET https://codex-broker.dev.ameide.io/version` returns JSON build info (version/tag, commit, build time)
 - Device-auth session minting is implemented:
   - UI flow “Create session (device login)” starts Codex device auth server-side and shows `verificationUri` + `userCode`
   - On successful device auth completion, the broker stores a new session (Vault + Postgres) automatically
