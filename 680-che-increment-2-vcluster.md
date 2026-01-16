@@ -91,6 +91,7 @@ Add a new GitOps component (dev only):
     - `--oidc-client-id=che` (audience)
     - username claim = `email` (stable canonical identity; matches upstream examples)
     - groups claim = `groups`
+    - username prefix disabled: `--oidc-username-prefix=-` (avoid issuer-prefixing surprises)
   - Configures Che to use the same username claim to avoid RBAC subject mismatches:
     - `CHE_OIDC_USERNAME__CLAIM=email`
   - Installs Che dependencies inside the vCluster:
@@ -162,6 +163,15 @@ Follow-up hardening (vendor-aligned):
   - `kubectl -n <che-namespace-in-vcluster> logs deploy/che-dashboard --since=10m | rg -n 'Unauthorized|statusCode\": 401'`
 - Che dashboard “Forbidden” is gone (RBAC subject match):
   - `kubectl -n <che-namespace-in-vcluster> logs deploy/che-dashboard --since=10m | rg -n 'Forbidden|statusCode\": 403'`
+
+## Operational note: username claim changes cause new user namespaces
+
+Changing the Kubernetes username claim (or Che’s `CHE_OIDC_USERNAME__CLAIM`) changes the resolved username key and can cause Che to create a **new** user namespace and RBAC bindings.
+
+In dev, treat old user namespaces as disposable artifacts. Practically:
+
+- If the UI keeps calling an old namespace (and you still see `403 Forbidden`), log out and back in (or use an incognito window) to force a new session and namespace resolution.
+- Prefer verifying the namespace Che is using via the Che namespace discovery endpoint (`/api/kubernetes/namespace`) and then check RBAC in that namespace.
 
 ## Risks / known sharp edges
 

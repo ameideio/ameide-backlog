@@ -68,6 +68,17 @@ If we create a test workspace via Kubernetes APIs (not via the Che dashboard):
 - The `DevWorkspace` MUST include `spec.contributions` for the IDE (or we must prove Che default editor applies to CR-created workspaces).
 - The user namespace must already exist (user has logged into Che at least once, or we pre-provision it).
 
+## Vendor prerequisite: stable Kubernetes username claim (avoid 403 after login)
+
+Che’s gateway enforces authorization via Kubernetes RBAC. If Kubernetes authenticates the OIDC token into a different username string than the one Che used to create per-user RoleBindings, the dashboard will show `403 Forbidden` for DevWorkspaces, user profile, pods, etc.
+
+For vendor-aligned portability, prefer:
+
+- Kubernetes API server username claim = `email` (and disable username prefixing), and
+- Che server property `CHE_OIDC_USERNAME__CLAIM=email`
+
+Increment 2 (`backlog/680-che-increment-2-vcluster.md`) applies this pattern in the vCluster deployment.
+
 ## GitOps delivery plan (authoritative path)
 
 Hard rule: no manual `kubectl apply/patch/delete` to “fix” cloud resources. All mutation is Git → CI → ArgoCD.
