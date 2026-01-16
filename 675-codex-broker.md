@@ -29,19 +29,31 @@ Provide a GitOps-owned service that:
 
 ### Implementation status (GitOps)
 
-As of `ameideio/ameide-gitops` commit `1a12a027d0fa5522097ab96ca94b8b709af2aa0b`:
+Current state (implemented in `ameideio/ameide-gitops`):
 
-- GitOps wiring exists (clean target-state scaffolding):
-  - Helm chart: `sources/charts/apps/codex-broker/`
-  - Shared values: `sources/values/_shared/apps/codex-broker.yaml`
-  - ArgoCD component: `environments/_shared/components/apps/runtime/codex-broker/component.yaml`
-- Postgres plumbing is in place for atomic leasing/indexing:
-  - `Database/postgres-ameide-codex-broker` creates `codex_broker` owned by `codex_broker`.
-  - `ExternalSecret/codex-broker-db-credentials` materializes `Secret/codex-broker-db-credentials` for the app.
-- Vault bootstrap includes the broker role/policy scaffolding for `codex-broker` (Kubernetes auth role + policy).
-- Dev is enabled with a placeholder image (`ghcr.io/stefanprodan/podinfo:6.6.1`) to validate GitOps end-to-end (Deployment/Service/ServiceMonitor/DB secret path); staging/production remain disabled pending a real broker image.
+- Broker application exists and is deployed in dev:
+  - App source/image: `images/codex-broker/` (Go)
+  - Dev image is digest-pinned (example: `ghcr.io/ameideio/codex-broker@sha256:9fff0553ed62103c86fbf7ad56ce806d8c5264dd5195c97f087cd7c6b874c8bd`)
+- Storage model matches the intended architecture:
+  - Vault KVv2 holds session material (`auth.json`)
+  - Postgres holds non-secret metadata + atomic leases/indexing
+- UI exists and is protected by Keycloak OIDC (realm role gate):
+  - UI entry: `https://codex-broker.dev.ameide.io/ui/`
+  - OIDC callback: `/auth/callback` (PKCE enabled)
+- Device-auth session minting is implemented:
+  - UI flow “Create session (device login)” starts Codex device auth server-side and shows `verificationUri` + `userCode`
+  - On successful device auth completion, the broker stores a new session (Vault + Postgres) automatically
+  - API: `POST /v1/admin/sessions/device-auth/start`, `GET /v1/admin/sessions/device-auth/{id}`, `POST /v1/admin/sessions/device-auth/{id}/cancel`
+- Lease flow is implemented for in-cluster consumers:
+  - Consumers authenticate via Kubernetes `TokenReview` (`CODEX_BROKER_AUTH_MODE=kubernetes`)
+  - Lease + materialization API: `POST /v1/leases`, `GET/PUT /v1/leases/{leaseId}/auth.json` (ETag/If-Match CAS), `POST /heartbeat`, `POST /release`
+- E2E verification (dev) completed for the core API flow:
+  - Create account + session, acquire lease, fetch `auth.json` with ETag, upload updated `auth.json` with `If-Match`, heartbeat, release.
 
-Still missing (intentionally): the actual broker application image (API + UI + lease/session logic). Until that exists, the GitOps layer only validates deployment and secret/database wiring.
+Notes:
+
+- The public Gateway route is currently UI-first (paths like `/ui`, `/auth`, `/healthz`, `/readyz`). `/v1/*` is intended for in-cluster consumers (use service DNS or port-forward for manual API testing).
+- Account depletion monitoring/generalized scoring is not implemented yet (this doc’s “Depletion monitoring” section remains the target design).
 
 ### Vocabulary (generalized)
 
@@ -214,19 +226,13 @@ Human UI uses standard SSO for the platform (out of scope for this backlog’s d
 
 The UI should not talk to Vault directly. It uses broker-admin endpoints that expose only non-sensitive data:
 
-- `GET /v1/admin/accounts`
-- `POST /v1/admin/accounts`
-- `PATCH /v1/admin/accounts/{account_id}` (enable/disable, labels, policy knobs)
-
-- `GET /v1/admin/sessions?account_id=&state=`
-- `POST /v1/admin/sessions/device-auth/start` (returns verification URL + user code)
-- `POST /v1/admin/sessions/device-auth/complete` (stores a new session in Vault; returns session_id)
-- `PATCH /v1/admin/sessions/{session_id}` (state transitions: `ready|quarantined|revoked`)
-
-- `GET /v1/admin/leases?account_id=&session_id=&consumer_id=`
-- `POST /v1/admin/leases/{lease_id}/revoke` (force-expire)
-
-- `GET /v1/admin/metrics-links` (optional: links to Grafana dashboards for hourly depletion graphs)
+- Implemented:
+  - `POST /v1/admin/accounts` (create/update account metadata)
+  - `POST /v1/admin/sessions` (store a session given `authJson`)
+  - `POST /v1/admin/sessions/device-auth/start` (returns `verificationUri` + `userCode`)
+  - `GET /v1/admin/sessions/device-auth/{id}` (poll status; includes `sessionId` on completion)
+  - `POST /v1/admin/sessions/device-auth/{id}/cancel`
+- Still desired (not implemented yet): list/filter admin endpoints, session state transitions/quarantine, lease revoke, and metrics/dashboard helpers.
 
 ### Session allocation algorithm
 
@@ -373,3 +379,8 @@ Lease TTL + heartbeat only protects exclusivity if consumers stop using the sess
   - sessions table + device-auth creation + quarantine/revoke controls
   - leases table + revoke controls
   - account depletion dashboard with hourly graphs via Prometheus/Grafana
+
+DoD status (dev):
+
+- Done: broker deployed; lease API (including auth.json ETag/If-Match CAS) verified end-to-end; UI + Keycloak OIDC + device-auth session minting implemented.
+- Pending: generalized depletion monitoring/score/windows; practical “one account, many sessions” long-run validation against real token refresh; full admin controls (quarantine/revoke, lease revoke) and dashboards.
