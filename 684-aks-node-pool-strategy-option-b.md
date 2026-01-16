@@ -18,6 +18,7 @@ Define an AKS node pool layout aligned to workload classes, plus dedicated execu
 - `ameide-system`: shared cluster control-plane workloads
 - `ameide-platform`: data plane (databases, brokers, observability state)
 - `ameide-apps`: stateless microservices
+- `ameide-arc-runners`: GitHub ARC ephemeral runner pods (autoscale 0→N)
 - `ameide-workspaces-che`: Che DevWorkspaces (autoscale 0→N)
 - `ameide-workspaces-coder`: Coder workspaces/tasks (autoscale 0→N)
 
@@ -55,6 +56,7 @@ Net effect: “system” nodes are acting as the shared general worker pool.
 | `system` | ArgoCD, controllers, CRD operators, cluster infra | `Standard_D4*` | fixed 2 | Premium LRS |
 | `platform` | Stateful/data workloads + platform control-plane components (e.g. Che control-plane/vcluster) | `Standard_D8*` | fixed 3 | Premium LRS |
 | `apps` | Stateless microservices | `Standard_B4ms` | fixed 3 | Standard |
+| `arc-runners` | GitHub Actions Runner Controller (ARC) runner pods | `Standard_D4*` | autoscale min=0 max=`N_arc` | Standard (ephemeral) |
 | `workspaces-che` | Che DevWorkspaces execution plane | `Standard_D4*` | autoscale min=0 max=`N_che` | Premium SSD (workspace volumes) |
 | `workspaces-coder` | Coder workspaces/tasks execution plane | `Standard_D4*` | autoscale min=0 max=`N_coder` | Premium SSD (workspace volumes) |
 
@@ -71,6 +73,7 @@ And MUST prevent accidental placement on non-app pools:
 
 - `system`: taint `CriticalAddonsOnly=true:NoSchedule` (cluster infra must tolerate)
 - `platform`: taint `ameide.io/pool=platform:NoSchedule` (platform/data workloads must tolerate)
+- `arc-runners`: taint `ameide.io/pool=arc-runners:NoSchedule` (ARC runner pods must tolerate)
 - `workspaces-che`: taint `ameide.io/pool=workspaces-che:NoSchedule` (Che workspaces must tolerate)
 - `workspaces-coder`: taint `ameide.io/pool=workspaces-coder:NoSchedule` (Coder workspaces must tolerate)
 - `apps`: no taint (default landing zone)
@@ -84,6 +87,7 @@ Rationale: this keeps “regular workloads” out of `system` and `platform` by 
 Cluster-scoped infrastructure per `backlog/446-namespace-isolation.md`:
 
 - ArgoCD (and ArgoCD-adjacent controllers)
+- ARC scale set controller (operator) (see `backlog/598-github-arc.md`)
 - cert-manager (cluster install)
 - external-secrets controller
 - operator namespaces (`*-system`), CRD installers, admission webhooks
@@ -101,6 +105,12 @@ Environment-scoped *platform/data plane* workloads:
 ### apps pool
 
 Stateless microservices and horizontally scalable workloads, including “tenant workloads”.
+
+### arc-runners pool
+
+GitHub Actions jobs executed by ARC (ephemeral runner pods). This is intentionally separate from the ARC controller/operator.
+
+Cross-reference: `backlog/598-github-arc.md`.
 
 ### workspaces-che pool
 
@@ -189,8 +199,9 @@ Workspace schedulers (Che/Coder) must also be explicit about node placement, sin
 3. **Move platform/data workloads first** (platform pool taint ensures only intentional workloads land there).
 4. **Constrain system pool** (CriticalAddonsOnly tolerations + optional nodeSelectors for cluster controllers).
 5. **Move Che/Coder workspace execution** onto their dedicated pools (autoscale 0→N).
-6. **Finalize apps pool** as the default landing zone for stateless workloads.
-7. Capture a new post-change snapshot (update `backlog/682-aks-capacity-reservation-snapshot.md` or add a new snapshot).
+6. **Move ARC runner execution** onto `arc-runners` (autoscale 0→N) with taint-protected scheduling.
+7. **Finalize apps pool** as the default landing zone for stateless workloads.
+8. Capture a new post-change snapshot (update `backlog/682-aks-capacity-reservation-snapshot.md` or add a new snapshot).
 
 ## Risks / gotchas
 

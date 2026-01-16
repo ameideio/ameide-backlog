@@ -103,6 +103,13 @@ See `backlog/599-k8s-native-buildkit-builds-on-arc.md`.
 - `arc-systems`: controller
 - `arc-runners`: runner scale set + ephemeral runner pods
 
+### Scheduling (AKS workload-class pools)
+
+- ARC controller stays on the `system` pool (cluster operator).
+- Runner pods schedule onto the dedicated `arc-runners` pool (autoscale 0→N, taint-protected).
+
+Cross-reference: `backlog/684-aks-node-pool-strategy-option-b.md`.
+
 ### Workflow routing (`runs-on` contract)
 
 For runner scale sets, the workflow routing key is the **scale set name** (`runnerScaleSetName`). Treat it as a contract:
