@@ -4,6 +4,7 @@
 > - [443-tenancy-models.md](443-tenancy-models.md) – **Tenancy model overview (single source of truth)**
 > - [441-networking.md](441-networking.md) – Networking improvements
 > - [442-environment-isolation.md](442-environment-isolation.md) – Environment isolation
+> - [684-aks-node-pool-strategy-option-b.md](684-aks-node-pool-strategy-option-b.md) – Alternative: workload-class pools (system/platform/apps)
 > - [434-unified-environment-naming.md](434-unified-environment-naming.md) – Environment naming conventions
 > - [240-cluster-rightsizing.md](240-cluster-rightsizing.md) – Cluster resource planning
 > - [683-cnpg.md](683-cnpg.md) – CNPG platform notes (Azure Disk RWO, update strategy, pooler naming, backups)

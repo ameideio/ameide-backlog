@@ -9,6 +9,7 @@ This document describes the namespace isolation architecture for the Ameide plat
 ## Related Documents
 
 - [442-environment-isolation.md](442-environment-isolation.md) - Environment dev/staging/prod isolation (node pools, shutdown)
+- [684-aks-node-pool-strategy-option-b.md](684-aks-node-pool-strategy-option-b.md) - Alternative: workload-class pools (system/platform/apps)
 - [445-argocd-namespace-isolation.md](445-argocd-namespace-isolation.md) - ArgoCD namespace isolation details
 - [443-tenancy-models.md](443-tenancy-models.md) - Multi-tenant architecture
 - [441-networking.md](441-networking.md) - Network policies

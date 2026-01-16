@@ -4,6 +4,7 @@
 > - [443-tenancy-models.md](443-tenancy-models.md) – **Tenancy model overview (single source of truth)**
 > - [440-storage-concerns.md](440-storage-concerns.md) – Storage improvements
 > - [442-environment-isolation.md](442-environment-isolation.md) – Environment isolation
+> - [684-aks-node-pool-strategy-option-b.md](684-aks-node-pool-strategy-option-b.md) – Alternative: workload-class pools (system/platform/apps)
 > - [434-unified-environment-naming.md](434-unified-environment-naming.md) – Environment naming conventions
 > - [240-cluster-rightsizing.md](240-cluster-rightsizing.md) – Cluster resource planning
 > - [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md) – Dual ApplicationSet architecture

@@ -10,6 +10,7 @@ This document centralizes how PostgreSQL is deployed/operated via CloudNativePG 
 - `683-cnpg.md` (this doc)
 - `412-cnpg-owned-postgres-greds.md` (credential ownership “north star”)
 - `440-storage-concerns.md` (storage tiers + backups plan)
+- `684-aks-node-pool-strategy-option-b.md` (workload-class pools; CNPG placement on `platform`)
 - `420-temporal-cnpg-dev-registry-runbook.md` (Temporal usage of CNPG DBs/users + recovery)
 - `489-pgadmin-keycloak-oidc.md` (pgAdmin + CNPG `servers.json` generation)
 - `531-local-cnpg-placement-vs-control-plane-taints.md` (local CNPG scheduling/PV binding)
@@ -93,4 +94,3 @@ Intended (GitOps + IaC) path is in `440-storage-concerns.md`:
 - Volume attachments: `kubectl get volumeattachment | rg -i 'postgres-ameide|pvc-'`
 - Services (reserved names): `kubectl -n <ns> get svc | rg postgres-ameide`
 - Poolers (should be empty while disabled): `kubectl -n <ns> get pooler`
-

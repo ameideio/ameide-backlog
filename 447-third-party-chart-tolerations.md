@@ -17,6 +17,7 @@
 > **Related documents:**
 > - [442-environment-isolation.md](442-environment-isolation.md) – Environment isolation strategy (parent issue)
 > - [446-namespace-isolation.md](446-namespace-isolation.md) – Namespace isolation
+> - [684-aks-node-pool-strategy-option-b.md](684-aks-node-pool-strategy-option-b.md) – Alternative: workload-class pools (system/platform/apps)
 > - [240-cluster-rightsizing.md](240-cluster-rightsizing.md) – Cluster resource planning
 > - [452-observability-namespace-isolation.md](452-observability-namespace-isolation.md) – Observability RBAC namespace isolation
 > - [456-ghcr-mirror.md](456-ghcr-mirror.md) – GHCR image mirroring for Docker Hub rate limits
