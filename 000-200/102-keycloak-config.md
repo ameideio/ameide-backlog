@@ -1,4 +1,6 @@
 > Note: Chart and values paths are now under gitops/ameide-gitops/sources (charts/values); any infra/kubernetes/charts references below are historical.
+>
+> Update (2026-01): Keycloak is operator-managed (Keycloak CR) and exposed via Gateway HTTPRoute (`auth.<env>.ameide.io` → `Service/keycloak:8080`). Some older k3d/localhost `:4000` notes remain as historical context.
 
 # Keycloak Configuration and Setup
 
@@ -25,7 +27,7 @@ Keycloak is deployed as the identity and access management solution for the AMEI
 - **Admin Console**: http://localhost:4000
 - **OIDC Discovery**: http://localhost:4000/realms/ameide/.well-known/openid-configuration
 - **Token Endpoint**: http://localhost:4000/realms/ameide/protocol/openid-connect/token
-- **Internal Service URL**: http://keycloak.ameide.svc.cluster.local:4000
+- **Internal Service URL**: http://keycloak.ameide.svc.cluster.local:8080
 
 ### Realms Configuration
 
@@ -214,7 +216,7 @@ AUTH_TRUST_HOST: true  # For development
 KEYCLOAK_CLIENT_ID: web-app
 KEYCLOAK_CLIENT_SECRET: development-client-secret-change-in-production
 # Dual URL configuration for internal vs public access
-KEYCLOAK_ISSUER: http://keycloak:4000/realms/ameide  # Internal server-side
+KEYCLOAK_ISSUER: http://keycloak:8080/realms/ameide  # Internal server-side
 KEYCLOAK_ISSUER_PUBLIC: http://localhost:4000/realms/ameide  # Browser OAuth
 ```
 
@@ -278,7 +280,7 @@ auth:
 keycloak:
   clientId: "web-app"
   clientSecret: "development-client-secret-change-in-production"
-  issuerInternal: "http://keycloak:4000/realms/ameide"  # Server-side calls
+  issuerInternal: "http://keycloak:8080/realms/ameide"  # Server-side calls
   issuerPublic: "http://localhost:4000/realms/ameide"   # Browser redirects
 ```
 
@@ -342,7 +344,7 @@ Tests created to verify OAuth flow:
 ### The Issuer URL Problem
 - Keycloak puts the accessed URL in the JWT's `iss` claim
 - NextAuth must validate this matches the configured issuer
-- If browser uses `localhost:4000` but pod uses `keycloak:4000`, tokens won't validate
+- If browser uses `localhost:4000` but pod uses `keycloak:8080`, tokens won't validate
 - See `/workspace/infra/kubernetes/charts/platform/www-ameide-canvas/IMPORTANT-OAUTH-NOTES.md` for details
 
 ## Production Deployment Checklist

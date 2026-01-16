@@ -86,7 +86,7 @@ Each service gets its own HTTPRoute (aligned with port spec):
 - `portal.dev.ameide.io` → HTTPRoute → www-ameide-portal (port 3002) ✅
 - `portal-canvas.dev.ameide.io` → HTTPRoute → www-ameide-portal-canvas (port 3003) ✅
 - `api.dev.ameide.io` → HTTPRoute → envoy (port 8000 for gRPC-Web) ✅
-- `auth.dev.ameide.io` → HTTPRoute → keycloak (port 4000) ⏳
+- `auth.dev.ameide.io` → HTTPRoute → keycloak (port 8080) ✅
 - `metrics.dev.ameide.io` → HTTPRoute → grafana (port 9001) ⏳
 
 **Production (.io domains on standard ports):**

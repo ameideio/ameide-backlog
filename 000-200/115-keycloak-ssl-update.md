@@ -22,13 +22,13 @@ Keycloak SSL/TLS is implemented with TLS termination at the Gateway layer. The s
 
 1. **Gateway TLS Termination**
    - HTTPS listener on port 443 (exposed as 8443 via k3d)
-   - Internal services use HTTP (Keycloak on port 4000)
+   - Internal services use HTTP (Keycloak on port 8080)
    - HTTPRoute for Keycloak already configured
    - Gateway handles all TLS complexity
 
 2. **Split Endpoint Strategy**
    - Browser requests: `https://auth.dev.ameide.io` (HTTPS)
-   - Server-side calls: `http://keycloak:4000` (internal HTTP)
+   - Server-side calls: `http://keycloak:8080` (internal HTTP)
    - Optimizes both security and cluster performance
    - NextAuth v5 configured with separate endpoints
 
@@ -51,7 +51,7 @@ Keycloak SSL/TLS is implemented with TLS termination at the Gateway layer. The s
 graph LR
     Browser -->|HTTPS:443| k3d
     k3d -->|port-forward| Gateway
-    Gateway -->|HTTP:4000| Keycloak
+    Gateway -->|HTTP:8080| Keycloak
     Gateway -->|HTTP:3001| Platform
     
     subgraph "k3d Port Mapping"
@@ -63,7 +63,7 @@ graph LR
     end
     
     subgraph "Internal HTTP"
-        Keycloak[Keycloak<br/>keycloak:4000]
+        Keycloak[Keycloak<br/>keycloak:8080]
         Platform[Platform<br/>www-ameide-platform:3001]
     end
 ```
@@ -111,8 +111,8 @@ const keycloakProvider = Keycloak({
     url: "https://auth.dev.ameide.io/realms/ameide/protocol/openid-connect/auth",
   },
   // Server-side endpoints (internal HTTP)
-  token: "http://keycloak:4000/realms/ameide/protocol/openid-connect/token",
-  userinfo: "http://keycloak:4000/realms/ameide/protocol/openid-connect/userinfo",
+  token: "http://keycloak:8080/realms/ameide/protocol/openid-connect/token",
+  userinfo: "http://keycloak:8080/realms/ameide/protocol/openid-connect/userinfo",
   // ... other endpoints
 });
 ```
@@ -288,9 +288,9 @@ const keycloakProvider = Keycloak({
   },
   
   // Server-side endpoints (internal HTTP for performance)
-  token: "http://keycloak:4000/realms/ameide/protocol/openid-connect/token",
-  userinfo: "http://keycloak:4000/realms/ameide/protocol/openid-connect/userinfo",
-  wellKnown: "http://keycloak:4000/realms/ameide/.well-known/openid-configuration",
+  token: "http://keycloak:8080/realms/ameide/protocol/openid-connect/token",
+  userinfo: "http://keycloak:8080/realms/ameide/protocol/openid-connect/userinfo",
+  wellKnown: "http://keycloak:8080/realms/ameide/.well-known/openid-configuration",
   
   httpOptions: {
     timeout: 10000,

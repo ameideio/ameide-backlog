@@ -1628,10 +1628,10 @@ Awesome—let’s turn your design into a crisp, incremental plan. Each step is 
 
 **Actions taken:**
 1. Added `/etc/hosts`: `127.0.0.1 auth.ameide.io app.ameide.io`
-2. Found Keycloak service: `keycloak:4000` (internal), realm `ameide` exists
+2. Found Keycloak service: `keycloak:8080` (internal), realm `ameide` exists
 3. Updated `/workspace/infra/kubernetes/environments/local/platform/www-ameide-canvas.yaml`:
    - Added `auth:` section with `url`, `trustHost`, `session` config
-   - Changed to `keycloak.issuer: "http://keycloak:4000/realms/ameide"`
+   - Changed to `keycloak.issuer: "http://keycloak:8080/realms/ameide"`
 4. Fixed `/workspace/infra/kubernetes/charts/platform/www-ameide-canvas/templates/configmap.yaml`:
    - Replaced `KEYCLOAK_CLIENT_ID` → `AUTH_KEYCLOAK_ID`
    - Replaced `KEYCLOAK_ISSUER` → `AUTH_KEYCLOAK_ISSUER`
@@ -1639,7 +1639,7 @@ Awesome—let’s turn your design into a crisp, incremental plan. Each step is 
    - Fixed YAML syntax (quote escaping)
 5. Fixed `/workspace/infra/kubernetes/charts/platform/www-ameide-canvas/templates/secret.yaml`:
    - `KEYCLOAK_CLIENT_SECRET` → `AUTH_KEYCLOAK_SECRET`
-6. Verified from pod: `wget http://keycloak:4000/realms/ameide/.well-known/openid-configuration` works
+6. Verified from pod: `wget http://keycloak:8080/realms/ameide/.well-known/openid-configuration` works
 
 **Next:** Update auth.ts to use new env var names
 

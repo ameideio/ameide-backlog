@@ -23,7 +23,7 @@
 - Prometheus + Alertmanager HTTPRoutes (RT-3/RT-4) now render from the kube-prometheus-stack release, so each environment sets hostnames close to the workload, and the gateway no longer carries `httproute-prometheus-https.yaml` / `httproute-alertmanager-https.yaml`.
 - Temporal Web (RT-11) and the internal graph Connect route (RT-15) are now emitted by their owning charts (`data-temporal` and `apps/graph`), eliminating the remaining `extraHttpRoutes` entries for those services.
 - All public app Ingress stanzas removed/disabled: Langfuse (staging/production) and prod Grafana now rely on Gateway; staging web frontends moved to HTTPRoutes.
-- Keycloak is exposed via Gateway, but production renders two HTTPRoutes (auth.dev.ameide.io/auth.ameide.io → keycloak:4000 and auth.ameide.io → keycloak:8080); needs dedupe/port alignment.
+- Keycloak is exposed via Gateway with one HTTPRoute per environment (auth.<env>.ameide.io → keycloak:8080).
 - Duplicate HTTPRoutes exist for some hosts (prometheus/alertmanager/loki/tempo UI vs. base routes); consider consolidating to a single route per host.
 - Local dev now renders a second HTTPS listener (`https-local`) plus dedicated HTTPRoutes for `www.local.ameide.io` and `platform.local.ameide.io`, so tilt-only releases stay isolated from the Argo baseline.
 - The Envoy xDS certificate chain is now managed by `platform-cert-manager-config` (`ameidet-ca` root, `envoy-gateway-ca` intermediate, and `envoy`/`envoy-gateway` TLS secrets), and `platform-control-plane-smoke` asserts this PKI wiring and the `gateway/ameide` `Accepted=True, Programmed=True` conditions so broken xDS/TLS cannot hide behind green HTTPRoute inventories.
@@ -103,7 +103,7 @@ Remaining routes still in gateway chart are candidates for future migration (see
 - App chart HTTPRoute alertmanager-https & ameide-alertmanager-ui: alertmanager.ameide.io → platform-prometheus-(alertmanager / kube-p-alertmanager):9093
 - HTTPRoute metrics-https: metrics.ameide.io → otel-collector:8888
 - HTTPRoute telemetry-https: telemetry.ameide.io → otel-collector:4317
-- HTTPRoute keycloak (two rendered): auth.dev.ameide.io/auth.ameide.io → keycloak:4000 and auth.ameide.io → keycloak:8080
+- HTTPRoute keycloak: auth.ameide.io → keycloak:8080
 - HTTPRoute plausible: plausible.ameide.io → plausible-oauth2-proxy:80
 - HTTPRoute argocd: argocd.ameide.io → argocd-server:80
 - App chart HTTPRoute pgadmin: pgadmin.ameide.io → pgadmin:80
