@@ -8,7 +8,8 @@ This is the protocol reference used by:
 
 Implementation status (GitOps)
 
-  - The `codex-broker` GitOps scaffolding (Deployment/Service/ServiceMonitor + Postgres/Vault wiring) is implemented in `ameideio/ameide-gitops` and validated in `dev` with a placeholder image; the real broker application still needs to implement these protocol calls.
+  - The `codex-broker` service (leases + admin UI) is implemented in `ameideio/ameide-gitops/images/codex-broker/` and deployed in `dev` (digest-pinned).
+  - Depletion polling/score via `account/rateLimits/read` remains a planned broker feature (not implemented yet).
 
 Goal
 
