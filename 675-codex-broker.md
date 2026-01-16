@@ -33,7 +33,8 @@ Current state (implemented in `ameideio/ameide-gitops`):
 
 - Broker application exists and is deployed in dev:
   - App source/image: `images/codex-broker/` (Go)
-  - Dev image is digest-pinned (example: `ghcr.io/ameideio/codex-broker@sha256:9fff0553ed62103c86fbf7ad56ce806d8c5264dd5195c97f087cd7c6b874c8bd`)
+  - Dev image is digest-pinned (see `ameideio/ameide-gitops/sources/values/env/dev/apps/codex-broker.yaml`)
+    - Example (2026-01-16): `ghcr.io/ameideio/codex-broker@sha256:9d1c5179bbcf22921e1d5033a91778ea0af75e42590e064582ffa9d84df8f3e7`
 - Storage model matches the intended architecture:
   - Vault KVv2 holds session material (`auth.json`)
   - Postgres holds non-secret metadata + atomic leases/indexing
@@ -375,12 +376,12 @@ Lease TTL + heartbeat only protects exclusivity if consumers stop using the sess
 - Parallel consumers do not hit `refresh_token_reused` provided they are on distinct sessions.
 - Validate “one account, many sessions” in practice: 2+ sessions under the same account run concurrently long enough to require refresh, without invalidating each other.
 - Admin UI supports:
-  - accounts table + create/enable/disable
-  - sessions table + device-auth creation + quarantine/revoke controls
-  - leases table + revoke controls
+  - accounts table + create/enable/disable/delete
+  - sessions table + device-auth creation + void/delete
+  - leases table + revoke/delete
   - account depletion dashboard with hourly graphs via Prometheus/Grafana
 
 DoD status (dev):
 
-- Done: broker deployed; lease API (including auth.json ETag/If-Match CAS) verified end-to-end; UI + Keycloak OIDC + device-auth session minting implemented.
-- Pending: generalized depletion monitoring/score/windows; practical “one account, many sessions” long-run validation against real token refresh; full admin controls (quarantine/revoke, lease revoke) and dashboards.
+- Done: broker deployed; lease API (including auth.json ETag/If-Match CAS) verified end-to-end; UI + Keycloak OIDC + device-auth session minting implemented; basic admin destructive actions (delete/void/revoke).
+- Pending: generalized depletion monitoring/score/windows; practical “one account, many sessions” long-run validation against real token refresh; quarantine flows; dashboards.

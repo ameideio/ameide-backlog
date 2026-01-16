@@ -6,7 +6,7 @@ Legacy (slot-based). New work should target the generalized broker model in `bac
 
 ### Implementation status (GitOps)
 
-- The broker GitOps scaffolding exists and is deployed in dev with a placeholder image to validate the platform wiring; see `backlog/675-codex-broker.md`.
+- The `codex-broker` service (leases + admin UI) is deployed in dev; see `backlog/675-codex-broker.md`.
 - The broker model eliminates shared-refresh-token collisions by leasing distinct sessions per consumer; that makes “refreshing a shared rotating slot secret” an anti-pattern in the clean target state.
 
 ### Problem

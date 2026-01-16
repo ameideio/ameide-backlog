@@ -6,7 +6,7 @@ Legacy (slot-based). New work should target the generalized broker model in `bac
 
 ### Implementation status (GitOps)
 
-- The broker GitOps scaffolding exists and is deployed in dev with a placeholder image to validate the platform wiring; see `backlog/675-codex-broker.md`.
+- The `codex-broker` service (leases + admin UI) is deployed in dev; see `backlog/675-codex-broker.md`.
 - No new investment is planned in the slot-based monitor once the broker publishes per-account depletion metrics directly (Prometheus/Grafana).
 
 ### Goal
