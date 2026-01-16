@@ -15,12 +15,15 @@ source_of_truth: false
 This increment addresses the core blocker discovered in Increment 1:
 
 - Che’s **Kubernetes authorization model** relies on Kubernetes API authentication + RBAC enforcement (gateway includes oauth2-proxy + kube-rbac-proxy).
-- On managed AKS, the Kubernetes API server does **not** authenticate arbitrary external OIDC issuers like our Keycloak (`auth.dev.ameide.io`).
+- On our current AKS configuration, the Kubernetes API server is not configured (or not permitted) to authenticate our external OIDC issuer (Keycloak at `auth.dev.ameide.io`) for Kubernetes API requests from Che’s gateway/RBAC path.
 - Result: Che dashboard/backend calls to the Kubernetes API using the Keycloak bearer token return `401 Unauthorized`, and the UI shows:
   - “Failed to fetch the list of devWorkspaces… Unauthorized”
   - “Unable to get user profile data… Unauthorized”
 
-Vendor-aligned solution: run Che on a **virtual Kubernetes cluster (vCluster)** whose API server can be configured to trust Keycloak OIDC.
+Vendor-aligned solutions:
+
+- Preferred when feasible: configure the managed control plane (AKS/EKS/GKE) to accept the external OIDC issuer for Kubernetes API authentication, subject to provider constraints and org policy.
+- Fallback / portability strategy: run Che on a **virtual Kubernetes cluster (vCluster)** whose API server can be configured to trust Keycloak OIDC without changing the host cluster control plane.
 
 Normative constraints remain in `backlog/680-che.md`. Increment 1 scope remains in `backlog/680-che-increment-1.md`.
 
@@ -39,7 +42,7 @@ Provide a working Che UI on `che.dev.ameide.io` where:
 
 ## Big picture (what changes vs Increment 1)
 
-- Increment 1 deployed Che directly on AKS and validated “app SSO”, but Che’s Kubernetes auth chain fails because AKS cannot validate Keycloak JWTs.
+- Increment 1 deployed Che directly on AKS and validated “app SSO”, but Che’s Kubernetes auth chain fails because the host cluster control plane is not currently validating Keycloak JWTs for the Che gateway/RBAC path.
 - Increment 2 introduces a **devcluster** (vCluster) hosted on AKS:
   - Che runs *inside* the vCluster.
   - The vCluster API server is configured with Keycloak OIDC, so Kubernetes authn/authz works the way Che expects.
@@ -77,7 +80,7 @@ To make the “workspace runs here, deploy there” story explicit:
 
 Hard rule: no manual `kubectl apply/patch/delete` for cloud resources. All mutation is Git → CI → ArgoCD.
 
-### 1) Deploy vCluster (dev only)
+### 1) Deploy vCluster + bootstrap Che inside it (dev only)
 
 Add a new GitOps component (dev only):
 
@@ -85,8 +88,13 @@ Add a new GitOps component (dev only):
   - Installs a vCluster control plane (Helm) into host namespace `che-devcluster`.
   - Configures the vCluster API server with external OIDC:
     - issuer URL = `https://auth.dev.ameide.io/realms/ameide`
-    - client ID / audiences aligned with the token Che forwards (see “identityToken” note)
-    - username claim mapping + groups claim mapping
+    - `--oidc-client-id=che` (audience)
+    - username/groups claim mapping
+  - Installs Che dependencies inside the vCluster:
+    - cert-manager (CRDs + controller)
+    - Che operator (Helm)
+    - DevWorkspace operator (bootstrap Job)
+    - `CheCluster` (bootstrap Job, applied only after CRDs exist)
   - Exposes the vCluster API server via an internal `Service` only (no public ingress).
 
 If we intend to support the “two kubeconfigs” model, this increment should also define:
@@ -95,22 +103,7 @@ If we intend to support the “two kubeconfigs” model, this increment should a
 - a least-privilege ServiceAccount + Role/RoleBinding for Tilt in those namespaces, and
 - a secure path to mount a kubeconfig for that ServiceAccount into the devcontainer.
 
-### 2) Register vCluster as an ArgoCD destination (dev only)
-
-ArgoCD must be able to deploy into the vCluster API server:
-
-- Materialize an ArgoCD cluster secret in `argocd` namespace pointing at the vCluster API server.
-- The cluster secret MUST be materialized via our secrets pipeline (Vault + ExternalSecrets), not committed in Git.
-
-### 3) Deploy Che into the vCluster (dev only)
-
-Add a new GitOps component (dev only):
-
-- `platform-che` (vCluster target):
-  - Same vendor operator + `CheCluster` model, but deployed into the **vCluster** rather than the AKS API server.
-  - Ensure the Che gateway service is reachable from host ingress (see next step).
-
-### 4) Expose Che UI through the host Gateway (Envoy)
+### 2) Expose Che UI through the host Gateway (Envoy)
 
 Keep the public ingress plane on the host cluster:
 
@@ -126,6 +119,21 @@ Che supports forwarding either:
 via `CheCluster.spec.networking.auth.identityToken`.
 
 This increment must explicitly record which token is used and ensure the vCluster API server is configured to accept it (audiences/claims).
+
+## Trusted certificates (CA bundles): vendor model vs stability mitigation
+
+Che supports importing additional trusted CAs (for untrusted/self-signed endpoints) via ConfigMaps and propagating trust into Che server/dashboard and workspaces.
+
+During deployment we observed `che-server` repeatedly restarting while importing a large CA bundle into the JVM truststore (`Certificate was added to keystore` loop), causing probes to fail and the dashboard to error.
+
+Current mitigation (dev-only, to unblock):
+
+- Disable the Che server’s “extra CA bundle import” configmap hook while keeping Kubernetes API CA trust enabled.
+- Constraint: `auth.dev.ameide.io` and Git endpoints MUST be publicly trusted (no private CA required) for this mitigation to be acceptable.
+
+Follow-up hardening (vendor-aligned):
+
+- If we need private CA trust, re-enable CA import using a minimal, validated PEM bundle (no accidental “full system CA” injection), or adjust startup probes based on measured startup time rather than disabling trust mechanisms.
 
 ## Acceptance criteria
 
