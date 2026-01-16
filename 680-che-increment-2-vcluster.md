@@ -89,7 +89,10 @@ Add a new GitOps component (dev only):
   - Configures the vCluster API server with external OIDC:
     - issuer URL = `https://auth.dev.ameide.io/realms/ameide`
     - `--oidc-client-id=che` (audience)
-    - username/groups claim mapping
+    - username claim = `email` (stable canonical identity; matches upstream examples)
+    - groups claim = `groups`
+  - Configures Che to use the same username claim to avoid RBAC subject mismatches:
+    - `CHE_OIDC_USERNAME__CLAIM=email`
   - Installs Che dependencies inside the vCluster:
     - cert-manager (CRDs + controller)
     - Che operator (Helm)
@@ -157,6 +160,8 @@ Follow-up hardening (vendor-aligned):
   - `kubectl -n argocd get application dev-platform-che -o yaml | rg 'destination'`
 - Che dashboard “Unauthorized” is gone (service logs):
   - `kubectl -n <che-namespace-in-vcluster> logs deploy/che-dashboard --since=10m | rg -n 'Unauthorized|statusCode\": 401'`
+- Che dashboard “Forbidden” is gone (RBAC subject match):
+  - `kubectl -n <che-namespace-in-vcluster> logs deploy/che-dashboard --since=10m | rg -n 'Forbidden|statusCode\": 403'`
 
 ## Risks / known sharp edges
 
