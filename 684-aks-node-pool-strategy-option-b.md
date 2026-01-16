@@ -122,6 +122,12 @@ Che workspace pods (DevWorkspace workloads). This is the execution plane; it is 
 
 Coder workspace/task pods. This is the execution plane; it is intentionally separate from any platform control-plane components.
 
+Scheduling nuance (important for capacity planning):
+
+- Kubernetes schedules and Cluster Autoscaler scale-up decisions are based on **resource requests**, not limits.
+- If Coder templates expose `cpu`/`memory` knobs but apply them only as **limits**, the pool will pack many workspaces onto one node and may not scale up until fixed requests saturate.
+- If we want “developer-selected size drives capacity”, templates should set requests from parameters (or set `requests == limits`).
+
 **Storage intent:** workspace PVCs should default to `managed-csi-premium` on AKS unless explicitly overridden for cost-sensitive workloads.
 
 ## Required Git changes (design)

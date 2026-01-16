@@ -199,6 +199,22 @@ The workspace runs with a namespace-scoped ServiceAccount:
 - enough to `kubectl get` / `kubectl logs` / basic dev actions in that namespace
 - not enough for cluster-wide reads, and not enough to read secrets by default
 
+### 5.2.1 Workspace scheduling + node pool placement (AKS dev)
+
+Workspaces are scheduled onto the dedicated **workspaces execution pool**:
+
+- AKS nodepool: `coderws`
+- Node selection contract:
+  - `nodeSelector`: `ameide.io/pool=workspaces-coder`
+  - `toleration`: `ameide.io/pool=workspaces-coder:NoSchedule`
+
+Implication: workspace pods should not land on `apps`/`platform` pools unless we intentionally change the template scheduling constraints.
+
+Operational expectation:
+
+- Two workspaces do **not** imply two nodes. Multiple workspace pods can pack onto the same node.
+- Cluster Autoscaler scales `coderws` only when workspace pods are `Pending` due to insufficient schedulable capacity **for their requests** (not their limits).
+
 ### 5.3 Persistent storage
 
 Default workspace storage is persistent for `/workspaces` via a per-workspace PVC:
@@ -218,6 +234,27 @@ Cost posture:
 - Stopped workspaces still reserve a premium disk; enforce idle cleanup via workspace lifecycle policies.
 
 Do not share mutable credential state between workspaces by default (avoids cross-talk described in `backlog/624-devcontainer-context-isolation.md`).
+
+### 5.3.1 CPU/memory sizing semantics (requests vs limits)
+
+Template UX exposes `cpu` / `memory` parameters at workspace creation time, but these must map to Kubernetes resources carefully:
+
+- **Limits** control how much CPU/memory a workspace can consume.
+- **Requests** drive:
+  - scheduling placement decisions
+  - `coderws` autoscaler scale-up behavior
+  - effective “reserved capacity” accounting
+
+Current implementation note (AKS dev templates):
+
+- Workspace `cpu`/`memory` parameters are applied as **container limits**.
+- Workspace **requests are fixed small defaults** so multiple workspaces can pack onto one node.
+
+Implications:
+
+- Setting `cpu=8` does **not** reserve 8 cores; it only raises the ceiling before CPU throttling.
+- Setting `memory=16` does **not** reserve 16Gi; it only raises the ceiling before OOM kill/restart.
+- If “what I ask is what I reserve” becomes a requirement, the template should set requests from parameters (or set `requests == limits` for Guaranteed QoS).
 
 ## 5.4 Telepresence and the Ameide CLI
 

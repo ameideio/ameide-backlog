@@ -80,6 +80,16 @@ We must be able to express:
 
 Related hardening constraints: `backlog/519-gitops-fleet-policy-hardening.md`, `backlog/622-gitops-hardening-k3d-aks.md`.
 
+### 2.2.1 Workspace CPU/memory parameters (template UX contract)
+
+Clarify what the “cpu” / “memory” template parameters mean operationally:
+
+- Kubernetes scheduling and Cluster Autoscaler are driven by **requests**, not limits.
+- If the template uses user-provided values only as **limits**, the workspace can burst up to that amount but does **not** reserve it.
+- If we want “ask = reserve”, we must set requests from the parameters (or set `requests == limits` to achieve Guaranteed QoS).
+
+This should be documented explicitly in the template UX so developers don’t assume “8 CPU requested == 8 CPU reserved”.
+
 ## 2.3 Template delivery pipeline (not GitOps-native)
 
 Argo CD deploys Coder, but Coder templates are not Kubernetes manifests.
