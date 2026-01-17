@@ -89,7 +89,7 @@ Notes:
 Goal: a single, no-flags command that is runnable in a Coder workspace and produces a fast, actionable failure.
 
 Decision: `ameide test` must be Telepresence-free and safe to run in-cluster.
-Update (2026-01): “safe to run in-cluster” here means “safe to run in a Coder workspace without Kubernetes/Telepresence access”; deployed-system E2E is separate.
+Update (2026-01): Phase 3 E2E is included in `ameide test` for workspace execution. CI uses `ameide test ci` to run Phase 0/1/2 without cluster access.
 
 Proposed contract (phases; exact tools are implementation details):
 
@@ -99,8 +99,8 @@ Proposed contract (phases; exact tools are implementation details):
 
 Non-negotiables:
 
-- phases 0/1/2 require no cluster access and no privileged capabilities
-- agents run this with no flags; the CLI owns discovery and runner selection
+- phases 0/1/2 require no cluster access and no privileged capabilities (use `ameide test ci`)
+- agents run the no-flag front door; the CLI owns discovery and runner selection
 - each phase emits JUnit (synthetic if needed)
 
 Note: for vendor-locked external executor profiles (e.g., D365FO), Phase 1/2 execution may be delegated to an external executor tool contract, but the agent still runs the same CLI front door and receives the same evidence shape (see 655).
@@ -115,10 +115,7 @@ Requirements:
 - Playwright runs against the preview base URL(s).
 - E2E results become the merge gate signal.
 
-Decision: Phase 3 exists as a CLI-owned command surface:
-
-- `ameide test e2e` runs Playwright against the deployed preview URL (Phase 3)
-- Phase 3 is intentionally not bundled into the “no-brainer” Phase 0/1/2 front door so it remains fast and universally runnable
+Decision: Phase 3 exists as a CLI-owned phase and is executed via `ameide test` in workspace runs. CI can skip Phase 3 via `ameide test ci`.
 
 Note: non-Kubernetes domains may define a different Phase 3 target (not an Argo preview environment). For D365FO, Phase 3 is defined in `backlog/655-agentic-coding-365fo.md`.
 
@@ -131,7 +128,8 @@ Tasks complement the system by making repeatability cheap:
 
 ## 5) Implementation plan
 
-- Make `ameide test` the no-brainer phases 0/1/2 front door for humans and agents in workspaces.
+- Make `ameide test` the no-brainer phases 0/1/2/3 front door for humans and agents in workspaces.
+- Provide `ameide test ci` as the Phase 0/1/2-only entrypoint for CI (no cluster access).
 - Standardize a “platform smoke” workflow that validates Coder control plane + template provisioning + code-server reachability.
 - Standardize preview environment E2E execution and connect it to PR merge gating.
 - Provide an optional “preflight task” runner that executes the inner loop in a clean ephemeral workspace (see 651).
@@ -154,7 +152,7 @@ Tasks complement the system by making repeatability cheap:
 The following are deprecated by this model:
 
 - Telepresence-based E2E execution for agent inner-loop verification (`backlog/621-ameide-cli-inner-loop-test.md` as currently written).
-- Telepresence-based E2E execution as an agent default; Phase 3 E2E is owned by `ameide test e2e` (cluster-only; Playwright-only).
+- Telepresence-based E2E execution as an agent default; Phase 3 is Telepresence-free and executed via `ameide test`.
 - Telepresence verification backlogs as platform requirements (e.g., `backlog/492-telepresence-verification.md`).
 
 ## 9) References
