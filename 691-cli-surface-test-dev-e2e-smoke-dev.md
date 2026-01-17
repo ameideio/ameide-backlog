@@ -368,18 +368,21 @@ It is tracking context only; the normative requirements are the sections above.
 - Workspace RBAC bootstrap (Coder):
   - `sources/values/_shared/cluster/coder-workspace-phase3-rbac.yaml`
   - Provides: create/delete Services + HTTPRoutes in workspace namespaces; read env ConfigMaps/Secrets in `ameide-dev` (for cluster-only commands).
-- Workspace ingress NetworkPolicy automation (Kyverno generate policy):
-  - `policies/generate-workspace-innerloop-devserver-networkpolicy.yaml`
+- Workspace ingress NetworkPolicy automation (Coder workspaces):
+  - `sources/values/_shared/cluster/coder-workspace-phase3-rbac.yaml`
   - Provides: Envoy dataplane reachability to workspace devserver port `3001` (required by `ameide dev`).
+- Workspace innerloop HTTPRoute admission policy (ValidatingAdmissionPolicy, static allowlist):
+  - `sources/values/_shared/cluster/workspace-innerloop-routing-policy.yaml`
+  - Constrains workspace-created `HTTPRoute` to safe shapes (hostname allowlist regex, parentRef allowlist, same-namespace backendRef, TTL labels/annotations).
+- Workspace innerloop janitor:
+  - `sources/values/_shared/cluster/workspace-innerloop-janitor.yaml`
+  - Deletes expired leaked `HTTPRoute`/`Service` resources created by `ameide dev`.
+- Che-in-vCluster bridging (dev):
+  - `sources/values/env/dev/platform/platform-vcluster-che.yaml`
+  - Enables syncing `HTTPRoute` from vCluster → host, and mirrors required env ConfigMaps/Secrets from host → vCluster.
 
 Remaining gaps (must be implemented to meet the spec):
-- Admission policy restricting workspace-created HTTPRoutes (ValidatingAdmissionPolicy CEL or Kyverno validate/CEL):
-  - hostname pattern
-  - parentRef allowlist
-  - same-namespace Service backendRefs
-  - required TTL labels/annotations
-- Cluster-side janitor for leaked innerloop resources (HTTPRoute/Service) based on TTL annotations/labels.
-- Che-in-vCluster bridging: document and implement the supported host-cluster read/write path for `ameide test e2e` and `ameide dev`.
+- Decide whether parentRef enforcement should be a static allowlist (ValidatingAdmissionPolicy) or dynamically derived (Kyverno external data / published parentRef).
 
 ---
 
