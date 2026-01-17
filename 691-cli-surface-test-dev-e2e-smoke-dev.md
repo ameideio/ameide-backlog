@@ -73,6 +73,27 @@ Design decision:
 - If the team prefers “static redirect on canonical host and bounce back”, that should be specified as an explicit
   alternative in this doc and implemented intentionally (not as an accidental workaround).
 
+5) **Che-in-vCluster: host-cluster Gateway + Secrets boundary**
+
+`ameide dev` and (by default) `ameide test e2e` assume the workspace can interact with the **same Kubernetes API**
+that owns:
+
+- the environment namespace (for reading `ConfigMap/www-ameide-platform-config` and persona secrets), and
+- the Gateway API control plane (for creating `HTTPRoute` that attaches to the platform Gateway).
+
+In a Che-in-vCluster architecture, the workspace commonly sees the **vCluster API** by default. In that case:
+
+- `ameide test` (Phase 0/1/2) remains compatible (no Kubernetes required).
+- `ameide test e2e` is compatible only if either:
+  - required env ConfigMaps/Secrets are mirrored into the vCluster, OR
+  - the CLI is explicitly configured to talk to the host-cluster API (provided kubeconfig/token/context).
+- `ameide dev` is compatible only if there is an explicit host-cluster write path for `Service` + `HTTPRoute`
+  that the host Gateway reconciles (mirroring Gateway API resources to host, or using host-cluster credentials).
+
+Reconciliation requirement:
+- Pick and document the supported Che/vCluster bridging mechanism(s), and make the CLI fail-fast when it is
+  pointed at a cluster API that cannot satisfy the required contracts.
+
 ## Goals
 
 1. **One thing per command.** No “mode” flags or multi-purpose commands.
@@ -305,12 +326,13 @@ It is tracking context only; the normative requirements are the sections above.
 Remaining gaps (must be implemented to meet the spec):
 - Admission policy restricting workspace-created HTTPRoutes (host pattern, parentRef allowlist, backendRefs).
 - Cluster-side janitor for leaked innerloop resources (HTTPRoute/Service) based on TTL annotations/labels.
+- Che-in-vCluster bridging: document and implement the supported host-cluster read/write path for `ameide test e2e` and `ameide dev`.
 
 ---
 
 ## Evidence and secrecy
 
-1. Commands that run tests (`ameide test`, `ameide test e2e`, `ameide test smoke`) MUST emit JUnit evidence.
+1. Commands that run tests (`ameide test`, `ameide test e2e`) MUST emit JUnit evidence.
 2. Credentials and capability tokens MUST NOT be written to:
    - logs
    - Playwright traces/HAR
