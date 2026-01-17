@@ -154,3 +154,17 @@ Tasks
 
 Acceptance criteria
 - One documented happy path exists for “fast UI loop” and “deployed truth E2E”, with the commands in 691.
+
+---
+
+## Milestone G — Agent work instructions (prevent “CLI as a workaround” drift)
+
+**Goal:** ensure agents follow the contract and do not mutate the CLI to bypass test failures.
+
+Tasks (repo: `ameideio/ameide-gitops`)
+- Update `AGENTS.md` with explicit work instructions:
+  - do not change the CLI/runners to “make tests pass” (no silent skips, no swallowing failures)
+  - fix root cause or update the contract docs explicitly when the contract is wrong
+
+Acceptance criteria
+- `AGENTS.md` contains a clear “no CLI workarounds” rule that applies to agent-driven work across repos.
