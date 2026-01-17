@@ -15,7 +15,7 @@ source_of_truth: true
 
 Define a single, consistent, internal-first model for “agentic coding” at Ameide:
 
-- Humans develop in **Coder workspaces** (browser VS Code via code-server).
+- Humans develop in Kubernetes-hosted workspaces (primary provider: **Coder**; additional provider: **Che**).
 - Automated code-changing runs as **ephemeral, workspace-backed executions** (“Coder tasks” in this doc suite).
 - Deployed-system truth is validated via **Argo CD preview environments** + **Playwright** against real ingress URLs.
 
@@ -56,12 +56,14 @@ Telepresence is **not part of the platform model** and is not a supported depend
 
 Rationale: Telepresence’s VIF/TUN model generally requires elevated networking privileges that are incompatible with our workspace security posture.
 
-### 1.3 Coder CE only (browser-first, not browser-only enforced)
+### 1.3 Coder CE as the primary provider (Che is a supported provider)
 
-We adopt **Coder Community Edition**.
+We adopt **Coder Community Edition** as the primary workspace provider for the internal-first model.
 
 - Supported UX is browser-first (code-server + web terminal).
 - We do not depend on paid “browser-only enforcement” features.
+
+Che is supported as an additional provider under the same platform contracts (see `backlog/680-che.md` and `backlog/690-agentic-dev-environments-coder-che.md`).
 
 ### 1.4 Dev environment contract is Kubernetes-safe devcontainers
 
@@ -197,17 +199,17 @@ Deliverables (the 650 suite):
 
 ## 6) Testing (how we prove this model works)
 
-- Platform smoke proves “Coder works” (see 653).
+- Platform smoke proves “workspace provider works” (Coder by default; see 653).
 - Inner-loop checks run in a workspace (see 653).
 - Preview E2E proves deployed fidelity (see 653).
 - Task E2E proves automation can run and clean up (see 651).
 
 ### 6.1 Success criteria
 
-- A human can do productive development in a Coder workspace without privileged networking.
+- A human can do productive development in a Kubernetes-hosted workspace without privileged networking.
 - An automation “task” can run in the same environment contract, produce a PR/evidence, and clean up.
 - E2E merge gating happens against preview environments (no Telepresence dependency).
-- The CLI “inner loop” is runnable in a Coder workspace and does not rely on Telepresence.
+- The CLI “inner loop” is runnable in a Kubernetes-hosted workspace and does not rely on Telepresence.
 
 ## 7) Risks / guardrails
 
@@ -227,6 +229,8 @@ This suite supersedes the following *as the platform-level default model*:
 ## 9) References
 
 - Devcontainer contract: `.devcontainer/coder/devcontainer.json`
+- Big picture map (Coder + Che): `backlog/690-agentic-dev-environments-coder-che.md`
+- Che provider (contract-aligned): `backlog/680-che.md`
 - Suite docs: `backlog/651-agentic-coding-ameide-coding-agent.md`, `backlog/652-agentic-coding-dev-workspace.md`, `backlog/653-agentic-coding-test-automation.md`
 - CLI surface: `backlog/654-agentic-coding-cli-surface.md`
 - External executor profile (D365FO): `backlog/655-agentic-coding-365fo.md`

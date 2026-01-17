@@ -19,6 +19,7 @@ This increment delivers the smallest “real” Che installation on the shared A
 - SSO via the existing Keycloak (`auth.dev.ameide.io`) works end-to-end
 
 Normative design constraints remain in `backlog/680-che.md` (do not fork contracts).
+Big picture map (Coder + Che): `backlog/690-agentic-dev-environments-coder-che.md`.
 
 ## Goal
 

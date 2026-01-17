@@ -26,6 +26,7 @@ Vendor-aligned solutions:
 - Fallback / portability strategy: run Che on a **virtual Kubernetes cluster (vCluster)** whose API server can be configured to trust Keycloak OIDC without changing the host cluster control plane.
 
 Normative constraints remain in `backlog/680-che.md`. Increment 1 scope remains in `backlog/680-che-increment-1.md`.
+Big picture map (Coder + Che): `backlog/690-agentic-dev-environments-coder-che.md`.
 
 ## Goal
 
