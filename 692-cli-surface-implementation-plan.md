@@ -121,6 +121,11 @@ Tasks (repo: `ameideio/ameide-gitops`)
 - RBAC:
   - Ensure workspace SAs can create/delete Services and HTTPRoutes in their namespace and read required env ConfigMaps/Secrets.
 
+Implementation notes (dev/AKS)
+- Current GitOps implementation uses **static allowlist** via Kubernetes `ValidatingAdmissionPolicy`:
+  - Gateway: `ameide` in namespace `ameide-dev`, listener `https`.
+- Janitor scope includes both Coder workspace namespaces and `che-devcluster` (host namespace for Che-in-vCluster).
+
 Acceptance criteria
 - Workspace cannot create arbitrary HTTPRoutes (policy blocks unsafe shapes).
 - Leaked resources are cleaned up automatically after TTL.
@@ -138,6 +143,10 @@ Decision (choose one, document explicitly in 691 + implement here)
 Tasks (repo: `ameideio/ameide-gitops` and/or `ameideio/ameide`)
 - Implement the chosen bridging mechanism.
 - Add explicit CLI detection and fail-fast messaging when pointed at a cluster API that cannot satisfy the contracts.
+
+Implementation notes (Option 1 / sync-mirror, dev)
+- Enable vCluster → host syncing for `HTTPRoute` (namespaced) so `ameide dev` routes can attach to the host platform Gateway.
+- Mirror required env `ConfigMap`/`Secret` objects from host `AMEIDE_ENV_NAMESPACE` into the vCluster so the CLI can read them without host credentials.
 
 Acceptance criteria
 - `ameide test e2e` and `ameide dev` are either fully supported in Che/vCluster, or fail-fast with actionable guidance.
