@@ -245,7 +245,7 @@ Root cause:
 
 Resolution (GitOps):
 
-- Increase `DevWorkspaceOperatorConfig/devworkspace-config` (`namespace: eclipse-che`) `config.workspace.progressTimeout` to `15m` in the Che vCluster bootstrap (`sources/values/env/dev/platform/platform-vcluster-che.yaml`).
+- Increase `CheCluster.spec.devEnvironments.startTimeoutSeconds` (e.g. `900` for `15m`) so Che reconciles `DevWorkspaceOperatorConfig/devworkspace-config` (`namespace: eclipse-che`) with a larger `config.workspace.progressTimeout` (`sources/values/env/dev/platform/platform-vcluster-che.yaml`).
 
 Notes:
 
