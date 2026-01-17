@@ -89,6 +89,9 @@ Tasks (repo: `ameideio/ameide`)
 - Add (or confirm) canonical-host auth bounce support in `www_ameide_platform`:
   - Keep IdP redirect URI static on the canonical host (e.g. `platform.dev.ameide.io`).
   - Implement safe `return_to`/`state` allowlist for redirects back to `platform-dev-*.dev.ameide.io`.
+  - If using Auth.js redirect proxy (`AUTH_REDIRECT_PROXY_URL` / `redirectProxyUrl`), ensure:
+    - `AUTH_REDIRECT_PROXY_URL` is set correctly on the workspace devserver, and
+    - the canonical host deployment and the workspace devserver share the same `AUTH_SECRET`.
   - Ensure cookie strategy supports `.dev.ameide.io` (no `__Host-` cookies if `Domain=` is required).
 - Add fail-fast validation:
   - Verify bounce config is enabled before printing the dev URL.
@@ -103,6 +106,9 @@ Acceptance criteria
 **Goal:** make innerloop routing safe-by-policy and reliable-by-default (no manual cluster mutation).
 
 Tasks (repo: `ameideio/ameide-gitops`)
+- Decide parentRef enforcement strategy (required because enforcement vs “dynamic resolution” is a real tension):
+  - **Static allowlist**: compatible with Kubernetes `ValidatingAdmissionPolicy` (CEL), but requires hardcoding allowed `(gateway name, namespace, sectionName)` per environment/cluster.
+  - **Dynamic “match baseline”**: requires Kyverno external data (`apiCall`) or a ConfigMap-backed published parentRef; rejects any workspace HTTPRoute whose parentRef differs from the baseline platform route.
 - Admission policy for workspace-created `HTTPRoute`:
   - Enforce hostname allowlist `platform-dev-*.dev.ameide.io`.
   - Enforce parentRef allowlist (resolved platform Gateway only).

@@ -53,6 +53,10 @@ Additional invariant (Gateway hostname intersection):
   If the listener is restricted to `platform.dev.ameide.io` only (exact hostname), `ameide dev` routes will never match.
   Preferred listener hostname in dev is `*.dev.ameide.io` (or another pattern that covers `platform-dev-*.dev.ameide.io`).
 
+Additional invariants (DNS + TLS coverage):
+- DNS MUST resolve `platform-dev-<workspace-env-id>.dev.ameide.io` to the platform Gateway address (typically via a wildcard `*.dev.ameide.io` record).
+- The Gateway listener TLS certificate MUST be valid for `platform-dev-<workspace-env-id>.dev.ameide.io` (typically via `*.dev.ameide.io` SAN coverage).
+
 3) **Hostname routing increases exposure (security posture change)**
 
 `ameide dev` intentionally swaps header-gated routing (tool-friendly) for per-run hostname routing (human-friendly).
@@ -103,7 +107,9 @@ Reconciliation requirement:
   pointed at a cluster API that cannot satisfy the required contracts.
 
 Supported modes (must be made explicit in implementation + docs):
-- **Mode A (sync/mirror):** mirror required env ConfigMaps/Secrets and required routing primitives into the vCluster via explicit sync rules.
+- **Mode A (sync/mirror):**
+  - host ➜ vCluster: mirror required env ConfigMaps/Secrets (read-only mirror for `ameide test e2e`).
+  - vCluster ➜ host: sync workspace `Service` + `HTTPRoute` into the host cluster so the host Gateway reconciles them (required by `ameide dev`; implies enabling sync and RBAC for those resource types).
 - **Mode B (host-cluster creds):** provide host-cluster kubeconfig/token/context to the workspace; cluster-only commands MUST use it.
 
 ## Goals
@@ -254,6 +260,7 @@ To make per-run subdomains behave correctly with OIDC/Auth.js without relying on
   - The allowlist MUST be restricted to `https://platform-dev-*.dev.ameide.io/*` (and ideally tightened further).
 - The implementation SHOULD use Auth.js redirect proxy support (`redirectProxyUrl` / `AUTH_REDIRECT_PROXY_URL`) rather than inventing a bespoke mechanism.
 - Auth.js MUST trust proxy headers for correct callback URL construction behind the Gateway (e.g. `AUTH_TRUST_HOST=true` / equivalent).
+- If using Auth.js redirect proxy, both the canonical host deployment and the workspace devserver MUST share the same `AUTH_SECRET`, and redirect proxy MUST be enabled by setting `AUTH_REDIRECT_PROXY_URL` appropriately.
 - Auth.js cookie domain MUST be compatible with subdomains (typically `Domain=.dev.ameide.io`), and callback URL rules MUST be explicitly validated.
 - Cookies MUST NOT use the `__Host-` prefix if a `Domain=` attribute is required for subdomain sharing.
 - If subdomain session sharing is required, custom cookie options may be required (Domain + naming/prefix policy).
@@ -267,12 +274,13 @@ If these conditions are not met, `ameide dev` MUST fail-fast with an explicit er
 - MUST fail fast based on the created `HTTPRoute` status:
   - Wait for `status.parents[*].conditions` for the resolved parentRef to include `Accepted=True` and `ResolvedRefs=True`.
   - On failure or timeout, print the relevant condition `message`/`reason` values as the primary diagnostic (do not guess).
+  - If a `Programmed` or `Ready` condition is present, it SHOULD be `True` before printing the dev URL; otherwise keep waiting (or warn and continue only after the timeout policy is exhausted).
 
 **Routing restrictions (safety)**
 
 Workspace-created `HTTPRoute` resources for `ameide dev` MUST be restricted by admission policy (Kyverno/CEL) to:
 
-- Hostname pattern: `platform-dev-*.dev.ameide.io` (where `*` is the workspace environment id)
+- Hostnames MUST be concrete and MUST match `^platform-dev-[a-z0-9-]+\\.dev\\.ameide\\.io$` (wildcards are not used in `HTTPRoute.spec.hostnames`)
 - ParentRef: resolved platform Gateway only (name/namespace/sectionName)
 - BackendRef: Service in the same namespace only (deliberate: avoid cross-namespace backend refs and ReferenceGrant complexity)
 - Required TTL labels/annotations (see below)
@@ -305,9 +313,7 @@ Annotations:
 Deletes leftover dev resources in the current workspace namespace:
 
 - Deletes `HTTPRoute` and `Service` with `ameide.devx/owner=ameide-cli` and `ameide.devx/command=dev`
-- Deletes only resources that are:
-  - expired by `ameide.devx/expires-at-epoch`, OR
-  - explicitly opted into deletion by label selector
+- Deletes only resources that are expired by `ameide.devx/expires-at-epoch`.
 
 This is a user convenience. A cluster-side janitor is still required as the safety net.
 
@@ -351,7 +357,7 @@ These are prerequisites for cluster-only commands. They are intentionally split 
    - read `HTTPRoute` status
    - read required env ConfigMaps/Secrets in `AMEIDE_ENV_NAMESPACE`
 4) NetworkPolicy MUST allow Envoy dataplane pods to reach workspace pod `:3001` for devserver routing.
-5) Admission policy MUST constrain workspace-created Routes to safe shapes (host patterns, parentRef allowlist, same-namespace backends).
+5) Admission policy MUST constrain workspace-created Routes to safe shapes (concrete hostnames matching the allowlist regex, parentRef allowlist, same-namespace backends).
 6) A cluster-side janitor MUST delete leaked `ameide.devx/owner=ameide-cli` resources past TTL.
 
 ## GitOps enablement status (tracking notes)
