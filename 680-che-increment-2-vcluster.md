@@ -251,6 +251,36 @@ Notes:
 
 - This change prevents premature workspace failure during node pool scale-up; it does not fix missing/mislabelled node pools. If there are no nodes labeled `ameide.io/pool=workspaces-che`, DevWorkspaces will still remain unschedulable until that platform constraint is corrected.
 
+### Symptom E (break-glass): No `workspaces-che` nodes available, workspace remains unschedulable
+
+Symptoms:
+
+- DevWorkspace workloads remain Pending with `FailedScheduling` because the workspace Pod template requires `nodeSelector: ameide.io/pool=workspaces-che`.
+- Host cluster currently has **zero** nodes with `ameide.io/pool=workspaces-che` (pool `chews` scaled to `0` or missing).
+
+Break-glass mitigation (manual, non-authoritative):
+
+- Patch `CheCluster.spec.devEnvironments.nodeSelector` to target an existing pool (e.g. `apps`) and clear tolerations.
+- Restart the affected DevWorkspace by setting `.spec.started=true`.
+
+This is **not** vendor-aligned or GitOps-aligned and must be followed by a proper Terraform/CI fix so `chews` exists and autoscaling works.
+
+### Symptom F: Repo project clone fails in `project-clone` initContainer
+
+Symptoms:
+
+- Workspace Pod becomes Ready, but project clone fails with errors like:
+  - `fatal: could not read Username for 'https://github.com': No such device or address`
+  - `Error: passphrase file is missing in the '/etc/ssh/' directory`
+
+Likely root cause:
+
+- Missing or malformed `devworkspace-merged-git-credentials` for GitHub, or git credential helper / askpass configuration mismatch for private repos.
+
+Next steps:
+
+- Decide the supported Git credential strategy for Che workspaces (GitHub App token injection vs PAT vs SSH deploy key) and make it declarative (ExternalSecret or equivalent) so `project-clone` can run non-interactively.
+
 ## Risks / known sharp edges
 
 - vCluster introduces an additional control plane component; we must track its resource footprint and failure modes.
