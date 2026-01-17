@@ -36,6 +36,18 @@ This replaces the historical “Tilt + Telepresence intercept” loop (see `back
 * Telepresence-based intercepts (explicitly unsupported per `backlog/650-agentic-coding-overview.md` §1.2).
 * Per-run GitOps changes (inner-loop uses ephemeral, per-run resources in workspace namespaces).
 
+### 1.3 Viability for Che / DevWorkspace workspaces
+
+This design is **not Coder-specific**. It should work for any “workspace runs in the cluster” product (including Che / OpenShift Dev Spaces / DevWorkspace) as long as the workspace runtime can provide:
+
+* A per-workspace namespace where the CLI can create `Service` + `HTTPRoute`.
+* A workspace pod that can run:
+  * `pnpm -C services/www_ameide_platform dev` bound to `0.0.0.0:3001`
+  * Playwright (Node + browsers) to drive `https://platform.<env>.ameide.io`.
+* RBAC and NetworkPolicy enablement equivalent to §6 (cross-namespace `HTTPRoute` attachment + Envoy Gateway dataplane reachability + env Secret/ConfigMap reads).
+
+The main difference is operational: Che/DevWorkspace operators may enforce stricter security contexts and network egress policies by default. That is compatible with this approach because it avoids privileged tunneling (no `NET_ADMIN`, no `/dev/net/tun`) and keeps routing inside the cluster’s Gateway layer.
+
 ## 2) Definitions
 
 * **Baseline origin**: The deployed HTTPS origin of the target environment (e.g. `https://platform.dev.ameide.io`), discovered the same way as Phase 3 and treated as the canonical browser-visible origin.
