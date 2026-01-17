@@ -9,7 +9,7 @@ created: 2026-01-11
 
 # 626 – AmeideDevContainerService (Coder-based, human workspaces in AKS dev)
 
-> Superseded by `backlog/650-agentic-coding-overview.md` and `backlog/652-agentic-coding-dev-workspace.md`.
+> Superseded by `backlog/650-agentic-coding-overview.md`, `backlog/652-agentic-coding-dev-workspace.md`, `backlog/653-agentic-coding-test-automation.md`, and `backlog/654-agentic-coding-cli-surface.md`.
 
 ## 0) Purpose
 

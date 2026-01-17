@@ -52,6 +52,7 @@ This increment deliberately deviates:
 
 - We expose the Che “front door” (`Service/che-gateway`) via **Gateway API** (`HTTPRoute`) on Envoy Gateway.
 - We do **not** install an Ingress controller for Che.
+  - Namespace gate: the namespace that contains the Che `HTTPRoute` must satisfy the gateway’s `allowedRoutes.namespaces.selector` (currently `gateway-access=allowed`).
 
 Implication:
 

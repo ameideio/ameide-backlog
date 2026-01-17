@@ -141,7 +141,7 @@ These are **methodology-agnostic delivery roles**. Scrum/TOGAF/PMI profiles map 
 - **Process primitive(s)** run as **Temporal workers** (Process CRD) managed by the **Process operator**.
 - **AmeidePO** runs in the **Agent Runtime Plane** (Agent primitive) managed by the **Agent operator**.
 - **AmeideSA** runs in the **Agent Runtime Plane** (Agent primitive) managed by the **Agent operator**.
-- **AmeideCoder** runs as an **Executor runtime** (Devcontainer Coder Service or CI-like runner):
+- **AmeideCoder** runs as an **Executor runtime** (workspace/task provider such as Coder/Che, or a CI-like runner):
   - Workspace volume (persistent or ephemeral)
   - Tooling installed: `git`, build/test, `bin/ameide`, `buf`, and one or more "code editor backends" (Codex CLI / Claude Code CLI)
   - Optional A2A Server endpoint (HTTP/S) for interactive delegation/streaming (transport binding only)
@@ -423,7 +423,7 @@ AmeideCoder enforces:
 
 Cluster enforces:
 - NetworkPolicy: only allow explicitly declared delegation/integration paths (e.g., Solution Architect → Executor if an A2A binding is enabled); Executor cannot laterally access internal services except what is explicitly allowlisted.
-- No cluster credentials inside coder workspace.
+- No broad cluster credentials by default. If the executor needs cluster access for a specific operation, use least-privilege identities and bind-only delegation to predeclared roles (do not let executor provisioning mint new RBAC privileges).
 
 ---
 

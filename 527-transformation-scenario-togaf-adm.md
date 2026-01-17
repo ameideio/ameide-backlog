@@ -41,6 +41,7 @@ These are the minimum implementation capabilities required for this scenario to 
 - [ ] **Cluster E2E harness (non-agentic) exists** (optional gate; required for UI-affecting changes):
   - [ ] BuildKit build path exists in-cluster (no Docker-in-Docker requirement)
   - [ ] Gateway API overlay routing exists (Envoy Gateway): runner can create/delete `HTTPRoute` rules that match a run header (recommended `X-Ameide-Run-Key=<nonce>`) and route to shadow Services while stable URLs remain unchanged
+  - [ ] RBAC posture: runner uses least-privilege identities and bind-only delegation to predeclared roles (avoid ad-hoc Role creation that grants new privileges)
   - [ ] Harness fails closed unless it can prove routing correctness:
     - [ ] waits for `HTTPRoute` status `Accepted=True` and `ResolvedRefs=True` (or controller equivalent)
     - [ ] verifies an overlay-only marker (preferred: response header modifier) is present with the run header and absent without it

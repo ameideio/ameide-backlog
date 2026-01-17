@@ -329,6 +329,7 @@ To keep stable URLs unchanged while routing only test traffic to the modified se
 - Create ephemeral **shadow** Deployments/Services for the changed services (no changes to baseline Deployments).
 - Create ephemeral **Gateway API** overlay routes (e.g., `HTTPRoute`) matching a run-scoped header (recommended: `X-Ameide-Run-Key=<nonce>`) that routes only that run’s requests to the shadow Services.
 - A verification suite (recommended: `transformation.verify.ui_harness.gateway_overlay.v1`) drives the harness behavior; WorkRequests keep `action_kind=verify` and select the harness via `verification_suite_ref`. All other traffic continues to hit baseline services.
+- RBAC posture: the UI harness executor must use least-privilege identities and bind-only delegation to predeclared roles (avoid ad-hoc Role creation that grants new privileges).
 
 Telepresence remains a developer ergonomics tool for interactive remote-first workflows; it is not required for the v1 in-cluster E2E harness.
 

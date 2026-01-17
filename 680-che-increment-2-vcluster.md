@@ -112,6 +112,7 @@ If we intend to support the “two kubeconfigs” model, this increment should a
 Keep the public ingress plane on the host cluster:
 
 - Route `che.dev.ameide.io` on Envoy Gateway to the Che gateway service that is synced/exported into the host namespace.
+  - Namespace gate: the namespace that contains the Che `HTTPRoute` must satisfy the gateway’s `allowedRoutes.namespaces.selector` (currently `gateway-access=allowed`).
 
 ## Vendor knob to track explicitly: identity token type
 

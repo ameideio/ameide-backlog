@@ -67,6 +67,7 @@ The Integration primitive provides this as a deterministic **verification suite*
 - `action_kind = verify`
 - `verification_suite_ref = transformation.verify.ui_harness.gateway_overlay.v1` (recommended; stored as a promotable definition or a repo-owned manifest ref)
 - recommended dedicated queue: `transformation.work.queue.toolrun.verify.ui_harness.v1` (separate executor image + ServiceAccount) because it requires Kubernetes-side effects.
+  - RBAC posture: the executor should be granted permission via RoleBindings to predeclared roles (bind-only delegation); avoid ad-hoc Role creation that grants new privileges at runtime.
 
 **Mechanism (normative; v1)**
 
