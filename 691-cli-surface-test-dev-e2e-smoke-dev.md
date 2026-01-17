@@ -1,5 +1,5 @@
 ---
-title: "691 – CLI surface for test/e2e/smoke + human dev loop (no flags)"
+title: "691 – CLI surface for test/e2e + human dev loop (no flags)"
 status: draft
 owners:
   - platform-devx
@@ -12,13 +12,12 @@ parents:
   - 621-ameide-cli-inner-loop-test-v2.md
 ---
 
-# 691 – CLI surface for test/e2e/smoke + human dev loop (no flags)
+# 691 – CLI surface for test/e2e + human dev loop (no flags)
 
 This backlog defines the **normative CLI front doors** for:
 
 - Local-only verification (Phases 0/1/2).
 - Deployed-system truth (Playwright E2E).
-- Cluster-only smoke checks (runtime semantics).
 - A human-friendly UI dev loop in an in-cluster workspace (Coder/Che) without Telepresence.
 
 This document is a **CLI surface spec** (user-facing contract + invariants). Implementation is tracked separately.
@@ -26,10 +25,10 @@ This document is a **CLI surface spec** (user-facing contract + invariants). Imp
 ## Goals
 
 1. **One thing per command.** No “mode” flags or multi-purpose commands.
-2. **No flags.** Commands are stable and agent-friendly. Configuration is environment/config-driven only.
+2. **No flags.** Commands are stable and agent-friendly. Configuration is cluster-derived (ConfigMaps/Secrets) and/or target selection.
 3. **Fail-fast, no fallbacks.** If a command requires cluster wiring (RBAC, NetworkPolicy, Gateway attachment), it fails with explicit diagnostics.
 4. **Deterministic 0/1/2.** `ameide test` never requires Kubernetes/Telepresence and must be reproducible offline.
-5. **Truth is deployed.** E2E truth uses a deployed base URL (preview or environment ingress), not local mocks.
+5. **Truth is deployed.** E2E truth uses a deployed base URL resolved from environment ConfigMaps/Secrets in-cluster (no direct base-URL overrides).
 6. **Human dev loop works from in-cluster workspaces.** No Telepresence intercepts; no local registries; no GitOps churn per run.
 
 ## Non-goals
@@ -41,7 +40,7 @@ This document is a **CLI surface spec** (user-facing contract + invariants). Imp
 ## Cross references
 
 - Normative phase split and `ameide test e2e`: `backlog/430-unified-test-infrastructure-v2-target.md`
-- Inner-loop front doors and “smoke” split: `backlog/621-ameide-cli-inner-loop-test-v2.md`
+- Inner-loop front doors: `backlog/621-ameide-cli-inner-loop-test-v2.md`
 - Agentic workspace posture (Coder/Che): `backlog/650-agentic-coding-overview.md`, `backlog/652-agentic-coding-dev-workspace.md`, `backlog/690-agentic-dev-environments-coder-che.md`
 - Historical “Tilt/Telepresence” loop (context only): `backlog/432-devcontainer-modes-offline-online.md`, `backlog/435-remote-first-development.md`
 
@@ -90,12 +89,13 @@ Runs **Playwright E2E only** (“Phase 3” of the overall verification story), 
 
 **Base URL resolution (fail-fast, no fallbacks)**
 
-`ameide test e2e` MUST resolve exactly one base URL:
+`ameide test e2e` MUST resolve its base URL from the deployed environment configuration in-cluster:
 
-1) If `AMEIDE_E2E_BASE_URL` is set: use it (must be a valid `https://...` origin).
-2) Else, if `AMEIDE_ENV_NAMESPACE` is set and in-cluster Kubernetes credentials are available:
-   - Read `ConfigMap/www-ameide-platform-config` in `AMEIDE_ENV_NAMESPACE` and use `AUTH_URL`.
-3) Else: fail with an explicit error: “missing E2E base URL (set AMEIDE_E2E_BASE_URL or AMEIDE_ENV_NAMESPACE)”.
+1) `AMEIDE_ENV_NAMESPACE` MUST be set (the target environment namespace).
+2) The runner MUST read `ConfigMap/www-ameide-platform-config` in `AMEIDE_ENV_NAMESPACE`.
+3) The runner MUST use `AUTH_URL` from that ConfigMap as the Playwright base URL.
+
+If any of these are missing or invalid, the command MUST fail fast with an explicit error.
 
 **Secrets**
 
@@ -107,29 +107,6 @@ Runs **Playwright E2E only** (“Phase 3” of the overall verification story), 
 - JUnit output (mandatory)
 - Optional Playwright HTML report
 - Optional traces/videos/screenshots (policy-controlled; see secrecy guidance)
-
-### `ameide test smoke`
-
-Runs **cluster-only smoke checks** for runtime semantics that are intentionally out-of-scope for Phase 2:
-
-- Examples: Zeebe conformance, workflow runtime “truth” semantics, dependency health checks that require real runtime wiring.
-
-**Invariants**
-
-- MUST be cluster-only and MUST fail-fast if required cluster access/secrets are missing.
-- MUST NOT be a browser/UI test suite.
-
-**Target resolution**
-
-- MUST resolve the environment namespace via `AMEIDE_ENV_NAMESPACE` (required).
-- MUST use the environment’s internal gateway endpoints (e.g. `envoy-grpc.<envNS>:9000`) or another environment-scoped contract.
-
-**Outputs**
-
-- JUnit output (mandatory)
-- Logs (mandatory)
-
----
 
 ## `ameide dev` (human UI inner loop, Telepresence-free)
 
