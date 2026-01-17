@@ -58,7 +58,7 @@ This is a deliberate trade:
   started with real environment secrets (Auth.js/DB creds), exposure risk must be mitigated at multiple layers.
 
 Mitigations (non-optional):
-- Non-guessable run id in hostname (sufficient entropy), short TTL, and cleanup on exit + janitor.
+- Short TTL and cleanup on exit + janitor.
 - Admission policy restricting workspace-created HTTPRoutes to safe shapes (host allowlist + parentRef allowlist +
   same-namespace Service backends only).
 - NetworkPolicy constraining inbound to `:3001` to Envoy dataplane pods only.
@@ -69,9 +69,11 @@ Mitigations (non-optional):
 If this is not enabled, the correct behavior is fail-fast with explicit diagnostics (not “best effort”).
 
 Design decision:
-- This spec chooses **dev-only wildcard redirect URIs** for `*.dev.ameide.io` as the normative requirement.
-- If the team prefers “static redirect on canonical host and bounce back”, that should be specified as an explicit
-  alternative in this doc and implemented intentionally (not as an accidental workaround).
+- This spec chooses a **static redirect URI on the canonical host + bounce back** as the normative requirement.
+- Rationale: wildcard subdomain redirect URIs are not a safe assumption across IdP versions/policies; treating them as
+  “required” tends to create long-lived operational/security friction.
+- If the team later decides to support wildcard subdomain redirects in dev, it MUST be treated as an explicit,
+  dev-only, version-pinned capability with a clear rollback path.
 
 5) **Che-in-vCluster: host-cluster Gateway + Secrets boundary**
 
@@ -223,12 +225,15 @@ This command is intentionally separate from `ameide test e2e`:
 
 **Auth strategy (normative choice)**
 
-To make per-run subdomains behave correctly with OIDC/Auth.js:
+To make per-run subdomains behave correctly with OIDC/Auth.js without relying on IdP wildcard redirect URIs:
 
-- Keycloak MUST allow redirect URIs for `https://*.dev.ameide.io/*` (dev-only).
-- Auth.js cookie domain MUST be compatible with subdomains (typically `.dev.ameide.io`), and callback URL rules MUST be validated.
+- Keycloak redirect URI MUST remain static on the canonical platform host (e.g. `https://platform.dev.ameide.io/...`).
+- The callback handler MUST “bounce back” to the dev hostname using a validated `return_to`/`state` value.
+  - The allowlist MUST be restricted to `https://platform-dev-*.dev.ameide.io/*` (and ideally tightened further).
+- Auth.js cookie domain MUST be compatible with subdomains (typically `Domain=.dev.ameide.io`), and callback URL rules MUST be explicitly validated.
+- Cookies MUST NOT use the `__Host-` prefix if a `Domain=` attribute is required for subdomain sharing.
 
-If these conditions are not met, `ameide dev` MUST fail-fast with an explicit error stating that wildcard subdomain auth is not enabled.
+If these conditions are not met, `ameide dev` MUST fail-fast with an explicit error stating that the canonical-host bounce configuration is not enabled.
 
 **Gateway attachment**
 
