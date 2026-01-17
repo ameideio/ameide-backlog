@@ -170,6 +170,7 @@ Inner-loop requires cluster-side enablement (owned by `ameide-gitops`):
   * CRUD on `services`
   * CRUD on `httproutes.gateway.networking.k8s.io`
   * get/list/watch on `httproutes` for status checks
+  * get on `ConfigMap/www-ameide-platform-config` and `Secret/www-ameide-platform-auth`, `Secret/www-ameide-platform-db`, `Secret/playwright-int-tests-secrets` in the environment namespace (bound per-workspace via RoleBinding)
 * NetworkPolicy permitting Envoy Gateway dataplane pods to reach workspace pods on TCP/3001.
 * Admission control restricting workspace-created `HTTPRoute` objects to the inner-loop contract.
 * A janitor CronJob to delete expired per-run `Service` + `HTTPRoute` resources.
