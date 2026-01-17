@@ -22,6 +22,57 @@ This backlog defines the **normative CLI front doors** for:
 
 This document is a **CLI surface spec** (user-facing contract + invariants). Implementation is tracked separately.
 
+## Current implementation mismatches / risks (must be reconciled)
+
+This section records known mismatches between the normative surface described below and the current implementation
+in `ameideio/ameide` (and cluster enablement in `ameideio/ameide-gitops`).
+
+1) **`ameide test` vs `ameide test e2e` surface mismatch**
+
+- The normative contract (430v2 + 621 + this doc) states:
+  - `ameide test` runs Phase 0/1/2 only (local-only).
+  - `ameide test e2e` is the explicit Phase 3 front door (Playwright, deployed target truth).
+- Current CLI wiring in the `ameide` repo has drifted such that `ameide test` runs Phase 0/1/2/3 by default and
+  the `ameide test e2e` subcommand may not exist yet.
+
+Reconciliation requirement:
+- Bring the CLI surface back into alignment with this spec (either update the CLI or update the contract docs).
+
+2) **Gateway parentRef must not be hardcoded**
+
+Inner-loop routing (both Phase 3 and `ameide dev`) must attach to the environment platform Gateway listener.
+Hardcoding `(gateway name, namespace, sectionName)` is fragile across clusters/namespaces and is known to break when
+the Gateway is deployed into the environment namespace (e.g. `ameide-dev`).
+
+Reconciliation requirement:
+- Always resolve the platform gateway parentRef by inspecting the baseline platform HTTPRoute in the target
+  environment namespace (there is already a resolver helper for this).
+
+3) **Hostname routing increases exposure (security posture change)**
+
+`ameide dev` intentionally swaps header-gated routing (tool-friendly) for per-run hostname routing (human-friendly).
+This is a deliberate trade:
+
+- Pros: browsers “just work” (no header injection), human UX is excellent.
+- Cons: the devserver becomes reachable by anyone who can guess/obtain the per-run hostname. Since the devserver is
+  started with real environment secrets (Auth.js/DB creds), exposure risk must be mitigated at multiple layers.
+
+Mitigations (non-optional):
+- Non-guessable run id in hostname (sufficient entropy), short TTL, and cleanup on exit + janitor.
+- Admission policy restricting workspace-created HTTPRoutes to safe shapes (host allowlist + parentRef allowlist +
+  same-namespace Service backends only).
+- NetworkPolicy constraining inbound to `:3001` to Envoy dataplane pods only.
+
+4) **Auth/OIDC must support per-run subdomains**
+
+`ameide dev` depends on Auth.js + OIDC redirect/callback behavior working on per-run subdomains.
+If this is not enabled, the correct behavior is fail-fast with explicit diagnostics (not “best effort”).
+
+Design decision:
+- This spec chooses **dev-only wildcard redirect URIs** for `*.dev.ameide.io` as the normative requirement.
+- If the team prefers “static redirect on canonical host and bounce back”, that should be specified as an explicit
+  alternative in this doc and implemented intentionally (not as an accidental workaround).
+
 ## Goals
 
 1. **One thing per command.** No “mode” flags or multi-purpose commands.
@@ -238,6 +289,22 @@ These are prerequisites for `ameide test e2e` and `ameide dev`:
 3) NetworkPolicy MUST allow Envoy dataplane pods to reach workspace pod `:3001` for devserver routing.
 4) Admission policy MUST constrain workspace-created Routes to safe shapes (host patterns, parentRef allowlist, same-namespace backends).
 5) A cluster-side janitor MUST delete leaked `ameide.devx/owner=ameide-cli` resources past TTL.
+
+## GitOps enablement status (tracking notes)
+
+This section links existing GitOps enablement that already supports parts of Phase 3 / `ameide dev`.
+It is tracking context only; the normative requirements are the sections above.
+
+- Workspace RBAC bootstrap (Coder):
+  - `sources/values/_shared/cluster/coder-workspace-phase3-rbac.yaml`
+  - Provides: create/delete Services + HTTPRoutes in workspace namespaces; read env ConfigMaps/Secrets in `ameide-dev`.
+- Workspace ingress NetworkPolicy automation (Kyverno generate policy):
+  - `policies/generate-workspace-innerloop-devserver-networkpolicy.yaml`
+  - Provides: Envoy dataplane reachability to workspace devserver port `3001`.
+
+Remaining gaps (must be implemented to meet the spec):
+- Admission policy restricting workspace-created HTTPRoutes (host pattern, parentRef allowlist, backendRefs).
+- Cluster-side janitor for leaked innerloop resources (HTTPRoute/Service) based on TTL annotations/labels.
 
 ---
 
