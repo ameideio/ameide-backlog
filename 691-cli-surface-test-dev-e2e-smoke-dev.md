@@ -40,7 +40,7 @@ Reconciliation requirement:
 
 2) **Gateway parentRef must not be hardcoded**
 
-Inner-loop routing (both Phase 3 and `ameide dev`) must attach to the environment platform Gateway listener.
+Inner-loop dev routing (`ameide dev` and any legacy/innerloop routing helpers) must attach to the environment platform Gateway listener.
 Hardcoding `(gateway name, namespace, sectionName)` is fragile across clusters/namespaces and is known to break when
 the Gateway is deployed into the environment namespace (e.g. `ameide-dev`).
 
@@ -118,6 +118,17 @@ Reconciliation requirement:
 - Implementation plan: `backlog/692-cli-surface-implementation-plan.md`
 - Agentic workspace posture (Coder/Che): `backlog/650-agentic-coding-overview.md`, `backlog/652-agentic-coding-dev-workspace.md`, `backlog/690-agentic-dev-environments-coder-che.md`
 - Historical “Tilt/Telepresence” loop (context only): `backlog/432-devcontainer-modes-offline-online.md`, `backlog/435-remote-first-development.md`
+
+## Alignment checklist (follow-up edits required)
+
+This section records the docs that should be updated so the “diagram matches the code” once 691 is implemented.
+
+- `backlog/654-agentic-coding-cli-surface.md`: promote “optional interactive checks” into the concrete `ameide dev` command, and clarify that `ameide dev` (not `ameide test e2e`) owns workspace routing.
+- `backlog/653-agentic-coding-test-automation.md`: ensure the automation layer treats `ameide test e2e` as the deployed truth gate and `ameide dev` as the human hotreload loop.
+- `backlog/621-ameide-cli-inner-loop-test-v2.md`: remains the normative source for `ameide test smoke`. This doc intentionally does not define `smoke` even though the filename still includes it historically.
+- `backlog/441-networking.md`: cross-link the workspace dev routing contracts (allowedRoutes + Envoy→workspace NetworkPolicy + hostnames) to the general Gateway/DNS primitives.
+- `backlog/427-platform-login-stability.md`: add an explicit note about the canonical-host auth bounce + cookie-domain requirements used by `ameide dev`, since it intersects with existing redirect_uri / cookie-domain failure modes.
+- `backlog/686-aks-pool-principles-migration-plan.md`: treat pool layout/pinning as an indirect dependency for stable gateway/workspace assumptions (Envoy placement, workspace pool isolation).
 
 ---
 
@@ -305,7 +316,16 @@ If derivation fails, commands MUST error with a clear message; no “best-effort
 
 ## Cluster enablement prerequisites (Phase 3 / dev)
 
-These are prerequisites for `ameide test e2e` and `ameide dev`:
+These are prerequisites for cluster-only commands. They are intentionally split to avoid conflating “deployed truth E2E” with “workspace dev routing”.
+
+### Prereqs: `ameide test e2e` (deployed truth; no workspace routing)
+
+1) `AMEIDE_ENV_NAMESPACE` MUST be reachable and readable by the workspace identity.
+2) Workspace identity MUST have RBAC to read:
+   - `ConfigMap/www-ameide-platform-config` in `AMEIDE_ENV_NAMESPACE`
+   - `Secret/playwright-int-tests-secrets` (and any required Auth.js secrets) in `AMEIDE_ENV_NAMESPACE`
+
+### Prereqs: `ameide dev` (workspace dev routing)
 
 1) Workspace namespaces MUST be allowed to attach `HTTPRoute` to the platform Gateway (via `allowedRoutes` selector).
 2) Workspace service accounts MUST have RBAC to:
@@ -324,10 +344,10 @@ It is tracking context only; the normative requirements are the sections above.
 
 - Workspace RBAC bootstrap (Coder):
   - `sources/values/_shared/cluster/coder-workspace-phase3-rbac.yaml`
-  - Provides: create/delete Services + HTTPRoutes in workspace namespaces; read env ConfigMaps/Secrets in `ameide-dev`.
+  - Provides: create/delete Services + HTTPRoutes in workspace namespaces; read env ConfigMaps/Secrets in `ameide-dev` (for cluster-only commands).
 - Workspace ingress NetworkPolicy automation (Kyverno generate policy):
   - `policies/generate-workspace-innerloop-devserver-networkpolicy.yaml`
-  - Provides: Envoy dataplane reachability to workspace devserver port `3001`.
+  - Provides: Envoy dataplane reachability to workspace devserver port `3001` (required by `ameide dev`).
 
 Remaining gaps (must be implemented to meet the spec):
 - Admission policy restricting workspace-created HTTPRoutes (host pattern, parentRef allowlist, backendRefs).
