@@ -121,6 +121,7 @@ Additional sharp edges (provider-specific, but recurrent):
 - **oauth2-proxy CSRF cookie collisions:** multiple oauth2-proxy apps sharing `*.dev.ameide.io` can cause “Unable to find a valid CSRF token”. Prefer per-app cookie names (Che must not reuse the default `_oauth2_proxy*` cookie name).
 - **OIDC username claim mismatch:** Che may bind RBAC to one identity (display name) while Kubernetes authenticates as another (email) → dashboard `forbidden`. Standardize on `email` end-to-end.
 - **Scale-from-zero scheduling vs workspace timeouts:** if `workspaces-che` is autoscaled to `0`, DevWorkspace startup can exceed default progress timeouts. Ensure the DevWorkspace operator `workspace.progressTimeout` is set high enough (e.g. `10–15m`) so workspaces don’t fail before nodes appear.
+  - In Che, this often means ensuring the Che-managed `DevWorkspaceOperatorConfig/devworkspace-config` used by workspaces is set appropriately (not just the global operator config).
 
 ## 7) What “good” looks like (end-to-end)
 
