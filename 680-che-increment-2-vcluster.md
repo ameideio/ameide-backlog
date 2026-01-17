@@ -182,6 +182,55 @@ For stable and deterministic behavior (recommended once we move beyond ad-hoc de
 
 Note: namespace templates require `<username>` or `<userid>`, and username sanitization affects the final namespace name.
 
+## Incident log (2026-01-17): redirect URI, CSRF, and RBAC subject mismatches
+
+### Symptom A: Keycloak rejects Che auth request
+
+- UI redirected to Keycloak, but Keycloak returned `400` with “Invalid parameter: redirect_uri”.
+
+Root cause:
+
+- Che gateway oauth2-proxy had `redirect_url = "https://dev.ameide.io/oauth/callback"` (derived from `domain`) instead of `https://che.dev.ameide.io/oauth/callback`.
+
+Resolution (GitOps):
+
+- Ensure `CheCluster.spec.networking.hostname: che.dev.ameide.io` is set so oauth2-proxy derives the correct callback host and Keycloak client `che` can allowlist it.
+
+### Symptom B: Che login callback fails with CSRF mismatch
+
+- `403 Forbidden` on `/oauth/callback` with “Unable to find a valid CSRF token”.
+
+Root cause:
+
+- oauth2-proxy CSRF cookies collided on the shared cookie domain (multiple oauth2-proxy-backed apps under `*.dev.ameide.io`).
+
+Resolution (GitOps + user action):
+
+- Set `OAUTH2_PROXY_COOKIE_NAME` for Che’s oauth2-proxy to a Che-specific name (example: `_oauth2_proxy_che`).
+- Clear cookies/site data for `che.dev.ameide.io` (and often `auth.dev.ameide.io`) or use an incognito window after the change.
+
+### Symptom C: Che dashboard shows `forbidden` for DevWorkspaces and user profile
+
+Examples:
+
+- `devworkspaces.workspace.devfile.io is forbidden: User "admin@ameide.io" cannot list ... in the namespace "admin-user-che-..."`
+- `secrets "user-profile" is forbidden: User "admin@ameide.io" cannot get ... in the namespace "admin-user-che-..."`
+
+Root cause:
+
+- Che auto-provisioned RoleBindings for a different username string than Kubernetes auth produced (display name vs email).
+
+Resolution:
+
+- Align username claim end-to-end:
+  - vCluster API server: `--oidc-username-claim=email` and `--oidc-username-prefix=-`
+  - Che server/dashboard: `CHE_OIDC_USERNAME__CLAIM=email`
+- Re-login so Che creates a new per-user namespace/RBAC bindings for the canonical identity.
+
+Operational note:
+
+- Old namespaces like `admin-user-che-*` may remain and bind to the old username (e.g., `Admin User`); treat them as disposable in dev.
+
 ## Risks / known sharp edges
 
 - vCluster introduces an additional control plane component; we must track its resource footprint and failure modes.

@@ -109,6 +109,18 @@ This increment MUST explicitly configure these `CheCluster` fields (dev values s
 
 Note: TLS is terminated at Envoy Gateway for `che.dev.ameide.io` in this increment; we do not require Che to manage per-Ingress TLS secrets.
 
+#### Failure mode (observed): Keycloak `Invalid parameter: redirect_uri`
+
+If `spec.networking.hostname` is omitted, Che’s gateway oauth2-proxy can derive `redirect_url` from `domain`, leading to callbacks like:
+
+- `https://dev.ameide.io/oauth/callback` (wrong host)
+
+Keycloak will reject the auth request with:
+
+- `400` “Invalid parameter: redirect_uri”
+
+Fix is GitOps-only: set `spec.networking.hostname` to the actual Che host (`che.dev.ameide.io`) so the oauth2-proxy `redirect_url` matches the Keycloak client allowlist.
+
 ### 2) Add Keycloak OIDC client for Che (dev realm)
 
 Update `platform-keycloak-realm` dev overlay so Keycloak becomes the source of truth for Che auth:

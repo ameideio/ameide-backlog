@@ -116,6 +116,11 @@ Vendor-aligned mitigation when the host managed control plane cannot trust exter
 
 - Run Che in a vCluster whose API server is configured to trust Keycloak OIDC (see `backlog/680-che-increment-2-vcluster.md`).
 
+Additional sharp edges (provider-specific, but recurrent):
+
+- **oauth2-proxy CSRF cookie collisions:** multiple oauth2-proxy apps sharing `*.dev.ameide.io` can cause “Unable to find a valid CSRF token”. Prefer per-app cookie names (Che must not reuse the default `_oauth2_proxy*` cookie name).
+- **OIDC username claim mismatch:** Che may bind RBAC to one identity (display name) while Kubernetes authenticates as another (email) → dashboard `forbidden`. Standardize on `email` end-to-end.
+
 ## 7) What “good” looks like (end-to-end)
 
 ### 7.1 Human workflow (Coder or Che)
