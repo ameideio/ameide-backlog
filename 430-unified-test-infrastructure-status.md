@@ -220,6 +220,7 @@ Although operators don’t use `INTEGRATION_MODE`, the intent is analogous:
   - `INTEGRATION_MODE=cluster`
   - `AMEIDE_PLATFORM_BASE_URL` is set (absolute URL; set by `ameide test e2e` by reading `AUTH_URL` from `ConfigMap/www-ameide-platform-config`)
   - `WWW_AMEIDE_PLATFORM_E2E_NAMESPACE` + `WWW_AMEIDE_PLATFORM_E2E_SECRET_NAME` are set (persona secret source)
+- When `ameide test e2e` is run from a Kubernetes-hosted workspace/task (Coder/Che), the execution identity must have read access to `ConfigMap/www-ameide-platform-config` and the persona Secret in the environment namespace; grant this via a predeclared, tightly-scoped Role that workspaces bind to (not by ad-hoc Role creation during provisioning).
 - Playwright artifacts write to `/artifacts/e2e/*` (junit + report + traces/screenshots/videos) with no fallback paths.
 
 ---
