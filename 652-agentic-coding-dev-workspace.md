@@ -80,6 +80,21 @@ Rules:
 - Stopping a workspace must not delete the workspace namespace/PVC; deletion is the intentional “data destroy” event.
 - `$HOME` is ephemeral unless we add a separate PVC (future option).
 
+### 4.1.2 Toolchain contract (required)
+
+The Coder devcontainer must ship the minimum toolchain required to run the “no-brainer” inner loop (`ameide test` / `ameide test ci`) without additional manual setup:
+
+- Go (`go`, `gofmt`) — version pinned to the repo (`go.mod`).
+- Node.js (`node`) — currently 22.
+- pnpm (`pnpm`) — pinned to the repo’s `package.json#packageManager`.
+- uv (`uv`, `uvx`) — pinned (currently `0.9.26`) and installed into the user PATH.
+- buf (`buf`) — pinned (currently `v1.63.0`) and installed into the user PATH.
+
+Implementation notes (current):
+
+- Build-time pinning is preferred: Go and pnpm are installed via `.devcontainer/coder/devcontainer.json` features.
+- `uv` and `buf` are installed by `.devcontainer/coder/postCreate.sh` (idempotent, pinned, no apt-get) via `.devcontainer/lib/tooling.sh`.
+
 ### 4.2 code-server app exposure
 
 Workspace must expose code-server through a Coder app proxy surface (vendor-aligned pattern):
