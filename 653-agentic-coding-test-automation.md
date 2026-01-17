@@ -109,6 +109,15 @@ Non-negotiables:
 - agents run this with no flags; the CLI owns discovery and runner selection
 - each phase emits JUnit (synthetic if needed)
 
+Minimum toolchain requirement (workspace contract):
+
+- `go`, `gofmt`
+- `node`, `pnpm`
+- `uv`, `uvx`
+- `buf`
+
+If any of these are missing, the inner loop fails fast and the platform smoke should catch it.
+
 Note: for vendor-locked external executor profiles (e.g., D365FO), Phase 1/2 execution may be delegated to an external executor tool contract, but the agent still runs the same CLI front door and receives the same evidence shape (see 655).
 
 ### 4.3 Layer 3 — preview environment E2E (merge gate truth)
