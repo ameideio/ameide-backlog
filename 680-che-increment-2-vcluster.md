@@ -231,6 +231,26 @@ Operational note:
 
 - Old namespaces like `admin-user-che-*` may remain and bind to the old username (e.g., `Admin User`); treat them as disposable in dev.
 
+### Symptom D: DevWorkspace fails to start after ~300s (scale-from-zero scheduling)
+
+Symptoms (Che UI / DevWorkspace status):
+
+- DevWorkspace stuck at `Waiting for workspace deployment` and then fails after ~`300s`.
+- Scheduler events include `FailedScheduling` due to pool/affinity mismatch (common when `workspaces-che` is autoscaled to `0` and must scale up on demand).
+
+Root cause:
+
+- DevWorkspace workloads are intentionally constrained to the `workspaces-che` pool (nodeSelector + taint/toleration) per `backlog/684-aks-node-pool-strategy-option-b.md`.
+- The DevWorkspace operator’s `workspace.progressTimeout` was effectively `300s`, which is too short to tolerate “scale from zero” on AKS.
+
+Resolution (GitOps):
+
+- Increase `DevWorkspaceOperatorConfig.config.workspace.progressTimeout` to `15m` in the Che vCluster bootstrap (`sources/values/env/dev/platform/platform-vcluster-che.yaml`).
+
+Notes:
+
+- This change prevents premature workspace failure during node pool scale-up; it does not fix missing/mislabelled node pools. If there are no nodes labeled `ameide.io/pool=workspaces-che`, DevWorkspaces will still remain unschedulable until that platform constraint is corrected.
+
 ## Risks / known sharp edges
 
 - vCluster introduces an additional control plane component; we must track its resource footprint and failure modes.
