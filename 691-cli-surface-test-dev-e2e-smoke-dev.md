@@ -243,7 +243,7 @@ These are prerequisites for `ameide test e2e` and `ameide dev`:
 
 ## Evidence and secrecy
 
-1. Commands that run tests (`ameide test`, `ameide test e2e`, `ameide test smoke`) MUST emit JUnit evidence.
+1. Commands that run tests (`ameide test`, `ameide test e2e`) MUST emit JUnit evidence.
 2. Credentials and capability tokens MUST NOT be written to:
    - logs
    - Playwright traces/HAR
