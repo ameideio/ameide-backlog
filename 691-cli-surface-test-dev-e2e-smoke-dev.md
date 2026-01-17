@@ -115,6 +115,7 @@ Reconciliation requirement:
 
 - Normative phase split and `ameide test e2e`: `backlog/430-unified-test-infrastructure-v2-target.md`
 - Inner-loop front doors: `backlog/621-ameide-cli-inner-loop-test-v2.md`
+- Implementation plan: `backlog/692-cli-surface-implementation-plan.md`
 - Agentic workspace posture (Coder/Che): `backlog/650-agentic-coding-overview.md`, `backlog/652-agentic-coding-dev-workspace.md`, `backlog/690-agentic-dev-environments-coder-che.md`
 - Historical “Tilt/Telepresence” loop (context only): `backlog/432-devcontainer-modes-offline-online.md`, `backlog/435-remote-first-development.md`
 
