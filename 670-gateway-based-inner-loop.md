@@ -137,7 +137,7 @@ The CLI MUST wait for the `HTTPRoute` to be ready before running Playwright. Min
 
 One-command flow (agent-friendly, no human intervention):
 
-1. Determine the target environment namespace from `AMEIDE_AKS_NAMESPACE` (provisioned by the workspace template; explicit override allowed).
+1. Determine the target environment namespace from `AMEIDE_ENV_NAMESPACE` (provisioned by the workspace template; explicit override allowed).
 2. Read the platform runtime configuration for `www-ameide-platform` from:
    * `ConfigMap/www-ameide-platform-config` (in the environment namespace)
    * `Secret/www-ameide-platform-auth` (in the environment namespace)
