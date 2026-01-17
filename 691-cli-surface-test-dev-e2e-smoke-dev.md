@@ -140,11 +140,14 @@ This command is intentionally separate from `ameide test e2e`:
 - MUST bind: `0.0.0.0:3001`
 - MUST confirm readiness (e.g. `http://127.0.0.1:3001/api/auth/providers`).
 
-**Per-run hostname**
+**Workspace hostname (human-friendly)**
 
-- Format: `platform-dev-<run-id>.dev.ameide.io`
-- `<run-id>` MUST be DNS-1123-safe (lowercase `[a-z0-9-]`) and non-guessable (sufficient entropy).
+- Format: `platform-dev-<workspace-env-id>.dev.ameide.io`
+- `<workspace-env-id>` MUST be DNS-1123-safe (lowercase `[a-z0-9-]`) and MUST be derived deterministically from the workspace identity.
+  - Coder: derive from the workspace namespace name (e.g. `ameide-ws-<uuid>` → `<uuid>`), or another stable workspace identifier exposed in the pod environment.
+  - Che: derive from the DevWorkspace identity (or namespace) using the same DNS-safe normalization.
 - The hostname is “human-friendly” because no custom headers are required.
+- `run-id` remains an internal concept for labeling/TTL and diagnostics; it MUST NOT be embedded into the dev hostname.
 
 **Auth strategy (normative choice)**
 
@@ -164,7 +167,7 @@ If these conditions are not met, `ameide dev` MUST fail-fast with an explicit er
 
 Workspace-created `HTTPRoute` resources for `ameide dev` MUST be restricted by admission policy (Kyverno/CEL) to:
 
-- Hostname pattern: `platform-dev-*.dev.ameide.io`
+- Hostname pattern: `platform-dev-*.dev.ameide.io` (where `*` is the workspace environment id)
 - ParentRef: resolved platform Gateway only (name/namespace/sectionName)
 - BackendRef: Service in the same namespace only
 - Required TTL labels/annotations (see below)
@@ -209,11 +212,7 @@ This is a user convenience. A cluster-side janitor is still required as the safe
 
 ### Required (cluster-only commands)
 
-- `AMEIDE_ENV_NAMESPACE` (required by `ameide test smoke`; used by `ameide test e2e` when `AMEIDE_E2E_BASE_URL` is not set)
-
-### Optional explicit overrides
-
-- `AMEIDE_E2E_BASE_URL` (explicit base URL for `ameide test e2e`)
+- `AMEIDE_ENV_NAMESPACE` (required by `ameide test e2e` and `ameide dev`)
 
 ### Derived values (no hardcoding)
 
@@ -228,7 +227,7 @@ If derivation fails, commands MUST error with a clear message; no “best-effort
 
 ## Cluster enablement prerequisites (Phase 3 / dev)
 
-These are prerequisites for `ameide test smoke` and `ameide dev` (and for `ameide test e2e` when it reads from the cluster):
+These are prerequisites for `ameide test e2e` and `ameide dev`:
 
 1) Workspace namespaces MUST be allowed to attach `HTTPRoute` to the platform Gateway (via `allowedRoutes` selector).
 2) Workspace service accounts MUST have RBAC to:
