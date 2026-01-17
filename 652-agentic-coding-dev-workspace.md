@@ -22,6 +22,11 @@ Define the human developer experience for agentic coding:
 
 This document inherits all decisions from `backlog/650-agentic-coding-overview.md`.
 
+## 0.2 Status update (2026-01-17)
+
+- Phase 3 “innerloop routing” RBAC is now treated as cluster bootstrap (predeclared roles + bind-only delegation to the Coder provisioner) so workspace Terraform does not trip RBAC privilege escalation.
+- Workspace namespaces are labeled `gateway-access=allowed` and the Envoy Gateway listeners are configured to only accept routes from labeled namespaces (Gateway API trust model).
+
 ## 0.1 Primary UX goal: the workspace is “agent-native”
 
 The workspace is not just a “human IDE in the cluster”; it is the place where agents and humans share a single, reproducible dev machine contract.

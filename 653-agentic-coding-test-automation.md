@@ -22,6 +22,12 @@ Define a single, consistent testing model that works for:
 
 This document inherits all decisions from `backlog/650-agentic-coding-overview.md`.
 
+## 0.2 Status update (2026-01-17)
+
+- Coder control plane + provisioners are healthy; recent workspaces are provisioning successfully.
+- Phase 3 workspace routing RBAC is now bootstrap-managed (predeclared roles + bind-only delegation) to avoid RBAC escalation failures during Terraform applies.
+- Known non-blocker: `coder show` “containers” warnings can occur in envbuilder-based workspaces because `docker` is intentionally not present.
+
 ## 0.1 Primary purpose of the CLI: reduce cognitive load for agents
 
 This monorepo spans multiple runtimes and vendor toolchains (Go/Node/Python/Playwright/Kubernetes).
