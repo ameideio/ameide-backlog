@@ -72,6 +72,7 @@ Hard rules:
 - Other **exclusive pools** (e.g., `workspaces-*`, `arc-runners`) SHOULD be tainted `NoSchedule` so only explicitly-tolerating workloads land there.
 - `system` must not become a “dumping ground” for unpinned controllers (taint is the backstop; explicit placement is still required).
 - Use **explicit nodeSelector or required node affinity** for pool placement on all cluster-level controllers.
+- Platform-owned components MUST NOT carry `CriticalAddonsOnly` tolerations (otherwise they can drift onto system nodes if/when the system pool is tainted).
 
 Guidelines:
 
@@ -94,6 +95,14 @@ Target: `platform` should remain schedulable with **3 nodes** at typical load **
 
 We must treat changes that touch pod templates (requests/limits/nodeSelectors) as **rollout-causing** changes and stage them carefully.
 
+## Current implementation status (Git)
+
+To converge on “system=AKS only, platform=controllers/operators” without service disruption:
+
+- Fleet-wide defaults MUST NOT leak scheduling: `sources/values/cluster/globals.yaml` should not set global `tolerations`/`nodeSelector`.
+- Platform-owned controllers/operators MUST be explicitly pinned to `ameide.io/pool=platform` and tolerate only the `platform:NoSchedule` taint (not `CriticalAddonsOnly`).
+- Azure-only overrides (for example `sources/values/cluster/azure/cert-manager.yaml`) must not override scheduling unless intentionally required.
+
 ## Implementation plan (step-by-step, non-disruptive)
 
 ### Phase 0 — Safety prerequisites (before moving anything)
@@ -115,6 +124,7 @@ Actions (documented, reversible):
 - Ensure node pool/node labeling is consistent (fix any `<none>`), preferring a Git/IaC change; if stabilization can’t wait, use the dedicated CI break-glass workflows (avoid manual `kubectl label` in shared cloud).
 - Apply/verify `system` pool taint `CriticalAddonsOnly=true:NoSchedule` and confirm critical add-ons tolerate it; encode this in IaC in Phase 4 (avoid manual `kubectl taint` in shared cloud).
 - If a component must be moved immediately to restore availability, use a minimal Git change + fast Argo sync (preferred) or a CI break-glass workflow; avoid direct `kubectl patch/apply` in shared cloud.
+- DNS stabilization priority: avoid GitOps churn on AKS-managed kube-system components; prefer supported config mechanisms over mutating Deployments.
 
 Exit criteria:
 
@@ -135,6 +145,11 @@ Work items (in small PRs / waves):
 2) Ameide operators (`ameide-system`) → `platform` pool
 3) Cluster operators → `platform` pool
 4) Confirm `kube-system` non-DaemonSets → `system` pool
+
+Notes:
+
+- Moving the Argo CD control plane changes the cluster’s “brain”; treat it as a dedicated wave with enough platform capacity/headroom.
+- Avoid putting platform controllers on `system` even if it “fixes Pending pods” in the moment; that creates long-term drift and makes `ameidesys` decommissioning harder.
 
 Verification:
 
@@ -161,6 +176,7 @@ Guardrails:
 - Never “solve scheduling” by moving platform-owned controllers back to system.
 - Prefer reducing requests for stateless deployments first; treat StatefulSets carefully.
 - Keep PDBs / rollout strategies so updates are non-disruptive.
+- Reduce requests in steps and verify health after each wave (ArgoCD sync + logs + app SLOs).
 
 ### Phase 4 — Align Terraform/Bicep (after Git proves stable)
 
