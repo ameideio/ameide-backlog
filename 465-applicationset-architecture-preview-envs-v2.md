@@ -522,6 +522,17 @@ Local k3d (BASE_ENV=`local`) was exercised end-to-end using an open PR labeled `
 - Reachability was verified via the base Envoy Gateway dataplane once it was Ready:
   - `platform-pr-507.local.ameide.io` returned `200` for `/healthz` and `307` on `/` (expected redirect behavior).
 
+AKS (BASE_ENV=`dev`) was exercised end-to-end using an open PR labeled `preview` (example: PR `583`):
+
+- The preview namespace (`pr-ameide-583`) was created and labeled correctly (`gateway-access=allowed`, `ameide.io/environment=dev`).
+- `preview-baseline`, `preview-secrets`, and `preview-apps` Applications were generated and reached `Synced/Healthy`.
+- Preview hostnames were reachable end-to-end:
+  - `https://www-pr-583.dev.ameide.io` returned `200`.
+  - `https://platform-pr-583.dev.ameide.io` returned `307` (expected login redirect behavior).
+- Two AKS-specific fixes were required:
+  - The base `Gateway/ameide` `grpc` listener hostname in dev must intersect preview hostnames (`api-pr-<PR>.dev.ameide.io`); `hostname: "*.dev.ameide.io"` satisfies both `api.dev.ameide.io` and `api-pr-...`.
+  - `preview-secrets` must not attempt to materialize Vault keys that the preview role cannot read (e.g. `coder-db-password`, `codex-broker-db-password`), since Coder/Codex-broker are not deployed as part of apps-tier previews.
+
 Local-only mitigations that were required to make this stable under k3d load:
 
 - `argocd/overlays/local/kustomization.yaml`: pin `www-ameide-platform` to `k3d-ameide-agent-1` via `nodeSelector` to avoid intermittent kubelet `configmap not found` fetch flakiness observed on a busy agent.
@@ -537,8 +548,10 @@ When preview Applications exist but the PR URL is not reachable, check in this o
    - Symptom: dataplane `envoy` container logs show `gRPC config: initial fetch timed out ... ClusterLoadAssignment`.
 2. **PR routes exist**
    - `kubectl -n pr-ameide-<PR> get httproute,grpcroute` MUST show the PR-scoped hostnames.
+   - If the GRPCRoute shows `NoMatchingListenerHostname`, the base environment `Gateway` `grpc` listener hostname does not intersect the preview hostname.
 3. **Secrets exist before workloads**
    - `kubectl -n pr-ameide-<PR> get externalsecret` should show `Ready=True` for required secrets.
    - `Secret/default-external-secrets-token` must exist, and `SecretStore/ameide-vault` must validate.
+   - If ExternalSecrets show `403 permission denied` from Vault, the preview Vault role policy does not permit the requested key; either narrow the preview secrets inventory or update the preview policy allowlist.
 4. **Argo manifest generation is healthy**
    - If Argo shows `ComparisonError ... dial tcp ... argocd-repo-server`, check `argocd-repo-server` readiness and consider increasing local resources/replicas for repo-server and reducing cross-node churn.
