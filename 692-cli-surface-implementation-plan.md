@@ -24,19 +24,35 @@ Non-scope:
 
 ---
 
-## Milestone A — CLI surface alignment (no functional change beyond command wiring)
+## Guardrails (keep the CLI dry and small)
 
-**Goal:** align the CLI entrypoints with 691/430v2/621 without changing test semantics.
+Implementation must stay “DRY and boring” so the CLI does not become a second platform.
+
+- Prefer **thin command wiring** over new orchestration layers.
+- Keep **one responsibility per command** (`test`, `test e2e`, `dev`).
+- Prefer **shared helpers** for:
+  - reading base URL + secrets from Kubernetes,
+  - artifact layout + JUnit emission + redaction,
+  - Gateway API attachment (status-condition based).
+- Avoid duplicating the same logic in multiple places (e.g. “get base URL” should exist once).
+- Keep internal naming semantic: **contract/unit/integration/e2e/smoke**, not “phase 0/1/2/3” in user-facing UX.
+  - Internal file names may remain as-is temporarily to minimize churn, but the CLI surface and docs must use semantic names.
+
+---
+
+## Milestone A — CLI surface alignment (naming + command wiring)
+
+**Goal:** align CLI entrypoints with 691/430v2/621 without changing test semantics.
 
 Tasks (repo: `ameideio/ameide`)
 - Add `ameide test e2e` subcommand:
-  - Runs Playwright E2E only (deployed-system truth).
+  - Runs Playwright **E2E only** (deployed-system truth).
   - Resolves base URL by reading `AUTH_URL` from `ConfigMap/www-ameide-platform-config` in `AMEIDE_ENV_NAMESPACE`.
   - Reads personas from `Secret/playwright-int-tests-secrets` in `AMEIDE_ENV_NAMESPACE`.
   - Emits mandatory JUnit evidence and redacts secrets from artifacts.
-- Change `ameide test` to run Phase 0/1/2 only.
-- Ensure `ameide test ci` remains Phase 0/1/2 only.
-- Update CLI help text and remove any legacy docs implying Phase 3 is part of `ameide test`.
+- Change `ameide test` to run **contract/unit/integration** only (local-only; no Kubernetes).
+- Ensure `ameide test ci` remains **contract/unit/integration** only.
+- Update CLI help text and remove any legacy docs implying E2E is part of `ameide test`.
 
 Acceptance criteria
 - `ameide test` runs with no Kubernetes access.
@@ -44,9 +60,9 @@ Acceptance criteria
 
 ---
 
-## Milestone B — Make Phase 3/Gateway attachment robust (parentRef resolution)
+## Milestone B — Make dev routing robust (Gateway parentRef resolution)
 
-**Goal:** remove brittle hardcoding so `ameide dev` / Phase 3 can attach correctly in AKS environments.
+**Goal:** remove brittle hardcoding so `ameide dev` can attach correctly in AKS environments.
 
 Tasks (repo: `ameideio/ameide`)
 - Replace hardcoded Gateway parentRef with dynamic resolution:
@@ -138,4 +154,3 @@ Tasks
 
 Acceptance criteria
 - One documented happy path exists for “fast UI loop” and “deployed truth E2E”, with the commands in 691.
-

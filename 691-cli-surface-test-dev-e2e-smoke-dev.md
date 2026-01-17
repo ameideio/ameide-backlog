@@ -16,7 +16,7 @@ parents:
 
 This backlog defines the **normative CLI front doors** for:
 
-- Local-only verification (Phases 0/1/2).
+- Local-only verification (contract → unit → integration).
 - Deployed-system truth (Playwright E2E).
 - A human-friendly UI dev loop in an in-cluster workspace (Coder/Che) without Telepresence.
 
@@ -30,8 +30,8 @@ in `ameideio/ameide` (and cluster enablement in `ameideio/ameide-gitops`).
 1) **`ameide test` vs `ameide test e2e` surface mismatch**
 
 - The normative contract (430v2 + 621 + this doc) states:
-  - `ameide test` runs Phase 0/1/2 only (local-only).
-  - `ameide test e2e` is the explicit Phase 3 front door (Playwright, deployed target truth).
+  - `ameide test` runs contract/unit/integration only (local-only).
+  - `ameide test e2e` is the explicit E2E front door (Playwright, deployed target truth).
 - Current CLI wiring in the `ameide` repo has drifted such that `ameide test` runs Phase 0/1/2/3 by default and
   the `ameide test e2e` subcommand may not exist yet.
 
@@ -146,11 +146,11 @@ This section records the docs that should be updated so the “diagram matches t
 
 ### `ameide test`
 
-Runs **Phase 0/1/2 only**:
+Runs contract/unit/integration only (local-only):
 
-0) Phase 0: contract (discovery/collect/list; emits JUnit evidence, synthetic if needed)  
-1) Phase 1: unit (local-only, deterministic)  
-2) Phase 2: integration (local-only, mocked/stubbed only; no Kubernetes/Telepresence)
+- Contract: discovery/collect/list; emits JUnit evidence, synthetic if needed
+- Unit: local-only, deterministic
+- Integration: local-only, mocked/stubbed only; no Kubernetes/Telepresence
 
 **Invariants**
 
@@ -172,7 +172,7 @@ Runs **Phase 0/1/2 only**:
 
 ### `ameide test e2e`
 
-Runs **Playwright E2E only** (“Phase 3” of the overall verification story), against a **deployed target**:
+Runs Playwright E2E only (deployed-system truth), against a **deployed target**:
 
 - No mocks.
 - Canonical truth for merge gates comes from these runs (preview env truth).
