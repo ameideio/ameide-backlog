@@ -1,177 +1,149 @@
-# 656 — Agentic Memory MVP Increment 1: Minimal End-to-End (Safe + Citeable)
+# 656 — Agentic Memory MVP Increment 1 (v6): Minimal End-to-End (Safe + Git-citeable)
 
-**Current status (2026-01-14): partially delivered**
+Increment 1 proves one complete “organizational memory” loop under the v6 posture:
 
-- Delivered: `GetReadContext` query RPC exists and returns version-pinned citations for `published|baseline_ref|version_ref|head` (head is MVP-limited to explicit `element_ids`).
-- Delivered: local verification front door `ameide test` runs Phase 0/1/2 (no cluster) deterministically for agents.
-- Not delivered: permission trimming (authZ), keyword recall, ingestion jobs, proposal/curation/publish end-to-end flows, and the Increment 1 scenario smoke.
+- canonical knowledge is **files in Git**,
+- memory is a **Projection** over those files,
+- agents **propose** but do not publish,
+- publishing advances the **published baseline** (`main`),
+- every answer is reproducible via `read_context` + **Git-anchored citations**.
 
-**Goal:** ship one complete loop that is safe, deterministic, and usable by agents/humans:
+Normative posture:
 
-- **Read:** retrieve citeable context (version-pinned)
-- **Propose:** execution agents can only propose
-- **Curate:** curator can accept/reject
-- **Publish:** promote to “published truth”
-- **Ingest:** seed sources (backlog mirror) exist
-- **Quality:** a smoke proves the whole loop
+- Git-backed canonical repository: `backlog/694-elements-gitlab-v6.md`
+- Owner-only writes + facts-after-commit: `backlog/496-eda-principles-v6.md`
+- Runtime posture: `backlog/520-primitives-stack-v6.md`
+- Memory contract (model TBD): `backlog/656-agentic-memory-v6.md`
+- Memory implementation mapping: `backlog/656-agentic-memory-implementation-v6.md`
 
-This increment intentionally prioritizes **version drift prevention** and **permission-trimmed retrieval** over “fancy embeddings”.
+## Functional storyline (what a user/agent experiences)
 
----
+1) A curator publishes a “Testing SOP” by merging a change to `main`.
+2) An agent asks: “how do I run Phase 0/1/2 tests?”
+3) The system returns a context bundle that cites exactly what was read (commit SHA + file anchors).
+4) The agent proposes an update (patch + evidence) against the cited baseline.
+5) A curator reviews and accepts; the platform publishes by merging to `main`.
+6) The index updates; the next query returns the new published truth by default.
 
-## 0) Implementation anchors (primitives + proto)
+## Non-negotiables (must hold in Increment 1)
 
-This increment is implemented inside the Transformation primitives:
+1) **Permission-trimmed retrieval** (no post-hoc filtering).
+2) **Owner-only writes**: agents/process/UI do not mutate canonical Git directly; they request changes via the owning Domain.
+3) **Reproducible reads**: every answer includes `read_context` and citations sufficient to reproduce “what was read”.
+4) **Proposal-only agents**: execution agents can propose; only governed publish advances `main`.
 
-- **Domain primitive** (`primitives/domain/transformation`): proposal creation + accept/reject + published baseline pointer writes (RBAC enforced at gRPC boundary).
-  - Proto: `io.ameide.transformation.knowledge.v1.*` and `io.ameide.transformation.governance.v1.*`
-  - Ideal: add a dedicated “memory front door” RPC surface (see `backlog/656-agentic-memory-implementation.md` §5.1).
-- **Projection primitive** (`primitives/projection/transformation`): keyword-first `GetContext` returning `read_context + citations` (permission-trimmed).
-  - Ideal: add “memory front door” query RPCs (see `backlog/656-agentic-memory-implementation.md` §5.2).
-- **Integration primitive (MCP):** `memory.get_context` and `memory.propose` map to those RPCs (see `backlog/534-mcp-protocol-adapter.md`).
+## 0) Implementation anchors (existing primitives)
 
-## 1) Read loop (projection)
+No new deployables; reuse existing primitives:
 
-### 1.1 Retrieval contract
+- **Domain primitive (Transformation owner):**
+  - owns governance state + audit pointers (MR id, commit SHA, pipeline ids),
+  - performs canonical Git operations and emits facts after commit.
+  - See `backlog/527-transformation-domain-v3.md` and `backlog/527-transformation-e2e-sequence-v6.md`.
+- **Projection primitive (Transformation projection):**
+  - indexes repo content (docs + inline links + relationship files where present),
+  - serves `memory.get_context` as a query API (permission-trimmed).
+- **Integration primitive (MCP adapter):**
+  - exposes `memory.get_context` (read) and `memory.propose` (write).
+  - See `backlog/534-mcp-protocol-adapter.md`.
 
-Implement a minimal, stable `read_context` contract that agents can hardcode against.
+## 1) Read loop (Projection)
+
+### 1.1 Retrieval contract (MVP, stable)
+
+The goal is not “perfect relevance”; it is **safety + reproducibility**.
 
 **Request MUST include:**
 
-- `scope`: `{tenant_id, organization_id, repository_id}`
+- `scope`: `{tenant_id, repository_id}`
 - `principal`: `{principal_id, roles[], purpose}`
-- `selector` (aligned to 527): `published | baseline_ref | head | version_ref`
-  - Increment 1 MUST support `published` and `baseline_ref`
-  - if `baseline_ref`, `baseline_id` is required
-- `query` (string) OR `element_id` (direct fetch)
+- `read_context.selector`:
+  - `published` (default) → resolve to `main` head commit at query time
+  - `baseline_ref` → caller provides an explicit baseline reference (tag or commit SHA)
+  - `head` → caller provides a specific ref (e.g., MR ref) to read from
+  - `version_ref` → caller provides an explicit commit SHA to read from
+- `query` (string) OR `paths[]` (direct fetch)
 
 **Response MUST include:**
 
-- `scope` echo
-- `selector_used`: `{kind: "published"|"baseline_ref", baseline_id}`
+- `read_context.resolved`:
+  - `commit_sha` (the exact Git commit used for all reads)
+  - `ref` (what was resolved: `main`, tag, MR ref, etc.)
 - `items[]` where each item has:
-  - `repository_id`, `element_id`, `version_id`
-  - `title` (or stable label), `content` (full body or excerpt)
-  - `citations[]` (version pinned; see below)
-  - `why_included` (minimal: `keyword_match` / `relationship_path` / `direct_fetch`)
+  - `path`
+  - `content` (full body or excerpt)
+  - `citations[]` (Git-anchored; see below)
+  - `why_included` (minimal: `keyword_match|direct_fetch|link_graph`)
 
-**Citations MUST be machine-checkable:**
+### 1.2 Citation contract (MVP, Git-anchored)
 
-- every citation includes `{repository_id, element_id, version_id}`
-- optional: `excerpt` `{chunk_key?, start?, end?}` for UI highlighting (non-canonical convenience)
+Until the v6 memory model is finalized, Increment 1 uses a minimal Git-anchored citation format:
 
-Candidate recall in Increment 1 can be keyword/metadata search only.
+- `repository_id`
+- `commit_sha`
+- `path`
+- `anchor` (one of):
+  - `lines: {start, end}` (1-based, inclusive), or
+  - `heading: {slug}` (for Markdown/GLFM anchors), or
+  - `byte_range: {start, end}` (binary-safe fallback)
 
-### 1.2 Permission-trimmed retrieval (must exist in v1)
+Agents MUST only cite items returned in `read_context.items[].citations[]` (no invented citations).
 
-- Retrieval must enforce authorization **before** returning results:
-  - scope: `{tenant_id, organization_id, repository_id}`
-  - principal context: `{principal_id, roles, purpose}`
-- Index and retrieve at the same granularity you return (document/section/chunk), so filtering is not “post-hoc”.
+### 1.3 Permission trimming (must exist)
 
-**V1 granularity decision:** the returned unit is an `ElementVersion` (optionally with an excerpt); derived chunks are internal projection artifacts that must always back-reference the cited `version_id`.
+Authorization is enforced at query time:
 
-### 1.3 Structure-aware chunking (minimum viable)
+- a caller only receives items within their allowed `{tenant_id, repository_id}` scope,
+- and only for paths they are permitted to view (if path-level ACL exists).
 
-Even if the retrieval is keyword-first, store text in **structure-aware units** so later embedding/rerank is stable:
+The projection must index at the same granularity it returns so filtering is not “best effort”.
 
-- Documents: chunk by heading/section path (`H1 > H2 > …`) with stable `chunk_key`.
-- BPMN/ArchiMate: store at least one chunk per element/view with stable ids.
+## 2) Propose loop (Domain; proposal-only for agents)
 
----
+### 2.1 Proposal shape (MVP)
 
-## 2) Propose loop (domain writes; proposal-only for execution agents)
+A proposal is a request to the owning Domain to:
 
-### 2.1 Proposal object (elements + relationships)
+- create/update a working branch,
+- apply a patch (file edits),
+- open or update an MR targeting `main`,
+- attach evidence pointers (links to CI results, agent run ids, etc.).
 
-- `ameide:curation.proposal` element with required metadata.
-- Required relationship: `ameide:curation.targets_version`:
-  - `relationship_kind=REFERENCE`
-  - `metadata.target_version_id` MUST be set (deterministic review; aligns with `backlog/300-400/303-elements.md`).
+The request MUST include:
 
-### 2.2 Minimal proposal payload
+- an idempotency key,
+- the `read_context.resolved.commit_sha` the proposal was based on,
+- and the patch payload (paths + diffs or full replacements).
 
-- Payload can be “full replacement body” for a single target element version (doc update).
-- Capture provenance: `{actor_type, actor_id, tool_id, created_at}` and a short summary.
+### 2.2 Staleness rule (must be defined)
 
-### 2.3 Proposal staleness + rebase (must be defined in v1)
+The Domain MUST block silent overwrites:
 
-Accepting a proposal must not silently overwrite newer truth.
+- if the published baseline (`main`) has advanced since the proposal’s base `commit_sha`,
+  the proposal is **stale** and must be rebased (Domain-managed rebase/update MR).
 
-- A proposal is **stale** if its `targets_version.metadata.target_version_id` is not the currently-selected `published` (or explicitly-selected `baseline_id`) version for that element.
-- A proposal is **stale** if its `targets_version.metadata.target_version_id` is not the version selected by the proposal’s `target selector`:
-  - `selector=published` (resolved via the published baseline pointer), or
-  - `selector=baseline_ref` (explicit `baseline_id`).
-- If stale, the system MUST block `accept` and require a `rebase` first.
-- `rebase` creates a new proposal that targets the current version and links:
-  - old proposal → new proposal via `ameide:curation.rebased_to` (REFERENCE).
+## 3) Curate + publish loop (review + merge to `main`)
 
----
+- Curators review proposals in the product UI (governance truth lives in Domain state).
+- Publishing happens by merging the MR to `main` (optionally tagging the resulting commit).
+- The Domain records audit pointers (MR id, merge commit SHA, pipeline ids) durably and only then emits facts.
 
-## 3) Curate loop (accept/reject)
+## 4) Ingest loop (seed content for retrieval)
 
-### 3.1 List + view proposals
+Increment 1 assumes the canonical repository already contains:
 
-- A curator can list proposals by status and open one proposal to see:
-  - target element + pinned target version
-  - proposed replacement body (or attachment)
+- the curated “Testing SOP” doc file, and optionally
+- additional evidence files committed as plain files.
 
-### 3.2 Accept/reject actions
+The Projection indexes what is in Git at the resolved commit SHA; ingestion from other sources is out of scope for Increment 1 unless it results in Git-traceable citations.
 
-- Accept:
-  - creates a new `ElementVersion` for the target element
-  - links proposal → new version via `ameide:curation.accepted_as` (REFERENCE pinned to the new version)
-- Reject:
-  - records a decision/rationale element and links `ameide:curation.rejected_because`
+## 5) Quality loop (single smoke)
 
-RBAC: execution agents cannot accept/reject.
+One “memory smoke” proves the loop end-to-end:
 
-**Audit MUST exist in v1:** accept/reject/rebase writes an explicit decision artifact (element + relationships) so later trust scoring has deterministic inputs.
-
----
-
-## 4) Publish loop (baseline promotion)
-
-Define “published truth” deterministically in v1:
-
-- Each repository has exactly one `published baseline pointer` → `baseline_id`.
-- `selector=published` resolves to that baseline id.
-- Promotion updates that pointer (and is auditable).
-
----
-
-## 5) Ingest loop (seed content)
-
-- Implement backlog mirror as a manual command/job:
-  - `backlog/**/*.md` → `ameide:ingest.backlog_md` elements
-  - provenance includes `{source_repo, commit_sha, path}`
-- Ingested sources are **not** treated as canonical truth, but are retrievable as evidence.
-
-**V1 trust label:** ingested evidence elements/versions MUST carry a stable trust marker (e.g., `source_kind=INGESTED_EVIDENCE`) so trust ranking can be deterministic in Increment 2.
-
----
-
-## 6) Quality loop (MVP smoke)
-
-Add a smoke that proves the end-to-end path:
-
-1. Create/ensure an ingested doc element exists.
-2. Retrieve context (published) → returns citations.
-3. Create a proposal against a pinned target version.
-4. Curator accepts → new version exists.
-5. Curator promotes → retrieval (published) returns the new version by default.
-
-Smoke must also assert permission trimming:
-
-- unauthorized principal cannot retrieve or propose outside scope.
-
-Add one negative assertion to prevent “freeform memory” leaks:
-
-- answers produced by agent workflows must only cite `{repository_id, element_id, version_id}` that came from `read_context.items[].citations[]` (no invented citations).
-
-**Reference scenario (v1):** “How do I run tests?”
-
-- Seed evidence by ingesting the relevant backlog markdown as `ameide:ingest.backlog_md`.
-- Publish one canonical “Testing SOP” doc element into the published baseline.
-- Query: “how do I run Phase 0/1/2 tests?” must return the published SOP first, with version-pinned citations.
-- Proposal: update the SOP (simple body replacement) and require stale detection + rebase before accept.
+1) Ensure `main` contains a curated `Testing SOP` file.
+2) Query “how do I run Phase 0/1/2 tests?” with `selector=published`.
+3) Assert response includes `read_context.resolved.commit_sha` and citations anchored to that SHA.
+4) Create a proposal to update the SOP, using the resolved commit SHA as the base.
+5) Accept + publish (merge to `main`), record audit pointers.
+6) Re-run the query and assert the returned SOP content comes from the new `main` commit and is cited correctly.

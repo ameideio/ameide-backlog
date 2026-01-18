@@ -7,17 +7,20 @@ This directory splits the MVP implementation into **end-to-end increments** (eac
 **Historical contract:** `backlog/656-agentic-memory.md`  
 **Historical plan:** `backlog/656-agentic-memory-implementation.md`
 
-> Note: the Increment 1–3 docs in this folder were written for the earlier “303-first / elements-first” substrate and should be treated as historical until the v6 memory model is locked.
+This folder now contains:
+
+- **v6-aligned increments** (Git-first, projection-owned memory; model TBD): `*-end-to-end.md`
+- **historical “elements-first” increments** preserved for context: `*-end-to-end-elements-first.md`
 
 ## Current repo status (2026-01-14)
 
-- Increment 1 is **partially** delivered: `GetReadContext` exists (selector + version-pinned citations), and Phase 0/1/2 verification via `ameide test` is green.
+- Increment 1 is **partially** delivered: `GetReadContext` exists (selector + legacy element/version-pinned citations), and Phase 0/1/2 verification via `ameide test` is green.
 - Not yet delivered: permission-trimmed retrieval (authZ), keyword/semantic recall, ingestion jobs, curation queue UX, publish/promotion workflows, and the scenario smoke test.
 
 ## Non-negotiables (all increments)
 
 - Permission-trimmed retrieval (no post-hoc filtering).
-- Version-pinned citations (`{repository_id, element_id, version_id}`).
+- Git-anchored citations (minimum viable: `{repository_id, commit_sha, path, anchor}`), until the v6 memory model is locked.
 - Execution agents are proposal-only writers (no direct canonical mutation).
 - One selector vocabulary (aligned to 527): `head | published | baseline_ref | version_ref`.
 
@@ -27,17 +30,23 @@ This directory splits the MVP implementation into **end-to-end increments** (eac
 2. `backlog/656-agentic-memory-implementation-mvp/2-operational-end-to-end.md`
 3. `backlog/656-agentic-memory-implementation-mvp/3-scaled-end-to-end.md`
 
+Historical copies:
+
+1. `backlog/656-agentic-memory-implementation-mvp/1-minimal-end-to-end-elements-first.md`
+2. `backlog/656-agentic-memory-implementation-mvp/2-operational-end-to-end-elements-first.md`
+3. `backlog/656-agentic-memory-implementation-mvp/3-scaled-end-to-end-elements-first.md`
+
 ## One scenario (expanded each increment)
 
 Use a single scenario so the test surface grows without changing the story:
 
 **Scenario: “How do I run tests?” (agent + curated org memory)**
 
-1. Backlog markdown about testing/inner loop is ingested as evidence (`ameide:ingest.backlog_md`).
-2. A curator publishes a canonical “Testing SOP” element (plus minimal ArchiMate links) into the published baseline.
-3. An execution agent retrieves context for “how do I run Phase 0/1/2 tests?” and receives version-pinned citations.
-4. The agent proposes an update (e.g., add Phase 3 / cluster-only caveat); the proposal targets a pinned `version_id`.
-5. Curator rebases (if stale), accepts, and promotes; retrieval now returns the new version as published truth.
+1. A curator publishes a canonical “Testing SOP” doc by merging to `main`.
+2. An execution agent retrieves context for “how do I run Phase 0/1/2 tests?” with `selector=published`.
+3. The response includes `read_context` plus citations anchored to the resolved published commit SHA.
+4. The agent proposes an update (e.g., add Phase 3 / cluster-only caveat) against that base commit SHA.
+5. Curator rebases (if stale) and publishes by merging to `main`; retrieval now returns the new published truth by default.
 
 This scenario exercises all loops (Read → Propose → Curate → Publish → Ingest → Quality) and becomes the reference for smoke, golden queries, and CI evaluation.
 

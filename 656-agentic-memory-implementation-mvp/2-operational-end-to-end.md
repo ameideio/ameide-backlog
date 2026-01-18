@@ -1,174 +1,122 @@
-# 656 — Agentic Memory MVP Increment 2: Operational End-to-End (Trust + Diffs + Pipeline Knobs)
+# 656 — Agentic Memory MVP Increment 2 (v6): Operational End-to-End (Trust + Diffs + Knobs)
 
-**Current status (2026-01-14): not started**
+Increment 2 keeps the same functional loop as Increment 1, but makes it operable for real teams:
 
-Increment 1 groundwork exists (`GetReadContext` + Phase 0/1/2 test front door), but none of the Increment 2 operational features (trust ranking, deterministic diffs, pre-merge checks, golden queries, tracing) are implemented yet.
+- trust is explicit and explainable,
+- “what changed?” becomes deterministic,
+- proposals become PR-grade (metadata + checks),
+- indexing and retrieval become observable (traceable),
+- everything remains permission-trimmed and Git-citeable.
 
-**Goal:** keep the same end-to-end loops as Increment 1, but make the system operationally usable for real teams:
+Normative posture: `backlog/656-agentic-memory-v6.md`, `backlog/656-agentic-memory-implementation-v6.md`, `backlog/694-elements-gitlab-v6.md`, `backlog/496-eda-principles-v6.md`.
 
-- deterministic diffs and review ergonomics
-- explicit trust ranking (published > curated > draft/proposal > ingestion)
-- ingestion becomes scheduled/idempotent
-- retrieval pipeline adds routing + reranking (still within strict permission trimming)
+## Functional storyline (what changes from Increment 1)
 
----
-
-## 0) Implementation anchors (primitives + proto)
-
-Increment 2 expands the same primitives from Increment 1:
-
-- **Domain primitive:** adds PR-grade proposal metadata handling and deterministic diff/rebase/accept semantics; publishes auditable facts.
-- **Projection primitive:** adds trust ranking + reranking + diff read models and emits retrieval trace logs.
-- **Integration/MCP + CLI:** switch agents to the “front door” retrieval/propose APIs so no tool re-implements ranking/diff logic.
-
-See `backlog/656-agentic-memory-implementation.md` §5 for the “by primitive” implementation spec.
+1) A user asks “what changed about the Testing SOP?” and gets a baseline diff view.
+2) An agent proposes a change with explicit risk/impact metadata.
+3) The curator sees deterministic diffs (Git diff + derived graph diff) plus pre-merge checks.
+4) The system can explain why a result is trusted: “published baseline outranks evidence”.
 
 ## 1) Read loop upgrades (retrieval pipeline engineering)
 
 ### 1.1 Query intent routing (minimal)
 
-Classify:
+Classify queries into at least:
 
-- semantic truth (“what is …?”) → published/baseline mode
-- procedural (“how do I …?”) → procedural-first
-- change (“what changed?”) → baseline diff mode
+- “truth” → `published` by default,
+- “change” → baseline diff mode (`baseline_ref` vs `published`),
+- “procedure” → bias to procedural docs/runbooks (repo-configured paths/tags).
 
-Reserve a slot for query rewriting (even if minimal in v2):
+### 1.2 Trust ranking (projection-owned, explainable)
 
-- acronym expansion and aliasing (repo-configured)
-- optional layer hints (e.g., bias to Application vs Technology if the repo defaults are known)
+Introduce a computed trust/provenance score and expose it in `why_included`.
 
-### 1.2 Trust ranking (computed, explainable)
+Hard signals (minimum set):
 
-Introduce a computed trust/provenance score (projection-owned) and expose it in `why_included`:
+- `published baseline membership`: strong positive
+- `superseded/retired` markers (if present): strong negative
+- `validator fail` evidence: strong negative or policy-blocking
+- `explicit approval` (Domain governance): positive
 
-- baseline status + lifecycle state
-- recency + validity window (if provided)
-- approvals present
-- evidence count / references
-- validator results (pass/fail)
+### 1.3 Deterministic “what changed?” support (Git-native)
 
-**Contract detail (stability):** the score MUST include a small set of “hard signals” with clear polarity:
+Support a “diff read model” that can answer:
 
-- baseline membership: strong positive
-- superseded/retired: strong negative
-- validator fail: strong negative (or block by policy)
-- explicit approval: positive
+- “what changed between `published` and `<baseline_ref>`?”
+- “what changed between `published` and this MR?”
 
-### 1.3 Reranking (reduce noisy top-k)
+Minimum output:
 
-Add a rerank stage (cross-encoder or model-based) after candidate recall, before graph expansion.
+- `base_commit_sha`, `compare_commit_sha`
+- `changed_paths[]` with a deterministic diff summary
+- citations that reference both commits (before/after anchors)
 
-### 1.4 Deterministic “what changed?” support
+## 2) Propose loop upgrades (PR-grade proposals)
 
-- Add a read_context selector for explicit baseline refs.
-- Add baseline compare support for documents (version-to-version diff) and graph changes (relationship diff).
+### 2.1 Structured change kinds (still Git-first)
 
----
+Express proposals as file change sets, but classify them for review UX:
 
-## 2) Propose loop upgrades (structured proposals)
+- `CREATE_FILE`, `UPDATE_FILE`, `DELETE_FILE`
+- `ADD_RELATIONSHIP` / `REMOVE_RELATIONSHIP` (when relationship files exist)
+- `UPDATE_LINKS` (inline link edits)
 
-### 2.1 Structured change kinds
+### 2.2 Required metadata (minimum recommended)
 
-Support proposal payloads beyond “replace body”:
+Add proposal metadata to support governance and later automation:
 
-- `CREATE` element
-- `UPDATE` element body/metadata (versioned)
-- `LINK` / `UNLINK` relationships (with deterministic targets)
-- `SUPERSEDE` (explicitly link new → old)
-
-### 2.2 Required metadata for PR-grade governance
-
-Expand proposal metadata (minimum recommended):
-
-- `proposal_status` state machine: `DRAFT (optional) → PROPOSED → TRIAGED → IN_REVIEW → ACCEPTED` + terminal states
-- `risk_level` (low/med/high)
-- `impacted_domains[]`
-- `target_read_context` (selector vocabulary aligned to 527: `published|baseline_ref|head|version_ref`)
-- `security_classification` / visibility tag (if applicable)
-- `expected_outcome` (short; optimized for curator triage)
-
-**Note:** “promoted” is not a proposal state. It is a **publish outcome** (“the accepted version is now included in the published baseline pointer”).
-
----
+- `risk_level` (`low|med|high`)
+- `impacted_areas[]` (freeform tags; module/domain names)
+- `expected_outcome` (short)
+- `target_read_context` (the base `commit_sha` and selector used)
 
 ## 3) Curate loop upgrades (diffs + checks)
 
 ### 3.1 Deterministic diffs
 
-Provide diffs that are deterministic against pinned targets:
+Provide diffs that are deterministic against pinned bases:
 
-- doc diff: target version body vs proposed body
-- graph diff: relationship add/remove/update list
+- Git diff for file changes (`base_commit_sha` → `proposal_commit_sha`)
+- Derived graph diff (optional): link/relationship additions/removals computed by the Projection
 
 ### 3.2 Pre-merge checks (gates before publish)
 
-Before a proposal can be promoted:
+Before publish (merge to `main`), run and surface:
 
-- schema validation (required metadata present)
-- relationship validity (basic matrices for ArchiMate/BPMN profiles as available)
-- “impact radius” view: what references this target (projection query)
-- security tag presence (if required by policy)
+- schema validation (required metadata present),
+- profile validators (when applicable),
+- “impact radius” view (what links to the changed files / entities),
+- conflict detection (“another open MR touches same path range”, “proposal is stale”).
 
-Add conflict detection outputs (informational in v2):
+## 4) Publish loop upgrades (policy stub)
 
-- “another open proposal targets this element/version”
-- “proposal was rebased from an older target”
-
----
-
-## 4) Publish loop upgrades (baseline ergonomics)
-
-- Baseline compare becomes a first-class read model (“what changed between published and this proposal?”).
-- Promotion emits an auditable event trail that can be surfaced in timelines.
-
-Add a minimal policy stub so Increment 3 is incremental, not a redesign:
+Add a minimal policy stub so Increment 3 can be incremental:
 
 - “high risk proposals require N approvers” (even if N=1 initially)
+- “validator failures block publish” (policy-controlled)
 
----
+## 5) Ingest/index loop upgrades (scheduled + idempotent)
 
-## 5) Ingest loop upgrades (idempotent, scheduled, duplicate hygiene)
+Make indexing repeatable and cheap:
 
-### 5.1 Idempotent ingestion
-
-- scheduled backlog mirror (or operator task)
-- only create new versions when content changes
-
-**Define “content changed” deterministically:** compute hashes on normalized bodies (e.g., normalize line endings, trim trailing whitespace) to avoid churn-only versions.
-
-### 5.2 Near-duplicate detection (copy hygiene)
-
-- detect identical/near-identical markdown bodies across ingestion sources
-- mark duplicates as mirrors and link them to the canonical ingestion element/version
-
----
+- scheduled reindex of `published` baseline,
+- incremental indexing keyed by commit SHA (only reindex changed paths),
+- deterministic change detection (normalized content hashing to avoid churn-only updates).
 
 ## 6) Quality loop upgrades (golden queries + observability)
 
 ### 6.1 Golden query suite (small, real)
 
-- per domain/layer: query → expected element/version ids
-- assert trust ordering (published beats ingestion)
-- assert “what changed” queries return diff items
+For the “Testing SOP” scenario:
 
-Add an explicit regression invariant:
-
-- when both ingested evidence and published truth match a query, published truth MUST outrank ingestion evidence (unless the query explicitly asks for ingestion evidence).
+- “how do I run Phase 0/1/2 tests?” returns the published SOP and cites the published commit.
+- “what changed about the testing SOP?” returns a diff view and cites both commits.
+- Regression: when both evidence and published truth match, published truth outranks evidence (unless explicitly asked for evidence).
 
 ### 6.2 Retrieval trace logging
 
-Log the pipeline:
+Store a trace record per retrieval:
 
-- query → routing decision → candidate set → filters/ACL decisions → rerank → graph expansion → context → citations
+- query → routing decision → candidate set → filters/authz → rerank → graph expansion → citations
 
-This turns retrieval into operable infrastructure.
-
-**Reference scenario (v2):** “How do I run tests?”
-
-Expand the Increment 1 scenario with:
-
-- Golden query: “how do I run Phase 0/1/2 tests?” returns the published SOP and cites `{repository_id, element_id, version_id}`.
-- Golden query: “what changed about the testing SOP?” returns baseline diff items and cites both versions.
-- Regression: when ingestion evidence and published SOP both match, published SOP outranks evidence (unless query asks for evidence).
-- Trace: the retrieval trace for these queries is captured and stored with the run (routing → filters → rerank → graph expansion → citations).
+This makes retrieval debuggable and safe to change.
