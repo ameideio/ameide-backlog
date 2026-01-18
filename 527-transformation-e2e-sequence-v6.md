@@ -18,6 +18,36 @@ related:
 
 # 527 Transformation — E2E Sequence (v6: Git-backed Enterprise Repository + Zeebe request→wait→resume)
 
+## Functional storyline (v6)
+
+This is the end-to-end story a user should recognize in the product UI.
+
+1) **Start a Transformation**
+- User starts a Transformation in Ameide for a specific tenant repository.
+- Platform ensures the tenant repository exists (GitLab is internal; bot identity owns it).
+
+2) **Edit artifacts (requirements, architecture, relationships)**
+- User edits files via Ameide UI (documents/diagrams/config), plus inline links and/or relationship files.
+- Ameide commits changes to a Transformation branch and opens/updates a merge request.
+
+3) **Checks + evidence accumulate**
+- Pipelines and required checks run; evidence is attached and referenced.
+- Ameide records durable audit pointers (MR id, pipeline ids, commit SHAs).
+
+4) **Governance decisions happen in Ameide**
+- Approvals and sequencing rules are enforced by the platform (not by GitLab tier features).
+- Users see the governance status and can approve/reject with rationale.
+
+5) **Publish baseline**
+- When policy is satisfied, Ameide merges the MR into `main`.
+- The `main` commit SHA becomes the new **published baseline** (optionally tagged).
+
+6) **Derived views refresh (optional early, expected later)**
+- Index/search/graph/impact views rebuild from the new baseline.
+- Agents and UIs use the derived views for navigation, retrieval, and impact analysis.
+
+## Technical posture (why v6 is different)
+
 This v6 updates the v4/v5 sequence narratives by making the **repository substrate Git-first**:
 
 - Canonical design-time truth lives as **files in a tenant Git repository** (GitLab project).

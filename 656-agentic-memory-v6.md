@@ -20,6 +20,28 @@ related:
 
 # 656 — Agentic Memory (v6: Git-backed repository, projection-owned memory, model TBD)
 
+## Functional storyline (v6)
+
+This is how “organizational memory” behaves from the perspective of humans and agents.
+
+1) People author and review knowledge as files
+- Architecture artifacts, requirements, diagrams, BPMN, and relationship data are stored as files in the tenant repository.
+- “Published truth” is what’s merged to `main` (baseline commit SHA, optionally tagged).
+
+2) People and agents retrieve context in a reproducible way
+- Queries are served by a derived Projection (search/graph/context assembly).
+- Every answer includes `read_context` plus citations so you can reproduce “what was read”.
+
+3) Agents propose; curators publish
+- Execution agents can propose changes (patches + evidence), but they do not publish.
+- Humans (or governed workflows) review and approve; the platform publishes by advancing the baseline.
+
+4) Memory is rebuildable
+- Indexes/graphs/embeddings are rebuildable from Git content plus owner audit pointers.
+- Deleting and rebuilding the projection is always a valid recovery path.
+
+## Technical posture (v6)
+
 This v6 reframes “organizational memory” to match the platform’s Git-backed canonical store posture:
 
 - Canonical design-time truth is **files in a tenant Git repository** (`backlog/694-elements-gitlab-v6.md`).
@@ -85,4 +107,3 @@ Clients (humans and agents) may request changes, but:
 The v1 contract remains as historical context for the earlier “elements + versions + relationships” substrate:
 
 - `backlog/656-agentic-memory.md`
-

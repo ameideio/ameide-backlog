@@ -17,9 +17,31 @@ related:
 
 # 527 Transformation — Domain Specification (v3: Git-backed Enterprise Repository owner)
 
-This v3 reframes the Transformation Domain as the **owner of canonical design-time truth stored in Git**.
+## Functional contract (v3)
 
-It supersedes the “elements/relationships are canonical Postgres rows” posture in `backlog/527-transformation-domain-v2.md` while preserving the same platform invariants:
+This is what the Transformation Domain does for the product under the Git-backed posture.
+
+1) Own the repository and Transformation lifecycle
+- Maintain the tenant/repo registry (tenant/repo → internal GitLab project).
+- Create and track Transformations (workstreams, phase/batch state).
+
+2) Enforce governance
+- Store governance policy, approvals, sequencing, and evidence references as platform truth.
+- Make “ready to merge/publish” machine-checkable and auditable.
+
+3) Publish baselines
+- Represent published truth as `main` commit SHA (optional tags for named baselines).
+- Record durable audit pointers (MR id, commit SHA, pipeline id) for every publish.
+
+4) Be the only canonical writer
+- Perform all canonical Git operations (branch/commit/MR/merge/tag) through the Domain.
+- Accept requests from UI/Process/Agents/Integrations; the Domain decides what becomes canonical.
+
+## Technical posture (v3)
+
+This v3 reframes the Transformation Domain as the owner of canonical design-time truth stored in Git.
+
+It supersedes the “elements/relationships are canonical Postgres rows” posture in `backlog/527-transformation-domain-v2.md` while preserving these platform invariants:
 
 - Domain is the single writer for canonical truth.
 - Facts are emitted only after commit.

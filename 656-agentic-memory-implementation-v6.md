@@ -21,6 +21,27 @@ related:
 
 # 656 — Agentic Memory Implementation (v6: Git-backed owner + projection; model TBD)
 
+## Functional contract (v6)
+
+This implementation exists to make these loops work end-to-end in the product:
+
+1) Read
+- Humans and agents ask questions and receive context assembled from the published baseline.
+- Responses are reproducible (`read_context`) and citeable (citations).
+
+2) Propose
+- Agents produce proposals (patches + evidence) without directly changing published truth.
+- Proposals are reviewable and traceable to a baseline.
+
+3) Curate and publish
+- Curators/humans review proposals, approve/reject, and publish by advancing `main`.
+- Publishing records audit pointers and emits facts after commit.
+
+4) Rebuild
+- Projection indexes are rebuildable from Git plus audit pointers; rebuild is a supported recovery mode.
+
+## Technical mapping (v6)
+
 This v6 implementation plan aligns “agentic memory” with the Git-backed Enterprise Repository posture:
 
 - Canonical content is Git (`backlog/694-elements-gitlab-v6.md`).
@@ -76,4 +97,3 @@ Once ready, define a minimal v6 citation contract that supports:
 - durable evidence references for governance.
 
 This contract should be anchored to Git + Domain audit pointers (MR id, commit SHA, pipeline id), not to transport/runtime specifics.
-

@@ -1,6 +1,19 @@
 # 527 Transformation — Process Primitive Specification (v4: Zeebe Request→Wait→Resume semantics)
 
-This document supersedes `backlog/527-transformation-process-v3.md` to make the **Zeebe runtime semantics operable** for long-running steps.
+## Functional contract (v4)
+
+This is what the Transformation Process does in the product story.
+
+- It runs the long-running Transformation workflow (requirements → delivery → acceptance → release).
+- It creates explicit human gates (review/approve/DoR) and does not “skip” them via automation.
+- It requests side effects from the owning Domain (e.g., create MR, merge, tag, trigger checks) and waits for durable outcomes.
+- It correlates long work using a stable `work_id` (owner-issued), then resumes the workflow when completion is recorded.
+
+In short: the Process is the saga/process manager; it does not become a writer of canonical Transformation truth.
+
+## Technical posture (v4)
+
+This document supersedes `backlog/527-transformation-process-v3.md` to make the Zeebe runtime semantics operable for long-running steps.
 
 ## Intent
 
