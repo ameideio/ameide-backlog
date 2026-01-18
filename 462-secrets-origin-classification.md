@@ -275,7 +275,7 @@ spec:
 
 ---
 
-## Compliance Audit (2025-12-07)
+## Compliance Audit (Updated 2026-01-18)
 
 ### Summary
 
@@ -283,7 +283,7 @@ spec:
 |----------|-----------|---------------|-------|
 | Database Credentials | ✅ 12/12 | 0 | All services use CNPG-owned secrets per [412](./412-cnpg-owned-postgres-greds.md) |
 | Keycloak Client Secrets | ✅ 5/5 | 0 | `platform-app`, `platform-app-master` extracted via client-patcher → Vault |
-| OIDC Client Secrets | ⚠️ 0/6 | 6 | ArgoCD, K8s Dashboard, Alertmanager, Prometheus, Temporal, PgAdmin |
+| OIDC Client Secrets | ✅ 6/6 | 0 | `platform-keycloak-realm` extracts Keycloak-generated OIDC client secrets to Vault; `platform-secrets-smoke` enforces “no placeholders” + digest match (ArgoCD, kubernetes-dashboard, backstage, plausible, pgadmin, coder (dev)). |
 | External API Keys | ✅ 5/5 | 0 | Proper Azure KV → Vault flow |
 | Bootstrap Admin Secrets | ⚠️ Partial | Partial | Fixtures appropriate for dev; production needs real values |
 
@@ -296,13 +296,12 @@ spec:
 | `AUTH_KEYCLOAK_SECRET` | ExternalSecret ← Vault | Keycloak-generated | Keycloak-generated | ✅ COMPLIANT | - |
 | `AUTH_KEYCLOAK_ADMIN_CLIENT_SECRET` | ExternalSecret ← Vault | Keycloak-generated | Keycloak-generated | ✅ COMPLIANT | - |
 | `AMEIDE_PLATFORM_APP_SECRET` | [platform-keycloak-realm.yaml](../sources/values/_shared/platform/platform-keycloak-realm.yaml) | `platform-app-master-client` | `platform-app-master-client` | ✅ COMPLIANT | - |
-| `www-ameide-keycloak-secret` | [foundation-vault-bootstrap.yaml:167](../sources/values/_shared/foundation/foundation-vault-bootstrap.yaml#L167) | Vault fixture | Keycloak-generated | ❌ NON-COMPLIANT | MEDIUM |
-| `argocd-dex-client-secret` | [foundation-vault-bootstrap.yaml:70](../sources/values/_shared/foundation/foundation-vault-bootstrap.yaml#L70) | Vault fixture | Keycloak-generated | ❌ NON-COMPLIANT | MEDIUM |
-| `k8s-dashboard-oidc-client-secret` | [foundation-vault-bootstrap.yaml:89](../sources/values/_shared/foundation/foundation-vault-bootstrap.yaml#L89) | Vault fixture | Keycloak-generated | ❌ NON-COMPLIANT | LOW |
-| `alertmanager-oidc-client-secret` | [foundation-vault-bootstrap.yaml:65](../sources/values/_shared/foundation/foundation-vault-bootstrap.yaml#L65) | Vault fixture | Keycloak-generated | ❌ NON-COMPLIANT | LOW |
-| `prometheus-oidc-client-secret` | [foundation-vault-bootstrap.yaml:148](../sources/values/_shared/foundation/foundation-vault-bootstrap.yaml#L148) | Vault fixture | Keycloak-generated | ❌ NON-COMPLIANT | LOW |
-| `temporal-oidc-client-secret` | [foundation-vault-bootstrap.yaml:155](../sources/values/_shared/foundation/foundation-vault-bootstrap.yaml#L155) | Vault fixture | Keycloak-generated | ❌ NON-COMPLIANT | LOW |
-| `pgadmin-oidc-client-secret` | [foundation-vault-bootstrap.yaml:126](../sources/values/_shared/foundation/foundation-vault-bootstrap.yaml#L126) | Vault fixture | Keycloak-generated | ❌ NON-COMPLIANT | LOW |
+| `www-ameide-keycloak-secret` | [foundation-vault-bootstrap.yaml:167](../sources/values/_shared/foundation/foundation-vault-bootstrap.yaml#L167) | Vault fixture (bootstrap-only) | Keycloak-generated | ✅ COMPLIANT | - |
+| `argocd-dex-client-secret` | [foundation-vault-bootstrap.yaml:70](../sources/values/_shared/foundation/foundation-vault-bootstrap.yaml#L70) | Vault fixture (bootstrap-only) | Keycloak-generated | ✅ COMPLIANT | - |
+| `k8s-dashboard-oidc-client-secret` | [foundation-vault-bootstrap.yaml:89](../sources/values/_shared/foundation/foundation-vault-bootstrap.yaml#L89) | Vault fixture (bootstrap-only) | Keycloak-generated | ✅ COMPLIANT | - |
+| `backstage-oidc-client-secret` | [platform-keycloak-realm.yaml](../sources/values/_shared/platform/platform-keycloak-realm.yaml) | Keycloak → client-patcher → Vault | Keycloak-generated | ✅ COMPLIANT | - |
+| `plausible-oidc-client-secret` | [platform-keycloak-realm.yaml](../sources/values/_shared/platform/platform-keycloak-realm.yaml) | Keycloak → client-patcher → Vault | Keycloak-generated | ✅ COMPLIANT | - |
+| `pgadmin-oidc-client-secret` | [platform-keycloak-realm.yaml](../sources/values/env/dev/platform/platform-keycloak-realm.yaml) | Keycloak → client-patcher → Vault | Keycloak-generated | ✅ COMPLIANT | - |
 | `keycloak-admin-password` | [foundation-vault-bootstrap.yaml:90](../sources/values/_shared/foundation/foundation-vault-bootstrap.yaml#L90) | Vault fixture | Helm-generated or env-injected | ⚠️ CONDITIONAL | HIGH |
 | `keycloak-master-admin-password` | [foundation-vault-bootstrap.yaml:94](../sources/values/_shared/foundation/foundation-vault-bootstrap.yaml#L94) | Vault fixture | Helm-generated or env-injected | ⚠️ CONDITIONAL | HIGH |
 | `grafana-admin-password` | [foundation-vault-bootstrap.yaml:75](../sources/values/_shared/foundation/foundation-vault-bootstrap.yaml#L75) | Vault fixture (dev) | Helm-generated (prod), optionally mirrored to Vault | ✅ COMPLIANT (dev) | - |

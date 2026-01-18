@@ -51,5 +51,5 @@ Related:
 Smokes are ArgoCD hook Jobs; they re-run when the owning Application **syncs** (a refresh alone updates status, but does not re-run hooks).
 
 - List local smoke-ish Applications (includes readiness smokes): `kubectl -n argocd get application | rg '^local-.*(-smoke|external-secrets-ready)$'`
-- Force a re-run (preferred, from `ameide-gitops` repo root): `./scripts/argocd-force-sync.sh local-data-data-plane-smoke`
-- Force a re-run (raw kubectl patch): `kubectl -n argocd patch application local-data-data-plane-smoke --type merge -p '{"operation":{"sync":{"revision":"<git-sha>","prune":true}}}'`
+- Re-run a smoke by syncing its owning Application in Argo CD (UI or `argocd app sync <app>`).
+- Prefer Git-triggered reruns when available (for example, bumping `clientPatcher.runId` forces the `platform-keycloak-realm` hook Job to re-run on the next sync).

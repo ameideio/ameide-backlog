@@ -81,20 +81,17 @@ This backlog documents the now-working configuration and the guardrails needed t
 1. **Argo state**
    - `argocd app get argocd/dev-data-pgadmin` → Synced/Healthy, ConfigMap and Deployment configured, ExternalSecrets Ready.
    - `argocd app get argocd/dev-platform-keycloak-realm` → PreSync Job completed successfully (`platform-keycloak-realm-client-patcher` logs show “Processing client: pgadmin”).
-2. **Vault contents**
-   - From the environment namespace:  
-     `kubectl --context ameide-dev-admin-admin -n ameide-dev run vault-read ... -- curl .../secret/data/pgadmin-oidc-client-secret` should return a non-placeholder base64 value.
-3. **ExternalSecret & Secret**
+2. **ExternalSecret & Secret**
    - `kubectl -n ameide-dev describe externalsecret pgadmin-azure-oauth-sync` → Ready=True.  
    - `kubectl -n ameide-dev get secret pgadmin-azure-oauth -o jsonpath='{.data.client-id}' | base64 -d` → `pgadmin`.
-4. **Deployment pods**
+3. **Deployment pods**
    - `kubectl -n ameide-dev rollout status deployment pgadmin`.
    - Logs should show Keycloak redirect when hitting `/authenticate/login`. Example success log snippet:  
      `{"success": 0, "errormsg": "client ... requires login"}` replaced by Keycloak redirect + login UI.
-5. **Browser test**
+4. **Browser test**
    - Visit `https://pgadmin.<env>.ameide.io/`. Should redirect to `https://auth.<env>.ameide.io/realms/ameide/protocol/openid-connect/auth?...client_id=pgadmin`.
    - After sign-in, pgAdmin loads with the Ameide SSO session.
-6. **Server registry import**
+5. **Server registry import**
    - `kubectl -n ameide-<env> get configmap pgadmin-servers -o jsonpath='{.data.servers\.json}' | jq '.Servers | length'` → `13`.
    - `kubectl -n ameide-<env> exec deploy/pgadmin -- /venv/bin/python3 /pgadmin4/setup.py load-servers /pgadmin4/servers.json --user "$PGADMIN_DEFAULT_EMAIL" --replace --help` (dry run) confirms CLI availability.
    - Sanity-check the SQLite contents if the UI still shows “zero servers”:  
@@ -105,8 +102,8 @@ This backlog documents the now-working configuration and the guardrails needed t
 
 ## 4. Operational notes
 
-- **Secret refresh** – If pgAdmin shows “Client not found,” it usually means Vault still holds the placeholder secret. Re-run the client-patcher Job (`kubectl delete job platform-keycloak-realm-client-patcher -n ameide-<env>`) or trigger a one-off job (see §5) to rewrite the secret from Keycloak.
-- **PVC locking** – pgAdmin uses a single `ReadWriteOnce` PVC. When rolling the deployment, delete the old pod so the new replica can attach the volume faster (`kubectl delete pod ...`). We keep `replicaCount: 1` intentionally because pgAdmin isn’t stateless.
+- **Secret refresh (GitOps)** – If pgAdmin shows “Client not found” / invalid client credentials, bump `clientPatcher.runId` for the environment and sync `{env}-platform-keycloak-realm`. ESO + Reloader complete the rollout without manual deletes/annotations.
+- **PVC locking** – pgAdmin uses a single `ReadWriteOnce` PVC. Rollouts can take longer than stateless apps; keep `replicaCount: 1` and prefer letting Kubernetes complete the rollout naturally.
 - **OIDC metadata** – Template validation enforces `metadataURL`, `authorizationUrl`, `tokenUrl`, `userinfoUrl`. If any Keycloak endpoint changes (e.g., different realm), update `_shared/data/data-pgadmin.yaml` first and then override per environment.
 - **Groups & RBAC** – Default `allowedGroups` is empty; add Keycloak groups when we want to restrict pgAdmin to specific tenants (`oidc.allowedGroups[]`).  
 - **Keycloak client** – Non-public, standard-flow enabled, redirect URIs limited to:
@@ -116,14 +113,12 @@ This backlog documents the now-working configuration and the guardrails needed t
 
 ---
 
-## 5. Manual remediation playbook
+## 5. GitOps remediation playbook
 
-| Step | Command | Purpose |
-|------|---------|---------|
-| Delete stuck PreSync job | `kubectl delete job platform-keycloak-realm-client-patcher -n ameide-<env>` | Removes hook finalizer so Argo can recreate the Job. |
-| Run targeted patcher (if Argo job unavailable) | Apply a temporary Job as shown in the Dec 2025 incident (script stored in `scripts/bootstrap-keycloak-temp-admin.sh` for reference). | Extracts pgAdmin client secret and writes it to Vault once. Delete the Job afterwards. |
-| Force ESO refresh | `kubectl annotate externalsecret pgadmin-azure-oauth-sync external-secrets.io/refresh-trigger="$(date +%s)" --overwrite` | Reconciles pgAdmin Secret immediately if Vault already has the new value. |
-| Restart pgAdmin | `kubectl rollout restart deployment pgadmin -n ameide-<env>` | Picks up new env vars (normally unnecessary because Reloader now handles Namespace restarts automatically). |
+1. Bump `clientPatcher.runId` in `sources/values/env/{env}/platform/platform-keycloak-realm.yaml`.
+2. Sync `{env}-platform-keycloak-realm` in Argo CD.
+3. Wait for `{env}-platform-secrets-smoke` to succeed (placeholder + digest enforcement).
+4. Confirm `ExternalSecret/pgadmin-azure-oauth-sync` reaches `Ready=True` and pgAdmin restarts via Reloader.
 
 ---
 
@@ -155,7 +150,7 @@ This backlog documents the now-working configuration and the guardrails needed t
 | Item | Dev | Staging | Prod |
 |------|-----|---------|------|
 | `platform-keycloak-realm` includes `pgadmin` client spec | ✅ | ✅ | ✅ |
-| `client-patcher` secretExtraction writes to Vault | ✅ (verified 2025-12-08) | ✅ (manual pgadmin-client-sync job 2025-12-08) | ✅ (manual pgadmin-client-sync job 2025-12-08) |
+| `client-patcher` secretExtraction writes to Vault | ✅ | ✅ | ✅ |
 | ExternalSecret Ready + Secret non-placeholder | ✅ (`client-id=pgadmin`) | ✅ (secret rotated 2025-12-08) | ✅ (secret rotated 2025-12-08) |
 | Deployment annotated for automatic restart | ✅ (platform-reloader handles rollouts) | ☐ | ☐ |
 | Gateway host resolves & TLS valid | ✅ | ✅ (curl check 2025-12-08) | ✅ (curl check 2025-12-08) |
