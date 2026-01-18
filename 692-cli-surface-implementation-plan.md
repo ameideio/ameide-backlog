@@ -118,6 +118,7 @@ Tasks (repo: `ameideio/ameide-gitops`)
   - Periodically delete expired `HTTPRoute`/`Service` labeled `ameide.devx/owner=ameide-cli` in workspace namespaces.
 - NetworkPolicy:
   - Ensure Envoy dataplane pods can reach workspace devserver `:3001` (and only those sources).
+  - Ensure there is a single writer for the workspace devserver ingress NetworkPolicy (cluster GitOps owns it); do not also create it from workspace provisioning templates.
 - RBAC:
   - Ensure workspace SAs can create/delete Services and HTTPRoutes in their namespace and read required env ConfigMaps/Secrets.
 
