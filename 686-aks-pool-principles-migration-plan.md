@@ -50,6 +50,11 @@ In this document:
 | `apps` | Product workloads | Business/tenant workloads only |
 | `workspaces-*`, `arc-runners` | Exclusive pools | Only their intended workloads; tolerate taint explicitly |
 
+Non-negotiable:
+
+- `system` is not “our control plane”; it is **AKS’ system pool**. If a workload is owned/operated by Ameide (even if it’s “infrastructure”), it belongs on `platform` unless it is a required AKS add-on in `kube-system`.
+- `platform` is where we place “the cluster brain” we own (ArgoCD + controllers/operators), so it must remain schedulable and stable under nodepool changes.
+
 Note: `workspaces-*` and `arc-runners` are **conceptual pool groups** expressed via our `ameide.io/pool` label; they are not necessarily literal AKS agent pool names (AKS agent pool names have strict lowercase/length rules).
 
 ### Namespace ownership (desired steady state)
@@ -158,6 +163,15 @@ Verification:
   - platform namespaces are platform-only (`argocd`, `ameide-system`, etc.),
   - no `requested_pool != actual_pool`.
 
+### Phase 2.5 — New system pool validation (before decommissioning `ameidesys`)
+
+If a new AKS system-mode pool has been introduced (smaller VM size, target 3 replicas), validate it behaves like the old `ameidesys` *from AKS’ perspective*:
+
+- It is AKS **System** mode (not just labeled `ameide.io/pool=system`).
+- It carries the expected system tainting strategy (`CriticalAddonsOnly=true:NoSchedule` or equivalent AKS-managed behavior).
+- `kube-system` Deployments (CoreDNS, metrics-server, konnectivity, etc.) and required DaemonSets can run there.
+- Platform-owned controllers **do not** tolerate `CriticalAddonsOnly` (so they don’t drift back).
+
 ### Phase 3 — Right-size requests to fit platform=3 nodes (iterative)
 
 Goal: eliminate request-based over-allocation that forces platform pool scale-up.
@@ -200,8 +214,8 @@ Preconditions:
 
 Steps:
 
-- Drain/cordon `ameidesys` nodes, verify no rescheduling regressions.
-- Remove `ameidesys` nodepool via Terraform (preferred) once stable.
+- Scale `ameidesys` down via IaC (Terraform/Bicep) or the dedicated CI workflows, verify no rescheduling regressions.
+- Remove `ameidesys` nodepool via Terraform once stable.
 
 ## Verification checklist (every wave)
 

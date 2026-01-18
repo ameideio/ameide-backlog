@@ -72,7 +72,22 @@ Mitigations (non-optional):
   same-namespace Service backends only).
 - NetworkPolicy constraining inbound to `:3001` to Envoy dataplane pods only.
 
-4) **Auth/OIDC must support per-run subdomains**
+4) **Duplicate NetworkPolicy writers (workspace Terraform vs cluster automation)**
+
+Some implementations attempted to create the workspace devserver ingress `NetworkPolicy` from the workspace provisioning
+path (Terraform/Coder templates) while the cluster already ensures the same policy exists via GitOps automation.
+
+Symptom:
+- Workspace provisioning fails with: `networkpolicies.networking.k8s.io "allow-envoy-gateway-to-workspace-devserver" already exists`.
+
+Current GitOps behavior (Coder workspaces):
+- `sources/values/_shared/cluster/coder-workspace-phase3-rbac.yaml` runs a `coder-workspace-phase3-netpol-patcher` CronJob that applies
+  `NetworkPolicy/allow-envoy-gateway-to-workspace-devserver` into each matching workspace namespace.
+
+Reconciliation requirement:
+- Enforce single-writer ownership: cluster GitOps owns the devserver NetworkPolicy; workspace templates MUST NOT create/patch the same object.
+
+5) **Auth/OIDC must support per-run subdomains**
 
 `ameide dev` depends on Auth.js + OIDC redirect/callback behavior working on per-run subdomains.
 If this is not enabled, the correct behavior is fail-fast with explicit diagnostics (not “best effort”).
@@ -85,7 +100,7 @@ Design decision:
 - If the team later decides to support wildcard subdomain redirects in dev, it MUST be treated as an explicit,
   dev-only, version-pinned capability with a clear rollback path.
 
-5) **Che-in-vCluster: host-cluster Gateway + Secrets boundary**
+6) **Che-in-vCluster: host-cluster Gateway + Secrets boundary**
 
 `ameide dev` and (by default) `ameide test e2e` assume the workspace can interact with the **same Kubernetes API**
 that owns:
