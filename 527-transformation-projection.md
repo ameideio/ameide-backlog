@@ -8,7 +8,7 @@ This document specifies the **Transformation Projection primitive** — read mod
 **Extensions:**
 - Semantic search (pgvector + contextual retrieval): `backlog/535-mcp-read-optimizations.md`
 - Legacy mapping (historical docs → target): `backlog/527-transformation-crossreference-303-ontology.md`
-- Clean-target refactor (memory-first, EDA-correct): `backlog/657-transformation-domain-clean-target.md`
+- Clean-target refactor (memory-first, EDA-correct): `backlog/657-transformation-domain-clean-target-v2.md`
 
 ---
 
@@ -101,7 +101,7 @@ Delivered (MVP slice):
   - [x] Idempotency enforced via `projection_inbox(tenant_id,message_id)`.
 - [x] Ingestion runner exists (bridge mode; pre-496v2 posture):
   - [x] `primitives/projection/transformation/cmd/relay` tails the Domain outbox and applies facts with durable offsets.
-  - [ ] **Clean target (496 v2, 657):** replace bridge mode with Broker/Trigger delivery (CloudEvents) as the normative runtime posture (projection is a Trigger subscriber filtered by `type`), and treat the relay as local/debug/recovery only.
+  - [ ] **Clean target (496 v6, 657 v2):** replace bridge mode with event-plane delivery (CloudEvents) as the normative runtime posture, and treat the relay as local/debug/recovery only.
 - [x] Gate: `bin/ameide primitive verify --kind projection --name transformation --mode repo` passes.
 
 Not yet delivered (full projection meaning):
@@ -117,7 +117,7 @@ Confirm/decide:
 - The canonical `read_context` contract (baseline/time/revision) for all query surfaces and what citation fields are mandatory in every response.
 - Confirm the operational posture for environments:
   - local/dev may keep the relay as a debug/recovery tool
-  - the clean target (496 v2, 657) is Broker/Trigger delivery; relay is not a default runtime dependency
+  - the clean target (496 v6, 657 v2) is event-plane delivery; relay is not a default runtime dependency
 - The minimum viable impact analysis queries needed for v1 (baseline compare, view render, graph traversal).
 - The canonical “process run view” contract: how a run timeline joins process facts to correlated domain facts, and which citation fields are mandatory per step.
 

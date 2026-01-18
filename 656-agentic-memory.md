@@ -6,6 +6,9 @@
 
 ---
 
+> **Superseded:** replaced by `backlog/656-agentic-memory-v6.md` (Git-backed canonical repository posture; memory model TBD).  
+> This document is retained as historical context for the earlier “303-first / elements-first” substrate.
+
 ## 0) Summary
 
 This backlog defines the **platform contract for organizational memory** used by humans and agents:

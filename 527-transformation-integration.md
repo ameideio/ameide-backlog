@@ -378,7 +378,7 @@ For coding guardrails, the git provider (e.g., GitHub) is the **hard enforcement
 
 ### 1.0.8 Transport bindings: CloudEvents (mandatory in-cluster)
 
-For **inter-primitive (microservice-to-microservice) traffic inside Kubernetes**, CloudEvents is the **mandatory** envelope and Protobuf is the payload, per `backlog/496-eda-principles-v2.md`.
+For **inter-primitive (microservice-to-microservice) traffic inside Kubernetes**, CloudEvents is the mandatory envelope and Protobuf is the payload, per `backlog/496-eda-principles-v6.md`.
 
 At **Integration boundaries** (webhooks, external audit/event buses, partner integrations), Integration adapters MUST map inbound/outbound messages to the same CloudEvents contract used in-cluster so internal consumers see one consistent envelope.
 
@@ -392,7 +392,7 @@ Normative mapping (legacy proto-envelope → CloudEvents v1.0):
 - payload → `data` with `datacontenttype` (`application/protobuf` or `application/json`)
 - schema reference → `dataschema`
 
-Required invariants that do not fit core CloudEvents attributes MUST be carried as extension attributes (lowercase alphanumeric; no underscores). Minimum required set is defined in `backlog/496-eda-principles-v2.md` (tenant + correlation/causation + tracing). Transformation may also include additional identity extensions when needed, for example:
+Required invariants that do not fit core CloudEvents attributes MUST be carried as extension attributes (lowercase alphanumeric; no underscores). Minimum required set is defined in `backlog/496-eda-principles-v6.md` (tenant + correlation/causation + tracing). Transformation may also include additional identity extensions when needed, for example:
 
 - `orgid`, `repositoryid`
 

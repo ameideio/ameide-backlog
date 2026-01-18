@@ -377,7 +377,7 @@ MCP defines standard JSON-RPC methods. These are **not REST endpoints**:
 
 ### 3.2 Tool naming convention
 
-Tool names follow the pattern defined in `backlog/509-proto-naming-conventions.md`:
+Tool names follow the pattern defined in `backlog/509-proto-naming-conventions-v6.md`:
 ```
 <capability>.<operation>
 ```

@@ -44,7 +44,7 @@
 ## Grounding & contract alignment
 
 - **Primitive model:** Establishes the canonical six primitives (Domain, Process, Agent, UISurface, Projection, Integration) and Graph/Transformation invariants that all later primitive/operator/Scrum backlogs (471–477, 495–505, 506–508, 520+) must follow.  
-- **EDA/security spine:** Defines the EDA invariants and security assumptions that are expanded in `472-ameide-information-application.md`, `473-ameide-technology.md`, `476-ameide-security-trust.md`, and codified for events in `496-eda-principles-v2.md`.  
+- **EDA/security spine:** Defines the EDA invariants and security assumptions that are expanded in `472-ameide-information-application.md`, `473-ameide-technology.md`, `476-ameide-security-trust.md`, and codified for inter-primitive integration in `496-eda-principles-v6.md`.  
 - **Scrum & agents:** Provides the platform-level constraints (Transformation-as-domain, Graph read-only, primitive CRDs only) that the Scrum stack (`367-1-scrum-transformation.md`, `506-scrum-vertical-v2.md`, `508-scrum-protos.md`) and agent backlogs (`505-agent-developer-v2*.md`) refine rather than override.
 
 ---

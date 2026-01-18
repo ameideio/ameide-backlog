@@ -1,0 +1,88 @@
+---
+title: "656 — Agentic Memory (v6: Git-backed repository, projection-owned memory, model TBD)"
+status: draft
+owners:
+  - platform
+  - transformation
+created: 2026-01-18
+supersedes:
+  - 656-agentic-memory.md
+related:
+  - 694-elements-gitlab-v6.md
+  - 496-eda-principles-v6.md
+  - 520-primitives-stack-v6.md
+  - 509-proto-naming-conventions-v6.md
+  - 657-transformation-domain-clean-target-v2.md
+  - 534-mcp-protocol-adapter.md
+  - 535-mcp-read-optimizations.md
+  - 536-mcp-write-optimizations.md
+---
+
+# 656 — Agentic Memory (v6: Git-backed repository, projection-owned memory, model TBD)
+
+This v6 reframes “organizational memory” to match the platform’s Git-backed canonical store posture:
+
+- Canonical design-time truth is **files in a tenant Git repository** (`backlog/694-elements-gitlab-v6.md`).
+- “Memory” is primarily a **Projection concern**: indexing + retrieval + citations over canonical Git content, anchored by owner audit pointers.
+- The **memory model** (stable IDs, citations, and how we represent “elements/versions/baselines” over Git) is **TBD**.
+
+This document supersedes `backlog/656-agentic-memory.md` (303-first / elements-first posture) while keeping its intent and safety invariants.
+
+## 0) Non-negotiables (still required under v6)
+
+1) **Permission-trimmed retrieval is mandatory.**  
+No post-hoc filtering; authz must be enforced at query time (`backlog/300-400/329-authz.md`).
+
+2) **Owner-only writes is mandatory.**  
+Execution agents, processes, and UI surfaces do not mutate canonical memory/artifacts directly; they route writes through the owning Domain (`backlog/496-eda-principles-v6.md`).
+
+3) **Facts are emitted only after commit.**  
+For Git-backed owners, “commit” means commit/merge/tag plus durable audit pointer recording before emitting facts (`backlog/496-eda-principles-v6.md`).
+
+4) **Reproducible reads: `read_context` + citations.**  
+Every retrieval must state the effective `read_context`, and return durable citations so answers can be replayed/audited (`backlog/534-mcp-protocol-adapter.md`).
+
+5) **Execution agents are proposal-first.**  
+Agents propose changes; humans (or a governed workflow) review/approve before publication.
+
+## 1) What “memory” means under Git-first
+
+Under v6, “organizational memory” is:
+
+- Canonical content: files in the tenant repository (docs, diagrams, BPMN, code, relationship files, etc.).
+- Governance truth: minimal Domain-owned state (tenancy, policy, approvals, audit pointers).
+- Retrieval truth: Projection-owned derived read models (indexes/graphs/context assembly), rebuildable from Git + owner audit pointers.
+
+## 2) Memory model (TBD)
+
+The v6 posture intentionally does not yet decide:
+
+- whether we embed stable IDs in files (frontmatter),
+- the canonical citation format (commit SHA + path + anchor vs content hash vs owner-issued IDs),
+- how we represent “baselines” beyond `main` commit anchors and optional tags,
+- whether any “elements/versions/relationships” abstraction remains as a derived UX model or a canonical write model.
+
+Until decided, treat “memory” as a Projection-derived read model over Git, anchored by the Domain’s audit pointers.
+
+## 3) Retrieval contract (what clients can rely on)
+
+Regardless of the final memory model, the retrieval contract remains:
+
+- `read_context` selector vocabulary is stable (e.g., `head | published | baseline_ref | version_ref`).
+- responses include citations sufficient to reproduce what was read.
+- relationship-aware retrieval is allowed (graph expansion), but remains derived.
+
+## 4) Write / curation contract (what clients can rely on)
+
+Clients (humans and agents) may request changes, but:
+
+- only the owning Domain performs canonical writes (Git operations),
+- proposals are first-class and reviewable,
+- publication happens by advancing the baseline (`main` merge + optional tagging) under governance.
+
+## 5) Historical context
+
+The v1 contract remains as historical context for the earlier “elements + versions + relationships” substrate:
+
+- `backlog/656-agentic-memory.md`
+

@@ -90,12 +90,12 @@ We explicitly separate loops to avoid “mixed concerns” testing:
 
 “Tasks” are implemented using Coder primitives (workspace/template/agent) and our own orchestration; we do not require a vendor “Tasks” feature.
 
-### 1.6.1 Background work substrate is EDA v2 (Knative Broker/Trigger)
+### 1.6.1 Background work substrate follows the v6 integration posture
 
-When the platform needs long-running, asynchronous execution (e.g., Phase 3 cluster E2E, heavy verify runs, evidence-producing work), the standard substrate is **EDA v2** (`backlog/496-eda-principles-v2.md`):
+When the platform needs long-running, asynchronous execution (e.g., Phase 3 cluster E2E, heavy verify runs, evidence-producing work), the substrate follows the integration posture in `backlog/496-eda-principles-v6.md`:
 
-- Inter-primitive messaging uses CloudEvents (protobuf binary mode) routed through Knative Broker/Triggers.
-- Long-running execution is triggered via a single standard: **Executor Service as the Trigger subscriber** (see `backlog/658-eda-v2-reference-implementation-refactor.md`).
+- When using the event plane, inter-primitive messaging uses CloudEvents (protobuf binary mode) over Kafka.
+- Long-running execution should follow the standard “ACK fast + async work + record outcome back to owner” pattern (see `backlog/658-eda-v6-reference-implementation-refactor.md`).
 - The executor ACKs quickly (2xx after durable acceptance), runs work asynchronously internally (Jobs/Kueue/etc.), and reports outcomes back to the owning Domain (facts after commit via outbox).
 
 This is separate from Coder “tasks”: Coder tasks are primarily for **code-changing automation** (PRs, repo checks) in a dev workspace contract.

@@ -150,7 +150,7 @@ A capability should standardize:
   - `<cap>.domain.intents.v1` → `<Cap>DomainIntent`
   - `<cap>.domain.facts.v1` → `<Cap>DomainFact`
   - `<cap>.process.facts.v1` → `<Cap>ProcessFact`
-- **Required envelope metadata** per `496-eda-principles-v2.md` (tenant isolation + traceability).
+- **Required envelope metadata** per `496-eda-principles-v6.md` (tenant isolation + traceability).
 
 Mapping note:
 

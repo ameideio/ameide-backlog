@@ -30,7 +30,7 @@
 
 ## Grounding & cross-references
 
-- **Architecture grounding:** Built on the primitive stack and information model in `470-ameide-vision.md`, `471-ameide-business-architecture.md`, `472-ameide-information-application.md`, `473-ameide-technology.md`, `475-ameide-domains.md`, `476-ameide-security-trust.md`, `477-primitive-stack.md`, and the EDA rules in `496-eda-principles-v2.md`.  
+- **Architecture grounding:** Built on the primitive stack and information model in `470-ameide-vision.md`, `471-ameide-business-architecture.md`, `472-ameide-information-application.md`, `473-ameide-technology.md`, `475-ameide-domains.md`, `476-ameide-security-trust.md`, `477-primitive-stack.md`, and the integration rules in `496-eda-principles-v6.md`.  
 - **Scrum domain & process:** Consumes and produces Scrum intents/facts defined by `300-400/367-1-scrum-transformation.md`, `506-scrum-vertical-v2.md`, and `508-scrum-protos.md`; Process primitives and the Process operator that emit `scrum.process.facts.v1` are described in `499-process-operator.md`.  
 - **Primitives & operators:** Relies on primitive/operator patterns from `495-ameide-operators.md`, `498-domain-operator.md`, `499-process-operator.md`, `500-agent-operator.md`, `501-uisurface-operator.md`, `502-domain-vertical-slice.md`, and `503-operators-helm-chart.md` for how AmeidePO/AmeideSA/AmeideCoder are deployed and surfaced.  
 - **Implementation & CLI:** `505-agent-developer-v2-implementation.md` turns this architecture into concrete workstreams; `504-agent-vertical-slice.md` plus the 484a–484f CLI backlogs define the CLI/guardrail behavior that AmeideCoder uses internally; `507-scrum-agent-map.md` situates this architecture in the Stage 0–3 Scrum stack.
@@ -517,4 +517,4 @@ End-state:
 | Document | Purpose |
 |----------|---------|
 | [505-agent-developer.md](505-agent-developer.md) | Historical notes (may reference deprecated A2A-first posture) |
-| [496 EDA Principles](496-eda-principles-v2.md) | Event-driven architecture patterns for domain↔agent |
+| [496 Integration Principles](496-eda-principles-v6.md) | Hybrid integration patterns for domain↔agent |

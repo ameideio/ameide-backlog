@@ -10,6 +10,7 @@
 - Transformation domain: `backlog/527-transformation-domain.md`
 - Transformation process (governance): `backlog/527-transformation-process.md`
 - Capability definition: `backlog/528-capability-definition.md`
+- Agentic memory contract (v6): `backlog/656-agentic-memory-v6.md`
 
 ---
 

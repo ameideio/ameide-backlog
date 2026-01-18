@@ -16,8 +16,8 @@ It is intentionally **checklist-driven** and capability-spanning: it covers **pr
 - `backlog/520-primitives-stack-v2.md` (platform constitution)
 - `backlog/520-primitives-stack-v2-projection.md` (Projection invariants)
 - `backlog/511-process-primitive-scaffolding.md` (Temporal Process contract)
-- `backlog/509-proto-naming-conventions.md` (topic families + progress fact identity/vocabulary)
-- `backlog/496-eda-principles-v2.md` (facts are not requests; outbox discipline)
+- `backlog/509-proto-naming-conventions-v6.md` (`io.ameide.*` semantic identity conventions)
+- `backlog/496-eda-principles-v6.md` (facts are not requests; outbox discipline)
 - `backlog/430-unified-test-infrastructure-v2-target.md` (test philosophy: strict phases + JUnit evidence)
 
 ## Target (single “clean” end state)
@@ -46,7 +46,7 @@ It is intentionally **checklist-driven** and capability-spanning: it covers **pr
 - [ ] Each relevant Projection primitive implements the **standard** `KanbanQueryService` and `KanbanUpdatesService` (same RPC surface everywhere).
   - [x] Transformation projection implements `KanbanQueryService` + `KanbanUpdatesService`.
   - [ ] Sales/SRE/Commerce projections migrated.
-- [ ] Each relevant Process primitive emits **process progress facts** aligned to `backlog/509-proto-naming-conventions.md` (phase-first by default).
+- [ ] Each relevant Process primitive emits **process progress facts** aligned to `backlog/509-proto-naming-conventions-v6.md` (phase-first by default).
   - [x] Transformation process emits phase-first progress facts with stable `message_id` + `process_instance_id` + `process_run_id` + `run_epoch` + `seq`.
   - [ ] Sales/SRE/Commerce processes migrated.
 - [ ] Board updates stream is cursor-based and advances only on **effectful commits** (no-op/dedupe does not advance).
@@ -133,7 +133,7 @@ Goal: UI can subscribe to “board changed” notifications and refetch safely.
 
 Goal: every process emits **phase-first** progress facts in a way that Kanban can consume across domains.
 
-- [ ] Adopt the minimal progress vocabulary from `backlog/509-proto-naming-conventions.md` across processes:
+- [ ] Adopt the minimal progress vocabulary from `backlog/509-proto-naming-conventions-v6.md` across processes:
   - [ ] `RunStarted`
   - [ ] `PhaseEntered(phase_key)`
   - [ ] `Awaiting(kind, ref)`

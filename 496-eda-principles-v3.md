@@ -1,15 +1,19 @@
 ---
 title: 496 – Event-Driven Architecture (EDA) Principles (v3: Kafka)
-status: draft
+status: superseded
 owners:
   - platform
 created: 2026-01-13
 parent: 496-eda-principles-v2.md
 supersedes:
   - 496-eda-principles-v2.md
+superseded_by:
+  - 496-eda-principles-v6.md
 ---
 
 # 496 – Event-Driven Architecture (EDA) Principles (v3: Kafka)
+
+> **Superseded:** replaced by `backlog/496-eda-principles-v6.md` (`io.ameide.*` naming posture + hybrid messaging; owner-writes; Kafka remains the standard event plane).
 
 ## Kubernetes Standard: Protobuf + CloudEvents + Kafka + Strimzi (no Knative Eventing)
 
@@ -111,4 +115,3 @@ Kafka integration points:
 ## 7. Migration note
 
 Documents and implementations that assume Knative Broker/Trigger delivery must be migrated to Kafka consumer groups and topic contracts.
-

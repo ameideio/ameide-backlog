@@ -6,7 +6,7 @@
 
 > **Core Invariants**: See [470-ameide-vision.md §0 "Ameide Core Invariants"](470-ameide-vision.md) for the canonical list (six primitives: Domain/Process/Agent/UISurface/Projection/Integration, Graph read-only, Transformation as domain, proto chain, tenant isolation, Backstage internal).
 >
-> **Proto naming:** All proto packages and modules discussed in this document are expected to follow the conventions in [509-proto-naming-conventions.md](509-proto-naming-conventions.md).
+> **Proto naming:** All proto packages and semantic identities discussed in this document are expected to follow `backlog/509-proto-naming-conventions-v6.md` (`io.ameide.*`).
 
 ## Layer header (Application)
 
@@ -34,7 +34,7 @@
 ## Grounding & contract alignment
 
 - **Primitive/application contracts:** Turns the vision-level six primitives from `470-ameide-vision.md` and `520-primitives-stack-v2.md`, plus business concepts from `471-ameide-business-architecture.md`, into concrete application building blocks (Domain/Process/Agent/UISurface/Projection/Integration, plus Transformation and Graph) that later operator and CLI backlogs (`495-ameide-operators.md`, `497-operator-implementation-patterns.md`, `502-domain-vertical-slice.md`, `477-primitive-stack.md`) implement.  
-- **EDA & proto chain:** Defines the proto→SDK→runtime and CQRS/EDA rules that are referenced by `473-ameide-technology.md`, `496-eda-principles-v2.md`, and the CLI/primitive workflows in `484a-484f`; all primitive code and operators are expected to obey these patterns.  
+- **EDA & proto chain:** Defines the proto→SDK→runtime and CQRS/integration rules that are referenced by `473-ameide-technology.md`, `496-eda-principles-v6.md`, and the CLI/primitive workflows in `484a-484f`; all primitive code and operators are expected to obey these patterns.  
 - **Scrum and agent stack:** Provides the generic Domain/Process/Agent information-flow model that the Scrum-specific contracts (`367-1-scrum-transformation.md`, `506-scrum-vertical-v2.md`, `508-scrum-protos.md`) and agent architecture (`505-agent-developer-v2*.md`) instantiate with Scrum nouns and A2A semantics.
 
 ---

@@ -7,7 +7,7 @@
 > **Interpretation rule (authoritative):**
 > - Repository scope is `{tenant_id, organization_id, repository_id}` (not `graph_id`).
 > - Canonical storage is Elements + Versions + Relationships; typed tables are historical. See `backlog/300-400/303-elements.md`.
-> - For agentic memory, “permission-trimmed retrieval” is a hard requirement: `backlog/656-agentic-memory.md`.
+> - For agentic memory, “permission-trimmed retrieval” is a hard requirement: `backlog/656-agentic-memory-v6.md`.
 
 **Status**: 🟡 Phase 2 In Progress
 **Priority**: P0 - Critical

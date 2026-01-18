@@ -1,14 +1,18 @@
 ---
 title: 658 – EDA v3 Reference Implementation Refactor (Kafka + CloudEvents)
-status: draft
+status: superseded
 owners:
   - platform
 created: 2026-01-13
 supersedes:
   - 658-eda-v2-reference-implementation-refactor.md
+superseded_by:
+  - 658-eda-v6-reference-implementation-refactor.md
 ---
 
 # 658 – EDA v3 Reference Implementation Refactor (Kafka + CloudEvents)
+
+> **Superseded:** replaced by `backlog/658-eda-v6-reference-implementation-refactor.md` (hybrid posture + `io.ameide.*`).
 
 **Standard:** `backlog/496-eda-principles-v3.md`  
 **Related:** `backlog/509-proto-naming-conventions.md`, `backlog/657-transformation-domain-clean-target.md`
@@ -58,4 +62,3 @@ Zeebe orchestration is not the EDA spine, but it must integrate with it:
   - Camunda inbound Kafka connectors (if adopted as a platform runtime).
 
 The reference implementation must pick one and make it operable and testable.
-

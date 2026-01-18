@@ -81,7 +81,7 @@ Practical expectations:
 ## Runtime responsibilities (all commerce UISurfaces)
 
 - MUST be presentation + orchestration only (no core commerce business rules).
-- MUST call Domain APIs and/or Projection query APIs via generated SDKs (per `520-primitives-stack-v2.md`).
+- MUST call Domain APIs and/or Projection query APIs via generated SDKs (per `backlog/520-primitives-stack-v6.md`).
 - SHOULD degrade gracefully under partial connectivity (especially `commerce-pos`).
 
 ## EDA responsibilities (496-native)
@@ -90,7 +90,7 @@ UISurfaces initiate change via commands/intents and render from read models:
 
 - Initiate change via command RPCs and/or `commerce.domain.intents.v1`; do not mutate state directly.
 - Render state via query APIs and projections; correctness is driven by domain/process facts, not UI push.
-- UI “real-time” streams (if any) are best-effort UX signals, not replayable sources of truth (see `backlog/496-eda-principles-v2.md` §0 and §12).
+- UI “real-time” streams (if any) are best-effort UX signals, not replayable sources of truth (see `backlog/496-eda-principles-v6.md`).
 
 See `523-commerce-proto.md` for message families and envelopes.
 

@@ -18,7 +18,7 @@
 
 ## Grounding & cross-references
 
-- **Architecture grounding:** Encodes the vertical-slice pattern implied by `470-ameide-vision.md`, `471-ameide-business-architecture.md`, `472-ameide-information-application.md`, `473-ameide-technology.md`, `475-ameide-domains.md`, `476-ameide-security-trust.md`, `477-primitive-stack.md`, and the EDA rules in `496-eda-principles-v2.md` for Domain primitives.  
+- **Architecture grounding:** Encodes the vertical-slice pattern implied by `470-ameide-vision.md`, `471-ameide-business-architecture.md`, `472-ameide-information-application.md`, `473-ameide-technology.md`, `475-ameide-domains.md`, `476-ameide-security-trust.md`, `477-primitive-stack.md`, and the integration rules in `496-eda-principles-v6.md` for Domain primitives.  
 - **Operator & CLI relationships:** Serves as the reference implementation that `498-domain-operator.md`, `495-ameide-operators.md`, `497-operator-implementation-patterns.md`, `503-operators-helm-chart.md`, and the 484a–484f CLI backlogs follow when defining CRDs, conditions, Helm packaging, and `ameide primitive` behavior for all primitives.  
 - **Cross-primitive alignment:** Process (`499-process-operator.md`), Agent (`500-agent-operator.md` / `504-agent-vertical-slice.md`), and UISurface (`501-uisurface-operator.md`) operators are expected to mirror this slice’s condition vocabulary, reconcile phases, and GitOps wiring.  
 - **Scrum stack usage:** The Transformation Scrum domain defined in `300-400/367-1-scrum-transformation.md` and `508-scrum-protos.md` should be implemented as a Domain primitive that follows this vertical slice; the Scrum runtime seam in `506-scrum-vertical-v2.md` and the agent stack in `505-agent-developer-v2.md` assume this pattern for status and CLI visibility.

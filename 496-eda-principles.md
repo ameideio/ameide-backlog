@@ -1,8 +1,8 @@
 # 496 – Event-Driven Architecture (EDA) Principles
 
-> **Superseded:** The Kubernetes standard for inter-primitive messaging is now defined in `backlog/496-eda-principles-v2.md` (Knative Kafka Broker + CloudEvents + Protobuf). This document is retained for historical context and legacy implementations.
+> **Superseded:** The Kubernetes standard for inter-primitive messaging is now defined in `backlog/496-eda-principles-v6.md` (`io.ameide.*`, hybrid messaging; Kafka remains the standard event plane). This document is retained for historical context and legacy implementations.
 
-**Status:** Superseded by `496-eda-principles-v2.md`
+**Status:** Superseded by `496-eda-principles-v6.md`
 **Audience:** Platform engineering, domain teams, AI agents, architects
 **Scope:** Canonical EDA principles for all Ameide primitives (Domain, Process, Projection, Integration, Agent, UISurface)
 

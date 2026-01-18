@@ -11,6 +11,9 @@
 
 ---
 
+> **Superseded:** replaced by `backlog/656-agentic-memory-implementation-v6.md` (Git-backed canonical repository posture; memory model TBD).  
+> This document is retained as historical context for the earlier “303-first / elements-first” substrate and its MVP increments.
+
 ## 0) Purpose
 
 Turn the **contract** in `backlog/656-agentic-memory.md` into a concrete, buildable system:

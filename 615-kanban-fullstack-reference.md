@@ -14,8 +14,8 @@ This document is intentionally capability-agnostic, and uses multiple concrete r
 - `backlog/520-primitives-stack-v2-projection.md` (Projection contract)
 - `backlog/511-process-primitive-scaffolding.md` (Process + Temporal contracts)
 - `backlog/513-uisurface-primitive-scaffolding.md` (UISurface layout patterns)
-- `backlog/509-proto-naming-conventions.md` (process progress facts + identity)
-- `backlog/496-eda-principles-v2.md` (facts vs intents; outbox discipline)
+- `backlog/509-proto-naming-conventions-v6.md` (process progress facts identity conventions)
+- `backlog/496-eda-principles-v6.md` (facts vs intents; outbox discipline)
 - `backlog/618-kanban-proto-contracts.md` (proto-first Kanban query + updates stream contracts)
 
 ## Goal
@@ -45,8 +45,8 @@ Provide a single, repeatable implementation recipe for:
 
 **Rules:**
 
-- Facts are emitted **after persistence** via outbox when the SoR is a domain (`backlog/496-eda-principles-v2.md`, `backlog/510-domain-primitive-scaffolding.md`).
-- Process progress facts must follow identity requirements in `backlog/509-proto-naming-conventions.md` (WorkflowID/RunID, `run_epoch + seq`).
+- Facts are emitted after persistence via outbox when the SoR is a domain (`backlog/496-eda-principles-v6.md`, `backlog/510-domain-primitive-scaffolding.md`).
+- Process progress facts must follow identity requirements in `backlog/509-proto-naming-conventions-v6.md`.
 - Processes may define their own internal `phase_key` values; **UI must not hard-code mappings**. Mapping to Kanban columns lives in the projection rule/config.
 - Every fact MUST carry a stable `message_id` suitable for inbox dedupe. For process-emitted progress facts, `message_id` MUST remain stable under Activity retries.
 

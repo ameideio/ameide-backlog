@@ -1,12 +1,16 @@
 ---
 title: 509 – Proto Naming & Package Conventions (v2)
-status: draft
+status: superseded
 owners:
   - platform
 created: 2026-01-13
+superseded_by:
+  - 509-proto-naming-conventions-v6.md
 ---
 
 # 509 – Proto Naming & Package Conventions (v2)
+
+> **Superseded:** replaced by `backlog/509-proto-naming-conventions-v6.md` (`io.ameide.*` semantic identity posture).
 
 This document is the current naming baseline for proto contracts and event naming **under EDA v3 (Kafka + CloudEvents)**.
 It supersedes `backlog/509-proto-naming-conventions.md` for anything that touches inter-primitive messaging.
@@ -66,4 +70,3 @@ Payload messages should be readable without relying on transport metadata:
   - the CloudEvents `type` (`...v1`, `...v2`, …),
   - and therefore the default topic name.
 - Do not add a second “schema version” field inside messages for normal evolution; treat changes as new major versions.
-

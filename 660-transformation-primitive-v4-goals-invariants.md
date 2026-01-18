@@ -67,7 +67,8 @@ These are the constraints the design must not fight:
 ## Platform invariants (Ameide posture)
 
 - **Transformation domain primitive is canonical truth** (statuses, batches, relationships, audit of decisions).
-- **EDA v3 applies between primitives**:
+- **Canonical repository substrate is Git-backed** (canonical content as files; owner emits facts after Git commit/merge): `backlog/694-elements-gitlab-v6.md`.
+- **EDA v4 applies between primitives**:
   - facts are emitted after commit by the owning primitive,
   - commands/intents are a command surface (not the routing spine),
   - processes do not depend on “fact choreography” as internal “step completion”.

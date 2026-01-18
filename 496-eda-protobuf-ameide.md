@@ -2,7 +2,7 @@
 
 **Ameide baseline standard (schema-first, Buf-enforced, CloudEvents/TraceContext-alignable)**
 
-> **Note (2026-01):** The Kubernetes standard for inter-primitive messaging is defined in `backlog/496-eda-principles-v3.md` (CloudEvents envelope + Protobuf payload over Kafka; no Knative Eventing). This document captures legacy topic-family / envelope-in-proto patterns and should be treated as migration context, not the default for new work.
+> **Note (2026-01):** The Kubernetes standard for inter-primitive messaging is defined in `backlog/496-eda-principles-v6.md` (`io.ameide.*`; CloudEvents envelope + Protobuf payload over Kafka; hybrid model). This document captures legacy topic-family / envelope-in-proto patterns and should be treated as migration context, not the default for new work.
 
 ## Status
 

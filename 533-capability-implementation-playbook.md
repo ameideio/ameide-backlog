@@ -99,7 +99,7 @@ Note: Node 3F (Scaffold Integration) and Node 7C (Implement Integration) follow 
 ## Cross-Reference Index
 
 - **CLI surface area (commands, workflows):** `backlog/484-ameide-cli-overview.md`, `backlog/484a-ameide-cli-primitive-workflows.md`
-- **Platform guardrails (what must be true):** `backlog/520-primitives-stack-v2.md`, `backlog/514-primitive-sdk-isolation.md`, `backlog/509-proto-naming-conventions.md`
+- **Platform guardrails (what must be true):** `backlog/520-primitives-stack-v6.md`, `backlog/514-primitive-sdk-isolation.md`, `backlog/509-proto-naming-conventions-v6.md`
 - **Agent memory/DAG alignment:** `backlog/520-primitives-stack-v2-research-agent.md`, `backlog/512-agent-primitive-scaffolding.md`
 - **Primitive scaffolding specs (shape per kind):** `backlog/510-domain-primitive-scaffolding.md`, `backlog/511-process-primitive-scaffolding.md`, `backlog/512-agent-primitive-scaffolding.md`, `backlog/513-uisurface-primitive-scaffolding.md`
 - **Verification discipline:** `backlog/415-implementation-verification.md`, `backlog/448-per-environment-service-verification.md`
@@ -146,8 +146,8 @@ Note: Node 3F (Scaffold Integration) and Node 7C (Implement Integration) follow 
 ## Node 2 — Design Contracts (Proto)
 
 **Context (read only)**
-- `backlog/509-proto-naming-conventions.md`
-- `backlog/496-eda-protobuf-ameide.md`, `backlog/496-eda-principles-v2.md`
+- `backlog/509-proto-naming-conventions-v6.md`
+- `backlog/496-eda-protobuf-ameide.md`, `backlog/496-eda-principles-v6.md`
 
 **Actions**
 - Define topic families and aggregator envelopes (domain intents/facts/process facts).

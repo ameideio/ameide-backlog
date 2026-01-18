@@ -63,7 +63,7 @@ The process engine MUST NOT become a canonical state store. It coordinates, it d
 
 This backlog is about process execution on Zeebe, but the worker microservice is still a Kubernetes service and must follow the platform messaging standard:
 
-- Inter-primitive messaging inside Kubernetes follows `backlog/496-eda-principles-v2.md` (CloudEvents + Knative Broker/Trigger).
+- Inter-primitive messaging inside Kubernetes follows `backlog/496-eda-principles-v6.md` (hybrid posture; Kafka event plane; `io.ameide.*` semantic identities).
 - Any “ingress” component that consumes inter-primitive facts/intents MUST be a Trigger subscriber and MUST NOT rely on stdin JSONL envelopes as an operational posture.
 
 Zeebe job activation/completion is a Zeebe-internal mechanism; it does not replace the EDA v2 fact spine for canonical truth (domains still emit facts after commit via outbox).
@@ -144,7 +144,7 @@ This is the Definition of Done for the v2 Process primitive toolchain:
   - CI/test wiring compatible with `ameide test` (no ad-hoc runners).
 - The scaffold produces a worker entrypoint that:
   - registers handlers for each `zeebe:taskDefinition type="..."`,
-  - calls other primitives only via the seams defined in `backlog/496-eda-principles-v2.md` (facts on broker; commands via gRPC/Command Bus),
+  - calls other primitives only via the seams defined in `backlog/496-eda-principles-v6.md` (facts after commit; commands via owner APIs),
   - is idempotent and safe under retries.
 
 ### B) Verification (gate)
@@ -201,6 +201,6 @@ Cluster wiring required for CI/M2M deployability:
 
 This decision implies updates to:
 
-- `backlog/520-primitives-stack-v2.md`: replace “Temporal-backed Process primitives” posture with Camunda-only capability orchestration (see `backlog/520-primitives-stack-v3.md`).
+- `backlog/520-primitives-stack-v2.md`: replace “Temporal-backed Process primitives” posture with Camunda-only capability orchestration (see `backlog/520-primitives-stack-v6.md`).
 - `backlog/527-transformation-*.md`: remove/replace compile-to-Temporal execution assumptions for BPMN-authored governance workflows; align “runnable BPMN” with Zeebe.
 - `backlog/511-*` v1 docs: mark deprecated and point to this document as the v2 direction.

@@ -1,5 +1,8 @@
 # 527 Transformation — Domain Specification (v2: Zeebe BPMN runtime)
 
+> **Superseded:** see `backlog/527-transformation-domain-v3.md` (Git-backed Enterprise Repository posture; Postgres is governance/audit only).  
+> Related decisions: `backlog/694-elements-gitlab-v6.md`.
+
 This document replaces the parts of `backlog/527-transformation-domain.md` that assume BPMN is compiled to Temporal-backed `CompiledWorkflowDefinition`.
 
 **Related (organizational memory):** `backlog/656-agentic-memory.md`, `backlog/657-transformation-domain-clean-target.md`

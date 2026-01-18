@@ -10,8 +10,8 @@ This backlog formalizes the operational workflows described in `525-backlog-firs
 - Capability definition: `backlog/528-capability-definition.md`
 - Capability method: `backlog/524-transformation-capability-decomposition.md`
 - Capability worksheet: `backlog/530-ameide-capability-design-worksheet.md`
-- EDA contract rules: `backlog/496-eda-principles-v2.md`, `backlog/496-eda-protobuf-ameide.md`
-- Primitives pipeline: `backlog/470-ameide-vision.md`, `backlog/477-primitive-stack.md`, `backlog/520-primitives-stack-v2.md`
+- Integration/EDA contract rules: `backlog/496-eda-principles-v6.md`, `backlog/496-eda-protobuf-ameide.md`
+- Primitives pipeline: `backlog/470-ameide-vision.md`, `backlog/477-primitive-stack.md`, `backlog/520-primitives-stack-v6.md`
 
 ## Implementation progress (repo)
 
@@ -371,7 +371,7 @@ See: [526-sre-proto.md](526-sre-proto.md)
 | [519-gitops-fleet-policy-hardening.md](519-gitops-fleet-policy-hardening.md) | Fleet policy constraints |
 | [475-ameide-domains.md](475-ameide-domains.md) | Domain portfolio (includes SRE cluster) |
 | [528-capability-definition.md](528-capability-definition.md) | Capability framework |
-| [496-eda-principles-v2.md](496-eda-principles-v2.md) | EDA contract rules |
+| [496-eda-principles-v6.md](496-eda-principles-v6.md) | Integration/EDA contract rules |
 | [527-transformation-capability.md](527-transformation-capability.md) | Transformation capability (no runtime coupling) |
 
 ---
