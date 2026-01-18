@@ -5,12 +5,12 @@
 > See `backlog/527-transformation-proto-v2.md`.
 
 > **DEPRECATED (EDA v2 transport posture, 2026-01):** This document also assumes topic-family contracts and treats CloudEvents as a transport binding.  
-> The active inter-primitive messaging standard is `backlog/496-eda-principles-v2.md` (CloudEvents + Knative Broker/Trigger). Treat “topic families” as legacy guidance only; prefer CloudEvents `type` as the contract surface.
+> Current standard is `backlog/496-eda-principles-v6.md` (hybrid + `io.ameide.*`, Git-backed owners). Treat “topic families” as legacy guidance only; prefer CloudEvents `type` as the contract surface.
 
 **Status:** Draft (core envelope unification pending; legacy UI façade removed)  
 **Parent:** [527-transformation-capability.md](527-transformation-capability.md)
 
-This document specifies the **proto contracts** for the Transformation capability following `backlog/496-eda-principles-v2.md` and `backlog/509-proto-naming-conventions.md`.
+This document specifies the **proto contracts** for the Transformation capability following the historical docs `backlog/496-eda-principles-v2.md` and `backlog/509-proto-naming-conventions.md`.
 
 > **No embedded proto text.** This is a **file index + invariants** specification. Full proto definitions live in the canonical file locations and are the source of truth.
 

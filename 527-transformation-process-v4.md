@@ -1,3 +1,19 @@
+---
+title: "527 Transformation — Process Primitive Specification (v4: Zeebe Request→Wait→Resume semantics)"
+status: draft
+owners:
+  - transformation
+  - platform
+created: 2026-01-18
+supersedes:
+  - 527-transformation-process-v3.md
+related:
+  - 527-transformation-e2e-sequence-v6.md
+  - 527-transformation-domain-v3.md
+  - 694-elements-gitlab-v6.md
+  - 496-eda-principles-v6.md
+---
+
 # 527 Transformation — Process Primitive Specification (v4: Zeebe Request→Wait→Resume semantics)
 
 ## Functional contract (v4)

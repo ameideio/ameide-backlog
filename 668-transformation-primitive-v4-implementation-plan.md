@@ -20,7 +20,11 @@ Current plan of record:
 
 This is the execution checklist for the v4 spec set:
 - `backlog/660-transformation-primitive-v4-goals-invariants.md`
-- `backlog/661-664-transformation-primitive-v4-process-*.md`
+- The four Zeebe processes:
+  - `backlog/661-transformation-primitive-v4-process-requirements.md`
+  - `backlog/662-transformation-primitive-v4-process-delivery.md`
+  - `backlog/663-transformation-primitive-v4-process-acceptance.md`
+  - `backlog/664-transformation-primitive-v4-process-release.md`
 - `backlog/665-transformation-primitive-v4-primitives-interactions.md`
 - `backlog/666-transformation-primitive-v4-e2e-tests.md`
 - `backlog/667-transformation-primitive-v4-deploy.md`
