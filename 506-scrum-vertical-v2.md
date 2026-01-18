@@ -17,7 +17,7 @@ The Scrum wording used below follows the **official Scrum Guide**: Scrum Team ac
 
 - **Role in architecture:** Canonical Scrum runtime seam between Transformation (Scrum domain) and Process primitives; defines envelopes, topics, and Temporal workflow structure.  
 - **Domain side:** Builds on `300-400/367-1-scrum-transformation.md` and the `transformation_scrum_*` protos in `508-scrum-protos.md`; Transformation persists Scrum artifacts and emits the domain facts referenced here.  
-- **Process side:** Consumed by Process primitives described in `499-process-operator.md` and positioned in the primitive stack by `477-primitive-stack.md`; Temporal workflows must obey the intent/fact separation and idempotency rules in this backlog and the EDA rules in `496-eda-principles-v2.md`.  
+- **Process side:** Consumed by Process primitives described in `499-process-operator.md` and positioned in the primitive stack by `477-primitive-stack.md`; workflows must obey the intent/fact separation and idempotency rules in this backlog and the integration rules in `496-eda-principles-v6.md`.  
 - **Agents & tooling:** `505-agent-developer-v2.md` and `505-agent-developer-v2-implementation.md` describe how AmeidePO/AmeideSA/AmeideCoder react to process/domain facts from this seam; `495-ameide-operators.md` and `502-domain-vertical-slice.md` provide shared operator/condition vocabulary; `507-scrum-agent-map.md` locates this contract at Stage 2 in the Scrum stack.
 - **IT4IT mapping lens:** How this seam fits “requirement → running” streams (R2D/R2F/D2C): `525-it4it-value-stream-mapping.md`
 - **Capability implementation DAG:** `backlog/533-capability-implementation-playbook.md` (generic DAG; 506 is a concrete instantiation of the end-to-end seam proof).
@@ -37,7 +37,7 @@ This contract is intentionally aligned with three “vendors of truth”:
    - If `ContinueAsNew` is used for “entity workflows”, deduplication is handled explicitly in workflow state (using `aggregate_version` and “already emitted” markers), because Temporal’s built-in dedupe does **not** span runs.
 
 3. **Proto / EDA conventions (contract semantics)**  
-   - One root proto namespace with **versioned packages** (see `508-scrum-protos.md` and `509-proto-naming-conventions.md`); **topic major = package major**.  
+   - One root proto namespace with versioned packages (see `508-scrum-protos.md` and `backlog/509-proto-naming-conventions-v6.md`).  
    - Exactly **three message classes** across this seam: domain intents, domain facts, process facts, all sharing a common envelope.  
    - Domain facts carry monotonic `aggregate_version` per aggregate (for Temporal idempotency).  
    - Bus topics use **aggregator messages** (e.g., `ScrumDomainIntent`, `ScrumDomainFact`, `ScrumProcessFact`) with a `oneof` payload to keep topics stable while individual event types evolve.
@@ -543,7 +543,7 @@ You can keep older docs for migration history, but apply the following rules whe
 
 ### 10.1 Deprecate legacy naming
 
-- Treat legacy topic names such as `scrum.intents.v1` / `scrum.facts.v1` as **historical only**; new work must use `scrum.domain.intents.v1`, `scrum.domain.facts.v1`, `scrum.process.facts.v1` as defined here and in `509-proto-naming-conventions.md`.  
+- Treat legacy topic names such as `scrum.intents.v1` / `scrum.facts.v1` as historical only; new work must use stable semantic identities per `backlog/509-proto-naming-conventions-v6.md`.  
 - Where older docs or code use requirement/workitem-centric event names, plan to migrate them to the Scrum‑centric names over time or keep them behind an explicit translation layer.
 
 ### 10.2 Replace Requirement/WorkItem language with Scrum artifacts
@@ -551,7 +551,7 @@ You can keep older docs for migration history, but apply the following rules whe
 - In older backlogs, names like `RequirementCompleted` or `ItemReadyForDev` should either:  
   - be **renamed** to use Scrum artifacts (Product Backlog Item, Sprint Backlog, Increment), or  
   - be clearly marked as **legacy mapping only**, not targets for new contracts.  
-- `509-proto-naming-conventions.md` applies to new schemas: avoid requirement‑centric language when naming new intents/facts.
+- `backlog/509-proto-naming-conventions-v6.md` applies to new schemas: avoid requirement‑centric language when naming new intents/facts.
 
 ### 10.3 Keep DoR and phase gates out of the Scrum contract
 
@@ -698,7 +698,7 @@ This sequencing stays aligned with the Scrum Guide, Temporal’s deterministic�
 
 ## 12. “Are we aligned?” checklist
 
-Use this as a quick litmus test when designing new flows or reviewing implementations against this contract and its companion docs (`508-scrum-protos.md`, `509-proto-naming-conventions.md`).
+Use this as a quick litmus test when designing new flows or reviewing implementations against this contract and its companion docs (`508-scrum-protos.md`, `backlog/509-proto-naming-conventions-v6.md`).
 
 ### 12.1 Scrum domain contract
 

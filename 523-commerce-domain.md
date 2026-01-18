@@ -92,8 +92,8 @@ Rule of thumb:
 
 Domains are the single-writer for their aggregates and the authoritative producers of **domain facts (Application Events)**:
 
-- Commands/intents use business verbs (avoid CRUD) per `backlog/484a-ameide-cli-primitive-workflows.md` and intent/fact semantics in `backlog/496-eda-principles-v2.md`.
-- State change and fact emission is atomic via transactional outbox per `backlog/496-eda-principles-v2.md` §5.1.
+- Commands/intents use business verbs (avoid CRUD) per `backlog/484a-ameide-cli-primitive-workflows.md` and the integration posture in `backlog/496-eda-principles-v6.md`.
+- State change and fact emission is atomic via transactional outbox (or outbox-equivalent) per `backlog/496-eda-principles-v6.md`.
 - Consumers assume at-least-once; emitted facts must support idempotency/ordering (aggregate ref + monotonic version).
 
 Topic families (v1):
@@ -105,7 +105,7 @@ See `523-commerce-proto.md` for proposed envelopes and aggregator message shapes
 
 ## Proto shape (v2-aligned)
 
-Follow `509-proto-naming-conventions.md`.
+Follow `backlog/509-proto-naming-conventions-v6.md`.
 
 Recommended starting packages/topics:
 
@@ -121,7 +121,7 @@ If this grows too broad, split into subcontexts (keep SalesChannel concept share
 
 - Proto: APIs + intent/fact schemas only (no endpoints, secrets, or runtime policy).
 - Generation: `buf generate` produces SDKs and compile-time-enforcing server skeletons; drift is caught by regen-diff + compile failures.
-- Operator: reconciles Deployments/Services/HTTPRoutes and injects DB/broker/config via Kubernetes; operators do not interpret business semantics (per `520-primitives-stack-v2.md`).
+- Operator: reconciles Deployments/Services/HTTPRoutes and injects DB/broker/config via Kubernetes; operators do not interpret business semantics (per `backlog/520-primitives-stack-v6.md`).
 
 ## Core invariants (examples)
 

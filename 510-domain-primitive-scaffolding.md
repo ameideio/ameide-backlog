@@ -37,7 +37,7 @@ This backlog defines the **canonical target scaffold** for **Domain** primitives
 
 - **Primitive stack:** `477-primitive-stack.md` (Domain primitives in `primitives/domain/{name}`; GitOps wiring is in `ameide-gitops` under `environments/_shared/components/**` + `sources/values/**`).  
 - **Primitive/operator contract:** `495-ameide-operators.md` (shared CRD/spec/status patterns), `497-operator-implementation-patterns.md` (controller-runtime patterns), `498-domain-operator.md` (Domain operator implementation).  
-- **EDA / outbox principles:** `470-ameide-vision.md` (§8–13), `472-ameide-information-application.md` (§3.3), `496-eda-principles-v2.md`.  
+- **EDA / outbox principles:** `470-ameide-vision.md` (§8–13), `472-ameide-information-application.md` (§3.3), `496-eda-principles-v6.md`.  
 - **CLI workflows & verification:** `484-ameide-cli-overview.md`, `484a-ameide-cli-primitive-workflows.md`, `484b-ameide-cli-proto-contract.md`, `484f-ameide-cli-scaffold-implementation.md`.
 - **Testing discipline:** `537-primitive-testing-discipline.md` (RED→GREEN TDD pattern, CI enforcement, per-primitive test invariants).  
 - **Domain operator / vertical slice:** `498-domain-operator.md`, `502-domain-vertical-slice.md`.  
@@ -122,7 +122,7 @@ sources/values/_shared/apps/domain-<name>-<version>-smoke.yaml                  
 
 ## 3. Opinionated EDA pattern (Domain)
 
-Domain scaffolds must always follow the **outbox → dispatcher** pattern from `496-eda-principles-v2.md`:
+Domain scaffolds must always follow the **outbox → dispatcher** pattern from `496-eda-principles-v6.md`:
 
 - **Domain handlers**
   - Operate on aggregates and **never import broker or Watermill packages**.
@@ -148,7 +148,7 @@ Domain scaffolds must always follow the **outbox → dispatcher** pattern from `
     - Aggregate linkage (`aggregate_type`, `aggregate_id`, `aggregate_version`)
 
 - **Postgres outbox adapter (`internal/adapters/postgres/outbox.go`)**
-  - Implements `EventOutbox` by writing JSON/bytes into an outbox table (see `496-eda-principles-v2.md` for schema guidance).
+  - Implements `EventOutbox` by writing JSON/bytes into an outbox table (see `496-eda-principles-v6.md` for schema guidance).
   - Runs in the **same transaction** as the aggregate update.
 
 - **Dispatcher (`internal/dispatcher/dispatcher.go`, `cmd/dispatcher/main.go`)**
@@ -171,7 +171,7 @@ Domain scaffolds must always follow the **outbox → dispatcher** pattern from `
   - `internal/ports/outbound.go` defines outbound ports; `internal/adapters/sdk/clients.go` holds Ameide SDK-backed implementations.
   - Domain handlers call outbound ports; adapters use SDK clients. Handlers never import other primitives’ proto packages directly.
 
-Topic naming and envelope semantics follow `509-proto-naming-conventions.md` and the relevant domain proto (stable topic families with aggregator messages like `*DomainIntent` / `*DomainFact` / `*ProcessFact`).
+Topic naming and semantic identity conventions follow `backlog/509-proto-naming-conventions-v6.md` and the relevant domain proto.
 
 **Progress semantics (Domain vs Process):**
 
@@ -202,7 +202,7 @@ Implementers (humans or coding agents) are expected to:
 
 1. Replace `codes.Unimplemented` with real domain logic + outbox calls.  
 2. Replace `t.Fatalf` with real assertions (including checks that `mockOutbox` saw the right topic/event).  
-3. Keep the outbox usage aligned with the EDA rules from `496-eda-principles-v2.md`.
+3. Keep the outbox usage aligned with the EDA rules from `496-eda-principles-v6.md`.
 
 ---
 

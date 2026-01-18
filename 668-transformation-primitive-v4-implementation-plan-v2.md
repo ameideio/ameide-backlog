@@ -108,8 +108,9 @@ Deliver:
 Goal: remove “manual publish to Zeebe” from capability flow.
 
 Deliver:
-- Kafka→Zeebe ingress consumes v4 domain/agent facts from Kafka (CloudEvents envelope per 496 v3) and publishes Zeebe messages using **Publish Message** (TTL buffering; retry/backoff on 503).
+- Kafka→Zeebe ingress consumes v4 domain/agent facts from Kafka (CloudEvents envelope per 496 v4) and publishes Zeebe messages using **Publish Message** (TTL buffering; retry/backoff on 503).
 - Replay safety is owned by Kafka offsets + primitive idempotency; do not rely on Zeebe `messageId` as global dedupe.
+  - Interpret the integration posture using `backlog/496-eda-principles-v6.md` and the Git-backed repository posture in `backlog/694-elements-gitlab-v6.md`.
 
 ### Increment 3 — Domain + projection (Kanban truth)
 

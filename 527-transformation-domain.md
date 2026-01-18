@@ -1,8 +1,8 @@
 # 527 Transformation — Domain Primitive Specification
 
-> **DEPRECATED (2026-01-12):** This document includes “CompiledWorkflowDefinition / Temporal-backed execution” assumptions for BPMN-authored processes.  
-> Current direction: BPMN ProcessDefinitions execute on **Camunda 8 / Zeebe**; worker coverage + deployment identity replace Temporal compilation artifacts.  
-> See `backlog/527-transformation-domain-v2.md`.
+> **DEPRECATED (2026-01-12):** This document includes “CompiledWorkflowDefinition / Temporal-backed execution” assumptions for BPMN-authored processes and an older repository substrate posture.  
+> Current direction: BPMN ProcessDefinitions execute on **Camunda 8 / Zeebe**; worker coverage + deployment identity replace Temporal compilation artifacts; and the Enterprise Repository is Git-backed.  
+> See `backlog/527-transformation-domain-v3.md`.
 
 **Status:** Draft (Enterprise Knowledge MVP implemented; versioned reference anchors implemented; governance baselines/promotions implemented; registry pending)  
 **Parent:** [527-transformation-capability.md](527-transformation-capability.md)

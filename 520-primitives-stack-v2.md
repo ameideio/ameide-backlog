@@ -2,7 +2,7 @@
 
 > **DEPRECATED (2026-01-12):** This document assumes a single workflow runtime (Temporal) for Process primitives and includes compile-to-Temporal posture language for BPMN.  
 > Current direction: **BPMN-authored processes execute on Zeebe (Camunda 8)**; Temporal is platform-only and not part of Ameide business capabilities.  
-> See `backlog/520-primitives-stack-v3.md`.
+> See `backlog/520-primitives-stack-v6.md`.
 
 This document is the consolidated, normative version of the Domain / Process / Agent / UISurface / Projection / Integration research set. The core decision is to standardize on one architecture everywhere: **Kubernetes operators (control plane)** + **Protobuf/Buƒ codegen (behavior plane)** + **CI gates (guardrails plane)**.
 

@@ -3,7 +3,7 @@
 ## Objective
 Consume protos only through SDK packages (Go/Python/TS) with Buf/BSR emitting stubs directly into the SDK trees. Services/images must not rely on `packages/ameide_core_proto` copies; dist artifacts import SDK barrels; policies/CI enforce SDK-only (including buf/validate).
 
-> **Proto naming:** When adding or refactoring proto packages in support of this objective, follow the package/topic conventions in [509-proto-naming-conventions.md](509-proto-naming-conventions.md) so schemas stay aligned across domains and SDKs.
+> **Proto naming:** When adding or refactoring proto packages in support of this objective, follow `backlog/509-proto-naming-conventions-v6.md` (`io.ameide.*`) so schemas stay aligned across domains and SDKs.
 
 ## Current alignment (2025-11-27)
 - Buf templates include protovalidate for Go/Python/TS; SDK sync scripts run in CI (`ci-proto.yml` sdk-sync-bsr) and Tilt.

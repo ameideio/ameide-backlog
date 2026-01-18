@@ -10,8 +10,8 @@ It is intentionally aligned with:
 - `backlog/520-primitives-stack-v2-projection.md` (Projection contract: idempotency + replay)
 - `backlog/616-kanban-principles.md` (Kanban UX principles; interaction streams are out-of-band)
 - `backlog/615-kanban-fullstack-reference.md` (full-stack reference)
-- `backlog/509-proto-naming-conventions.md` (topic families + process progress fact identity/vocabulary)
-- `backlog/496-eda-principles-v2.md` (facts are not requests; outbox discipline)
+- `backlog/509-proto-naming-conventions-v6.md` (`io.ameide.*` semantic identity conventions)
+- `backlog/496-eda-principles-v6.md` (facts are not requests; outbox discipline)
 - `backlog/511-process-primitive-scaffolding.md` (Temporal-backed Process contract; progress facts emitted via activities/ports)
 
 ## Decision (single option)

@@ -9,6 +9,7 @@
 - MCP write optimizations: `backlog/536-mcp-write-optimizations.md`
 - Transformation projection: `backlog/527-transformation-projection.md`
 - Capability definition: `backlog/528-capability-definition.md`
+- Agentic memory contract (v6): `backlog/656-agentic-memory-v6.md`
 
 ---
 

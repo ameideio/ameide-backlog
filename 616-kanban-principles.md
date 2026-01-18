@@ -11,7 +11,7 @@ It is intentionally aligned with:
 - `backlog/520-primitives-stack-v2.md` (platform constitution; primitives + planes)
 - `backlog/520-primitives-stack-v2-projection.md` (projection contract)
 - `backlog/511-process-primitive-scaffolding.md` (Temporal-backed Process contracts)
-- `backlog/509-proto-naming-conventions.md` (process progress facts identity + minimal vocabulary)
+- `backlog/509-proto-naming-conventions-v6.md` (process progress facts identity conventions)
 - `backlog/496-eda-principles-v2.md` (facts vs intents; outbox + idempotency)
 - `backlog/614-kanban-projection-architecture.md` (Kanban as a projection; recommended architecture)
 - `backlog/615-kanban-fullstack-reference.md` (full-stack reference implementation)
@@ -63,7 +63,7 @@ Kanban boards are **process-definition-centric**: one board corresponds to one `
 ### Principle 3: Phase-first progress is the default
 
 - Process-backed boards MUST be **phase-first** by default to stay within Temporal constraints (history growth, retries).
-- The minimal progress vocabulary defined in `backlog/509-proto-naming-conventions.md` SHOULD be sufficient to render a useful board/timeline without workflow-specific UI logic.
+- The minimal progress vocabulary defined in `backlog/509-proto-naming-conventions-v6.md` SHOULD be sufficient to render a useful board/timeline without workflow-specific UI logic.
 - Step-level progress is opt-in and MUST include `step_id` + `step_instance_id` when enabled.
 
 ### Principle 4: Board identity and membership are deterministic

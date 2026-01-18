@@ -1,8 +1,10 @@
 # 657 — Transformation Domain Clean Target (Memory-First, EDA-Correct)
 
+> **Superseded:** replaced by `backlog/657-transformation-domain-clean-target-v2.md` (Git-backed repository substrate + hybrid EDA; agent memory model flagged TBD).
+
 **Status:** Draft (target-state contract)  
 **Priority:** High  
-**Related:** `backlog/300-400/303-elements.md`, `backlog/496-eda-principles-v3.md`, `backlog/527-transformation-implementation-migration.md`, `backlog/656-agentic-memory.md`, `backlog/656-agentic-memory-implementation.md`
+**Related:** `backlog/300-400/303-elements.md`, `backlog/496-eda-principles-v6.md`, `backlog/527-transformation-implementation-migration.md`, `backlog/656-agentic-memory.md`, `backlog/656-agentic-memory-implementation.md`, `backlog/694-elements-gitlab-v6.md`
 
 ---
 
@@ -13,7 +15,8 @@ We already have a working Transformation Domain primitive (`primitives/domain/tr
 This backlog defines the **clean target** (because we are not in production and can break compatibility):
 
 - **Memory-first:** the Transformation capability is the canonical substrate for organizational memory (Elements + Versions + Relationships + Baselines).
-- **EDA-correct (496 v3):** ingestion and read models are derived from **domain facts delivered via Kafka topics** (CloudEvents + Protobuf); no DB tailing as the default posture; Kafka topics are a contract surface in v3.
+- **EDA-correct (v6):** ingestion and read models are derived from owner facts (CloudEvents + Protobuf) delivered over the event plane; no DB tailing as the default posture.
+- **Memory model (TBD):** under the Git-backed Enterprise Repository posture (`backlog/694-elements-gitlab-v6.md`), the canonical “memory” substrate and citation scheme will be revised; keep this document as historical context until the v6 memory model is finalized.
 - **Security-correct:** auth/RBAC is enforced at the **gRPC boundaries**, not only in HTTP routes or tool allowlists.
 - **Ontology-first:** ArchiMate-first when possible; backlogs are ingestion only (per 656).
 

@@ -8,8 +8,8 @@ It is intentionally aligned with:
 - `backlog/520-primitives-stack-v2-projection.md` (Projection primitive contract)
 - `backlog/511-process-primitive-scaffolding.md` (Temporal-backed Process primitive contract)
 - `backlog/616-kanban-principles.md` (Kanban principles; projection-first UX)
-- `backlog/509-proto-naming-conventions.md` (topic families + process progress fact conventions)
-- `backlog/496-eda-principles-v2.md` (facts are not requests; outbox discipline)
+- `backlog/509-proto-naming-conventions-v6.md` (`io.ameide.*` semantic identity conventions)
+- `backlog/496-eda-principles-v6.md` (facts are not requests; outbox discipline)
 - `backlog/513-uisurface-primitive-scaffolding.md` (UISurface reads from projections; no infra coupling)
 - `backlog/618-kanban-proto-contracts.md` (proto-first Kanban query + updates stream contracts)
 
@@ -53,7 +53,7 @@ Temporal visibility/search is designed for operational listing/filtering of work
 - Retention policies remove workflow data unless archival is configured.
 - Search attribute limits and indexing constraints make “rich card state” impractical.
 
-The Ameide platform requires projections to be **rebuildable, convergent, and correct under at-least-once delivery** (`backlog/520-primitives-stack-v2-projection.md`, `backlog/496-eda-principles-v2.md`). Therefore Kanban must be backed by a projection store, not by Temporal visibility.
+The Ameide platform requires projections to be **rebuildable, convergent, and correct under at-least-once delivery** (`backlog/520-primitives-stack-v2-projection.md`, `backlog/496-eda-principles-v6.md`). Therefore Kanban must be backed by a projection store, not by Temporal visibility.
 
 ## Kanban contract (capability-agnostic)
 
@@ -144,7 +144,7 @@ Operational boards must remain bounded without relying on hard deletes.
 
 ### Domain facts (business truth)
 
-Domains emit **domain facts** via transactional outbox after persistence (`backlog/510-domain-primitive-scaffolding.md`, `backlog/496-eda-principles-v2.md`).
+Domains emit **domain facts** via transactional outbox after persistence (`backlog/510-domain-primitive-scaffolding.md`, `backlog/496-eda-principles-v6.md`).
 
 These facts can drive card attributes such as:
 
@@ -159,13 +159,13 @@ Processes emit **process progress facts** at phase/milestone transitions (phase-
 
 - Workflow code remains deterministic.
 - Emission happens via Activities/ports (at-least-once; idempotency required) per `backlog/511-process-primitive-scaffolding.md` and `backlog/520-primitives-stack-v2.md`.
-- Identity fields must follow `backlog/520-primitives-stack-v2.md` / `backlog/509-proto-naming-conventions.md`:
+- Identity fields must follow `backlog/520-primitives-stack-v6.md` / `backlog/509-proto-naming-conventions-v6.md`:
   - `process_instance_id` (WorkflowID)
   - `process_run_id` (RunID)
   - `run_epoch + seq` for ordering (not timestamps)
   - `step_id` + `step_instance_id` when step-level facts are enabled
 
-The canonical minimal progress vocabulary and identity rules live in `backlog/509-proto-naming-conventions.md`.
+The canonical minimal progress vocabulary and identity rules live in `backlog/509-proto-naming-conventions-v6.md`.
 
 ## Projection implementation requirements
 

@@ -20,9 +20,9 @@ This backlog is the capability definition counterpart to the method in `backlog/
 - Capability worksheet: `backlog/530-ameide-capability-design-worksheet.md`
 - Capability implementation DAG: `backlog/533-capability-implementation-playbook.md`
 - ArchiMate vocabulary/verbs: `backlog/529-archimate-alignment-470plus.md`
-- EDA contract rules: `backlog/496-eda-principles-v2.md` (Kubernetes standard), plus legacy notes in `backlog/496-eda-protobuf-ameide.md`
-- Proto conventions: `backlog/509-proto-naming-conventions.md`
-- Primitives stack guardrails: `backlog/520-primitives-stack-v2.md`
+- Integration/EDA contract rules: `backlog/496-eda-principles-v6.md` (Kubernetes standard), plus legacy notes in `backlog/496-eda-protobuf-ameide.md`
+- Proto + semantic identity conventions: `backlog/509-proto-naming-conventions-v6.md`
+- Primitives stack guardrails: `backlog/520-primitives-stack-v6.md`
 - Legacy mapping (historical docs → target): `backlog/527-transformation-crossreference-303-ontology.md`
 
 ## Layer header (Strategy + Business, with Application realization)
@@ -36,13 +36,14 @@ This backlog is the capability definition counterpart to the method in `backlog/
 
 Transformation is Ameide’s change-the-business capability. In the future state it provides:
 
-- A tiny, ontology-agnostic **Enterprise Knowledge substrate** as the system of record: **Elements + Links + Versions** in relational Postgres.
+- A tiny, ontology-agnostic Enterprise Repository substrate as the system of record.
+  - **TBD (v6 memory model):** whether this is represented as “elements/versions” over Git files or a separate canonical write model. Until decided, treat “memory” as a projection concern.
 - **Graph + vector search are read projections**, not separate canonical stores:
   - graph traversal/impact analysis is a projection over element links,
   - semantic search is a projection over element-version content embeddings (e.g., pgvector).
 - Multi-methodology **experiences** (Scrum, TOGAF/ADM, PMI) delivered as **dedicated UISurfaces + workflows** over the same substrate (no methodology-specific canonical data model).
 - Optional, when needed for configurability: a **Definition Registry** for promotable workflow/UI/validation definitions stored as domain data (still subject to the same EDA + promotion rules).
-- 496-native EDA contracts so Process primitives and Agents can execute work deterministically without runtime RPC coupling.
+- v6 integration contracts (hybrid: RPC commands + event facts) so Process primitives and Agents can execute work deterministically without coupling to any single transport posture.
 
 **Repository identity (fixed):**
 
@@ -427,7 +428,7 @@ MCP is a **compatibility interface**, not the canonical tool runtime. Tool defin
 
 **Interoperability posture (CloudEvents):**
 
-- For inter-primitive (microservice-to-microservice) traffic in Kubernetes, CloudEvents + Protobuf is the canonical contract per `backlog/496-eda-principles-v2.md`.
+- For inter-primitive (microservice-to-microservice) traffic in Kubernetes, CloudEvents + Protobuf is the canonical contract per `backlog/496-eda-principles-v6.md`.
 - Integration adapters MUST map external messages into the same CloudEvents envelope used in-cluster; any “binding definition” is a versioned mapping document, not a separate semantic standard.
 
 **Definitions to prevent drift (v1):**

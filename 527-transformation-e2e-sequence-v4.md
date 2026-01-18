@@ -1,6 +1,6 @@
 # 527 Transformation — E2E Sequence (v4: Zeebe runtime for BPMN-authored processes)
 
-> **Superseded:** see `backlog/527-transformation-e2e-sequence-v5.md` (adds the Request → Wait → Resume runtime semantics required for long-running steps).
+> **Superseded:** see `backlog/527-transformation-e2e-sequence-v6.md` (Git-backed repository substrate + request→wait→resume posture).
 
 This document replaces the earlier “Temporal-based” E2E sequence narratives under `backlog/527-transformation-e2e-sequence*.md`.
 

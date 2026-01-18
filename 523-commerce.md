@@ -46,9 +46,9 @@ Language note: “facts = Application Events” and “intents/commands = reques
 
 This backlog defines Commerce as a proto-first, primitive-first system aligned with:
 
-- `520-primitives-stack-v2.md` (normative primitives stack)
-- `509-proto-naming-conventions.md` (proto package + topic conventions)
-- `496-eda-principles-v2.md` (commands vs facts, outbox, idempotent consumers, tenant isolation)
+- `backlog/520-primitives-stack-v6.md` (normative primitives stack)
+- `backlog/509-proto-naming-conventions-v6.md` (proto + semantic identity conventions)
+- `backlog/496-eda-principles-v6.md` (owner-writes, commands vs facts, outbox/idempotency, tenant isolation)
 - `524-transformation-capability-decomposition.md` (repeatable method: capability/value streams → application contracts → primitives)
 - `530-ameide-capability-design-worksheet.md` (layered worksheet: Motivation → Strategy → Business → Application → Technology → Implementation & Migration)
 
@@ -60,7 +60,7 @@ It is also informed by convergent industry patterns (D365 / SAP Commerce / Shopi
 
 ## Motivation: constraints (non-negotiables)
 
-- Tenant isolation and traceability metadata on all intents/facts/queries (see `470-ameide-vision.md` §0.2 and `496-eda-principles-v2.md`).
+- Tenant isolation and traceability metadata on all intents/facts/queries (see `470-ameide-vision.md` §0.2 and `backlog/496-eda-principles-v6.md`).
 - Single-writer Domain primitives emit domain facts (Application Events) via transactional outbox; reads come from projections/read models.
 - BYOD hostnames are globally unique and must be explicitly claimed/verified/revoked (fail closed on uncertainty).
 - Edge/offline is an explicit topology mode with explicit replication + degraded-mode UX (not a toggle).

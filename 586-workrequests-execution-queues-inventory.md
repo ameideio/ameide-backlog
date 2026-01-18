@@ -3,7 +3,7 @@
 **Status:** Draft (inventory + naming decision pending finalization)  
 **Audience:** Platform/GitOps, runtime owners (Process/Integration/Agent), operators  
 **Scope:** Canonical inventory of **execution queue topics** used by the WorkRequests substrate (527 WP‑B) so we can:
-1) keep names consistent with `backlog/509-proto-naming-conventions.md`, and  
+1) keep names consistent with `backlog/509-proto-naming-conventions-v6.md`, and  
 2) avoid accidental collisions as additional capabilities add their own WorkRequests queues.
 
 **Fleet index:** `backlog/587-kafka-topics-and-queues-inventory.md` (all Kafka topics/queues)
@@ -23,7 +23,7 @@ References:
 
 ## 2) Naming policy (recommendation)
 
-We should keep queue topics **namespaced by capability** (or by a shared `workrequests` context if/when WorkRequests becomes a cross-capability platform primitive) and keep the `.v<major>` suffix aligned to the payload’s major version per `backlog/509-proto-naming-conventions.md`.
+We should keep queue topics **namespaced by capability** (or by a shared `workrequests` context if/when WorkRequests becomes a cross-capability platform primitive) and keep the `.v<major>` suffix aligned to the payload’s major version per `backlog/509-proto-naming-conventions-v6.md`.
 
 Recommended pattern for execution queues:
 
@@ -87,5 +87,5 @@ If we rename again:
   - **platform-namespaced** (`workrequests.*` with `capability` carried in payload).
 - Lock the execution queue message payload contract:
   - for Transformation: `WorkExecutionRequested` (`ameide_core_proto.transformation.work.v1`)
-  - for other capabilities: follow `backlog/509-proto-naming-conventions.md` §5.2 (execution queues are operational and intent-only).
+  - for other capabilities: follow `backlog/509-proto-naming-conventions-v6.md` (execution queues are operational and intent-only).
 - Define staging/production rollout posture (security, secrets, TLS/SASL, NetworkPolicy/RBAC per executor class).

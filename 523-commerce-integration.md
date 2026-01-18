@@ -20,7 +20,7 @@ Define the external seams that make commerce work across channels and topologies
 - retail hardware/peripheral control (local gateway),
 - cloud ↔ edge replication flows (async default + small real-time surface).
 
-Per v2 rules, proto declares ports/contracts; endpoints and secrets are runtime-bound (see `520-primitives-stack-v2.md` and `520-primitives-stack-v2-research-integration.md`).
+Per v6 posture, proto declares ports/contracts; endpoints and secrets are runtime-bound (see `backlog/520-primitives-stack-v6.md` and `backlog/496-eda-principles-v6.md`).
 
 ## Implementation progress (current)
 
@@ -70,9 +70,9 @@ If Commerce publishes an MCP surface for agentic access, it is implemented as a 
 
 Integrations are boundary adapters and must be correct under at-least-once delivery:
 
-- Inbound webhooks/messages MUST be idempotent on CloudEvents `id` (inbox dedupe or convergent natural-key handling) per `backlog/496-eda-principles-v2.md` §2.4 and §5.3.
+- Inbound webhooks/messages MUST be idempotent on CloudEvents `id` (inbox dedupe or convergent natural-key handling) per `backlog/496-eda-principles-v6.md`.
 - Prefer emitting integration outcome facts (optional `commerce.integration.facts.v1`) and/or domain/process facts that record results.
-- Long-running external coordination belongs in Process workflows (Temporal), not ad-hoc retry loops.
+- Long-running external coordination belongs in Process primitives (workflow/orchestration), not ad-hoc retry loops.
 - Always propagate `tenant_id` and correlation/causation metadata across calls/messages.
 
 See `523-commerce-proto.md` for proposed integration port shapes and optional integration facts.

@@ -2,8 +2,12 @@
 
 This directory splits the MVP implementation into **end-to-end increments** (each increment advances *all loops*).
 
-**Contract:** `backlog/656-agentic-memory.md`  
-**Overview plan:** `backlog/656-agentic-memory-implementation.md`
+**Contract (current):** `backlog/656-agentic-memory-v6.md` (memory model TBD)  
+**Implementation plan (current):** `backlog/656-agentic-memory-implementation-v6.md`  
+**Historical contract:** `backlog/656-agentic-memory.md`  
+**Historical plan:** `backlog/656-agentic-memory-implementation.md`
+
+> Note: the Increment 1–3 docs in this folder were written for the earlier “303-first / elements-first” substrate and should be treated as historical until the v6 memory model is locked.
 
 ## Current repo status (2026-01-14)
 

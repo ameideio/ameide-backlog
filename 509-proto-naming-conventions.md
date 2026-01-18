@@ -1,7 +1,6 @@
 # 509 – Proto Naming & Package Conventions
 
-> **Superseded:** inter-primitive messaging is now standardized on Kafka topics as the contract surface (no Knative Broker/Trigger routing).  
-> See `backlog/509-proto-naming-conventions-v2.md`.
+> **Superseded:** replaced by `backlog/509-proto-naming-conventions-v6.md` (`io.ameide.*` semantic identity posture).  
 
 **Status:** Superseded (historical; do not use for new proto work)  
 **Audience:** Platform engineers, domain teams, SDK owners, agents  
