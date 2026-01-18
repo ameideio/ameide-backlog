@@ -1,3 +1,18 @@
+---
+title: "656 — Agentic Memory MVP Increment 3 (v6): Scaled End-to-End (Hybrid + Graph Modes + CI Gates)"
+status: draft
+owners:
+  - platform
+  - transformation
+created: 2026-01-18
+related:
+  - 656-agentic-memory-v6.md
+  - 656-agentic-memory-implementation-v6.md
+  - 694-elements-gitlab-v6.md
+  - 496-eda-principles-v6.md
+  - 527-transformation-v6-index.md
+---
+
 # 656 — Agentic Memory MVP Increment 3 (v6): Scaled End-to-End (Hybrid + Graph Modes + CI Gates)
 
 Increment 3 makes memory retrieval and publication stable at scale:

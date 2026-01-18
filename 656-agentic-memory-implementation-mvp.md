@@ -1,16 +1,30 @@
+---
+title: "656 — Agentic Memory MVP (v6: increment index)"
+status: draft
+owners:
+  - platform
+  - transformation
+created: 2026-01-18
+related:
+  - 656-agentic-memory-v6.md
+  - 656-agentic-memory-implementation-v6.md
+  - 694-elements-gitlab-v6.md
+  - 496-eda-principles-v6.md
+---
+
 # 656 — Agentic Memory MVP: Increment Plan (Index)
 
-This directory splits the MVP implementation into **end-to-end increments** (each increment advances *all loops*).
+This MVP implementation is split into **end-to-end increments** (each increment advances *all loops*).
 
 **Contract (current):** `backlog/656-agentic-memory-v6.md` (memory model TBD)  
 **Implementation plan (current):** `backlog/656-agentic-memory-implementation-v6.md`  
 **Historical contract:** `backlog/656-agentic-memory.md`  
 **Historical plan:** `backlog/656-agentic-memory-implementation.md`
 
-This folder now contains:
+## Versioning
 
-- **v6-aligned increments** (Git-first, projection-owned memory; model TBD): `*-end-to-end.md`
-- **historical “elements-first” increments** preserved for context: `*-end-to-end-elements-first.md`
+- **v6 (current):** Git-first increments (`backlog/656-agentic-memory-implementation-mvp-*-end-to-end.md`)
+- **v1 (historical):** elements-first increments preserved for context (`backlog/656-agentic-memory-implementation-mvp-*-end-to-end-elements-first.md`)
 
 ## Current repo status (2026-01-14)
 
@@ -26,15 +40,15 @@ This folder now contains:
 
 ## Increments
 
-1. `backlog/656-agentic-memory-implementation-mvp/1-minimal-end-to-end.md`
-2. `backlog/656-agentic-memory-implementation-mvp/2-operational-end-to-end.md`
-3. `backlog/656-agentic-memory-implementation-mvp/3-scaled-end-to-end.md`
+1. `backlog/656-agentic-memory-implementation-mvp-1-minimal-end-to-end.md`
+2. `backlog/656-agentic-memory-implementation-mvp-2-operational-end-to-end.md`
+3. `backlog/656-agentic-memory-implementation-mvp-3-scaled-end-to-end.md`
 
 Historical copies:
 
-1. `backlog/656-agentic-memory-implementation-mvp/1-minimal-end-to-end-elements-first.md`
-2. `backlog/656-agentic-memory-implementation-mvp/2-operational-end-to-end-elements-first.md`
-3. `backlog/656-agentic-memory-implementation-mvp/3-scaled-end-to-end-elements-first.md`
+1. `backlog/656-agentic-memory-implementation-mvp-1-minimal-end-to-end-elements-first.md`
+2. `backlog/656-agentic-memory-implementation-mvp-2-operational-end-to-end-elements-first.md`
+3. `backlog/656-agentic-memory-implementation-mvp-3-scaled-end-to-end-elements-first.md`
 
 ## One scenario (expanded each increment)
 

@@ -1,3 +1,18 @@
+---
+title: "656 — Agentic Memory MVP Increment 2 (v6): Operational End-to-End (Trust + Diffs + Knobs)"
+status: draft
+owners:
+  - platform
+  - transformation
+created: 2026-01-18
+related:
+  - 656-agentic-memory-v6.md
+  - 656-agentic-memory-implementation-v6.md
+  - 694-elements-gitlab-v6.md
+  - 496-eda-principles-v6.md
+  - 527-transformation-v6-index.md
+---
+
 # 656 — Agentic Memory MVP Increment 2 (v6): Operational End-to-End (Trust + Diffs + Knobs)
 
 Increment 2 keeps the same functional loop as Increment 1, but makes it operable for real teams:
