@@ -484,7 +484,7 @@ If you add explicit “proposal accepted/rejected” facts, they must still be d
 
 Use the scenario-driven plan in:
 
-- `backlog/656-agentic-memory-implementation-mvp/README.md`
+- `backlog/656-agentic-memory-implementation-mvp.md`
 
 and ensure each increment produces:
 
@@ -498,9 +498,9 @@ and ensure each increment produces:
 
 This implementation plan is intentionally split so each increment is a concrete, end-to-end deliverable (not “implement part of the stack”).
 
-- Increment 1: `backlog/656-agentic-memory-implementation-mvp/1-minimal-end-to-end.md`
-- Increment 2: `backlog/656-agentic-memory-implementation-mvp/2-operational-end-to-end.md`
-- Increment 3: `backlog/656-agentic-memory-implementation-mvp/3-scaled-end-to-end.md`
+- Increment 1: `backlog/656-agentic-memory-implementation-mvp-1-minimal-end-to-end.md`
+- Increment 2: `backlog/656-agentic-memory-implementation-mvp-2-operational-end-to-end.md`
+- Increment 3: `backlog/656-agentic-memory-implementation-mvp-3-scaled-end-to-end.md`
 
 ---
 

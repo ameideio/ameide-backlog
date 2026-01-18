@@ -1,3 +1,16 @@
+---
+title: "656 — Agentic Memory MVP Increment 1 (v1: elements-first): Minimal End-to-End"
+status: superseded
+owners:
+  - platform
+  - transformation
+created: 2026-01-14
+superseded_by:
+  - 656-agentic-memory-implementation-mvp-1-minimal-end-to-end.md
+---
+
+> **Superseded:** replaced by `backlog/656-agentic-memory-implementation-mvp-1-minimal-end-to-end.md` (v6 Git-first posture; memory model TBD).
+
 # 656 — Agentic Memory MVP Increment 1: Minimal End-to-End (Safe + Citeable)
 
 **Current status (2026-01-14): partially delivered**
