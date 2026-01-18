@@ -12,7 +12,11 @@ created: 2026-01-13
 This backlog defines the **v4 target** for the Transformation capability: four Zeebe processes chained by cross-primitive events, with the **Transformation domain** as the source of truth.
 
 This document is the **non-repeating** foundation for:
-- `backlog/661-664-transformation-primitive-v4-process-*.md` (the four Zeebe processes),
+- The four Zeebe processes:
+  - `backlog/661-transformation-primitive-v4-process-requirements.md`
+  - `backlog/662-transformation-primitive-v4-process-delivery.md`
+  - `backlog/663-transformation-primitive-v4-process-acceptance.md`
+  - `backlog/664-transformation-primitive-v4-process-release.md`
 - `backlog/665-transformation-primitive-v4-primitives-interactions.md`,
 - `backlog/666-transformation-primitive-v4-e2e-tests.md`,
 - `backlog/667-transformation-primitive-v4-deploy.md`.

@@ -12,7 +12,7 @@ related:
   - 496-eda-principles-v6.md
   - 509-proto-naming-conventions-v6.md
   - 527-transformation-v6-index.md
-  - 656-agentic-memory.md
+  - 656-agentic-memory-v6.md
 ---
 
 # 657 — Transformation Clean Target (v2: Git-backed repository, hybrid EDA, memory model TBD)

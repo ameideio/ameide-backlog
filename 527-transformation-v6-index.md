@@ -25,7 +25,12 @@ This index exists to reduce “version drift” across the Transformation doc se
 
 ## Still valid, but interpret through v6
 
-- Transformation v4 process set (Goals/Invariants + process-specific specs): `backlog/660-transformation-primitive-v4-goals-invariants.md` and `backlog/661-664-transformation-primitive-v4-process-*.md`
+- Transformation v4 process set (Goals/Invariants + process-specific specs):
+  - `backlog/660-transformation-primitive-v4-goals-invariants.md`
+  - `backlog/661-transformation-primitive-v4-process-requirements.md`
+  - `backlog/662-transformation-primitive-v4-process-delivery.md`
+  - `backlog/663-transformation-primitive-v4-process-acceptance.md`
+  - `backlog/664-transformation-primitive-v4-process-release.md`
 - v4 delivery plan: `backlog/668-transformation-primitive-v4-implementation-plan-v2.md`
 
 ## Superseded / historical references

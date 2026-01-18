@@ -40,7 +40,7 @@ Delivery uses message aggregation semantics:
   initialize the collection with the `requirement_id` carried on the start message before it waits for the next message:
   - `requirements_to_deliver = [requirement_id]` (first item)
 - While in “collect requirements”, the process then receives repeated
-  `com.ameide.transformation.fact.requirement.ready_for_delivery.v1` messages
+  `io.ameide.transformation.fact.requirement.ready_for_delivery.v1` messages
   correlated by `delivery_batch_id` and appends `requirement_id` to `requirements_to_deliver`.
 - The aggregation window closes via:
   - a timer boundary (“collection window elapsed”), or
