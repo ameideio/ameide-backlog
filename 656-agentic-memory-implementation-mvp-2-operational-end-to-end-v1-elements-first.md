@@ -6,10 +6,10 @@ owners:
   - transformation
 created: 2026-01-14
 superseded_by:
-  - 656-agentic-memory-implementation-mvp-2-operational-end-to-end.md
+  - 656-agentic-memory-implementation-mvp-2-operational-end-to-end-v6.md
 ---
 
-> **Superseded:** replaced by `backlog/656-agentic-memory-implementation-mvp-2-operational-end-to-end.md` (v6 Git-first posture; memory model TBD).
+> **Superseded:** replaced by `backlog/656-agentic-memory-implementation-mvp-2-operational-end-to-end-v6.md` (v6 Git-first posture; memory model TBD).
 
 # 656 — Agentic Memory MVP Increment 2: Operational End-to-End (Trust + Diffs + Pipeline Knobs)
 

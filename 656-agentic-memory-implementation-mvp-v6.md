@@ -23,8 +23,8 @@ This MVP implementation is split into **end-to-end increments** (each increment 
 
 ## Versioning
 
-- **v6 (current):** Git-first increments (`backlog/656-agentic-memory-implementation-mvp-*-end-to-end.md`)
-- **v1 (historical):** elements-first increments preserved for context (`backlog/656-agentic-memory-implementation-mvp-*-end-to-end-elements-first.md`)
+- **v6 (current):** Git-first increments (`backlog/656-agentic-memory-implementation-mvp-*-end-to-end-v6.md`)
+- **v1 (historical):** elements-first increments preserved for context (`backlog/656-agentic-memory-implementation-mvp-*-end-to-end-v1-elements-first.md`)
 
 ## Current repo status (2026-01-14)
 
@@ -40,15 +40,15 @@ This MVP implementation is split into **end-to-end increments** (each increment 
 
 ## Increments
 
-1. `backlog/656-agentic-memory-implementation-mvp-1-minimal-end-to-end.md`
-2. `backlog/656-agentic-memory-implementation-mvp-2-operational-end-to-end.md`
-3. `backlog/656-agentic-memory-implementation-mvp-3-scaled-end-to-end.md`
+1. `backlog/656-agentic-memory-implementation-mvp-1-minimal-end-to-end-v6.md`
+2. `backlog/656-agentic-memory-implementation-mvp-2-operational-end-to-end-v6.md`
+3. `backlog/656-agentic-memory-implementation-mvp-3-scaled-end-to-end-v6.md`
 
 Historical copies:
 
-1. `backlog/656-agentic-memory-implementation-mvp-1-minimal-end-to-end-elements-first.md`
-2. `backlog/656-agentic-memory-implementation-mvp-2-operational-end-to-end-elements-first.md`
-3. `backlog/656-agentic-memory-implementation-mvp-3-scaled-end-to-end-elements-first.md`
+1. `backlog/656-agentic-memory-implementation-mvp-1-minimal-end-to-end-v1-elements-first.md`
+2. `backlog/656-agentic-memory-implementation-mvp-2-operational-end-to-end-v1-elements-first.md`
+3. `backlog/656-agentic-memory-implementation-mvp-3-scaled-end-to-end-v1-elements-first.md`
 
 ## One scenario (expanded each increment)
 
