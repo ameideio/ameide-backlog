@@ -341,15 +341,16 @@ unable to log in with Kubernetes auth: Error making API request.
 Code: 503. Errors: * Vault is sealed
 ```
 
-**Resolution:**
+**Resolution (shared cloud clusters):**
+
+- Do not unseal Vault manually via `kubectl exec`.
+- Treat this as an incident; restore convergence via the normal Git/CI/Terraform path (or an approved break-glass CI workflow), then let ArgoCD reconcile.
+
+**Resolution (local-only exception):**
+
 ```bash
-# Get unseal key (replace <env> with dev/staging/prod)
 UNSEAL_KEY=$(kubectl get secret -n ameide-<env> vault-auto-credentials -o jsonpath='{.data.unseal-key}' | base64 -d)
-
-# Unseal vault
 kubectl exec -n ameide-<env> vault-core-<env>-0 -- vault operator unseal "$UNSEAL_KEY"
-
-# Verify
 kubectl exec -n ameide-<env> vault-core-<env>-0 -- vault status
 ```
 
@@ -362,31 +363,19 @@ Code: 403. Errors: * permission denied
 
 This indicates Vault's Kubernetes auth is not properly configured.
 
-**Resolution:**
-```bash
-# Get root token
-ROOT_TOKEN=$(kubectl get secret -n ameide-<env> vault-auto-credentials -o jsonpath='{.data.root-token}' | base64 -d)
+**Resolution (shared cloud clusters):**
 
-# Inspect current kubernetes auth config (diagnostic)
-kubectl exec -n ameide-<env> vault-core-<env>-0 -- sh -c "VAULT_TOKEN=$ROOT_TOKEN vault read -format=json auth/kubernetes/config | jq '{token_reviewer_jwt_set, disable_local_ca_jwt, disable_iss_validation, kubernetes_host}'"
+- Do not “fix” Vault auth configuration via imperative `kubectl exec` writes.
+- Fix the root cause in Terraform/CI inputs (or use an approved break-glass workflow) and let ArgoCD reconcile.
 
-# Reconfigure kubernetes auth (in-cluster Vault, Kubernetes 1.21+ safe)
-# Do NOT pin token_reviewer_jwt from a Pod/Job-mounted projected SA token (it expires / is pod-bound).
-kubectl exec -n ameide-<env> vault-core-<env>-0 -- sh -c \"VAULT_TOKEN=$ROOT_TOKEN vault write auth/kubernetes/config kubernetes_host='https://kubernetes.default.svc' disable_iss_validation=true disable_local_ca_jwt=false\"
-
-# Force SecretStore reconciliation
-kubectl annotate secretstore ameide-vault -n ameide-<env> force-refresh=$(date +%s) --overwrite
-```
+**Local-only diagnostics:** reading the auth config is fine; avoid writing config unless you are working in a disposable local cluster.
 
 ### Force ExternalSecrets Refresh
 
-After fixing SecretStore issues, ExternalSecrets may be cached as failed:
-```bash
-# Refresh all ExternalSecrets in a namespace
-for es in $(kubectl get externalsecret -n ameide-<env> -o name); do
-  kubectl annotate "$es" -n ameide-<env> force-refresh="$(date +%s)" --overwrite
-done
-```
+After fixing SecretStore issues, ExternalSecrets may take up to `refreshInterval` to converge. In shared cloud clusters, do not annotate live ExternalSecrets to “force” refresh. Preferred options:
+
+- wait for the next ESO refresh window
+- make a Git change that legitimately changes the ExternalSecret spec (for example, adjusting `refreshInterval`) and let Argo apply it
 
 ### Client-Patcher Job Issues (Keycloak Client Secrets)
 
@@ -409,14 +398,10 @@ kubectl logs -n ameide-<env> -l job-name=platform-keycloak-realm-client-patcher
 | `404 Not Found` for client | Client doesn't exist in realm | Check realm JSON has the client configured |
 | `permission denied` writing Vault | Policy not configured | Verify `keycloak-client-patcher` policy paths |
 
-**3. Manually trigger extraction**:
-```bash
-# Delete old Job (Helm recreates on sync)
-kubectl delete job platform-keycloak-realm-client-patcher -n ameide-<env>
+**3. Trigger extraction (GitOps)**:
 
-# Force ArgoCD sync
-argocd app sync <env>-platform-keycloak-realm
-```
+- bump `clientPatcher.runId` in `sources/values/env/<env>/platform/platform-keycloak-realm.yaml`
+- sync `<env>-platform-keycloak-realm` via Argo CD
 
 **4. Verify secrets in Vault**:
 ```bash
