@@ -27,12 +27,12 @@ This is the end-to-end story a user should recognize in the product UI.
 - Platform ensures the tenant repository exists (GitLab is deployed in-cluster and internal; bot identity owns it).
 
 2) **Edit artifacts (requirements, architecture, relationships)**
-- User edits files via Ameide UI (documents/diagrams/config), plus inline links and/or relationship files.
+- User edits files via Ameide UI (documents/diagrams/config) and authors relationships as inline references inside those files.
 - Ameide commits changes to a Transformation branch and opens/updates a merge request.
 
 3) **Checks + evidence accumulate**
 - Pipelines and required checks run; evidence is attached and referenced.
-- Ameide records durable audit pointers (MR id, pipeline ids, commit SHAs).
+- Ameide records durable audit pointers (project/repository id, MR IID, pipeline ids + status (if applicable), commit SHAs).
 
 4) **Governance decisions happen in Ameide**
 - Approvals and sequencing rules are enforced by the platform (not by GitLab tier features).
@@ -90,10 +90,7 @@ The request→wait→resume rule from v5 remains correct, but **`work_id` must b
 Per `backlog/694-elements-gitlab-v6.md`:
 
 - “Elements” are files (Markdown/YAML/JSON/etc.) in the repo.
-- “Relationships” are both:
-  - inline links inside files, and
-  - standalone relationship files (e.g., `relationships/<id>.yaml`),
-  with a derived graph/index computed by projections.
+- “Relationships” are inline references inside files, with a derived graph/index computed by projections.
 
 ## End-to-end scenario (minimal happy path)
 
@@ -128,7 +125,7 @@ This is the smallest scenario that proves the v6 posture end-to-end while reusin
 6) Worker calls Domain to “publish requirements”, which in v6 is typically:
    - apply accepted changes to the working branch, and
    - merge to `main` (baseline) via MR (policy gated),
-   - record `main` commit SHA / MR id / pipeline id as audit pointers.
+   - record `main` commit SHA / MR IID / pipeline id + status (if applicable) as audit pointers.
 7) Domain emits:
    - `io.ameide.transformation.fact.requirements.published.v1`
    - `io.ameide.transformation.fact.requirement.ready_for_delivery.v1` (one per requirement)

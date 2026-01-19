@@ -19,6 +19,13 @@ related:
 
 This v6 file exists to keep the v6 “Git-backed Enterprise Repository” posture stable and easy to reference from other backlogs.
 
+## Normative rules (v6)
+
+- **Owner-only writes:** only the owning Domain performs canonical Git operations; other primitives route through Domain commands (`backlog/496-eda-principles-v6.md`).
+- **Contract-first inter-primitive seams:** protos govern primitive↔primitive interactions; GitLab REST is an internal storage adapter used by owner/projection primitives (`backlog/496-eda-principles-v6.md`).
+- **Relationships are inline-only:** no `relationships/**` folder and no relationship sidecar artifacts.
+- **GitLab CE only:** no Premium/Ultimate dependencies; enforcement uses Community primitives (protected `main`, MR-only, pipeline gating) with governance truth in the platform.
+
 ## Git provider posture (v6)
 
 In the current platform posture, “Git-backed” concretely means:
@@ -44,7 +51,6 @@ This is a recommended, minimal repository layout that keeps “canonical truth i
 ```text
 <tenant-enterprise-repo>/
   elements/                         # canonical authored artifacts (docs/diagrams/config)
-  relationships/                    # optional relationship files (in addition to inline links)
   processes/                        # design-time governed ProcessDefinitions (BPMN as files)
     <module>/<process_key>/v<major>/
       process.bpmn
@@ -53,6 +59,8 @@ This is a recommended, minimal repository layout that keeps “canonical truth i
 ```
 
 Vendor-correct naming note: `process_key` SHOULD match the BPMN `<process id="...">` so runtime deployment/keying semantics align across Zeebe/Flowable.
+
+Normative rule: **Relationships are expressed only as inline references within element content** (links/identifiers embedded in Markdown, model files, BPMN, etc.). There is no `relationships/**` folder and no relationship sidecar artifacts.
 
 Normative rule: **`main` is the published baseline**, and “published” is a commit SHA on `main` (optionally tagged).
 
@@ -75,7 +83,7 @@ Operational note: GitLab object storage currently uses the shared in-cluster Min
 - Protected default branch (`main`): restrict who can push/merge.
 - Require merge requests (no direct pushes) for protected branches.
 - Require pipeline success (status checks) prior to merge.
-- Limit who can approve/merge (bot/governance role vs operators), as applicable.
+- Limit who can merge (bot/governance role vs operators), as applicable.
 
 ## Audit linkage contract (platform ↔ Git evidence)
 

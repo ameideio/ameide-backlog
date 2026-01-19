@@ -1,5 +1,5 @@
 ---
-title: "527 Transformation — Projection Primitive (v6: TOGAF hierarchy projection + Git-backed elements)"
+title: "527 Transformation — Projection Primitive (v6: Enterprise repository hierarchy projection + Git-backed elements)"
 status: draft
 owners:
   - transformation
@@ -15,12 +15,12 @@ related:
   - 656-agentic-memory-v6.md
 ---
 
-# 527 Transformation — Projection Primitive (v6: TOGAF hierarchy projection + Git-backed elements)
+# 527 Transformation — Projection Primitive (v6: Enterprise repository hierarchy projection + Git-backed elements)
 
 This v6 refocuses the Transformation Projection on the current product story:
 
 - Canonical authored artifacts live as **Git-backed elements** in the tenant Enterprise Repository (`backlog/694-elements-gitlab-v6.md`).
-- The primary repository UX is a **TOGAF 10 Architecture Repository hierarchy** (`backlog/701-repository-ui-enterprise-repository-v6.md`).
+- The primary repository UX is an **Enterprise Repository hierarchy** (folders + files), derived from the Git file tree (`backlog/701-repository-ui-enterprise-repository-v6.md`).
 - That hierarchy is **purely derived** (projection-owned). There is no canonical “workspace tree” / “workspace node” write model.
 
 ## 1) Projection responsibilities (v6)
@@ -29,32 +29,26 @@ Scope identity (required everywhere): `{tenant_id, organization_id, repository_i
 
 The Projection provides rebuildable read models for:
 
-- TOGAF hierarchy browsing (categories, counts, filtered lists),
+- Enterprise repository hierarchy browsing (folders + files),
 - element search and retrieval (full-text + faceted),
-- relationship reconstruction and graph traversal (derived from in-file references + optional `relationships/**`),
+- relationship reconstruction and graph traversal (derived from in-file references),
 - baseline history and audit timelines (facts and Git audit pointers),
 - process catalog views (ProcessDefinitions as BPMN files under `processes/**`, with deploy/validation status),
 - agent memory retrieval (context assembly + citations; model details TBD).
 
 ## 2) Key read models (v6 inventory)
 
-### 2.1 TOGAFHierarchyProjection (new; replaces “workspace tree”)
+### 2.1 EnterpriseRepositoryHierarchyProjection (new; replaces “workspace tree”)
 
-Derived hierarchy that renders TOGAF categories over a repository’s published baseline:
+Derived hierarchy that renders the repository’s folder/file tree over a repository’s published baseline:
 
-- Categories:
-  - Architecture Landscape
-  - Reference Library
-  - Standards Information Base
-  - Governance Log
-  - Architecture Capability
 - Inputs:
-  - Git-backed element inventory (paths + metadata),
-  - optional path conventions (e.g., `elements/**`, `processes/**`),
-  - optional element metadata conventions (frontmatter, labels).
+  - Git tree inventory at a selected ref (directories, files, and submodule entries),
+  - file metadata required for UX (size, mime/extension hints, last modified info if available from Git history).
 - Outputs:
-  - category lists, counts, and navigation,
-  - stable element references for editor opening.
+  - directory listings (children) and stable node identifiers,
+  - stable element references for editor opening (Git-backed `{repository_id, ref, path[, anchor]}`),
+  - submodule (`gitlink`) entries surfaced as Git tree nodes (do not resolve them to other platform repositories as part of browsing).
 
 This is the contract the UISurface uses to render the repository UX; it is intentionally not canonical state.
 
@@ -62,8 +56,7 @@ This is the contract the UISurface uses to render the repository UX; it is inten
 
 Reconstruct a graph from:
 
-- normal references inside element content (links/IDs),
-- optional relationship files under `relationships/**`.
+- normal references inside element content (links/IDs).
 
 Used for backlinks, impact analysis, and agent context expansion.
 
@@ -84,12 +77,12 @@ and expose:
 This doc does not prescribe service names, but it does prescribe capabilities:
 
 - List repositories (within org scope) and select published baseline.
-- Browse TOGAF hierarchy:
-  - list categories and items per category
+- Browse repository hierarchy:
+  - list directory children
   - open element content (by reference + read_context)
 - Search:
   - full-text and faceted over elements
-  - filter by TOGAF category and/or element kind/type
+  - filter by path/prefix and/or element kind/type
 - Relationships:
   - backlinks for an element
   - neighbors/path queries (bounded)
@@ -111,4 +104,4 @@ All queries must return:
 
 Earlier Transformation docs used a canonical “workspace tree” / `WorkspaceNode` posture.
 
-Under v6, repository hierarchy is rendered as a **TOGAFHierarchyProjection** derived from Git-backed elements; any “workspace node” concepts remain historical context only.
+Under v6, repository hierarchy is rendered as an **EnterpriseRepositoryHierarchyProjection** derived from the Git file tree; any “workspace node” concepts remain historical context only.

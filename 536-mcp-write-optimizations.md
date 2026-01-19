@@ -37,7 +37,7 @@ Build-out checklist:
 Decide/confirm:
 - [ ] Default governance posture: “writes create proposals unless explicitly permitted” (and the exact policy knobs/roles that allow direct commits).
 - [ ] Where “schema truth” comes from for write tools (proto annotations vs metamodel registry vs both) and how versions are handled.
-- [ ] How to scope write operations (workspace/model selection) without relying on the agent inventing IDs (context pinning, defaults, or required inputs).
+- [ ] How to scope write operations (repository/path selection) without relying on the agent inventing IDs (context pinning, defaults, or required inputs).
 - [ ] Which write operations are v1 for Transformation/SRE (minimal set) vs deferred (bulk imports, refactors, cross-model moves).
 - [ ] How to handle optimistic concurrency/versioning for agent writes (ETags, expected version, or server-side merge strategy).
 

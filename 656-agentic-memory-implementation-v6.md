@@ -67,7 +67,7 @@ Implement/require:
 
 - `read_context` enforced on all memory retrieval tools,
 - permission-trimmed retrieval at query time,
-- rebuildable indexing over Git content (docs + code + inline links + relationship files),
+- rebuildable indexing over Git content (docs + code + inline references),
 - deterministic query responses that include citations (even if citation fields evolve).
 
 ### C) Agent “front doors” (MCP + proto)

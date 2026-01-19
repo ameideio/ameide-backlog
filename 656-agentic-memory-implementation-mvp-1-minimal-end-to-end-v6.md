@@ -56,7 +56,7 @@ No new deployables; reuse existing primitives:
   - performs canonical Git operations and emits facts after commit.
   - See `backlog/527-transformation-domain-v3.md` and `backlog/527-transformation-e2e-sequence-v6.md`.
 - **Projection primitive (Transformation projection):**
-  - indexes repo content (docs + inline links + relationship files where present),
+  - indexes repo content (docs + inline references),
   - serves `memory.get_context` as a query API (permission-trimmed).
 - **Integration primitive (MCP adapter):**
   - exposes `memory.get_context` (read) and `memory.propose` (write).
@@ -70,7 +70,7 @@ The goal is not “perfect relevance”; it is **safety + reproducibility**.
 
 **Request MUST include:**
 
-- `scope`: `{tenant_id, repository_id}`
+- `scope`: `{tenant_id, organization_id, repository_id}`
 - `principal`: `{principal_id, roles[], purpose}`
 - `read_context.selector`:
   - `published` (default) → resolve to `main` head commit at query time
@@ -108,7 +108,7 @@ Agents MUST only cite items returned in `read_context.items[].citations[]` (no i
 
 Authorization is enforced at query time:
 
-- a caller only receives items within their allowed `{tenant_id, repository_id}` scope,
+- a caller only receives items within their allowed `{tenant_id, organization_id, repository_id}` scope,
 - and only for paths they are permitted to view (if path-level ACL exists).
 
 The projection must index at the same granularity it returns so filtering is not “best effort”.
