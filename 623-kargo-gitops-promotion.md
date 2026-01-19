@@ -111,6 +111,20 @@ We will use one of these patterns (decide in Phase 0):
 - Stages can promote subsets independently.
 - Best when services should move independently, but increases config surface.
 
+#### Tracking the `:main` channel tag (vendor-aligned)
+
+Kargo’s container image subscription tracks a repository and applies a **constraint** and an **image selection strategy**. Concretely:
+
+- `repoURL: ghcr.io/ameideio/<repo>` (no `:main` here)
+- `constraint: main` (the mutable tag name)
+- `imageSelectionStrategy: Digest` (follow the digest behind the tag)
+
+This is the direct Kargo equivalent of “resolve `:main` → digest” in our current GitOps automation.
+
+#### Coherence for the grouped option
+
+If we choose the grouped Warehouse, we must define coherence rules so Freight represents a meaningful release unit (and avoids “random combinations” of updated images). Kargo supports `freightCreationCriteria.expression` for this purpose (e.g., require a matching provenance rule, a shared build ID, or another deterministic relationship).
+
 ### Stage model
 
 Stages correspond to GitOps environments:
@@ -118,6 +132,10 @@ Stages correspond to GitOps environments:
 - `dev` stage: auto-promotion on new Freight (safe lane).
 - `staging` stage: promotion by explicit trigger (human gate).
 - `production` stage: promotion by explicit trigger (human gate + stricter verification).
+
+#### Auto-promotion control (vendor-aligned)
+
+Auto-promotion enablement is controlled via **ProjectConfig** (not just by editing a Stage). This is a deliberate safety mechanism and should be treated as part of the platform security posture.
 
 ### Git write-back model
 
@@ -131,14 +149,29 @@ Kargo promotions update the `ameide-gitops` repository by:
 
 This preserves the “Git change → Argo CD sync → rollout” contract.
 
+Operational constraint: promotions should be designed so concurrent promotions do not modify the same files. Kargo’s git steps can retry/rebase as the remote advances, but merge conflicts will halt a promotion.
+
+Operational constraint: staging/prod PR flows should be conditional. If there are no diffs to commit (e.g., staging already has the digest), the Promotion should skip `git-open-pr`/`git-wait-for-pr` steps.
+
+### Credentials (vendor-aligned)
+
+Kargo discovers credentials from Kubernetes `Secret`s labeled with `kargo.akuity.io/cred-type` (e.g., `git`, `image`, `helm`, `generic`) and keyed by `repoURL`. We should plan to materialize these via ESO (Vault → Secret) in the Kargo Project namespace.
+
+Minimum required shapes (illustrative):
+
+- Git: label `kargo.akuity.io/cred-type: git` with `stringData.repoURL: https://github.com/ameideio/ameide-gitops.git` and auth material (e.g., `username`/`password` where password is a GitHub token).
+- Images (GHCR): label `kargo.akuity.io/cred-type: image` with `stringData.repoURL: ghcr.io/ameideio/<repo>` (or `ghcr.io`) and auth material (`username`/`password`).
+
 ### Digest pinning behavior
 
 Kargo promotions MUST write digest-pinned refs into Git, consistent with `backlog/602-image-pull-policy.md`:
 
 - Preferred: `ghcr.io/ameideio/<repo>@sha256:<digest>`
-- Allowed for readability: `ghcr.io/ameideio/<repo>:<sha>@sha256:<digest>`
+- Allowed for readability: `ghcr.io/ameideio/<repo>:<sha>@sha256:<digest>` (requires producer-side SHA tagging)
 
 The Warehouse may observe the mutable `:main` tag as an input, but the Git write-back is always a digest-pinned ref.
+
+Important nuance: if we track a mutable tag using Kargo’s digest strategy, the tag we will naturally have available is `main` (not a commit SHA). To stay aligned with `602` (“no `:main` in GitOps”), the write-back should be tagless (`repo@sha256:...`). If we want `:<sha>@sha256:...` readability, producer CI must publish SHA tags and Kargo must select those tags (rather than `constraint: main`).
 
 ### Verification model (incremental)
 
@@ -150,18 +183,123 @@ Later phases can add explicit verification steps per Stage, such as:
 
 ## Implementation plan
 
+### Configuration sketch (vendor-aligned; illustrative)
+
+This is intentionally not copy/paste-ready; it demonstrates the key configuration invariants that matter for correctness.
+
+### Warehouse (digest behind `main`)
+
+```yaml
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Warehouse
+metadata:
+  name: first-party-images
+spec:
+  subscriptions:
+  - image:
+      repoURL: ghcr.io/ameideio/platform
+      imageSelectionStrategy: Digest
+      constraint: main
+  - image:
+      repoURL: ghcr.io/ameideio/agents
+      imageSelectionStrategy: Digest
+      constraint: main
+```
+
+### Stages and Freight sources (no “re-resolve `:main`” in staging/prod)
+
+The core guardrail should be enforced by configuration: staging/prod accept Freight only from upstream Stages (not from a Warehouse origin).
+
+```yaml
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: dev
+spec:
+  requestedFreight:
+  - origin:
+      kind: Warehouse
+      name: first-party-images
+  promotionTemplate:
+    spec:
+      steps: [ ...write dev values..., ...git-push... ]
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: staging
+spec:
+  requestedFreight:
+  - sources:
+      stages:
+      - name: dev
+  promotionTemplate:
+    spec:
+      steps: [ ...copy digests..., ...git-open-pr..., ...git-wait-for-pr... ]
+```
+
+### Promotion steps (YAML update → commit/push/PR)
+
+Kargo provides steps like `yaml-update`, `git-push`, `git-open-pr`, `git-wait-for-pr`. Promotions should also avoid opening PRs when there is no change (use conditional step execution).
+
+```yaml
+steps:
+- uses: git-clone
+  config:
+    repoURL: https://github.com/ameideio/ameide-gitops.git
+    # auth resolved via Kargo git creds secret
+- uses: yaml-update
+  config:
+    path: ./sources/values/env/dev/apps/platform.yaml
+    updates:
+    - key: image.ref
+      # Prefer tagless write-back to stay aligned with 602.
+      # (Kargo digest is expected to be of the form sha256:<hex>.)
+      value: ghcr.io/ameideio/platform@${{ imageFrom('ghcr.io/ameideio/platform').Digest }}
+- uses: git-push
+  as: direct-push
+  if: ${{ ctx.stage == 'dev' }}
+  config:
+    path: .
+    targetBranch: main
+    message: Promote platform to ${{ imageFrom('ghcr.io/ameideio/platform').Digest }}
+- uses: git-push
+  as: pr-push
+  if: ${{ ctx.stage != 'dev' }}
+  config:
+    path: .
+    generateTargetBranch: true
+    message: Promote platform to ${{ imageFrom('ghcr.io/ameideio/platform').Digest }}
+- uses: git-open-pr
+  if: ${{ ctx.stage != 'dev' }}
+  config:
+    repoURL: https://github.com/ameideio/ameide-gitops.git
+    sourceBranch: ${{ outputs['pr-push'].branch }}
+    targetBranch: main
+```
+
 ### Phase 0 — Design decisions and inventory (1–2 days)
 
 - Decide Warehouse pattern (Grouped vs Multiple).
 - Define the authoritative inventory of “first-party images we build”:
   - input list (repo/image names) and
   - mapping to GitOps value keys (e.g. `image.ref`, `migrations.image.ref`).
+- Decide the Kargo container subscription contract for first-party images:
+  - `repoURL` excludes tags (`ghcr.io/ameideio/<repo>`)
+  - `constraint: main`
+  - `imageSelectionStrategy: Digest`
 - Define environment-specific write-back behavior:
   - `dev`: direct commit to `main` vs PR + auto-merge
   - `staging`/`production`: PRs with required human approval/merge
+- Define stage source rules (guardrail):
+  - `dev` requests Freight from Warehouse origins
+  - `staging`/`production` request Freight only from upstream Stages
 - Confirm required secrets exist (or will be materialized):
   - Git provider token (GitHub) with least privilege for branch/PR operations
   - Registry read auth for GHCR to resolve tags/digests (can reuse existing pull secret patterns)
+- Confirm Kargo credential Secret conventions we will use (so ESO can materialize them):
+  - Secrets labeled with `kargo.akuity.io/cred-type` for Git and registry access
+  - key layout compatible with Kargo’s credential management docs
 
 Deliverable: a short “Kargo config contract” doc fragment and the initial CRD skeletons.
 
@@ -177,7 +315,7 @@ Deliverable: Kargo running in-cluster, reconciled by Argo CD.
 
 - Create a Kargo Project for Ameide GitOps promotions.
 - Create:
-  - Warehouse tracking one first-party image repo (tag `main`)
+  - Warehouse tracking one first-party image repo (constraint `main`, digest strategy; `repoURL` without a tag)
   - `dev` Stage consuming Freight from that Warehouse
   - PromotionTask that updates exactly one `sources/values/env/dev/**` file and commits changes
 - Validate:
@@ -203,6 +341,7 @@ Deliverable: dev auto-advances *all* first-party images.
   - open PRs for staging/prod promotions (and optionally wait for merge)
 - Add clear guardrails:
   - staging/prod promotion must never “re-resolve” `:main` (only promote known digests)
+  - enforce this by Stage configuration: staging/prod request Freight only from upstream Stages, not from Warehouse origins
   - verification hooks (at minimum: Argo app health + smoke suites if present)
 
 Deliverable: end-to-end promotion pipeline managed by Kargo.
@@ -228,4 +367,3 @@ Deliverable: one promotion system of record per environment.
 - Verification: what minimal smoke gates are required before staging/prod promotions are allowed?
 - Git branching: do we introduce stage branches (e.g., `stage/staging`) or keep env overlays on `main` only?
 - Credentials: use GitHub App vs PAT; define minimum scopes and rotation policy.
-
