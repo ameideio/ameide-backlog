@@ -20,25 +20,32 @@ related:
 
 This backlog aligns the Ameide Platform UI “Repository” experience with the v6 posture:
 
-- The Enterprise Repository is **canonical Git content** (files), backed by **in-cluster GitLab** (`backlog/694-elements-gitlab-v6.md`).
+- The Enterprise Repository is **canonical Git content**, backed by **in-cluster GitLab** (`backlog/694-elements-gitlab-v6.md`).
 - GitLab is a **private platform subsystem**; users do not log into GitLab directly.
 - The UI is the governance/product surface: users browse, edit, propose, approve, and publish changes using the platform.
+- The UI presents repository content as a **TOGAF 10 Architecture Repository hierarchy**, not as a raw file tree.
 
 ### Primary user journey (happy path)
 
-1) User opens an organization and selects an Enterprise Repository.
-2) UI shows a repository “workspace”:
-   - file tree under `elements/`, `relationships/`, `processes/`
-   - baseline selector (published baseline is `main` commit SHA; tags optional)
-3) User edits artifacts (docs/diagrams/config, including BPMN process definitions) through the UI.
-4) The platform creates/updates a change branch and MR; checks run.
-5) Approvals happen in the UI (governance truth in platform DB).
-6) Platform merges the MR into `main` and records immutable audit pointers (MR id, pipeline id, commit SHA).
-7) Projections refresh (index/search/graph/timeline) from owner facts and/or baseline change signals.
+1) User opens an organization and selects an Enterprise Repository (a single underlying Git repo).
+2) UI shows the repository in a TOGAF 10 hierarchy (examples):
+   - Architecture Landscape (baselines + work-in-progress)
+   - Reference Library
+   - Standards Information Base
+   - Governance Log
+   - Architecture Capability
+3) User browses and opens an **element** (document/model/process) from the hierarchy.
+4) UI opens the correct editor based on the element’s file type (e.g., Markdown, ArchiMate, BPMN).
+5) User edits and proposes changes; the platform creates/updates a change branch and MR; checks run.
+6) Approvals happen in the UI (governance truth in platform DB).
+7) Platform merges the MR into `main` and records immutable audit pointers (MR id, pipeline id, commit SHA).
+8) Projections refresh (index/search/graph/timeline) from owner facts and/or baseline change signals.
 
 ### ProcessDefinitions in the Enterprise Repository
 
-Under v6, ProcessDefinitions are **design-time governed artifacts stored as files** in the Enterprise Repository (not in a Definition Registry):
+Under v6, ProcessDefinitions (aka “workflow definitions”) are **design-time governed artifacts stored as Git-backed elements** in the Enterprise Repository (not in a Definition Registry, and not in a separate custom workflow-definition subsystem).
+
+They are authored as BPMN and later deployed to the selected BPMN runtime(s) (Zeebe/Camunda 8 and Flowable).
 
 ```text
 processes/<module>/<process_key>/v<major>/process.bpmn
@@ -51,7 +58,9 @@ Promoting a ProcessDefinition (at a high level):
 - deploy the Process primitive worker implementation that provides the BPMN task side-effects,
 - roll out safely and observe (progress/timeline).
 
-Multi-tenancy implications (repo scoping, per-tenant process catalogs) are **explicitly out of scope here**; capture as a separate backlog.
+Placement in the TOGAF hierarchy: ProcessDefinitions are part of the Architecture Repository. The UI should surface them under the appropriate TOGAF category (typically Architecture Capability), even if their canonical storage path is `processes/**`.
+
+Multi-tenancy details for process catalogs are **explicitly out of scope here**; capture as a separate backlog.
 
 ## Non-goals (v6)
 
@@ -92,33 +101,47 @@ This is consistent with the GitLab posture: the browser should not talk to GitLa
 
 ## Target-state UI decomposition (v6)
 
-The repository UI becomes “Git-backed files + projections + governance” rather than “graph elements”.
+The repository UI becomes “TOGAF hierarchy + Git-backed elements + projections + governance”.
 
-### Repository workspace tabs (suggested)
+### Repository navigation model (TOGAF-first)
 
-- **Files**
-  - file tree browser rooted at the Enterprise Repository
-  - open file viewer/editor by type:
-    - Markdown/text
-    - images/binaries (preview only)
-    - BPMN (`processes/**`) with runtime-specific validation (Zeebe/Flowable)
-    - domain-specific editors (e.g., ArchiMate) backed by files (not DB elements)
-- **Changes**
-  - MR / branch status for the current transformation/change
-  - checks + evidence
-- **Governance**
-  - approvals, required checks, sequencing gates
-  - publish/merge actions (platform-owned)
-- **Timeline**
-  - facts and outcomes anchored to audit pointers (MR id / commit SHA / pipeline id)
-- **Search / Graph** (projection)
-  - derived index/graph views over files (rebuildable)
+The UI should present a consistent TOGAF 10 Architecture Repository hierarchy. A minimal initial implementation can treat TOGAF categories as a **virtual hierarchy** mapped to Git paths and metadata conventions.
+
+Suggested canonical mapping (convention; exact folder names are implementation detail):
+
+- Architecture Landscape → `elements/**` (most “authored architecture” lives here)
+- Reference Library → `elements/**` (reference materials; labeled or path-conventioned)
+- Standards Information Base → `elements/**` (principles/standards; labeled or path-conventioned)
+- Governance Log → derived views + optional governance artifacts in `elements/**`
+- Architecture Capability → `processes/**` (ProcessDefinitions) + supporting capability artifacts in `elements/**`
+
+Key rule: the UI shows and edits **elements**. Elements are stored as files in Git, but the UI should avoid exposing “raw file tree” as the primary mental model.
+
+### Editors (extension-driven)
+
+Editors are selected by the element’s underlying file extension / MIME:
+
+- Markdown/text editors for `*.md`, `*.txt`, etc.
+- ArchiMate editor for ArchiMate element files (format TBD by convention).
+- BPMN editor for `processes/**/process.bpmn`.
+
+These editors are not different persistence models: they are different frontends for modifying Git-backed elements.
+
+### Relationships (authored as references; reconstructed by projections)
+
+Relationships are authored as normal references inside element content (e.g., links/references within Markdown, identifiers within model files).
+
+- The platform does not require “relationship CRUD” as canonical writes.
+- The Projection reconstructs a graph from these references for:
+  - search and impact,
+  - derived navigation/backlinks,
+  - agent memory consumption.
 
 ### Owner vs projection read/write rules (UI contract)
 
 - UI writes always go to the owning Domain primitive (commands); Domain is the only canonical writer (including Git operations).
 - UI reads should prefer Projection query APIs for:
-  - file listing, search, graph traversal, impact analysis,
+  - element listing/browsing (TOGAF hierarchy), search, graph traversal, impact analysis,
   - timelines and derived views.
 - UI should not require GitLab APIs; GitLab remains a private storage adapter behind Domain/Projection.
 
@@ -128,20 +151,20 @@ This backlog does not define the full proto set, but it defines the UI’s minim
 
 ### Projection query surface (read path)
 
-Minimum queries needed to build a repository browser:
+Minimum queries needed to build a TOGAF-first repository browser:
 
-- list directory entries (path → children + metadata)
-- fetch file content (path + ref → bytes/text + type hints)
+- list elements by TOGAF category (virtual hierarchy) and/or by path conventions
+- fetch element content (path + ref → bytes/text + type hints)
 - baseline selection support (published baseline commit SHA; optional tags)
 - search (full-text + structured as available)
-- backlinks/relationships view (derived graph from links + relationship files; code graphs optional)
+- backlinks/relationships view (derived graph from references; code graphs optional)
 
 ### Domain command surface (write/govern path)
 
-Minimum commands needed for “edit files with governance”:
+Minimum commands needed for “edit elements with governance”:
 
 - begin/ensure a change (branch + MR) scoped to a repository
-- commit/update files on the change branch (idempotent)
+- commit/update element content on the change branch (idempotent)
 - request/record approvals (governance truth)
 - merge/publish (merge MR → `main`, record audit pointers, emit facts)
 
@@ -150,27 +173,29 @@ Minimum commands needed for “edit files with governance”:
 This backlog makes the following direction explicit:
 
 - **Definition Registry is deprecated** for ProcessDefinitions:
-  - replace `repo/<id>/registry` with a `processes/**` file view in the repo workspace.
-- “Enterprise Repository UI == element graph browser” is superseded:
-  - the repository root view should be file/tree-first, with graph/search as derived projections.
-- ArchiMate and other editors must move from “DB element CRUD” to “file-backed artifact editing” (with projections to index/relate).
+  - replace `repo/<id>/registry` with ProcessDefinitions stored under `processes/**` and surfaced in the TOGAF hierarchy.
+- The custom “workflow definitions” subsystem is superseded for BPMN-governed processes:
+  - pivot to BPMN authoring and runtime validation for Zeebe/Flowable.
+- “Enterprise Repository UI == element graph browser (DB substrate)” is superseded:
+  - the repository root view should be TOGAF hierarchy-first, with graph/search as derived projections.
+- ArchiMate and other editors must move from “DB element CRUD” to “Git-backed element editing” (with projections to index/relate).
 
 ## Incremental delivery plan (minimize disruption)
 
-1) Add a “Files” tab to the repository workspace that can:
-   - render the default layout (`elements/`, `relationships/`, `processes/`)
-   - open files read-only from the published baseline.
+1) Add a TOGAF hierarchy view to the repository page that can:
+   - list elements by TOGAF categories (even if backed by path conventions initially)
+   - open elements read-only from the published baseline.
 2) Add “Edit → propose” flow:
-   - edit file in UI → Domain creates/updates MR → UI shows checks/governance state.
+   - edit element in UI → Domain creates/updates MR → UI shows checks/governance state.
 3) Replace Definition Registry view:
-   - stop treating process definitions as registry entries; browse `processes/**` instead.
+   - stop treating process definitions as registry entries; author/browse BPMN ProcessDefinitions in-repo.
 4) Migrate existing editors:
-   - ArchiMate view editor persists to files in `elements/**` (with projection indexing for search/graph).
+   - ArchiMate view editor persists to Git-backed elements (with projection indexing for search/graph).
 5) Switch the repository landing page:
-   - default to Files (not “ArchiMate views”), with derived navigation layered on top.
+   - default to TOGAF hierarchy view (not “ArchiMate views”), with derived navigation layered on top.
 
 ## Open questions / explicit TBDs
 
-- Multi-tenancy boundaries for repositories and process catalogs (tenant-only vs shared templates).
+- Multi-tenancy boundaries for process catalogs and any shared template repos (default is tenant-owned repos; details TBD).
 - Agent memory model and citations under Git-first (“memory is projection” is accepted; specifics TBD).
 - Level of code graph indexing (reuse external graph indexers vs build in-house); treated as projection implementation detail.
