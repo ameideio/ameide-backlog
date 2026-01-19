@@ -215,16 +215,19 @@ Expected behavior for the `365fo` profile:
 
 These commands are power tools (flags allowed) intended to reduce “log discovery” friction during interactive development in a workspace. They must remain compatible with the 650 posture (internal-first; no privileged networking; no Telepresence dependency).
 
-- `ameide dev status`: print the active dev session metadata (URLs, namespace, run root, and log locations).
-- `ameide dev logs`: attach to dev session logs without requiring manual path discovery.
+- `ameide dev status`: print the active dev session metadata (URLs, session id, namespace, run root).
+- `ameide dev logs`: stream full-stack logs from Loki scoped to the dev session id.
+- `ameide dev traces`: (recommended) search/fetch traces from Tempo scoped to the dev session id.
 
 Contract:
 
-- If `ameide dev` redirects logs to a file, it must also make them re-attachable via `ameide dev logs` (no guessing paths).
-- Cluster log streaming uses `kubectl logs …` when available; lack of `kubectl` or RBAC must degrade gracefully (local logs still work).
-- The UX should match common expectations (Compose-style flags), but **must not** depend on Docker/Compose being available in Kubernetes-hosted workspaces.
+- `ameide dev logs` and `ameide dev traces` must not depend on `kubectl logs` for the normal inner loop; the default source of truth is Loki/Tempo queries.
+- A single dev session id must correlate traffic end-to-end. Canonical key: `ameide.session_id`.
+  - `ameide dev` creates the session id, persists it in session metadata, and exports it to the local dev process as `AMEIDE_SESSION_ID`.
+  - Outbound requests from the dev process propagate the session id via W3C Baggage (`baggage: ameide.session_id=<id>`).
+- Logs ingested into Loki must include `ameide.session_id` and a trace id field so Grafana can correlate logs↔traces. The local dev process log stream must be ingested into Loki (either via an agent tailing its log file or via OTLP log export).
 
-Minimum flag set for `ameide dev logs`:
+Minimum flag set for `ameide dev logs` and `ameide dev traces`:
 
 - `-f/--follow`, `--tail`, `--since`, `--timestamps`
 - `--service` (single) / `--stack` (named set; default stack)
@@ -232,7 +235,7 @@ Minimum flag set for `ameide dev logs`:
 
 Session discovery (required):
 
-- Write `dev-session.json` under the dev run root (at minimum: start time, namespace, URLs, and per-service log locations).
+- Write `dev-session.json` under the dev run root (at minimum: session id, start time, namespace, URLs, and observability endpoints/datasource identifiers).
 - Maintain a stable pointer to the most recent session (e.g., `artifacts/agent-ci/local-latest -> artifacts/agent-ci/local-<run-id>/`) so both humans and agents can find “the current run” deterministically.
 
 ## 7) Evidence and artifacts
