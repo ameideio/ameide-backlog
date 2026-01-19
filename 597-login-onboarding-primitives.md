@@ -414,13 +414,14 @@ ameide primitive scaffold --kind domain --name identity --proto-path packages/am
 **2) Scaffold the primitives (idempotent by default)**
 
 Go primitives (domain/projection/integration) require `--proto-path`. Process scaffolding is shifting to **BPMN-first** compilation (see `backlog/511-process-primitive-scaffolding-refactoring.md`), so `--proto-path` should not be treated as a long-term requirement for Process primitives.
+**Update (v6):** the canonical ProcessDefinition (BPMN) is a governed artifact in the tenant Enterprise Repository (`processes/<module>/<process_key>/v<major>/process.bpmn`). Any BPMN file scaffolded into the Process primitive repo is a fixture for local verification/tests, not the canonical source of truth (see `backlog/520-primitives-stack-v6.md`, `backlog/511-process-primitive-scaffolding-v3.md`).
 
 ```bash
 ameide primitive scaffold --kind integration --name identity-oidc-adapter --proto-path packages/ameide_core_proto/src/ameide_core_proto/identity/integration/v1/identity_oidc_adapter_service.proto --include-test-harness
 ameide primitive scaffold --kind domain --name identity --proto-path packages/ameide_core_proto/src/ameide_core_proto/identity/core/v1/identity_command_service.proto --include-test-harness
 ameide primitive scaffold --kind domain --name tenancy --proto-path packages/ameide_core_proto/src/ameide_core_proto/tenancy/core/v1/tenancy_command_service.proto --include-test-harness
 ameide primitive scaffold --kind projection --name tenancy-access --proto-path packages/ameide_core_proto/src/ameide_core_proto/tenancy/core/v1/tenancy_access_query_service.proto --include-test-harness
-# Process (v0 proto-driven scaffold; planned v1: BPMN-first at primitives/process/tenancy-onboarding/process.bpmn)
+# Process (v0 proto-driven scaffold; v6 posture: canonical BPMN in tenant repo; optional fixture at `primitives/process/tenancy-onboarding/bpmn/process.bpmn`)
 ameide primitive scaffold --kind process --name tenancy-onboarding --proto-path packages/ameide_core_proto/src/ameide_core_proto/tenancy/process/v1/tenancy_onboarding_command_service.proto --include-test-harness
 ameide primitive scaffold --kind integration --name tenancy-idp-provisioner --proto-path packages/ameide_core_proto/src/ameide_core_proto/tenancy/integration/v1/idp_provisioner_service.proto --include-test-harness
 ```

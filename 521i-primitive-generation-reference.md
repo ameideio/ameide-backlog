@@ -155,10 +155,10 @@ See also:
 | `primitives/process/{name}/go.mod` | Go module |
 | `primitives/process/{name}/Dockerfile` | Container image |
 | `primitives/process/{name}/catalog-info.yaml` | Backstage catalog |
-| `primitives/process/{name}/cmd/worker/main.go` | Temporal worker entrypoint |
-| `primitives/process/{name}/cmd/ingress/main.go` | HTTP/gRPC ingress entrypoint |
+| `primitives/process/{name}/bpmn/process.bpmn` | BPMN fixture (local verify/tests; canonical BPMN lives in tenant repo under `processes/**`) |
+| `primitives/process/{name}/cmd/worker/main.go` | Zeebe worker entrypoint |
+| `primitives/process/{name}/cmd/ingress/main.go` | Completion ingress (publish message / callbacks) |
 | `primitives/process/{name}/internal/handlers/handlers.go` | Ops/control-plane handlers only (not a read model; business state lives in Domains) |
-| `primitives/process/{name}/internal/workflows/workflow.go` | Temporal workflow stub |
 | `primitives/process/{name}/internal/ingress/router.go` | Ingress router |
 | `primitives/process/{name}/internal/process/state.go` | Process state struct |
 | `primitives/process/{name}/internal/tests/{rpc}_test.go` | Per-RPC tests |

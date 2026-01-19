@@ -360,8 +360,8 @@ AmeideCoder MUST return, on completion:
 ### 7.1 Process primitive(s) (Agile/TOGAF ADM)
 
 Deployed as Process CRs (managed by Process operator):
-- Loads ProcessDefinition from Transformation
-- Runs Temporal workflows for governance lifecycle
+- Loads the published ProcessDefinition (BPMN) as a governed artifact (v6 posture: tenant Enterprise Repository under `processes/<module>/<process_key>/v<major>/process.bpmn`, mediated by the owning Domain where required)
+- Runs Zeebe process instances for governance lifecycle (not Temporal)
 - Emits **process facts** on `scrum.process.facts.v1` (e.g., `SprintBacklogReadyForExecution`, `SprintBacklogItemReadyForWork`, `SprintTimeboxReachedEnd`, `SLAWarning`) based on the domain facts it consumes from `scrum.domain.facts.v1`
 - Does NOT embed agent logic - purely state machine
 

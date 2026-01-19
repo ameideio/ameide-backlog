@@ -564,6 +564,10 @@ You can keep older docs for migration history, but apply the following rules whe
 
 ## 11. Implementation plan (bottom‑up)
 
+> **v6 alignment note (process definition posture):** this document’s “Process primitive(s) (Temporal governor)” plan and “Definition Registry fetch + ConfigMap mount” mechanics reflect an older execution model.  
+> Current posture for BPMN-authored business processes is **Zeebe** (“process solution” worker + deploy logic), and ProcessDefinitions (BPMN) are versioned files in the tenant Enterprise Repository under `processes/<module>/<process_key>/v<major>/process.bpmn` (see `backlog/520-primitives-stack-v6.md` and `backlog/511-process-primitive-scaffolding-v3.md`).  
+> Multi-tenant deployment mapping remains **TBD** and is out of scope here.
+
 This section sketches a **bottom‑up path** to implementing the contract above without re‑inventing semantics or coupling. It is intentionally layered so Transformation, Process, operators, and agents can progress in parallel once the contract is frozen.
 
 ### 11.1 Dependency ladder

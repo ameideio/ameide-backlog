@@ -2,7 +2,9 @@
 
 > **DEPRECATED (2026-01-12):** This refactor plan is for the v1 “compile BPMN into Temporal runner code” approach.  
 > New direction: BPMN-authored processes execute on Zeebe (Camunda 8) and the transpilation effort is discontinued.  
-> See `backlog/511-process-primitive-scaffolding-v2.md`.
+> See `backlog/511-process-primitive-scaffolding-v3.md` and `backlog/520-primitives-stack-v6.md`.
+>
+> **Additional v6 alignment:** canonical ProcessDefinitions (BPMN) are versioned files in the tenant Enterprise Repository (`processes/<module>/<process_key>/v<major>/process.bpmn`). Any `bpmn/` copy in a Process primitive repo is a local fixture only (see `backlog/694-elements-gitlab-v6.md`).
 
 This document closes the remaining “open questions” for the v1 BPMN extension profile and defines a single, consistent direction for refactoring the scaffolder into a **Go-only, self-contained compiler pipeline**.
 
