@@ -54,6 +54,7 @@ GitLab is treated as a **platform-owned subsystem**:
 - Added baseline PostSync smoke job checks for GitLab (`platform-gitlab-smoke`) to keep rollout evidence consistent with other platform smokes.
 - Fixed hostname assembly footgun by removing the `global.hosts.gitlab.name: gitlab` override so the chart assembles `gitlab.<domain>`.
 - Disabled GitLab chart `upgradeCheck` under ArgoCD to avoid Helm hook failures blocking first installs (GitOps rollouts).
+- Switched GitLab object storage to the shared in-namespace MinIO (`data-minio`) and disabled GitLab’s bundled MinIO chart (temporary posture; see “Object storage”).
 - Updated 694 ↔ 695 alignment notes and cross-references.
 
 ## Next (tracked work)
@@ -62,6 +63,7 @@ GitLab is treated as a **platform-owned subsystem**:
 - Decide and document SSH exposure (`TCPRoute`/L4) and how it maps to `global.hosts.ssh` + `global.shell.port`.
 - Finalize OIDC group mapping contract (documented claim keys and how `/gitlab-admin` maps to GitLab admin) and add a verifier.
 - Promote the shared-secrets vs Vault matrix from “decision” to “explicit secret names + owners” and add drift checks.
+- Replace shared MinIO root credentials with a dedicated GitLab object-store user + scoped policies (and/or move to external object storage per the hybrid posture).
 
 ## Version posture
 
@@ -179,6 +181,24 @@ Decide and document (matrix) which secrets are:
 3. **Secrets are GitOps-safe:** no embedded secrets in values; secrets come from Vault/ExternalSecrets with clear key conventions per env.
 4. **Upgrade posture is safe:** upgrades are rehearsed in `dev`/`staging` with rollback notes (data migration awareness).
 5. **Prod posture is explicit:** either “PoC only” is accepted and documented, or hybrid dependencies are planned and tracked.
+
+## Object storage (temporary: shared in-cluster MinIO)
+
+GitLab requires S3-compatible object storage for core features (artifacts, LFS, uploads, packages). Upstream’s production guidance is to use external object storage; in the current Ameide posture we use the **shared in-namespace MinIO** (`data-minio`) as a **temporary** stop-gap.
+
+- **MinIO deployment:** Bitnami MinIO `data-minio` (per-environment namespace), configured via `sources/values/_shared/data/data-minio.yaml` and env overrides.
+- **GitLab bundled MinIO:** disabled via `gitlab.global.minio.enabled=false` to avoid arm64 image issues and bucket-job drift.
+- **Connection Secret:** `Secret/gitlab-object-storage` is materialized in the GitLab namespace via `ExternalSecret` (wrapper chart template `sources/charts/platform/gitlab/templates/externalsecret-object-storage.yaml`).
+  - **Temporary credential source:** Vault keys `minio-root-user` + `minio-root-password` (root credentials; to be replaced).
+- **Buckets:** created by MinIO default bucket bootstrap (`defaultBuckets`) and include:
+  - `git-lfs`, `gitlab-artifacts`, `gitlab-uploads`, `gitlab-packages`
+  - `gitlab-mr-diffs`, `gitlab-terraform-state`, `gitlab-ci-secure-files`, `gitlab-dependency-proxy`
+  - `gitlab-backups`, `tmp`
+
+Exit criteria for removing this “temporary” posture:
+
+- Create a dedicated MinIO user for GitLab with scoped bucket policies (no root credentials in app namespaces).
+- Decide whether the long-term target is external object storage (preferred for production) and track the migration plan (buckets, creds, backups).
 
 ## Decision points to resolve
 
