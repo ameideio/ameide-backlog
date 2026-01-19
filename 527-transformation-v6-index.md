@@ -9,6 +9,7 @@ related:
   - 694-elements-gitlab-v6.md
   - 496-eda-principles-v6.md
   - 660-transformation-primitive-v4-goals-invariants.md
+  - 701-repository-ui-enterprise-repository-v6.md
 ---
 
 # 527 Transformation — v6 Index (Git-backed repository substrate)
@@ -22,6 +23,10 @@ This index exists to reduce “version drift” across the Transformation doc se
 - Transformation E2E narrative: `backlog/527-transformation-e2e-sequence-v6.md`
 - Transformation Domain posture (Git-backed owner): `backlog/527-transformation-domain-v3.md`
 - Transformation Process semantics: `backlog/527-transformation-process-v4.md`
+- Repository UI contract (TOGAF hierarchy-first): `backlog/701-repository-ui-enterprise-repository-v6.md`
+- Transformation UISurface posture (TOGAF hierarchy projection): `backlog/527-transformation-uisurface-v6.md`
+- Transformation Projection posture (TOGAF hierarchy projection): `backlog/527-transformation-projection-v6.md`
+- Transformation contract notes (Git-backed elements + derived TOGAF hierarchy): `backlog/527-transformation-proto-v6.md`
 
 ## Still valid, but interpret through v6
 

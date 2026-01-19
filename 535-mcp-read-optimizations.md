@@ -7,7 +7,7 @@
 **Use with:**
 - MCP protocol adapter: `backlog/534-mcp-protocol-adapter.md`
 - MCP write optimizations: `backlog/536-mcp-write-optimizations.md`
-- Transformation projection: `backlog/527-transformation-projection.md`
+- Transformation projection (v6): `backlog/527-transformation-projection-v6.md`
 - Capability definition: `backlog/528-capability-definition.md`
 - Agentic memory contract (v6): `backlog/656-agentic-memory-v6.md`
 

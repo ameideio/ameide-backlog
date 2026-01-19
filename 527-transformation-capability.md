@@ -340,12 +340,12 @@ Telepresence remains a developer ergonomics tool for interactive remote-first wo
 
 - Domain primitives: `backlog/527-transformation-domain.md`
 - Process primitives: `backlog/527-transformation-process.md`
-- Projection primitives: `backlog/527-transformation-projection.md`
-- UISurface primitives: `backlog/527-transformation-uisurface.md`
+- Projection primitives (v6): `backlog/527-transformation-projection-v6.md`
+- UISurface primitives (v6): `backlog/527-transformation-uisurface-v6.md`
 - Agent primitives: `backlog/527-transformation-agent.md`
 - Integration primitives: `backlog/527-transformation-integration.md`
-- Proto contracts: `backlog/527-transformation-proto.md`
-- Methodology dictionary: `backlog/527-transformation-methodology-dictionary.md`
+- Proto contract notes (v6): `backlog/527-transformation-proto-v6.md`
+- Methodology dictionary (v6): `backlog/527-transformation-methodology-dictionary-v6.md`
 - Scenarios (flow-only): `backlog/527-transformation-scenario-scrum.md`, `backlog/527-transformation-scenario-togaf-adm.md`
 - Overlay implementation trackers: `backlog/527-transformation-implementation-migration-scrum.md`, `backlog/527-transformation-implementation-migration-togaf-adm.md`
 - Implementation & migration: `backlog/527-transformation-implementation-migration.md`
@@ -391,11 +391,11 @@ Edge constraints (Transformation):
 - Writes require human approval by default; approvals are recorded as domain/process facts and visible in the audit timeline.
 - Evidence is emitted as domain facts (after persistence) and surfaced via projection-backed audit trail.
 
-**Proto contract references:**
+**Proto contract references (v6):**
 - Domain facts (Enterprise Knowledge substrate): `transformation.knowledge.domain.facts.v1`
 - Process facts: `transformation.process.facts.v1`
 - RPC services/packages: `ameide_core_proto.transformation.knowledge.v1`, `ameide_core_proto.process.transformation.v1`
-- Full contract catalog: [527-transformation-proto.md](527-transformation-proto.md)
+- Contract notes: `backlog/527-transformation-proto-v6.md`
 
 **MCP Security Spine (invariants):**
 
