@@ -53,6 +53,11 @@ GitLab is treated as a **platform-owned subsystem**:
 
 - GitLab is now part of the standard GitOps component set (no longer `_optional`).
 - Added baseline PostSync smoke job checks for GitLab (`platform-gitlab-smoke`) to keep rollout evidence consistent with other platform smokes.
+- Fixed GitLab UI rendering (“unstyled” pages) by routing the Gateway `HTTPRoute` to **Workhorse** (`webservice` port `8181`) instead of Rails/Puma (`8080`). Verified `/assets/*` returns `200` (CSS/JS served) rather than redirecting to sign-in.
+- Hardened defaults as standard (not optional):
+  - Disabled **public sign-ups** by default.
+  - Disabled **usage ping / product usage data** collection by default.
+  - Enforced both via Helm values (initial defaults) and via the GitOps bootstrap hook (to apply to existing running instances).
 - Fixed hostname assembly footgun by removing the `global.hosts.gitlab.name: gitlab` override so the chart assembles `gitlab.<domain>`.
 - Disabled GitLab chart `upgradeCheck` under ArgoCD to avoid Helm hook failures blocking first installs (GitOps rollouts).
 - Switched GitLab object storage to the shared in-namespace MinIO (`data-minio`) and disabled GitLab’s bundled MinIO chart (temporary posture; see “Object storage”).
@@ -62,12 +67,13 @@ GitLab is treated as a **platform-owned subsystem**:
   - `ExternalSecret/gitlab-oidc-provider` templates the GitLab OmniAuth provider config into `Secret/gitlab-oidc-provider` key `provider`.
   - Vault bootstrap policy for `keycloak-client-patcher` includes `secret/data/gitlab-*` to allow extraction.
 - Updated 694 ↔ 695 alignment notes and cross-references.
+- Fixed ArgoCD “stuck Progressing” health evaluation for `gateway.networking.k8s.io/HTTPRoute` when the Gateway controller does not reliably bump `observedGeneration` on parent conditions. This removes a class of non-deterministic GitOps sync hangs for route changes.
 
 ## Next (tracked work)
 
 - Keep GitLab Container Registry disabled until object storage credentials are least-privilege and routing/TLS are explicitly defined.
 - Rehearse and validate SSH exposure via Gateway TCPRoute in `dev`/`staging` (port `22`, hostname `gitlab.<env>.ameide.io`) and ensure network policies allow the listener end-to-end.
-- Document the admin bootstrap runbook execution posture (where the break-glass token lives in Vault, rotation expectations, and audit evidence).
+- Document the admin bootstrap automation posture (Job semantics, evidence, and the remaining break-glass path for emergencies).
 - Promote the shared-secrets vs Vault matrix from “decision” to “explicit secret names + owners” and add drift checks.
 - Replace shared MinIO root credentials with a dedicated GitLab object-store user + scoped policies (and/or move to external object storage per the hybrid posture).
 
@@ -173,6 +179,7 @@ GitLab should follow the same pattern so we don’t rely on ad-hoc/manual valida
 
 - If GitLab remains an optional workload, keep its smoke component optional as well (enabled/disabled together), to avoid failing the global smoke phases in environments where GitLab is not installed.
 - Prefer “cheap” checks (HTTP + secret readiness) as PostSync hooks; keep full browser login assertions in separate CI verifiers if needed.
+- Ensure smokes catch routing regressions: assert that `HTTPRoute/platform-gitlab` routes to Workhorse (`8181`), otherwise the UI will lose assets/CSS.
 
 ## Secrets posture (shared-secrets vs Vault)
 
@@ -219,6 +226,9 @@ With `blockAutoCreatedUsers=true`, the CE-safe posture is:
 - The local bootstrap password is Vault-sourced (stable per environment):
   - Vault key: `gitlab-bootstrap-admin-password` (generated if absent)
   - Materialized Secret: `Secret/gitlab-bootstrap-admin` (key `password`)
+- The Job also enforces baseline instance settings (so “standard configuration” is actually applied):
+  - Disable public sign-ups
+  - Disable usage ping / product usage data collection
 
 **Break-glass helpers (repo scripts)**
 
@@ -228,6 +238,8 @@ With `blockAutoCreatedUsers=true`, the CE-safe posture is:
 **Incident note (2026-01-19, dev)**
 
 - `admin@ameide.io` was approved/promoted via `gitlab-rails runner` executed in `Deployment/platform-gitlab-toolbox` to unblock SSO while the bootstrap hook was being corrected.
+- Root cause was an ENTRYPOINT override in the bootstrap Job that produced an invalid `database.yml` (`host: localhost`). The Job now uses `args` (not `command`) so GitLab’s toolbox entrypoint renders config correctly.
+- A separate incident caused unstyled pages (`/assets/*` redirect to sign-in) due to routing to port `8080`; resolved by routing the `HTTPRoute` to Workhorse (`8181`).
 
 ## Contract checkpoints (what “good” looks like)
 
