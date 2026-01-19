@@ -53,6 +53,7 @@ GitLab is treated as a **platform-owned subsystem**:
 - GitLab is now part of the standard GitOps component set (no longer `_optional`).
 - Added baseline PostSync smoke job checks for GitLab (`platform-gitlab-smoke`) to keep rollout evidence consistent with other platform smokes.
 - Fixed hostname assembly footgun by removing the `global.hosts.gitlab.name: gitlab` override so the chart assembles `gitlab.<domain>`.
+- Disabled GitLab chart `upgradeCheck` under ArgoCD to avoid Helm hook failures blocking first installs (GitOps rollouts).
 - Updated 694 ↔ 695 alignment notes and cross-references.
 
 ## Next (tracked work)
