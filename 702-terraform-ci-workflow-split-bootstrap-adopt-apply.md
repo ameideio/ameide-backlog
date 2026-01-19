@@ -46,9 +46,14 @@ Migrations/adoption should be explicit:
    - publish outputs/runtime facts
    - no imports
 
+## Implementation notes (current repo)
+
+- The “single-writer” day-2 path is `plan` → review → `apply`, with no import/adoption logic in the apply workflow.
+- The break-glass path is explicit: run `terraform-azure-adopt` until plan is clean, then return to normal apply.
+- Enabled environments are derived from `config/clusters/azure.yaml` and shared across CI scripts via `infra/scripts/enabled-azure-envs.sh` to avoid drift.
+
 ## Acceptance criteria
 
 - Normal apply contains no “import_if_exists” logic.
 - Adoption workflow produces a no-op plan as its exit criteria.
 - The repo documents which workflow is used for which scenario (normal vs incident recovery).
-
