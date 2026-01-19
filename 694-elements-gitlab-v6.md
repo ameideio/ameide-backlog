@@ -12,6 +12,7 @@ related:
   - 520-primitives-stack-v6.md
   - 527-transformation-v6-index.md
   - 695-gitlab-configuration-gitops.md
+  - 701-repository-ui-enterprise-repository-v6.md
 ---
 
 # 694 – Elements / Enterprise Repository in GitLab (v6: Git-backed canonical content)
