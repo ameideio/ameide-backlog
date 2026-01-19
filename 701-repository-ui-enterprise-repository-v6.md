@@ -95,6 +95,55 @@ Multi-tenancy details for process catalogs are **explicitly out of scope here**;
 
 The current “Repository” UI is largely **element/graph-shaped**, not Git-backed.
 
+### “Transformation” in the current UI (as-is)
+
+Today, the platform already has a “change-as-a-process” experience, but it is not yet GitLab/MR-native:
+
+- **R2R UI is element-based**:
+  - Repository R2R list: `services/www_ameide_platform/app/(app)/org/[orgId]/repo/[repositoryId]/r2r/page.tsx`
+  - Change workspace: `services/www_ameide_platform/app/(app)/org/[orgId]/repo/[repositoryId]/r2r/change/[changeId]/page.tsx`
+  - A “change” is an Element with `typeKey = "ameide:change"`; the UI lists and creates these elements.
+- **Governance anchors are versioned element references**:
+  - Required anchors: `ref:requirement` and `ref:deliverables_root` relationships with `metadata.target_version_id`.
+  - Helper: `services/www_ameide_platform/features/r2r/lib/anchors.ts` (`baselineIdForChange`, `getTargetVersionId`).
+- **Runs are started via a platform Workflow runtime (not BPMN ProcessDefinitions)**:
+  - `services/www_ameide_platform/features/r2r/lib/runs.ts` shows:
+    - `R2R_WORKFLOW_DEFINITION_ID = "transformation-process"`
+    - `R2R_WORKFLOW_TASK_QUEUE = "transformation-tq"`
+    - `workflowsType` is chosen by methodology (e.g., `transformation.r2r.governance.scrum.v1`).
+  - The UI starts runs via `workflowsClient.startRun(...)` and lists them via `workflowsClient.listRuns(...)`:
+    - `services/www_ameide_platform/app/(app)/org/[orgId]/repo/[repositoryId]/r2r/change/[changeId]/page.tsx`
+  - The current run-start dialog requires **manual** `RepoURL` + `CommitSHA` + `Workdir`, which indicates the current workflow execution is not yet “GitLab MR as the governance surface”.
+- **Timeline is already wired to process facts**:
+  - Repo timeline: `services/www_ameide_platform/app/(app)/org/[orgId]/repo/[repositoryId]/timeline/page.tsx`
+  - Reads `transformationProcessQuery.listProcessFacts(...)` (projection-backed).
+
+### Process facts ingestion (as-is)
+
+The projection already supports a “process evidence timeline” ingestion posture, but it currently includes a Temporal-based process primitive:
+
+- Process facts are read from the Transformation Projection:
+  - gRPC server: `primitives/projection/transformation/cmd/main.go`
+  - handler: `primitives/projection/transformation/internal/handlers/handlers.go` (`ListProcessFacts`)
+- MVP ingestion exists as a **DB relay**, tailing:
+  - Domain outbox (`transformation.domain_outbox`) and
+  - Process outbox (`transformation_process.process_outbox`)
+  - Relay: `primitives/projection/transformation/cmd/relay/main.go`
+- The “current process primitive” that emits `process_outbox` is Temporal-based:
+  - worker: `primitives/process/transformation/cmd/worker/main.go`
+  - ingress router: `primitives/process/transformation/internal/ingress/router.go`
+
+v6 target posture (this backlog) is to pivot workflow definitions to **BPMN ProcessDefinitions stored in the Enterprise Repository** (`processes/**`) and run them on Zeebe/Flowable; the above is the as-is evidence wiring that must be migrated.
+
+### GitLab integration in the UI service (as-is; prototype)
+
+The web app contains server-side GitLab adapter endpoints implemented via `@gitbeaker/rest`:
+
+- Client: `services/www_ameide_platform/lib/gitlab/client.ts` (`GITLAB_URL`, `GITLAB_TOKEN`)
+- Routes: `services/www_ameide_platform/app/api/gitlab/repositories/**` (tree/files/commits; includes “create commit”)
+
+These endpoints are not currently the canonical write path (they bypass Domain governance) and are not wired into the repository UX as the primary surface. Under v6, GitLab operations should be mediated by the owning Domain primitive and audited, not performed ad-hoc by the UI layer.
+
 ### UI routes and what they do today
 
 - Repository list: `services/www_ameide_platform/app/(app)/org/[orgId]/repo/page.tsx`
