@@ -52,6 +52,8 @@ This is a recommended, minimal repository layout that keeps “canonical truth i
       README.md                     # optional
 ```
 
+Vendor-correct naming note: `process_key` SHOULD match the BPMN `<process id="...">` so runtime deployment/keying semantics align across Zeebe/Flowable.
+
 Normative rule: **`main` is the published baseline**, and “published” is a commit SHA on `main` (optionally tagged).
 
 - GitLab deployment (GitOps) tracking: `backlog/695-gitlab-configuration-gitops.md`
