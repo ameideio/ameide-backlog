@@ -73,7 +73,7 @@ Decision variables (normative):
 ## Status (as of 2026-01-13)
 
 Implemented in repo (not yet deployed):
-- Design-time ProcessDefinition (target): `processes/transformation/v4/process.bpmn` (tenant Enterprise Repository; published by advancing `main`).
+- Design-time ProcessDefinition (target): `processes/transformation/r2d/v4/process.bpmn` (tenant Enterprise Repository; published by advancing `main`).
 - Acceptance BPMN exists in the repo fixture `primitives/process/transformation_v4/bpmn/process.bpmn` under process id `transformation_acceptance_batch_v4`.
 - Aggregation is implemented in BPMN as:
   - `transformation.acceptance.batch.init.v1`

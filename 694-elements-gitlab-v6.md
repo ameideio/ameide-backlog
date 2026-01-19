@@ -26,3 +26,20 @@ Normative cross-references for the v6 story:
 - Integration/EDA posture: `backlog/496-eda-principles-v6.md`
 - Runtime posture: `backlog/520-primitives-stack-v6.md`
 - Transformation v6 spine: `backlog/527-transformation-v6-index.md`
+
+## Default tenant Enterprise Repository layout (v6)
+
+This is a recommended, minimal repository layout that keeps “canonical truth is files” concrete without forcing a single file format:
+
+```text
+<tenant-enterprise-repo>/
+  elements/                         # canonical authored artifacts (docs/diagrams/config)
+  relationships/                    # optional relationship files (in addition to inline links)
+  processes/                        # design-time governed ProcessDefinitions (BPMN as files)
+    <module>/<process_key>/v<major>/
+      process.bpmn
+      bindings.yaml                 # optional
+      README.md                     # optional
+```
+
+Normative rule: **`main` is the published baseline**, and “published” is a commit SHA on `main` (optionally tagged).

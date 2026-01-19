@@ -53,6 +53,13 @@ The non-negotiable rule still holds: **the diagram must not lie**.
 - Long work is modeled as explicit BPMN wait states and resumed by message correlation (request→wait→resume).
 - **ProcessDefinitions are design-time governed artifacts stored in the tenant Enterprise Repository.**
   - BPMN is authored and versioned as files in the tenant repository and published by advancing the baseline (`main`).
+  - Repository layout (recommended):
+    - `processes/<module>/<process_key>/v<major>/process.bpmn`
+    - optional: `processes/<module>/<process_key>/v<major>/bindings.yaml` (portable binding metadata / policy hooks)
+    - optional: `processes/<module>/<process_key>/v<major>/README.md` (functional intent + gates)
+  - Versioning rules:
+    - **Major** is encoded in the path (`v<major>`).
+    - **Minor/patch** are Git commits on `main` (optionally tagged), anchored by commit SHA for auditability.
   - A Process primitive is the runtime implementation (worker + deploy logic) that executes the **published** process definition version.
   - This makes process orchestration “definition-driven”: agents/humans change the governed artifact; the Process primitive executes it.
   - **Gap (TBD):** multi-tenant mapping rules for deploying tenant-specific process versions without collisions (flagged; not addressed here).

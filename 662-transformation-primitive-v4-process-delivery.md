@@ -110,7 +110,7 @@ Parallel multi-instance execution is allowed only when:
 ## Status (as of 2026-01-13)
 
 Implemented in repo (not yet deployed):
-- Design-time ProcessDefinition (target): `processes/transformation/v4/process.bpmn` (tenant Enterprise Repository; published by advancing `main`).
+- Design-time ProcessDefinition (target): `processes/transformation/r2d/v4/process.bpmn` (tenant Enterprise Repository; published by advancing `main`).
 - Delivery BPMN exists in the repo fixture `primitives/process/transformation_v4/bpmn/process.bpmn` under process id `transformation_delivery_batch_v4`.
 - Aggregation is implemented in BPMN as:
   - `transformation.delivery.batch.init.v1`

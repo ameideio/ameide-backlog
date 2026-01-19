@@ -42,7 +42,7 @@ Define how the Transformation governance process is shipped as a Process primiti
 ## Canonical assets
 
 - Narrative (latest): `backlog/527-transformation-e2e-sequence-v6.md`
-- Design-time ProcessDefinition (target): `processes/transformation/v4/process.bpmn` (in the tenant Enterprise Repository; published by advancing `main`)
+- Design-time ProcessDefinition (target): `processes/transformation/r2d/v4/process.bpmn` (in the tenant Enterprise Repository; published by advancing `main`)
 - Executable BPMN fixture (current repo implementation): `primitives/process/transformation_v4/bpmn/process.bpmn`
 - Worker implementation (current): `primitives/process/transformation_v4/`
 

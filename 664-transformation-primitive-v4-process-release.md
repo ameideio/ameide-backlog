@@ -75,7 +75,7 @@ Every long-running wait must also have a “no response” timer boundary that r
 ## Status (as of 2026-01-13)
 
 Implemented in repo (not yet deployed):
-- Design-time ProcessDefinition (target): `processes/transformation/v4/process.bpmn` (tenant Enterprise Repository; published by advancing `main`).
+- Design-time ProcessDefinition (target): `processes/transformation/r2d/v4/process.bpmn` (tenant Enterprise Repository; published by advancing `main`).
 - Release BPMN exists in the repo fixture `primitives/process/transformation_v4/bpmn/process.bpmn` under process id `transformation_release_batch_v4`.
 - Aggregation is implemented in BPMN as:
   - `transformation.release.batch.init.v1`
