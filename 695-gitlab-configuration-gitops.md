@@ -55,13 +55,18 @@ GitLab is treated as a **platform-owned subsystem**:
 - Fixed hostname assembly footgun by removing the `global.hosts.gitlab.name: gitlab` override so the chart assembles `gitlab.<domain>`.
 - Disabled GitLab chart `upgradeCheck` under ArgoCD to avoid Helm hook failures blocking first installs (GitOps rollouts).
 - Switched GitLab object storage to the shared in-namespace MinIO (`data-minio`) and disabled GitLab’s bundled MinIO chart (temporary posture; see “Object storage”).
+- OIDC integration is now fully GitOps-managed (no placeholder secrets):
+  - Keycloak client `gitlab` is reconciled per environment (redirect URIs match `gitlab.<env>.ameide.io`).
+  - `client-patcher` extracts the Keycloak-generated secret into Vault key `gitlab-oidc-client-secret`.
+  - `ExternalSecret/gitlab-oidc-provider` templates the GitLab OmniAuth provider config into `Secret/gitlab-oidc-provider` key `provider`.
+  - Vault bootstrap policy for `keycloak-client-patcher` includes `secret/data/gitlab-*` to allow extraction.
 - Updated 694 ↔ 695 alignment notes and cross-references.
 
 ## Next (tracked work)
 
 - Resolve the `registry` key collision structurally so GitLab Container Registry can be enabled/configured intentionally.
 - Decide and document SSH exposure (`TCPRoute`/L4) and how it maps to `global.hosts.ssh` + `global.shell.port`.
-- Finalize the GitLab CE-compatible SSO posture (who can authenticate at the IdP, and whether new users require approval before access).
+- Document the admin approval/unblock procedure for `blockAutoCreatedUsers=true` (CE-safe posture).
 - Promote the shared-secrets vs Vault matrix from “decision” to “explicit secret names + owners” and add drift checks.
 - Replace shared MinIO root credentials with a dedicated GitLab object-store user + scoped policies (and/or move to external object storage per the hybrid posture).
 
@@ -156,7 +161,7 @@ Decide and document (matrix) which secrets are:
 
 - **Vault/ExternalSecrets supplied** (authoritative, stable per environment)
   - GitLab OIDC client secret (Keycloak-generated → client-patcher → Vault): `gitlab-oidc-client-secret`
-  - GitLab OIDC provider Secret rendered from Vault: `Secret/gitlab-oidc-provider`
+  - GitLab OIDC provider Secret rendered from Vault: `Secret/gitlab-oidc-provider` (key `provider`)
 - **Chart-generated** (acceptable to generate, but must be understood and monitored)
   - Initial root password secret (break-glass only)
   - Internal TLS, SSH host keys, and other shared secrets (if we keep ingress disabled, TLS is still relevant for internal components)
@@ -175,6 +180,7 @@ Decide and document (matrix) which secrets are:
 - **Gateway API routing:** GitLab web UI is routed via `HTTPRoute`; Git SSH requires L4 (`TCPRoute` or equivalent) and a Gateway implementation that supports it (tie back to `global.hosts.ssh` and `global.shell.port`).
 - **Ingress-nginx retirement:** do not build a future plan that depends on ingress-nginx after March 2026; if ingress is used, document the supported controller posture explicitly.
 - **Globals collision (`registry`):** this repo uses a top-level `registry: <string>` convention; upstream GitLab chart uses a top-level `registry:` object. Current wrapper values force `registry.enabled=false` to avoid Helm coalesce type errors, but this can unintentionally block configuring/enabling GitLab’s Container Registry.
+- **Vault policy allowlist:** the `keycloak-client-patcher` Vault policy must include `secret/data/gitlab-*` so `gitlab-oidc-client-secret` can be written deterministically.
 - **Production warning (upstream):** default “all-in-cluster” installs are PoC; production requires a cloud-native hybrid posture (external PostgreSQL/Redis/object storage/Gitaly) and careful sizing.
 
 ## Contract checkpoints (what “good” looks like)
