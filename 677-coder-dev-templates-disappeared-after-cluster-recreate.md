@@ -65,7 +65,7 @@ Update (2026-01-15): workspace health hardening + orphan cleanup
   - Vendor-aligned template refactor landed in the GitOps repo:
     - keep `startup_script` minimal and non-fatal; move setup into `coder_script`
     - use the vendor-supported `code-server` module instead of hand-managed daemon logic
-    - pin `code-server` module version (`registry.coder.com/modules/code-server/coder`), and pin Codex CLI by default (`DEVCONTAINER_CODEX_VERSION=0.57.0`) for determinism
+    - pin `code-server` module version (`registry.coder.com/modules/code-server/coder`), and pin Codex CLI by default (`DEVCONTAINER_CODEX_VERSION=0.87.0`) for determinism
     - Codex auth policy: `CODEX_ACCOUNT_SLOT=auto` is non-fatal; `CODEX_ACCOUNT_SLOT=0|1|2` is fail-fast if the requested slot secret is missing
   - Storage: switch `/workspaces` from `emptyDir` to a per-workspace `managed-csi-premium` PVC (`16Gi`) so stop/start and pod reschedules keep the repo + editor caches.
   - Added a break-glass GitHub workflow to delete orphaned Coder workspace namespaces when Coder state diverges from cluster resources:
