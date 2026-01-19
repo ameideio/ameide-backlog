@@ -33,9 +33,9 @@ Admission policies are only effective if they are:
   - `workspace-innerloop-httproute-shape` (cluster-scoped)
 - App HTTPRoute policy is deployed via ArgoCD and selects by label:
   - `disallow-app-httproute-on-http` with `namespaceSelector: gateway-access=allowed`
+  - deployed as `cluster-disallow-app-httproute-on-http` (cluster-scoped ArgoCD Application)
 
 ## Follow-ups (recommended)
 
 - Decide whether to introduce a policy engine (Kyverno) for mutate/generate use cases, or keep validation-only via VAP.
 - Add a baseline “image policy” strategy (latest-tag ban, require digest) with per-environment enforcement.
-
