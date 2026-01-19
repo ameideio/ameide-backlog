@@ -1,6 +1,6 @@
 ---
 title: 623 – Kargo for GitOps Image Promotion (dev → staging → prod)
-status: proposed
+status: active
 owners:
   - platform
   - sre
@@ -18,6 +18,20 @@ Adopt **Kargo** as the standard controller for **artifact-based environment prom
 - Promote immutable digests **dev → staging → prod** as an orchestrated, auditable Git operation.
 
 This replaces bespoke “bump digests” and “promote images” scripts/workflows with a purpose-built promotion layer that complements Argo CD.
+
+## Current status (as implemented)
+
+**Dev auto-advance is implemented for first-party images** in `ameide-gitops` using Kargo:
+
+- A single Warehouse tracks the digest behind the producer channel tag `:main` for all first-party images.
+- A single `dev` Stage auto-promotes new Freight by updating `sources/values/env/dev/apps/*.yaml` and writing digest-pinned `image.ref` values.
+- Write-back is currently a direct commit to `ameide-gitops` `main` for `dev` (no PR gate for dev).
+
+Primary config entrypoint (GitOps repo):
+
+- `gitops/ameide-gitops/sources/values/_shared/cluster/kargo-dev-first-party-images.yaml`
+
+This satisfies the initial DoD: **updated images in dev**.
 
 ## Context and prior art (older docs)
 
@@ -325,6 +339,10 @@ Deliverable: Kargo running in-cluster, reconciled by Argo CD.
 
 Deliverable: one end-to-end dev auto-advance loop.
 
+### Phase 2.1 — Expand dev to all first-party images (completed)
+
+Dev auto-advances are now expanded to all first-party app images (per the GitOps inventory list), using a single Warehouse and a single `dev` Stage.
+
 ### Phase 3 — Expand dev to all first-party images (1–2 days)
 
 - Extend Warehouse subscriptions and YAML update mappings to all first-party images.
@@ -367,3 +385,9 @@ Deliverable: one promotion system of record per environment.
 - Verification: what minimal smoke gates are required before staging/prod promotions are allowed?
 - Git branching: do we introduce stage branches (e.g., `stage/staging`) or keep env overlays on `main` only?
 - Credentials: use GitHub App vs PAT; define minimum scopes and rotation policy.
+
+## Follow-ups (tracked work)
+
+- Enforce the producer contract: every first-party image publishes the `:main` channel tag (missing tags block the Warehouse).
+- Split credentials in Vault: GHCR read token vs Git write token (least privilege).
+- Add staging/prod stages and PR-based promotion steps (dev → staging → prod) with verification gates.

@@ -65,13 +65,14 @@ All pod templates MUST use (Deployments/StatefulSets/DaemonSets, Jobs/CronJobs, 
 
 There are exactly two “fast-moving” GitOps lanes: `local` and `dev`.
 
-- CI MUST open PRs that update `image.ref` digests in `local` and `dev` and MUST auto-merge them once required checks pass (no human step for `local`/`dev`).
-- Merge → Argo auto-sync → rollout (deterministic) in both environments.
+- Default/preferred: CI opens PRs that update `image.ref` digests in `local` and `dev` and auto-merges them once required checks pass (no human step for `local`/`dev`).
+- Allowed (dev only): a controller may write directly to the GitOps tracking branch if it is a dedicated bot identity and changes remain deterministic and auditable (see `backlog/623-kargo-gitops-promotion.md`).
+- Git change → Argo auto-sync → rollout (deterministic) in both environments.
 
-Implementation (this repo):
+Implementation options (GitOps repo):
 
-- `.github/workflows/bump-local-dev-images.yaml` runs on a schedule and/or `repository_dispatch` and opens an auto-merged PR.
-- `scripts/bump-local-dev-images.sh` resolves `ghcr.io/ameideio/<repo>:main` → digest and rewrites `sources/values/env/local/**` + `sources/values/env/dev/**`.
+- **Kargo (preferred direction):** Warehouse tracks the digest behind the producer channel tag `:main`, and a `dev` Stage writes digest-pinned `image.ref` values into `sources/values/env/dev/apps/**` (see `backlog/623-kargo-gitops-promotion.md`).
+- **Legacy CI PR write-back:** scheduled/dispatch workflows that resolve `ghcr.io/ameideio/<repo>:main` → digest and rewrite env values, then open/auto-merge a PR.
 
 Trunk-based note: the producer `:main` tag represents “latest built from `main`” (a channel tag).
 

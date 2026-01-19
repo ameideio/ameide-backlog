@@ -66,6 +66,7 @@ Related backlogs:
 
 - Dev/staging/prod are represented by **GitOps overlays** and **digest-pinned `image.ref` values**.
 - Producer CI publishes a **mainline channel tag** `ghcr.io/ameideio/<repo>:main` that always points at “latest built from `main`”; GitOps automation resolves it to digests for local/dev.
+- Preferred mechanism for that resolution: **Kargo** (Warehouse tracks the digest behind `:main`, and Promotions write digest-pinned values into Git), per `backlog/623-kargo-gitops-promotion.md`.
 - Mainline image contract:
   - `:<repo>:main` MUST be a multi-arch manifest list (at least `linux/amd64` + `linux/arm64`) so local clusters and ARC runners don’t break by architecture.
   - `:main` is the only moving tag used for mainline automation; do not publish or depend on a second moving tag.
