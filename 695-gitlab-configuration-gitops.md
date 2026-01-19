@@ -61,7 +61,7 @@ GitLab is treated as a **platform-owned subsystem**:
 
 - Resolve the `registry` key collision structurally so GitLab Container Registry can be enabled/configured intentionally.
 - Decide and document SSH exposure (`TCPRoute`/L4) and how it maps to `global.hosts.ssh` + `global.shell.port`.
-- Finalize OIDC group mapping contract (documented claim keys and how `/gitlab-admin` maps to GitLab admin) and add a verifier.
+- Finalize the GitLab CE-compatible SSO posture (who can authenticate at the IdP, and whether new users require approval before access).
 - Promote the shared-secrets vs Vault matrix from “decision” to “explicit secret names + owners” and add drift checks.
 - Replace shared MinIO root credentials with a dedicated GitLab object-store user + scoped policies (and/or move to external object storage per the hybrid posture).
 
@@ -100,7 +100,7 @@ The platform already has a deterministic “seeded persona” contract (Keycloak
 **Bootstrap contract**
 
 - `admin@ameide.io` can authenticate to GitLab via Keycloak OIDC (no local-only GitLab user as the primary path).
-- `admin@ameide.io` is an administrator in GitLab (or equivalent “platform admin” posture) without manual UI steps.
+- `admin@ameide.io` can be promoted to GitLab admin via a platform-controlled procedure (GitLab CE does not guarantee “admin via IdP groups” features).
 - Any break-glass local credentials (e.g., initial root password secret) are treated as emergency-only, not the default operational path.
 
 **Inputs we already have**
@@ -108,20 +108,23 @@ The platform already has a deterministic “seeded persona” contract (Keycloak
 - Seeded user `admin@ameide.io` exists in Keycloak and is used by SSO verifiers (password sourced from `Secret/playwright-int-tests-secrets` key `E2E_SSO_PASSWORD`; see `infra/scripts/verify-argocd-sso.sh`).
 - Keycloak tokens include a `groups` claim (full path), so group-based mapping is available when needed.
 
-**Recommended approach**
+**Recommended CE-safe approach (vendor-aligned)**
 
-1. Keep GitLab configured for Keycloak OIDC via Vault-sourced provider JSON (`platform/<env>/gitlab/oidc-provider`).
-2. Introduce a dedicated Keycloak group (e.g., `/gitlab-admin`) and ensure the seeded `admin@ameide.io` persona is a member (extend the existing `platform-dev-data` contract as needed).
-3. Configure GitLab OIDC to map that group to GitLab admin (or an “owners” group) using supported GitLab OmniAuth settings; document the exact JSON keys and expected claims here.
-4. Add an automated verifier (patterned after `infra/scripts/verify-argocd-sso.sh`) for GitLab SSO + “is admin” assertion.
+GitLab “SSO” is OmniAuth. OpenID Connect sign-in works on CE, but the “nice knobs” for restricting/assigning users via IdP groups are not guaranteed on CE. Therefore, enforce access primarily outside GitLab:
 
-**OIDC mapping contract (documented keys)**
+1. **IdP enforcement (Keycloak):** restrict who can authenticate to the `gitlab` client (operators/services only).
+2. **GitLab safety gate:** keep `blockAutoCreatedUsers=true` so JIT-created users are blocked (pending approval) until explicitly unblocked by an admin.
+3. **Admin bootstrap:** promote `admin@ameide.io` (or a bot identity) to GitLab admin via a platform-controlled procedure (runbook/API), not via GitLab Premium/Ultimate-only group mapping assumptions.
+4. **Provider secret hygiene:** do not store placeholder OmniAuth secrets. Template the provider config Secret from Vault-sourced Keycloak-generated secrets (see “Secrets posture”).
 
-The provider JSON stored in `Secret/gitlab-oidc-provider` (referenced by `global.appConfig.omniauth.providers[].secret` + `key`) should explicitly record the claim mapping we rely on, including:
+**OIDC provider contract (documented keys)**
 
-- `groups_attribute`: where Keycloak groups are found (this repo’s Keycloak realm includes a `groups` claim).
-- `required_groups`: who is allowed to sign in.
-- `admin_groups`: who becomes GitLab admin.
+The OmniAuth provider config is stored in `Secret/gitlab-oidc-provider` (referenced by `global.appConfig.omniauth.providers[].secret` + `key`). This repo treats it as a rendered artifact:
+
+- Issuer: `https://auth.<env>.ameide.io/realms/ameide`
+- Client id: `gitlab`
+- Client secret: sourced from Vault key `gitlab-oidc-client-secret` (Keycloak-generated, extracted by client-patcher)
+- Redirect URI: `https://gitlab.<env>.ameide.io/users/auth/openid_connect/callback`
 
 ## ArgoCD smokes alignment
 
@@ -152,8 +155,8 @@ Upstream GitLab uses a `shared-secrets` job to generate many “default” secre
 Decide and document (matrix) which secrets are:
 
 - **Vault/ExternalSecrets supplied** (authoritative, stable per environment)
-  - GitLab OIDC provider JSON (`platform/<env>/gitlab/oidc-provider`)
-  - Any GitLab OAuth client secrets used by OIDC
+  - GitLab OIDC client secret (Keycloak-generated → client-patcher → Vault): `gitlab-oidc-client-secret`
+  - GitLab OIDC provider Secret rendered from Vault: `Secret/gitlab-oidc-provider`
 - **Chart-generated** (acceptable to generate, but must be understood and monitored)
   - Initial root password secret (break-glass only)
   - Internal TLS, SSH host keys, and other shared secrets (if we keep ingress disabled, TLS is still relevant for internal components)
