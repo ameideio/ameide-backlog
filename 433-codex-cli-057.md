@@ -1,9 +1,15 @@
 # 433 – Codex CLI 0.57.0 Pin
 
-Update (2026-01-15): Coder workspaces unpinned by default
+Update (2026-01-19): Coder workspaces pinned by default (again)
 
-- The Coder workspace templates moved to “best-effort latest” installs for Codex CLI + the VS Code extension (no version knobs) to avoid workspace startup failures on transient network issues.
-- This document is no longer the default policy for Coder workspaces; treat it as historical context / a regression-playbook if we intentionally reintroduce pinning for a specific incident.
+- Coder workspace templates set `DEVCONTAINER_CODEX_VERSION=0.57.0` so both `aarch64` and `x86_64` workspaces install the same Codex CLI version deterministically.
+- Workspace bootstrap is expected to **fail fast** if the pinned version cannot be installed (version pinning is part of reproducibility).
+- The VS Code Codex extension is **user-installed**; if installed, point it at the pinned CLI (`~/.local/bin/codex`) if the IDE agent must run 0.57.0.
+
+Historical note (2026-01-15): best-effort latest (no pin)
+
+- At one point the Coder workspace templates moved to “best-effort latest” installs to avoid workspace startup failures on transient network issues.
+- Treat that approach as historical context / a regression playbook if we intentionally reintroduce unpinned installs for an incident.
 
 ## Context
 

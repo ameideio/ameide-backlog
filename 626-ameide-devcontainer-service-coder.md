@@ -80,10 +80,12 @@ Related: `backlog/527-transformation-integration.md` (workbench pod is “not a 
    - git (clone of target repo + branch workflow)
    - kubectl context defaults scoped to the workspace namespace (if kubectl is included)
    - standard Ameide toolchain required for editing and repo workflows
-   - Codex out-of-the-box:
-     - `codex` CLI installed (best-effort; **no pin/version knob**; “latest” by default)
-     - Codex VS Code extension installed (`openai.chatgpt`, best-effort; no pin)
-     - authentication pre-seeded via slot secrets (`Secret/codex-auth-rotating-0..2` preferred; falls back to `Secret/codex-auth-0..2`; see `backlog/613-codex-auth-json-secret.md`)
+- Codex out-of-the-box:
+  - `codex` CLI installed deterministically (pinned via `DEVCONTAINER_CODEX_VERSION`, default `0.57.0`; override only for explicit testing).
+  - Authentication uses slot secrets when present (`Secret/codex-auth-rotating-0..2` preferred; falls back to `Secret/codex-auth-0..2`; see `backlog/613-codex-auth-json-secret.md`).
+    - Default policy: `CODEX_ACCOUNT_SLOT=auto` (non-fatal if no secret is present yet).
+    - Automation policy: `CODEX_ACCOUNT_SLOT=0|1|2` (fail-fast if the requested slot secret is missing).
+  - The VS Code Codex extension is user-installed; set its CLI Path to `~/.local/bin/codex` if the IDE agent must run the pinned version.
 3. Developer makes changes, runs local/unit checks, pushes branch, opens PR.
 
 ### 3.1 Workspace lifecycle (cost control)

@@ -80,6 +80,11 @@ We support this by:
   - creates `ExternalSecret/codex-auth-sync-<slot>` in each workspace namespace
   - materializes `Secret/codex-auth-<slot>` (key `auth.json`)
 
+Template auth policy (Coder workspaces):
+
+- Default: `CODEX_ACCOUNT_SLOT=auto` (non-fatal). Workspaces must remain usable even if Codex auth has not been materialized into the workspace namespace yet.
+- Explicit: `CODEX_ACCOUNT_SLOT=0|1|2` (fail-fast). Use this when a workspace/automation must guarantee Codex login is available.
+
 ## Vault bootstrap sourcing (implemented)
 
 `foundation-vault-bootstrap` copies selected secrets from the upstream secret source into Vault KVv2:
@@ -87,7 +92,7 @@ We support this by:
 - **Azure**: Azure Key Vault → Vault (via Workload Identity)
 - **Local**: `Secret/vault-bootstrap-local-secrets` → Vault (local clusters)
 
-For Azure, the dev cluster treats Codex auth as **required** (to avoid “it works on my machine” drift):
+For Azure, the dev cluster treats Codex auth as **required** (to avoid “it works on my machine” drift). This requirement is about the secrets pipeline, not workspace liveness; the workspace template default should still be non-fatal until secret fan-out converges:
 
 - Config: `sources/values/env/dev/foundation/foundation-vault-bootstrap.yaml`
   - `azure.keyVault.requiredSecrets` includes `codex-auth-json-b64-0`, `codex-auth-json-b64-1`, `codex-auth-json-b64-2`
