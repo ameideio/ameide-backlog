@@ -110,6 +110,7 @@ Current command groups include:
 - `ameide test` (Phase 0/1/2 only; local-only)
 - `ameide doctor` (preflight deterministic requirements)
 - `ameide verify` (repo/primitives invariants)
+- `ameide dev` (human inner-loop utilities; currently partial/legacy, see §6.7 target posture)
 
 Current drift vs internal-first model:
 
@@ -209,6 +210,30 @@ Expected behavior for the `365fo` profile:
 
 - `ameide test` (Phase 0/1/2) calls the FO tool surface (MCP bridge → VM executor) for verification and emits JUnit evidence in the workspace/task run root.
 - `ameide test e2e` (Phase 3) validates the full chain (Coder task → VM executor → git push → workspace mirror verification), as specified in `backlog/655-agentic-coding-365fo.md`.
+
+### 6.7 Developer diagnostics (power tools; human inner loop)
+
+These commands are power tools (flags allowed) intended to reduce “log discovery” friction during interactive development in a workspace. They must remain compatible with the 650 posture (internal-first; no privileged networking; no Telepresence dependency).
+
+- `ameide dev status`: print the active dev session metadata (URLs, namespace, run root, and log locations).
+- `ameide dev logs`: attach to dev session logs without requiring manual path discovery.
+
+Contract:
+
+- If `ameide dev` redirects logs to a file, it must also make them re-attachable via `ameide dev logs` (no guessing paths).
+- Cluster log streaming uses `kubectl logs …` when available; lack of `kubectl` or RBAC must degrade gracefully (local logs still work).
+- The UX should match common expectations (Compose-style flags), but **must not** depend on Docker/Compose being available in Kubernetes-hosted workspaces.
+
+Minimum flag set for `ameide dev logs`:
+
+- `-f/--follow`, `--tail`, `--since`, `--timestamps`
+- `--service` (single) / `--stack` (named set; default stack)
+- `--filter <substring>` (simple local filtering, applied after multiplexing)
+
+Session discovery (required):
+
+- Write `dev-session.json` under the dev run root (at minimum: start time, namespace, URLs, and per-service log locations).
+- Maintain a stable pointer to the most recent session (e.g., `artifacts/agent-ci/local-latest -> artifacts/agent-ci/local-<run-id>/`) so both humans and agents can find “the current run” deterministically.
 
 ## 7) Evidence and artifacts
 
