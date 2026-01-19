@@ -4,7 +4,7 @@
 >
 > Superseded by:
 > - trunk-based `main` + GitOps promotion policy (see `backlog/611-trunk-based-main-and-gitops-environment-promotion.md`)
-> - internal-only, Coder-based model and CLI front doors in the 650 suite (`backlog/650-agentic-coding-overview.md`, `backlog/654-agentic-coding-cli-surface.md`)
+> - internal-only, Coder-based model and CLI front doors in the 650 suite (`backlog/650-agentic-coding-overview.md`, `backlog/654-agentic-coding-cli-surface-coder.md`)
 
 ## Goal
 Support predictable, auditable agentic development without direct writes to protected branches.

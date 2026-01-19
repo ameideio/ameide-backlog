@@ -28,7 +28,7 @@ This file is an index so older backlogs can reference “430v2” without duplic
 - Target contract: `backlog/430-unified-test-infrastructure-v2-target.md`
 - Refactoring inventory (docs that must be aligned): `backlog/430-unified-test-infrastructure-v2-refactoring-backlogs.md`
 - Refactoring plan (repo implementation changes): `backlog/430-unified-test-infrastructure-v2-refactoring-test.md`
-- CLI surface (front doors and scenarios): `backlog/654-agentic-coding-cli-surface.md`
+- CLI surface (front doors and scenarios): `backlog/654-agentic-coding-cli-surface-coder.md`
 
 ## Historical context
 

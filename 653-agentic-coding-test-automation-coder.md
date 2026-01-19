@@ -186,8 +186,8 @@ The following are deprecated by this model:
 ## 9) References
 
 - Normative decisions: `backlog/650-agentic-coding-overview.md`
-- Developer environment: `backlog/652-agentic-coding-dev-workspace.md`
+- Developer environment: `backlog/652-agentic-coding-dev-workspace-coder.md`
 - Automation runtime: `backlog/651-agentic-coding-ameide-coding-agent.md`
-- CLI surface: `backlog/654-agentic-coding-cli-surface.md`
+- CLI surface: `backlog/654-agentic-coding-cli-surface-coder.md`
 - External executor profile (D365FO): `backlog/655-agentic-coding-365fo.md`
 - Agent memory (curation + retrieval): `backlog/656-agentic-memory-v6.md`

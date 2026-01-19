@@ -229,7 +229,7 @@ Each phase produces JUnit in its phase directory.
 ## 9) References
 
 - Internal-first model: `backlog/650-agentic-coding-overview.md`
-- Test automation layers: `backlog/653-agentic-coding-test-automation.md`
+- Test automation layers: `backlog/653-agentic-coding-test-automation-coder.md`
 - Test taxonomy contract: `backlog/430-unified-test-infrastructure-v2-target.md`
 - Front door history: `backlog/468-testing-front-door.md`
 - Prior inner-loop design (superseded): `backlog/621-ameide-cli-inner-loop-test.md`

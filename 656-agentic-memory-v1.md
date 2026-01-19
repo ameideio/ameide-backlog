@@ -76,7 +76,7 @@ This backlog is intentionally **303-first** and **527/535-shaped**.
 - **657-transformation-domain-clean-target.md**: defines the required “clean target” posture (Kafka-first ingestion + gRPC auth boundaries) so retrieval and memory writes are safe and EDA-correct.
 
 ### 3.3 Agentic coding suite integration
-- **650-agentic-coding-overview.md**, **653-agentic-coding-test-automation.md**, **654-agentic-coding-cli-surface.md**: depend on memory.
+- **650-agentic-coding-overview.md**, **653-agentic-coding-test-automation-coder.md**, **654-agentic-coding-cli-surface-coder.md**: depend on memory.
 - **656** defines the memory contract those agents must use (read_context + propose-to-queue), so they stop treating memory as an external ad-hoc store.
 
 ### 3.4 Chat assistant ingestion bridge

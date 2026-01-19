@@ -5,7 +5,7 @@
 
 > Update (2026-01): the execution substrate described in the 527 suite (WorkRequests executed via KEDA-scaled Kubernetes Jobs) is superseded as the platform default by:
 > - `backlog/651-agentic-coding-ameide-coding-agent.md` (Coder-backed tasks + Camunda orchestration)
-> - `backlog/654-agentic-coding-cli-surface.md` (CLI front doors and profiles)
+> - `backlog/654-agentic-coding-cli-surface-coder.md` (CLI front doors and profiles)
 >
 > The role taxonomy and governance semantics may remain relevant, but the “how work executes” portion is historical.
 
