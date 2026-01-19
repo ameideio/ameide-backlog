@@ -4,6 +4,9 @@
 
 Implementation (repo): `primitives/process/commerce`
 
+> **Superseded:** replaced by `backlog/523-commerce-process-v6.md` (Git-backed ProcessDefinitions; Zeebe/Flowable for BPMN; Temporal platform-only).  
+> This file is retained for historical context tied to the earlier Temporal scaffold implementation notes.
+
 ## Layer header (Application, with Business Process alignment)
 
 - **Primary ArchiMate layer(s):** Application.
@@ -33,7 +36,7 @@ Process protos define workflow envelopes and process facts; operators remain ope
 
 Processes implement sagas and cross-domain invariants under eventual consistency:
 
-- Consume domain facts (at-least-once) and orchestrate workflows under eventual consistency per `backlog/496-eda-principles-v2.md` §12 and §6.
+- Consume domain facts (at-least-once) and orchestrate workflows under eventual consistency per `backlog/496-eda-principles-v6.md`.
 - Request changes through domain commands (RPC) or domain intents (topic); never bypass single-writer domains.
 - Emit process facts to `commerce.process.facts.v1` so orchestration progress is observable and debuggable.
 - Use explicit workflow IDs/idempotency keys; expect duplicates and retries everywhere.

@@ -70,7 +70,7 @@ capabilities/
 
 - `capability_name` should match proto topic prefixes and primitive folder names where possible (`sales`, `transformation`, `sre`, etc.).
 - Prefer **lowercase + hyphen** only if needed; avoid creating multiple names for the same capability.
-- Topic/package naming rules remain governed by `backlog/509-proto-naming-conventions.md`; capability folder names should not introduce new prefixes.
+- Topic/package naming rules remain governed by `backlog/509-proto-naming-conventions-v6.md`; capability folder names should not introduce new prefixes.
 
 ---
 
@@ -99,7 +99,7 @@ This gives tooling a stable entry point for:
 ## 5) Relationship to existing backlog items
 
 - Capability semantics and primitive decomposition already exist in capability docs (example: `backlog/540-sales-capability.md`).
-- Primitives stack invariants (guardrails plane, operators posture, proto discipline) are defined in `backlog/520-primitives-stack-v2.md`.
+- Primitives stack invariants (guardrails plane, operators posture, proto discipline) are defined in `backlog/520-primitives-stack-v6.md`.
 - Repo-wide test target state is defined by `backlog/430-unified-test-infrastructure-v2-target.md`.
 - Primitive-level testing discipline is defined by `backlog/537-primitive-testing-discipline.md`.
 - “Front door” test entrypoint is `backlog/468-testing-front-door.md`.

@@ -3,8 +3,8 @@
 This document generalizes the methodology used for `523-commerce*` into a repeatable **Transformation Domain** workflow:
 
 1. Define a **business capability** as value streams + nouns + invariants.
-2. Define **EDA contracts** (commands/intents, domain facts, process facts, queries, integration ports) per `496-eda-principles-v2.md`.
-3. Decompose into **Ameide primitives (Application Components)** (Domain/Process/Projection/Integration/UISurface/Agent) per `520-primitives-stack-v2.md`.
+2. Define **integration contracts** (commands/intents, domain facts, process facts, queries, integration ports) per `backlog/496-eda-principles-v6.md`.
+3. Decompose into **Ameide primitives (Application Components)** (Domain/Process/Projection/Integration/UISurface/Agent) per `backlog/520-primitives-stack-v6.md`.
 
 The output is a set of artifacts that can be stored as Transformation workspace nodes (ArchiMate models/views, Markdown, BPMN) and then used by agents/CLI/operators to scaffold and deploy the runtime.
 
@@ -97,12 +97,12 @@ Each business process must declare:
 
 Deliverable: message topology and catalogs.
 
-Rules (from `496-eda-principles-v2.md`):
+Rules (from `backlog/496-eda-principles-v6.md`):
 
 - Commands/intents are imperative business verbs; avoid CRUD.
 - Domain facts are immutable and past tense; emitted via transactional outbox.
 - Consumers are idempotent (inbox or natural-key UPSERT).
-- Cross-domain invariants are implemented as Temporal sagas (Process primitives).
+- Cross-domain invariants are implemented as process-manager workflows (Process primitives).
 - Tenant isolation + traceability metadata are required on every message.
 
 ### Step 3 — Proto shape (contract-first)
@@ -182,9 +182,9 @@ This step treats capability development as ongoing **Architecture Change Managem
 
 ## Guardrails (how the system enforces the methodology)
 
-- CI gates enforce proto/package/topic conventions (`509-proto-naming-conventions.md`).
-- Plugins/codegen enforce required envelope metadata and idempotency scaffolds (`496-eda-principles-v2.md`).
-- Operators make runtime assumptions true (DB present, migrations, outbox dispatcher deployed, conditions surfaced) (`520-primitives-stack-v2.md`).
+- CI gates enforce proto/package/semantic identity conventions (`backlog/509-proto-naming-conventions-v6.md`).
+- Plugins/codegen enforce required envelope metadata and idempotency scaffolds (`backlog/496-eda-principles-v6.md`).
+- Operators make runtime assumptions true (DB present, migrations, outbox dispatcher deployed, conditions surfaced) (`backlog/520-primitives-stack-v6.md`).
 
 ## Suggested “Capability skeleton” template
 

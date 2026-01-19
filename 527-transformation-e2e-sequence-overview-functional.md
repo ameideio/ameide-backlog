@@ -5,7 +5,7 @@
 
 **Status:** Draft  
 **Parent:** `backlog/527-transformation-e2e-sequence.md`  
-**Related:** `backlog/520-primitives-stack-v2.md`, `backlog/496-eda-principles-v2.md`, `backlog/527-transformation-process.md`
+**Related:** `backlog/520-primitives-stack-v6.md`, `backlog/496-eda-principles-v6.md`, `backlog/527-transformation-process-v4.md`
 
 ## Separation (what this document set is asserting)
 

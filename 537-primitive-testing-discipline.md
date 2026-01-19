@@ -58,9 +58,9 @@ In this repo these are wired as:
 - [602-image-pull-policy.md](602-image-pull-policy.md) – Target-state image reference policy (digest pinning) for GitOps-managed environments
 - [603-image-pull-policy.md](603-image-pull-policy.md) – Refactoring plan to implement 602 across GitOps + operators
 - [510-domain-primitive-scaffolding.md](510-domain-primitive-scaffolding.md) – Domain scaffold shape (§4 handler/test semantics)
-- [511-process-primitive-scaffolding.md](511-process-primitive-scaffolding.md) – Process scaffold shape (§4 workflow/test semantics)
+- [511-process-primitive-scaffolding-v3.md](511-process-primitive-scaffolding-v3.md) – Process scaffold shape (§4 workflow/test semantics)
 - [512-agent-primitive-scaffolding.md](512-agent-primitive-scaffolding.md) – Agent scaffold shape (§3.4 LangGraph discipline, §4 test semantics)
-- [520-primitives-stack-v2.md](520-primitives-stack-v2.md) – Guardrails plane (§CI gate checklist)
+- [520-primitives-stack-v6.md](520-primitives-stack-v6.md) – Guardrails plane (§CI gate checklist)
 - [533-capability-implementation-playbook.md](533-capability-implementation-playbook.md) – Node 8 (Verify & Package)
 - [520-primitives-stack-v2-research-agent.md](520-primitives-stack-v2-research-agent.md) – LangGraph invariants research
 - [591-capabilities-tests.md](591-capabilities-tests.md) – Capability-owned vertical slice tests (integration packs at the capability boundary)

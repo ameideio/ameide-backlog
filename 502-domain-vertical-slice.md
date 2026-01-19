@@ -259,7 +259,7 @@ Execute these phases in order. Each phase has clear acceptance criteria.
 
 ### 3.1 Directory Structure
 
-All primitive operators follow this structure (Domain/Process/Agent/UISurface today; Projection/Integration are v2 per `backlog/520-primitives-stack-v2.md`):
+All primitive operators follow this structure (Domain/Process/Agent/UISurface today; Projection/Integration follow the current posture in `backlog/520-primitives-stack-v6.md`):
 
 ```
 operators/{primitive}-operator/

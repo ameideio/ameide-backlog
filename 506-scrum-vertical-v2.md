@@ -1,5 +1,8 @@
 # Scrum governance contract target state
 
+> **Superseded:** replaced by `backlog/506-scrum-vertical-v6.md` (Git-backed ProcessDefinitions; Zeebe/Flowable for BPMN; no Definition Registry).  
+> This v2 document is retained as historical context for the older “topic families are contract” / Definition Registry mechanics.
+
 > **Deprecation note (persistence model only).** This document contains guidance that assumes Scrum has its own canonical tables/aggregates. Under the `303/527` target posture and Option A, Scrum is an **ontology over elements** (type_key namespace + UISurface/workflows/projections) with no additional canonical tables.  
 > Keep for event semantics and ceremony/process guidance; for storage/model decisions use `backlog/300-400/303-elements.md`, `backlog/527-transformation-capability.md`, and `backlog/527-transformation-crossreference-303-ontology.md`.
 

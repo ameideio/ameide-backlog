@@ -13,7 +13,11 @@
 **Status:** Draft (core envelope unification pending; legacy UI façade removed)  
 **Parent:** [527-transformation-capability.md](527-transformation-capability.md)
 
-This document specifies the **proto contracts** for the Transformation capability following the historical docs `backlog/496-eda-principles-v2.md` and `backlog/509-proto-naming-conventions.md`.
+This document specifies the **proto contracts** for the Transformation capability.
+
+**Current standards:**
+- Integration posture: `backlog/496-eda-principles-v6.md`
+- Proto + semantic identity conventions: `backlog/509-proto-naming-conventions-v6.md`
 
 > **No embedded proto text.** This is a **file index + invariants** specification. Full proto definitions live in the canonical file locations and are the source of truth.
 
@@ -118,7 +122,7 @@ Execution invariants (additional; v1):
 
 ## 3.0.1 Transport bindings: CloudEvents (mandatory in-cluster)
 
-For inter-primitive (microservice-to-microservice) traffic inside Kubernetes, CloudEvents is the **mandatory** envelope and Protobuf is the payload, per `backlog/496-eda-principles-v2.md`.
+For inter-primitive (microservice-to-microservice) traffic inside Kubernetes, CloudEvents is the mandatory envelope and Protobuf is the payload, per `backlog/496-eda-principles-v6.md`.
 
 Integration adapters MUST map external systems to the same CloudEvents contract so internal consumers see one consistent envelope.
 
@@ -134,7 +138,7 @@ Normative mapping (canonical → CloudEvents v1.0):
 | payload bytes/object | `data` | If publishing protobuf bytes, use `datacontenttype=application/protobuf` |
 | schema reference | `dataschema` | Required for in-cluster inter-primitive traffic; at boundaries it is strongly recommended |
 
-Required Ameide invariants that do not fit core CloudEvents attributes MUST be carried as CloudEvents extension attributes (lowercase alphanumeric; no underscores). Minimum required set is defined in `backlog/496-eda-principles-v2.md` (tenant + correlation/causation + tracing). Transformation may also include additional scope extensions such as `orgid` and `repositoryid` when needed.
+Required Ameide invariants that do not fit core CloudEvents attributes MUST be carried as CloudEvents extension attributes (lowercase alphanumeric; no underscores). Minimum required set is defined in `backlog/496-eda-principles-v6.md` (tenant + correlation/causation + tracing). Transformation may also include additional scope extensions such as `orgid` and `repositoryid` when needed.
 
 ## 3.1 Process-facts catalog (step events; to define)
 
@@ -269,7 +273,7 @@ Transformation treats ArchiMate/BPMN/etc. as **profiles over the element model**
 
 Enterprise Knowledge write ingress is the `TransformationKnowledgeCommandService` RPC surface (`ameide_core_proto.transformation.knowledge.v1`).
 
-If/when a bus-carried intent topic is added for Enterprise Knowledge, it MUST follow `backlog/509-proto-naming-conventions.md` / `backlog/496-eda-protobuf-ameide.md` (one topic family ↔ one aggregator message) and be treated as an optional ingress alongside RPC (not a second writer).
+If/when a bus-carried intent stream is added for Enterprise Knowledge, it MUST follow `backlog/509-proto-naming-conventions-v6.md` / `backlog/496-eda-protobuf-ameide.md` (CloudEvents `type` is the contract; topic mapping is operational) and be treated as an optional ingress alongside RPC (not a second writer).
 
 ### Initiative / repository lifecycle
 

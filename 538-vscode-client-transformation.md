@@ -13,7 +13,7 @@
 - Write optimizations (agent-friendly commands): `backlog/536-mcp-write-optimizations.md`
 - **Proto contracts**: `backlog/527-transformation-proto.md`
 - UISurface primitive (web): `backlog/527-transformation-uisurface.md`
-- Primitives stack: `backlog/520-primitives-stack-v2.md`
+- Primitives stack: `backlog/520-primitives-stack-v6.md`
 
 ---
 

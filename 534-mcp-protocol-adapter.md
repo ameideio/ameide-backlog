@@ -9,7 +9,7 @@
 - Transformation capability: `backlog/527-transformation-capability.md`
 - Projection specification: `backlog/527-transformation-projection.md`
 - Agent primitive specification: `backlog/527-transformation-agent.md`
-- Primitives stack: `backlog/520-primitives-stack-v2.md`
+- Primitives stack: `backlog/520-primitives-stack-v6.md`
 
 ---
 
@@ -41,7 +41,7 @@ Decide/confirm:
 
 - **Primary ArchiMate layer(s):** Application.
 - **Primary element types used:** Application Interface (MCP adapter), Application Service (protocol translation).
-- **Primitive classification:** **Integration primitive** — MCP adapter is an Integration primitive per `backlog/520-primitives-stack-v2.md`. It adapts external protocol (MCP/JSON-RPC) to internal protocols (gRPC).
+- **Primitive classification:** **Integration primitive** — MCP adapter is an Integration primitive per `backlog/520-primitives-stack-v6.md`. It adapts external protocol (MCP/JSON-RPC) to internal protocols (gRPC).
 - **Out-of-scope layers:** Strategy/Business (capability design), Technology (deployment specifics).
 - **Allowed nouns:** protocol adapter, tool, resource, command, query, agentic access, JSON-RPC.
 - **Prohibited unless qualified:** service, endpoint, REST (qualify with protocol context).
@@ -100,7 +100,7 @@ MCP is **not** a new primitive type. It is a protocol variant that:
 
 ### 1.1 MCP adapter as Integration primitive
 
-MCP adapter is an **Integration primitive** — it adapts external protocols (MCP/JSON-RPC) to internal protocols (gRPC). It is not a new primitive type; it follows the Integration primitive pattern from `backlog/520-primitives-stack-v2.md`.
+MCP adapter is an **Integration primitive** — it adapts external protocols (MCP/JSON-RPC) to internal protocols (gRPC). It is not a new primitive type; it follows the Integration primitive pattern from `backlog/520-primitives-stack-v6.md`.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐

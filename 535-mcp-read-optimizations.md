@@ -129,7 +129,7 @@ Projection Primitive
 ```
 
 **Why Projection owns semantic search:**
-1. Projection already owns "read-optimized views for specific access patterns" (per `backlog/520-primitives-stack-v2.md` §Projection)
+1. Projection already owns "read-optimized views for specific access patterns" (per `backlog/520-primitives-stack-v6.md` §Projection)
 2. pgvector is just another PostgreSQL index type (like tsvector)
 3. Same data source, different query interface
 4. No new primitive = less architectural complexity
