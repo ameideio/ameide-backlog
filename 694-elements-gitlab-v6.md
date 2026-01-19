@@ -63,6 +63,8 @@ Normative rule: **`main` is the published baseline**, and “published” is a c
 
 Progress note: GitLab is deployed as a standard GitOps component (`platform-gitlab`) and verified via PostSync smoke jobs (`platform-gitlab-smoke`), per `backlog/695-gitlab-configuration-gitops.md`.
 
+Operational note: GitLab object storage currently uses the shared in-cluster MinIO (`data-minio`) as a temporary posture; the long-term target is external object storage / scoped credentials (tracked in `backlog/695-gitlab-configuration-gitops.md`).
+
 ## Governance enforcement surface (GitLab controls)
 
 694’s governance posture assumes GitLab is configured so that “raw Git pushes” cannot bypass platform policy. Record (and keep consistent) the concrete GitLab controls relied upon, such as:
