@@ -43,7 +43,7 @@ We already rely on BuildKit features (e.g. `RUN --mount=type=secret`) for safe b
 
 - Namespace: `buildkit`
 - StatefulSet: `buildkitd` (image: `ghcr.io/ameideio/mirror/buildkit@sha256:86c0ad9d1137c186e9d455912167df20e530bdf7f7c19de802e892bb8ca16552`)
-  - 2 replicas for availability under parallel builds.
+  - Replica count is explicit per cluster (`buildkitd.replicas`); **AKS currently runs 1**.
   - Per-pod PVC-backed cache mounted at `/var/lib/buildkit` to avoid cold-cache rebuild storms and to survive pod restarts.
 - PodDisruptionBudget: `buildkitd` (`minAvailable: 1`)
 - Service: `buildkitd` (ClusterIP) on port `1234` (load-balances across StatefulSet pods)
@@ -52,8 +52,12 @@ We already rely on BuildKit features (e.g. `RUN --mount=type=secret`) for safe b
 
 GitOps sources:
 
-- Component: `environments/local/components/cluster/configs/buildkit/component.yaml`
-- Manifests: `sources/values/_shared/cluster/buildkit.yaml`
+- Components:
+  - Local: `environments/local/components/cluster/configs/buildkit/component.yaml`
+  - Azure: `environments/azure/components/cluster/configs/buildkit/component.yaml`
+- Values:
+  - Shared manifests: `sources/values/_shared/cluster/buildkit.yaml`
+  - Azure overrides (pool + replicas + storage): `sources/values/cluster/azure/buildkit.yaml`
 
 ### Runner wiring
 
@@ -98,7 +102,7 @@ If `buildkitd` is deployed as a single pod with an `emptyDir` state volume, “f
 
 The required posture is therefore:
 
-- availability: at least 2 builder replicas behind the Service
+- availability: at least 1 builder replica behind the Service (2+ recommended once the buildkit node pool has capacity)
 - persistence: PVC-backed `/var/lib/buildkit` so caches survive restarts and reduce repeated network fetches
 - health: readiness/liveness probes so the Service doesn’t route to unhealthy builders
 
@@ -106,7 +110,7 @@ The required posture is therefore:
 
 Fast connectivity check from ARC runner namespace:
 
-- `gitops/ameide-gitops/scripts/local/test-buildkit.sh`
+- `scripts/local/test-buildkit.sh`
 
 If builds fail from CI with `dial tcp ...:1234: i/o timeout`:
 
