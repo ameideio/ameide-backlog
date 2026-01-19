@@ -8,21 +8,21 @@ This backlog defines the **UISurface experience** for Transformation (R2R) as a 
 
 ## Cross‑references (normative)
 
-- `backlog/520-primitives-stack-v2.md` (primitives + planes)
+- `backlog/520-primitives-stack-v6.md` (primitives + planes)
 - `backlog/513-uisurface-primitive-scaffolding.md` (UISurface shell/canvases/widgets)
-- `backlog/527-transformation-e2e-sequence.md` (Transformation phases/columns + execution sequence)
+- `backlog/527-transformation-e2e-sequence-v6.md` (Transformation phases/columns + execution sequence)
 - `backlog/614-kanban-projection-architecture.md` (Kanban as a projection)
 - `backlog/615-kanban-fullstack-reference.md` (Kanban full‑stack reference)
 - `backlog/616-kanban-principles.md` (Kanban principles; interaction streams are out‑of‑band)
 - `backlog/618-kanban-proto-contracts.md` (proto-first Kanban query + updates stream contracts)
-- `backlog/496-eda-principles-v2.md` (facts vs intents; outbox; idempotency)
-- `backlog/509-proto-naming-conventions.md` (process progress facts identity + minimal vocabulary)
-- `backlog/300-400/303-elements.md` (elements-only canonical storage; repository-first scoping)
+- `backlog/496-eda-principles-v6.md` (facts vs intents; outbox; idempotency)
+- `backlog/509-proto-naming-conventions-v6.md` (process progress facts identity + minimal vocabulary)
+- `backlog/694-elements-gitlab-v6.md` (Enterprise Repository as GitLab repo; canonical artifacts as files)
 - `backlog/300-400/327-initiatives-ideas.md` (method-aware UI/UX structure; “sidecar” concept)
 
 ## UX invariants (non‑negotiable)
 
-1. **All reads come from projections** (Kanban/timeline/status/details). The UI never uses Temporal visibility/history as product truth.
+1. **All reads come from projections** (Kanban/timeline/status/details). The UI never uses orchestration-runtime visibility/history as product truth.
 2. **Kanban is a view**: columns are derived; “move card” (if offered) emits a real domain/process intent and reconciles to projection truth.
 3. **Live updates are cursor‑based**: UI subscribes to a “Projection Updates” stream and refetches deltas/board on cursor advance.
 4. **Interaction streams are not facts**: chat/log streaming is out‑of‑band (SSE/WebSocket/server‑streaming RPC), linked by stable IDs.
@@ -33,18 +33,18 @@ This backlog defines the **UISurface experience** for Transformation (R2R) as a 
 
 - **Repository**: the architecture context for work.
 - **Initiative**: a change initiative governed in a repository context (future: Scrum/TOGAF profiles).
-- **Board**: a Temporal Process board rendered via the platform Kanban contract; scoped by `{tenant, org, repo, initiative?}` and `board_kind`.
+- **Board**: a ProcessDefinition board rendered via the platform Kanban contract; scoped by `{tenant, org, repo, initiative?}` and `board_kind`.
 - **Card**: a stable unit of work (default in process-driven boards: `card_id = process_instance_id`).
 - **Activity**: a user-visible unit of work inside a process instance (triage, coding, verify, release).
 - **Evidence**: links to artifacts/logs/PRs produced by activities (projection-rendered; not embedded streaming).
-- **Artifact**: a canonical element (`backlog/300-400/303-elements.md`). Editing an artifact means opening the Element editor.
+- **Artifact**: a file in the Enterprise Repository (Git). Editing an artifact means opening the artifact editor against a repo branch/MR (`backlog/694-elements-gitlab-v6.md`).
 - **Sidecar**: a unified right/bottom panel for contextual chat, widgets, and details (`backlog/300-400/327-initiatives-ideas.md`).
 
 ## Landing in the existing Ameide platform app (target)
 
 This UX must land in the existing platform app layout and routing patterns:
 
-- **Repository-first context**: canonical content is elements scoped by `{tenant_id, organization_id, repository_id}` (`backlog/300-400/303-elements.md`).
+- **Repository-first context**: canonical content lives in the Enterprise Repository (Git) scoped by `{tenant_id, organization_id, repository_id}` (`backlog/694-elements-gitlab-v6.md`).
 - **Shell + Canvases + Widgets**: dashboards and boards are canvases composed of widgets (`backlog/513-uisurface-primitive-scaffolding.md`).
 - **Sidecar**: a contextual panel (chat/widgets/details) is always available except inside the artifact editor (`backlog/300-400/327-initiatives-ideas.md`).
 
@@ -58,19 +58,19 @@ Recommended routes:
 
 - Transformation dashboard (widgets): `/org/:orgId/transformation`
   - widgets: repositories, stats, open initiatives
-  - all widgets are projection-backed; no Temporal visibility coupling
-- Repository workspace (elements browser): `/org/:orgId/repo/:repoId`
-  - primary canvas is an element list browser (documents, views, artifacts) per `backlog/300-400/303-elements.md`
-  - canonical editors open artifacts as elements (see “Artifact editor” below)
+  - all widgets are projection-backed; no runtime visibility coupling
+- Repository workspace (artifact browser): `/org/:orgId/repo/:repoId`
+  - primary canvas is an artifact browser over repo files (documents, views, artifacts) per `backlog/694-elements-gitlab-v6.md`
+  - canonical editors operate on repo files via branch/MR (see “Artifact editor” below)
 - Initiatives index (all initiatives): `/org/:orgId/transformation/initiatives`
-  - list/table view (not Kanban unless backed by a Temporal ProcessDefinition per `backlog/616-kanban-principles.md`)
+  - list/table view (not Kanban unless backed by a ProcessDefinition per `backlog/616-kanban-principles.md`)
   - initiatives are bound to repositories; items link into the repository context
 - Initiative workspace (one initiative, in repo context): `/org/:orgId/repo/:repoId/governance/initiative/:initiativeId`
   - workspace board (board_kind=initiative) + related artifacts browser (elements/relationships/workspace assignments)
   - supports navigation into nested sub-initiative boards
 - Change workspace (R2R “change” detail): `/org/:orgId/repo/:repoId/r2r/change/:changeId`
   - requirement/deliverables/evidence anchors + run controls
-- Optional debug: “timeline” page (projection-only), not Temporal UI: `/org/:orgId/repo/:repoId/timeline`
+- Optional debug: “timeline” page (projection-only), not runtime UI: `/org/:orgId/repo/:repoId/timeline`
 - Artifact editor (element editor): opened from any list/board by selecting an element
   - editor is full-screen and includes embedded chat; global sidecar is hidden while editor is open
 
@@ -102,9 +102,9 @@ Primary interactions:
 - Open initiatives Kanban index.
 - Open a specific initiative workspace (in repository context).
 
-### 1) Repository workspace (elements browser)
+### 1) Repository workspace (artifact browser)
 
-Purpose: browse and edit canonical repository artifacts (elements-only).
+Purpose: browse and edit canonical repository artifacts (repo files; canonical in Git).
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────┐

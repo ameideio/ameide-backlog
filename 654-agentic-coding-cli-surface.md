@@ -228,4 +228,4 @@ Each phase produces JUnit in its phase directory.
 - Front door history: `backlog/468-testing-front-door.md`
 - Prior inner-loop design (superseded): `backlog/621-ameide-cli-inner-loop-test.md`
 - External executor profile (D365FO): `backlog/655-agentic-coding-365fo.md`
-- Agent memory (curation + retrieval): `backlog/656-agentic-memory.md`
+- Agent memory (curation + retrieval): `backlog/656-agentic-memory-v6.md`

@@ -15,7 +15,7 @@ This document is the **Implementation & Migration** layer plan for delivering th
 
 > **Update (2026-01): memory-first clean target**
 >
-> Organizational memory is defined by `backlog/656-agentic-memory.md`. The clean-target refactor posture for the Transformation Domain/Projection that implements it is defined in `backlog/657-transformation-domain-clean-target-v2.md` (v6 alignment; memory model details TBD).
+> Organizational memory is defined by `backlog/656-agentic-memory-v6.md`. The clean-target refactor posture for the Transformation Domain/Projection that implements it is defined in `backlog/657-transformation-domain-clean-target-v2.md` (v6 alignment; memory model details TBD).
 
 > **Update (2026-01): clarify “KEDA vs Coder vs Executor”**
 >

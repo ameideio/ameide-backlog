@@ -8,8 +8,8 @@
 >
 > **Use instead (authoritative):**
 > - Canonical storage + scoping: `backlog/300-400/303-elements.md` (repository scope is `{tenant_id, organization_id, repository_id}`; workspace tree is separate from elements)
-> - Agentic organizational memory contract: `backlog/656-agentic-memory.md`
-> - Memory implementation increments: `backlog/656-agentic-memory-implementation.md`
+> - Agentic organizational memory contract: `backlog/656-agentic-memory-v6.md`
+> - Memory implementation increments: `backlog/656-agentic-memory-implementation-mvp-v6.md`
 > - Retrieval + citation discipline: `backlog/527-transformation-proto.md` (read_context + citations), `backlog/535-mcp-read-optimizations.md` (projection-owned retrieval), `backlog/534-mcp-protocol-adapter.md` (MCP surfaces)
 >
 > **How to read legacy terms here:**

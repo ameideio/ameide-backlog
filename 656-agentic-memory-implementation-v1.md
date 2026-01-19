@@ -1,6 +1,6 @@
 # 656 — Agentic Memory: Implementation Proposal (End-to-End)
 
-**Parent (contract):** `backlog/656-agentic-memory.md`  
+**Parent (contract):** `backlog/656-agentic-memory-v1.md`  
 **Related (canonical substrate):** `backlog/300-400/303-elements.md`  
 **Related (retrieval + MCP):** `backlog/527-transformation-projection.md`, `backlog/535-mcp-read-optimizations.md`, `backlog/534-mcp-protocol-adapter.md`  
 **Related (proto + EDA):** `backlog/527-transformation-proto.md`, `backlog/496-eda-principles-v2.md`, `backlog/509-proto-naming-conventions-v2.md`, `backlog/520-primitives-stack-v2.md`  
@@ -16,7 +16,7 @@
 
 ## 0) Purpose
 
-Turn the **contract** in `backlog/656-agentic-memory.md` into a concrete, buildable system:
+Turn the **contract** in `backlog/656-agentic-memory-v1.md` into a concrete, buildable system:
 
 - organizational memory is stored as **Elements + Versions + Relationships**
 - humans curate; execution agents **propose**; curators **promote** into baselines
@@ -63,7 +63,7 @@ This is a deliberate move from “docs as memory” to “governed knowledge sys
 
 ### 1.1 Contract requirements (656)
 
-From `backlog/656-agentic-memory.md`:
+From `backlog/656-agentic-memory-v1.md`:
 
 - **Curation queue as first-class objects**: proposal element types, lifecycle states, required relationship keys, deterministic targeting via `target_version_id`.
 - **Read path contract**: relationship-aware retrieval + hybrid search, baseline scoping, citations, and a `read_context` selector.

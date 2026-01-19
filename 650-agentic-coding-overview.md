@@ -234,4 +234,4 @@ This suite supersedes the following *as the platform-level default model*:
 - Suite docs: `backlog/651-agentic-coding-ameide-coding-agent.md`, `backlog/652-agentic-coding-dev-workspace.md`, `backlog/653-agentic-coding-test-automation.md`
 - CLI surface: `backlog/654-agentic-coding-cli-surface.md`
 - External executor profile (D365FO): `backlog/655-agentic-coding-365fo.md`
-- Agent memory (curation + retrieval): `backlog/656-agentic-memory.md`
+- Agent memory (curation + retrieval): `backlog/656-agentic-memory-v6.md`

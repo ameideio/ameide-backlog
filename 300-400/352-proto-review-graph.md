@@ -7,7 +7,7 @@
 > **Architecture anchors (authoritative):**
 > - Canonical storage: `backlog/300-400/303-elements.md`
 > - Legacy-to-target mapping (graph/ontology): `backlog/527-transformation-crossreference-303-ontology.md`
-> - Organizational memory contract: `backlog/656-agentic-memory.md`
+> - Organizational memory contract: `backlog/656-agentic-memory-v6.md`
 >
 > **Important:** the “graph” is a *projection/read surface* (and/or UX vocabulary). Canonical truth is Elements + Versions + Relationships; “graph_id” is legacy naming for `repository_id`.
 

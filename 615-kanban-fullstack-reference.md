@@ -10,9 +10,9 @@ This document is intentionally capability-agnostic, and uses multiple concrete r
 
 - `backlog/614-kanban-projection-architecture.md` (Kanban architecture contract)
 - `backlog/616-kanban-principles.md` (Kanban principles; projection-first UX)
-- `backlog/520-primitives-stack-v2.md` (platform constitution)
+- `backlog/520-primitives-stack-v6.md` (platform posture)
 - `backlog/520-primitives-stack-v2-projection.md` (Projection contract)
-- `backlog/511-process-primitive-scaffolding.md` (Process + Temporal contracts)
+- `backlog/511-process-primitive-scaffolding-v3.md` (Process primitive contract: Zeebe/Flowable; Temporal platform-only)
 - `backlog/513-uisurface-primitive-scaffolding.md` (UISurface layout patterns)
 - `backlog/509-proto-naming-conventions-v6.md` (process progress facts identity conventions)
 - `backlog/496-eda-principles-v6.md` (facts vs intents; outbox discipline)
@@ -30,7 +30,7 @@ Provide a single, repeatable implementation recipe for:
 
 ## Non‑goals
 
-- Kanban is not sourced from Temporal visibility/search attributes.
+- Kanban is not sourced from orchestration-runtime visibility/search attributes.
 - Kanban does not require step-level events for every BPMN node (phase-first default).
 - Kanban does not introduce UI-owned imperative “status”; columns are derived by projection rules.
 
@@ -100,7 +100,7 @@ Kanban is a **canvas/page type** and a **reusable component**:
 - **Canvas/page**: routing, auth, context (tenant/org/repo), subscription lifecycle
 - **Component/widget**: board renderer used by the page and embeddable in dashboards/detail views
 
-This matches `backlog/520-primitives-stack-v2.md` “Shell + Canvases + Widgets” and `backlog/513-uisurface-primitive-scaffolding.md` scaffold conventions.
+This matches `backlog/520-primitives-stack-v6.md` posture (“Shell + Canvases + Widgets”) and `backlog/513-uisurface-primitive-scaffolding.md` scaffold conventions.
 
 Recommended board scopes (process-definition-centric):
 
@@ -134,27 +134,27 @@ The key variability between domains is:
 ### Slice A: Sales (funnel board)
 
 - Example `process_definition_id`: `sales.funnel.v1`
-- Cards: opportunities (WorkflowID per opportunity; non-reused)
+- Cards: opportunities (process instance id per opportunity; non-reused)
 - Phase keys: funnel stages (e.g., `proposal`, `negotiation`)
 
 ### Slice B: Transformation (R2R board)
 
 - Example `process_definition_id`: `transformation.r2r.v1`
-- Cards: change initiatives / work items (WorkflowID; non-reused)
+- Cards: change initiatives / work items (process instance id; non-reused)
 - Phase keys: pipeline phases (e.g., `design`, `build`, `verify`, `release`)
 
 ### Slice C: SRE (incident board)
 
 - Example `process_definition_id`: `sre.incident.v1`
-- Cards: incidents (WorkflowID; non-reused)
+- Cards: incidents (process instance id; non-reused)
 - Phase keys: incident lifecycle phases (e.g., `triage`, `mitigate`, `resolved`, `postmortem`)
 
 ## Where each piece lives (same pattern everywhere)
 
 ### 1) Process emits progress facts (phase-first)
 
-- Temporal workflows emit phase-first progress facts via an Activity/port (idempotent).
-- Facts include `process_instance_id` (WorkflowID), `process_run_id` (RunID), `run_epoch`, `seq`, `process_definition_id`.
+- Process primitives emit phase-first progress facts using an idempotent “emit progress” seam (runtime-agnostic).
+- Facts include `process_instance_id` (engine instance id), optional `process_run_id` (if the runtime exposes an execution/run identity), `run_epoch`, `seq`, and `process_definition_id`.
 
 ### 2) Projection ingests facts and builds the board
 

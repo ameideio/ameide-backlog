@@ -4,8 +4,8 @@
 
 **Status:** Draft (decision + plan)  
 **Priority:** High  
-**Standard:** `backlog/496-eda-principles-v2.md` (active; replaces v1)  
-**Related:** `backlog/509-proto-naming-conventions.md`, `backlog/527-transformation-implementation-migration.md`, `backlog/657-transformation-domain-clean-target.md`
+**Historical standard:** `backlog/496-eda-principles-v2.md` (superseded by `backlog/496-eda-principles-v6.md`)  
+**Related:** `backlog/496-eda-principles-v6.md`, `backlog/509-proto-naming-conventions-v6.md`, `backlog/658-eda-v6-reference-implementation-refactor.md`
 
 ---
 

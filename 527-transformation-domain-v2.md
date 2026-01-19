@@ -5,7 +5,7 @@
 
 This document replaces the parts of `backlog/527-transformation-domain.md` that assume BPMN is compiled to Temporal-backed `CompiledWorkflowDefinition`.
 
-**Related (organizational memory):** `backlog/656-agentic-memory.md`, `backlog/657-transformation-domain-clean-target.md`
+**Related (organizational memory):** `backlog/656-agentic-memory-v6.md`, `backlog/657-transformation-domain-clean-target-v2.md`
 
 ## Summary
 

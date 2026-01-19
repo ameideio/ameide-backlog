@@ -6,7 +6,7 @@ owners:
   - transformation
 created: 2026-01-18
 supersedes:
-  - 656-agentic-memory.md
+  - 656-agentic-memory-v1.md
 related:
   - 694-elements-gitlab-v6.md
   - 496-eda-principles-v6.md
@@ -48,7 +48,7 @@ This v6 reframes “organizational memory” to match the platform’s Git-backe
 - “Memory” is primarily a **Projection concern**: indexing + retrieval + citations over canonical Git content, anchored by owner audit pointers.
 - The **memory model** (stable IDs, citations, and how we represent “elements/versions/baselines” over Git) is **TBD**.
 
-This document supersedes `backlog/656-agentic-memory.md` (303-first / elements-first posture) while keeping its intent and safety invariants.
+This document supersedes `backlog/656-agentic-memory-v1.md` (303-first / elements-first posture) while keeping its intent and safety invariants.
 
 ## 0) Non-negotiables (still required under v6)
 
@@ -106,4 +106,4 @@ Clients (humans and agents) may request changes, but:
 
 The v1 contract remains as historical context for the earlier “elements + versions + relationships” substrate:
 
-- `backlog/656-agentic-memory.md`
+- `backlog/656-agentic-memory-v1.md`
