@@ -65,9 +65,9 @@ GitLab is treated as a **platform-owned subsystem**:
 
 ## Next (tracked work)
 
-- Resolve the `registry` key collision structurally so GitLab Container Registry can be enabled/configured intentionally.
-- Decide and document SSH exposure (`TCPRoute`/L4) and how it maps to `global.hosts.ssh` + `global.shell.port`.
-- Document the admin approval/unblock procedure for `blockAutoCreatedUsers=true` (CE-safe posture).
+- Keep GitLab Container Registry disabled until object storage credentials are least-privilege and routing/TLS are explicitly defined.
+- Rehearse and validate SSH exposure via Gateway TCPRoute in `dev`/`staging` (port `22`, hostname `gitlab.<env>.ameide.io`) and ensure network policies allow the listener end-to-end.
+- Document the admin bootstrap runbook execution posture (where the break-glass token lives in Vault, rotation expectations, and audit evidence).
 - Promote the shared-secrets vs Vault matrix from “decision” to “explicit secret names + owners” and add drift checks.
 - Replace shared MinIO root credentials with a dedicated GitLab object-store user + scoped policies (and/or move to external object storage per the hybrid posture).
 
@@ -99,6 +99,21 @@ Minimum endpoints to keep consistent (DNS/TLS, clone URLs, and OIDC redirect URI
 - SSH: `ssh://git@gitlab.<env>.ameide.io:<shell-port>/...` (requires L4 exposure; `global.hosts.ssh` + `global.shell.port`)
 - Registry (if/when enabled): `https://registry.<env>.ameide.io/` (or another explicit hostname; must not be blocked by values collisions)
 
+## SSH exposure (decision: Gateway TCPRoute on :22)
+
+**Decision:** expose GitLab SSH via Gateway API `TCPRoute` on port `22`, using the same hostname as web (`gitlab.<env>.ameide.io`).
+
+Contract:
+
+- DNS: `gitlab.<env>.ameide.io` → the environment Gateway VIP
+- Gateway: listener `ssh` on port `22` (protocol `TCP`)
+- Route: `TCPRoute` attaches to the `ssh` listener and forwards to the GitLab Shell Service (`platform-gitlab-gitlab-shell:22`)
+- GitLab values:
+  - `global.hosts.ssh: gitlab.<env>.ameide.io`
+  - `global.shell.port: 22`
+
+Implementation note: requires the experimental Gateway API `TCPRoute` CRD (`tcproutes.gateway.networking.k8s.io`) installed cluster-wide.
+
 ## Bootstrap alignment (seeded `admin@ameide.io`)
 
 The platform already has a deterministic “seeded persona” contract (Keycloak + platform DB) centered on `admin@ameide.io` (see `backlog/582-local-dev-seeding.md`). GitLab bootstrap should align with that same persona so operators don’t need a separate, manual “first user” path.
@@ -114,13 +129,13 @@ The platform already has a deterministic “seeded persona” contract (Keycloak
 - Seeded user `admin@ameide.io` exists in Keycloak and is used by SSO verifiers (password sourced from `Secret/playwright-int-tests-secrets` key `E2E_SSO_PASSWORD`; see `infra/scripts/verify-argocd-sso.sh`).
 - Keycloak tokens include a `groups` claim (full path), so group-based mapping is available when needed.
 
-**Recommended CE-safe approach (vendor-aligned)**
+**Decision (OSS/CE-safe, vendor-aligned)**
 
-GitLab “SSO” is OmniAuth. OpenID Connect sign-in works on CE, but the “nice knobs” for restricting/assigning users via IdP groups are not guaranteed on CE. Therefore, enforce access primarily outside GitLab:
+GitLab “SSO” is OmniAuth. OpenID Connect sign-in works on CE, but group-based access/admin mapping is not a safe contract to rely on for CE. Enforce access primarily outside GitLab:
 
 1. **IdP enforcement (Keycloak):** restrict who can authenticate to the `gitlab` client (operators/services only).
-2. **GitLab safety gate:** keep `blockAutoCreatedUsers=true` so JIT-created users are blocked (pending approval) until explicitly unblocked by an admin.
-3. **Admin bootstrap:** promote `admin@ameide.io` (or a bot identity) to GitLab admin via a platform-controlled procedure (runbook/API), not via GitLab Premium/Ultimate-only group mapping assumptions.
+2. **GitLab safety gate:** keep `blockAutoCreatedUsers=true` so JIT-created users are blocked (pending approval) until explicitly approved.
+3. **Admin bootstrap:** use a **runbook** (API-driven) to approve + optionally promote `admin@ameide.io` after first OIDC login; do not rely on IdP group→admin mapping.
 4. **Provider secret hygiene:** do not store placeholder OmniAuth secrets. Template the provider config Secret from Vault-sourced Keycloak-generated secrets (see “Secrets posture”).
 
 **OIDC provider contract (documented keys)**
@@ -131,6 +146,11 @@ The OmniAuth provider config is stored in `Secret/gitlab-oidc-provider` (referen
 - Client id: `gitlab`
 - Client secret: sourced from Vault key `gitlab-oidc-client-secret` (Keycloak-generated, extracted by client-patcher)
 - Redirect URI: `https://gitlab.<env>.ameide.io/users/auth/openid_connect/callback`
+
+**Runbook helpers (repo scripts)**
+
+- `scripts/gitlab-approve-user.sh` (approve a pending OmniAuth user)
+- `scripts/gitlab-promote-user-admin.sh` (promote a user to instance admin)
 
 ## ArgoCD smokes alignment
 
@@ -162,7 +182,7 @@ Decide and document (matrix) which secrets are:
 
 - **Vault/ExternalSecrets supplied** (authoritative, stable per environment)
   - GitLab OIDC client secret (Keycloak-generated → client-patcher → Vault): `gitlab-oidc-client-secret`
-  - GitLab OIDC provider Secret rendered from Vault: `Secret/gitlab-oidc-provider` (key `provider`)
+  - GitLab OmniAuth provider Secret rendered from Vault: `Secret/gitlab-oidc-provider` (key `provider`)
 - **Chart-generated** (acceptable to generate, but must be understood and monitored)
   - Initial root password secret (break-glass only)
   - Internal TLS, SSH host keys, and other shared secrets (if we keep ingress disabled, TLS is still relevant for internal components)
@@ -181,8 +201,8 @@ Decide and document (matrix) which secrets are:
 - **Gateway API routing:** GitLab web UI is routed via `HTTPRoute`; Git SSH requires L4 (`TCPRoute` or equivalent) and a Gateway implementation that supports it (tie back to `global.hosts.ssh` and `global.shell.port`).
 - **Gateway API maturity:** GitLab chart’s Gateway API support is vendor-documented as beta; keep our wrapper resources explicit and treat Gateway routing changes as breaking until rehearsed in `dev`/`staging`.
 - **Ingress-nginx retirement:** do not build a future plan that depends on ingress-nginx after March 2026; if ingress is used, document the supported controller posture explicitly.
-- **Globals collision (`registry`):** this repo uses a top-level `registry: <string>` convention; upstream GitLab chart uses a top-level `registry:` object. Current wrapper values force `registry.enabled=false` to avoid Helm coalesce type errors, but this can unintentionally block configuring/enabling GitLab’s Container Registry.
 - **Vault policy allowlist:** the `keycloak-client-patcher` Vault policy must include `secret/data/gitlab-*` so `gitlab-oidc-client-secret` can be written deterministically.
+- **Globals collision (`registry`):** the repo-wide image registry key is `imageRegistry` (not `registry`) to avoid collisions with vendor charts that define a top-level `registry:` object (e.g., GitLab Container Registry settings).
 - **Production warning (upstream):** default “all-in-cluster” installs are PoC; production requires a cloud-native hybrid posture (external PostgreSQL/Redis/object storage/Gitaly) and careful sizing.
 
 ## Admin bootstrap (CE-safe, pending-approval flow)
@@ -193,12 +213,21 @@ With `blockAutoCreatedUsers=true`, the CE-safe posture is:
 2. Platform/operator approves the user.
 3. Platform/operator promotes the user to admin if required.
 
-Decision to record (pick one and keep it deterministic):
+**Decision (standard posture): Runbook, API-driven (no GitOps hook Job)**
 
-- **Runbook posture (simplest):** use break-glass admin credentials once to approve + promote `admin@ameide.io`.
-- **GitOps hook posture (fully automatable):** add a one-time Job (Argo hook) that calls GitLab APIs to approve + promote `admin@ameide.io` after first OIDC sign-in.
+- Keep this as a **platform runbook** executed by an operator (scripted API call).
+- Do not park long-lived GitLab admin credentials in always-on in-cluster Jobs; this avoids timing races (“after first login”) and reduces blast radius.
+- Runbook steps:
+  1. `admin@ameide.io` signs in once via OIDC (user becomes pending approval).
+  2. Approve the user via API (`POST /api/v4/users/:id/approve`).
+  3. Optionally promote to instance admin (`PUT /api/v4/users/:id` with `admin=true`).
 
-In either case, document where the bootstrap admin credential lives (Vault), and how it is rotated/disabled after bootstrap.
+Document where the bootstrap admin credential lives (Vault), and how it is rotated/disabled after bootstrap.
+
+Runbook helpers (repo scripts):
+
+- `scripts/gitlab-approve-user.sh`
+- `scripts/gitlab-promote-user-admin.sh`
 
 ## Contract checkpoints (what “good” looks like)
 
@@ -238,12 +267,12 @@ Exit criteria for removing this “temporary” posture:
   - Keep the wrapper chart’s custom `HTTPRoute`/`ExternalSecret` resources; or
   - Adopt upstream chart Gateway API resources (where applicable) and document what we must replicate (TLS termination, TCPRoute for SSH, etc.).
 - **SSH exposure**
-  - Decide how to expose port 22 (e.g., `TCPRoute`/Service LB) and how DNS is managed for `global.hosts.ssh`.
+  - **Decision:** Gateway API `TCPRoute` on `:22` using `gitlab.<env>.ameide.io` (see “SSH exposure”).
 - **Runner strategy**
   - Keep `gitlab-runner.install=false` and run workloads elsewhere; or
   - Enable runner with explicit isolation, node pools, and secrets.
 - **Resolve values collision (`registry`)**
-  - Rename the repo-wide top-level image registry convention to a non-conflicting key (e.g., `imageRegistry`) and update charts accordingly; then configure GitLab `registry:` intentionally rather than disabling it for type-safety.
+  - **Decision:** repo-wide image registry key is `imageRegistry` (not `registry`); keep GitLab Container Registry disabled until object storage credentials are least-privilege and routing/TLS are explicitly defined.
 
 ## Upgrade / rollback posture
 
