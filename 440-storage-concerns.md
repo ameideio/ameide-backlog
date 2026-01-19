@@ -4,6 +4,7 @@
 > - [443-tenancy-models.md](443-tenancy-models.md) – **Tenancy model overview (single source of truth)**
 > - [441-networking.md](441-networking.md) – Networking improvements
 > - [442-environment-isolation.md](442-environment-isolation.md) – Environment isolation
+> - [696-aks-storageclass-ownership-and-guardrails.md](696-aks-storageclass-ownership-and-guardrails.md) – AKS StorageClass ownership + CI guardrails
 > - [684-aks-node-pool-strategy-option-b.md](684-aks-node-pool-strategy-option-b.md) – Alternative: workload-class pools (system/platform/apps)
 > - [434-unified-environment-naming.md](434-unified-environment-naming.md) – Environment naming conventions
 > - [240-cluster-rightsizing.md](240-cluster-rightsizing.md) – Cluster resource planning
@@ -24,6 +25,11 @@
 | **Node affinity (data tier)** | ⏳ Blocked | Waiting for node pools from 442 |
 
 > **Consistency testing**: Run `./infra/scripts/test-iac-consistency.sh schema` to verify Bicep and Terraform output parity.
+
+## Update (2026-01-19)
+
+- `managed-csi`/`managed-csi-premium` are treated as **AKS-owned**; GitOps must not attempt to define them on AKS.
+- A CI render guardrail is introduced to prevent accidental StorageClass collisions on AKS (see `696`).
 
 ## Problem Statement
 
