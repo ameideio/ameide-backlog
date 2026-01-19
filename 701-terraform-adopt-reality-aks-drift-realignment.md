@@ -67,4 +67,4 @@ Ensure `.github/workflows/terraform-azure-apply.yaml` imports all Terraform-mana
 
 - `Terraform Azure Plan` artifact shows `Plan: 0 to add, 0 to change, 0 to destroy` after adoption.
 - `Terraform Azure Apply + Verify` is safe to rerun and remains converged (no forced rotations without an explicit change).
-
+- “Normal apply” does not perform imports/adoption; break-glass recovery uses the explicit adopt workflow.

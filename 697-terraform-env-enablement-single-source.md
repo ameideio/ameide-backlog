@@ -33,8 +33,9 @@ This creates split-brain:
 - Terraform derives enabled env keys from `config/clusters/azure.yaml`:
   - `infra/terraform/azure/main.tf` (`local.tf_env_keys_enabled`)
   - `staging` disabled -> `local.tf_env_keys_enabled = ["dev","prod"]`
-- Terraform apply workflow avoids importing resources for disabled envs:
-  - `.github/workflows/terraform-azure-apply.yaml` (imports gated by enabled env list)
+- CI workflows and verifiers share a single enabled-env resolution helper:
+  - `infra/scripts/enabled-azure-envs.sh`
+  - scripts must not probe disabled envs (e.g. staging when `enabled: "false"`)
 
 ## Follow-ups (recommended)
 
