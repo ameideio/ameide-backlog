@@ -126,6 +126,8 @@ For `www-ameide-platform`, verification should focus on **connectivity-critical*
 
 Tenant + organization context must come from the **auth session** (JWT + middleware headers). Do **not** gate Telepresence verification on legacy org-default env vars (`AUTH_DEFAULT_ORG`, `NEXT_PUBLIC_DEFAULT_ORG`, `WWW_AMEIDE_PLATFORM_ORG_ID`); treat them as deprecated/test-only.
 
+**Update (2026-01-19):** a `www-ameide-platform` image regression re-introduced a hard requirement for a “default org” env var during Auth.js callback handling (failures surfaced as `/api/auth/error?error=Configuration`). GitOps temporarily emits these vars from `organization.defaultId` to keep platform SSO verification green, but the target-state remains: remove the GitOps org default and derive org context from the auth session (Keycloak-issued claims).
+
 ## RBAC quick check
 
 Before blaming Telepresence itself, confirm the traffic-manager service account still has the permissions defined in [492-telepresence-reliability.md](492-telepresence-reliability.md#rbac-verification--documentation):
