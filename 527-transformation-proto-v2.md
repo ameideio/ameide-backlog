@@ -1,5 +1,8 @@
 # 527 Transformation — Proto contract notes (v2: Zeebe BPMN runtime)
 
+> **Superseded (v6):** v6 adds Git-backed element semantics and derived TOGAF hierarchy (no canonical workspace tree) and removes Definition Registry assumptions.  
+> See `backlog/527-transformation-proto-v6.md`.
+
 This document captures the proto-level impact of adopting **Zeebe as the execution runtime** for BPMN-authored processes.
 It replaces the parts of `backlog/527-transformation-proto.md` that assume “compiled Workflow IR for Temporal execution”.
 

@@ -1,5 +1,8 @@
 # 527 Transformation — UISurface Primitive Specification
 
+> **Superseded (v6):** the repository hierarchy is a **TOGAF 10 Architecture Repository hierarchy** that is **purely projection-derived** (no canonical “workspace tree”).  
+> See `backlog/527-transformation-uisurface-v6.md` and `backlog/701-repository-ui-enterprise-repository-v6.md`.
+
 **Status:** Draft (placeholder UISurface implemented; portal UX pending)  
 **Parent:** [527-transformation-capability.md](527-transformation-capability.md)
 

@@ -7,7 +7,7 @@
 **Use with:**
 - Capability definition template: `backlog/528-capability-definition.md`
 - Transformation capability: `backlog/527-transformation-capability.md`
-- Projection specification: `backlog/527-transformation-projection.md`
+- Projection specification (v6): `backlog/527-transformation-projection-v6.md`
 - Agent primitive specification: `backlog/527-transformation-agent.md`
 - Primitives stack: `backlog/520-primitives-stack-v6.md`
 

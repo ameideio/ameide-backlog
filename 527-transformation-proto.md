@@ -1,5 +1,8 @@
 # 527 Transformation — Proto Contract Specification
 
+> **Superseded (v6):** canonical repository content is Git-backed, repository hierarchy is TOGAF-first and purely projection-derived (no canonical workspace tree), and ProcessDefinitions are BPMN files under `processes/**` (no Definition Registry).  
+> See `backlog/527-transformation-proto-v6.md` and `backlog/701-repository-ui-enterprise-repository-v6.md`.
+
 > **DEPRECATED (2026-01-12):** This document includes compile-to-Temporal / “Temporal-backed execution” posture language for BPMN-authored processes.  
 > Current direction: BPMN-authored Process primitives execute on **Camunda 8 / Zeebe**; Temporal remains for coded platform workflows.  
 > See `backlog/527-transformation-proto-v2.md`.
