@@ -258,7 +258,7 @@ For each ArchiMate element, generate a contextual chunk:
 ```
 "Transformation is a Capability in the Strategy layer.
 It realizes the 'Change Management' value stream.
-It is composed of: Enterprise Repository, Definition Registry, Methodology Profiles.
+It is composed of: Enterprise Repository, ProcessDefinitions (BPMN as files under `processes/**`), Methodology Profiles.
 It serves: Platform Engineering, Architecture teams.
 Description: The platform's change-the-business capability that captures
 what should be built, how it should be built, and how it is governed."

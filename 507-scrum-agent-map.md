@@ -109,7 +109,7 @@ Each hand-off is asynchronous (EDA intents/facts plus work handover events; opti
 | Concern | Primary location | Notes |
 |---------|------------------|-------|
 | Transformation schema/protos | `services/transformation`, `packages/ameide_core_proto/transformation/scrum/v1` | Update alongside 367-1 and 508 |
-| Temporal workflows | `primitives/process/*`, `operators/process-operator` | Follow 506-v2 & 499 |
+| Zeebe process solutions | `primitives/process/*`, `operators/process-operator` | Treat 506-v2 Temporal details as historical; v6 posture is Zeebe (see `backlog/520-primitives-stack-v6.md`, `backlog/511-process-primitive-scaffolding-v3.md`) |
 | Agent DAGs | `primitives/agent/ameide-po`, `ameide-sa`, `ameide-coder` | Align with 505 plan |
 | Devcontainer service | `services/devcontainer_service` | Executor runtime (may expose A2A binding per 505) |
 | CLI guardrails | `packages/ameide_core_cli`, `prompts/agent/*` | Orchestrator wrappers; internal generation remains `buf generate`; CI is canonical (`520-primitives-stack-v2.md`, `backlog/521c-internal-generation-improvements.md`, `backlog/521d-external-generation-improvements.md`) |

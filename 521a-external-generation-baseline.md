@@ -122,7 +122,12 @@ The CLI is a first-class tool for both humans and coding agents (not a manual-on
 
 **Command:** `ameide primitive scaffold --kind process --name {name} --proto-path {path}`
 
-Planned direction (see `backlog/511-process-primitive-scaffolding-refactoring.md`): Process scaffolding becomes **BPMN-first** (`primitives/process/{name}/process.bpmn`) and compilation output is generated-only under `internal/gen/**` (no process business API required).
+Planned direction (v6; see `backlog/511-process-primitive-scaffolding-v3.md` and `backlog/520-primitives-stack-v6.md`):
+
+- Process primitives are Zeebe “process solutions” (BPMN + bundled worker microservice).
+- Canonical ProcessDefinitions are **design-time governed Git artifacts** stored in the tenant Enterprise Repository under:
+  - `processes/<module>/<process_key>/v<major>/process.bpmn`
+- The Process primitive repo may still contain `bpmn/process.bpmn` as a **fixture** for local verify/tests; it is not the canonical source of truth.
 
 | Path | Purpose |
 |------|---------|
@@ -130,14 +135,12 @@ Planned direction (see `backlog/511-process-primitive-scaffolding-refactoring.md
 | `primitives/process/{name}/go.mod` | Go module |
 | `primitives/process/{name}/Dockerfile` | Container image |
 | `primitives/process/{name}/catalog-info.yaml` | Backstage catalog |
-| `primitives/process/{name}/process.bpmn` | BPMN source of truth (v1 compiler input) |
-| `primitives/process/{name}/cmd/worker/main.go` | Temporal worker entrypoint |
-| `primitives/process/{name}/cmd/ingress/main.go` | HTTP/gRPC ingress entrypoint |
+| `primitives/process/{name}/bpmn/process.bpmn` | BPMN fixture (local verify/tests; not canonical under v6) |
+| `primitives/process/{name}/cmd/worker/main.go` | Zeebe worker entrypoint |
+| `primitives/process/{name}/cmd/ingress/main.go` | Completion ingress (publish message / callbacks) |
 | `primitives/process/{name}/internal/handlers/handlers.go` | Ops/control handlers (optional; not a business/query API) |
-| `primitives/process/{name}/internal/workflows/workflow.go` | Temporal workflow stub |
 | `primitives/process/{name}/internal/ingress/router.go` | Ingress router |
 | `primitives/process/{name}/internal/process/state.go` | Process state struct |
-| `primitives/process/{name}/internal/gen/**` | Generated code (compiler output; do not edit by hand) |
 | `primitives/process/{name}/internal/tests/**` | Tests (workflow/router; no per-RPC requirement) |
 
 **Templates:** `packages/ameide_core_cli/internal/commands/templates/process/`
