@@ -44,7 +44,7 @@ GitLab is treated as a **platform-owned subsystem**:
     - Smokes: `environments/local/components/platform/developer/gitlab-smoke/component.yaml`
 - Wrapper chart (routes + secrets wiring): `sources/charts/platform/gitlab`
 - Vendored upstream chart: `sources/charts/third_party/gitlab/gitlab/9.6.1` (appVersion `18.6.1`)
-- CE/OSS enforcement: set `gitlab.global.edition=ce` (GitLab chart defaults to EE unless explicitly set to CE).
+- CE/OSS is explicitly enforced via `gitlab.global.edition=ce` (GitLab chart defaults to EE otherwise).
 - Ingress disabled; exposure via Gateway API `HTTPRoute`: `sources/charts/platform/gitlab/templates/httproute.yaml`
 - OIDC provider is sourced from Vault via ExternalSecrets: `sources/charts/platform/gitlab/templates/externalsecret.yaml`
 - `gitlab-runner` is disabled in values (no in-cluster runner install by default).
@@ -56,6 +56,11 @@ GitLab is treated as a **platform-owned subsystem**:
 - Fixed hostname assembly footgun by removing the `global.hosts.gitlab.name: gitlab` override so the chart assembles `gitlab.<domain>`.
 - Disabled GitLab chart `upgradeCheck` under ArgoCD to avoid Helm hook failures blocking first installs (GitOps rollouts).
 - Switched GitLab object storage to the shared in-namespace MinIO (`data-minio`) and disabled GitLab’s bundled MinIO chart (temporary posture; see “Object storage”).
+- OIDC integration is now fully GitOps-managed (no placeholder secrets):
+  - Keycloak client `gitlab` is reconciled per environment (redirect URIs match `gitlab.<env>.ameide.io`).
+  - `client-patcher` extracts the Keycloak-generated secret into Vault key `gitlab-oidc-client-secret`.
+  - `ExternalSecret/gitlab-oidc-provider` templates the GitLab OmniAuth provider config into `Secret/gitlab-oidc-provider` key `provider`.
+  - Vault bootstrap policy for `keycloak-client-patcher` includes `secret/data/gitlab-*` to allow extraction.
 - Updated 694 ↔ 695 alignment notes and cross-references.
 
 ## Next (tracked work)
@@ -116,7 +121,7 @@ The platform already has a deterministic “seeded persona” contract (Keycloak
 **Bootstrap contract**
 
 - `admin@ameide.io` can authenticate to GitLab via Keycloak OIDC (no local-only GitLab user as the primary path).
-- `admin@ameide.io` is an administrator in GitLab (or equivalent “platform admin” posture) without manual UI steps.
+- `admin@ameide.io` can be promoted to GitLab admin via a platform-controlled procedure (GitLab CE does not guarantee “admin via IdP groups” features).
 - Any break-glass local credentials (e.g., initial root password secret) are treated as emergency-only, not the default operational path.
 
 **Inputs we already have**
@@ -126,12 +131,21 @@ The platform already has a deterministic “seeded persona” contract (Keycloak
 
 **Decision (OSS/CE-safe, vendor-aligned)**
 
-GitLab “SSO” is OmniAuth. OpenID Connect sign-in works on CE, but group-based access/admin mapping is not a safe contract to rely on for CE. Therefore:
+GitLab “SSO” is OmniAuth. OpenID Connect sign-in works on CE, but group-based access/admin mapping is not a safe contract to rely on for CE. Enforce access primarily outside GitLab:
 
 1. **IdP enforcement (Keycloak):** restrict who can authenticate to the `gitlab` client (operators/services only).
 2. **GitLab safety gate:** keep `blockAutoCreatedUsers=true` so JIT-created users are blocked (pending approval) until explicitly approved.
 3. **Admin bootstrap:** use a **runbook** (API-driven) to approve + optionally promote `admin@ameide.io` after first OIDC login; do not rely on IdP group→admin mapping.
-4. **Verification:** keep ArgoCD PostSync smokes for readiness + OIDC wiring; keep “is admin” as an operator-controlled evidence step (audit + API), not an automated always-on in-cluster Job.
+4. **Provider secret hygiene:** do not store placeholder OmniAuth secrets. Template the provider config Secret from Vault-sourced Keycloak-generated secrets (see “Secrets posture”).
+
+**OIDC provider contract (documented keys)**
+
+The OmniAuth provider config is stored in `Secret/gitlab-oidc-provider` (referenced by `global.appConfig.omniauth.providers[].secret` + `key`). This repo treats it as a rendered artifact:
+
+- Issuer: `https://auth.<env>.ameide.io/realms/ameide`
+- Client id: `gitlab`
+- Client secret: sourced from Vault key `gitlab-oidc-client-secret` (Keycloak-generated, extracted by client-patcher)
+- Redirect URI: `https://gitlab.<env>.ameide.io/users/auth/openid_connect/callback`
 
 **Runbook helpers (repo scripts)**
 
@@ -185,10 +199,35 @@ Decide and document (matrix) which secrets are:
 - **Tools/version prerequisites (upstream):** keep `kubectl` within one minor of the cluster; use Helm v3.17.3+ and avoid Helm v3.18.0 per GitLab’s prerequisites docs.
 - **Hostname assembly:** prefer `gitlab.global.hosts.domain` per environment; only set `gitlab.global.hosts.gitlab.name` when providing a full hostname override (FQDN).
 - **Gateway API routing:** GitLab web UI is routed via `HTTPRoute`; Git SSH requires L4 (`TCPRoute` or equivalent) and a Gateway implementation that supports it (tie back to `global.hosts.ssh` and `global.shell.port`).
-- **Gateway API maturity:** treat Gateway routing changes as potentially breaking; rehearse in `dev`/`staging` before production.
+- **Gateway API maturity:** GitLab chart’s Gateway API support is vendor-documented as beta; keep our wrapper resources explicit and treat Gateway routing changes as breaking until rehearsed in `dev`/`staging`.
 - **Ingress-nginx retirement:** do not build a future plan that depends on ingress-nginx after March 2026; if ingress is used, document the supported controller posture explicitly.
+- **Vault policy allowlist:** the `keycloak-client-patcher` Vault policy must include `secret/data/gitlab-*` so `gitlab-oidc-client-secret` can be written deterministically.
 - **Globals collision (`registry`):** the repo-wide image registry key is `imageRegistry` (not `registry`) to avoid collisions with vendor charts that define a top-level `registry:` object (e.g., GitLab Container Registry settings).
 - **Production warning (upstream):** default “all-in-cluster” installs are PoC; production requires a cloud-native hybrid posture (external PostgreSQL/Redis/object storage/Gitaly) and careful sizing.
+
+## Admin bootstrap (CE-safe, pending-approval flow)
+
+With `blockAutoCreatedUsers=true`, the CE-safe posture is:
+
+1. Operator signs in once via OIDC → GitLab JIT-creates the user in **pending approval** state.
+2. Platform/operator approves the user.
+3. Platform/operator promotes the user to admin if required.
+
+**Decision (standard posture): Runbook, API-driven (no GitOps hook Job)**
+
+- Keep this as a **platform runbook** executed by an operator (scripted API call).
+- Do not park long-lived GitLab admin credentials in always-on in-cluster Jobs; this avoids timing races (“after first login”) and reduces blast radius.
+- Runbook steps:
+  1. `admin@ameide.io` signs in once via OIDC (user becomes pending approval).
+  2. Approve the user via API (`POST /api/v4/users/:id/approve`).
+  3. Optionally promote to instance admin (`PUT /api/v4/users/:id` with `admin=true`).
+
+Document where the bootstrap admin credential lives (Vault), and how it is rotated/disabled after bootstrap.
+
+Runbook helpers (repo scripts):
+
+- `scripts/gitlab-approve-user.sh`
+- `scripts/gitlab-promote-user-admin.sh`
 
 ## Contract checkpoints (what “good” looks like)
 

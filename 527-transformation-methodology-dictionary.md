@@ -1,5 +1,8 @@
 # 527 — Transformation Methodology Dictionary (Canonical → ArchiMate/TOGAF/Scrum/PMI)
 
+> **Superseded (v6):** canonical authored artifacts are Git-backed elements, and repository hierarchy is TOGAF-first and **projection-derived** (no canonical workspace tree).  
+> See `backlog/527-transformation-methodology-dictionary-v6.md`.
+
 **Status:** Draft  
 **Parent:** `backlog/527-transformation-capability.md`
 
@@ -30,7 +33,7 @@ Related:
 - Methodology-specific flow-only scenarios:
   - Scrum: `backlog/527-transformation-scenario-scrum.md`
   - TOGAF ADM: `backlog/527-transformation-scenario-togaf-adm.md`
-- Proto contract index (what exists vs target): `backlog/527-transformation-proto.md`
+- Proto contract notes (v6): `backlog/527-transformation-proto-v6.md`
 - Agent role taxonomy + profile mappings: `backlog/527-transformation-agent.md`
 - ArchiMate vocabulary guardrails: `backlog/529-archimate-alignment-470plus.md`
 - Legacy mapping (historical docs → target): `backlog/527-transformation-crossreference-303-ontology.md`

@@ -36,12 +36,14 @@ Under the Git-backed Enterprise Repository posture, the **canonical BPMN source 
 - A Process primitive is the **agentic-coding-produced implementation** of that governed artifact:
   - it implements the job handlers the BPMN requires,
   - and it deploys the **published** BPMN bytes into the orchestration runtime.
+ - Vendor-correct naming: `process_key` SHOULD equal the BPMN `<process id="...">` so runtime deployment/keying semantics align across Zeebe/Flowable.
 
 ### What “versioned” means (grounded)
 
 - **Major** is encoded in the repository path (`v<major>`).
 - **Minor/patch** are Git commits on `main` (optionally tagged), anchored by commit SHA for audit pointers and rollback.
 - “Published process definition version” means: *a concrete commit SHA on `main` plus a process path*.
+ - Recommended major policy: a major bump SHOULD introduce a new BPMN process id (new `process_key`) to avoid mixing breaking changes into one runtime key’s version chain; instance migration remains a separate (explicit) concern.
 
 ### What lives where
 

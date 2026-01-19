@@ -4,7 +4,7 @@
 
 **Status**: Partially Resolved (CI/CD blocking staging/prod)
 **Created**: 2025-12-04
-**Updated**: 2026-01-03
+**Updated**: 2026-01-19
 **Commits**:
 - `485a3961 fix(sso): make keycloak client-patcher deterministic`
 - `e6dd0f32 fix(keycloak): ensure client specs exist before patcher hook`
@@ -45,6 +45,25 @@ Total applications: 200
   - Re-apply the rendered GRPCRoute manifests with SSA using `--field-manager=argocd-controller --force-conflicts` so GitOps re-owns the fields.
   - Once ownership is restored, Argo returns to `Synced/Healthy` without any ignore rules or “forever force” settings.
 - **Prevent**: avoid `kubectl patch` against Argo-managed objects (especially Gateway API resources). Prefer Git changes; if an emergency patch is unavoidable, apply with the Argo field manager and capture the change as a follow-up Git PR immediately.
+
+## Update (2026-01-19): AKS `cluster-gateway` OOM + `cluster-kube-system-scheduling` stuck on hook Job
+
+- **Date/Env**: 2026-01-19 / AKS (dev)
+- **Argo apps**: `cluster-gateway`, `cluster-kube-system-scheduling`
+- **Symptoms**:
+  - `cluster-gateway` `Progressing`: `envoy-gateway` controller Pods `CrashLoopBackOff` with `OOMKilled` (exit 137) under a `512Mi` memory limit.
+  - `cluster-kube-system-scheduling` `OutOfSync` + `operationState.phase=Running`: Argo waiting for a `PreSync` hook Job that was stuck in `ImagePullBackOff` (GHCR `401 Unauthorized`); AKS-managed `kube-system` Deployments showed `requiresPruning=true` because they still carried Argo tracking annotations from an earlier sync attempt.
+- **Root causes**:
+  - Envoy Gateway controller memory limit was set below upstream defaults; under load it exceeded `512Mi`.
+  - GitOps attempted to manage AKS-managed addon Deployments using partial Deployment manifests; this is fragile (schema validation + SSA migration) and left Argo tracking annotations behind even after the resources were removed from desired state.
+  - The detach hook Job used a private registry image and had no deadline, so a pull/auth issue could deadlock sync indefinitely.
+- **Remediation (GitOps)**:
+  - Align Envoy Gateway controller resources with vendor defaults (raise memory limit to `1Gi`).
+  - Stop managing AKS-managed addon Deployments via GitOps patches.
+  - Add a dedicated “detach” hook (public `kubectl` image) + separate RBAC component to remove Argo tracking annotations (and related sync/compare options) from `metrics-server`, `konnectivity-agent`, and `coredns`.
+  - Add `activeDeadlineSeconds` + `Replace=true` on the hook Job to avoid sync deadlocks on future failures.
+- **Operational note (one-time)**:
+  - If Argo is already waiting on an old hook Job spec (e.g. private image), terminate the running operation so the next sync can delete/recreate the hook (via `BeforeHookCreation`) using the updated manifest.
 
 ## Update (2026-01-03): Local bootstrap convergence incidents (Dex/Envoy, CNPG placement, hook jobs)
 

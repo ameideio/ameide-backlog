@@ -11,8 +11,8 @@
 - MCP adapter pattern: `backlog/534-mcp-protocol-adapter.md`
 - Read optimizations (semantic search): `backlog/535-mcp-read-optimizations.md`
 - Write optimizations (agent-friendly commands): `backlog/536-mcp-write-optimizations.md`
-- **Proto contracts**: `backlog/527-transformation-proto.md`
-- UISurface primitive (web): `backlog/527-transformation-uisurface.md`
+- **Proto contract notes (v6)**: `backlog/527-transformation-proto-v6.md`
+- UISurface posture (v6): `backlog/527-transformation-uisurface-v6.md`
 - Primitives stack: `backlog/520-primitives-stack-v6.md`
 
 ---

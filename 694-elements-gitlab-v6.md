@@ -12,6 +12,7 @@ related:
   - 520-primitives-stack-v6.md
   - 527-transformation-v6-index.md
   - 695-gitlab-configuration-gitops.md
+  - 701-repository-ui-enterprise-repository-v6.md
 ---
 
 # 694 – Elements / Enterprise Repository in GitLab (v6: Git-backed canonical content)
@@ -50,6 +51,8 @@ This is a recommended, minimal repository layout that keeps “canonical truth i
       bindings.yaml                 # optional
       README.md                     # optional
 ```
+
+Vendor-correct naming note: `process_key` SHOULD match the BPMN `<process id="...">` so runtime deployment/keying semantics align across Zeebe/Flowable.
 
 Normative rule: **`main` is the published baseline**, and “published” is a commit SHA on `main` (optionally tagged).
 
