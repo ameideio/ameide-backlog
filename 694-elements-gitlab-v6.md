@@ -17,6 +17,14 @@ related:
 
 This v6 file exists to keep the v6 “Git-backed Enterprise Repository” posture stable and easy to reference from other backlogs.
 
+## Git provider posture (v6)
+
+In the current platform posture, “Git-backed” concretely means:
+
+- **GitLab is deployed in-cluster** as a platform component and managed by GitOps.
+- GitLab is **not optional**: it is part of the default platform deployment.
+- GitLab is **internal/private** to the platform: tenants do not log into GitLab; platform services use a bot identity to operate Git.
+
 To avoid losing detail, the full decision text (including the “How this evolves prior work” paragraphs and external links) is preserved in:
 
 - `backlog/694-elements-gitlab.md` (historical record; superseded by this v6 pointer)
