@@ -34,7 +34,7 @@ Increment 2 expands the same primitives from Increment 1:
 - **Projection primitive:** adds trust ranking + reranking + diff read models and emits retrieval trace logs.
 - **Integration/MCP + CLI:** switch agents to the “front door” retrieval/propose APIs so no tool re-implements ranking/diff logic.
 
-See `backlog/656-agentic-memory-implementation.md` §5 for the “by primitive” implementation spec.
+See `backlog/656-agentic-memory-implementation-v1.md` §5 for the “by primitive” implementation spec.
 
 ## 1) Read loop upgrades (retrieval pipeline engineering)
 

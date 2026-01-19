@@ -4,9 +4,9 @@ This backlog defines the **recommended** long-term architecture for Kanban views
 
 It is intentionally aligned with:
 
-- `backlog/520-primitives-stack-v2.md` (Primitives Stack v2 constitution)
+- `backlog/520-primitives-stack-v6.md` (Primitives Stack v6 posture)
 - `backlog/520-primitives-stack-v2-projection.md` (Projection primitive contract)
-- `backlog/511-process-primitive-scaffolding.md` (Temporal-backed Process primitive contract)
+- `backlog/511-process-primitive-scaffolding-v3.md` (Process primitive contract: Zeebe/Flowable; Temporal platform-only)
 - `backlog/616-kanban-principles.md` (Kanban principles; projection-first UX)
 - `backlog/509-proto-naming-conventions-v6.md` (`io.ameide.*` semantic identity conventions)
 - `backlog/496-eda-principles-v6.md` (facts are not requests; outbox discipline)
@@ -21,15 +21,15 @@ It is intentionally aligned with:
 - Projections are built by consuming **domain facts** and **process progress facts** from the fact log (Kafka).
 - Live Kanban updates are delivered via a **Projection Updates** stream (SSE/WebSocket or server-streaming RPC) that notifies the UI of a monotonic update cursor.
 
-Temporal’s visibility/search APIs remain valuable for **ops/debug** and optional reconciliation tooling, but they are **not** the product Kanban source of truth.
+Orchestration-runtime “visibility” APIs (e.g., Zeebe Operate, Flowable UI) remain valuable for **ops/debug** and optional reconciliation tooling, but they are **not** the product Kanban source of truth.
 
 ## Scope (platform-wide; process-definition-centric)
 
-Kanban is a platform-standard way to view progress for **Temporal-orchestrated Processes**.
+Kanban is a platform-standard way to view progress for **process-backed work**.
 
-- Temporal is the only Process backend for boards described as Kanban.
+- Kanban boards are backed by **ProcessDefinitions** (BPMN as files) executed on supported runtimes (**Zeebe/Camunda 8** and **Flowable**).
 - Boards are **process-definition-centric**: a board represents a Process definition (e.g., “Sales Funnel v1”, “R2R Governance v1”) across many process instances.
-- Cards represent **process instances** (WorkflowID) moving through the Process definition’s phases.
+- Cards represent **process instances** moving through the Process definition’s phases.
 - Methodologies (Scrum/TOGAF/BPMN, etc.) define their own `phase_key` values; the Kanban contract standardizes the *mechanism*, not the phase taxonomy.
 
 ### Examples (multiple domains)
@@ -45,15 +45,15 @@ The Kanban contract is intentionally capability-agnostic. Examples of `process_d
 
 These values are owned by each Process definition; the platform only requires they be stable keys that can be mapped to `column_key`.
 
-## Why (avoid coupling Kanban to Temporal visibility)
+## Why (avoid coupling Kanban to orchestration runtime visibility)
 
-Temporal visibility/search is designed for operational listing/filtering of workflow executions. It is not a durable, rebuildable product store:
+Orchestration-runtime visibility/search is designed for operational listing/filtering of executions. It is not a durable, rebuildable product store:
 
 - Visibility/listing is **eventually consistent** and may lag under load.
 - Retention policies remove workflow data unless archival is configured.
 - Search attribute limits and indexing constraints make “rich card state” impractical.
 
-The Ameide platform requires projections to be **rebuildable, convergent, and correct under at-least-once delivery** (`backlog/520-primitives-stack-v2-projection.md`, `backlog/496-eda-principles-v6.md`). Therefore Kanban must be backed by a projection store, not by Temporal visibility.
+The Ameide platform requires projections to be **rebuildable, convergent, and correct under at-least-once delivery** (`backlog/520-primitives-stack-v2-projection.md`, `backlog/496-eda-principles-v6.md`). Therefore Kanban must be backed by a projection store, not by orchestration-runtime visibility.
 
 ## Kanban contract (capability-agnostic)
 
@@ -61,13 +61,13 @@ The Ameide platform requires projections to be **rebuildable, convergent, and co
 
 A **card** represents a process instance moving through a Process definition:
 
-- `card_id = process_instance_id` (Temporal WorkflowID; stable for the workflow chain)
+- `card_id = process_instance_id` (stable per process instance)
 
 For drill-in, the card may also expose:
 
-- `process_run_id` (Temporal RunID; changes on Continue-As-New)
+- `process_run_id` (optional execution identifier; runtime-specific and not required for Zeebe/Flowable)
 
-**Workflow IDs used as card IDs MUST NOT be reused for new instances.**
+**Card IDs used as process instance IDs MUST NOT be reused** for new instances.
 
 ### 1a) Board identity and membership (required)
 
@@ -158,10 +158,10 @@ These facts can drive card attributes such as:
 Processes emit **process progress facts** at phase/milestone transitions (phase-first by default).
 
 - Workflow code remains deterministic.
-- Emission happens via Activities/ports (at-least-once; idempotency required) per `backlog/511-process-primitive-scaffolding.md` and `backlog/520-primitives-stack-v2.md`.
+- Emission happens via an idempotent “emit progress” seam (at-least-once; idempotency required) per `backlog/511-process-primitive-scaffolding-v3.md` and `backlog/520-primitives-stack-v6.md`.
 - Identity fields must follow `backlog/520-primitives-stack-v6.md` / `backlog/509-proto-naming-conventions-v6.md`:
-  - `process_instance_id` (WorkflowID)
-  - `process_run_id` (RunID)
+  - `process_instance_id` (engine instance id)
+  - `process_run_id` (optional execution/run id; runtime-specific and not required for Zeebe/Flowable)
   - `run_epoch + seq` for ordering (not timestamps)
   - `step_id` + `step_instance_id` when step-level facts are enabled
 
@@ -241,15 +241,15 @@ The Kanban surface remains a projection-backed list view; it does not attempt to
 
 ## Non-goals
 
-- Kanban is not implemented by querying Temporal visibility as the authoritative store.
+- Kanban is not implemented by querying orchestration-runtime visibility as the authoritative store.
 - Kanban is not implemented by UIs “deciding” phase/column mappings.
-- Kanban does not require emitting step-level events for every workflow node (phase-first is the default to respect Temporal history constraints).
+- Kanban does not require emitting step-level events for every workflow node (phase-first is the default to respect runtime constraints).
 
 ## Implementation checklist (for capability teams)
 
 - Define board scope (`KanbanBoardScope`, including `board_kind` and `process_definition_id`) and `card_id` identity (`card_id=process_instance_id`).
 - Define a mapping config from `(process_definition_id, phase_key, ...)` to `column_key` (versioned).
-- Ensure Process workflows emit phase-first progress facts via Activities (idempotent).
+- Ensure Process workflows emit phase-first progress facts via an idempotent progress-emission seam.
 - Ensure Domain emits required domain facts via outbox (idempotent consumers).
 - Implement projection:
   - inbox dedupe on `message_id`

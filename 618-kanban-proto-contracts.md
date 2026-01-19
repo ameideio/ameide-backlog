@@ -6,20 +6,20 @@ This backlog defines the **proto-first contracts** required to implement Kanban 
 
 It is intentionally aligned with:
 
-- `backlog/520-primitives-stack-v2.md` (platform constitution; SDK-only runtime imports)
+- `backlog/520-primitives-stack-v6.md` (platform posture; SDK-only runtime imports)
 - `backlog/520-primitives-stack-v2-projection.md` (Projection contract: idempotency + replay)
 - `backlog/616-kanban-principles.md` (Kanban UX principles; interaction streams are out-of-band)
 - `backlog/615-kanban-fullstack-reference.md` (full-stack reference)
 - `backlog/509-proto-naming-conventions-v6.md` (`io.ameide.*` semantic identity conventions)
 - `backlog/496-eda-principles-v6.md` (facts are not requests; outbox discipline)
-- `backlog/511-process-primitive-scaffolding.md` (Temporal-backed Process contract; progress facts emitted via activities/ports)
+- `backlog/511-process-primitive-scaffolding-v3.md` (Process primitive contract: Zeebe/Flowable; Temporal platform-only)
 
 ## Decision (single option)
 
 **Kanban is served by Projection query APIs and a Projection Updates stream, both defined in Protobuf and consumed only via generated SDKs.**
 
-- Kanban boards are **Temporal-backed Process boards**: if a “board” is not backed by a Temporal ProcessDefinition (process progress facts), it must not be described or implemented as Kanban.
-- UISurfaces MUST NOT read Temporal visibility/search/history for product Kanban truth.
+- Kanban boards are **process-backed boards**: a “board” is backed by a ProcessDefinition (BPMN as files) and process progress facts.
+- UISurfaces MUST NOT read orchestration-runtime visibility/search/history for product Kanban truth.
 - UISurfaces MUST NOT consume Kafka facts directly.
 - Live updates are cursor-based notifications (`board_seq`) that trigger idempotent refetch (deltas preferred).
 
@@ -41,7 +41,7 @@ It does **not** define:
 
 - any particular capability’s mapping rules (phase → column) (projection config does this)
 - storage schemas (Postgres tables, indexes) (see `backlog/615-kanban-fullstack-reference.md`)
-- Temporal visibility/Search Attributes schemas (ops/debug only; out of scope)
+- Orchestration-runtime visibility/search schemas (ops/debug only; out of scope)
 
 ## Where these protos live (recommended)
 
@@ -66,9 +66,9 @@ These fields are required for rebuildable, methodology-agnostic boards:
 - `board_scope` (explicit fields; never opaque JSON; MUST include `board_kind` and `process_definition_id`)
 - `board_id` (deterministic function of scope; projection-owned)
 - `board_seq` (monotonic cursor derived from the projection’s durable commit cursor/sequence; not timestamps)
-- `card_id` (stable id; default for process-driven boards: `process_instance_id` / WorkflowID)
+- `card_id` (stable id; default for process-driven boards: `process_instance_id`)
 
-**Workflow IDs used as `card_id` MUST NOT be reused** for new instances (see `backlog/614-kanban-projection-architecture.md`).
+**Card IDs used as `card_id` MUST NOT be reused** for new instances (see `backlog/614-kanban-projection-architecture.md`).
 
 ## Proto contracts (normative)
 
@@ -136,8 +136,8 @@ message KanbanCardView {
   string rank = 6;
 
   // Optional drill-in link to the underlying process instance.
-  string process_instance_id = 10; // WorkflowID (same as card_id for process boards)
-  string process_run_id = 11;      // RunID (best-effort “current”; may change)
+  string process_instance_id = 10; // Engine instance id (e.g., Zeebe processInstanceKey, Flowable processInstanceId)
+  string process_run_id = 11;      // Optional execution/run id (not required for Zeebe/Flowable)
   string process_definition_id = 12;
   string phase_key = 13;
 }
@@ -305,7 +305,7 @@ Those belong to dedicated interactive surfaces (threads/agent runs) and dedicate
 
 ## Implementation notes (SDK implications)
 
-- UISurface imports only generated SDK clients; it never imports `.proto` sources directly (`backlog/520-primitives-stack-v2.md`).
+- UISurface imports only generated SDK clients; it never imports `.proto` sources directly (`backlog/520-primitives-stack-v6.md`).
 - Projections implement the Kanban services and maintain `board_seq` as a durable cursor derived from projection commits.
 - Processes emit progress facts (phase-first); projections consume those facts; Kanban derives columns via mapping config.
 

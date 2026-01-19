@@ -8,11 +8,11 @@ This backlog defines the **platform-wide principles** for Kanban views in Ameide
 
 It is intentionally aligned with:
 
-- `backlog/520-primitives-stack-v2.md` (platform constitution; primitives + planes)
+- `backlog/520-primitives-stack-v6.md` (platform posture; primitives + planes)
 - `backlog/520-primitives-stack-v2-projection.md` (projection contract)
-- `backlog/511-process-primitive-scaffolding.md` (Temporal-backed Process contracts)
+- `backlog/511-process-primitive-scaffolding-v3.md` (Process primitive contracts: Zeebe/Flowable; Temporal platform-only)
 - `backlog/509-proto-naming-conventions-v6.md` (process progress facts identity conventions)
-- `backlog/496-eda-principles-v2.md` (facts vs intents; outbox + idempotency)
+- `backlog/496-eda-principles-v6.md` (facts vs intents; outbox + idempotency)
 - `backlog/614-kanban-projection-architecture.md` (Kanban as a projection; recommended architecture)
 - `backlog/615-kanban-fullstack-reference.md` (full-stack reference implementation)
 - `backlog/618-kanban-proto-contracts.md` (proto-first Kanban query + updates stream contracts)
@@ -22,12 +22,11 @@ It is intentionally aligned with:
 
 **Kanban is a product read model implemented as a Projection and rendered by a UISurface.**
 
-Kanban is **not** implemented by querying Temporal history/visibility as the source of truth.
+Kanban is **not** implemented by querying orchestration-runtime history/visibility as the source of truth.
 
-Temporal is the **only** Process backend for Kanban boards:
+Kanban boards are **process-definition-centric** views over ProcessDefinitions executed on supported runtimes (**Zeebe/Camunda 8** and **Flowable**).
 
-- If it is called a “Kanban board” in Ameide, it is a **Temporal-backed ProcessDefinition** rendered via the Kanban projection contract.
-- There are no “non-Temporal boards”. Non-process list/table views (indexes, dashboards) must not be described as Kanban.
+Non-process list/table views (indexes, dashboards) must not be described as Kanban.
 
 Kanban boards are **process-definition-centric**: one board corresponds to one `process_definition_id` across many process instances (cards).
 
@@ -51,18 +50,18 @@ Kanban boards are **process-definition-centric**: one board corresponds to one `
 ### Principle 1: UI reads come from Projections only
 
 - UISurfaces MUST render Kanban from Projection query APIs only.
-- UISurfaces MUST NOT depend on Temporal visibility/search APIs or Temporal history as product truth.
-- Temporal UI/visibility MAY be linked as an ops/debug surface, but MUST NOT be a required dependency for product Kanban correctness.
+- UISurfaces MUST NOT depend on orchestration-runtime visibility/search APIs or runtime history as product truth.
+- Runtime UIs/visibility MAY be linked as an ops/debug surface, but MUST NOT be a required dependency for product Kanban correctness.
 
 ### Principle 2: Facts drive the board; UI does not own status
 
 - Columns and card state MUST be derived deterministically from **facts** plus versioned/configurable mapping rules.
 - The UI MUST NOT maintain an imperative “card status” as the source of truth.
-- If the UI offers a “move card” interaction, it MUST issue a real domain/process **intent/command** and then reconcile to the projection truth (per `backlog/496-eda-principles-v2.md`).
+- If the UI offers a “move card” interaction, it MUST issue a real domain/process **intent/command** and then reconcile to the projection truth (per `backlog/496-eda-principles-v6.md`).
 
 ### Principle 3: Phase-first progress is the default
 
-- Process-backed boards MUST be **phase-first** by default to stay within Temporal constraints (history growth, retries).
+- Process-backed boards MUST be **phase-first** by default to stay within runtime constraints (history growth, event volume, retries).
 - The minimal progress vocabulary defined in `backlog/509-proto-naming-conventions-v6.md` SHOULD be sufficient to render a useful board/timeline without workflow-specific UI logic.
 - Step-level progress is opt-in and MUST include `step_id` + `step_instance_id` when enabled.
 
@@ -133,6 +132,6 @@ Initiatives are change initiatives and MUST be interpreted in a repository (arch
 
 ## Non-goals
 
-- Using Temporal visibility/search attributes as the Kanban query store.
+- Using orchestration-runtime visibility/search attributes as the Kanban query store.
 - Emitting chat transcripts as broker facts.
 - Requiring step-level events for every workflow node.

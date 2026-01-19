@@ -14,8 +14,8 @@ superseded_by:
 
 > **Superseded:** replaced by `backlog/658-eda-v6-reference-implementation-refactor.md` (hybrid posture + `io.ameide.*`).
 
-**Standard:** `backlog/496-eda-principles-v3.md`  
-**Related:** `backlog/509-proto-naming-conventions.md`, `backlog/657-transformation-domain-clean-target.md`
+**Historical standard:** `backlog/496-eda-principles-v3.md` (superseded by `backlog/496-eda-principles-v6.md`)  
+**Related:** `backlog/496-eda-principles-v6.md`, `backlog/509-proto-naming-conventions-v6.md`, `backlog/657-transformation-domain-clean-target-v2.md`
 
 ## Purpose
 

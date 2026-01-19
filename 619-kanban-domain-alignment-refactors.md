@@ -10,10 +10,10 @@ This backlog tracks the required refactorings across capabilities to align exist
 - `backlog/614-kanban-projection-architecture.md` (architecture contract)
 - `backlog/618-kanban-proto-contracts.md` (proto-first query + updates stream)
 - `backlog/615-kanban-fullstack-reference.md` (implementation reference)
-- `backlog/509-proto-naming-conventions.md` (process progress facts identity + minimal vocabulary)
-- `backlog/511-process-primitive-scaffolding.md` (Temporal-backed Process contract)
-- `backlog/520-primitives-stack-v2.md` (platform constitution)
-- `backlog/496-eda-principles-v2.md` (facts are not requests; outbox + idempotency)
+- `backlog/509-proto-naming-conventions-v6.md` (process progress facts identity + minimal vocabulary)
+- `backlog/511-process-primitive-scaffolding-v3.md` (Process primitive contract: Zeebe/Flowable; Temporal platform-only)
+- `backlog/520-primitives-stack-v6.md` (platform posture)
+- `backlog/496-eda-principles-v6.md` (facts are not requests; outbox + idempotency)
 
 ## Decision (single option)
 
@@ -22,7 +22,7 @@ All capabilities MUST align to the platform Kanban contract:
 - Kanban boards are **process-definition-centric** (`process_definition_id`), across many process instances.
 - Kanban columns are derived from **process progress facts** (phase-first vocabulary).
 - The Kanban UISurface reads only projection query APIs and subscribes to the projection updates stream (`board_seq`).
-- Temporal visibility/Search Attributes are ops/debug only; not the product Kanban source of truth.
+- Orchestration-runtime visibility/search is ops/debug only; not the product Kanban source of truth.
 
 ## Workstreams
 
@@ -35,7 +35,7 @@ All capabilities MUST align to the platform Kanban contract:
 
 ### B) Process progress facts alignment (phase-first)
 
-All Temporal-backed Processes must emit the minimal progress vocabulary defined in `backlog/509-proto-naming-conventions.md`:
+All process-backed boards must emit the minimal progress vocabulary defined in `backlog/509-proto-naming-conventions-v6.md`:
 
 - `RunStarted`
 - `PhaseEntered(phase_key)`
@@ -45,10 +45,10 @@ All Temporal-backed Processes must emit the minimal progress vocabulary defined 
 All emitted facts MUST include:
 
 - `process_definition_id` (and optional version id)
-- `process_instance_id` (WorkflowID; stable across Continue-As-New)
-- `process_run_id` (RunID)
+- `process_instance_id` (engine instance id; stable for the process instance)
+- `process_run_id` (optional execution/run id; runtime-specific and not required for Zeebe/Flowable)
 - `run_epoch + seq` ordering
-- stable `message_id` suitable for inbox dedupe (stable under Activity retries)
+- stable `message_id` suitable for inbox dedupe (stable under retries)
 
 ### C) Projection alignment (board_id, board_seq, paging, deltas)
 

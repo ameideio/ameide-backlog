@@ -4,7 +4,7 @@
 
 **Status:** Draft (target-state contract)  
 **Priority:** High  
-**Related:** `backlog/300-400/303-elements.md`, `backlog/496-eda-principles-v6.md`, `backlog/527-transformation-implementation-migration.md`, `backlog/656-agentic-memory.md`, `backlog/656-agentic-memory-implementation.md`, `backlog/694-elements-gitlab-v6.md`
+**Related:** `backlog/300-400/303-elements.md`, `backlog/496-eda-principles-v6.md`, `backlog/527-transformation-implementation-migration.md`, `backlog/656-agentic-memory-v1.md`, `backlog/656-agentic-memory-implementation-v1.md`, `backlog/694-elements-gitlab-v6.md`
 
 ---
 
@@ -24,10 +24,10 @@ This backlog defines the **clean target** (because we are not in production and 
 
 ## 1) Decisions (locked for the refactor)
 
-1. **Single repository of truth for memory.** Queue vs published is expressed via lifecycle/status + baselines in the same repository (no “second memory repo”). (`backlog/656-agentic-memory.md`)
+1. **Single repository of truth for memory.** Queue vs published is expressed via lifecycle/status + baselines in the same repository (no “second memory repo”). (`backlog/656-agentic-memory-v1.md`)
 2. **Elements-only canonical storage.** No parallel canonical model for “docs vs BPMN vs diagrams”. (`backlog/300-400/303-elements.md`)
 3. **Projection is the only read path.** Browse/search/history/diff/context assembly are projection-owned. (`backlog/527-transformation-projection.md`)
-4. **Kafka-first ingestion for projections (496 v3).** Projections receive domain/process facts via Kafka consumer groups (CloudEvents + Protobuf). Kafka topics are a contract surface. (`backlog/496-eda-principles-v3.md`)
+4. **EDA-correct ingestion for projections (v6).** Projections receive domain/process facts via the event plane (CloudEvents + Protobuf), and are correct under replay/duplication (`backlog/496-eda-principles-v6.md`).
 5. **Auth at gRPC boundaries.** Domain and Projection gRPC servers MUST enforce authN/authZ via interceptors (no “trust the caller” posture).
 
 ---
@@ -51,7 +51,7 @@ This backlog defines the **clean target** (because we are not in production and 
 **Owns:**
 - Workspace browsing read models.
 - `read_context` + `citations[]` in every query response shape where decisions depend on it.
-- Hybrid retrieval (keyword + vector + graph expansion) per `backlog/656-agentic-memory.md`.
+- Hybrid retrieval (keyword + vector + graph expansion) per `backlog/656-agentic-memory-v1.md`.
 - Curation queue UX read models (proposal list/diff/validator results).
 
 **Guarantees:**
@@ -161,4 +161,4 @@ This backlog is intentionally narrow; it points to the places that should refere
 - `backlog/527-transformation-projection.md`: mark DB relay as deprecated/default-off; Kafka consumer as default.
 - `backlog/527-transformation-domain-v2.md`: link 656 as the memory contract; state proposal-only writes for execution agents.
 - `backlog/527-transformation-implementation-migration.md`: add a WP/plateau for auth + Kafka ingestion + retrieval contract.
-- `backlog/656-agentic-memory-implementation.md`: treat 657 as the “clean target refactor” prerequisite for safe memory.
+- `backlog/656-agentic-memory-implementation-v1.md`: treat 657 as the “clean target refactor” prerequisite for safe memory.

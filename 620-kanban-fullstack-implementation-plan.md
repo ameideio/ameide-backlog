@@ -1,8 +1,8 @@
 # 620 — Kanban Full‑Stack Implementation & Refactor Plan (Checklist)
 
-> **Contract note:** Kanban is a single platform contract for **Temporal-backed Process boards only**. There are no “non-Temporal boards”; if it is a Kanban board, it is a Temporal ProcessDefinition rendered via the platform Kanban APIs.
+> **Contract note:** Kanban is a single platform contract for **process-backed boards**. In the current posture, business ProcessDefinitions execute on **Zeebe/Camunda 8** or **Flowable**; **Temporal is platform-only** and not a product Kanban backend.
 
-This backlog is the **implementation plan** for delivering Ameide’s platform Kanban as the standard “progress view” for **all Temporal-orchestrated processes**, aligned to the **ideal** architecture (docs define the target; code/processes align — not the other way around).
+This backlog is the **implementation plan** for delivering Ameide’s platform Kanban as the standard “progress view” for **all process-backed work**, aligned to the **ideal** architecture (docs define the target; code/processes align — not the other way around).
 
 It is intentionally **checklist-driven** and capability-spanning: it covers **proto/SDK**, **Process** (progress facts), **Projection** (Kanban read model + updates stream), **UISurface** (board + activity workbench), and **refactors across existing domains**.
 
@@ -13,9 +13,9 @@ It is intentionally **checklist-driven** and capability-spanning: it covers **pr
 - `backlog/618-kanban-proto-contracts.md` (proto contracts)
 - `backlog/615-kanban-fullstack-reference.md` (implementation reference)
 - `backlog/619-kanban-domain-alignment-refactors.md` (per-domain deltas tracker)
-- `backlog/520-primitives-stack-v2.md` (platform constitution)
+- `backlog/520-primitives-stack-v6.md` (platform posture)
 - `backlog/520-primitives-stack-v2-projection.md` (Projection invariants)
-- `backlog/511-process-primitive-scaffolding.md` (Temporal Process contract)
+- `backlog/511-process-primitive-scaffolding-v3.md` (Process primitive contract: Zeebe/Flowable; Temporal platform-only)
 - `backlog/509-proto-naming-conventions-v6.md` (`io.ameide.*` semantic identity conventions)
 - `backlog/496-eda-principles-v6.md` (facts are not requests; outbox discipline)
 - `backlog/430-unified-test-infrastructure-v2-target.md` (test philosophy: strict phases + JUnit evidence)
@@ -26,16 +26,16 @@ It is intentionally **checklist-driven** and capability-spanning: it covers **pr
 
 - Kanban is a **product read model** implemented as a **Projection** over the fact log.
 - UISurfaces read Kanban only via **Projection query APIs** and a **Projection Updates stream** (cursor-based notifications).
-- UISurfaces do **not** read Temporal visibility/history as product truth.
+- UISurfaces do **not** read orchestration-runtime visibility/history as product truth.
 - “Interactive streaming” (chat logs, agent tool streams, coding console output) is **not** transported as facts; it is served via **activity interaction surfaces** (out-of-band).
-- Temporal is the **only** Process backend for Kanban boards: “boards” that are not backed by a Temporal ProcessDefinition must not be described or implemented as Kanban.
+- Boards are backed by ProcessDefinitions (BPMN as files) and process progress facts; do not describe non-process list views (indexes/dashboards) as Kanban.
 
 ### Board model (standard)
 
 - Boards are **process-definition-centric** (`process_definition_id` is part of scope identity).
 - Cards represent **process instances**:
-  - `card_id` defaults to `process_instance_id` (Temporal WorkflowID) and MUST NOT be reused.
-  - `process_run_id` is “current run id (best effort)” for drill-in only; it may change (Continue-As-New).
+  - `card_id` defaults to `process_instance_id` and MUST NOT be reused.
+  - `process_run_id` is optional runtime-specific drill-in only; it is not required for Zeebe/Flowable.
 - Columns are **derived** from facts using mapping rules; UI does not implement methodology logic.
 - Live updates use `board_seq` (cursor derived from durable projection commit sequence) + idempotent refetch/deltas.
 - Paging and deltas are first-class (boards must not assume “small lists”).
@@ -76,7 +76,7 @@ Key implementation anchors:
 ### WP0 — Repo-wide “contract lock” (guardrails)
 
 - [ ] Add a CI/doc gate that rejects:
-  - [ ] UISurface code reading Temporal visibility/history for product Kanban truth
+  - [ ] UISurface code reading orchestration-runtime visibility/history for product Kanban truth
   - [ ] bespoke kanban proto/service shapes that diverge from `ameide_core_proto.platform.kanban.v1`
 - [ ] Add a proto/API gate that rejects Kanban services without paging/deltas in request/response shapes.
 - [ ] Add a compatibility note: this plan assumes **no backward compatibility**; remove/replace bespoke APIs.
@@ -87,7 +87,7 @@ Goal: the **same** Kanban query + updates interface is available to every capabi
 
 - [x] Implement `packages/ameide_core_proto/src/ameide_core_proto/platform/kanban/v1/kanban.proto` as described in `backlog/618-kanban-proto-contracts.md`.
 - [x] Implement `KanbanQueryService` and `KanbanUpdatesService` protos in `ameide_core_proto.platform.kanban.v1`.
-- [x] Regenerate SDKs (Go/TS/Python) and enforce “SDK-only imports” in runtime code (`backlog/520-primitives-stack-v2.md`).
+- [x] Regenerate SDKs (Go/TS/Python) and enforce “SDK-only imports” in runtime code (`backlog/520-primitives-stack-v6.md`).
 - [ ] Define and publish canonical `process_definition_id` strings for existing processes (multi-domain):
   - [x] `transformation.r2r.v1`
   - [ ] `sales.funnel.v1` (or the approved sales process key)
@@ -142,11 +142,11 @@ Goal: every process emits **phase-first** progress facts in a way that Kanban ca
   - [ ] optional opt-in: `StepCompleted/StepFailed` (with `step_id` + `step_instance_id`)
   - [x] Transformation: emits `RunStarted`, `PhaseEntered`, `Awaiting`, and terminal (`RunCompleted` / `RunFailed`)
 - [ ] Enforce idempotency:
-  - [x] Transformation: process progress facts emitted via Activities/ports (at-least-once safe)
-  - [x] Transformation: `message_id` stable under retries and across Continue-As-New boundaries
-- [ ] Ensure workflows use correct Temporal identity naming (WorkflowID vs RunID):
-  - [x] Transformation: `process_instance_id = WorkflowID`
-  - [x] Transformation: `process_run_id = RunID`
+  - [x] Transformation: process progress facts emitted via an idempotent seam (at-least-once safe)
+  - [x] Transformation: `message_id` stable under retries
+- [ ] Ensure identity field mapping is correct per runtime:
+  - [ ] `process_instance_id` is the engine instance identifier (stringified where needed)
+  - [ ] `process_run_id` is optional and must not be required for Zeebe/Flowable
   - [x] Transformation: `run_epoch + seq` for ordering (phase-first, avoid step-spam)
 - [ ] Add “phase budget” rule to prevent history explosion:
   - [x] Transformation: phase transitions are the default; step-level evidence is opt-in per process/step type
@@ -208,8 +208,8 @@ Goal: one consistent Kanban UX across domains, and boards as gateways to the rig
 Cluster is not assumed available for this backlog. “Done” is enforced by **unit tests and mock integration tests**.
 
 - [ ] Process tests:
-  - [ ] progress fact emission is stable under Activity retries (no duplicate user-visible progress)
-  - [ ] Continue-As-New dedupe strategy is correct (where used)
+  - [ ] progress fact emission is stable under retries (no duplicate user-visible progress)
+  - [ ] dedupe strategy is correct where a runtime can emit duplicates (at-least-once reality)
 - [ ] Projection tests:
   - [ ] idempotent inbox dedupe by `message_id`
   - [ ] deterministic apply with multi-stream ordering rule

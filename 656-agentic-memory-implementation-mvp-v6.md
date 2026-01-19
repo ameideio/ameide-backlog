@@ -18,8 +18,8 @@ This MVP implementation is split into **end-to-end increments** (each increment 
 
 **Contract (current):** `backlog/656-agentic-memory-v6.md` (memory model TBD)  
 **Implementation plan (current):** `backlog/656-agentic-memory-implementation-v6.md`  
-**Historical contract:** `backlog/656-agentic-memory.md`  
-**Historical plan:** `backlog/656-agentic-memory-implementation.md`
+**Historical contract:** `backlog/656-agentic-memory-v1.md`  
+**Historical plan:** `backlog/656-agentic-memory-implementation-v1.md`
 
 ## Versioning
 

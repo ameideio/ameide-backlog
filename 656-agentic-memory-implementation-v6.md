@@ -6,7 +6,7 @@ owners:
   - transformation
 created: 2026-01-18
 supersedes:
-  - 656-agentic-memory-implementation.md
+  - 656-agentic-memory-implementation-v1.md
 related:
   - 656-agentic-memory-v6.md
   - 694-elements-gitlab-v6.md
