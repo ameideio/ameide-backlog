@@ -38,10 +38,29 @@ AKS can overwrite it and/or ArgoCD will continuously drift. Worse, workloads can
   - `scripts/ci/check-aks-storageclass-collision.sh`
   - wired into `.github/workflows/helm-test.yaml`
 
+## Detection signal (how we know “this is AKS”)
+
+The repo uses the cluster type as an explicit signal in both rendering and GitOps:
+
+- ArgoCD uses `config/clusters/azure.yaml` (`clusterType: azure`) vs `config/clusters/local.yaml` (`clusterType: local`)
+- Value layering includes `sources/values/cluster/{clusterType}/globals.yaml`
+- Charts should treat `global.ameide.cluster.type` as the authoritative indicator (`azure` vs `local`)
+
+## Remediation playbook (if a collision ever happens)
+
+1. Remove GitOps ownership of the colliding `StorageClass` (delete/stop applying the manifest in Git).
+2. Let AKS reconcile its built-in classes back to the Azure CSI provisioners.
+3. Verify: `kubectl get storageclass managed-csi -o jsonpath='{.provisioner}'` returns `disk.csi.azure.com`.
+4. Confirm the default class annotation is correct (`storageclass.kubernetes.io/is-default-class`).
+5. Re-run CI and confirm ArgoCD is `Synced` with no StorageClass drift.
+
 ## Follow-ups (recommended)
 
-- Rename local StorageClasses away from AKS-reserved names (optional but safer long-term).
-- Add a render-time guardrail for any other chart that could introduce `StorageClass` objects on AKS.
+**Required**
+- Rename local StorageClasses away from AKS-reserved names (see `700`).
+
+**Recommended**
+- Add a render-time guardrail for any other chart that could introduce `StorageClass` objects on AKS (end state: “no StorageClass kind renders when clusterType=azure”).
 
 ## Notes (ArgoCD drift prevention)
 
