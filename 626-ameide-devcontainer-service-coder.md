@@ -81,7 +81,7 @@ Related: `backlog/527-transformation-integration.md` (workbench pod is “not a 
    - kubectl context defaults scoped to the workspace namespace (if kubectl is included)
    - standard Ameide toolchain required for editing and repo workflows
 - Codex out-of-the-box:
-  - `codex` CLI installed deterministically (pinned via `DEVCONTAINER_CODEX_VERSION`, default `0.57.0`; override only for explicit testing).
+  - `codex` CLI installed deterministically (pinned via `DEVCONTAINER_CODEX_VERSION`, default `0.87.0`; override only for explicit testing).
   - Authentication uses slot secrets when present (`Secret/codex-auth-rotating-0..2` preferred; falls back to `Secret/codex-auth-0..2`; see `backlog/613-codex-auth-json-secret.md`).
     - Default policy: `CODEX_ACCOUNT_SLOT=auto` (non-fatal if no secret is present yet).
     - Automation policy: `CODEX_ACCOUNT_SLOT=0|1|2` (fail-fast if the requested slot secret is missing).
