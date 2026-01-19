@@ -30,30 +30,32 @@ GitOps applied a stopgap to keep production SSO verification green by emitting t
 
 - GitOps sets **environment wiring only** (URLs, cookie domains, Keycloak issuer/endpoints, Redis, etc.).
 - `www-ameide-platform` derives tenant/org context from the **auth session** (JWT + middleware headers), not from GitOps values.
-- “Default org” selection is identity-driven and deterministic:
-  - If the token/session includes an explicit default org claim, use it.
-  - Else, resolve organizations from platform APIs and pick a deterministic default (e.g., smallest slug, newest membership, or “home org” policy), then persist it in the session.
+- There are **no deterministic defaults** for organization selection:
+  - If the user has an explicit, user-configured preference/claim (e.g., `ameide_active_org`), it may be used.
+  - Otherwise, the app must prompt the user to select an organization (and only then persist the selection in the session).
 
 ---
 
 ## Proposed implementation
 
-### A) Keycloak: emit a default org claim
+### A) Keycloak: emit org context (membership and/or explicit preference)
 
-Add a Keycloak protocol mapper (client scope or per-client) that emits a claim such as:
+Add Keycloak protocol mappers (client scope or per-client) that emit:
 
-- `ameide_default_org` (string slug or stable org id)
+- `ameide_orgs` (list of org slugs/ids) OR reuse `groups` as the membership carrier
+- optionally `ameide_active_org` (explicit per-user preference, not inferred by sorting)
 
-Source options (choose one, keep it explicit):
+Source options (choose one, keep it explicit and non-inferred):
 
-1. User attribute (e.g. `default_org=atlas`)
-2. Group attribute / role mapping (e.g. first matching group → org)
-3. Realm-level config attribute for “bootstrap org” for service accounts (avoid for user traffic)
+1. User attributes (e.g. `ameide_orgs=["atlas","..."]`, `ameide_active_org="atlas"`)
+2. Group membership mapping (`/orgs/<slug>` groups) → `groups` claim, with app-side parsing
+3. Service accounts: prefer explicit user attributes over realm-wide fallbacks; avoid realm-level “bootstrap org” for user traffic
 
 ### B) Frontend: stop requiring env var; read from session/token
 
 - Remove the hard requirement that forces `*_DEFAULT_ORG` env vars to exist.
-- Prefer claim(s) from the session token over env vars.
+- Prefer org membership + explicit preference claims from the session token over env vars.
+- If no active org is present, redirect to an organization selection flow (no implicit selection).
 - Keep env vars only as temporary compatibility fallback (and log a deprecation warning when used).
 
 ### C) GitOps: remove org default from desired state
