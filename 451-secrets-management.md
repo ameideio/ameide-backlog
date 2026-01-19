@@ -280,7 +280,7 @@ Cluster-scoped workloads also need docker credentials. The shared template accep
 
 Some third-party secrets are minted once in a vendor UI/API and are stored directly in Vault (instead of `.env`/AKV), then synced into Kubernetes via ExternalSecrets:
 
-- GitLab API tokens: `secret/gitlab/tokens/<env>/<service>` → `ExternalSecret/<service>-gitlab-api-token` → `Secret/gitlab-api-credentials` (`GITLAB_TOKEN`, `GITLAB_API_URL`) per `backlog/710-gitlab-api-token-contract.md`.
+- GitLab API tokens: store as a flat key (e.g., `backstage-gitlab-token`) in the external source, map into Vault (`secret/gitlab/tokens/<env>/backstage`), then sync: `ExternalSecret/backstage-gitlab-api-token` → `Secret/gitlab-api-credentials` (`GITLAB_TOKEN`, `GITLAB_API_URL`) per `backlog/710-gitlab-api-token-contract.md`.
 
 ### Secrets NOT in Azure KV (Cluster-Managed)
 

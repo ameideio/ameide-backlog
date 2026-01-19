@@ -28,7 +28,7 @@ GitLab tokens have historically been consumed on an ad-hoc basis (e.g., Backstag
 
 ## 3. GitOps delivery contract
 
-- **Source of truth:** Vault KVv2 (`secret/gitlab/tokens/<env>/<service>`, key `value`). This path convention keeps tenant/env separation obvious and maintains a single address for policy allowlists.
+- **Source of truth:** Vault KVv2 (`secret/gitlab/tokens/<env>/<service>`, key `value`). In shared cloud environments, populate this key via the existing secret pipeline (AKV/local → `vault-bootstrap` → Vault) using `azure.keyVault.mappedSecrets` when the AKV secret name cannot match the Vault key.
 - **ArgoCD workload:** `foundation-gitlab-api-credentials` (new) renders a configurable set of `ExternalSecret` resources. Each entry:
   - lives in the consuming namespace,
   - points to Vault via `SecretStore/ameide-vault`,
@@ -43,13 +43,15 @@ GitLab tokens have historically been consumed on an ad-hoc basis (e.g., Backstag
 
 1. Create a project or group access token in GitLab (UI or API). [3][4]
 2. Copy the token once; GitLab only shows it during creation. [4]
-3. Write the token into Vault at `secret/gitlab/tokens/<env>/<service>` (`value: "<token>"`).
+3. Store the token in the external secret source (preferred) and let `vault-bootstrap` map it into Vault:
+   - Put a flat key like `backstage-gitlab-token` into AKV (or local seed file).
+   - Configure `azure.keyVault.mappedSecrets: [{from: backstage-gitlab-token, to: gitlab/tokens/<env>/backstage}]` so `vault-bootstrap` writes `secret/gitlab/tokens/<env>/backstage` with `value: "<token>"`.
 4. Allow ESO to refresh (default `refreshInterval: 1h`). Verify `ExternalSecret/<service>-gitlab-api-token` reports `Ready=True` and `Secret/gitlab-api-credentials` exists in the target namespace.
 5. Configure the consuming workload to read `GITLAB_TOKEN`/`GITLAB_API_URL`. No in-cluster automation should mint tokens by default; automated issuance would require a privileged bootstrap identity and is tracked separately.
 
 ## 5. Scope answers
 
-- **“Is this already set?”** — Not today. Only isolated charts (Backstage) ship their own GitLab token secret. There is no declarative, cluster-wide contract.
+- **“Is this already set?”** — Not previously. GitLab tokens were consumed ad-hoc (per-chart), without a declarative, cluster-wide contract.
 - **“Can GitOps provide it?”** — Yes. Vault already supplies GitLab’s OIDC secrets via ExternalSecrets, so extending that pattern to API tokens keeps the source of truth consistent and reuses the existing ESO plumbing.
 
 ## 6. Status (2026-01-19) and next steps
