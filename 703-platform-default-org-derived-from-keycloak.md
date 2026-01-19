@@ -40,6 +40,24 @@ GitOps applied a stopgap to keep production SSO verification green by emitting t
 
 ### A) Keycloak: emit org context (membership and/or explicit preference)
 
+**Preferred contract (vendor feature): Keycloak Organizations**
+
+If we adopt Keycloak’s Organizations feature, we should lean on its documented scope/claim semantics rather than inventing new claims:
+
+- Use an “all orgs” membership scope (e.g. `organization:*`) to obtain the full membership list without forcing selection at login.
+- Only use an “active org” scope (e.g. `organization` / `organization:<alias>`) if we explicitly want Keycloak to drive org selection during authentication.
+
+The important invariant remains: **no implicit selection when multiple orgs exist**.
+
+**Current reality (already in GitOps): group-derived membership claim**
+
+Today the Keycloak realm import already defines a client scope named `organizations` that maps group membership into an `org_groups` claim (full group paths). This is sufficient to carry “org membership list” without adopting the Organizations feature yet.
+
+If we keep this path:
+
+- Treat `org_groups` as the membership list input.
+- Use explicit user choice to set `activeOrg` in the app session (never infer it from ordering).
+
 Add Keycloak protocol mappers (client scope or per-client) that emit:
 
 - `ameide_orgs` (list of org slugs/ids) OR reuse `groups` as the membership carrier
@@ -55,7 +73,7 @@ Source options (choose one, keep it explicit and non-inferred):
 
 - Remove the hard requirement that forces `*_DEFAULT_ORG` env vars to exist.
 - Prefer org membership + explicit preference claims from the session token over env vars.
-- If no active org is present, redirect to an organization selection flow (no implicit selection).
+- If no active org is present and membership is ambiguous, redirect to an organization selection flow (no implicit selection).
 - Keep env vars only as temporary compatibility fallback (and log a deprecation warning when used).
 
 ### C) GitOps: remove org default from desired state
