@@ -12,7 +12,7 @@
 > | [464-chart-folder-alignment.md](464-chart-folder-alignment.md) | Chart locations for vault-*, external-secrets |
 > | [426-keycloak-config-map.md](426-keycloak-config-map.md) | OIDC client secrets pattern (§3.2) |
 >
-> **Related**: [444-terraform.md](444-terraform.md), [449-per-environment-infrastructure.md](449-per-environment-infrastructure.md), [450-argocd-service-issues-inventory.md](450-argocd-service-issues-inventory.md), [452-vault-rbac-isolation.md](452-vault-rbac-isolation.md), [462-secrets-origin-classification.md](462-secrets-origin-classification.md)
+> **Related**: [444-terraform.md](444-terraform.md), [449-per-environment-infrastructure.md](449-per-environment-infrastructure.md), [450-argocd-service-issues-inventory.md](450-argocd-service-issues-inventory.md), [452-vault-rbac-isolation.md](452-vault-rbac-isolation.md), [462-secrets-origin-classification.md](462-secrets-origin-classification.md), [695-gitlab-configuration-gitops.md](695-gitlab-configuration-gitops.md), [710-gitlab-api-token-contract.md](710-gitlab-api-token-contract.md)
 
 ---
 
@@ -275,6 +275,12 @@ Cluster-scoped workloads also need docker credentials. The shared template accep
 | `LANGFUSE_SECRET_KEY` | `langfuse-secret-key` | `secret/langfuse-secret-key` | `langfuse-secrets` |
 | `ANTHROPIC_API_KEY` | `anthropic-api-key` | `secret/anthropic-api-key` | `inference-api-credentials` |
 | `OPENAI_API_KEY` | `openai-api-key` | `secret/openai-api-key` | `inference-api-credentials` |
+
+### Vault-authored third-party secrets (not in Azure KV)
+
+Some third-party secrets are minted once in a vendor UI/API and are stored directly in Vault (instead of `.env`/AKV), then synced into Kubernetes via ExternalSecrets:
+
+- GitLab API tokens: `secret/gitlab/tokens/<env>/<service>` → `ExternalSecret/<service>-gitlab-api-token` → `Secret/gitlab-api-credentials` (`GITLAB_TOKEN`, `GITLAB_API_URL`) per `backlog/710-gitlab-api-token-contract.md`.
 
 ### Secrets NOT in Azure KV (Cluster-Managed)
 

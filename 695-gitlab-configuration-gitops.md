@@ -7,6 +7,8 @@ created: 2026-01-19
 related:
   - 694-elements-gitlab-v6.md
   - 496-eda-principles-v6.md
+  - 451-secrets-management.md
+  - 710-gitlab-api-token-contract.md
 ---
 
 # 695 — GitLab (CE) GitOps Configuration Tracking
@@ -61,6 +63,7 @@ GitLab is treated as a **platform-owned subsystem**:
 - Fixed hostname assembly footgun by removing the `global.hosts.gitlab.name: gitlab` override so the chart assembles `gitlab.<domain>`.
 - Disabled GitLab chart `upgradeCheck` under ArgoCD to avoid Helm hook failures blocking first installs (GitOps rollouts).
 - Switched GitLab object storage to the shared in-namespace MinIO (`data-minio`) and disabled GitLab’s bundled MinIO chart (temporary posture; see “Object storage”).
+- Standardized in-cluster GitLab API token delivery (Vault → ExternalSecret → `Secret/gitlab-api-credentials`) via `foundation-gitlab-api-credentials` (`backlog/710-gitlab-api-token-contract.md`).
 - OIDC integration is now fully GitOps-managed (no placeholder secrets):
   - Keycloak client `gitlab` is reconciled per environment (redirect URIs match `gitlab.<env>.ameide.io`).
   - `client-patcher` extracts the Keycloak-generated secret into Vault key `gitlab-oidc-client-secret`.
@@ -190,6 +193,7 @@ Decide and document (matrix) which secrets are:
 - **Vault/ExternalSecrets supplied** (authoritative, stable per environment)
   - GitLab OIDC client secret (Keycloak-generated → client-patcher → Vault): `gitlab-oidc-client-secret`
   - GitLab OmniAuth provider Secret rendered from Vault: `Secret/gitlab-oidc-provider` (key `provider`)
+  - GitLab API access tokens surfaced via the shared `gitlab-api-credentials` ExternalSecret contract (`backlog/710-gitlab-api-token-contract.md`)
 - **Chart-generated** (acceptable to generate, but must be understood and monitored)
   - Initial root password secret (break-glass only)
   - Internal TLS, SSH host keys, and other shared secrets (if we keep ingress disabled, TLS is still relevant for internal components)
