@@ -44,6 +44,7 @@ GitLab is treated as a **platform-owned subsystem**:
     - Smokes: `environments/local/components/platform/developer/gitlab-smoke/component.yaml`
 - Wrapper chart (routes + secrets wiring): `sources/charts/platform/gitlab`
 - Vendored upstream chart: `sources/charts/third_party/gitlab/gitlab/9.6.1` (appVersion `18.6.1`)
+- CE/OSS is explicitly enforced via `gitlab.global.edition=ce` (GitLab chart defaults to EE otherwise).
 - Ingress disabled; exposure via Gateway API `HTTPRoute`: `sources/charts/platform/gitlab/templates/httproute.yaml`
 - OIDC provider is sourced from Vault via ExternalSecrets: `sources/charts/platform/gitlab/templates/externalsecret.yaml`
 - `gitlab-runner` is disabled in values (no in-cluster runner install by default).
@@ -178,10 +179,26 @@ Decide and document (matrix) which secrets are:
 - **Tools/version prerequisites (upstream):** keep `kubectl` within one minor of the cluster; use Helm v3.17.3+ and avoid Helm v3.18.0 per GitLab’s prerequisites docs.
 - **Hostname assembly:** prefer `gitlab.global.hosts.domain` per environment; only set `gitlab.global.hosts.gitlab.name` when providing a full hostname override (FQDN).
 - **Gateway API routing:** GitLab web UI is routed via `HTTPRoute`; Git SSH requires L4 (`TCPRoute` or equivalent) and a Gateway implementation that supports it (tie back to `global.hosts.ssh` and `global.shell.port`).
+- **Gateway API maturity:** GitLab chart’s Gateway API support is vendor-documented as beta; keep our wrapper resources explicit and treat Gateway routing changes as breaking until rehearsed in `dev`/`staging`.
 - **Ingress-nginx retirement:** do not build a future plan that depends on ingress-nginx after March 2026; if ingress is used, document the supported controller posture explicitly.
 - **Globals collision (`registry`):** this repo uses a top-level `registry: <string>` convention; upstream GitLab chart uses a top-level `registry:` object. Current wrapper values force `registry.enabled=false` to avoid Helm coalesce type errors, but this can unintentionally block configuring/enabling GitLab’s Container Registry.
 - **Vault policy allowlist:** the `keycloak-client-patcher` Vault policy must include `secret/data/gitlab-*` so `gitlab-oidc-client-secret` can be written deterministically.
 - **Production warning (upstream):** default “all-in-cluster” installs are PoC; production requires a cloud-native hybrid posture (external PostgreSQL/Redis/object storage/Gitaly) and careful sizing.
+
+## Admin bootstrap (CE-safe, pending-approval flow)
+
+With `blockAutoCreatedUsers=true`, the CE-safe posture is:
+
+1. Operator signs in once via OIDC → GitLab JIT-creates the user in **pending approval** state.
+2. Platform/operator approves the user.
+3. Platform/operator promotes the user to admin if required.
+
+Decision to record (pick one and keep it deterministic):
+
+- **Runbook posture (simplest):** use break-glass admin credentials once to approve + promote `admin@ameide.io`.
+- **GitOps hook posture (fully automatable):** add a one-time Job (Argo hook) that calls GitLab APIs to approve + promote `admin@ameide.io` after first OIDC sign-in.
+
+In either case, document where the bootstrap admin credential lives (Vault), and how it is rotated/disabled after bootstrap.
 
 ## Contract checkpoints (what “good” looks like)
 
