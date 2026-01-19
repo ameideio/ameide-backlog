@@ -57,9 +57,12 @@ The non-negotiable rule still holds: **the diagram must not lie**.
     - `processes/<module>/<process_key>/v<major>/process.bpmn`
     - optional: `processes/<module>/<process_key>/v<major>/bindings.yaml` (portable binding metadata / policy hooks)
     - optional: `processes/<module>/<process_key>/v<major>/README.md` (functional intent + gates)
+  - Vendor-correct naming:
+    - `process_key` SHOULD equal the BPMN `<process id="...">` (runtime key semantics across Zeebe/Flowable).
   - Versioning rules:
     - **Major** is encoded in the path (`v<major>`).
     - **Minor/patch** are Git commits on `main` (optionally tagged), anchored by commit SHA for auditability.
+    - Recommended major policy: a major bump SHOULD introduce a new BPMN process id (new `process_key`) to avoid breaking changes in one runtime key’s version chain; instance migration across majors is explicitly TBD.
   - A Process primitive is the runtime implementation (worker + deploy logic) that executes the **published** process definition version.
   - This makes process orchestration “definition-driven”: agents/humans change the governed artifact; the Process primitive executes it.
   - **Gap (TBD):** multi-tenant mapping rules for deploying tenant-specific process versions without collisions (flagged; not addressed here).

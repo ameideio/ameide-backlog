@@ -41,11 +41,27 @@ This backlog aligns the Ameide Platform UI “Repository” experience with the 
 7) Platform merges the MR into `main` and records immutable audit pointers (MR id, pipeline id, commit SHA).
 8) Projections refresh (index/search/graph/timeline) from owner facts and/or baseline change signals.
 
+Vendor-correct refinements (GitLab):
+
+- The Domain should prefer GitLab’s **Commit API** for “editor save” operations (single commit with multiple file actions on a branch).
+- Idempotent updates must be concurrency-safe: use GitLab commit actions guarded by `last_commit_id` (avoid lost updates when two writers race).
+- MR state is eventually consistent: the Domain must tolerate asynchronous population of mergeability/diff/approval fields.
+- Merge should be performed using GitLab’s merge endpoint keyed by merge request **IID** (not an internal DB id), and record merge/squash commit SHAs according to strategy.
+- “Checks run” means GitLab MR pipelines; “merge result correctness” may require merged-results pipelines depending on posture.
+- Optional-but-recommended: use GitLab **External Status Checks** to let GitLab enforce “platform says OK” without giving users GitLab access.
+
 ### ProcessDefinitions in the Enterprise Repository
 
 Under v6, ProcessDefinitions (aka “workflow definitions”) are **design-time governed artifacts stored as Git-backed elements** in the Enterprise Repository (not in a Definition Registry, and not in a separate custom workflow-definition subsystem).
 
 They are authored as BPMN and later deployed to the selected BPMN runtime(s) (Zeebe/Camunda 8 and Flowable).
+
+Vendor-correct definitions:
+
+- `process_key` should equal the BPMN `<process id="...">` (runtime “key” semantics).
+- “Major version” (`v<major>/`) is a platform semantic layered over vendor deployment versions. Recommended posture:
+  - a **major bump requires a new BPMN process id** (new `process_key`) to avoid mixing breaking changes into one runtime version chain.
+  - instance migration policy (moving running instances to a new version) is explicitly **TBD**.
 
 ```text
 processes/<module>/<process_key>/v<major>/process.bpmn
@@ -57,6 +73,12 @@ Promoting a ProcessDefinition (at a high level):
 - validate against the target runtime (Zeebe/Camunda 8 or Flowable),
 - deploy the Process primitive worker implementation that provides the BPMN task side-effects,
 - roll out safely and observe (progress/timeline).
+
+Vendor-correct deployment notes:
+
+- Camunda 8 deploys BPMN resources via a deployment endpoint (atomic resource deployment; size limits apply).
+- Flowable typically deploys via BAR/ZIP (multipart), scanning BPMN resources within the archive.
+- Cross-runtime portability is a goal but not guaranteed; runtime-specific extensions may require constraints or variants.
 
 Placement in the TOGAF hierarchy: ProcessDefinitions are part of the Architecture Repository. The UI should surface them under the appropriate TOGAF category (typically Architecture Capability), even if their canonical storage path is `processes/**`.
 
@@ -164,9 +186,15 @@ Minimum queries needed to build a TOGAF-first repository browser:
 Minimum commands needed for “edit elements with governance”:
 
 - begin/ensure a change (branch + MR) scoped to a repository
-- commit/update element content on the change branch (idempotent)
+- commit/update element content on the change branch (idempotent; use Commit API + `last_commit_id` guards)
 - request/record approvals (governance truth)
 - merge/publish (merge MR → `main`, record audit pointers, emit facts)
+
+Vendor-aligned notes:
+
+- Treat MR readiness as eventually consistent; automation must sometimes wait for MR processing to stabilize before acting.
+- If GitLab approvals are used as enforcement, approvals must be applied by eligible identities and guarded against stale diffs (SHA/patch id).
+- Prefer GitLab-protected branch enforcement using external status checks when “platform DB is the governance truth”.
 
 ## Deprecations / replacements implied by v6
 
@@ -199,3 +227,9 @@ This backlog makes the following direction explicit:
 - Multi-tenancy boundaries for process catalogs and any shared template repos (default is tenant-owned repos; details TBD).
 - Agent memory model and citations under Git-first (“memory is projection” is accepted; specifics TBD).
 - Level of code graph indexing (reuse external graph indexers vs build in-house); treated as projection implementation detail.
+- GitLab identity strategy:
+  - service-account commits + platform DB as authoritative audit trail (default), vs
+  - per-user authorship/approvals in GitLab (requires delegated identity/tokens and must reconcile with commit signing/approval eligibility).
+- Enforcement posture:
+  - GitLab as “storage + CI substrate” only, vs
+  - GitLab as “enforcement substrate” using protected branches + required pipelines + external status checks.
