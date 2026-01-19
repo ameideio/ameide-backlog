@@ -61,8 +61,11 @@ See `backlog/694-elements-gitlab-v6.md` for the normative platform decisions beh
 - Integration posture: `backlog/496-eda-principles-v6.md`
 - Process packaging + semantics: `backlog/527-transformation-process-v4.md`
 - Domain ownership posture (Git-backed): `backlog/527-transformation-domain-v3.md`
-- Executable BPMN (current): `primitives/process/transformation_v4/bpmn/process.bpmn`
+- Design-time ProcessDefinition (target): `processes/transformation/v4/process.bpmn` (in the tenant Enterprise Repository; published by advancing `main`)
+- Executable BPMN fixture (current repo implementation): `primitives/process/transformation_v4/bpmn/process.bpmn`
 - Worker implementation (current): `primitives/process/transformation_v4/`
+
+**Gap (TBD):** tenant-owned ProcessDefinitions require explicit runtime mapping rules (tenant → deployed workflow identity/version). This v6 narrative flags the gap but does not address multi-tenancy mechanics.
 
 ## The two invariants (v6)
 

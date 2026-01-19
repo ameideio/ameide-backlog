@@ -42,8 +42,11 @@ Define how the Transformation governance process is shipped as a Process primiti
 ## Canonical assets
 
 - Narrative (latest): `backlog/527-transformation-e2e-sequence-v6.md`
-- Executable shape (current): `primitives/process/transformation_v4/bpmn/process.bpmn`
-- Implementation (current): `primitives/process/transformation_v4/`
+- Design-time ProcessDefinition (target): `processes/transformation/v4/process.bpmn` (in the tenant Enterprise Repository; published by advancing `main`)
+- Executable BPMN fixture (current repo implementation): `primitives/process/transformation_v4/bpmn/process.bpmn`
+- Worker implementation (current): `primitives/process/transformation_v4/`
+
+**Gap (TBD):** when ProcessDefinitions are tenant-owned artifacts, the runtime mapping (tenant → deployed workflow identity/version) must be specified to avoid collisions. This spec flags the gap but does not solve it.
 
 ## Job types (request steps)
 

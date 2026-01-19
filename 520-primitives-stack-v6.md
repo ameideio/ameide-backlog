@@ -51,6 +51,11 @@ The non-negotiable rule still holds: **the diagram must not lie**.
 
 - BPMN Process primitives = Zeebe deployments + worker microservices implementing side effects.
 - Long work is modeled as explicit BPMN wait states and resumed by message correlation (request→wait→resume).
+- **ProcessDefinitions are design-time governed artifacts stored in the tenant Enterprise Repository.**
+  - BPMN is authored and versioned as files in the tenant repository and published by advancing the baseline (`main`).
+  - A Process primitive is the runtime implementation (worker + deploy logic) that executes the **published** process definition version.
+  - This makes process orchestration “definition-driven”: agents/humans change the governed artifact; the Process primitive executes it.
+  - **Gap (TBD):** multi-tenant mapping rules for deploying tenant-specific process versions without collisions (flagged; not addressed here).
 
 ### B) Integration posture (hybrid)
 
@@ -91,4 +96,3 @@ The Ameide CLI is the guardrails tool:
 
 - `backlog/511-*` Process primitive scaffolding/compiler docs that assume Temporal-backed business orchestration are superseded by the Zeebe-based direction.
 - EDA posture docs are superseded by `backlog/496-eda-principles-v6.md` (hybrid + `io.ameide.*`).
-

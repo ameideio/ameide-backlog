@@ -31,7 +31,8 @@ Done means, in dev (when the cluster is ready):
 ## Current status (as of 2026-01-14)
 
 Completed in core repo (not yet deployed):
-- v4 BPMN exists with four processes in `primitives/process/transformation_v4/bpmn/process.bpmn`.
+- Design-time ProcessDefinition (target): `processes/transformation/v4/process.bpmn` (tenant Enterprise Repository; published by advancing `main`).
+- Executable BPMN fixture (current repo implementation): v4 BPMN exists with four processes in `primitives/process/transformation_v4/bpmn/process.bpmn`.
 - v4 domain proto facts exist (`io.ameide.transformation.r2d.v4.*`) and use `stable_type` strings that match BPMN message names.
 - v4 agent scaffolds exist for all 3 agent kinds:
   - `primitives/agent/transformation-requirements-v4` (LangGraph),
@@ -93,7 +94,8 @@ This increment is complete when `go test ./primitives/process/transformation_v4/
 Goal: prove the process primitive can be deployed and exercised in Zeebe without relying on a local cluster harness.
 
 Deliver:
-- `primitives/process/transformation_v4/bpmn/process.bpmn` includes all four processes and uses vendor-honest wait states.
+- The published ProcessDefinition (`processes/transformation/v4/process.bpmn`) is the canonical source of truth.
+- The repo fixture BPMN (`primitives/process/transformation_v4/bpmn/process.bpmn`) remains vendor-honest (wait states) until the runtime loads/deploys directly from the tenant repo package.
 - `primitives/process/transformation_v4/cmd/worker` implements all job types (short/idempotent handlers).
 - `primitives/process/transformation_v4/cmd/smoke` exists and runs in-cluster:
   - deploys BPMN + forms (if applicable),

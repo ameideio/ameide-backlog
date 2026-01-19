@@ -40,7 +40,8 @@ This document is the **non-repeating** foundation for:
 ## Status (as of 2026-01-13)
 
 Implemented in repo (not yet deployed):
-- `primitives/process/transformation_v4/bpmn/process.bpmn` contains the **four v4 processes** and uses `io.ameide.*` message names.
+- Design-time ProcessDefinition (target): `processes/transformation/v4/process.bpmn` (tenant Enterprise Repository; published by advancing `main`).
+- Executable BPMN fixture (current repo implementation): `primitives/process/transformation_v4/bpmn/process.bpmn` contains the **four v4 processes** and uses `io.ameide.*` message names.
 - `primitives/domain/transformation` was refactored to a minimal v4 R2D command surface + v4 fact stable types.
 - v4 agent scaffolds exist for all 3 agent kinds:
   - `primitives/agent/transformation-requirements-v4` (langgraph)
