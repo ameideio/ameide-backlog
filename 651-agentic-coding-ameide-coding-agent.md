@@ -188,7 +188,7 @@ Deliver at least these BPMN workflows:
 
 - Update/retire `backlog/527-*.md` references for “agent work execution substrate”.
 - Update `backlog/621-ameide-cli-inner-loop-test.md` to remove Telepresence assumptions (or replace with 653).
-- Create a concise “how to run a task locally” section in `backlog/652-agentic-coding-dev-workspace.md`.
+- Create a concise “how to run a task locally” section in `backlog/652-agentic-coding-dev-workspace-coder.md`.
 - Add profile-specific `AGENTS.md` templates and ensure Coder templates reference them (see 650).
 
 ## 6) Testing

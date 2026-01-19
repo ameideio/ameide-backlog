@@ -9,7 +9,7 @@ created: 2026-01-11
 
 # 627 – AmeideDevContainerService adoption: backlog + implementation impact (update/remove plan)
 
-> Superseded by `backlog/650-agentic-coding-overview.md`, `backlog/652-agentic-coding-dev-workspace.md`, and `backlog/654-agentic-coding-cli-surface.md`.
+> Superseded by `backlog/650-agentic-coding-overview.md`, `backlog/652-agentic-coding-dev-workspace-coder.md`, and `backlog/654-agentic-coding-cli-surface-coder.md`.
 
 ## 0) Intent
 

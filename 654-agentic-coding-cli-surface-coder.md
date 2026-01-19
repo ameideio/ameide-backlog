@@ -31,6 +31,11 @@ This backlog inherits the internal-first model from `backlog/650-agentic-coding-
 - Coder workspace Phase 3 “innerloop routing” RBAC is now bootstrap-managed (predeclared roles + bind-only delegation) so workspace provisioning does not trip RBAC privilege-escalation guardrails.
 - `ameide test e2e` (Playwright) requires read access to the platform config and persona secrets; in Kubernetes-hosted workspaces/tasks this should be granted by binding a predeclared, narrowly-scoped env-reader role (not by creating ad-hoc Roles from workspace Terraform).
 
+Update (2026-01-19): `ameide test smoke` must detect code-server 502 causes
+
+- Observed failure mode: Coder app proxy returns `502 Bad Gateway` to the VS Code (Web) app due to a non-runnable cached code-server install after node pool churn (see 652 §4.2.1).
+- The CLI “platform smoke” front door must validate reachability (no `502`) and surface a clear remediation path (cache reset + workspace restart), without relying on kubectl access.
+
 ## 1) Decisions (normative for the CLI surface)
 
 ### 1.1 “No-brainer” means no flags for core verification
@@ -141,6 +146,7 @@ Notes:
 3. `ameide test smoke`
    - validates platform plumbing (Coder + template provisioning + code-server reachability)
    - does not validate the product itself
+   - must catch “workspace Running but app 502” failures (e.g., cached code-server wrong architecture) as a platform failure
 
 ### 5.3 Profile-aware guardrails (defense in depth)
 
@@ -223,7 +229,7 @@ Each phase produces JUnit in its phase directory.
 ## 9) References
 
 - Internal-first model: `backlog/650-agentic-coding-overview.md`
-- Test automation layers: `backlog/653-agentic-coding-test-automation.md`
+- Test automation layers: `backlog/653-agentic-coding-test-automation-coder.md`
 - Test taxonomy contract: `backlog/430-unified-test-infrastructure-v2-target.md`
 - Front door history: `backlog/468-testing-front-door.md`
 - Prior inner-loop design (superseded): `backlog/621-ameide-cli-inner-loop-test.md`

@@ -6,8 +6,8 @@
 
 > Superseded by the internal-only, Coder-based model:
 > - `backlog/650-agentic-coding-overview.md`
-> - `backlog/653-agentic-coding-test-automation.md`
-> - `backlog/654-agentic-coding-cli-surface.md`
+> - `backlog/653-agentic-coding-test-automation-coder.md`
+> - `backlog/654-agentic-coding-cli-surface-coder.md`
 >
 > This playbook is preserved for historical context only; Telepresence is not a platform dependency in the 650 suite.
 

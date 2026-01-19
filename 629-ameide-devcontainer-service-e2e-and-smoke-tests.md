@@ -10,7 +10,7 @@ created: 2026-01-11
 
 # 629 – AmeideDevContainerService E2E + smoke test specification (Coder workspace)
 
-> Superseded by `backlog/650-agentic-coding-overview.md` and `backlog/653-agentic-coding-test-automation.md`.
+> Superseded by `backlog/650-agentic-coding-overview.md` and `backlog/653-agentic-coding-test-automation-coder.md`.
 
 ## 0) Purpose
 

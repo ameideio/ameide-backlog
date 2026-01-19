@@ -147,15 +147,15 @@ Supported modes (must be made explicit in implementation + docs):
 - Normative phase split and `ameide test e2e`: `backlog/430-unified-test-infrastructure-v2-target.md`
 - Inner-loop front doors: `backlog/621-ameide-cli-inner-loop-test-v2.md`
 - Implementation plan: `backlog/692-cli-surface-implementation-plan.md`
-- Agentic workspace posture (Coder/Che): `backlog/650-agentic-coding-overview.md`, `backlog/652-agentic-coding-dev-workspace.md`, `backlog/690-agentic-dev-environments-coder-che.md`
+- Agentic workspace posture (Coder/Che): `backlog/650-agentic-coding-overview.md`, `backlog/652-agentic-coding-dev-workspace-coder.md`, `backlog/690-agentic-dev-environments-coder-che.md`
 - Historical “Tilt/Telepresence” loop (context only): `backlog/432-devcontainer-modes-offline-online.md`, `backlog/435-remote-first-development.md`
 
 ## Alignment checklist (follow-up edits required)
 
 This section records the docs that should be updated so the “diagram matches the code” once 691 is implemented.
 
-- `backlog/654-agentic-coding-cli-surface.md`: promote “optional interactive checks” into the concrete `ameide dev` command, and clarify that `ameide dev` (not `ameide test e2e`) owns workspace routing.
-- `backlog/653-agentic-coding-test-automation.md`: ensure the automation layer treats `ameide test e2e` as the deployed truth gate and `ameide dev` as the human hotreload loop.
+- `backlog/654-agentic-coding-cli-surface-coder.md`: promote “optional interactive checks” into the concrete `ameide dev` command, and clarify that `ameide dev` (not `ameide test e2e`) owns workspace routing.
+- `backlog/653-agentic-coding-test-automation-coder.md`: ensure the automation layer treats `ameide test e2e` as the deployed truth gate and `ameide dev` as the human hotreload loop.
 - `backlog/621-ameide-cli-inner-loop-test-v2.md`: remains the normative source for `ameide test smoke`. This doc intentionally does not define `smoke` even though the filename still includes it historically.
 - `backlog/441-networking.md`: cross-link the workspace dev routing contracts (allowedRoutes + Envoy→workspace NetworkPolicy + hostnames) to the general Gateway/DNS primitives.
 - `backlog/427-platform-login-stability.md`: add an explicit note about the canonical-host auth bounce + cookie-domain requirements used by `ameide dev`, since it intersects with existing redirect_uri / cookie-domain failure modes.

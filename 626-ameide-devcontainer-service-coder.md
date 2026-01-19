@@ -9,7 +9,7 @@ created: 2026-01-11
 
 # 626 – AmeideDevContainerService (Coder-based, human workspaces in AKS dev)
 
-> Superseded by `backlog/650-agentic-coding-overview.md`, `backlog/652-agentic-coding-dev-workspace.md`, `backlog/653-agentic-coding-test-automation.md`, and `backlog/654-agentic-coding-cli-surface.md`.
+> Superseded by `backlog/650-agentic-coding-overview.md`, `backlog/652-agentic-coding-dev-workspace-coder.md`, `backlog/653-agentic-coding-test-automation-coder.md`, and `backlog/654-agentic-coding-cli-surface-coder.md`.
 
 ## 0) Purpose
 
@@ -107,7 +107,7 @@ Update (2026-01-15): templates and “first user” after cluster recreate
   - If the dev cluster/namespace is recreated, CNPG PVCs can be recreated and the Coder DB will be fresh (templates/users gone).
   - Recovery procedure in dev is: ensure first-user bootstrap is enabled, then re-publish templates from Git via the CI workflow `.github/workflows/coder-devcontainer-e2e.yaml`.
   - Incident log: `backlog/677-coder-dev-templates-disappeared-after-cluster-recreate.md`.
-  - Clarification: the in-cluster ArgoCD “platform-smoke” component only validates routing/control-plane health; the platform smoke that proves workspace provisioning and app proxy path is currently owned by the GitHub workflows described in `backlog/653-agentic-coding-test-automation.md`.
+  - Clarification: the in-cluster ArgoCD “platform-smoke” component only validates routing/control-plane health; the platform smoke that proves workspace provisioning and app proxy path is currently owned by the GitHub workflows described in `backlog/653-agentic-coding-test-automation-coder.md`.
 
 ## 4) Dev environment contract (devcontainer alignment without Docker)
 

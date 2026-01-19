@@ -28,6 +28,12 @@ This document inherits all decisions from `backlog/650-agentic-coding-overview.m
 - Phase 3 workspace routing RBAC is now bootstrap-managed (predeclared roles + bind-only delegation) to avoid RBAC escalation failures during Terraform applies.
 - Known non-blocker: `coder show` “containers” warnings can occur in envbuilder-based workspaces because `docker` is intentionally not present.
 
+Update (2026-01-19): platform smoke must catch code-server cached-arch failures
+
+- Observed failure mode: a workspace pod can be `Running` while the VS Code (Web) app returns `502 Bad Gateway` because code-server never started.
+- Root cause: the code-server install is cached on the workspace PVC (`/workspaces/.code-server`) and can be for the wrong CPU architecture after node pool churn (e.g., amd64 cache reused on arm64 nodes), causing `Exec format error`.
+- Platform smoke must treat “app proxy path returns 502” as a platform failure and include a cache sanity check / remediation expectation.
+
 ## 0.1 Primary purpose of the CLI: reduce cognitive load for agents
 
 This monorepo spans multiple runtimes and vendor toolchains (Go/Node/Python/Playwright/Kubernetes).
@@ -82,6 +88,11 @@ Minimum checks:
 - Validate code-server is reachable via the Coder app proxy path (outside the workspace).
 - Validate a small in-workspace check (git works; toolchain present).
 - Delete the workspace and verify cleanup.
+
+Additional checks (to catch known failures):
+
+- Validate the VS Code (Web) app is not just routed, but actually responds (no `502`) and `/healthz` is reachable.
+- Validate the workspace does not have a non-runnable cached code-server install for the wrong CPU architecture (see 652 §4.2.1).
 
 Notes:
 
@@ -175,8 +186,8 @@ The following are deprecated by this model:
 ## 9) References
 
 - Normative decisions: `backlog/650-agentic-coding-overview.md`
-- Developer environment: `backlog/652-agentic-coding-dev-workspace.md`
+- Developer environment: `backlog/652-agentic-coding-dev-workspace-coder.md`
 - Automation runtime: `backlog/651-agentic-coding-ameide-coding-agent.md`
-- CLI surface: `backlog/654-agentic-coding-cli-surface.md`
+- CLI surface: `backlog/654-agentic-coding-cli-surface-coder.md`
 - External executor profile (D365FO): `backlog/655-agentic-coding-365fo.md`
 - Agent memory (curation + retrieval): `backlog/656-agentic-memory-v6.md`

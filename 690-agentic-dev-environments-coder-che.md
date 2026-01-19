@@ -24,8 +24,8 @@ This doc is a narrative map. Normative details remain in:
 
 - Coder-first model: `backlog/650-agentic-coding-overview.md`
 - Che provider: `backlog/680-che.md`
-- Test layers: `backlog/653-agentic-coding-test-automation.md`
-- CLI front doors: `backlog/654-agentic-coding-cli-surface.md`
+- Test layers: `backlog/653-agentic-coding-test-automation-coder.md`
+- CLI front doors: `backlog/654-agentic-coding-cli-surface-coder.md`
 
 ## 1) One contract, multiple providers
 
@@ -142,9 +142,9 @@ Additional sharp edges (provider-specific, but recurrent):
 - Coder model and tasks:
   - `backlog/650-agentic-coding-overview.md`
   - `backlog/651-agentic-coding-ameide-coding-agent.md`
-  - `backlog/652-agentic-coding-dev-workspace.md`
-  - `backlog/653-agentic-coding-test-automation.md`
-  - `backlog/654-agentic-coding-cli-surface.md`
+  - `backlog/652-agentic-coding-dev-workspace-coder.md`
+  - `backlog/653-agentic-coding-test-automation-coder.md`
+  - `backlog/654-agentic-coding-cli-surface-coder.md`
 - Che provider:
   - `backlog/680-che.md`
   - `backlog/680-che-increment-1.md`

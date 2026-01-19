@@ -6,8 +6,8 @@
 
 > Superseded by the internal-only, Coder-based model:
 > - `backlog/650-agentic-coding-overview.md`
-> - `backlog/652-agentic-coding-dev-workspace.md`
-> - `backlog/654-agentic-coding-cli-surface.md`
+> - `backlog/652-agentic-coding-dev-workspace-coder.md`
+> - `backlog/654-agentic-coding-cli-surface-coder.md`
 >
 > This doc is preserved for historical context only; the 650 suite achieves isolation via separate workspaces/tasks and agent profile templates rather than parallel workstation devcontainers.
 

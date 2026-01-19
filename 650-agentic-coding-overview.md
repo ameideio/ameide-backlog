@@ -192,9 +192,9 @@ Deliverables (the 650 suite):
 
 - `backlog/650-agentic-coding-overview.md` (this file; normative)
 - `backlog/651-agentic-coding-ameide-coding-agent.md`
-- `backlog/652-agentic-coding-dev-workspace.md`
-- `backlog/653-agentic-coding-test-automation.md`
-- `backlog/654-agentic-coding-cli-surface.md`
+- `backlog/652-agentic-coding-dev-workspace-coder.md`
+- `backlog/653-agentic-coding-test-automation-coder.md`
+- `backlog/654-agentic-coding-cli-surface-coder.md`
 - `backlog/655-agentic-coding-365fo.md`
 
 ## 6) Testing (how we prove this model works)
@@ -231,7 +231,7 @@ This suite supersedes the following *as the platform-level default model*:
 - Devcontainer contract: `.devcontainer/coder/devcontainer.json`
 - Big picture map (Coder + Che): `backlog/690-agentic-dev-environments-coder-che.md`
 - Che provider (contract-aligned): `backlog/680-che.md`
-- Suite docs: `backlog/651-agentic-coding-ameide-coding-agent.md`, `backlog/652-agentic-coding-dev-workspace.md`, `backlog/653-agentic-coding-test-automation.md`
-- CLI surface: `backlog/654-agentic-coding-cli-surface.md`
+- Suite docs: `backlog/651-agentic-coding-ameide-coding-agent.md`, `backlog/652-agentic-coding-dev-workspace-coder.md`, `backlog/653-agentic-coding-test-automation-coder.md`
+- CLI surface: `backlog/654-agentic-coding-cli-surface-coder.md`
 - External executor profile (D365FO): `backlog/655-agentic-coding-365fo.md`
 - Agent memory (curation + retrieval): `backlog/656-agentic-memory-v6.md`

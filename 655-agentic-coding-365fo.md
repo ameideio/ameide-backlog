@@ -17,7 +17,7 @@ source_of_truth: false
 >
 > Normative references:
 > - `backlog/650-agentic-coding-overview.md` (model + exception rule)
-> - `backlog/654-agentic-coding-cli-surface.md` (CLI front doors + profiles)
+> - `backlog/654-agentic-coding-cli-surface-coder.md` (CLI front doors + profiles)
 
 Below is a **vendor‑doc–aligned spec** for the architecture you described:
 
@@ -507,7 +507,7 @@ A single Coder Task:
 
 ## 10.4 CLI phase mapping (required)
 
-For the `365fo` agent profile, the CLI surface maps as follows (see `backlog/654-agentic-coding-cli-surface.md`):
+For the `365fo` agent profile, the CLI surface maps as follows (see `backlog/654-agentic-coding-cli-surface-coder.md`):
 
 - Phase 0/1/2 front door: `ameide test`
   - delegates execution to the FO tool surface (MCP bridge → VM executor)

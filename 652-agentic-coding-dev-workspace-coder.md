@@ -27,6 +27,12 @@ This document inherits all decisions from `backlog/650-agentic-coding-overview.m
 - Phase 3 “innerloop routing” RBAC is now treated as cluster bootstrap (predeclared roles + bind-only delegation to the Coder provisioner) so workspace Terraform does not trip RBAC privilege escalation.
 - Workspace namespaces are labeled `gateway-access=allowed` and the Envoy Gateway listeners are configured to only accept routes from labeled namespaces (Gateway API trust model).
 
+Update (2026-01-19): code-server reachability failures after node pool churn
+
+- Observed failure mode: Coder app proxy returns `502 Bad Gateway` when proxying to the VS Code (Web) app port (`13337`) even though the workspace pod is `Running`.
+- Root cause: cached code-server install under `/workspaces/.code-server` persisted on the workspace PVC but was built for a different CPU architecture (e.g., amd64 cache reused on arm64 nodes), causing `Exec format error` and preventing code-server from starting.
+- Required mitigation: templates must detect a non-runnable cached code-server/Node binary and clear the arch-specific cache so the vendor module can reinstall for the current architecture.
+
 ## 0.1 Primary UX goal: the workspace is “agent-native”
 
 The workspace is not just a “human IDE in the cluster”; it is the place where agents and humans share a single, reproducible dev machine contract.
@@ -102,6 +108,26 @@ Workspace must expose code-server through a Coder app proxy surface (vendor-alig
 - Start code-server with `--auth none`.
 - Use `/healthz` for readiness/smoke checks.
 - Prefer the vendor-supported code-server module (vs ad-hoc daemon management in `startup_script`).
+
+#### 4.2.1 Failure mode: cached code-server is for the wrong architecture
+
+Symptom:
+
+- Opening `https://coder.dev.ameide.io/@<user>/<workspace>.<agent>/apps/vscode/` returns `502 Bad Gateway` and logs show proxy failures to port `13337` (often to a `fd7a:*` tailnet address).
+
+Root cause:
+
+- The Coder code-server module caches its install under `/workspaces/.code-server` (on the workspace PVC).
+- If the same PVC is later scheduled onto a node with a different CPU architecture, the cached Node binary may become non-runnable (`Exec format error`), so code-server never binds `127.0.0.1:13337`.
+
+Required mitigation:
+
+- Workspace startup must validate cached code-server executability and clear `/workspaces/.code-server/{bin,lib}` when non-runnable so the module reinstalls for the current node architecture.
+
+Runbook (break-glass, per workspace):
+
+- Delete the cached install dirs: `rm -rf /workspaces/.code-server/bin /workspaces/.code-server/lib`
+- Restart the workspace so the module reinstalls and binds `127.0.0.1:13337`.
 
 ### 4.3 Template-scoped `AGENTS.md` (required)
 
