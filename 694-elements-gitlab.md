@@ -10,6 +10,7 @@ Hereâ€™s a reworked, **cleaner set of architecture decisions** that matches **â€
 
 * Tenants do **not** have accounts in GitLab.
 * GitLab is reachable only from platform services (network policy / private ingress).
+* GitLab is deployed and operated as an **in-cluster platform component** (GitOps-managed), not a tenant-facing SaaS surface.
 * The platform uses a **service identity** (bot) to create/manage GitLab projects, branches, MRs, tags.
 
 **Why**

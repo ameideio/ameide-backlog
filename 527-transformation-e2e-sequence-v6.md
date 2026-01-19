@@ -24,7 +24,7 @@ This is the end-to-end story a user should recognize in the product UI.
 
 1) **Start a Transformation**
 - User starts a Transformation in Ameide for a specific tenant repository.
-- Platform ensures the tenant repository exists (GitLab is internal; bot identity owns it).
+- Platform ensures the tenant repository exists (GitLab is deployed in-cluster and internal; bot identity owns it).
 
 2) **Edit artifacts (requirements, architecture, relationships)**
 - User edits files via Ameide UI (documents/diagrams/config), plus inline links and/or relationship files.
