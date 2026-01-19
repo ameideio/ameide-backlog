@@ -135,7 +135,7 @@ GitLab “SSO” is OmniAuth. OpenID Connect sign-in works on CE, but group-base
 
 1. **IdP enforcement (Keycloak):** restrict who can authenticate to the `gitlab` client (operators/services only).
 2. **GitLab safety gate:** keep `blockAutoCreatedUsers=true` so JIT-created users are blocked (pending approval) until explicitly approved.
-3. **Admin bootstrap:** use a **runbook** (API-driven) to approve + optionally promote `admin@ameide.io` after first OIDC login; do not rely on IdP group→admin mapping.
+3. **Admin bootstrap:** use a **GitOps-managed bootstrap Job** (toolbox + `gitlab-rails runner`) to approve + promote `admin@ameide.io`; do not rely on IdP group→admin mapping.
 4. **Provider secret hygiene:** do not store placeholder OmniAuth secrets. Template the provider config Secret from Vault-sourced Keycloak-generated secrets (see “Secrets posture”).
 
 **OIDC provider contract (documented keys)**
@@ -209,25 +209,25 @@ Decide and document (matrix) which secrets are:
 
 With `blockAutoCreatedUsers=true`, the CE-safe posture is:
 
-1. Operator signs in once via OIDC → GitLab JIT-creates the user in **pending approval** state.
-2. Platform/operator approves the user.
-3. Platform/operator promotes the user to admin if required.
+1. Operator signs in via OIDC → GitLab JIT-creates the user in **pending approval** state.
+2. Platform approves/promotes only the intended operator identity (`admin@ameide.io`).
 
-**Decision (standard posture): Runbook, API-driven (no GitOps hook Job)**
+**Standard posture (fully automated, GitOps-managed)**
 
-- Keep this as a **platform runbook** executed by an operator (scripted API call).
-- Do not park long-lived GitLab admin credentials in always-on in-cluster Jobs; this avoids timing races (“after first login”) and reduces blast radius.
-- Runbook steps:
-  1. `admin@ameide.io` signs in once via OIDC (user becomes pending approval).
-  2. Approve the user via API (`POST /api/v4/users/:id/approve`).
-  3. Optionally promote to instance admin (`PUT /api/v4/users/:id` with `admin=true`).
+- A PostSync bootstrap Job ensures `admin@ameide.io` exists, is **active**, and is **instance admin**.
+- The Job runs via `gitlab-toolbox` + `gitlab-rails runner` (do **not** rely on `POST /api/v4/session`, which returns `404` on GitLab `18.6.x`).
+- The local bootstrap password is Vault-sourced (stable per environment):
+  - Vault key: `gitlab-bootstrap-admin-password` (generated if absent)
+  - Materialized Secret: `Secret/gitlab-bootstrap-admin` (key `password`)
 
-Document where the bootstrap admin credential lives (Vault), and how it is rotated/disabled after bootstrap.
+**Break-glass helpers (repo scripts)**
 
-Runbook helpers (repo scripts):
+- `scripts/gitlab-approve-user.sh` (approve a pending OmniAuth user)
+- `scripts/gitlab-promote-user-admin.sh` (promote a user to instance admin)
 
-- `scripts/gitlab-approve-user.sh`
-- `scripts/gitlab-promote-user-admin.sh`
+**Incident note (2026-01-19, dev)**
+
+- `admin@ameide.io` was approved/promoted via `gitlab-rails runner` executed in `Deployment/platform-gitlab-toolbox` to unblock SSO while the bootstrap hook was being corrected.
 
 ## Contract checkpoints (what “good” looks like)
 
