@@ -226,6 +226,7 @@ Contract:
   - `ameide dev` creates the session id, persists it in session metadata, and exports it to the local dev process as `AMEIDE_SESSION_ID`.
   - Outbound requests from the dev process propagate the session id via W3C Baggage (`baggage: ameide.session_id=<id>`).
 - Logs ingested into Loki must include `ameide.session_id` and a trace id field so Grafana can correlate logs↔traces. The local dev process log stream must be ingested into Loki (either via an agent tailing its log file or via OTLP log export).
+- Tempo trace search should use TraceQL (`/api/search?q=...`) so `ameide.session_id` can be used as a filter without relying on the legacy `tags=` query surface.
 
 Minimum flag set for `ameide dev logs` and `ameide dev traces`:
 
