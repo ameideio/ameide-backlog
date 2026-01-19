@@ -46,6 +46,21 @@ Total applications: 200
   - Once ownership is restored, Argo returns to `Synced/Healthy` without any ignore rules or “forever force” settings.
 - **Prevent**: avoid `kubectl patch` against Argo-managed objects (especially Gateway API resources). Prefer Git changes; if an emergency patch is unavoidable, apply with the Argo field manager and capture the change as a follow-up Git PR immediately.
 
+## Update (2026-01-19): AKS cluster gateway OOM + kube-system scheduling SSA
+
+- **Date/Env**: 2026-01-19 / AKS
+- **Argo app**: `cluster-gateway`
+  - **Symptom**: App `Progressing` with `argocd/envoy-gateway-*` in `CrashLoopBackOff`.
+  - **Root cause**: controller pod was repeatedly `OOMKilled` at `512Mi` limit.
+  - **Remediation direction**: increase `envoy-gateway` controller memory limits/requests in cluster gateway values (GitOps).
+- **Argo app**: `cluster-kube-system-scheduling`
+  - **Symptom**: App `OutOfSync` with errors like `Deployment.apps "metrics-server" is invalid: spec.selector: Required value ... containers: Required value`.
+  - **Root cause**: this component intentionally applies *partial* `Deployment` manifests to set only `.spec.template.spec.nodeSelector`; with ArgoCD `controller.diff.server.side=true`, compare/dry-run can use client-side apply semantics which fails validation for partial manifests.
+  - **Evidence**:
+    - Client-side apply dry-run fails: `kubectl apply --dry-run=server` (missing selector/containers).
+    - Server-side apply dry-run succeeds (with a non-fatal migration warning on `kubectl.kubernetes.io/last-applied-configuration`): `kubectl apply --server-side --dry-run=server`.
+  - **Remediation direction**: enable `ServerSideApply=true` at the Application sync-options level for this component so diff/sync use SSA.
+
 ## Update (2026-01-03): Local bootstrap convergence incidents (Dex/Envoy, CNPG placement, hook jobs)
 
 - **Date/Env**: 2026-01-03 / local
