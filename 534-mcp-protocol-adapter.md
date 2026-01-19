@@ -580,24 +580,21 @@ read_context:
     selector:
       type: string
       description: "Selector mode (tool-specific default; for agent memory tools, default is published)"
-      enum: ["head", "published", "baseline_id", "as_of"]
-    baseline_id:
+      enum: ["head", "published", "baseline_ref", "version_ref"]
+    baseline_ref:
       type: string
-      description: "Query against a specific published baseline"
-    as_of:
+      description: "Query against a specific published baseline reference (e.g., tag or commit SHA, depending on capability)"
+    version_ref:
       type: string
-      format: date-time
-      description: "Query as of a specific timestamp"
+      description: "Query against an explicit immutable version reference (e.g., commit SHA for Git-backed stores)"
 ```
 
-**All query tool responses MUST include citation metadata:**
+**All query tool responses MUST include citation metadata sufficient to replay what was read.**
 
-| Field | Description |
-|-------|-------------|
-| `repository_id` | Repository scope of the cited item |
-| `element_id` | Stable element identifier |
-| `version_id` | Immutable element version (303/656) |
-| `read_context` | Effective read context used (selector/baseline/as_of) |
+Minimum citation fields depend on the canonical store:
+
+- **Git-backed canonical store (v6 Enterprise Repository):** `{repository_id, commit_sha, path[, anchor]}`
+- **Legacy element substrate (historical):** `{repository_id, element_id, version_id}`
 
 **Why this matters:**
 - Agents making multiple calls in a session see consistent state
@@ -670,8 +667,8 @@ spec:
           read_context:
             type: object
             properties:
-              baseline_id: { type: string }
-              as_of: { type: string, format: date-time }
+              baseline_ref: { type: string }
+              version_ref: { type: string }
 
     - name: listRelationships
       description: List ArchiMate relationships for an element
@@ -687,8 +684,8 @@ spec:
           read_context:
             type: object
             properties:
-              baseline_id: { type: string }
-              as_of: { type: string, format: date-time }
+              baseline_ref: { type: string }
+              version_ref: { type: string }
 
     - name: getView
       description: Get an ArchiMate view with layout
@@ -702,8 +699,8 @@ spec:
           read_context:
             type: object
             properties:
-              baseline_id: { type: string }
-              as_of: { type: string, format: date-time }
+              baseline_ref: { type: string }
+              version_ref: { type: string }
 
     - name: searchCapabilities
       description: Search capabilities by name, description, or tags
@@ -719,8 +716,8 @@ spec:
           read_context:
             type: object
             properties:
-              baseline_id: { type: string }
-              as_of: { type: string, format: date-time }
+              baseline_ref: { type: string }
+              version_ref: { type: string }
 
   # Resources for context injection
   resources:
@@ -736,7 +733,7 @@ spec:
       description: ArchiMate view with layout
       rpc: ArchiMateQueryService.GetArchimateView
 
-    - pattern: "baseline/{baseline_id}"
+    - pattern: "baseline/{baseline_ref}"
       description: Promoted baseline
       rpc: BaselineQueryService.GetBaseline
 ```
@@ -1770,8 +1767,8 @@ A **generated tool catalog** artifact consolidates all proto-annotated MCP tools
               "read_context": {
                 "type": "object",
                 "properties": {
-                  "baseline_id": { "type": "string" },
-                  "as_of": { "type": "string", "format": "date-time" }
+                  "baseline_ref": { "type": "string" },
+                  "version_ref": { "type": "string" }
                 }
               }
             },

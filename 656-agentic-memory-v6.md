@@ -25,7 +25,7 @@ related:
 This is how “organizational memory” behaves from the perspective of humans and agents.
 
 1) People author and review knowledge as files
-- Architecture artifacts, requirements, diagrams, BPMN, and relationship data are stored as files in the tenant repository.
+- Architecture artifacts, requirements, diagrams, BPMN, and relationship references are stored as files in the tenant repository (relationships are expressed as inline references inside those files).
 - “Published truth” is what’s merged to `main` (baseline commit SHA, optionally tagged).
 
 2) People and agents retrieve context in a reproducible way
@@ -71,7 +71,7 @@ Agents propose changes; humans (or a governed workflow) review/approve before pu
 
 Under v6, “organizational memory” is:
 
-- Canonical content: files in the tenant repository (docs, diagrams, BPMN, code, relationship files, etc.).
+- Canonical content: files in the tenant repository (docs, diagrams, BPMN, code, etc.), with relationships expressed as inline references within those files.
 - Governance truth: minimal Domain-owned state (tenancy, policy, approvals, audit pointers).
 - Retrieval truth: Projection-owned derived read models (indexes/graphs/context assembly), rebuildable from Git + owner audit pointers.
 

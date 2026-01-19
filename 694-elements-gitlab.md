@@ -191,7 +191,7 @@ This directly supersedes older governance designs that assumed “domain-owned l
 
 **How this evolves prior work (superseding direction)**
 
-This reframes “relationships” away from being primarily database rows (as in the 303/527 element substrate: `backlog/300-400/303-elements.md`, `backlog/527-transformation-domain.md`) into a Git-first representation: **relationships live as text** (both inline links inside element files *and* standalone relationship files such as `<id>.yaml`), and the platform derives navigation/traceability/impact views by indexing those files. The earlier “Graph is read-only projection” posture (`backlog/470-ameide-vision.md`) still applies to the *derived graph experience*, but the canonical source is now the Git repository, not a domain database. This also fits the semantic retrieval direction in `backlog/535-mcp-read-optimizations.md`: agents consume artifacts + a derived graph/index as context, but canonical authoring happens in Git.
+This reframes “relationships” away from being primarily database rows (as in the 303/527 element substrate: `backlog/300-400/303-elements.md`, `backlog/527-transformation-domain.md`) into a Git-first representation: **relationships live as text** (inline links/identifiers inside element files), and the platform derives navigation/traceability/impact views by indexing those files. The earlier “Graph is read-only projection” posture (`backlog/470-ameide-vision.md`) still applies to the *derived graph experience*, but the canonical source is now the Git repository, not a domain database. This also fits the semantic retrieval direction in `backlog/535-mcp-read-optimizations.md`: agents consume artifacts + a derived graph/index as context, but canonical authoring happens in Git.
 
 ---
 
@@ -200,11 +200,11 @@ This reframes “relationships” away from being primarily database rows (as in
 **Decision**
 
 * The platform models ADM sequencing (“Phase E cannot publish before B/C/D complete”).
-* If you have GitLab Premium/Ultimate you can optionally use MR dependencies, but you don’t rely on them.
+* GitLab tier features (Premium/Ultimate) are not used; any “dependency” concepts are implemented as platform governance logic and may be mentioned only for conceptual comparison.
 
 **Why**
 
-* GitLab MR dependencies are a **Premium feature**, and Free projects can’t be marked dependent. ([GitLab Docs][7])
+* Platform governance must remain the source of truth for sequencing and publish eligibility, regardless of what GitLab can represent natively.
 
 **Consequence**
 

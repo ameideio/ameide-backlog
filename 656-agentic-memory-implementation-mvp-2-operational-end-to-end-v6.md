@@ -73,7 +73,6 @@ Minimum output:
 Express proposals as file change sets, but classify them for review UX:
 
 - `CREATE_FILE`, `UPDATE_FILE`, `DELETE_FILE`
-- `ADD_RELATIONSHIP` / `REMOVE_RELATIONSHIP` (when relationship files exist)
 - `UPDATE_LINKS` (inline link edits)
 
 ### 2.2 Required metadata (minimum recommended)

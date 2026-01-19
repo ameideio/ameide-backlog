@@ -1,5 +1,5 @@
 ---
-title: "527 — Transformation Methodology Dictionary (v6: Git-backed elements, derived TOGAF hierarchy)"
+title: "527 — Transformation Methodology Dictionary (v6: Git-backed elements, derived repository hierarchy)"
 status: draft
 owners:
   - transformation
@@ -15,12 +15,12 @@ related:
   - 520-primitives-stack-v6.md
 ---
 
-# 527 — Transformation Methodology Dictionary (v6: Git-backed elements, derived TOGAF hierarchy)
+# 527 — Transformation Methodology Dictionary (v6: Git-backed elements, derived repository hierarchy)
 
 This v6 dictionary keeps the “cross-methodology mapping” goal, but aligns to the current repository posture:
 
 - Canonical authored artifacts are **Git-backed elements** (files in the Enterprise Repository).
-- Repository navigation is a **TOGAF 10 hierarchy** in the UI, but that hierarchy is **projection-derived** (not canonical state).
+- Repository navigation is a folder/file hierarchy in the UI, and that hierarchy is **projection-derived** (not canonical state).
 - Relationships are authored as normal references inside files and later reconstructed into a graph by projections.
 
 ## Canonical (platform) terms (v6)
@@ -29,17 +29,12 @@ This v6 dictionary keeps the “cross-methodology mapping” goal, but aligns to
 - **Published baseline**: the commit SHA on `main` (optionally tagged).
 - **Element**: a canonical authored artifact stored as a file (or file set) in Git, presented as “element” in the UI (`backlog/701-repository-ui-enterprise-repository-v6.md`).
 - **Element reference (audit-grade)**: `{repository_id, commit_sha, path[, anchor]}` (see `backlog/527-transformation-proto-v6.md`).
-- **Relationship**: an authored reference within element content (links/IDs), plus optional relationship files; graph is derived.
-- **TOGAF hierarchy node**: a projection-derived category/grouping used for navigation (not canonical state).
+- **Relationship**: an authored reference within element content (links/IDs); graph is derived.
+- **Repository hierarchy node**: a projection-derived file/directory/submodule node used for navigation (not canonical state).
 
-## TOGAF 10 ↔ platform mapping (how the UI should feel)
+## Repository hierarchy (how the UI should feel)
 
-The UI presents a TOGAF 10 Architecture Repository hierarchy (Landscape / Reference Library / Standards / Governance Log / Architecture Capability).
-
-In v6 this is a **virtual hierarchy** derived from:
-
-- path conventions (e.g., `elements/**`, `processes/**`),
-- optional element metadata conventions.
+The UI presents a repository hierarchy as the Git file tree (folders + files) at a selected `read_context`, derived by the Projection.
 
 See `backlog/701-repository-ui-enterprise-repository-v6.md`.
 
@@ -60,4 +55,4 @@ Optional anchors:
 4) `ref:release` → release record (Git-backed artifact and/or external refs as evidence)
 5) `evidence:*` → evidence refs (logs/artifacts/links)
 
-The exact representation of these anchors (inline references vs relationship files vs structured metadata) is a convention; the key requirement is that Projection can reconstruct and cite them reproducibly.
+The exact representation of these anchors (inline references vs structured metadata) is a convention; the key requirement is that Projection can reconstruct and cite them reproducibly.

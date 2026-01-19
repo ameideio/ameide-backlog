@@ -11,7 +11,7 @@ related:
 
 # 695 — GitLab (CE) GitOps Configuration Tracking
 
-Track the GitOps-managed **GitLab Community Edition** deployment in this repo: versioning, ArgoCD wiring, routing/DNS/TLS, secrets, persistence, and production-readiness constraints.
+Track the GitOps-managed **GitLab Community Edition** deployment (in `gitops/ameide-gitops/`): versioning, ArgoCD wiring, routing/DNS/TLS, secrets, persistence, and production-readiness constraints.
 
 This backlog item is a living “single place to look” so GitLab changes remain intentional, reviewable, and aligned with upstream guidance.
 
@@ -37,16 +37,16 @@ GitLab is treated as a **platform-owned subsystem**:
 ## Current state (repo truth)
 
 - ArgoCD components:
-  - Workload: `environments/_shared/components/platform/developer/gitlab/component.yaml`
-  - Smokes: `environments/_shared/components/platform/developer/gitlab-smoke/component.yaml`
+  - Workload: `gitops/ameide-gitops/environments/_shared/components/platform/developer/gitlab/component.yaml`
+  - Smokes: `gitops/ameide-gitops/environments/_shared/components/platform/developer/gitlab-smoke/component.yaml`
   - Local overlay components:
-    - Workload: `environments/local/components/platform/developer/gitlab/component.yaml`
-    - Smokes: `environments/local/components/platform/developer/gitlab-smoke/component.yaml`
-- Wrapper chart (routes + secrets wiring): `sources/charts/platform/gitlab`
-- Vendored upstream chart: `sources/charts/third_party/gitlab/gitlab/9.6.1` (appVersion `18.6.1`)
+    - Workload: `gitops/ameide-gitops/environments/local/components/platform/developer/gitlab/component.yaml`
+    - Smokes: `gitops/ameide-gitops/environments/local/components/platform/developer/gitlab-smoke/component.yaml`
+- Wrapper chart (routes + secrets wiring): `gitops/ameide-gitops/sources/charts/platform/gitlab`
+- Vendored upstream chart: `gitops/ameide-gitops/sources/charts/third_party/gitlab/gitlab/9.6.1` (appVersion `18.6.1`)
 - CE/OSS is explicitly enforced via `gitlab.global.edition=ce` (GitLab chart defaults to EE otherwise).
-- Ingress disabled; exposure via Gateway API `HTTPRoute`: `sources/charts/platform/gitlab/templates/httproute.yaml`
-- OIDC provider is sourced from Vault via ExternalSecrets: `sources/charts/platform/gitlab/templates/externalsecret.yaml`
+- Ingress disabled; exposure via Gateway API `HTTPRoute`: `gitops/ameide-gitops/sources/charts/platform/gitlab/templates/httproute.yaml`
+- OIDC provider is sourced from Vault via ExternalSecrets: `gitops/ameide-gitops/sources/charts/platform/gitlab/templates/externalsecret.yaml`
 - `gitlab-runner` is disabled in values (no in-cluster runner install by default).
 
 ## Progress (2026-01-19)
@@ -73,7 +73,7 @@ GitLab is treated as a **platform-owned subsystem**:
 
 ## Version posture
 
-- Current pin: GitLab chart `9.6.1` (GitLab appVersion `18.6.1`), as recorded in `sources/charts/third_party/charts.lock.yaml`.
+- Current pin: GitLab chart `9.6.1` (GitLab appVersion `18.6.1`), as recorded in `gitops/ameide-gitops/sources/charts/third_party/charts.lock.yaml`.
 - Rationale: vendored charts are the determinism/default posture; upgrades should be explicit, rehearsed, and tracked (patch → minor) rather than “float to latest”.
 - Next steps: track “why not latest patch/minor” and a planned upgrade path (e.g., `9.6.x` patch bump first, then evaluate `9.7/9.8`).
 
@@ -156,8 +156,8 @@ The OmniAuth provider config is stored in `Secret/gitlab-oidc-provider` (referen
 
 This repo’s standard verification mechanism is **ArgoCD PostSync smoke jobs**, implemented via:
 
-- `sources/charts/foundation/helm-test-jobs` (generic hook Jobs; used by many `*-smoke` components)
-- `sources/charts/foundation/platform-smoke` (platform-wide checks)
+- `gitops/ameide-gitops/sources/charts/foundation/helm-test-jobs` (generic hook Jobs; used by many `*-smoke` components)
+- `gitops/ameide-gitops/sources/charts/foundation/platform-smoke` (platform-wide checks)
 - `argocd/applicationsets/ameide.yaml` (rolling sync phases; smokes run as part of the normal convergence loop)
 
 GitLab should follow the same pattern so we don’t rely on ad-hoc/manual validation.
@@ -241,9 +241,9 @@ Runbook helpers (repo scripts):
 
 GitLab requires S3-compatible object storage for core features (artifacts, LFS, uploads, packages). Upstream’s production guidance is to use external object storage; in the current Ameide posture we use the **shared in-namespace MinIO** (`data-minio`) as a **temporary** stop-gap.
 
-- **MinIO deployment:** Bitnami MinIO `data-minio` (per-environment namespace), configured via `sources/values/_shared/data/data-minio.yaml` and env overrides.
+- **MinIO deployment:** Bitnami MinIO `data-minio` (per-environment namespace), configured via `gitops/ameide-gitops/sources/values/_shared/data/data-minio.yaml` and env overrides.
 - **GitLab bundled MinIO:** disabled via `gitlab.global.minio.enabled=false` to avoid arm64 image issues and bucket-job drift.
-- **Connection Secret:** `Secret/gitlab-object-storage` is materialized in the GitLab namespace via `ExternalSecret` (wrapper chart template `sources/charts/platform/gitlab/templates/externalsecret-object-storage.yaml`).
+- **Connection Secret:** `Secret/gitlab-object-storage` is materialized in the GitLab namespace via `ExternalSecret` (wrapper chart template `gitops/ameide-gitops/sources/charts/platform/gitlab/templates/externalsecret-object-storage.yaml`).
   - **Temporary credential source:** Vault keys `minio-root-user` + `minio-root-password` (root credentials; to be replaced).
 - **Buckets:** created by MinIO default bucket bootstrap (`defaultBuckets`) and include:
   - `git-lfs`, `gitlab-artifacts`, `gitlab-uploads`, `gitlab-packages`
@@ -258,7 +258,7 @@ Exit criteria for removing this “temporary” posture:
 ## Decision points to resolve
 
 - **Chart sourcing pattern**
-  - Keep vendored upstream chart (`sources/charts/third_party/...`) for determinism; or
+  - Keep vendored upstream chart (`gitops/ameide-gitops/sources/charts/third_party/...`) for determinism; or
   - Switch to ArgoCD multi-source pulling from `https://charts.gitlab.io/` and referencing values from this repo (note: ArgoCD multi-source has sharp edges and has been documented as beta in some ArgoCD releases; if adopted, record the ArgoCD version(s) we validate against).
 - **Exposure model**
   - Keep Gateway API (`HTTPRoute`/`TCPRoute`) as the standard; or

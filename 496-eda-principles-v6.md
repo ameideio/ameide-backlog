@@ -40,6 +40,11 @@ This v6 standard keeps the v4 integration model, but makes two points explicit:
 - No primitive mutates another owner’s canonical external store (e.g., a Git repository) except through the owner’s API/command surface.
 - Process / Agent / Integration / UISurface may request changes, but the owner performs the write and emits the fact.
 
+**Clarification (Git-backed owners + storage adapters):**
+
+- Calling Git provider APIs (e.g., GitLab REST) is an internal implementation detail of the owning primitive (and sometimes projections for read/index). It is not an inter-primitive integration surface.
+- UISurfaces/Agents/Processes do not call Git provider APIs directly for canonical operations; they call the owner’s command surface.
+
 ### 1.2 Facts only from owners, only after commit
 
 Owners emit facts only after the outcome is durable and auditable.
@@ -103,7 +108,7 @@ Kafka remains the standard event plane in Kubernetes:
 - Protobuf payloads for schema and codegen,
 - Kafka (Strimzi) for transport/durability (topics + consumer groups).
 
-This standard is intentionally not “Kafka only”: RPC is allowed where it is the right tool, as long as the semantics in §1 hold and interfaces remain proto-governed.
+This standard is intentionally not “Kafka only”: RPC is allowed where it is the right tool, as long as the semantics in §1 hold and interfaces remain proto-governed (i.e., schema and compatibility are governed by Protobuf, regardless of transport).
 
 ## 4) CloudEvents envelope (mandatory when using the event plane)
 
@@ -225,4 +230,3 @@ This section exists to prevent “EDA principles” from being interpreted only 
 - Runtime posture and naming: `backlog/520-primitives-stack-v6.md`
 - Git-backed Enterprise Repository: `backlog/694-elements-gitlab-v6.md`
 - Transformation v6 spine: `backlog/527-transformation-v6-index.md`
-

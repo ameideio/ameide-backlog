@@ -31,7 +31,7 @@ This is what the Transformation Domain does for the product under the Git-backed
 
 3) Publish baselines
 - Represent published truth as `main` commit SHA (optional tags for named baselines).
-- Record durable audit pointers (MR id, commit SHA, pipeline id) for every publish.
+- Record durable audit pointers (project/repository id, MR IID, pipeline id + status (if applicable), and resulting commit SHA on `main`) for every publish.
 
 4) Be the only canonical writer
 - Perform all canonical Git operations (branch/commit/MR/merge/tag) through the Domain.
@@ -71,7 +71,7 @@ Postgres remains canonical for what is required to enforce policy and traceabili
 - transformation objects (identity, state machine, links to repo refs),
 - governance decisions (DoR/accept/release gates), policies, and evidence references,
 - durable work tracking (WorkRequests) and executor outcomes,
-- audit pointers (MR id, commit SHA, pipeline id) for every emitted fact.
+- audit pointers (project/repository id, MR IID, pipeline id + status (if applicable), and resulting commit SHA on `main`) for every emitted fact.
 
 ### 3) Facts (event plane)
 
@@ -104,7 +104,7 @@ Either way, the owner-only write rule must hold: non-domain primitives must not 
 
 Because canonical truth is now files:
 
-- the “graph” is computed by indexing repository content (inline links + relationship files),
+- the “graph” is computed by indexing repository content (inline references),
 - the projection database is rebuildable from Git history + Domain audit pointers.
 
 ## Superseded guidance (what to stop treating as current)

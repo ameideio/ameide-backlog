@@ -1,5 +1,5 @@
 ---
-title: "527 Transformation — Proto Contract Notes (v6: Git-backed elements, derived TOGAF hierarchy)"
+title: "527 Transformation — Proto Contract Notes (v6: Git-backed elements, derived Enterprise repository hierarchy)"
 status: draft
 owners:
   - transformation
@@ -19,7 +19,7 @@ related:
   - 656-agentic-memory-v6.md
 ---
 
-# 527 Transformation — Proto Contract Notes (v6: Git-backed elements, derived TOGAF hierarchy)
+# 527 Transformation — Proto Contract Notes (v6: Git-backed elements, derived Enterprise repository hierarchy)
 
 This v6 replaces the older 527 proto posture that assumed:
 
@@ -32,10 +32,12 @@ v6 posture:
 
 - Canonical repository content is **Git-backed** (files in the tenant Enterprise Repository) (`backlog/694-elements-gitlab-v6.md`).
 - UI talks in **elements**, but elements are stored as files in Git (`backlog/701-repository-ui-enterprise-repository-v6.md`).
-- Repository hierarchy is a **TOGAFHierarchyProjection** (derived; not canonical state) (`backlog/527-transformation-projection-v6.md`).
+- Repository hierarchy is an **EnterpriseRepositoryHierarchyProjection** (derived; not canonical state) (`backlog/527-transformation-projection-v6.md`).
 - ProcessDefinitions are governed BPMN files under `processes/**` and are deployed to **Zeebe/Flowable** (`backlog/520-primitives-stack-v6.md`).
 
 ## 1) What must be true of the proto surfaces (v6 invariants)
+
+Inter-primitive communication is contract-first per `backlog/496-eda-principles-v6.md` (public APIs/event payloads defined in Protobuf; transport may be RPC and/or events). GitLab REST is an internal storage adapter used by owner/projection primitives; it is not an inter-primitive integration surface.
 
 ### 1.1 Scope identity is always explicit
 
@@ -62,7 +64,7 @@ This maps to the memory/read discipline (`read_context` + citations) required by
 
 ### 1.3 Relationships are not a canonical CRUD surface
 
-Relationships are authored as normal references inside element content (and optionally as relationship files).
+Relationships are authored only as normal references inside element content.
 
 Contracts must support:
 
@@ -77,11 +79,11 @@ ProcessDefinitions are referenced as Git-backed artifacts:
 
 Promotion requires runtime-profile validation and deploy evidence for Zeebe/Flowable.
 
-### 1.5 TOGAF hierarchy is projection-derived (no canonical workspace tree)
+### 1.5 Repository hierarchy is projection-derived (no canonical workspace tree)
 
-The TOGAF repository hierarchy presented in the UI is derived by the Projection; it is not a Domain aggregate and is not mutated via commands such as “CreateWorkspaceNode”.
+The repository hierarchy presented in the UI is derived by the Projection from the Git file tree; it is not a Domain aggregate and is not mutated via commands such as “CreateWorkspaceNode”.
 
-If the UI needs curated grouping beyond path conventions, treat it as:
+If the UI needs curated grouping beyond the raw file hierarchy, treat it as:
 
 - derived metadata (projection-owned), and/or
 - element-authored metadata (stored in Git), and/or

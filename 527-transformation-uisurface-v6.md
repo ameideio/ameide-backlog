@@ -1,5 +1,5 @@
 ---
-title: "527 Transformation — UISurface Primitive (v6: TOGAF hierarchy is projection-derived)"
+title: "527 Transformation — UISurface Primitive (v6: repository hierarchy is projection-derived)"
 status: draft
 owners:
   - transformation
@@ -16,19 +16,20 @@ related:
   - 656-agentic-memory-v6.md
 ---
 
-# 527 Transformation — UISurface Primitive (v6: TOGAF hierarchy is projection-derived)
+# 527 Transformation — UISurface Primitive (v6: repository hierarchy is projection-derived)
 
 This v6 updates the Transformation UISurface posture to match the current platform direction:
 
 - Enterprise Repositories are **Git-backed** (GitLab in-cluster, non-optional) (`backlog/694-elements-gitlab-v6.md`).
-- The UI presents repository content as a **TOGAF 10 Architecture Repository hierarchy** (`backlog/701-repository-ui-enterprise-repository-v6.md`).
-- The TOGAF hierarchy is **purely derived by the Projection** (not a canonical “workspace tree” or “workspace node” write model).
+- The UI presents repository content as an **Enterprise Repository hierarchy** (folders + files) (`backlog/701-repository-ui-enterprise-repository-v6.md`).
+- The repository hierarchy is **purely derived by the Projection** (not a canonical “workspace tree” or “workspace node” write model).
 
 ## Functional responsibilities (what the UISurface does)
 
-1) Repository navigation (TOGAF-first)
-- Render Architecture Repository navigation (Landscape / Reference Library / Standards / Governance Log / Architecture Capability).
-- Let users browse and open **elements** (documents/models/processes) from that hierarchy.
+1) Repository navigation (hierarchy-first)
+- Render repository browsing as a folder/file tree at a selected `read_context` (published baseline by default).
+- Let users browse folders and open **elements** (documents/models/processes) from that hierarchy.
+- Surface Git submodules as Git tree `gitlink` entries (do not resolve them to other platform repositories as part of browsing).
 
 2) Editing (element editors; extension-driven)
 - Open the correct editor for the element’s underlying file format:
@@ -36,6 +37,7 @@ This v6 updates the Transformation UISurface posture to match the current platfo
   - ArchiMate,
   - BPMN ProcessDefinitions (`processes/**/process.bpmn`).
 - Editing produces proposals and governed publications (MR merge to `main`).
+- Support file/folder operations as governed writes (rename/move paths; folders are Git directories, not separate objects).
 
 3) Governance UX (product surface)
 - Show policy, required checks, approvals, and publish/merge actions.
@@ -46,10 +48,10 @@ This v6 updates the Transformation UISurface posture to match the current platfo
 
 ## What the UISurface explicitly does NOT do (v6)
 
-- It does not expose a raw Git file browser as the primary UX model (files are the storage substrate; “elements” are the UX noun).
+- It does not bypass the owner-only write rule by performing Git operations directly from the browser.
 - It does not manage a canonical “workspace tree” / “workspace nodes”.
 - It does not manage a Definition Registry for ProcessDefinitions.
-  - ProcessDefinitions are governed artifacts stored as files in the Enterprise Repository and surfaced in the TOGAF hierarchy.
+  - ProcessDefinitions are governed artifacts stored as files in the Enterprise Repository and surfaced via repository browsing/search.
 
 ## Read/write rules (hard boundary)
 
@@ -57,13 +59,13 @@ This v6 updates the Transformation UISurface posture to match the current platfo
 - Writes: via Domain commands (owner-only writes; Git operations are platform-owned) (`backlog/496-eda-principles-v6.md`).
 - The browser never talks to GitLab directly; GitLab is a private storage adapter behind Domain/Projection (`backlog/694-elements-gitlab-v6.md`).
 
-## Derived TOGAF hierarchy (projection contract)
+## Derived repository hierarchy (projection contract)
 
 The UISurface does not persist hierarchy nodes. Instead, it relies on the Projection to provide:
 
-- “TOGAF categories” as a virtual hierarchy,
-- element lists and counts per category,
+- folder/file hierarchy nodes,
+- directory listings and counts,
 - stable element identifiers and baseline selectors (`published` == `main` commit SHA),
 - backlinks/relationships and search as derived views.
 
-See `backlog/701-repository-ui-enterprise-repository-v6.md` for the TOGAF-first repository UI contract.
+See `backlog/701-repository-ui-enterprise-repository-v6.md` for the repository UI contract.

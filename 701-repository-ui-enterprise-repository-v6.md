@@ -23,32 +23,37 @@ This backlog aligns the Ameide Platform UI “Repository” experience with the 
 - The Enterprise Repository is **canonical Git content**, backed by **in-cluster GitLab** (`backlog/694-elements-gitlab-v6.md`).
 - GitLab is a **private platform subsystem**; users do not log into GitLab directly.
 - The UI is the governance/product surface: users browse, edit, propose, approve, and publish changes using the platform.
-- The UI presents repository content as a **TOGAF 10 Architecture Repository hierarchy**, not as a raw file tree.
+- The UI presents repository content as an **Enterprise Repository hierarchy** (folders + files), derived from the Git file tree (no separate canonical workspace tree).
+
+## Normative rules (v6)
+
+These are the non-negotiables this backlog is written to:
+
+- **Contract-first boundaries:** inter-primitive interfaces are contract-first per `backlog/496-eda-principles-v6.md` (public APIs/event payloads defined in Protobuf; transport may be RPC and/or events). GitLab REST is an internal storage adapter used by owner/projection primitives.
+- **Owner-only writes:** the browser/UI does not mutate Git; it calls Domain commands.
+- **Relationships are inline-only:** no relationship CRUD, no relationship sidecar artifacts.
+- **GitLab CE only:** no Premium/Ultimate dependencies; governance truth is platform-owned; GitLab enforces only via CE primitives (protected branches, MR-only, pipeline gating as configured).
+- **Hierarchy equals Git tree:** repository navigation is the Git file tree at a selected `read_context`.
+- **Submodules are Git-level:** treat as Git tree `gitlink` entries; do not resolve or flatten into other platform repositories during browsing.
 
 ### Primary user journey (happy path)
 
 1) User opens an organization and selects an Enterprise Repository (a single underlying Git repo).
-2) UI shows the repository in a TOGAF 10 hierarchy (examples):
-   - Architecture Landscape (baselines + work-in-progress)
-   - Reference Library
-   - Standards Information Base
-   - Governance Log
-   - Architecture Capability
+2) UI shows the repository as a Git-backed folder/file hierarchy at a selected ref (`published` baseline by default).
 3) User browses and opens an **element** (document/model/process) from the hierarchy.
 4) UI opens the correct editor based on the element’s file type (e.g., Markdown, ArchiMate, BPMN).
 5) User edits and proposes changes; the platform creates/updates a change branch and MR; checks run.
 6) Approvals happen in the UI (governance truth in platform DB).
-7) Platform merges the MR into `main` and records immutable audit pointers (MR id, pipeline id, commit SHA).
+7) Platform merges the MR into `main` and records immutable audit pointers (project/repository id, MR IID, pipeline id + status (if applicable), and the resulting commit SHA on `main`; optionally tag as a baseline).
 8) Projections refresh (index/search/graph/timeline) from owner facts and/or baseline change signals.
 
 Vendor-correct refinements (GitLab):
 
 - The Domain should prefer GitLab’s **Commit API** for “editor save” operations (single commit with multiple file actions on a branch).
 - Idempotent updates must be concurrency-safe: use GitLab commit actions guarded by `last_commit_id` (avoid lost updates when two writers race).
-- MR state is eventually consistent: the Domain must tolerate asynchronous population of mergeability/diff/approval fields.
+- MR state is eventually consistent: the Domain must tolerate asynchronous population of mergeability/diff/pipeline fields.
 - Merge should be performed using GitLab’s merge endpoint keyed by merge request **IID** (not an internal DB id), and record merge/squash commit SHAs according to strategy.
-- “Checks run” means GitLab MR pipelines; “merge result correctness” may require merged-results pipelines depending on posture.
-- Optional-but-recommended: use GitLab **External Status Checks** to let GitLab enforce “platform says OK” without giving users GitLab access.
+- “Checks run” means GitLab MR pipelines (GitLab CI).
 
 ### ProcessDefinitions in the Enterprise Repository
 
@@ -58,7 +63,7 @@ They are authored as BPMN and later deployed to the selected BPMN runtime(s) (Ze
 
 Vendor-correct definitions:
 
-- `process_key` should equal the BPMN `<process id="...">` (runtime “key” semantics).
+- `process_key` should equal the BPMN `<process id="...">` (runtime “key” semantics) and is the canonical identifier used for validation, deployment, and worker binding.
 - “Major version” (`v<major>/`) is a platform semantic layered over vendor deployment versions. Recommended posture:
   - a **major bump requires a new BPMN process id** (new `process_key`) to avoid mixing breaking changes into one runtime version chain.
   - instance migration policy (moving running instances to a new version) is explicitly **TBD**.
@@ -80,7 +85,7 @@ Vendor-correct deployment notes:
 - Flowable typically deploys via BAR/ZIP (multipart), scanning BPMN resources within the archive.
 - Cross-runtime portability is a goal but not guaranteed; runtime-specific extensions may require constraints or variants.
 
-Placement in the TOGAF hierarchy: ProcessDefinitions are part of the Architecture Repository. The UI should surface them under the appropriate TOGAF category (typically Architecture Capability), even if their canonical storage path is `processes/**`.
+Placement in the repository hierarchy: ProcessDefinitions are normal files in the repo (typically under `processes/**` by convention) and appear where they live in the folder tree.
 
 Multi-tenancy details for process catalogs are **explicitly out of scope here**; capture as a separate backlog.
 
@@ -172,21 +177,19 @@ This is consistent with the GitLab posture: the browser should not talk to GitLa
 
 ## Target-state UI decomposition (v6)
 
-The repository UI becomes “TOGAF hierarchy + Git-backed elements + projections + governance”.
+The repository UI becomes “Enterprise Repository hierarchy (file tree) + Git-backed elements + projections + governance”.
 
-### Repository navigation model (TOGAF-first)
+### Repository navigation model (Git tree; projection-derived)
 
-The UI should present a consistent TOGAF 10 Architecture Repository hierarchy. A minimal initial implementation can treat TOGAF categories as a **virtual hierarchy** mapped to Git paths and metadata conventions.
+The UI should present the repository’s folder/file hierarchy as the primary navigation model.
 
-Suggested canonical mapping (convention; exact folder names are implementation detail):
+Key rule: the UI shows and edits **elements** (files), but the hierarchy itself is the Git file tree (directories + files) at the selected `read_context`.
 
-- Architecture Landscape → `elements/**` (most “authored architecture” lives here)
-- Reference Library → `elements/**` (reference materials; labeled or path-conventioned)
-- Standards Information Base → `elements/**` (principles/standards; labeled or path-conventioned)
-- Governance Log → derived views + optional governance artifacts in `elements/**`
-- Architecture Capability → `processes/**` (ProcessDefinitions) + supporting capability artifacts in `elements/**`
+Classification (e.g., “this is a ProcessDefinition”) is derived from file content/type (extensions/MIME) and repository conventions, but hierarchy itself is not remapped into a separate taxonomy.
 
-Key rule: the UI shows and edits **elements**. Elements are stored as files in Git, but the UI should avoid exposing “raw file tree” as the primary mental model.
+Submodules: a directory entry may be a Git submodule (a `gitlink` entry in the Git tree). Submodules are handled at the Git level; the Projection/UI should treat them as Git tree entries (e.g., `GITLINK`) and must not attempt to “resolve” them into other platform repositories as part of browsing.
+
+Implementation note (UISurface): stay aligned with the existing Radix-based component posture; prefer reusing internal primitives/patterns over introducing a new third-party tree library unless scale proves it necessary.
 
 ### Editors (extension-driven)
 
@@ -200,21 +203,30 @@ These editors are not different persistence models: they are different frontends
 
 ### Relationships (authored as references; reconstructed by projections)
 
-Relationships are authored as normal references inside element content (e.g., links/references within Markdown, identifiers within model files).
+Relationships are **only inline references inside element content** (links/identifiers embedded in Markdown, model files, BPMN, etc.).
 
-- The platform does not require “relationship CRUD” as canonical writes.
-- The Projection reconstructs a graph from these references for:
-  - search and impact,
-  - derived navigation/backlinks,
-  - agent memory consumption.
+- There is no `relationships/**` folder and no relationship sidecar artifacts.
+- The platform does not support canonical “relationship CRUD” as a write surface.
+- Projections derive backlinks/impact/graphs only from inline references (and optionally code indexing, if present), never from separate relationship artifacts.
 
 ### Owner vs projection read/write rules (UI contract)
 
 - UI writes always go to the owning Domain primitive (commands); Domain is the only canonical writer (including Git operations).
 - UI reads should prefer Projection query APIs for:
-  - element listing/browsing (TOGAF hierarchy), search, graph traversal, impact analysis,
+  - repository hierarchy browsing (folders + files), search, graph traversal, impact analysis,
   - timelines and derived views.
 - UI should not require GitLab APIs; GitLab remains a private storage adapter behind Domain/Projection.
+
+### GitLab capability constraint (v6)
+
+- We rely only on GitLab Community Edition capabilities (no Premium/Ultimate dependencies).
+- The platform implements governance features (approvals/policy/publish eligibility) as platform truth and uses GitLab for storage + CI plus basic enforcement primitives (protected `main`, merge via MR, pipeline gating, restricted push/merge roles as configured).
+- CI gating depends on the chosen runner posture; track and keep aligned with `backlog/695-gitlab-configuration-gitops.md`.
+
+### Contract-first boundaries (v6; per 496)
+
+- Inter-primitive communication (UISurface ↔ Projection/Domain, Process ↔ Domain, Agent ↔ Domain) remains contract-first per `backlog/496-eda-principles-v6.md` (public APIs/event payloads defined in Protobuf; transport may be RPC and/or events).
+- GitLab REST APIs are used directly only inside the owner/projection primitives as the Git storage adapter; the browser does not talk to GitLab directly.
 
 ## Required backend seams to support the UI (high-level)
 
@@ -222,9 +234,9 @@ This backlog does not define the full proto set, but it defines the UI’s minim
 
 ### Projection query surface (read path)
 
-Minimum queries needed to build a TOGAF-first repository browser:
+Minimum queries needed to build an Enterprise Repository browser:
 
-- list elements by TOGAF category (virtual hierarchy) and/or by path conventions
+- browse repository hierarchy (list directory children; return file/directory/gitlink nodes)
 - fetch element content (path + ref → bytes/text + type hints)
 - baseline selection support (published baseline commit SHA; optional tags)
 - search (full-text + structured as available)
@@ -236,32 +248,32 @@ Minimum commands needed for “edit elements with governance”:
 
 - begin/ensure a change (branch + MR) scoped to a repository
 - commit/update element content on the change branch (idempotent; use Commit API + `last_commit_id` guards)
+- move/rename paths (files and folders) on the change branch (idempotent; guard with `last_commit_id`)
 - request/record approvals (governance truth)
 - merge/publish (merge MR → `main`, record audit pointers, emit facts)
+- merge/publish is allowed only if platform governance is satisfied; GitLab is configured so protected `main` cannot be pushed directly, and merges occur via MR with CI gating as configured.
 
 Vendor-aligned notes:
 
 - Treat MR readiness as eventually consistent; automation must sometimes wait for MR processing to stabilize before acting.
-- If GitLab approvals are used as enforcement, approvals must be applied by eligible identities and guarded against stale diffs (SHA/patch id).
-- Prefer GitLab-protected branch enforcement using external status checks when “platform DB is the governance truth”.
+- Merge/publish should be SHA-safe: merge only the MR head commit SHA that was evaluated; stale head → refuse and re-evaluate.
 
 ## Deprecations / replacements implied by v6
 
 This backlog makes the following direction explicit:
 
 - **Definition Registry is deprecated** for ProcessDefinitions:
-  - replace `repo/<id>/registry` with ProcessDefinitions stored under `processes/**` and surfaced in the TOGAF hierarchy.
+  - replace `repo/<id>/registry` with ProcessDefinitions stored as files in the Enterprise Repository (typically under `processes/**` by convention) and browsed via the repository hierarchy.
 - The custom “workflow definitions” subsystem is superseded for BPMN-governed processes:
   - pivot to BPMN authoring and runtime validation for Zeebe/Flowable.
 - “Enterprise Repository UI == element graph browser (DB substrate)” is superseded:
-  - the repository root view should be TOGAF hierarchy-first, with graph/search as derived projections.
+  - the repository root view should be hierarchy-first (Git file tree), with graph/search as derived projections.
 - ArchiMate and other editors must move from “DB element CRUD” to “Git-backed element editing” (with projections to index/relate).
 
 ## Incremental delivery plan (minimize disruption)
 
-1) Add a TOGAF hierarchy view to the repository page that can:
-   - list elements by TOGAF categories (even if backed by path conventions initially)
-   - open elements read-only from the published baseline.
+1) Add an Enterprise Repository hierarchy view to the repository page that can:
+   - browse folders and open elements read-only from the published baseline.
 2) Add “Edit → propose” flow:
    - edit element in UI → Domain creates/updates MR → UI shows checks/governance state.
 3) Replace Definition Registry view:
@@ -269,7 +281,7 @@ This backlog makes the following direction explicit:
 4) Migrate existing editors:
    - ArchiMate view editor persists to Git-backed elements (with projection indexing for search/graph).
 5) Switch the repository landing page:
-   - default to TOGAF hierarchy view (not “ArchiMate views”), with derived navigation layered on top.
+   - default to the repository hierarchy view (not “ArchiMate views”), with derived navigation layered on top.
 
 ## Open questions / explicit TBDs
 
@@ -281,4 +293,4 @@ This backlog makes the following direction explicit:
   - per-user authorship/approvals in GitLab (requires delegated identity/tokens and must reconcile with commit signing/approval eligibility).
 - Enforcement posture:
   - GitLab as “storage + CI substrate” only, vs
-  - GitLab as “enforcement substrate” using protected branches + required pipelines + external status checks.
+  - GitLab as “community-grade enforcement substrate” using protected branches + merge requests + required pipelines, with publish eligibility enforced by platform governance.
