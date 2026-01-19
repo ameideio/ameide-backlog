@@ -37,6 +37,23 @@ Under the Git-backed Enterprise Repository posture, the **canonical BPMN source 
   - it implements the job handlers the BPMN requires,
   - and it deploys the **published** BPMN bytes into the orchestration runtime.
 
+### What “versioned” means (grounded)
+
+- **Major** is encoded in the repository path (`v<major>`).
+- **Minor/patch** are Git commits on `main` (optionally tagged), anchored by commit SHA for audit pointers and rollback.
+- “Published process definition version” means: *a concrete commit SHA on `main` plus a process path*.
+
+### What lives where
+
+- **Tenant Enterprise Repository (canonical design-time):**
+  - `processes/<module>/<process_key>/v<major>/process.bpmn` (canonical BPMN)
+  - optional `bindings.yaml` (portable binding metadata / policy hooks)
+  - optional `README.md` (functional intent; promotion gates)
+- **Process primitive repo/image (runtime implementation):**
+  - worker code implementing the job types required by the published BPMN,
+  - deploy logic that deploys the published BPMN to Zeebe,
+  - optional BPMN copy under `bpmn/` as a **fixture** for local verification/tests (not canonical).
+
 This doc remains focused on the runtime/posture and the CLI guardrails; it intentionally does not define the full “process package” schema.
 
 **Gap (TBD):** multi-tenant mapping rules for deploying tenant-specific process versions without collisions (flagged; not addressed here).

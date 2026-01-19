@@ -88,7 +88,7 @@ The domain emits:
 ## Status (as of 2026-01-13)
 
 Implemented in repo (not yet deployed):
-- Design-time ProcessDefinition (target): `processes/transformation/v4/process.bpmn` (tenant Enterprise Repository; published by advancing `main`).
+- Design-time ProcessDefinition (target): `processes/transformation/r2d/v4/process.bpmn` (tenant Enterprise Repository; published by advancing `main`).
 - Requirements BPMN exists in the repo fixture `primitives/process/transformation_v4/bpmn/process.bpmn` under process id `transformation_requirements_v4`.
 - Worker job types are scaffolded for `transformation.requirements.agent.request.v1` and `transformation.requirements.publish.request.v1`.
 
