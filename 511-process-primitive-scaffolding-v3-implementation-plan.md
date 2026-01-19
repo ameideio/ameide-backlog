@@ -17,7 +17,7 @@ This document turns `backlog/511-process-primitive-scaffolding-v3.md` and `backl
 
 Deliver a repo front-door that, for a BPMN-authored Process primitive:
 
-1) scaffolds a **process solution** (BPMN + one worker microservice implementing all job types),  
+1) scaffolds a **process solution** (worker microservice + a governed ProcessDefinition package stored as versioned files in the tenant Enterprise Repository),  
 2) verifies “diagram must not lie” (profile + deployability + worker coverage),  
 3) supports long-running steps via **Request → Wait → Resume**, and  
 4) proves Zeebe runtime semantics via a **separate cluster smoke entrypoint**, while keeping `ameide test` strictly Phase 0/1/2 per 430.
@@ -27,6 +27,8 @@ Deliver a repo front-door that, for a BPMN-authored Process primitive:
 - Zeebe is the runtime for BPMN-authored processes (Camunda 8 / Zeebe).
 - Process primitive bundles all job workers for its BPMN (one worker service per process primitive).
 - Request → Wait → Resume is the default for long-running work (no long work while holding a Zeebe job lease).
+- ProcessDefinitions are design-time governed Git artifacts stored in the tenant Enterprise Repository; Process primitives execute the **published** version.
+- **Gap (TBD):** multi-tenant mapping rules for deploying tenant-specific process versions without collisions (flagged; not addressed in this plan).
 - 430 test contract is enforced:
   - `ameide test` runs Phase 0/1/2 only (local-only; no cluster/Telepresence).
   - cluster smokes run via a separate CLI entrypoint (`ameide test smoke`).

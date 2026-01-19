@@ -110,7 +110,8 @@ Parallel multi-instance execution is allowed only when:
 ## Status (as of 2026-01-13)
 
 Implemented in repo (not yet deployed):
-- Delivery BPMN exists in `primitives/process/transformation_v4/bpmn/process.bpmn` under process id `transformation_delivery_batch_v4`.
+- Design-time ProcessDefinition (target): `processes/transformation/v4/process.bpmn` (tenant Enterprise Repository; published by advancing `main`).
+- Delivery BPMN exists in the repo fixture `primitives/process/transformation_v4/bpmn/process.bpmn` under process id `transformation_delivery_batch_v4`.
 - Aggregation is implemented in BPMN as:
   - `transformation.delivery.batch.init.v1`
   - repeated message catch on `io.ameide.transformation.fact.requirement.ready_for_delivery.v1` (correlated by `delivery_batch_id`)
