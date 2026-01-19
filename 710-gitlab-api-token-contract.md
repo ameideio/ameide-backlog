@@ -61,7 +61,7 @@ GitLab tokens have historically been consumed on an ad-hoc basis (e.g., Backstag
 
 **Next**
 
-- Document the Vault policy updates and add a rotation runbook entry under `backlog/451-secrets-management.md`.
+- Document the Vault policy updates and ensure rotation guidance is captured under `backlog/451-secrets-management.md`.
 - Onboard additional consumers by adding them to the per-environment `foundation-gitlab-api-credentials` values files (and writing their Vault tokens).
 - Treat shared “platform” tokens as exceptions; require explicit sign-off and documentation for any multi-service credential.
 

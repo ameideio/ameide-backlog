@@ -55,6 +55,9 @@ GitLab is treated as a **platform-owned subsystem**:
 
 - GitLab is now part of the standard GitOps component set (no longer `_optional`).
 - Added baseline PostSync smoke job checks for GitLab (`platform-gitlab-smoke`) to keep rollout evidence consistent with other platform smokes.
+- Switched GitLab to shared cluster dependencies (GitOps-managed):
+  - PostgreSQL: shared CNPG cluster (`postgres-ameide-rw`), GitLab databases managed via `platform-postgres-clusters`.
+  - Redis: shared RedisFailover service alias (`redis-master`) using `Secret/redis-auth`.
 - Fixed GitLab UI rendering (“unstyled” pages) by routing the Gateway `HTTPRoute` to **Workhorse** (`webservice` port `8181`) instead of Rails/Puma (`8080`). Verified `/assets/*` returns `200` (CSS/JS served) rather than redirecting to sign-in.
 - Hardened defaults as standard (not optional):
   - Disabled **public sign-ups** by default.
@@ -62,7 +65,8 @@ GitLab is treated as a **platform-owned subsystem**:
   - Enforced both via Helm values (initial defaults) and via the GitOps bootstrap hook (to apply to existing running instances).
 - Fixed hostname assembly footgun by removing the `global.hosts.gitlab.name: gitlab` override so the chart assembles `gitlab.<domain>`.
 - Disabled GitLab chart `upgradeCheck` under ArgoCD to avoid Helm hook failures blocking first installs (GitOps rollouts).
-- Switched GitLab object storage to the shared in-namespace MinIO (`data-minio`) and disabled GitLab’s bundled MinIO chart (temporary posture; see “Object storage”).
+- Switched GitLab object storage to the shared in-namespace MinIO (`data-minio`) and disabled GitLab’s bundled MinIO chart.
+  - Credentials now use a dedicated MinIO service user (`gitlab-minio-access-key`, `gitlab-minio-secret-key`), not MinIO root.
 - Standardized in-cluster GitLab API token delivery (Vault → ExternalSecret → `Secret/gitlab-api-credentials`) via `foundation-gitlab-api-credentials` (`backlog/710-gitlab-api-token-contract.md`).
 - OIDC integration is now fully GitOps-managed (no placeholder secrets):
   - Keycloak client `gitlab` is reconciled per environment (redirect URIs match `gitlab.<env>.ameide.io`).
@@ -260,7 +264,7 @@ GitLab requires S3-compatible object storage for core features (artifacts, LFS, 
 - **MinIO deployment:** Bitnami MinIO `data-minio` (per-environment namespace), configured via `gitops/ameide-gitops/sources/values/_shared/data/data-minio.yaml` and env overrides.
 - **GitLab bundled MinIO:** disabled via `gitlab.global.minio.enabled=false` to avoid arm64 image issues and bucket-job drift.
 - **Connection Secret:** `Secret/gitlab-object-storage` is materialized in the GitLab namespace via `ExternalSecret` (wrapper chart template `gitops/ameide-gitops/sources/charts/platform/gitlab/templates/externalsecret-object-storage.yaml`).
-  - **Temporary credential source:** Vault keys `minio-root-user` + `minio-root-password` (root credentials; to be replaced).
+  - **Credential source:** Vault keys `gitlab-minio-access-key` + `gitlab-minio-secret-key` (dedicated MinIO service user).
 - **Buckets:** created by MinIO default bucket bootstrap (`defaultBuckets`) and include:
   - `git-lfs`, `gitlab-artifacts`, `gitlab-uploads`, `gitlab-packages`
   - `gitlab-mr-diffs`, `gitlab-terraform-state`, `gitlab-ci-secure-files`, `gitlab-dependency-proxy`
@@ -268,7 +272,7 @@ GitLab requires S3-compatible object storage for core features (artifacts, LFS, 
 
 Exit criteria for removing this “temporary” posture:
 
-- Create a dedicated MinIO user for GitLab with scoped bucket policies (no root credentials in app namespaces).
+- Tighten MinIO policies so the GitLab service user is bucket-scoped (not broad `readwrite` across all buckets).
 - Decide whether the long-term target is external object storage (preferred for production) and track the migration plan (buckets, creds, backups).
 
 ## Decision points to resolve

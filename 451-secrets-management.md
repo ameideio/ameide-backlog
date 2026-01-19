@@ -281,6 +281,7 @@ Cluster-scoped workloads also need docker credentials. The shared template accep
 Some third-party secrets are minted once in a vendor UI/API and are stored directly in Vault (instead of `.env`/AKV), then synced into Kubernetes via ExternalSecrets:
 
 - GitLab API tokens: store as a flat key (e.g., `backstage-gitlab-token`) in the external source, map into Vault (`secret/gitlab/tokens/<env>/backstage`), then sync: `ExternalSecret/backstage-gitlab-api-token` → `Secret/gitlab-api-credentials` (`GITLAB_TOKEN`, `GITLAB_API_URL`) per `backlog/710-gitlab-api-token-contract.md`.
+- GitLab object storage (MinIO) service user: Vault keys `gitlab-minio-access-key` + `gitlab-minio-secret-key` are synced into `Secret/minio-service-users` (MinIO provisioning) and used to template `Secret/gitlab-object-storage` (GitLab S3/MinIO connection).
 
 ### Secrets NOT in Azure KV (Cluster-Managed)
 
@@ -289,8 +290,10 @@ These secrets are generated in-cluster and should NOT be added to `.env` or Azur
 | Secret | Authority | See |
 |--------|-----------|-----|
 | `postgres-ameide-auth`, `*-db-credentials` | CNPG Operator | [412](./412-cnpg-owned-postgres-greds.md) |
+| `gitlab-db-credentials` | CNPG Operator (password sourced from Vault `gitlab-db-password`) | [412](./412-cnpg-owned-postgres-greds.md) |
 | `platform-app-master-client` | Keycloak (via client-patcher) | [462](./462-secrets-origin-classification.md) |
 | `minio-root-credentials` | Helm `randAlphaNum` | [462](./462-secrets-origin-classification.md) |
+| `minio-service-users` | Vault → ExternalSecrets → MinIO provisioning | [462](./462-secrets-origin-classification.md) |
 | `grafana-admin-credentials` | Helm `randAlphaNum` | [462](./462-secrets-origin-classification.md) |
 
 ---
