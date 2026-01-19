@@ -1,5 +1,5 @@
 ---
-title: "520 – Primitives Stack (v6: Camunda-only orchestration, `io.ameide.*`, hybrid integration)"
+title: "520 – Primitives Stack (v6: BPMN orchestration on Zeebe/Flowable, `io.ameide.*`, hybrid integration)"
 status: draft
 owners:
   - platform
@@ -12,12 +12,12 @@ related:
   - 694-elements-gitlab-v6.md
 ---
 
-# Primitives Stack v6 (Backlog 520) — Camunda-only orchestration, `io.ameide.*`, hybrid integration
+# Primitives Stack v6 (Backlog 520) — BPMN orchestration on Zeebe/Flowable, `io.ameide.*`, hybrid integration
 
 This v6 is the current runtime posture “spine”:
 
-- BPMN executes on Camunda 8 / Zeebe for Process primitives.
-- Temporal remains platform-only (not business process orchestration).
+- BPMN executes on **Camunda 8 / Zeebe** (default) or **Flowable** (supported profile) for business Process primitives.
+- Temporal remains platform-only (not business BPMN orchestration).
 - Integration is governed by owner-only writes + proto contracts, using a hybrid model (RPC commands + event facts).
 - Inter-primitive semantic identities use `io.ameide.*`.
 
@@ -27,12 +27,12 @@ This v6 is the current runtime posture “spine”:
 
 ## Summary (the decision that changes everything)
 
-We adopt a Camunda-only orchestration posture for Ameide business domains:
+We adopt a BPMN orchestration posture for Ameide business domains:
 
-1. **BPMN-authored processes execute on Camunda 8 / Zeebe.**
+1. **BPMN-authored business processes execute on Zeebe (default) or Flowable (supported profile).**
    - BPMN is the runnable program (engine semantics).
    - A Process primitive is “BPMN definition + worker implementations + verification”, not “Temporal workflow service”.
-2. **Temporal is platform-only** (internal platform concerns) and is not part of Ameide business domain orchestration.
+2. **Temporal is platform-only** (internal platform concerns, e.g. platform login/onboarding orchestration) and is not used as a BPMN execution target.
 3. The BPMN→Temporal transpilation/compile-to-IR effort is discontinued (no backward compatibility layers).
 
 The non-negotiable rule still holds: **the diagram must not lie**.
@@ -49,7 +49,7 @@ The non-negotiable rule still holds: **the diagram must not lie**.
 
 ### A) Process runtime posture
 
-- BPMN Process primitives = Zeebe deployments + worker microservices implementing side effects.
+- BPMN Process primitives = BPMN deployments + worker microservices implementing task side effects.
 - Long work is modeled as explicit BPMN wait states and resumed by message correlation (request→wait→resume).
 - **ProcessDefinitions are design-time governed artifacts stored in the tenant Enterprise Repository.**
   - BPMN is authored and versioned as files in the tenant repository and published by advancing the baseline (`main`).
@@ -63,6 +63,15 @@ The non-negotiable rule still holds: **the diagram must not lie**.
   - A Process primitive is the runtime implementation (worker + deploy logic) that executes the **published** process definition version.
   - This makes process orchestration “definition-driven”: agents/humans change the governed artifact; the Process primitive executes it.
   - **Gap (TBD):** multi-tenant mapping rules for deploying tenant-specific process versions without collisions (flagged; not addressed here).
+
+#### Supported BPMN runtime profiles (v6)
+
+The same ProcessDefinition artifact can be validated and deployed against different BPMN runtimes by selecting a profile:
+
+- **Zeebe (Camunda 8)** — default runtime for business BPMN process primitives.
+- **Flowable** — supported alternative runtime under an explicit profile.
+
+Promotion of a ProcessDefinition MUST include runtime-profile verification (deployability + semantics) against the deployed target runtime. Temporal is not a BPMN runtime target in this posture.
 
 ### B) Integration posture (hybrid)
 

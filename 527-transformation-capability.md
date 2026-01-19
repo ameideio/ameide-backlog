@@ -1,7 +1,7 @@
 # 527 — Transformation Capability (Define the capability, then realize it via primitives)
 
-> **DEPRECATED (2026-01-12):** This document assumes “Temporal-backed Process primitives” for BPMN-authored orchestration.  
-> Current direction: BPMN-authored Process primitives execute on **Camunda 8 / Zeebe**, with side effects implemented by primitives as workers; Temporal is platform-only and not part of Ameide business capabilities.  
+> **DEPRECATED (2026-01-12):** This document assumes “Temporal-backed Process primitives” and a separate “Definition Registry” for BPMN-authored orchestration.  
+> Current direction: ProcessDefinitions are Git-backed artifacts in the tenant Enterprise Repository; business BPMN executes on **Camunda 8 / Zeebe** (default) or **Flowable** (supported profile); Temporal is platform-only and not part of BPMN execution.  
 > See `backlog/527-transformation-capability-v2.md`.
 
 **Status:** Draft (scaffolds implemented; spec acceptance pending)  
@@ -42,7 +42,7 @@ Transformation is Ameide’s change-the-business capability. In the future state
   - graph traversal/impact analysis is a projection over element links,
   - semantic search is a projection over element-version content embeddings (e.g., pgvector).
 - Multi-methodology **experiences** (Scrum, TOGAF/ADM, PMI) delivered as **dedicated UISurfaces + workflows** over the same substrate (no methodology-specific canonical data model).
-- Optional, when needed for configurability: a **Definition Registry** for promotable workflow/UI/validation definitions stored as domain data (still subject to the same EDA + promotion rules).
+- Optional, when needed for configurability: a **definitions catalog** (Projection/index) over Git-backed artifacts (processes/agents/profiles) with promotion/deploy status derived from governance/audit pointers.
 - v6 integration contracts (hybrid: RPC commands + event facts) so Process primitives and Agents can execute work deterministically without coupling to any single transport posture.
 
 **Repository identity (fixed):**
@@ -125,10 +125,10 @@ This section is the current repo snapshot of **what is implemented vs what is st
 
 ### Still pending (capability meaning beyond MVP)
 
-- [ ] Definition Registry (schema-backed definitions + versions/promotions + operator consumption).
+- [ ] Definitions catalog (Projection): index Git-backed ProcessDefinitions/AgentDefinitions/profiles and show publish/deploy status from governance/audit pointers.
 - [ ] Governance objects (initiatives, baselines/promotions, approvals, evidence bundles) and their UIs/projections.
 - [ ] NotationProfileDefinition / conformance + exporters as data-driven definitions (standards-compliant vs extended).
-- [ ] Stored ProcessDefinitions (BPMN) compiled to `CompiledWorkflowDefinition` + `ScaffoldingPlanDefinition`, executed by the Process primitive.
+- [ ] ProcessDefinition promotion + deployment loop (v6): verify BPMN + bindings + worker coverage against Zeebe/Flowable, then deploy BPMN and roll out the corresponding Process primitive worker.
 - [ ] Integration “runner” primitives for tool execution + evidence capture (CLI as tool, not orchestrator).
 
 ## 1) Definition
@@ -138,16 +138,16 @@ Transformation is the platform’s **change-the-business capability**: it captur
 It is not “a modeling UI” and not “a Temporal service”; it is a capability realized by primitives that provide:
 
 - the Enterprise Repository (typed design-time system of record),
-- the Definition Registry (design-time definitions as domain data),
+- Git-backed design-time definitions (ProcessDefinitions, AgentDefinitions, profiles) stored as files in the tenant Enterprise Repository (`processes/**` etc),
 - EDA-native contracts that processes and agents consume to execute work deterministically.
 
 ### 1.0.1 IT4IT alignment (default operating model)
 
 Transformation is **IT4IT-aligned by default**: it is Ameide’s “IT value-stream capability”.
 
-- **IT4IT systems of record** map to Transformation **Domain primitives** (Enterprise Repository / Enterprise Knowledge substrate, baselines/promotions/approvals, Definition Registry).
-- **IT4IT processes** map to Transformation **Process primitives** (Temporal-backed workflows that execute “Initiate/Design/Realize/Govern” and emit process facts as evidence).
-  - **ProcessDefinitions are design-time truth** stored/promoted in the Definition Registry (Domain).
+- **IT4IT systems of record** map to Transformation **Domain primitives** (Enterprise Repository mapping + governance/audit pointers + promotion decisions).
+- **IT4IT processes** map to Transformation **Process primitives** (BPMN executed on Zeebe/Flowable, with explicit human gates; emit process facts as evidence).
+  - **ProcessDefinitions are design-time truth** stored as versioned files in the tenant Enterprise Repository (published by advancing `main`).
   - **Process execution is runtime orchestration** performed by Process primitives; process state is not a system of record.
 - **IT4IT visibility** maps to Transformation **Projection primitives** (query services + audit/evidence read models).
 
@@ -155,7 +155,7 @@ IT4IT is treated as the *operating model* of the capability, not as a required n
 
 ### 1.0.2 Transformation as IT value-stream execution (hard boundaries)
 
-- **System of record:** Transformation Domain (Enterprise Repository + Definition Registry + baselines/promotions/approvals).
+- **System of record:** Transformation Domain (Enterprise Repository mapping + baselines/promotions/approvals + audit pointers).
 - **Process of record:** Transformation Process (executes promoted ProcessDefinitions; emits process facts; never writes canonical domain state).
 - **Read model of record:** Transformation Projection (query services for UI/agents; audit trail; evidence views).
 - **Contract spine:** topic families + envelope invariants (`tenant_id`/`organization_id`/`repository_id`, traceability, monotonic versions).
@@ -166,14 +166,16 @@ IT4IT is treated as the *operating model* of the capability, not as a required n
 Transformation treats **BPMN 2.0 ProcessDefinitions** as the canonical *authoring source* for workflow/governance logic, while keeping execution and generation deterministic:
 
 - **BPMN is the source of truth** (portable under standards-compliant profiles).
-- Promotion gates derive two promotable, deterministic build inputs:
-  - `CompiledWorkflowDefinition` — Workflow IR executed by Temporal-backed Process primitives.
-  - `ScaffoldingPlanDefinition` — diff-friendly plan used by scaffolders/operators (ports, workers, adapters, required contracts).
+- Promotion gates verify the definition against the target runtime and the platform contracts:
+  - runtime profile deployability (Zeebe/Flowable),
+  - binding completeness (portable bindings or linked binding artifacts),
+  - worker coverage (every side-effect task has an owning implementation),
+  - request→wait→resume correctness for long-running work.
 - **Standards-compliant vs extended profiles** govern *where bindings live*:
   - standards-compliant: bindings via `bpmn:documentation` (structured) and/or linked elements (REFERENCE)
   - extended: bindings may use extensions/namespaces but portability must be explicitly labeled
 
-This preserves “one source” as the canonical truth while preventing runtime ambiguity (“BPMN XML is not the runtime program”).
+This preserves “one source” as the canonical truth while preventing runtime ambiguity (“BPMN XML is the authored program; promotion proves it against the deployed engine”).
 
 ### 1.0.4 Any notation as a derivation source (not just “diagrams”)
 
@@ -193,7 +195,7 @@ This keeps the Enterprise Knowledge substrate element-centric while letting any 
 
 ### 1.0.5 From design-time artifacts to IT4IT steps to primitives (the execution chain)
 
-Transformation is “definition-driven”: **design-time artifacts** (stored as Elements and/or Definition Registry entries) drive **IT4IT-aligned process steps** (stored ProcessDefinitions), which in turn drive the creation and evolution of **Ameide primitives**.
+Transformation is “definition-driven”: **design-time artifacts** (stored as Git-backed files and/or indexed definitions) drive **IT4IT-aligned process steps** (stored ProcessDefinitions), which in turn drive the creation and evolution of **Ameide primitives**.
 
 The chain is:
 
@@ -203,7 +205,7 @@ The chain is:
      - `CapabilityEDAContract`
      - `CapabilityPrimitiveDecomposition`
    - Workflow semantics: ProcessDefinitions (BPMN)
-     - BPMN is the authoring source; promotion yields `CompiledWorkflowDefinition` + `ScaffoldingPlanDefinition`.
+     - BPMN is the authoring source; promotion proves deployability/semantics against Zeebe/Flowable and records deployment refs/audit pointers.
 
 2. **IT4IT process steps (Process primitive executes)**
    - Initiate/Design/Realize/Govern are realized as stored ProcessDefinitions and executed by the Process primitive (process-of-record).

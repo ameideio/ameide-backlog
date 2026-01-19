@@ -11,7 +11,7 @@
 - Capability method: `backlog/524-transformation-capability-decomposition.md`
 - Capability implementation DAG: `backlog/533-capability-implementation-playbook.md`
 - Integration/EDA contract rules: `backlog/496-eda-principles-v6.md`, `backlog/496-eda-protobuf-ameide.md`
-- Primitives pipeline: `backlog/470-ameide-vision.md`, `backlog/477-primitive-stack.md`, `backlog/520-primitives-stack-v2.md`
+- Primitives pipeline: `backlog/470-ameide-vision.md`, `backlog/477-primitive-stack.md`, `backlog/520-primitives-stack-v6.md`
 
 ## Layer header (cross-layer worksheet)
 

@@ -1,8 +1,10 @@
 # 527 Transformation — Process Primitive Specification
 
 > **DEPRECATED (2026-01-12):** This document specifies a “Temporal-backed” BPMN execution posture (compile-to-Temporal/IR).  
-> Current direction: BPMN-authored Process primitives execute on **Camunda 8 / Zeebe**; extensions document worker side-effects and are enforced by verify, not transpilation.  
+> Current direction: business BPMN executes on **Camunda 8 / Zeebe** (default) or **Flowable** (supported profile); extensions document worker side-effects and are enforced by verify, not transpilation.  
 > See `backlog/527-transformation-process-v2.md`.
+>
+> **Update (v6 posture):** ProcessDefinitions are Git-backed artifacts in the tenant Enterprise Repository (`processes/**`). “Definition Registry” and “compiled workflow IR” are deprecated concepts under the Git-backed Enterprise Repository posture (`backlog/694-elements-gitlab-v6.md`).
 
 **Status:** Draft (scaffold implemented; WorkRequest seam implemented; initial workflows implemented; BPMN/registry execution pending)  
 **Parent:** [527-transformation-capability.md](527-transformation-capability.md)

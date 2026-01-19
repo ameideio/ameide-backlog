@@ -1,7 +1,8 @@
 # 527 Transformation — Implementation Plan (target-state, no migration shims)
 
 > **DEPRECATED (2026-01-12):** This implementation plan assumes a Temporal-backed Process primitive posture for BPMN-authored processes.  
-> Current direction: BPMN-authored processes execute on **Camunda 8 / Zeebe**; see `backlog/527-transformation-process-v2.md`.
+> Current direction: business BPMN executes on **Camunda 8 / Zeebe** (default) or **Flowable** (supported profile); see `backlog/520-primitives-stack-v6.md` and `backlog/527-transformation-process-v4.md`.  
+> ProcessDefinitions are Git-backed artifacts in the tenant Enterprise Repository (no Definition Registry).
 
 **Status:** Draft (implementation in progress)  
 **Parent:** `backlog/527-transformation-capability.md`
@@ -783,11 +784,11 @@ These are explicitly sequenced so we reintroduce governance *after* the enterpri
 - Process: approval gates emitting process facts (`GateDecisionRecorded`) and step facts (`ActivityTransitioned`).
 - Projection/UI: baseline timeline + diff + evidence views.
 
-### P3 — Definition Registry + operator consumption
+### P3 — Definitions catalog + runtime consumption (v6)
 
-- [ ] Domain: Definition Registry exists (schema-backed definitions, versions, promotions).
-- Domain: schema-backed `ProcessDefinition` / `AgentDefinition` / `ExtensionDefinition` with versioning/promotions.
-- Process: “Design → Deploy” workflows execute promoted definitions; CLI invoked via integration runners; tool runs recorded as process facts.
+- [ ] Domain: promotion/deploy metadata exists for Git-backed definitions (commit SHA + path, plus audit pointers for deployments).
+- Projection/UI: definitions catalog exists (index `processes/**` and related artifacts; show publish/deploy status).
+- Process: “Design → Deploy” workflows verify against the deployed BPMN runtime (Zeebe/Flowable) and roll out the corresponding Process primitive workers; tool runs recorded as process facts.
 
 ### P4 — Scrum / TOGAF / PMI overlays
 
@@ -800,8 +801,8 @@ These are explicitly sequenced so we reintroduce governance *after* the enterpri
 
 ## 7) Cross-references
 
-- `backlog/520-primitives-stack-v2.md` — canonical stack and gates
-- `backlog/509-proto-naming-conventions.md` — package/topic naming
+- `backlog/520-primitives-stack-v6.md` — canonical stack and gates
+- `backlog/509-proto-naming-conventions-v6.md` — package/semantic identity naming
 - `backlog/300-400/303-elements.md` — elements-only substrate
 - `backlog/521f-external-verification-baseline.md` — verify expectations
 - `backlog/527-transformation-scenario-scrum.md` — end-to-end “Requirement → Release” flow (Scrum track; CLI is a tool inside the process)

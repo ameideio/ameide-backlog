@@ -90,6 +90,9 @@ Additionally, ship a **repo-root integration pack** under `tests/integration/onb
 
 **Process: Onboarding Orchestrator (Temporal)**
 
+> **Note (v6 posture):** this is a **platform** workflow (Temporal is allowed here).  
+> Business BPMN Process primitives (capability workflows authored as BPMN) execute on Zeebe/Flowable; BPMN is not compiled/executed on Temporal.
+
 * Converts “principal + intent” into durable Domain outcomes via stepwise, resumable execution:
 
   1. **Preflight** (determine lane: UNASSIGNED vs SEEDED_PERSONA vs ASSIGNED_NO_ORG vs HAS_ORG)

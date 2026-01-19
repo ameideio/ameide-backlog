@@ -15,10 +15,10 @@ This document updates the v2 Zeebe posture to be **explicitly aligned** with the
 
 ## Decision summary (v3)
 
-1. **BPMN-authored processes execute on Camunda 8 / Zeebe.**
+1. **BPMN-authored business processes execute on Zeebe (default) or Flowable (supported profile).**
 2. A Process primitive is shipped as a **Zeebe “process solution”**:
    - **one worker microservice** that implements **all Zeebe job types** referenced by the process definition, plus
-   - deploy logic that deploys the **published** process definition to Zeebe.
+   - deploy logic that deploys the **published** process definition to the selected BPMN runtime (Zeebe or Flowable).
 3. **Long work is never performed while holding a Zeebe job lease** as the default posture.
    - The worker’s job handlers are **short, idempotent “request” steps**.
    - The BPMN explicitly models the wait via **message catch / receive task**, and resumes via **publish message (TTL + messageId)**.
@@ -83,7 +83,7 @@ This template prevents “long step under job lease” anti-patterns and makes r
 ### `verify` (Phase 0, design-time contract)
 
 `verify` MUST be able to fail fast with stable errors for:
-- BPMN not deployable to Zeebe (missing engine bindings / unsupported constructs).
+- BPMN not deployable to the selected BPMN runtime profile (Zeebe/Flowable) (missing engine bindings / unsupported constructs).
 - Missing worker coverage (BPMN declares job type but worker service does not implement it).
 - Request/Wait/Resume contract violations (recommended, for operability):
   - if a job type matches `*.request.*`, the BPMN must contain a following wait state correlated by `work_id`.
@@ -107,7 +107,7 @@ Scaffolding outputs a process solution skeleton:
 
 ### Cluster runtime semantics (separate)
 
-Zeebe runtime semantics are validated by a **cluster-only smoke suite** (Camunda Orchestration Cluster REST API):
+Runtime semantics are validated by a **cluster-only smoke suite** against the selected BPMN runtime:
 - runs as a separate CLI entrypoint (not part of 0/1/2),
 - deploys a conformance BPMN, drives segments, asserts message/timer/incident semantics.
 

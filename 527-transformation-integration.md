@@ -144,7 +144,7 @@ Integration runners exist so deterministic tool steps can run without turning th
   - `commit_sha` (exact revision)
   - `workdir` (path inside checkout)
 - Plan reference:
-  - `scaffolding_plan_ref` → a promoted `ScaffoldingPlanDefinition` version (Definition Registry id + version), or a fetched plan artifact path provided by the Process primitive
+  - `plan_ref` → a Git reference to a plan artifact (path + commit SHA) provided by the Process primitive or derived from the published ProcessDefinition; no Definition Registry dependency
 - Requested action:
   - `action_kind` ∈ `{preflight, scaffold, generate, verify, build, publish, deploy, smoke}` (v1 set; expand later)
   - `execution_scope` ∈ `{slice, repo}` (see §1.0.4)

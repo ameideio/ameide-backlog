@@ -4,17 +4,20 @@
 **Audience:** Platform engineers implementing Process operator
 **Scope:** Implementation tracking, development phases, acceptance criteria
 
+> **Scope update (v6):** this operator is for **Temporal-backed platform workflows** only (internal platform concerns such as platform login/onboarding orchestration).  
+> Business BPMN Process primitives execute on **Camunda 8 / Zeebe** (default) or **Flowable** (supported profile) per `backlog/520-primitives-stack-v6.md` and `backlog/511-process-primitive-scaffolding-v3.md`. Temporal is not a BPMN execution target.
+
 **Authority & supersession**
 
 - This backlog is **authoritative for the Process operator control plane**: the `Process` CRD shape, reconciliation flow, and how Process workers are wired/deployed.  
-- **Runtime event contracts and workflow structure** live in `506-scrum-vertical-v2.md` (Scrum seam) and any methodology-specific workflow docs; Temporal workflows must follow those contracts.  
+- **Runtime event contracts and workflow structure** (for any Temporal-backed platform workflows) live in `506-scrum-vertical-v2.md` (Scrum seam) and any methodology-specific workflow docs; Temporal workflows must follow those contracts.  
 - **Primitive/condition vocabulary** is shared with other operators and owned by `495-ameide-operators.md` and `502-domain-vertical-slice.md`.  
 - Older stage or methodology docs must not override the runtime rule stated here: **workflows interact with Transformation only via bus messages defined in 506-v2/508**.
 
 **Contract surfaces (owned elsewhere, referenced here)**
 
 - `scrum.domain.intents.v1` / `scrum.domain.facts.v1` (Scrum domain intents/facts) and `scrum.process.facts.v1` (process facts) topics and envelopes are defined in `506-scrum-vertical-v2.md` and `508-scrum-protos.md`.  
-- ProcessDefinition schema and storage are defined in the Transformation/ProcessDefinition backlogs (`367-1-*`, `471-ameide-business-architecture.md`).  
+ - ProcessDefinition schema and storage (for BPMN business processes) is Git-backed in the tenant Enterprise Repository (`processes/**`) per `backlog/694-elements-gitlab-v6.md` and `backlog/520-primitives-stack-v6.md`.  
 - Shared operator condition types are defined in `operators/shared/api/v1/conditions.go`.
 
 ## Runtime contract (Scrum governance workflows)
@@ -22,7 +25,7 @@
 - **Domain writes via intents:** Temporal workflows that implement Scrum governance must request all Scrum state changes by publishing **domain intents** on `scrum.domain.intents.v1` (e.g., `StartSprintRequested`, `EndSprintRequested`, `CommitSprintBacklogRequested`, `RecordProductBacklogItemDoneRequested`, `RecordIncrementRequested`).  
 - **Domain state via facts:** They observe Scrum state by consuming **domain facts** from `scrum.domain.facts.v1` (e.g., `SprintCreated`, `SprintStarted`, `SprintBacklogCommitted`, `ProductBacklogItemDoneRecorded`, `IncrementUpdated`).  
 - **Process facts only for governance cues:** Any additional events they emit are **process facts** on `scrum.process.facts.v1` (e.g., `SprintBacklogReadyForExecution`, `SprintBacklogItemReadyForWork`, `SprintTimeboxReachedEnd`), never alternate copies of Scrum domain facts.  
-- **No runtime RPC coupling:** All synchronous calls from the Process operator into Transformation (e.g., `GetProcessDefinition`) are control‑plane only; runtime workflows must not issue direct RPCs to mutate or read Scrum domain state, but instead follow the seam in `506-scrum-vertical-v2.md` / `508-scrum-protos.md`.
+- **No runtime RPC coupling:** Any synchronous calls from the Process operator into domains are control‑plane only; runtime workflows must not issue direct RPCs to mutate or read Scrum domain state, but instead follow the seam in `506-scrum-vertical-v2.md` / `508-scrum-protos.md`.
 
 > **Related**:
 > - [495-ameide-operators.md](495-ameide-operators.md) – CRD shapes & responsibilities
@@ -32,9 +35,9 @@
 
 ## 1. Overview
 
-The Process operator manages the lifecycle of **Process primitives** – long-running orchestrations backed by Temporal. Each `Process` CR results in:
+The Process operator manages the lifecycle of **platform Process primitives** – long-running orchestrations backed by Temporal. Each `Process` CR results in:
 
-- ProcessDefinition fetched from a **Definition Registry** (which may be implemented inside Transformation as a separate subsystem, but is not the Scrum domain API)
+- ProcessDefinition resolved by the platform control plane (opaque metadata; not a BPMN ProcessDefinition execution target in v6)
 - ConfigMap with the **raw process definition** / BPMN‑annotated JSON as a design‑time reference (no runtime “BPMN → Temporal compilation” happens in the operator)
 - Temporal worker Deployment
 - Optional CronJobs for SLA checks / cleanup
@@ -105,7 +108,7 @@ status:
 7. Update status (conditions, definition.checksum, observedGeneration)
 ```
 
-> **Control plane vs. runtime:** `reconcileDefinition()` is allowed to call Transformation synchronously via gRPC/Connect to resolve static `ProcessDefinition` metadata (control plane). The **runtime** Temporal workflows described in `506-scrum-vertical-v2.md` MUST interact with Transformation only via bus messages (`scrum.domain.intents.v1` and `scrum.domain.facts.v1`) and must not issue direct RPCs to mutate or read domain state.
+> **Control plane vs. runtime:** `reconcileDefinition()` may resolve static definition metadata in the control plane. The **runtime** Temporal workflows described in `506-scrum-vertical-v2.md` MUST interact with domains only via bus messages (`scrum.domain.intents.v1` and `scrum.domain.facts.v1`) and must not issue direct RPCs to mutate or read domain state.
 
 ---
 
@@ -169,7 +172,7 @@ type ProcessDefinitionStatus struct {
 
 ### Phase 2: (intentionally no design‑time integration)
 
-Design‑time artifacts such as BPMN diagrams and ProcessDefinitions live entirely in the Transformation Domain and are consumed by developer/agent workflows and the Process primitive’s own code. The Process operator **does not**:
+Design‑time artifacts (including BPMN ProcessDefinitions) are Git-backed in the tenant Enterprise Repository and are consumed by developer/agent workflows and Process primitives. The Process operator **does not**:
 
 - fetch ProcessDefinitions,
 - create ConfigMaps with compiled BPMN/definitions, or
@@ -289,7 +292,7 @@ ctrl.NewControllerManagedBy(mgr).
 
 | Dependency | Purpose |
 |------------|---------|
-| **Transformation Domain** | Source of design-time ProcessDefinitions (used by CLI/agents and Process primitives, not by the operator) |
+| **Enterprise Repository (Git)** | Source of design-time ProcessDefinitions (used by CLI/agents and Process primitives, not by the operator) |
 | **Temporal** | Workflow execution engine |
 | **Domain operator** | Referenced domains must be Ready |
 | **Agent operator** | Referenced agents must be Ready |
@@ -316,4 +319,4 @@ ctrl.NewControllerManagedBy(mgr).
 | [495-ameide-operators.md](495-ameide-operators.md) | Process operator responsibilities (§2) |
 | [497-operator-implementation-patterns.md](497-operator-implementation-patterns.md) | Go patterns & adaptation (§10.9) |
 | [477-primitive-stack.md](477-primitive-stack.md) | Process in primitive architecture |
-| [471-ameide-business-architecture.md](471-ameide-business-architecture.md) | ProcessDefinition as design artifact |
+| `backlog/694-elements-gitlab-v6.md` | ProcessDefinitions as Git-backed artifacts |
