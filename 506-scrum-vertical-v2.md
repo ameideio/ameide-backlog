@@ -6,7 +6,7 @@
 This is a clean, **Scrum-Guide-aligned** contract for structuring Scrum as:
 
 * **Scrum Domain (Transformation)** = *system of record* for Scrum artifacts + commitments (data and rules), **reactive only** (no timers/orchestration).
-* **Scrum Process (Temporal)** = *timebox governor* (timers, reminders, orchestration), **event-driven only** (no direct domain writes/calls).
+* **Scrum Process (BPMN runtime: Zeebe/Flowable)** = *timebox governor* (timers, reminders, orchestration), **event-driven only** (no direct domain writes/calls).
 * **Domain ↔ Process integrate only through messages on the event bus** (domain “facts”, domain “intents”, and process “facts”).  
 
 The Scrum wording used below follows the **official Scrum Guide**: Scrum Team accountabilities, Scrum events, Scrum artifacts, and their commitments.
@@ -15,7 +15,7 @@ The Scrum wording used below follows the **official Scrum Guide**: Scrum Team ac
 
 ## Grounding & cross-references
 
-- **Role in architecture:** Canonical Scrum runtime seam between Transformation (Scrum domain) and Process primitives; defines envelopes, topics, and Temporal workflow structure.  
+- **Role in architecture:** Canonical Scrum runtime seam between Transformation (Scrum domain) and Process primitives; defines envelopes, topics, and BPMN process structure (request→wait→resume).  
 - **Domain side:** Builds on `300-400/367-1-scrum-transformation.md` and the `transformation_scrum_*` protos in `508-scrum-protos.md`; Transformation persists Scrum artifacts and emits the domain facts referenced here.  
 - **Process side:** Consumed by Process primitives described in `499-process-operator.md` and positioned in the primitive stack by `477-primitive-stack.md`; workflows must obey the intent/fact separation and idempotency rules in this backlog and the integration rules in `496-eda-principles-v6.md`.  
 - **Agents & tooling:** `505-agent-developer-v2.md` and `505-agent-developer-v2-implementation.md` describe how AmeidePO/AmeideSA/AmeideCoder react to process/domain facts from this seam; `495-ameide-operators.md` and `502-domain-vertical-slice.md` provide shared operator/condition vocabulary; `507-scrum-agent-map.md` locates this contract at Stage 2 in the Scrum stack.
@@ -24,7 +24,7 @@ The Scrum wording used below follows the **official Scrum Guide**: Scrum Team ac
 
 ---
 
-## Vendor best-practice alignment (Scrum, Temporal, Proto/EDA)
+## Vendor best-practice alignment (Scrum, BPMN runtime, Proto/EDA)
 
 This contract is intentionally aligned with three “vendors of truth”:
 
@@ -32,9 +32,9 @@ This contract is intentionally aligned with three “vendors of truth”:
    - The **Transformation Scrum subdomain** models *only* Scrum artifacts and commitments using Scrum terms (Product Backlog / Product Goal, Sprint Backlog / Sprint Goal, Increment / Definition of Done).  
    - No “requirements”, “phase gates”, or “Definition of Ready” appear as Scrum domain concepts; if they exist, they live as **policy or platform extensions**, not state in this contract.
 
-2. **Temporal (process/orchestration semantics)**  
-   - All non-deterministic concerns (bus consumption, network I/O, clocks) live in an **ingress router + Activities**; Temporal workflows remain **deterministic and signal-driven**.  
-   - If `ContinueAsNew` is used for “entity workflows”, deduplication is handled explicitly in workflow state (using `aggregate_version` and “already emitted” markers), because Temporal’s built-in dedupe does **not** span runs.
+2. **BPMN runtime (Zeebe/Flowable) (process/orchestration semantics)**  
+   - Long-running work uses explicit BPMN waits and message correlation (request→wait→resume); do not hold engine job leases for long work.  
+   - Temporal remains platform-only and is not a BPMN execution target in this posture.
 
 3. **Proto / EDA conventions (contract semantics)**  
    - One root proto namespace with versioned packages (see `508-scrum-protos.md` and `backlog/509-proto-naming-conventions-v6.md`).  

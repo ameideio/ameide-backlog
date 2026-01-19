@@ -10,7 +10,7 @@ The delivery process is the IT4IT-aligned Transformation Process. This package e
 
 - humans in the repo (inner-loop),
 - agents (tool calls in the Transformation Domain),
-- deterministic process activities (Temporal-backed Process primitives).
+- deterministic process steps (BPMN Process primitives on Zeebe/Flowable; Temporal only for platform workflows).
 
 ## Where this lands (520 alignment)
 
@@ -37,7 +37,7 @@ packages/ameide_coding_helpers
 Invokers
 ├─ Humans (CLI / direct)
 ├─ Agents (tool calls)
-└─ Process activities (Temporal)
+└─ Process steps (BPMN runtime)
 ```
 
 ## Deliverables

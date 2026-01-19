@@ -100,7 +100,7 @@ Assertions must be on **durable state and facts**, not on “did a Pod exist”:
   - evidence descriptor schema is well-formed (and redaction rules hold)
 - Process:
   - requests work (domain intent), waits via Activity completion results (poll/heartbeat), emits process facts (`ToolRunRecorded`, `GateDecisionRecorded`, etc.)
-  - deterministic replay (Temporal workflow tests)
+  - deterministic progression under retries (engine-specific tests: Zeebe/Flowable runtime smokes for BPMN processes; Temporal replay tests only for platform Temporal workflows)
 - Projection:
   - joins domain + process facts into a capability run timeline with citations
 
@@ -146,7 +146,7 @@ Capability owners should start with a small standard set of end-to-end tests (he
 
 - **E2E‑0: WorkRequest lifecycle smoke (no Process)**  
   Domain creates a deterministic WorkRequest → executor runs → Domain records outcome/evidence → Projection shows completion. Assert idempotency + evidence descriptor present + citations/timeline.
-- **E2E‑1: Process orchestration slice (Temporal)**  
+- **E2E‑1: Process orchestration slice (BPMN runtime)**  
   Start the workflow that requests work and awaits completion. Assert it emits `ToolRunRecorded` (and/or `GateDecisionRecorded`) referencing the WorkRequest/evidence.
 - **E2E‑2: At-least-once + retry tolerance**  
   Simulate duplicate deliveries / retries. Assert one canonical outcome per idempotency key and stable timeline materialization.

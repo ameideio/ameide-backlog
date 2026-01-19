@@ -8,7 +8,7 @@ Transformation remains “design → realize → govern”, implemented via Amei
 
 The execution posture changes:
 
-- **BPMN-authored processes execute on Camunda 8 / Zeebe.**
+- **BPMN-authored processes execute on Camunda 8 / Zeebe (default) or Flowable (supported profile).**
 - The **Process primitive** remains a first-class concept, but for BPMN processes it is:
   - the BPMN definition (design-time truth),
   - deployed to Zeebe (runtime truth),
@@ -17,7 +17,7 @@ The execution posture changes:
 
 ## Design-time vs runtime (unchanged principle; different runtime)
 
-- **Design-time truth** lives in Transformation as versioned elements/definitions (BPMN, ArchiMate, docs).
+- **Design-time truth** lives as Git-backed files in the tenant Enterprise Repository (BPMN, ArchiMate, docs), published by advancing `main` (see `backlog/694-elements-gitlab-v6.md`).
 - **Runtime orchestration** for Transformation governance BPMN executes on Zeebe.
 
 Domains remain the system of record; process engines do not become canonical truth stores.

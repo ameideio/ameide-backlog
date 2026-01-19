@@ -2,6 +2,9 @@
 
 > **DEPRECATED (2026-01-12):** Superseded by the Zeebe-based Process primitive posture.  
 > See `backlog/527-transformation-process-v2.md`.
+>
+> **Update (v6 posture):** references to “Elements + Versions as canonical storage” and any “Definition Registry” mechanics are historical.  
+> Canonical design-time truth is Git-backed in the tenant Enterprise Repository (files under `elements/**`, `relationships/**`, `processes/**`) per `backlog/694-elements-gitlab-v6.md`.
 
 **Status:** Draft  
 **Parent:** `backlog/527-transformation-implementation-migration.md`  

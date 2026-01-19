@@ -12,7 +12,7 @@ This document replaces the parts of `backlog/527-transformation-domain.md` that 
 Transformation Domain remains the design-time and canonical data owner for:
 
 - Enterprise Knowledge substrate (Elements + Versions + Relationships).
-- Definition Registry (promotable definitions and promotion state).
+- **Definitions as files in the tenant Enterprise Repository** (ProcessDefinitions, AgentDefinitions, profiles), with promotion state enforced by policy.
 - Governance artifacts (baselines, approvals, evidence references).
 
 What changes in v2 is the runtime binding for BPMN-authored processes:
@@ -20,7 +20,10 @@ What changes in v2 is the runtime binding for BPMN-authored processes:
 - BPMN ProcessDefinitions are deployed to **Zeebe** and executed there.
 - The Definition Registry no longer needs “compiled workflow IR for Temporal” as a mandatory derived artifact for BPMN.
 
-## Definition Registry (v2)
+## Definition Registry (v2) — deprecated in v6
+
+> **Deprecation note (v6):** the “Definition Registry” as a separate canonical store is deprecated.  
+> Design-time definitions live as versioned files in the tenant Enterprise Repository (e.g., `processes/**`), and projections may index them for listing/status. See `backlog/694-elements-gitlab-v6.md` and `backlog/520-primitives-stack-v6.md`.
 
 ### Still first-class (design-time)
 

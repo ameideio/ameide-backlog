@@ -1,4 +1,4 @@
-# 527 Transformation — Process Primitive Specification (v2: Zeebe-executed BPMN)
+# 527 Transformation — Process Primitive Specification (v2: BPMN executed on Zeebe/Flowable)
 
 This document replaces the “Temporal-backed governance workflow” posture in `backlog/527-transformation-process.md`.
 
@@ -7,15 +7,15 @@ This document replaces the “Temporal-backed governance workflow” posture in 
 Define the runtime posture for Transformation governance processes where:
 
 - BPMN is the canonical authoring format and the executable runtime program.
-- Execution is performed by **Camunda 8 / Zeebe**.
-- Side effects are performed by **Ameide primitives** as Zeebe workers.
+- Execution is performed by **Camunda 8 / Zeebe** (default) or **Flowable** (supported profile).
+- Side effects are performed by **Ameide primitives** as workers/job handlers (implementation is engine-profiled).
 - Domains remain the system of record; process engines coordinate but do not own truth.
 
 ## 1) Execution model
 
 ### 1.1 What runs where
 
-- **Zeebe** executes the BPMN process instance state machine (tokens, waits, timers, incidents).
+- **Zeebe (Camunda 8)** or **Flowable** executes the BPMN process instance state machine (tokens, waits, timers, incidents).
 - **Workers** implement BPMN service tasks and other side-effect steps:
   - Agent workers (agentic coding)
   - Integration workers (tooling/external systems)
@@ -45,10 +45,10 @@ These extensions are enforced by verify/promotion gates, not interpreted at runt
 
 The deployment loop is:
 
-1) Author BPMN (and required extensions) as design-time assets.
+1) Author BPMN (and required extensions/bindings) as design-time assets in the tenant Enterprise Repository (e.g., `processes/transformation/.../process.bpmn`).
 2) Verify:
    - profile conformance,
-   - deployability to Zeebe,
+   - deployability to the selected BPMN runtime profile (Zeebe/Flowable),
    - worker coverage exists.
 3) Promote the versioned definition (baseline/promotion posture).
 4) Deploy the promoted BPMN to Zeebe (GitOps-driven).
@@ -63,4 +63,3 @@ Zeebe/Operate provide execution history. Ameide may still emit process facts for
 - portability of audit data outside Camunda.
 
 However, the process engine remains the primary execution history for BPMN processes; any “process facts” must not reintroduce hidden control flow outside Zeebe.
-

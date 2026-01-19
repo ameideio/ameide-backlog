@@ -4,6 +4,10 @@
 **Audience:** Architecture, platform engineering, operators/CLI, workflow teams
 **Scope:** Comparative analysis of process primitive implementations across Sales, Commerce, Transformation, and SRE to identify maturity levels, workflow patterns, gaps, and recommended next steps.
 
+> **Update (v6 posture, 2026-01):** this document analyzes a **Temporal-first** era of Process primitives.  
+> Current posture for **business BPMN** workflows is Zeebe (default) or Flowable (supported profile) per `backlog/520-primitives-stack-v6.md` and `backlog/511-process-primitive-scaffolding-v3.md`.  
+> Temporal remains platform-only (non-BPMN platform workflows). Treat Temporal-specific “best practices” here as historical.
+
 ## Codebase Metrics (December 2025)
 
 | Process | Workflows (LOC) | Activities (LOC) | Ingress Router (LOC) | Tests (LOC) | Proto Facts |
@@ -34,7 +38,7 @@
 
 - **Primary ArchiMate layer(s):** Application (Application Component, Service, Event) + Technology (Workflow orchestration, Temporal infrastructure)
 - **Primary element types used:** Application Component, Application Service, Data Object, Technology Artifact, Business Process
-- **Prohibited unless qualified:** Generic use of "orchestration" without Temporal workflow specification
+- **Prohibited unless qualified:** Generic use of "orchestration" without specifying the orchestration runtime (Zeebe/Flowable for BPMN; Temporal for platform workflows)
 
 ## 0) Problem
 

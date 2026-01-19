@@ -80,7 +80,7 @@ The UISurface must support **dedicated methodology-native experiences** (e.g., S
 - Relationship matrix / impact analysis (projection-driven).
 - BPMN process browser/editor (ProcessDefinition + versions + links to elements).
 - BPMN binding editor (portable bindings for standards-compliant BPMN; richer bindings for extended profiles).
-- Definition registry manager (ProcessDefinitions/AgentDefinitions/Extensions; versioning; promotion).
+- Definitions manager (ProcessDefinitions/AgentDefinitions/Extensions as Git-backed artifacts; versioning via commits; promotion/deploy status from governance/audit pointers).
 - Governance console (TOGAF phase gates, PMI stage gates, approvals, audit trail).
 - Chat + activity feed (agent conversation, generated proposals, applied changes).
 

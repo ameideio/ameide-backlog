@@ -28,7 +28,7 @@ The `transformation-projection` primitive builds read-optimized views for:
 - Search (full-text + faceted) and history (audit trail, baseline diffs).
 - Architecture impact analysis (graph traversal, matrices, view render payloads).
 - Governance dashboards (Scrum/TOGAF/PMI gate state, evidence bundles).
-- Definition Registry indexing (versions, promotions, deployment refs).
+- Definitions catalog indexing (ProcessDefinitions, AgentDefinitions, profiles) derived from the tenant Enterprise Repository, with promotion/deploy status derived from governance/audit pointers.
 
 Projection primitives:
 
@@ -59,7 +59,7 @@ This keeps the canonical model ontology-agnostic: any ontology is represented by
 - **ArchiMateMatrixProjection**: relationship matrices by type.
 - **BpmnCatalogProjection**: ProcessDefinitions + versions + links + governance state.
 - **MetamodelConformanceProjection**: per element-version conformance results for a selected notation profile (standards-compliant vs extended), including validation outcomes and export readiness.
-- **DefinitionRegistryProjection**: definitions with versions, promotion state, deployment references.
+- **DefinitionsCatalogProjection**: definitions (processes/agents/profiles) with versioning (Git), promotion state, and deployment references (audit pointers).
 - **GovernanceStatusProjection**: gate state per initiative (pending/approved/blocked).
 - **AuditTrailProjection**: human/audit friendly timeline from domain facts + process facts.
 - **ProcessRunTimelineProjection**: per process instance step timeline (ActivityTransitioned + gate decisions + tool runs) correlated to domain facts for evidence and replay.
@@ -75,7 +75,7 @@ The Transformation capability exposes stable, read-only query APIs; they are pro
 - `BaselineQueryService` — list/get baselines, compare baselines, show approval history.
 - `ArchiMateQueryService` — convenience read surface for ArchiMate profile (filtered element/relationship subsets, viewpoints) backed by Enterprise Knowledge projections.
 - `BpmnQueryService` — list definitions/versions, get spec refs, list linked elements.
-- `DefinitionRegistryQueryService` — list/get definitions, show version/promotion status.
+- `DefinitionsCatalogQueryService` — list/get definitions, show version/promotion/deploy status.
 
 Query rules:
 

@@ -7,6 +7,9 @@
 > **DEPRECATED (EDA v2 transport posture, 2026-01):** This document also assumes topic-family contracts and treats CloudEvents as a transport binding.  
 > Current standard is `backlog/496-eda-principles-v6.md` (hybrid + `io.ameide.*`, Git-backed owners). Treat “topic families” as legacy guidance only; prefer CloudEvents `type` as the contract surface.
 
+> **DEPRECATED (Definition Registry, 2026-01):** the “Definition Registry” as a separate canonical store is deprecated under the Git-backed Enterprise Repository posture.  
+> ProcessDefinitions (BPMN) and other definitions live as versioned files in the tenant Enterprise Repository (e.g., `processes/**`). Any `ameide_core_proto.transformation.registry.v1` contracts should be treated as migration-era only until replaced by Git-backed definition references and governance/audit pointers.
+
 **Status:** Draft (core envelope unification pending; legacy UI façade removed)  
 **Parent:** [527-transformation-capability.md](527-transformation-capability.md)
 
@@ -53,7 +56,7 @@ Not yet delivered (target state in this spec):
 - Core Transformation common/meta (partial today; target for full unification): `ameide_core_proto.transformation.core.v1`
 - Enterprise Knowledge substrate (canonical repository model, 303 target-state): `ameide_core_proto.transformation.knowledge.v1`
 - Governance (exists; target for broadened coverage): `ameide_core_proto.transformation.governance.v1`
-- Definition Registry (exists; target for broadened coverage): `ameide_core_proto.transformation.registry.v1`
+- Definition Registry (legacy/migration only; deprecated): `ameide_core_proto.transformation.registry.v1`
 - Scrum profile (exists): `ameide_core_proto.transformation.scrum.v1`
 - Legacy UI façade (removed): `ameide_core_proto.transformation.v1`
 - Optional methodology overlays (not required for the platform handshake): `ameide_core_proto.transformation.togaf.v1`, `ameide_core_proto.transformation.pmi.v1`
