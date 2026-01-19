@@ -8,7 +8,7 @@ Onboarding v2: Primitive Decomposition + Non‑Happy Path Hardening + Integratio
 
 * `backlog/428-onboarding.md` (current onboarding semantics + flow)
 * `backlog/300-400/333-realms.md` (realm-per-tenant reference design + invariants)
-* `backlog/520-primitives-stack-v2.md` (stack invariants: operators + proto/codegen + CI gates; proto as behavior schema) 
+* `backlog/520-primitives-stack-v6.md` (stack invariants: operators + proto/codegen + CI gates; proto as behavior schema) 
 * `backlog/533-capability-implementation-playbook.md` (implementation DAG + Node 8 verification gates) 
 * `backlog/430-unified-test-infrastructure-v2-target.md` (normative test contract; strict phases + JUnit evidence)
 * `backlog/468-testing-front-door.md` (repo-wide test entrypoints and conventions)

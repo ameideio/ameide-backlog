@@ -37,7 +37,7 @@
 | **Stage 2 – Process primitive(s)** | Temporal workflows for timeboxes, process fact emission | `506-scrum-vertical-v2.md`, `499-process-operator.md` | Process CRDs, Temporal workers, event contracts |
 | **Stage 3 – Agent execution** | AmeidePO/AmeideSA/AmeideCoder role mappings, executor runtime | `505-agent-developer-v2.md`, `505-agent-developer-v2-implementation.md`, `500/504` | Agent Definitions, work handover topics, CLI guardrails (optional A2A binding) |
 | **Support – Primitive placement & Integration** | Ensure consistent boundaries/application layout | `477-primitive-stack.md`, `496-eda-principles-v6.md` | Placement diagrams, integration invariants |
-| **Support – CLI orchestrator & guardrails** | Tooling agents use internally | `484a-ameide-cli-primitive-workflows.md` … `484f`, `520-primitives-stack-v2.md`, `backlog/521c-internal-generation-improvements.md`, `backlog/521d-external-generation-improvements.md` | Orchestration wrappers (Buf under the hood), repo/gitops handling, prompts, CI guardrails |
+| **Support – CLI orchestrator & guardrails** | Tooling agents use internally | `484a-ameide-cli-primitive-workflows.md` … `484f`, `520-primitives-stack-v6.md`, `backlog/521c-internal-generation-improvements.md`, `backlog/521d-external-generation-improvements.md` | Orchestration wrappers (Buf under the hood), repo/gitops handling, prompts, CI guardrails |
 | **Support – Operator specs** | Runtime control planes | `495-ameide-operators.md`, `500-agent-operator.md`, `498/499/501` | CRDs, helm charts, GitOps overlays |
 
 Supporting invariants: `477-primitive-stack.md` (placement of primitives) and `496-eda-principles-v6.md` (integration semantics).
@@ -97,7 +97,7 @@ Each hand-off is asynchronous (EDA intents/facts plus work handover events; opti
 - `505-agent-developer-v2.md` defines the Product Owner / Solution Architect / Coder mapping, with bus-native work handover and optional A2A transport binding.
 - The implementation plan (`505-agent-developer-v2-implementation.md`) outlines the concrete workstreams (Process CRDs, AmeidePO/SA DAGs, executor runtime, operator updates).
 - `500-agent-operator.md` and `504-agent-vertical-slice.md` cover runtime management and guardrails that AmeideCoder uses internally (CLI orchestration wrappers + CI gates).
-- CLI guardrails and prompts are further detailed in the `484a-484f` backlog series; `520-primitives-stack-v2.md`, `backlog/521c-internal-generation-improvements.md`, and `backlog/521d-external-generation-improvements.md` define the “CLI orchestrates, Buf generates, CI gates” split that prevents the CLI from becoming a bespoke generator.
+- CLI guardrails and prompts are further detailed in the `484a-484f` backlog series; `520-primitives-stack-v6.md`, `backlog/521c-internal-generation-improvements.md`, and `backlog/521d-external-generation-improvements.md` define the “CLI orchestrates, Buf generates, CI gates” split that prevents the CLI from becoming a bespoke generator.
 
 **Inputs:** Process events (from 506) + Transformation data (from 367-1).  
 **Outputs:** Evidence (`artifact.*` payload), Transformation commands, GitHub PRs, work handover telemetry (optional A2A task telemetry).
@@ -112,7 +112,7 @@ Each hand-off is asynchronous (EDA intents/facts plus work handover events; opti
 | Zeebe process solutions | `primitives/process/*`, `operators/process-operator` | Treat 506-v2 Temporal details as historical; v6 posture is Zeebe (see `backlog/520-primitives-stack-v6.md`, `backlog/511-process-primitive-scaffolding-v3.md`) |
 | Agent DAGs | `primitives/agent/ameide-po`, `ameide-sa`, `ameide-coder` | Align with 505 plan |
 | Devcontainer service | `services/devcontainer_service` | Executor runtime (may expose A2A binding per 505) |
-| CLI guardrails | `packages/ameide_core_cli`, `prompts/agent/*` | Orchestrator wrappers; internal generation remains `buf generate`; CI is canonical (`520-primitives-stack-v2.md`, `backlog/521c-internal-generation-improvements.md`, `backlog/521d-external-generation-improvements.md`) |
+| CLI guardrails | `packages/ameide_core_cli`, `prompts/agent/*` | Orchestrator wrappers; internal generation remains `buf generate`; CI is canonical (`520-primitives-stack-v6.md`, `backlog/521c-internal-generation-improvements.md`, `backlog/521d-external-generation-improvements.md`) |
 | GitOps manifests | `gitops/ameide-gitops/.../primitives/{process,agent}` | Ensure sequencing Process → PO → SA → Coder |
 | Primitive placement & operators | `477-primitive-stack.md`, `495/498/500/501` | Repository layout + operator responsibilities |
 

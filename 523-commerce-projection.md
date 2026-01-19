@@ -27,8 +27,8 @@ Important: the store-edge “operational store” (transactional writes for POS 
 Projections are idempotent consumers that materialize read models:
 
 - Consume domain/process facts and assume at-least-once delivery.
-- Implement idempotency via inbox dedupe or convergent upsert per `backlog/496-eda-principles-v2.md` §5.3.
-- Surface lag/health as first-class operational signals (e.g., “revoke convergence” SLOs) per `backlog/496-eda-principles-v2.md` §7.
+- Implement idempotency via inbox dedupe or convergent upsert per `backlog/496-eda-principles-v6.md`.
+- Surface lag/health as first-class operational signals (e.g., “revoke convergence” SLOs) per `backlog/496-eda-principles-v6.md`.
 
 See `523-commerce-proto.md` for the proposed fact envelopes and topic families.
 

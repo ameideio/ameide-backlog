@@ -7,8 +7,8 @@
 **Use with:**
 - Comparative implementations: `backlog/550-comparative-domain.md`
 - Domain-specific proto: `backlog/540-sales-proto.md`, `backlog/523-commerce.md`, `backlog/527-transformation-capability.md`, `backlog/526-sre-capability.md`
-- EDA principles: `backlog/496-eda-principles-v2.md`, `backlog/496-eda-protobuf-ameide.md`
-- Proto conventions: `backlog/509-proto-naming-conventions.md`
+- Integration/EDA principles: `backlog/496-eda-principles-v6.md`, `backlog/496-eda-protobuf-ameide.md`
+- Proto + semantic identity conventions: `backlog/509-proto-naming-conventions-v6.md`
 - Buf tooling: `backlog/365-buf-sdks-v2.md`
 
 ## Layer header (Application + Technology)

@@ -6,12 +6,12 @@
 **Audience:** Platform engineers, domain teams, SDK owners, agents  
 **Scope:** Naming, packaging, and topic conventions for all Ameide proto contracts
 
-This document defines naming and packaging rules for proto contracts. For the repo workflow (Buf generation, skeleton generation, GitOps wiring, dev image publishing), use `520-primitives-stack-v2-tdd.md`.
+This document defines naming and packaging rules for proto contracts. For the current posture, use `backlog/509-proto-naming-conventions-v6.md` and `backlog/520-primitives-stack-v6.md`.
 
 ## Grounding & contract alignment
 
 - **Architecture grounding:** Extends the proto‑first, SDK‑first contract chain defined in `470-ameide-vision.md` and `472-ameide-information-application.md` into concrete naming rules, so packages across domains, Transformation, Process, Agents, and CLI stay coherent.  
-- **EDA & runtime seams:** Aligns with the event‑driven rules in `496-eda-principles-v3.md` and the Scrum runtime seam in `506-scrum-vertical-v2.md` / `508-scrum-protos.md`, ensuring domain/process/agent messages share a consistent envelope and naming style.  
+- **EDA & runtime seams:** Aligns with the integration rules in `backlog/496-eda-principles-v6.md` and the Scrum runtime seam in `backlog/506-scrum-vertical-v6.md` / `508-scrum-protos.md`, ensuring domain/process/agent messages share a consistent envelope and naming style.  
 - **Primitive & operator ecosystem:** Provides a shared naming baseline for proto references used by primitives and operators (`495-ameide-operators.md`, `498-domain-operator.md`, `499-process-operator.md`, `500-agent-operator.md`, `501-uisurface-operator.md`, `502-domain-vertical-slice.md`, `503-operators-helm-chart.md`, `504-agent-vertical-slice.md`).  
 - **Scrum & agent stack:** Treats the Scrum packages in `508-scrum-protos.md` and the agent contracts in `505-agent-developer-v2.md` / `505-agent-developer-v2-implementation.md` as exemplars of these conventions; treat older packages that diverge as historical and track migrations explicitly.
 

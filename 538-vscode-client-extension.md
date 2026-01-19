@@ -10,7 +10,7 @@
 - Parent spec: `backlog/538-vscode-client-transformation.md`
 - MCP adapter: `backlog/534-mcp-protocol-adapter.md`
 
-**Architecture note:** The VS Code extension is a **UI client** (Application Component) that consumes Query Services directly. It does NOT broker authentication for external AI tools. It optionally exposes a local MCP server for `vscode.*` tools only (IDE context). Per `backlog/520-primitives-stack-v2.md`, this is a client application, **not a primitive** — primitives are server-side components deployed via operators.
+**Architecture note:** The VS Code extension is a **UI client** (Application Component) that consumes Query Services directly. It does NOT broker authentication for external AI tools. It optionally exposes a local MCP server for `vscode.*` tools only (IDE context). Per `backlog/520-primitives-stack-v6.md`, this is a client application, **not a primitive** — primitives are server-side components deployed via operators.
 
 **Industry alignment:** AI tools (Claude Code, VS Code Copilot, Cursor) connect directly to the platform MCP adapter via Streamable HTTP with OAuth 2.1. No local proxy binary needed.
 

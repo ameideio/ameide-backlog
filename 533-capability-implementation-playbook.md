@@ -14,7 +14,7 @@ This playbook is intentionally **capability-agnostic**. Capability docs define s
 
 - [x] Proven end-to-end on at least one capability slice (SRE): `buf lint` + `buf breaking` + codegen freshness + GitOps component checks exercised via `ameide primitive verify`.
 - [x] CI/guardrails feedback loop validated: verification failures drove structural fixes (monorepo `buf breaking` `--against` ref, codegen mapping for `google/api/field_behavior.proto`, process/domain shape checks).
-- [ ] Convert this playbook into a machine-executable workflow spec (LangGraph/Temporal) with stable node IDs and structured outputs.
+- [ ] Convert this playbook into a machine-executable workflow spec (LangGraph; and/or platform-only Temporal where appropriate) with stable node IDs and structured outputs.
 - [ ] Add a “per-node verification command” appendix (exact `ameide primitive verify` invocations per node, plus expected failure classes).
 
 ## Clarifications requested (next steps)
@@ -94,14 +94,14 @@ Note: Node 3F (Scaffold Integration) and Node 7C (Implement Integration) follow 
 ## How This Relates to 505 and 506
 
 - `backlog/505-agent-developer-v2.md`: provides the detailed Agent discipline that plugs into this DAG as `Node 7B` (proposal-only posture, safety/risk boundaries, how agents consume projections/queries and invoke domain/process intents).
-- `backlog/506-scrum-vertical-v2.md`: is a concrete instantiation of this generic DAG for a Scrum vertical slice (contracts + seams + verification).
+- `backlog/506-scrum-vertical-v6.md`: is a concrete instantiation of this generic DAG for a Scrum vertical slice (contracts + seams + verification).
 
 ## Cross-Reference Index
 
 - **CLI surface area (commands, workflows):** `backlog/484-ameide-cli-overview.md`, `backlog/484a-ameide-cli-primitive-workflows.md`
 - **Platform guardrails (what must be true):** `backlog/520-primitives-stack-v6.md`, `backlog/514-primitive-sdk-isolation.md`, `backlog/509-proto-naming-conventions-v6.md`
 - **Agent memory/DAG alignment:** `backlog/520-primitives-stack-v2-research-agent.md`, `backlog/512-agent-primitive-scaffolding.md`
-- **Primitive scaffolding specs (shape per kind):** `backlog/510-domain-primitive-scaffolding.md`, `backlog/511-process-primitive-scaffolding.md`, `backlog/512-agent-primitive-scaffolding.md`, `backlog/513-uisurface-primitive-scaffolding.md`
+- **Primitive scaffolding specs (shape per kind):** `backlog/510-domain-primitive-scaffolding.md`, `backlog/511-process-primitive-scaffolding-v3.md`, `backlog/512-agent-primitive-scaffolding.md`, `backlog/513-uisurface-primitive-scaffolding.md`
 - **Verification discipline:** `backlog/415-implementation-verification.md`, `backlog/448-per-environment-service-verification.md`
 - **Testing discipline:** `backlog/537-primitive-testing-discipline.md` (RED→GREEN TDD, per-primitive invariants, CI enforcement)
 - **Operators (control-plane responsibilities):** `backlog/498-domain-operator.md`, `backlog/499-process-operator.md`, `backlog/500-agent-operator.md`, `backlog/501-uisurface-operator.md`
@@ -112,7 +112,7 @@ Note: Node 3F (Scaffold Integration) and Node 7C (Implement Integration) follow 
 ## Node 0 — Load Guardrails (Platform Constitution)
 
 **Context (read only)**
-- `backlog/520-primitives-stack-v2.md`
+- `backlog/520-primitives-stack-v6.md`
 - `backlog/514-primitive-sdk-isolation.md`
 - `backlog/521d-external-generation-improvements.md`
 
@@ -184,7 +184,7 @@ Note: Node 3F (Scaffold Integration) and Node 7C (Implement Integration) follow 
 
 **Context (read only)**
 - `backlog/537-primitive-testing-discipline.md` (testing requirements, RED→GREEN enforcement, per-primitive invariants)
-- `backlog/520-primitives-stack-v2.md` (§7 CI gate checklist, §Conformance Checklists)
+- `backlog/520-primitives-stack-v6.md` (§CI gate checklist, §Conformance Checklists)
 - `backlog/415-implementation-verification.md`, `backlog/448-per-environment-service-verification.md` (verification context)
 
 **Actions**

@@ -415,7 +415,7 @@ Before proceeding with implementation work, the following decisions are needed:
 
 ## Related Backlogs
 
-- `520-primitives-stack-v2.md` - Primitive stack architecture and patterns
+- `520-primitives-stack-v6.md` - Primitive stack architecture and patterns
 - `523-commerce-uisurface.md` - Commerce UISurface specification
 - `526-sre-capability.md` - SRE capability definition (includes UISurface gap)
 - `527-transformation-uisurface.md` - Transformation UISurface specification

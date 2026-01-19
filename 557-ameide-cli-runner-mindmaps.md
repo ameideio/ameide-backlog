@@ -47,7 +47,7 @@ ameide (CLI)
 
 ## Cross-references
 
-- Stack constitution: `backlog/520-primitives-stack-v2.md`
+- Stack constitution: `backlog/520-primitives-stack-v6.md`
 - CLI posture: `backlog/409-ameide-cli.md`
 - Generation baselines: `backlog/521a-external-generation-baseline.md`, `backlog/521b-internal-generation-baseline.md`
 - Verification baselines: `backlog/521e-internal-verification-baseline.md`, `backlog/521f-external-verification-baseline.md`

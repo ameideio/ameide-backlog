@@ -25,9 +25,9 @@
 
 **Use with:**
 - Process primitives: `backlog/540-sales-process.md`, `backlog/523-commerce-process.md`, `backlog/527-transformation-process.md`, `backlog/526-sre-process.md`
-- EDA contract rules: `backlog/496-eda-principles-v2.md`, `backlog/496-eda-protobuf-ameide.md`
-- Proto conventions: `backlog/509-proto-naming-conventions.md`
-- Primitives stack: `backlog/520-primitives-stack-v2.md`
+- Integration/EDA contract rules: `backlog/496-eda-principles-v6.md`, `backlog/496-eda-protobuf-ameide.md`
+- Proto + semantic identity conventions: `backlog/509-proto-naming-conventions-v6.md`
+- Primitives stack: `backlog/520-primitives-stack-v6.md`
 - Capability definitions: `backlog/540-sales-capability.md`, `backlog/526-sre-capability.md`, `backlog/523-commerce.md`, `backlog/527-transformation-capability.md`
 
 > **Update (2026-01): 430v2 test contract**

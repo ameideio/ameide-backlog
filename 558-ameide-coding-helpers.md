@@ -14,7 +14,7 @@ The delivery process is the IT4IT-aligned Transformation Process. This package e
 
 ## Where this lands (520 alignment)
 
-This work belongs to the **guardrails plane** (`buf + CI + deterministic tools`) described by `backlog/520-primitives-stack-v2.md`. It is not an Integration primitive and it is not “integration tests”.
+This work belongs to the **guardrails plane** (`buf + CI + deterministic tools`) described by `backlog/520-primitives-stack-v6.md`. It is not an Integration primitive and it is not “integration tests”.
 
 ## Mental maps
 

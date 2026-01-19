@@ -5,9 +5,9 @@
 **Scope:** Define **Sales** as a capability realized by Ameide primitives (Domain/Process/Projection/Integration/UISurface/Agent) with 496-native EDA contracts (intents vs facts, outbox, idempotent consumers).
 
 **Use with:**
-- EDA contract rules: `backlog/496-eda-principles-v2.md`, `backlog/496-eda-protobuf-ameide.md`
-- Proto conventions: `backlog/509-proto-naming-conventions.md`
-- Primitives stack guardrails: `backlog/520-primitives-stack-v2.md`
+- Integration/EDA contract rules: `backlog/496-eda-principles-v6.md`, `backlog/496-eda-protobuf-ameide.md`
+- Proto + semantic identity conventions: `backlog/509-proto-naming-conventions-v6.md`
+- Primitives stack guardrails: `backlog/520-primitives-stack-v6.md`
 - Primitive testing discipline: `backlog/537-primitive-testing-discipline.md`
 
 ## Layer header (Strategy + Business + Application realization)
