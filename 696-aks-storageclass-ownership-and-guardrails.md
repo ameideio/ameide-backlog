@@ -28,8 +28,11 @@ AKS can overwrite it and/or ArgoCD will continuously drift. Worse, workloads can
 
 ## Implementation (current repo)
 
-- `foundation-managed-storage` values are environment-scoped:
-  - AKS envs manage only namespaces (no StorageClass objects).
+- **AKS**
+  - GitOps does not create any `StorageClass` objects.
+  - Cluster-scoped namespaces required by storage/platform subsystems are managed once per cluster via ArgoCD.
+  - The per-environment `foundation-managed-storage` component is allowed to be empty on AKS (`allowEmpty: true`).
+- **Local**
   - Local env defines the local-path StorageClasses used by local deployments.
 - CI guardrail fails if `foundation-managed-storage` renders any `StorageClass` for AKS:
   - `scripts/ci/check-aks-storageclass-collision.sh`
@@ -40,3 +43,10 @@ AKS can overwrite it and/or ArgoCD will continuously drift. Worse, workloads can
 - Rename local StorageClasses away from AKS-reserved names (optional but safer long-term).
 - Add a render-time guardrail for any other chart that could introduce `StorageClass` objects on AKS.
 
+## Notes (ArgoCD drift prevention)
+
+Cluster-scoped resources MUST NOT be managed by multiple per-environment applications.
+
+If a resource must exist only once (for example a shared namespace), manage it via a cluster-scoped component/app to avoid:
+- `SharedResourceWarning`
+- persistent `OutOfSync` due to ownership conflicts
