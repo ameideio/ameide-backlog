@@ -40,4 +40,7 @@ This creates split-brain:
 
 - Make DNS child zone creation match env enablement (if desired), instead of treating DNS zone inventory as independent.
 - Decide an explicit AKS upgrade/drift model for the shared cluster (auto-upgrade channel vs pinned versions).
-
+- Adopt reality for existing AKS resources so Terraform plan becomes no-op:
+  - `backlog/701-terraform-adopt-reality-aks-drift-realignment.md`
+- Split CI responsibilities so “normal apply” does not include migration/import logic:
+  - `backlog/702-terraform-ci-workflow-split-bootstrap-adopt-apply.md`
