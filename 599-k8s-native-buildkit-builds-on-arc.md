@@ -119,8 +119,9 @@ The required posture is therefore:
    - `kubectl -n buildkit get sts -l app.kubernetes.io/name=buildkitd -o wide`
    - `kubectl -n buildkit get pods -l app.kubernetes.io/name=buildkitd -o wide`
 3) **Reachability from runner**
-   - `scripts/local/test-buildkit.sh`
-   - `buildctl --addr "${AMEIDE_BUILDKIT_ADDR}" debug workers`
+   - Preferred (canonical signal): `buildctl --addr "${AMEIDE_BUILDKIT_ADDR}" debug workers` from an ARC runner pod.
+   - Local k3d smoke check: `scripts/local/test-buildkit.sh` (creates/deletes a probe pod; local-only by default).
+   - AKS admin read-only check (does **not** validate runner network path): `scripts/aks/inspect-buildkit.sh`
 4) **Security invariant (mTLS for remote TCP)**
    - If `AMEIDE_BUILDKIT_ADDR` is `tcp://...:1234` and no client certs are provided, treat it as a policy gap; fix by adding mTLS (don’t “solve” with ad-hoc per-repo wiring).
 5) **Platform support (multi-arch capability)**
