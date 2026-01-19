@@ -34,6 +34,8 @@ We already rely on BuildKit features (e.g. `RUN --mount=type=secret`) for safe b
 - BuildKit endpoint variable: `AMEIDE_BUILDKIT_ADDR` (repo/org variable)
   - Default: `tcp://buildkitd.buildkit.svc.cluster.local:1234`
   - Local runner pods also export `AMEIDE_BUILDKIT_ADDR` directly, so ARC workflows can rely on it without hardcoding.
+- BuildKit API safety invariant: **BuildKit over TCP must be protected with mTLS** (NetworkPolicy limits reach, not identity).
+  - Until mTLS is implemented, treat BuildKit as privileged infra and keep it ClusterIP-only with strict NetworkPolicy + namespace isolation.
 
 ---
 
@@ -42,7 +44,7 @@ We already rely on BuildKit features (e.g. `RUN --mount=type=secret`) for safe b
 ### Deployed resources
 
 - Namespace: `buildkit`
-- StatefulSet: `buildkitd` (image: `ghcr.io/ameideio/mirror/buildkit@sha256:86c0ad9d1137c186e9d455912167df20e530bdf7f7c19de802e892bb8ca16552`)
+- StatefulSet (label `app.kubernetes.io/name=buildkitd`) (image: `ghcr.io/ameideio/mirror/buildkit@sha256:86c0ad9d1137c186e9d455912167df20e530bdf7f7c19de802e892bb8ca16552`)
   - Replica count is explicit per cluster (`buildkitd.replicas`); **AKS currently runs 1**.
   - Per-pod PVC-backed cache mounted at `/var/lib/buildkit` to avoid cold-cache rebuild storms and to survive pod restarts.
 - PodDisruptionBudget: `buildkitd` (`minAvailable: 1`)
@@ -70,6 +72,7 @@ GitOps sources:
 - **Default (current):** privileged `buildkitd` (runner pods remain unprivileged).
 - **Why:** reliable Dockerfile builds while keeping ARC runner pods unprivileged.
 - **If privileged is not acceptable:** choose rootless BuildKit (requires extra kernel/filesystem support like `fuse-overlayfs`) or run privileged BuildKit on a dedicated, tainted node pool with strict admission.
+- **Remote API:** `buildkitd` exposes a gRPC API on TCP (`:1234`); baseline requirement is **mTLS** when using remote builds.
 
 ### Variable management (avoid hardcoding)
 
@@ -108,20 +111,35 @@ The required posture is therefore:
 
 ### Debugging / runbook
 
-Fast connectivity check from ARC runner namespace:
+#### Runbook gates (copy/paste triage order)
 
-- `scripts/local/test-buildkit.sh`
+1) **Argo renders clean** (no `ComparisonError`; cluster is on the intended overlay for BuildKit values).
+2) **Endpoints exist + pods Ready**
+   - `kubectl -n buildkit get endpoints buildkitd -o yaml`
+   - `kubectl -n buildkit get sts -l app.kubernetes.io/name=buildkitd -o wide`
+   - `kubectl -n buildkit get pods -l app.kubernetes.io/name=buildkitd -o wide`
+3) **Reachability from runner**
+   - `scripts/local/test-buildkit.sh`
+   - `buildctl --addr "${AMEIDE_BUILDKIT_ADDR}" debug workers`
+4) **Security invariant (mTLS for remote TCP)**
+   - If `AMEIDE_BUILDKIT_ADDR` is `tcp://...:1234` and no client certs are provided, treat it as a policy gap; fix by adding mTLS (don’t “solve” with ad-hoc per-repo wiring).
+5) **Platform support (multi-arch capability)**
+   - `buildctl --addr "${AMEIDE_BUILDKIT_ADDR}" debug workers -v` and confirm the required `Platforms:` list (e.g. includes `linux/amd64` and `linux/arm64`)
+   - If connected but missing platforms: check `binfmt` DaemonSet and worker config.
+6) **Scheduling pinned (pool exists + labels/taints match)**
+   - `kubectl get nodes -l ameide.io/pool=buildkit -o wide`
+   - If builders are `Pending`, check node pool capacity and taints/tolerations.
 
-If builds fail from CI with `dial tcp ...:1234: i/o timeout`:
+#### Symptom mapping
 
-- confirm `Service/buildkitd` has ready endpoints (`kubectl -n buildkit get endpoints buildkitd -o yaml`)
-- confirm builders are Ready (`kubectl -n buildkit get pods -l app.kubernetes.io/name=buildkitd -o wide`)
-- check builder logs for OOM/restarts (`kubectl -n buildkit logs -l app.kubernetes.io/name=buildkitd --tail=200`)
+- `dial tcp ...:1234: connect: connection refused` → Service routes to nothing listening (no ready endpoints / wrong port / crashloop).
+- `dial tcp ...:1234: i/o timeout` → network policy / DNS / routing / nodes not reachable.
+- `buildctl debug workers` works but `Platforms:` missing → emulation/binfmt or worker config issue.
+- `proxy.golang.org ... TLS handshake timeout` → typically egress reliability; persistent cache reduces repeat fetch blast radius.
 
-If builds fail with `proxy.golang.org ... TLS handshake timeout`:
+#### Logs
 
-- first verify builder connectivity is healthy (above)
-- then treat it as an egress/reliability issue; persistent BuildKit cache reduces the frequency and blast radius of these failures
+- builder logs: `kubectl -n buildkit logs -l app.kubernetes.io/name=buildkitd --tail=200`
 
 ---
 
