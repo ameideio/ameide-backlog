@@ -1,6 +1,6 @@
 ---
 title: "695 — GitLab (CE) GitOps Configuration Tracking"
-status: in-progress
+status: implemented
 owners:
   - platform
 created: 2026-01-19
