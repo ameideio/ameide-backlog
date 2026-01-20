@@ -287,6 +287,13 @@ Adopt a k8s-native build strategy:
 - Standardize on `AMEIDE_BUILDKIT_ADDR=tcp://buildkitd.buildkit.svc.cluster.local:1234` (org-level preferred; per-repo fallback is acceptable).
 - Prefer a repo/org variable for the BuildKit endpoint (example): `AMEIDE_BUILDKIT_ADDR=tcp://buildkitd.buildkit.svc.cluster.local:1234`.
 
+### Implementation status
+
+- Implemented on AKS via the BuildKit model in `backlog/599-k8s-native-buildkit-builds-on-arc.md`.
+- GitOps references:
+  - `ameideio/ameide-gitops#439` (BuildKit daemon stable + PVC migration to `64Gi`)
+  - `ameideio/ameide-gitops#441` (AKS read-only inspect helper + safer local probe script)
+
 ---
 
 ## Risks / Gotchas
