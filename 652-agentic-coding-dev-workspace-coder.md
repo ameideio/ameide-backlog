@@ -88,7 +88,7 @@ Rules:
 
 ### 4.1.2 Toolchain contract (required)
 
-The Coder devcontainer must ship the minimum toolchain required to run the “no-brainer” inner loop (`ameide test` / `ameide test ci`) without additional manual setup:
+The Coder devcontainer must ship the minimum toolchain required to run the “no-brainer” inner loop (`ameide test` / `ameide test`) without additional manual setup:
 
 - Go (`go`, `gofmt`) — version pinned to the repo (`go.mod`).
 - Node.js (`node`) — currently 22.

@@ -45,7 +45,7 @@
 
 ### 5. Validation & Rollout
 - Run Playwright + integration packs end-to-end with `.dev.ameide.io` to confirm no timeouts.
-- ⚠️ 2025-11-11 (historical) – A Playwright auth-flow spec could not complete because `/api/auth/providers` returned 404 when `www-ameide-platform` was not deployed (the then-local workflow relied on a local registry image). Local registry workflows are deprecated; the supported path is GHCR digests + GitOps/CI, and cluster E2E should be driven via `ameide test e2e` so it reads `AUTH_URL` from `ConfigMap/www-ameide-platform-config` and passes it as `AMEIDE_PLATFORM_BASE_URL`.
+- ⚠️ 2025-11-11 (historical) – A Playwright auth-flow spec could not complete because `/api/auth/providers` returned 404 when `www-ameide-platform` was not deployed (the then-local workflow relied on a local registry image). Local registry workflows are deprecated; the supported path is GHCR digests + GitOps/CI, and cluster E2E should be driven via `ameide test cluster` so it reads `AUTH_URL` from `ConfigMap/www-ameide-platform-config` and passes it as `AMEIDE_PLATFORM_BASE_URL`.
 - Spot-check manual browser login on `https://platform.dev.ameide.io` (after trusting the new cert) to ensure cookies/auth state behave.
 - Communicate migration steps to developers (new hosts entry or dnsmasq rule, re-login, repo search results).
 

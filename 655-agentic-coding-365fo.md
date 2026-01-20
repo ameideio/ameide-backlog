@@ -512,7 +512,7 @@ For the `365fo` agent profile, the CLI surface maps as follows (see `backlog/654
 - Phase 0/1/2 front door: `ameide test`
   - delegates execution to the FO tool surface (MCP bridge → VM executor)
   - emits JUnit evidence under the run root in the orchestrator workspace/task
-- Phase 3 front door: `ameide test e2e`
+- Phase 3 front door: `ameide test cluster`
   - validates the full chain described in §10.3 (including mirror checkout validation)
 
 ---

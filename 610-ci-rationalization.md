@@ -159,7 +159,7 @@ As of `2026-01-11`, `ameide-gitops` largely follows the scoping + cancellation p
 
 ### Achievements
 
-- **Update (2026-01-20):** `ameide test` is now the canonical Phase 0/1/2 gate (local-only) and Phase 3 is split into explicit `ameide test e2e` (PRs: `ameideio/ameide#582`, `ameideio/ameide#589`).
+- **Update (2026-01-20):** `ameide test` is now the canonical Phase 0/1/2 gate (local-only) and Phase 3 is split into explicit `ameide test cluster` (PRs: `ameideio/ameide#582`, `ameideio/ameide#589`).
 - **Update (2026-01-20):** Dev workspaces now ship the required toolchain (`go`, `pnpm`, `uv`, `buf`) so `ameide test` can run deterministically in Coder-based environments (PR: `ameideio/ameide#584`).
 
 ### New CI pressure source to manage: Coder workspaces E2E

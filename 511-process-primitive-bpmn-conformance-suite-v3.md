@@ -57,9 +57,9 @@ The cluster suite proves the engine truth:
 - Local contract/unit/integration:
   - `ameide test` (Phase 0/1/2)
 - Cluster semantics smoke (separate):
-  - `ameide test smoke` runs `go test -tags=cluster ...` and produces JUnit.
+  - `ameide test cluster` runs `go test -tags=cluster ...` and produces JUnit.
 - Preview environment E2E (separate):
-  - `ameide test e2e` runs Playwright against preview ingress URLs.
+  - `ameide test cluster` runs Playwright against preview ingress URLs.
 
 ## Definition of Done (v3 conformance)
 

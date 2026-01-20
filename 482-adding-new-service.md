@@ -30,7 +30,7 @@ Use this checklist whenever you create a net-new service under `services/` or `s
 | **GitOps & deployment** | Which ApplicationSet/Helm chart entries are required? What sync wave & labels apply? | `364-argo-configuration-v3.md`, `375-rolling-sync-wave-redesign.md`, `367-bootstrap-v2.md`, `387/447-argocd-waves*.md`, `465-applicationset-architecture.md`, environment naming per `434-unified-environment-naming.md` |
 | **SDK & workspace alignment** | Are protos consumed exclusively via Ameide SDKs, have Go/TS/Py packages been regenerated (`scripts/dev/check_sdk_alignment.py`), and do Dockerfiles follow the Ring 1/Ring 2 workspace-first rules? | `365-buf-sdks-v2.md`, `408-workspace-first-ring-2.md`, `405-docker-files.md` |
 | **Networking & tenancy labels** | Are namespace/pod labels and NetworkPolicies configured correctly (tier, tenant, environment)? | `441-networking.md`, `434-unified-environment-naming.md`, `442-environment-isolation.md`, `459-httproute-ownership.md` |
-| **Testing (unit/integration/e2e)** | Are tests classified and runnable under `ameide test` (Phase 0/1/2: contract → unit → integration) and `ameide test e2e` (cluster-only E2E), and do they emit JUnit evidence? | `backlog/430-unified-test-infrastructure-v2-target.md`, `backlog/537-primitive-testing-discipline.md`, `backlog/468-testing-front-door.md` |
+| **Testing (unit/integration/e2e)** | Are tests classified and runnable under `ameide test` (Phase 0/1/2: contract → unit → integration) and `ameide test cluster` (cluster-only E2E), and do they emit JUnit evidence? | `backlog/430-unified-test-infrastructure-v2-target.md`, `backlog/537-primitive-testing-discipline.md`, `backlog/468-testing-front-door.md` |
 | **Build/test verification & CI logs** | Have we run the repo front door and confirmed CI gates are aligned (JUnit evidence, strict phase semantics)? | `backlog/430-unified-test-infrastructure-v2-target.md`, `backlog/610-ci-rationalization.md`, `.github/workflows/*.yml` |
 | **Observability & SLOs** | What metrics/logging/tracing does the service emit? Are dashboards updated? | `platform observability backlogs`, `services/README.md`, service-specific SLO docs |
 | **Security & governance** | Does the service follow risk-tier rules, host-call policies, and secrets governance? | `476-security-and-trust.md`, `362-unified-secret-guardrails-v2.md`, `479-ameide-extensibility-wasm.md` (for Tier 1 runtime specifics) |
@@ -68,7 +68,7 @@ Use this checklist whenever you create a net-new service under `services/` or `s
    - Implement tests under the 430v2 contract (Unit → Integration → E2E) and ensure they run under the repo front doors:
      - CI gate: `ameide test` (Phase 0/1/2; must emit JUnit evidence).
      - Local agent/human inner loop: `ameide test` (Phase 0/1/2 only; local-only).
-     - Cluster-only E2E: `ameide test e2e` (Playwright).
+     - Cluster-only E2E: `ameide test cluster` (Playwright).
    - **Unit (Phase 1):** pure/local; no cluster tooling.
    - **Integration (Phase 2):** local mocked/stubbed only; no cluster tooling; no “mode” variables.
      - Go: use `//go:build integration` for Phase 2-only tests.

@@ -29,9 +29,9 @@ This backlog inherits the internal-first model from `backlog/650-agentic-coding-
 ## 0.2 Status update (2026-01-17)
 
 - Coder workspace Phase 3 “innerloop routing” RBAC is now bootstrap-managed (predeclared roles + bind-only delegation) so workspace provisioning does not trip RBAC privilege-escalation guardrails.
-- `ameide test e2e` (Playwright) requires read access to the platform config and persona secrets; in Kubernetes-hosted workspaces/tasks this should be granted by binding a predeclared, narrowly-scoped env-reader role (not by creating ad-hoc Roles from workspace Terraform).
+- `ameide test cluster` (Playwright) requires read access to the platform config and persona secrets; in Kubernetes-hosted workspaces/tasks this should be granted by binding a predeclared, narrowly-scoped env-reader role (not by creating ad-hoc Roles from workspace Terraform).
 
-Update (2026-01-19): `ameide test smoke` must detect code-server 502 causes
+Update (2026-01-19): `ameide test cluster` must detect code-server 502 causes
 
 - Observed failure mode: Coder app proxy returns `502 Bad Gateway` to the VS Code (Web) app due to a non-runnable cached code-server install after node pool churn (see 652 §4.2.1).
 - The CLI “platform smoke” front door must validate reachability (no `502`) and surface a clear remediation path (cache reset + workspace restart), without relying on kubectl access.
@@ -106,7 +106,7 @@ The CLI must assume it is being run under a profile’s instruction scope (agent
 Current command groups include:
 
 - `ameide test` (Phase 0/1/2)
-- `ameide test e2e` (Playwright runner; no flags; reads base URL from `ConfigMap/www-ameide-platform-config`)
+- `ameide test cluster` (Playwright runner; no flags; reads base URL from `ConfigMap/www-ameide-platform-config`)
 - `ameide test` (Phase 0/1/2 only; local-only)
 - `ameide doctor` (preflight deterministic requirements)
 - `ameide verify` (repo/primitives invariants)
@@ -114,7 +114,7 @@ Current command groups include:
 
 Current drift vs internal-first model:
 
-- `ameide test` is now aligned with the internal-first “no-brainer” verification model (Phase 0/1/2 only). Deployed-system E2E runs separately via `ameide test e2e`.
+- `ameide test` is now aligned with the internal-first “no-brainer” verification model (Phase 0/1/2 only). Deployed-system E2E runs separately via `ameide test cluster`.
 - `ameide dev inner-loop` is Telepresence-centric and is out of scope for the internal-first platform model.
 
 ## 5) Target CLI surface (to-be)
@@ -124,8 +124,8 @@ Current drift vs internal-first model:
 The CLI surface is organized by intent:
 
 - **`ameide test`**: no-brainer verification front door (Phase 0/1/2) for agents and humans
-- **`ameide test e2e`**: deployed-system E2E runner (Playwright) against the deployed platform base URL (read from `AUTH_URL` in `ConfigMap/www-ameide-platform-config`)
-- **`ameide test smoke`**: cluster-only smoke (non-E2E) for runtime semantics (e.g., Zeebe conformance)
+- **`ameide test cluster`**: deployed-system E2E runner (Playwright) against the deployed platform base URL (read from `AUTH_URL` in `ConfigMap/www-ameide-platform-config`)
+- **`ameide test cluster`**: cluster-only smoke (non-E2E) for runtime semantics (e.g., Zeebe conformance)
 - **`ameide verify`**: repo/primitives invariants (structural correctness)
 - **`ameide doctor`**: toolchain and environment preflight (deterministic readiness)
 
@@ -140,11 +140,11 @@ Notes:
    - produces evidence under a stable run root
    - never touches cluster networking, Telepresence, or privileged capabilities
 
-2. `ameide test e2e`
+2. `ameide test cluster`
    - runs Phase 3: Playwright against a deployed target (preview env truth)
    - is intentionally not part of the Phase 0/1/2 front door
 
-3. `ameide test smoke`
+3. `ameide test cluster`
    - validates platform plumbing (Coder + template provisioning + code-server reachability)
    - does not validate the product itself
    - must catch “workspace Running but app 502” failures (e.g., cached code-server wrong architecture) as a platform failure
@@ -179,7 +179,7 @@ The template-scoped `AGENTS.md` defines additional instructions for the agent, b
 
 - default: `ameide test`
 - optional interactive checks: start dev server inside workspace
-- deployed truth: `ameide test e2e` runs against preview env URL (typically driven by CI)
+- deployed truth: `ameide test cluster` runs against preview env URL (typically driven by CI)
 
 ### 6.2 Agent execution (Coder task; code profile)
 
@@ -193,11 +193,11 @@ The template-scoped `AGENTS.md` defines additional instructions for the agent, b
 
 ### 6.4 CI deployed-system truth (preview env)
 
-- `ameide test e2e` against preview base URL(s) (Phase 3)
+- `ameide test cluster` against preview base URL(s) (Phase 3)
 
 ### 6.5 Platform smoke (Coder/template)
 
-- `ameide test smoke` to validate:
+- `ameide test cluster` to validate:
   - template provisioning
   - app proxy reachability
   - workspace cleanup
@@ -209,7 +209,7 @@ For vendor-locked domains (D365FO), the CLI still presents the same front doors,
 Expected behavior for the `365fo` profile:
 
 - `ameide test` (Phase 0/1/2) calls the FO tool surface (MCP bridge → VM executor) for verification and emits JUnit evidence in the workspace/task run root.
-- `ameide test e2e` (Phase 3) validates the full chain (Coder task → VM executor → git push → workspace mirror verification), as specified in `backlog/655-agentic-coding-365fo.md`.
+- `ameide test cluster` (Phase 3) validates the full chain (Coder task → VM executor → git push → workspace mirror verification), as specified in `backlog/655-agentic-coding-365fo.md`.
 
 ### 6.7 Developer diagnostics (power tools; human inner loop)
 

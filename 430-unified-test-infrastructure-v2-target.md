@@ -39,6 +39,7 @@ Cross-references:
 All verification is driven through the CLI (no pack scripts/modes):
 
 - `ameide test`
+- `ameide test cluster`
 
 These commands:
 - runs phases in strict order (fail-fast)
@@ -49,21 +50,23 @@ These commands:
 
 0) **Phase 0: Contract** (local only; vendor-driven discovery)
 1) **Phase 1: Unit** (local, pure)
-2) **Phase 2: Integration** (local, mocked/stubbed only)
+2) **Phase 2: Integration-local** (local, mocked/stubbed only)
+3) **Phase 3: Integration-cluster** (cluster-only; runtime semantics)
+4) **Phase 4: Playwright E2E** (cluster-only; deployed target)
 
 Invariants:
-- Phase 1 and Phase 2 **must not** interact with Kubernetes or Telepresence.
+- Phases 0/1/2 **must not** interact with Kubernetes or Telepresence.
 - Phase 0 must be able to prove the contract using vendor tooling “discovery/collect/list” capabilities and must emit JUnit evidence (synthetic if needed).
 
-### Deployed-system E2E (separate layer; not part of phases 0/1/2)
+### Cluster-only verification (separate front door; not part of phases 0/1/2)
 
-E2E is “Phase 3” in the overall verification story, but it is intentionally decoupled from the “no-brainer” Phase 0/1/2 CLI front doors.
+Cluster verification is intentionally decoupled from the “no-brainer” Phase 0/1/2 CLI front door.
 
-E2E is run against a deployed target (preview environment ingress URL) and is executed via a separate CLI entrypoint:
+Cluster verification is executed via a separate CLI entrypoint:
 
-- run via `ameide test e2e`
-- Playwright only
-- merge gate truth comes from preview E2E, not from Telepresence
+- run via `ameide test cluster`
+- strict ordering: integration-cluster → Playwright E2E
+- deployed target only (preview environment ingress URL); no Telepresence
 
 ---
 
@@ -76,14 +79,20 @@ E2E is run against a deployed target (preview environment ingress URL) and is ex
 - No network calls to “real” dependencies.
 - Uses the default unit runner for the language/tooling.
 
-### Integration (Phase 2)
+### Integration-local (Phase 2)
 
 - Local only.
 - Tests boundaries (serialization, adapters, client/server seams) against **mocks/stubs/in-memory fakes**.
 - No Kubernetes / Telepresence.
 - **No environment-driven branching** inside tests (“mode”). A test either belongs in Phase 2 or it does not exist.
 
-### E2E (preview environment; separate layer)
+### Integration-cluster (Phase 3)
+
+- Cluster-only.
+- Owned by Go cluster suites (e.g. Zeebe conformance) selected via `//go:build cluster`.
+- Must be deterministic and fail loudly on cluster drift (no silent skips).
+
+### Playwright E2E (Phase 4)
 
 - Deployed target only (preview environment ingress URL).
 - **Playwright only**.
@@ -98,9 +107,12 @@ The contract intentionally avoids “tooling zoo”, so classification must be p
 ### Go
 
 - Unit: standard `go test ./...`
-- Integration: opt-in via build tags:
+- Integration-local: opt-in via build tags:
   - integration tests must include `//go:build integration`
   - Phase 2 runs `go test -tags=integration ./...`
+- Integration-cluster: opt-in via build tags:
+  - cluster tests must include `//go:build cluster`
+  - Phase 3 runs `go test -tags=cluster ...` over discovered cluster packages
 
 ### TypeScript (Jest)
 
@@ -126,7 +138,7 @@ Pytest configs must:
 ### Playwright (E2E only)
 
 - E2E tests live under each UI/service’s Playwright location (existing Playwright conventions).
-- E2E is selected and executed only by the E2E runner (`ameide test e2e`), not by the “no-brainer” Phase 0/1/2 front door.
+- Playwright E2E is selected and executed only by the cluster front door (`ameide test cluster`), not by the “no-brainer” Phase 0/1/2 front door.
 
 ---
 

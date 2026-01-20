@@ -18,7 +18,7 @@
 > Use baseline releases and rely on Telepresence intercept filtering (per-agent header routing) through the `ameide` CLI:
 > - `ameide dev inner-loop up|down|verify` (UI hot reload; stable ingress)
 > - `ameide test` (Phase 0/1/2 only; contract → unit → integration; local-only)
-> - `ameide test smoke` / `ameide test e2e` (cluster-only smoke/E2E; no Telepresence)
+> - `ameide test cluster` / `ameide test cluster` (cluster-only smoke/E2E; no Telepresence)
 
 ## Overview
 

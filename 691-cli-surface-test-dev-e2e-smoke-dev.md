@@ -27,13 +27,13 @@ This document is a **CLI surface spec** (user-facing contract + invariants). Imp
 This section records known mismatches between the normative surface described below and the current implementation
 in `ameideio/ameide` (and cluster enablement in `ameideio/ameide-gitops`).
 
-1) **`ameide test` vs `ameide test e2e` surface mismatch**
+1) **`ameide test` vs `ameide test cluster` surface mismatch**
 
 - The normative contract (430v2 + 621 + this doc) states:
   - `ameide test` runs contract/unit/integration only (local-only).
-  - `ameide test e2e` is the explicit E2E front door (Playwright, deployed target truth).
+  - `ameide test cluster` is the explicit E2E front door (Playwright, deployed target truth).
 - Current CLI wiring in the `ameide` repo has drifted such that `ameide test` runs Phase 0/1/2/3 by default and
-  the `ameide test e2e` subcommand may not exist yet.
+  the `ameide test cluster` subcommand may not exist yet.
 
 Reconciliation requirement:
 - Bring the CLI surface back into alignment with this spec (either update the CLI or update the contract docs).
@@ -102,7 +102,7 @@ Design decision:
 
 6) **Che-in-vCluster: host-cluster Gateway + Secrets boundary**
 
-`ameide dev` and (by default) `ameide test e2e` assume the workspace can interact with the **same Kubernetes API**
+`ameide dev` and (by default) `ameide test cluster` assume the workspace can interact with the **same Kubernetes API**
 that owns:
 
 - the environment namespace (for reading `ConfigMap/www-ameide-platform-config` and persona secrets), and
@@ -111,7 +111,7 @@ that owns:
 In a Che-in-vCluster architecture, the workspace commonly sees the **vCluster API** by default. In that case:
 
 - `ameide test` (Phase 0/1/2) remains compatible (no Kubernetes required).
-- `ameide test e2e` is compatible only if either:
+- `ameide test cluster` is compatible only if either:
   - required env ConfigMaps/Secrets are mirrored into the vCluster, OR
   - the CLI is explicitly configured to talk to the host-cluster API (provided kubeconfig/token/context).
 - `ameide dev` is compatible only if there is an explicit host-cluster write path for `Service` + `HTTPRoute`
@@ -123,7 +123,7 @@ Reconciliation requirement:
 
 Supported modes (must be made explicit in implementation + docs):
 - **Mode A (sync/mirror):**
-  - host ➜ vCluster: mirror required env ConfigMaps/Secrets (read-only mirror for `ameide test e2e`).
+  - host ➜ vCluster: mirror required env ConfigMaps/Secrets (read-only mirror for `ameide test cluster`).
   - vCluster ➜ host: sync workspace `Service` + `HTTPRoute` into the host cluster so the host Gateway reconciles them (required by `ameide dev`; implies enabling sync and RBAC for those resource types).
 - **Mode B (host-cluster creds):** provide host-cluster kubeconfig/token/context to the workspace; cluster-only commands MUST use it.
 
@@ -144,7 +144,7 @@ Supported modes (must be made explicit in implementation + docs):
 
 ## Cross references
 
-- Normative phase split and `ameide test e2e`: `backlog/430-unified-test-infrastructure-v2-target.md`
+- Normative phase split and `ameide test cluster`: `backlog/430-unified-test-infrastructure-v2-target.md`
 - Inner-loop front doors: `backlog/621-ameide-cli-inner-loop-test-v2.md`
 - Implementation plan: `backlog/692-cli-surface-implementation-plan.md`
 - Agentic workspace posture (Coder/Che): `backlog/650-agentic-coding-overview.md`, `backlog/652-agentic-coding-dev-workspace-coder.md`, `backlog/690-agentic-dev-environments-coder-che.md`
@@ -154,9 +154,9 @@ Supported modes (must be made explicit in implementation + docs):
 
 This section records the docs that should be updated so the “diagram matches the code” once 691 is implemented.
 
-- `backlog/654-agentic-coding-cli-surface-coder.md`: promote “optional interactive checks” into the concrete `ameide dev` command, and clarify that `ameide dev` (not `ameide test e2e`) owns workspace routing.
-- `backlog/653-agentic-coding-test-automation-coder.md`: ensure the automation layer treats `ameide test e2e` as the deployed truth gate and `ameide dev` as the human hotreload loop.
-- `backlog/621-ameide-cli-inner-loop-test-v2.md`: remains the normative source for `ameide test smoke`. This doc intentionally does not define `smoke` even though the filename still includes it historically.
+- `backlog/654-agentic-coding-cli-surface-coder.md`: promote “optional interactive checks” into the concrete `ameide dev` command, and clarify that `ameide dev` (not `ameide test cluster`) owns workspace routing.
+- `backlog/653-agentic-coding-test-automation-coder.md`: ensure the automation layer treats `ameide test cluster` as the deployed truth gate and `ameide dev` as the human hotreload loop.
+- `backlog/621-ameide-cli-inner-loop-test-v2.md`: remains the normative source for `ameide test cluster`. This doc intentionally does not define `smoke` even though the filename still includes it historically.
 - `backlog/441-networking.md`: cross-link the workspace dev routing contracts (allowedRoutes + Envoy→workspace NetworkPolicy + hostnames) to the general Gateway/DNS primitives.
 - `backlog/427-platform-login-stability.md`: add an explicit note about the canonical-host auth bounce + cookie-domain requirements used by `ameide dev`, since it intersects with existing redirect_uri / cookie-domain failure modes.
 - `backlog/686-aks-pool-principles-migration-plan.md`: treat pool layout/pinning as an indirect dependency for stable gateway/workspace assumptions (Envoy placement, workspace pool isolation).
@@ -191,7 +191,7 @@ Runs contract/unit/integration only (local-only):
   - per-phase JUnit output
   - optional additional artifacts (lint output, reports) as defined by the phase runner
 
-### `ameide test e2e`
+### `ameide test cluster`
 
 Runs Playwright E2E only (deployed-system truth), against a **deployed target**:
 
@@ -206,7 +206,7 @@ Runs Playwright E2E only (deployed-system truth), against a **deployed target**:
 
 **Base URL resolution (fail-fast, no fallbacks)**
 
-`ameide test e2e` MUST resolve its base URL from the deployed environment configuration in-cluster:
+`ameide test cluster` MUST resolve its base URL from the deployed environment configuration in-cluster:
 
 1) `AMEIDE_ENV_NAMESPACE` MUST be set (the target environment namespace).
 2) The runner MUST read `ConfigMap/www-ameide-platform-config` in `AMEIDE_ENV_NAMESPACE`.
@@ -237,10 +237,10 @@ If any of these are missing or invalid, the command MUST fail fast with an expli
 4) Prints the dev URL.
 5) On exit, cleans up created resources.
 
-This command is intentionally separate from `ameide test e2e`:
+This command is intentionally separate from `ameide test cluster`:
 
 - `ameide dev` is for **human browsing** and rapid UI iteration.
-- `ameide test e2e` is for **deployed-system truth** and merge gating.
+- `ameide test cluster` is for **deployed-system truth** and merge gating.
 
 ### Command: `ameide dev`
 
@@ -338,7 +338,7 @@ This is a user convenience. A cluster-side janitor is still required as the safe
 
 ### Required (cluster-only commands)
 
-- `AMEIDE_ENV_NAMESPACE` (required by `ameide test e2e` and `ameide dev`)
+- `AMEIDE_ENV_NAMESPACE` (required by `ameide test cluster` and `ameide dev`)
 
 ### Derived values (no hardcoding)
 
@@ -355,7 +355,7 @@ If derivation fails, commands MUST error with a clear message; no “best-effort
 
 These are prerequisites for cluster-only commands. They are intentionally split to avoid conflating “deployed truth E2E” with “workspace dev routing”.
 
-### Prereqs: `ameide test e2e` (deployed truth; no workspace routing)
+### Prereqs: `ameide test cluster` (deployed truth; no workspace routing)
 
 1) `AMEIDE_ENV_NAMESPACE` MUST be reachable and readable by the workspace identity.
 2) Workspace identity MUST have RBAC to read:
@@ -403,7 +403,7 @@ Remaining gaps (must be implemented to meet the spec):
 
 ## Evidence and secrecy
 
-1. Commands that run tests (`ameide test`, `ameide test e2e`) MUST emit JUnit evidence.
+1. Commands that run tests (`ameide test`, `ameide test cluster`) MUST emit JUnit evidence.
 2. Credentials and capability tokens MUST NOT be written to:
    - logs
    - Playwright traces/HAR

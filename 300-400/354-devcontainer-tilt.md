@@ -36,7 +36,7 @@ The DevContainer bootstrap script previously ran Helmfile status/sync checks, re
 - **Current workflow:** Use Telepresence + the Ameide CLI:
   - `ameide dev inner-loop verify` / `up` / `down` (interactive UI iteration)
   - `ameide test` (Phase 0/1/2 only; strict verification + JUnit evidence)
-  - `ameide test e2e` (cluster-only Playwright E2E)
+  - `ameide test cluster` (cluster-only Playwright E2E)
 
 ## Tilt responsibilities
 

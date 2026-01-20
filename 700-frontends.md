@@ -100,7 +100,7 @@ Exact DNS choices are owned by GitOps, but the repo structure must assume these 
    - `io.ameide.platform` → `io-ameide-platform`
    - `com.future` → `com-future`
    - `com.future.run` → `com-future-run`
-4. **CLI + GitOps contracts remain stable.** Where external interfaces exist (e.g. `ameide dev`, `ameide test e2e`, environment ConfigMaps/Secrets), changes must be coordinated and documented (see `backlog/691-cli-surface-test-dev-e2e-smoke-dev.md`).
+4. **CLI + GitOps contracts remain stable.** Where external interfaces exist (e.g. `ameide dev`, `ameide test cluster`, environment ConfigMaps/Secrets), changes must be coordinated and documented (see `backlog/691-cli-surface-test-dev-e2e-smoke-dev.md`).
 
 ## Goals
 

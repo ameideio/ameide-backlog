@@ -143,7 +143,7 @@ Requirements:
 
 Decision: Phase 3 exists as a CLI-owned command surface:
 
-- `ameide test e2e` runs Playwright against the deployed preview URL (Phase 3)
+- `ameide test cluster` runs Playwright against the deployed preview URL (Phase 3)
 - Phase 3 is intentionally not bundled into the “no-brainer” Phase 0/1/2 front door so it remains fast and universally runnable
 
 Note: non-Kubernetes domains may define a different Phase 3 target (not an Argo preview environment). For D365FO, Phase 3 is defined in `backlog/655-agentic-coding-365fo.md`.
@@ -180,7 +180,7 @@ Tasks complement the system by making repeatability cheap:
 The following are deprecated by this model:
 
 - Telepresence-based E2E execution for agent inner-loop verification (`backlog/621-ameide-cli-inner-loop-test.md` as currently written).
-- Telepresence-based E2E execution as an agent default; Phase 3 E2E is owned by `ameide test e2e` (cluster-only; Playwright-only).
+- Telepresence-based E2E execution as an agent default; Phase 3 E2E is owned by `ameide test cluster` (cluster-only; Playwright-only).
 - Telepresence verification backlogs as platform requirements (e.g., `backlog/492-telepresence-verification.md`).
 
 ## 9) References

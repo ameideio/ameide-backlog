@@ -35,7 +35,7 @@ This document is the **non-repeating** foundation for:
   - long work modeled as explicit wait states (messages),
   - workers are short, idempotent request handlers.
 - Keep the repository **430-aligned**:
-  - Phase 0/1/2 are local-only (`ameide test`); cluster semantics live in `ameide test smoke`; Playwright E2E lives in `ameide test e2e`.
+  - Phase 0/1/2 are local-only (`ameide test`); cluster semantics live in `ameide test cluster`; Playwright E2E lives in `ameide test cluster`.
 
 ## Status (as of 2026-01-13)
 

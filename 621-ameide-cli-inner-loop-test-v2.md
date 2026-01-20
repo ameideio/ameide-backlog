@@ -1,6 +1,6 @@
 ---
 title: "621 – ameide inner-loop front doors (v2: 430-aligned)"
-status: historical
+status: active
 owners:
   - platform
 created: 2026-01-13
@@ -18,10 +18,13 @@ This document exists to remove ambiguity created by older “Phase 3 via Telepre
 
 Per `backlog/430-unified-test-infrastructure-v2-target.md`:
 
-- `ameide test` runs **Phase 0/1/2 only** (local-only; no Kubernetes/Telepresence).
-- Deployed-system verification is split:
-  - `ameide test e2e`: Playwright-only against the deployed platform URL read from `AUTH_URL` in `ConfigMap/www-ameide-platform-config`.
-  - `ameide test smoke`: cluster-only smokes for runtime semantics (e.g., Zeebe conformance), not part of Phase 2.
+- `ameide test` runs **Phase 0/1/2 only** (local-only; no Kubernetes/Telepresence):
+  - Phase 0: contract (vendor-driven discovery; fail fast)
+  - Phase 1: unit (local-only, pure)
+  - Phase 2: integration-local (local-only; mocked/stubbed only)
+- `ameide test cluster` runs **Phase 3/4 only** (cluster-only verification; requires Kubernetes):
+  - Phase 3: integration-cluster (cluster smokes / runtime semantics; `//go:build cluster`)
+  - Phase 4: Playwright E2E against the deployed platform URL read from `AUTH_URL` in `ConfigMap/www-ameide-platform-config`.
 
 ## Why this split exists
 
@@ -31,4 +34,7 @@ Per `backlog/430-unified-test-infrastructure-v2-target.md`:
 
 ## Implementation status
 
-This v2 posture is now implemented and merged into `ameide` `main` (see `ameideio/ameide#582` and `ameideio/ameide#589`).
+This posture is now implemented as first-class CLI front doors:
+
+- `ameideio/ameide#582`: Phase 0/1/2 (`ameide test`) front door
+- `ameideio/ameide#589`: Playwright E2E runner (now executed as Phase 4 of `ameide test cluster`)

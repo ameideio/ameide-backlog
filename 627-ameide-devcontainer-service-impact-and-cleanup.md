@@ -125,7 +125,7 @@ Decide and execute one of:
 If any implementation currently grants namespace-scoped `secrets` access to developer workspaces, remove it by default.
 Keep the workspace ServiceAccount limited to “developer operations” in its namespace (pods/logs/services/configmaps/etc.), and treat secret access as an explicit opt-in exception with clear justification.
 
-Update (2026-01): when a workspace needs additional, tightly-scoped permissions (e.g., Phase 3 routing primitives or env-namespace reads for `ameide test e2e`), prefer predeclared roles plus bind-only delegation rather than allowing workspace provisioning to author arbitrary Roles.
+Update (2026-01): when a workspace needs additional, tightly-scoped permissions (e.g., Phase 3 routing primitives or env-namespace reads for `ameide test cluster`), prefer predeclared roles plus bind-only delegation rather than allowing workspace provisioning to author arbitrary Roles.
 
 ## 4) Acceptance criteria
 
