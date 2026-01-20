@@ -90,6 +90,7 @@ ArgoCD smokes are a separate layer:
     - `ameide-local`: `Secret/gitlab-api-credentials-e2e`
   - Non-goal: provisioning a writer credential in `staging`/`production` by default.
 - Done: GitLab “E2E group” is created/ensured by GitOps bootstrap as `ameide-e2e` (top-level group). The E2E test should resolve `namespace_id` at runtime (by querying the group by full path) rather than hardcoding ids.
+- Implementation note: current GitOps minting uses a dedicated service-user PAT constrained by group membership + scopes; migrating to group access tokens remains a follow-up hardening option.
 
 **Apps (platform/transformation)**
 

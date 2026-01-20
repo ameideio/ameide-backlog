@@ -21,6 +21,15 @@ GitLab tokens have historically been consumed on an ad-hoc basis (e.g., Backstag
 - Deploy tokens are explicitly not valid for the GitLab REST API. [2]
 - Keep tokens non-admin; the platform enforces governance, and GitLab CE provides storage + CI primitives.
 
+**Implementation note (current platform posture)**
+
+- The current GitOps implementation mints **dedicated service-user Personal Access Tokens** via `gitlab-rails runner` (toolbox) and constrains access via:
+  - per-service users (non-admin),
+  - minimal scopes,
+  - group membership + access level,
+  - mandatory expiry + rotation.
+- This is vendor-compatible for API auth (`PRIVATE-TOKEN`) and avoids parking an admin PAT in-cluster. Moving to **group access tokens + self-rotate** is a future hardening step.
+
 ## 2. Least-privilege service posture
 
 - Default to one token **per consuming service** rather than a shared “platform” token. Blast radius stays limited to the projects/groups that service requires.
@@ -47,6 +56,7 @@ For E2E/integration tests that create and delete GitLab projects (for example `b
   - points to Vault via `SecretStore/ameide-vault`,
   - writes a Kubernetes Secret named `gitlab-api-credentials` (overridable per consumer) with keys `GITLAB_API_URL` and `GITLAB_TOKEN`,
   - emits deterministic labels (`app.kubernetes.io/part-of: platform`, `ameide.io/layer: secrets-certificates`).
+  - **must set `spec.target.creationPolicy: Owner`** so the Secret is created/owned by ESO.
   - **must set `spec.target.template.mergePolicy: Merge`** so templated keys (like `GITLAB_API_URL`) do not overwrite fetched keys (like `GITLAB_TOKEN`).
 - **Consumption contract:** workloads mount the Secret and use:
   - `GITLAB_TOKEN` via the documented `PRIVATE-TOKEN: <token>` HTTP header for GitLab API calls; GitLab explicitly documents this header for PATs/project/group access tokens. [2]
