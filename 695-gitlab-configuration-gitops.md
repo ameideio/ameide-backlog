@@ -64,8 +64,11 @@ GitLab is treated as a **platform-owned subsystem**:
 
 This is the vendor-supported posture (“external DB/Redis”) expressed via our wrapper values:
 
-- External Postgres: `gitlab.postgresql.install=false`, plus `gitlab.global.psql.host` and `gitlab.global.psql.password.secret/key`
-- External Redis/Valkey: `gitlab.redis.install=false`, plus `gitlab.global.redis.host` and `gitlab.global.redis.auth.secret/key`
+- External Postgres (upstream keys): `postgresql.install=false`, `global.psql.host`, `global.psql.password.secret/key`
+  - Wrapper keys: `gitlab.postgresql.install=false`, plus `gitlab.global.psql.host` and `gitlab.global.psql.password.secret/key`
+- External Redis/Valkey (upstream keys): `redis.install=false`, `global.redis.host`, `global.redis.auth.secret/key`
+  - Wrapper keys: `gitlab.redis.install=false`, plus `gitlab.global.redis.host` and `gitlab.global.redis.auth.secret/key`
+
 - Fixed GitLab UI rendering (“unstyled” pages) by routing the Gateway `HTTPRoute` to **Workhorse** (`webservice` port `8181`) instead of Rails/Puma (`8080`). Verified `/assets/*` returns `200` (CSS/JS served) rather than redirecting to sign-in.
 - Hardened defaults as standard (not optional):
   - Disabled **public sign-ups** by default.
