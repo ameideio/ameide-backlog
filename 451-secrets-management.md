@@ -276,16 +276,15 @@ Cluster-scoped workloads also need docker credentials. The shared template accep
 | `ANTHROPIC_API_KEY` | `anthropic-api-key` | `secret/anthropic-api-key` | `inference-api-credentials` |
 | `OPENAI_API_KEY` | `openai-api-key` | `secret/openai-api-key` | `inference-api-credentials` |
 
-### Vault-authored third-party secrets (not in Azure KV)
+### Vault-stored third-party secrets (not in Azure KV)
 
-Some third-party secrets are minted once in a vendor UI/API and are stored directly in Vault (instead of `.env`/AKV), then synced into Kubernetes via ExternalSecrets:
-
-- GitLab API tokens: store as a flat key (e.g., `backstage-gitlab-token`) in the external source, map into Vault (`secret/gitlab/tokens/<env>/backstage`), then sync: `ExternalSecret/backstage-gitlab-api-token` → `Secret/gitlab-api-credentials` (`GITLAB_TOKEN`, `GITLAB_API_URL`) per `backlog/710-gitlab-api-token-contract.md`. Use one token per consumer; writers (including seedless E2E/integration tests that create/delete projects) require a dedicated token with `api` scope and appropriate GitLab permissions.
+Some third-party secrets are stored directly in Vault (instead of `.env`/AKV) and are synced into Kubernetes via ExternalSecrets. They may be minted once in a vendor UI/API or minted/rotated in-cluster:
+- GitLab API credentials (service tokens): minted and rotated in-cluster by the GitLab wrapper chart, written into Vault, then delivered to consumers via ExternalSecrets as `Secret/gitlab-api-credentials` (`GITLAB_TOKEN`, `GITLAB_API_URL`) per `backlog/710-gitlab-api-token-contract.md` and `backlog/695-gitlab-configuration-gitops.md`. Use one token per consumer; writers (E2E/integration tests that create/delete projects) require a dedicated token with `api` scope and appropriate GitLab permissions (dev/local only by default).
 - GitLab object storage (MinIO) service user: Vault keys `gitlab-minio-access-key` + `gitlab-minio-secret-key` are synced into `Secret/minio-service-users` (MinIO provisioning) and used to template `Secret/gitlab-object-storage` (GitLab S3/MinIO connection).
 
-For token verification, prefer CI/integration tests that prove the token works against an auth-required endpoint (for example `GET ${GITLAB_API_URL}/user` with `PRIVATE-TOKEN`). ArgoCD smokes should remain availability-only and side-effect-free.
+For token verification, prefer CI/integration tests and smokes that prove the token works against an auth-required endpoint (for example `GET ${GITLAB_API_URL}/user` with `PRIVATE-TOKEN`) while remaining side-effect-free.
 
-**Hard requirement:** managed environments must not carry placeholder GitLab tokens. Treat GitLab API tokens as required inputs (seeded via the external source and mapped into Vault); rollouts must fail fast if the token is missing/invalid.
+**Hard requirement:** managed environments must not carry placeholder GitLab tokens. Rollouts must fail fast if required tokens are missing/invalid; writer credentials are intentionally scoped (no staging/production writer by default).
 
 ### Secrets NOT in Azure KV (Cluster-Managed)
 

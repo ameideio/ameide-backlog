@@ -47,6 +47,7 @@ Operational clarifications (v6):
 - Truth model (content vs governance vs view truth) and allowed GitLab CE primitives: `backlog/694-elements-gitlab-v6.md`.
 - Projection contract (rebuildable, incremental, citation-grade, eventually consistent): `backlog/656-agentic-memory-v6.md`.
 - “Inline-only relationships” must be implemented so every derived relationship view (backlinks/impact) can show citations back to `{repository_id, commit_sha, path[, anchor]}` and can surface unresolved/broken references deterministically.
+- Metadata blocks are mandatory: canonical files must embed frontmatter/metadata (in-file) carrying stable `id` and `refs`. UI editors must preserve it (and scaffold it when creating new artifacts) so references can be authored consistently.
 
 ### Primary user journey (happy path)
 

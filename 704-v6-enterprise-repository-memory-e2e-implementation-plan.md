@@ -95,6 +95,7 @@ These are requirements, not “guidelines”:
 3) **Relationships are inline-only**
 - Relationships are only inline references inside element content; no relationship sidecar files, no `relationships/**` folder, no relationship CRUD.
 - Graph/backlinks are projection-derived only, and must be citation-grade (every derived edge/backlink must be explainable via citations back to `{repository_id, commit_sha, path[, anchor]}`).
+- Frontmatter/metadata blocks are mandatory and are a first-class place to author references (in-file, still “in text”); projections must index both metadata references and in-body references.
 - Reference: `backlog/694-elements-gitlab-v6.md`, `backlog/701-repository-ui-enterprise-repository-v6.md`, `backlog/656-agentic-memory-v6.md`.
 
 4) **GitLab CE only**
@@ -119,6 +120,10 @@ These are requirements, not “guidelines”:
 - Every retrieval that influences decisions must include `read_context` plus citations sufficient to reproduce “what was read” (v6: `{repository_id, commit_sha, path[, anchor]}`).
 - This applies equally to “memory” outputs that are not raw file reads (search hits, graph edges/backlinks, context bundles): they remain derived, but must still be citation-addressable.
 - GitLab analogy: a citation should behave like a GitLab “permalink to a file at a commit” (plus an optional anchor within the file).
+- Product terms mapping (v6):
+  - `published` ≈ “what is merged to `main`” (resolved commit SHA).
+  - `head` / “proposal” ≈ “what is under review” (MR branch ref, still citeable when resolved to SHA).
+  - `baseline_ref` (tag) ≈ “named baseline” (tag resolved to commit SHA).
 - Reference: `backlog/534-mcp-protocol-adapter.md`, `backlog/656-agentic-memory-v6.md`.
 
 ## 1) Transition strategy (avoid “rename legacy protos”)
@@ -150,7 +155,12 @@ Each increment below lists:
 - Backlog docs to cross-read/keep aligned for that increment
 - Exit criteria (minimum verification)
 
+Treat these increments as a product ladder (v6): each increment should be demo-able as a user-facing capability, anchored by immutable commit SHAs and citations.
+
 ### Increment 0 — v6 seam scaffolding (no user-facing change required)
+
+**Product value**
+- “Trust contract”: identity + citation + truth-model are consistent across UI, agents, process, and projections (the “v6 constitution”).
 
 **Outcome**
 - New, explicit v6 seams exist (proto + service stubs) without breaking legacy.
@@ -184,6 +194,9 @@ Each increment below lists:
 ---
 
 ### Increment 1 — Read-only Enterprise Repository (Git tree browsing)
+
+**Product value**
+- “Enterprise Repository Explorer”: browse canonical architecture artifacts as Git-backed files, with immutable commit-SHA citations (trust feature, not a developer detail).
 
 **Outcome**
 - A user can browse the repository **as a file tree** at `published` baseline and open files.
@@ -225,6 +238,9 @@ Each increment below lists:
 
 ### Increment 2 — Governed edits (proposal/change branch + MR; commit batching)
 
+**Product value**
+- “Governed Architecture Change (proposal)”: propose edits safely without mutating the published baseline; the unit of change is MR-backed (GitLab MR analogy), and every preview is still citeable to a specific MR head SHA + path.
+
 **Outcome**
 - A user can start a change, edit files, rename/move files/folders, and see the change preview (MR-backed).
 - No publishing yet; still “propose” only.
@@ -247,6 +263,7 @@ Each increment below lists:
 - “Start Change” mode.
 - Editor save commits via Domain commit batching.
 - Tree supports rename/move (including folder move).
+- Editors must preserve (and scaffold on create) mandatory metadata blocks so refs can be authored consistently (`id`, `type_key`, `refs`); fail fast if required metadata is missing.
 - Reference: `backlog/701-repository-ui-enterprise-repository-v6.md`.
 
 **Agents/MCP (optional)**
@@ -264,6 +281,9 @@ Each increment below lists:
 ---
 
 ### Increment 3 — Approvals + publish (SHA-safe merge + CE-only gating)
+
+**Product value**
+- “Publishable baseline with evidence”: approvals + publish produce an auditable “this is what we approved” outcome (GitLab merge-to-`main` analogy), with durable pointers to MR/pipeline and the resulting `main` commit SHA.
 
 **Outcome**
 - Curators approve in the platform UI and publish by merging to `main`.
@@ -305,9 +325,12 @@ Each increment below lists:
 
 ### Increment 4 — Agentic memory (Git-citeable retrieval + derived backlinks)
 
+**Product value**
+- “EA Impact & Traceability”: derived backlinks/impact and citeable memory retrieval (GitLab derived views / Knowledge Graph analogy) turn canonical files into a navigable, explainable EA system without making the graph authoritative.
+
 **Outcome**
 - `memory.get_context` returns a context bundle anchored to `published` commit SHA with Git citations.
-- Backlinks/impact graph is available as a derived view (inline references only).
+- Backlinks/impact graph is available as a derived view from in-file references (mandatory metadata `refs` + in-body references; no relationship CRUD).
 
 **Proto**
 - Memory query surface (façade) returns `read_context.resolved.commit_sha` + item citations `{repository_id, commit_sha, path[, anchor]}`.
@@ -341,6 +364,9 @@ Each increment below lists:
 ---
 
 ### Increment 5 — ProcessDefinitions as Git artifacts (validate + deploy + evidence)
+
+**Product value**
+- “Governance as code”: process definitions are versioned and reviewed as files (analogous to “config as code” patterns like `.gitlab-ci.yml`), then validated/deployed with evidence tied back to the published commit SHA.
 
 **Outcome**
 - ProcessDefinitions authored as BPMN files in the Enterprise Repository can be validated/deployed to the selected runtime(s), with evidence tied to Git commits.
