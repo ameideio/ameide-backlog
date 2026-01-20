@@ -95,7 +95,7 @@ Template auth policy (Coder workspaces):
 For Azure, the dev cluster treats Codex auth as **required** (to avoid “it works on my machine” drift). This requirement is about the secrets pipeline, not workspace liveness; the workspace template default should still be non-fatal until secret fan-out converges:
 
 - Config: `sources/values/env/dev/foundation/foundation-vault-bootstrap.yaml`
-  - `azure.keyVault.requiredSecrets` includes `codex-auth-json-b64-0`, `codex-auth-json-b64-1`, `codex-auth-json-b64-2`
+  - `azure.keyVault.requiredSecrets` includes `codex-auth-json-b64-0`, `codex-auth-json-b64-1` (add slot 2 only when it is actually seeded upstream)
 
 This causes vault-bootstrap to:
 1) read Key Vault secret `codex-auth-json-b64-<slot>` (prefix is empty in managed clusters), and
