@@ -41,6 +41,10 @@ This is consistent with the “projection-owned memory” posture in `backlog/65
 “Inline-only relationships” is a normative posture, but it must be implementable:
 
 - **What counts as “inline”**: a relationship is authored inside canonical files (Markdown, BPMN, model formats, and optionally structured metadata blocks within those files). There is no separate relationship artifact and no relationship CRUD API.
+- **Allowed encodings (v0)**: the platform may standardize conventions per file type, but projections must at minimum support extracting references from:
+  - Markdown links to repo-relative paths (optionally with `#anchor` fragments),
+  - optional frontmatter/metadata blocks (e.g., YAML) containing stable IDs and reference lists,
+  - model-native identifiers/links where the format already supports them (e.g., BPMN ids/extension properties).
 - **Directionality**: relationships are declared **single-sided**; backlinks are always derived by projections.
 - **Identity and citations**: a relationship must be resolvable (at read time) to audit-grade citations `{repository_id, commit_sha, path[, anchor]}`. Stable IDs are allowed as a file convention, but projections must always be able to cite concrete file locations at a specific commit SHA.
 - **Rename/move semantics**: rename/move must not silently create false edges. If a reference cannot be resolved at the selected commit SHA, it is surfaced as an explicit “broken/unresolved reference” (and governance/validation decides whether that blocks publication).
@@ -61,6 +65,17 @@ This is consistent with the “projection-owned memory” posture in `backlog/65
 - GitLab Premium/Ultimate planning surfaces (epics/roadmaps/iterations) as platform UX primitives.
 - Any “GitLab is the governance UI” assumption (governance truth is platform-owned).
 - Paid-tier approval/status-check frameworks as required correctness dependencies (platform policy decides; GitLab enforcement stays CE-grade).
+
+## GitLab product analogies (keep the mental model aligned)
+
+This repo treats GitLab CE as a subsystem, but using GitLab’s own product concepts as analogies helps keep intent unambiguous:
+
+- **Enterprise Repository (Ameide)** ≈ **GitLab Project repository** (files + commit graph; served by Gitaly).
+- **Published baseline (Ameide)** ≈ **`main` HEAD commit SHA** (optionally a tag/release marker).
+- **Citation `{repo_id, commit_sha, path[, anchor]}` (Ameide)** ≈ **GitLab permalink to a file at a specific commit** (plus an optional in-file anchor like a heading or line range).
+- **Change / proposal (Ameide)** ≈ **Merge Request** (branch + diff + discussion), but **governance truth** lives in our platform DB.
+- **Governed write (Ameide Domain)** ≈ **GitLab Commit API + MR merge** performed by a bot identity under policy.
+- **Projection graph/search (Ameide)** ≈ **GitLab-derived views** (search/code intelligence/Knowledge Graph): useful for UX and AI, but still derived from repository content.
 
 ## Git provider posture (v6)
 

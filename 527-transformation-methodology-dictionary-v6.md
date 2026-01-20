@@ -29,6 +29,7 @@ This v6 dictionary keeps the “cross-methodology mapping” goal, but aligns to
 - **Published baseline**: the commit SHA on `main` (optionally tagged).
 - **Element**: a canonical authored artifact stored as a file (or file set) in Git, presented as “element” in the UI (`backlog/701-repository-ui-enterprise-repository-v6.md`).
 - **Element reference (audit-grade)**: `{repository_id, commit_sha, path[, anchor]}` (see `backlog/527-transformation-proto-v6.md`).
+- GitLab analogy: this behaves like a GitLab permalink to a file at a specific commit SHA (optionally anchored within the file).
 - **Relationship**: an authored reference within element content (links/IDs); graph is derived.
 - **Repository hierarchy node**: a projection-derived file/directory/submodule node used for navigation (not canonical state).
 

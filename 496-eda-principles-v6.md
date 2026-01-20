@@ -54,6 +54,8 @@ What counts as “commit” depends on the owner’s persistence:
 - **DB-backed owner:** state write + outbox row in one DB transaction.
 - **Git-backed owner:** Git operation succeeds (commit / merge / tag) and the owner durably records the audit pointer(s) it will rely on (e.g., project id, branch, MR id, commit SHA, pipeline id) before fact emission.
 
+GitLab analogy: treat “commit” like “the MR was merged and there is an immutable merge commit SHA (or squash SHA) plus recorded evidence pointers (MR IID/URL, pipeline id/status)”.
+
 ### 1.3 Contract-first communication
 
 - Public APIs and event payloads are defined in Protobuf.

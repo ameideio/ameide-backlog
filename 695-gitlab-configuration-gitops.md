@@ -35,6 +35,7 @@ GitLab is treated as a **platform-owned subsystem**:
 
 - No manual mutation of cloud cluster resources (GitOps-only path per `AGENTS.md`).
 - No “make it pass” changes that weaken safety/validation contracts.
+- Do not introduce platform dependencies on GitLab Premium/Ultimate features via configuration drift; keep “allowed CE primitives” explicit per `backlog/694-elements-gitlab-v6.md`.
 
 ## Current state (repo truth)
 

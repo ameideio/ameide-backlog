@@ -24,6 +24,13 @@ This v1 seam is now implemented in the platform codebase and should be treated a
 - Git tree reads via Projection (path + read_context + SHA citations)
 - Governed writes via Domain (MR-backed `EnsureChange`/`CreateCommit`/`PublishChange`)
 
+## GitLab product analogies (how to interpret the contract)
+
+- Projection `ListTree/GetContent` ≈ GitLab “browse repository” at a ref, but always citation-grade (commit SHA + path + optional anchor).
+- Domain `EnsureChange` ≈ create/reuse a branch + Merge Request (proposal container).
+- Domain `CreateCommit` ≈ GitLab Commit API on the MR branch (batched file actions, guarded by `last_commit_id`).
+- Domain `PublishChange` ≈ merge the MR into `main` and record immutable audit pointers (MR IID/URL, pipeline id/status if applicable, merge/squash SHA).
+
 ## Normative constraints (must hold)
 
 From `backlog/496-eda-principles-v6.md`:

@@ -118,6 +118,7 @@ These are requirements, not “guidelines”:
 8) **Reproducible reads**
 - Every retrieval that influences decisions must include `read_context` plus citations sufficient to reproduce “what was read” (v6: `{repository_id, commit_sha, path[, anchor]}`).
 - This applies equally to “memory” outputs that are not raw file reads (search hits, graph edges/backlinks, context bundles): they remain derived, but must still be citation-addressable.
+- GitLab analogy: a citation should behave like a GitLab “permalink to a file at a commit” (plus an optional anchor within the file).
 - Reference: `backlog/534-mcp-protocol-adapter.md`, `backlog/656-agentic-memory-v6.md`.
 
 ## 1) Transition strategy (avoid “rename legacy protos”)

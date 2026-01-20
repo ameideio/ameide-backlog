@@ -50,6 +50,14 @@ This v6 reframes “organizational memory” to match the platform’s Git-backe
 
 This document supersedes `backlog/656-agentic-memory-v1.md` (303-first / elements-first posture) while keeping its intent and safety invariants.
 
+## GitLab product analogies (memory as a derived view over repos)
+
+To keep the “Git-first + projection-owned memory” posture concrete, use GitLab’s own product behavior as the analogy:
+
+- **Canonical knowledge** ≈ the repository content you can browse in GitLab (files at a commit SHA); our platform treats that as the source of truth.
+- **Citations** ≈ GitLab permalinks to a specific blob/commit/path (optionally anchored to a location inside the file).
+- **Memory retrieval** ≈ GitLab’s derived repository views (search/code intelligence/Knowledge Graph): they accelerate discovery, but never replace the repo as truth.
+
 ## Projection contract (v6; required)
 
 “Memory” is projection-owned, but that is an explicit contract (not just an implementation detail):
