@@ -6,20 +6,20 @@ Make a **persistent global edge (“Traffic Manager”) the first-class, always-
 
 ## Status (2026-01-20)
 
-Completed (no customer/DNS impact):
-- Edge stack applied (AFD Standard profile + `preview`/`prod` `azurefd.net` endpoints + cert Key Vault) in the DNS subscription/RG.
-  - Workflow: `Terraform Azure Edge Apply` run `21168440973`
-  - Edge runtime facts are published to the runtime facts repo at `runtime-facts/edge/azure/globals.yaml` (includes `edge.azure.frontDoorId` used by origin enforcement).
-- New AKS cluster applied in subscription `e4652c74-2582-4efc-b605-9d9ed2210a2a` with `disable_dns=true` and separate Terraform state (`azure-e4652c74.tfstate`).
-  - Workflow: `Terraform Azure Apply + Verify` run `21169178304`
-- Origin hardening for the `origin-http` listener port (`8080`) is in place (network + app):
-  - Network: NSG allowlist `AzureFrontDoor.Backend` and deny `Internet` on `8080`.
-  - App: Envoy Gateway SecurityPolicy enforces `X-Azure-FDID == edge.azure.frontDoorId` on the `origin-http` listener.
+Implemented in this repo (ready for CI plan/apply):
+- Edge stack Terraform root exists (`infra/terraform/azure-edge`) and can manage:
+  - AFD Standard profile + `preview`/`prod` endpoints (`*.azurefd.net`)
+  - ArgoCD route to an origin HTTP listener (`origin-http` on port `8080`)
+  - Optional ArgoCD custom domain cutover + BYOC TLS from an edge Key Vault
+- Origin hardening for `origin-http:8080` is available as layered controls:
+  - Network: NSG allowlist `AzureFrontDoor.Backend` and deny `Internet` on `8080` (Terraform-managed in the cluster stack).
+  - App (optional): Envoy Gateway `SecurityPolicy` can enforce `X-Azure-FDID == edge.azure.frontDoorId` on the origin listener once edge runtime facts are published.
+- Certbot-based Let’s Encrypt issuance to the edge Key Vault is automated in CI.
 
-Not yet completed (next implementation step; still no customer impact):
-- Front Door **routing** to any origin (origin groups, origins, routes, rule sets, WAF policy associations).
-  - In progress: add a minimal, non-disruptive wiring from the `preview` endpoint to the new cluster via `/healthz` (origin group + origin + route) in `infra/terraform/azure-edge`.
-  - Workflows: `Terraform Azure Edge Plan/Apply` gain `origin_subscription_id` + `origin_env_key` inputs so the edge stack can read the origin Public IP from the AKS subscription without moving the edge out of the DNS subscription.
+Pending execution (CI runs):
+- Apply edge stack (no DNS cutover yet).
+- Issue/import the Let’s Encrypt cert into the edge Key Vault.
+- Cut over `argocd.<DNS_PARENT_ZONE_NAME>` to AFD + BYOC (TXT validation + CNAME).
 
 Once the edge is in place, **DNS and public TLS stop being part of cluster bootstrap**. Cluster recreation/canary/cutover becomes:
 
@@ -77,13 +77,17 @@ Clients
 
 **Non-goal (for now):** AFD Premium features (e.g. Private Link origins). Keep the design compatible, but assume **Standard**.
 
-**Placement decision (Azure):** the edge stack (AFD + Key Vault for BYOC) lives in the **same subscription + resource group as the parent DNS zones** (the “DNS subscription / DNS RG”). This keeps DNS, certificates, and the edge lifecycle co-located and avoids cross-subscription RBAC complexity.
+**Placement decision (Azure):** the edge stack (AFD + BYOC Key Vault) lives in the **same subscription + resource group as the cluster** (RG `Ameide`).
+
+Parent DNS zones can remain in a separate “DNS subscription/RG”; the edge stack manages DNS records via a dedicated Terraform provider alias.
 
 Concrete mapping to repo variables (Azure):
+- “Cluster/edge subscription” = `AZURE_SUBSCRIPTION_ID`
+- “Cluster/edge RG” = `Ameide`
 - “DNS subscription” = `DNS_PARENT_ZONE_SUBSCRIPTION_ID`
 - “DNS RG” = `DNS_PARENT_ZONE_RESOURCE_GROUP`
 
-Important vendor constraint: Azure Front Door requires the Key Vault used for BYOC to be in the **same subscription** as the Front Door profile. This placement decision is therefore a hard requirement, not just a preference.
+Important vendor constraint: Azure Front Door requires the Key Vault used for BYOC to be in the **same subscription** as the Front Door profile (so BYOC Key Vault placement follows the edge stack).
 
 ### AWS: Global Accelerator (steering) + regional TLS terminator
 
@@ -255,19 +259,18 @@ We implement issuance/renewal as a CI workflow that:
 
 1) Uses `certbot` to issue/renew via DNS-01 against the **parent DNS zone subscription/RG**.
 2) Packages the result as a PFX (full chain included).
-3) Imports it into the **edge Key Vault** in the DNS subscription/RG via `az keyvault certificate import`.
+3) Imports it into the **edge Key Vault** (same subscription as the AFD profile) via `az keyvault certificate import`.
 4) Configures Front Door to use **Latest** certificate version so renewals are picked up without manual re-wiring.
 
 Implementation artifacts in this repo:
-- Workflow: `.github/workflows/certbot-azure-keyvault-renew.yaml`
+- Workflow: `.github/workflows/certbot-argocd-cert-to-edge-kv.yaml`
 - Hooks:
-  - `infra/scripts/certbot-azure-dns-auth.sh`
-  - `infra/scripts/certbot-azure-dns-cleanup.sh`
+  - `infra/scripts/certbot/azuredns-auth-hook.sh`
+  - `infra/scripts/certbot/azuredns-cleanup-hook.sh`
 
 Required GitHub repo variables (Azure):
-- `LETSENCRYPT_EMAIL`
-- `AFD_CERT_KEYVAULT_NAME` (edge Key Vault in DNS subscription/RG)
-- `AFD_CERT_NAME` (certificate object name in Key Vault)
+- `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`
+- `DNS_PARENT_ZONE_NAME`, `DNS_PARENT_ZONE_SUBSCRIPTION_ID`, `DNS_PARENT_ZONE_RESOURCE_GROUP`
 
 Minimal command shape (CI):
 
@@ -275,12 +278,11 @@ Minimal command shape (CI):
 certbot certonly \
   --manual \
   --preferred-challenges dns \
-  --manual-auth-hook infra/scripts/certbot-azure-dns-auth.sh \
-  --manual-cleanup-hook infra/scripts/certbot-azure-dns-cleanup.sh \
+  --manual-auth-hook infra/scripts/certbot/azuredns-auth-hook.sh \
+  --manual-cleanup-hook infra/scripts/certbot/azuredns-cleanup-hook.sh \
   --non-interactive --agree-tos \
   --email "${LE_EMAIL}" \
-  -d "ameide.io" -d "*.ameide.io" \
-  --key-type rsa
+  -d "argocd.ameide.io"
 ```
 
 The auth/cleanup hooks use `az network dns record-set txt ...` to create and remove the `_acme-challenge` TXT record in Azure DNS.
@@ -316,8 +318,8 @@ This migration plan is written for **Azure Front Door Standard** and assumes Ter
 Create a dedicated Terraform root module for the edge stack (separate state from cluster lifecycle):
 
 - Location/ownership:
-  - Create/manage the edge resources in the **DNS subscription / DNS resource group** (same scope as the parent zones).
-  - For Azure, that means the edge Terraform apply runs with `subscription_id = DNS_PARENT_ZONE_SUBSCRIPTION_ID` and targets `DNS_PARENT_ZONE_RESOURCE_GROUP`.
+  - Create/manage the edge resources in the **cluster/edge subscription** and RG `Ameide`.
+  - Manage parent DNS records (TXT/CNAME for the custom domain) via a DNS provider alias targeting `DNS_PARENT_ZONE_SUBSCRIPTION_ID` / `DNS_PARENT_ZONE_RESOURCE_GROUP`.
 - AFD profile + endpoints:
   - **Production endpoint**: stable, later bound to custom domains
   - **Preview endpoint**: stable `*.azurefd.net` hostname used for validation without DNS changes
@@ -335,7 +337,7 @@ Change the in-cluster Gateway model so that edge traffic never depends on wildca
 
 - Add a dedicated **origin listener** on the environment Gateway:
   - Protocol: HTTP (baseline)
-  - Port: 80 (or another stable port if required)
+  - Port: 8080
   - Not coupled to any wildcard secret like `ameide-wildcard-tls`
 - Expose a cheap probe path (e.g. `/healthz`) that returns 200 quickly (Front Door probes are frequent and distributed).
 - Ensure the edge-facing routes attach to that origin listener:
@@ -411,7 +413,7 @@ These are the “best decisions” for the first implementation, optimized for s
 - Use two endpoints per environment:
   - `prod`: for custom domains (once cutover happens)
   - `preview`: for pre-cutover validation on `*.azurefd.net` without DNS changes
-- Place the edge resources (AFD + Key Vault for BYOC) in the **DNS subscription / DNS resource group** (same scope that owns the parent DNS zones).
+- Place the edge resources (AFD + Key Vault for BYOC) in the **cluster/edge subscription** and RG `Ameide` (per current contract).
 
 ### 10.2 Origin mode (security baseline)
 
