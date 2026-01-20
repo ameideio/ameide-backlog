@@ -94,9 +94,13 @@ Under v6, “organizational memory” is:
 
 ## 2) Memory model (TBD)
 
-The v6 posture intentionally does not yet decide:
+The v6 posture intentionally does not yet decide many details, but it does lock one requirement:
 
-- whether we embed stable IDs in files (frontmatter),
+- **Metadata blocks are mandatory:** canonical artifacts MUST embed a frontmatter/metadata block that carries a stable `id` and a `refs` list (in-file, not a sidecar). This is required so relationships can be authored consistently and so projections can rebuild a citeable graph over Git content.
+
+Open questions that remain TBD:
+
+- the exact metadata schema per file type (Markdown/BPMN/model formats), as long as it remains in-file and citeable,
 - the canonical citation format (commit SHA + path + anchor vs content hash vs owner-issued IDs),
 - how we represent “baselines” beyond `main` commit anchors and optional tags,
 - whether any “elements/versions/relationships” abstraction remains as a derived UX model or a canonical write model.

@@ -43,12 +43,26 @@ This is consistent with the “projection-owned memory” posture in `backlog/65
 - **What counts as “inline”**: a relationship is authored inside canonical files (Markdown, BPMN, model formats, and optionally structured metadata blocks within those files). There is no separate relationship artifact and no relationship CRUD API.
 - **Allowed encodings (v0)**: the platform may standardize conventions per file type, but projections must at minimum support extracting references from:
   - Markdown links to repo-relative paths (optionally with `#anchor` fragments),
-  - optional frontmatter/metadata blocks (e.g., YAML) containing stable IDs and reference lists,
+  - frontmatter/metadata blocks (required; e.g., YAML) containing stable IDs and reference lists,
   - model-native identifiers/links where the format already supports them (e.g., BPMN ids/extension properties).
 - **Directionality**: relationships are declared **single-sided**; backlinks are always derived by projections.
 - **Identity and citations**: a relationship must be resolvable (at read time) to audit-grade citations `{repository_id, commit_sha, path[, anchor]}`. Stable IDs are allowed as a file convention, but projections must always be able to cite concrete file locations at a specific commit SHA.
 - **Rename/move semantics**: rename/move must not silently create false edges. If a reference cannot be resolved at the selected commit SHA, it is surfaced as an explicit “broken/unresolved reference” (and governance/validation decides whether that blocks publication).
 - **Referential integrity**: dangling references are allowed as drafts, but they must be machine-detectable and citation-addressable (so validators and UI can explain what is missing).
+
+### Metadata blocks are mandatory (v6)
+
+Frontmatter/metadata blocks are not an optional enhancement: they are required so that references can be authored consistently and survive refactors.
+
+- **Requirement:** every canonical file that participates in navigation, governance, or memory MUST contain a metadata block inside the file content (still “in text”).
+- **Minimum fields (v0):**
+  - `id` (stable element identifier; globally unique within a repository scope at minimum)
+  - `type_key` (classification for EA-first UX and projections)
+  - `refs` (zero or more references; see below)
+- **References can live in both places:** references are valid in:
+  - `refs` entries in the metadata block (structured), and
+  - the body content (links/IDs), as long as they remain citation-addressable.
+- **Projection responsibility:** projections MUST extract references from metadata blocks and body content, and every derived edge/backlink MUST be explainable via citations back to concrete file locations at a commit SHA.
 
 ## Allowed GitLab CE primitives (in-scope vs out-of-scope)
 

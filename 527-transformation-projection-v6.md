@@ -58,7 +58,7 @@ GitLab analogy: this is the platform equivalent of GitLab’s “repository tree
 
 Reconstruct a graph from:
 
-- normal references inside element content (links/IDs).
+- normal references inside element content (links/IDs), including required metadata blocks (frontmatter) and in-body references.
 
 Used for backlinks, impact analysis, and agent context expansion.
 

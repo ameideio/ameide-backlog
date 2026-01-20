@@ -33,6 +33,8 @@ This v6 dictionary keeps the “cross-methodology mapping” goal, but aligns to
 - **Relationship**: an authored reference within element content (links/IDs); graph is derived.
 - **Repository hierarchy node**: a projection-derived file/directory/submodule node used for navigation (not canonical state).
 
+Operational note (v6): “inline-only relationships” assumes metadata blocks are present in files. The metadata block is a required place to carry a stable `id` and a structured `refs` list, while additional references may still be authored in body text; projections index both.
+
 ## Repository hierarchy (how the UI should feel)
 
 The UI presents a repository hierarchy as the Git file tree (folders + files) at a selected `read_context`, derived by the Projection.

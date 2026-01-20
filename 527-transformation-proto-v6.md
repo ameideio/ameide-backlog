@@ -64,6 +64,16 @@ This maps to the memory/read discipline (`read_context` + citations) required by
 
 GitLab analogy: an audit-grade element reference behaves like a GitLab “permalink” to a blob at a specific commit SHA (with optional in-file anchor), while non-audit preview may use branch/MR refs.
 
+#### Metadata blocks are mandatory (v6)
+
+To make references and governance scalable, canonical files MUST embed a metadata block (in-file, not a sidecar):
+
+- stable `id` (element identifier),
+- `type_key` for EA-first UX,
+- `refs` list for additional references (still “in text”, just structured).
+
+Projections extract references from both the metadata block and the body content and produce derived backlinks/graphs that remain citation-grade.
+
 ### 1.3 Relationships are not a canonical CRUD surface
 
 Relationships are authored only as normal references inside element content.
