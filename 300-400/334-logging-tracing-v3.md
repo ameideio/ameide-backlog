@@ -29,8 +29,14 @@ Tracing:
 Logging:
 
 - Log field (canonical): `ameide_session_id`
-- Log field (compat): `ameide.session_id` (optional but recommended during transition)
+- Log field (compat, temporary): `ameide.session_id` (allowed during v3; will be removed in v4)
 - Trace correlation fields: `trace_id`, `span_id`
+
+### 2.1.1 Session ID safety + format
+
+- `ameide.session_id` MUST be opaque and MUST NOT contain PII (no user ids/emails/org names/tokens).
+- `ameide.session_id` SHOULD be a UUID/ULID (or similar opaque identifier) and SHOULD be short (recommend ≤ 64 chars).
+- Tooling SHOULD treat it as a “dev run” identifier and rotate it between independent dev runs.
 
 ### 2.2 Semantics (why this matters)
 
@@ -52,6 +58,8 @@ Mapping:
 
 ## 4) Runtime requirements (normative)
 
+All runtimes MUST configure a composite propagator that includes **W3C Trace Context** and **W3C Baggage** for all supported transports (HTTP and RPC).
+
 For every inbound request/RPC:
 
 1. Extract OTel context (tracecontext + baggage).
@@ -65,6 +73,11 @@ For every outbound request/RPC:
 
 - inject/propagate tracecontext + baggage (including `ameide.session_id`)
 
+For async messaging / event buses:
+
+- producers MUST propagate `ameide.session_id` in message headers/metadata AND include `session_id` in the envelope payload (when an envelope exists).
+- consumers MUST copy the session id (header/envelope) onto spans/logs exactly as for HTTP/RPC.
+
 ### 4.1 “No hand-rolled telemetry” rule
 
 Services and SDKs must not re-implement this contract ad-hoc. Use the shared helpers:
@@ -73,18 +86,35 @@ Services and SDKs must not re-implement this contract ad-hoc. Use the shared hel
 - Python: `packages/ameide_telemetry_py/` (`ameide-telemetry-py`, import `ameide_telemetry`)
 - Go: `packages/ameide_telemetry_go/` (`github.com/ameideio/ameide/packages/ameide_telemetry_go`)
 
+Helper libraries MUST provide (per language/runtime):
+
+1. inbound middleware/interceptor (extract + set span attribute + attach log fields)
+2. outbound middleware/interceptor (inject)
+3. logger hook/adapter (adds `ameide_session_id`, `trace_id`, `span_id` from active context/span)
+
+Each runtime SHOULD have “contract tests” to prevent drift:
+
+- given an inbound request with baggage, the server span has `ameide.session_id`
+- a log emitted under that request context includes `ameide_session_id`, `trace_id`, `span_id`
+
 ## 5) Loki (logs)
 
 Rules:
 
 - Keep Loki labels **low-cardinality** (service/env/namespace/etc).
-- Do not put session ids or trace ids into Loki labels.
-- Always include `ameide_session_id`, `trace_id`, `span_id` in the JSON log payload.
+- Do not put session ids or trace ids into Loki labels (avoid high-cardinality labels).
+- All services MUST emit structured logs (JSON) for request-scoped events.
+- JSON logs MUST include a timestamp, a level, and a message field (key names may vary), plus `ameide_session_id`, `trace_id`, `span_id`.
 - Target state: also attach `ameide_session_id`, `trace_id`, `span_id` as Loki **structured metadata** (when ingestion supports it).
 
 Query model (CLI + Grafana):
 
-- Full-stack by dev session: `{...} | json | ameide_session_id="<session>"`
+- Minimum (JSON payload): `{...} | json | ameide_session_id="<session>"`
+- Target (structured metadata): `{...} | ameide_session_id="<session>"`
+
+Operational note:
+
+- If any environments still rely on Promtail stages for parsing/enrichment, plan a migration to Grafana Alloy or an OpenTelemetry Collector-based logs pipeline.
 
 ## 6) Tempo (traces)
 
@@ -95,6 +125,11 @@ Search must target **span attributes**:
 Optionally narrow by service:
 
 - `{ span.ameide.session_id="<session>" && resource.service.name="platform-service" }`
+
+Operational notes:
+
+- CLI search uses Tempo `/api/search?q=<TraceQL>`; `q` MUST be URL-encoded TraceQL.
+- If traces are not found for a session id, the first thing to verify is: services are copying baggage → span attributes (session id must exist as `span.ameide.session_id`).
 
 ## 7) CLI dev loop
 
