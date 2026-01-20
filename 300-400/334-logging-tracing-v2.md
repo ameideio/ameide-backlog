@@ -1,4 +1,6 @@
-# Observability Blueprint – Single-Tenant Stack
+# Observability Blueprint – Single-Tenant Stack (superseded)
+
+This document is superseded by `backlog/300-400/334-logging-tracing-v3.md` (authoritative).
 
 Status as of **Nov 1 2025**. The entire fleet now exports OpenTelemetry logs, traces, and metrics over OTLP gRPC to the shared collector (`otel-collector:4317`). Loki and Tempo remain multitenant (per-tenant limits in Loki, Tempo’s `multitenancyEnabled: true`), and Grafana exposes derived-field powered drill-downs across logs, traces, and metrics.
 

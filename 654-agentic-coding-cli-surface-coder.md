@@ -226,11 +226,15 @@ These commands are power tools (flags allowed) intended to reduce “log discove
 Contract:
 
 - `ameide dev logs` and `ameide dev traces` must not depend on `kubectl logs` for the normal inner loop; the default source of truth is Loki/Tempo queries.
-- A single dev session id must correlate traffic end-to-end. Canonical key: `ameide.session_id`.
+- A single dev session id must correlate traffic end-to-end. Canonical propagation key: `ameide.session_id`.
   - `ameide dev` creates the session id, persists it in session metadata, and exports it to the local dev process as `AMEIDE_SESSION_ID`.
   - Outbound requests from the dev process propagate the session id via W3C Baggage (`baggage: ameide.session_id=<id>`).
-- Logs ingested into Loki must include `ameide.session_id` and a trace id field so Grafana can correlate logs↔traces. The local dev process log stream must be ingested into Loki (either via an agent tailing its log file or via OTLP log export).
-- Tempo trace search should use TraceQL (`/api/search?q=...`) so `ameide.session_id` can be used as a filter without relying on the legacy `tags=` query surface.
+- Services must copy baggage → span attributes for trace search: set span attribute `ameide.session_id` on server spans when baggage contains the session id.
+- Logs ingested into Loki must include `ameide_session_id` (canonical), plus `trace_id`/`span_id` for correlation. Keeping `ameide.session_id` in logs is optional but recommended for compatibility.
+- Loki follow mode should use the Loki `tail` WebSocket endpoint; backfill can use `query_range`.
+- Tempo trace search should use TraceQL (`/api/search?q=...`) targeting `span.ameide.session_id="..."` (not resource attributes).
+
+See `backlog/300-400/334-logging-tracing-v3.md` for the authoritative telemetry contract.
 
 Minimum flag set for `ameide dev logs` and `ameide dev traces`:
 

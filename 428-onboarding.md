@@ -1007,7 +1007,7 @@ export async function CustomerOnboardingWorkflow(input: OnboardingInput): Promis
 
 | Backlog | Relationship | Alignment Requirements |
 |---------|--------------|------------------------|
-| [334-logging-tracing-v2.md](./334-logging-tracing-v2.md) | Required | Onboarding flows must emit OpenTelemetry spans with `onboarding.id`, `tenant.id`, `user.id` attributes; JSON logs with trace correlation; Grafana derived fields for `trace_id` |
+| [334-logging-tracing-v3.md](./300-400/334-logging-tracing-v3.md) | Required | Onboarding flows must emit OpenTelemetry spans with `onboarding.id`, `tenant.id`, `user.id` attributes; JSON logs with trace correlation; Grafana derived fields for `trace_id` |
 
 ### 12.5 Routing & GitOps Dependencies
 
@@ -1215,7 +1215,7 @@ export async function CustomerOnboardingWorkflow(input: OnboardingInput): Promis
 - [backlog/362-unified-secret-guardrails.md](./362-unified-secret-guardrails.md) - Secret guardrails
 
 ### Observability
-- [backlog/334-logging-tracing-v2.md](./334-logging-tracing-v2.md) - OpenTelemetry blueprint
+- [backlog/300-400/334-logging-tracing-v3.md](./300-400/334-logging-tracing-v3.md) - OpenTelemetry + Loki/Tempo contract
 
 ### GitOps & Routing
 - [backlog/417-envoy-route-tracking.md](./417-envoy-route-tracking.md) - Gateway route inventory
