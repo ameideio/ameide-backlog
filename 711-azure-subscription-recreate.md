@@ -101,6 +101,9 @@ Wire Front Door **preview** endpoint to the **new cluster** origin (port `8080`,
 
 Tracking: `backlog/712-traffic-manager-first-redesign.md`
 
+Implementation note:
+- This wiring is implemented in the edge Terraform root (`infra/terraform/azure-edge`) and executed via the `Terraform Azure Edge Plan/Apply` workflows, with the origin subscription passed as input (no manual Azure edits).
+
 ## Notes
 
 - Backup storage accounts are globally-unique by default: when no legacy account exists in the resource group, Terraform appends a subscription-derived suffix to the name (avoids collisions across subscriptions).

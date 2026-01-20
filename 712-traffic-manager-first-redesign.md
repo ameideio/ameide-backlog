@@ -17,7 +17,9 @@ Completed (no customer/DNS impact):
   - App: Envoy Gateway SecurityPolicy enforces `X-Azure-FDID == edge.azure.frontDoorId` on the `origin-http` listener.
 
 Not yet completed (next implementation step; still no customer impact):
-- Front Door **routing** to any origin (origin groups, origins, routes, rule sets, WAF policy associations). The edge stack currently creates the profile/endpoints and cert Key Vault only.
+- Front Door **routing** to any origin (origin groups, origins, routes, rule sets, WAF policy associations).
+  - In progress: add a minimal, non-disruptive wiring from the `preview` endpoint to the new cluster via `/healthz` (origin group + origin + route) in `infra/terraform/azure-edge`.
+  - Workflows: `Terraform Azure Edge Plan/Apply` gain `origin_subscription_id` + `origin_env_key` inputs so the edge stack can read the origin Public IP from the AKS subscription without moving the edge out of the DNS subscription.
 
 Once the edge is in place, **DNS and public TLS stop being part of cluster bootstrap**. Cluster recreation/canary/cutover becomes:
 
