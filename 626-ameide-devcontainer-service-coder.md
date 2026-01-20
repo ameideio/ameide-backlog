@@ -85,7 +85,7 @@ Related: `backlog/527-transformation-integration.md` (workbench pod is “not a 
   - Authentication uses slot secrets when present (`Secret/codex-auth-rotating-0..2` preferred; falls back to `Secret/codex-auth-0..2`; see `backlog/613-codex-auth-json-secret.md`).
     - Default policy: `CODEX_ACCOUNT_SLOT=auto` (non-fatal if no secret is present yet).
     - Automation policy: `CODEX_ACCOUNT_SLOT=0|1|2` (fail-fast if the requested slot secret is missing).
-  - The VS Code Codex extension is user-installed; set its CLI Path to `~/.local/bin/codex` if the IDE agent must run the pinned version.
+  - The OpenAI VS Code extension (`openai.chatgpt`) is installed by default (pinned); set its CLI Path to `~/.local/bin/codex` if the IDE agent must run the pinned version.
 3. Developer makes changes, runs local/unit checks, pushes branch, opens PR.
 
 ### 3.1 Workspace lifecycle (cost control)
@@ -197,20 +197,31 @@ Update (2026-01-20): GitHub + Azure CLI auth seeding for workspaces (dev-only)
 - GitHub CLI:
   - Workspaces mount `Secret/gh-auth` at `/var/run/ameide/gh-auth` (key: `token`).
   - Bootstrap runs `gh auth login --with-token` for both `root` and `vscode` and config lives under `/workspaces/.config/gh/<user>`.
+  - To make `gh` work in non-interactive contexts (and avoid `GH_CONFIG_DIR` drift), bootstrap wires native default paths:
+    - `/root/.config/gh` → `/workspaces/.config/gh/root`
+    - `/home/vscode/.config/gh` → `/workspaces/.config/gh/vscode`
   - Git submodule init falls back to this token if `ENVBUILDER_GIT_PASSWORD` is unset.
-- Azure CLI (optional; disabled until Azure creds pipeline is wired):
+- Azure CLI (enabled in dev; requires Azure creds pipeline):
   - Workspaces mount `Secret/azure-auth` at `/var/run/ameide/azure-auth` with keys `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET` (optional `AZURE_SUBSCRIPTION_ID`).
   - Bootstrap runs `az login --service-principal` for both `root` and `vscode` and config lives under `/workspaces/.config/azure/<user>`.
+  - To make `az` work in non-interactive contexts (and avoid `AZURE_CONFIG_DIR` drift), bootstrap wires native default paths:
+    - `/root/.azure` → `/workspaces/.config/azure/root`
+    - `/home/vscode/.azure` → `/workspaces/.config/azure/vscode`
   - Required Vault keys (each stored as `property: value`):
     - `coder-workspaces-azure-tenant-id`
     - `coder-workspaces-azure-client-id`
     - `coder-workspaces-azure-client-secret`
-    - `coder-workspaces-azure-subscription-id` (optional if you omit it from the ExternalSecret)
+    - `coder-workspaces-azure-subscription-id` (optional; recommended to omit from the ExternalSecret by default)
   - If these keys are missing, `ExternalSecret/azure-auth-sync` will stay in `SecretSyncedError` with “Secret does not exist”.
 
 Operational note:
 
 - GitHub External Auth is a per-user OAuth authorization stored in the Coder DB; it typically requires a **one-time manual “Connect GitHub”** action per user (including any CI/headless user) and cannot be cleanly pre-seeded.
+
+References:
+
+- `ameideio/ameide-gitops#475`: enable workspace Azure auth (dev) + stable gh/az default config paths; sync Azure workspace secrets from the env secrets Key Vault.
+- `ameideio/ameide-gitops#476`: mirror `config.toml` into `$HOME/.codex/config.toml` (some consumers still use default `~/.codex`).
 
 ### 5.2 Kubernetes identity
 
