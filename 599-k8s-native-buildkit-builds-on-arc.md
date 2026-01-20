@@ -21,6 +21,34 @@ Known gaps / follow-ups:
 
 - Orphaned legacy PVCs may remain after migrations (requires a GitOps/CI-sanctioned cleanup path; avoid manual deletes).
 
+## Verification evidence (audit-grade)
+
+This is the “hard to fake” evidence bundle we expect when claiming BuildKit-on-ARC is working on AKS.
+
+### 1) GitHub-side proof: job ran on ARC (AKS)
+
+- Pull the job metadata and confirm:
+  - `labels` includes `arc-aks-v2`
+  - `runner_name` looks like an ARC ephemeral runner pod name (e.g., `arc-aks-v2-...-runner-...`)
+- Example query pattern:
+  - `gh api repos/ameideio/ameide-gitops/actions/runs/<RUN_ID>/jobs --jq '.jobs[] | {id,name,conclusion,labels,runner_name}'`
+
+### 2) In-job proof: BuildKit was contacted using TLS flags
+
+- In the ARC smoke workflow job logs, capture the `BuildKit connectivity` step showing:
+  - the printed `AMEIDE_BUILDKIT_ADDR`
+  - the `buildctl` command invocation includes `--tlscacert/--tlscert/--tlskey` and `--tlsservername`
+- This is intentionally evidence-only (do not print secret contents; only file paths and the command line are required).
+
+### 3) Cluster-side proof: mTLS is enforced (negative signal)
+
+When mTLS is correctly enforced on TCP `:1234`, a client without a certificate must not be able to connect.
+
+- Expected failure (no client cert):
+  - `buildctl ... debug workers` fails with `tls: certificate required`
+- Example (read-only, from inside the buildkit pod using the server CA only):
+  - `kubectl -n buildkit exec buildkitd-v2-0 -- buildctl --addr tcp://buildkitd.buildkit.svc.cluster.local:1234 --tlscacert /etc/buildkit/tls/ca.crt --tlsservername buildkitd.buildkit.svc.cluster.local debug workers`
+
 ---
 
 ## Problem
