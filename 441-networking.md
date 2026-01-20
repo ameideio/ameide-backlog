@@ -12,6 +12,7 @@
 > - [450-envoy-gateway-per-environment-architecture.md](450-envoy-gateway-per-environment-architecture.md) – Per-environment gateway architecture
 > - [457-azure-lb-redirect-gateway-consolidation.md](457-azure-lb-redirect-gateway-consolidation.md) – HTTP redirect consolidation
 > - [459-httproute-ownership.md](459-httproute-ownership.md) – HTTPRoute ownership ("apps own routes" pattern)
+> - [712-traffic-manager-first-redesign.md](712-traffic-manager-first-redesign.md) – Edge-first traffic manager (public DNS/TLS owned outside the cluster)
 
 ## Implementation Status (2025-12-04)
 

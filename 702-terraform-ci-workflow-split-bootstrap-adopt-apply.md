@@ -11,6 +11,8 @@ source_of_truth: false
 
 # 702 – Terraform CI workflow split: bootstrap vs adopt(import) vs apply
 
+Related: `backlog/712-traffic-manager-first-redesign.md` (edge-first stack adds additional Terraform roots but must still follow the same bootstrap/adopt/apply separation).
+
 ## Problem
 
 The Azure “apply” workflow currently performs multiple responsibilities:

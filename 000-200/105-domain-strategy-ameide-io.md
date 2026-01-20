@@ -7,7 +7,7 @@
 **Gateway**: ✅ Envoy Gateway v1.5.0 supporting both .test and .io domains
 **DevContainer**: ✅ Fully configured with .test domains and port mappings
 
-**Related backlogs**: [589-rpc-transport-determinism.md](../589-rpc-transport-determinism.md), [417-envoy-route-tracking.md](../417-envoy-route-tracking.md), [454-coredns-cluster-scoped.md](../454-coredns-cluster-scoped.md)
+**Related backlogs**: [589-rpc-transport-determinism.md](../589-rpc-transport-determinism.md), [417-envoy-route-tracking.md](../417-envoy-route-tracking.md), [454-coredns-cluster-scoped.md](../454-coredns-cluster-scoped.md), [712-traffic-manager-first-redesign.md](../712-traffic-manager-first-redesign.md)
 
 > **Update:** Auth.js v5 naming uses `AUTH_URL`/`AUTH_SECRET`. Any `NEXTAUTH_*` references in older docs are legacy and should not be introduced in new values/config.
 

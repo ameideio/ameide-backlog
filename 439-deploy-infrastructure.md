@@ -10,6 +10,7 @@
 > - [434-unified-environment-naming.md](434-unified-environment-naming.md) – Environment naming, namespace conventions, GitOps structure
 > - [438-cert-manager-dns01-azure-workload-identity.md](438-cert-manager-dns01-azure-workload-identity.md) – DNS identity and cert-manager workload identity
 > - [435-remote-first-development.md](435-remote-first-development.md) – Remote-first development workflow
+> - [712-traffic-manager-first-redesign.md](712-traffic-manager-first-redesign.md) – Edge-first traffic manager redesign (Front Door + BYOC certs in DNS subscription)
 
 ## Overview
 

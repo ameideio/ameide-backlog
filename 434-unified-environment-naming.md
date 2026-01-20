@@ -15,6 +15,7 @@
 > - [429-devcontainer-bootstrap.md](429-devcontainer-bootstrap.md) – DevContainer bootstrap (superseded)
 > - [432-devcontainer-modes-offline-online.md](432-devcontainer-modes-offline-online.md) – DevContainer modes (retired)
 > - [581-parallel-ai-devcontainers.md](581-parallel-ai-devcontainers.md) – Parallel agent slots (DevContainers + Telepresence)
+> - [712-traffic-manager-first-redesign.md](712-traffic-manager-first-redesign.md) – Edge-first traffic manager (public DNS/TLS owned outside the cluster; keeps local workflow intact)
 
 ## Goals
 - Standardize environment naming across all contexts: local devcontainer, remote AKS namespaces, and GitOps configurations.
