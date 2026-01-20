@@ -4,6 +4,21 @@
 
 Make a **persistent global edge (“Traffic Manager”) the first-class, always-on entrypoint** for every environment. Clusters become **ephemeral origins** behind that edge.
 
+## Status (2026-01-20)
+
+Completed (no customer/DNS impact):
+- Edge stack applied (AFD Standard profile + `preview`/`prod` `azurefd.net` endpoints + cert Key Vault) in the DNS subscription/RG.
+  - Workflow: `Terraform Azure Edge Apply` run `21168440973`
+  - Edge runtime facts are published to the runtime facts repo at `runtime-facts/edge/azure/globals.yaml` (includes `edge.azure.frontDoorId` used by origin enforcement).
+- New AKS cluster applied in subscription `e4652c74-2582-4efc-b605-9d9ed2210a2a` with `disable_dns=true` and separate Terraform state (`azure-e4652c74.tfstate`).
+  - Workflow: `Terraform Azure Apply + Verify` run `21169178304`
+- Origin hardening for the `origin-http` listener port (`8080`) is in place (network + app):
+  - Network: NSG allowlist `AzureFrontDoor.Backend` and deny `Internet` on `8080`.
+  - App: Envoy Gateway SecurityPolicy enforces `X-Azure-FDID == edge.azure.frontDoorId` on the `origin-http` listener.
+
+Not yet completed (next implementation step; still no customer impact):
+- Front Door **routing** to any origin (origin groups, origins, routes, rule sets, WAF policy associations). The edge stack currently creates the profile/endpoints and cert Key Vault only.
+
 Once the edge is in place, **DNS and public TLS stop being part of cluster bootstrap**. Cluster recreation/canary/cutover becomes:
 
 > create new cluster → register as new origin (weight=0) → validate → shift weights → delete old origin/cluster
@@ -199,6 +214,20 @@ Rollback is simply shifting weights back.
 
 - Remove old origin from edge
 - Destroy old cluster resources
+
+### Phase 0.5 — wire preview routing (the next safe step)
+
+Objective: route `preview` (`*.azurefd.net`) to the **new cluster** origin without touching DNS/custom domains.
+
+Implementation (Terraform in CI):
+- Extend `infra/terraform/azure-edge` to create:
+  - `azurerm_cdn_frontdoor_origin_group` (health probe `/healthz`, protocol HTTP, port `8080`)
+  - `azurerm_cdn_frontdoor_origin` pointing at the **new cluster** gateway public IP/FQDN
+  - `azurerm_cdn_frontdoor_route` on the `preview` endpoint to forward traffic to the origin group
+- Keep “prod” endpoint unbound to custom domains (no DNS) and with no production routes yet.
+
+Validation (read-only):
+- `curl -fsS "https://<frontdoor preview host>/healthz"`
 
 ---
 
