@@ -39,7 +39,8 @@ For E2E/integration tests that create and delete GitLab projects (for example `b
 
 ## 3. GitOps delivery contract
 
-- **Source of truth:** Vault KVv2 (`secret/gitlab/tokens/<env>/<service>`, key `value`). In shared cloud environments, populate this key via the existing secret pipeline (AKV/local → `vault-bootstrap` → Vault) using `azure.keyVault.mappedSecrets` when the AKV secret name cannot match the Vault key.
+- **Source of truth:** Vault KVv2 (`secret/gitlab/tokens/<env>/<service>`, key `value`).
+- **Issuance + rotation (in-cluster):** tokens are minted by GitLab itself and written into Vault by the GitLab wrapper chart (bootstrap Job + rotation CronJob). Rotation is expiry-aware and revokes the previous token only after the new token is safely written.
 - **ArgoCD workload:** `foundation-gitlab-api-credentials` (new) renders a configurable set of `ExternalSecret` resources. Each entry:
   - lives in the consuming namespace,
   - points to Vault via `SecretStore/ameide-vault`,
@@ -50,17 +51,20 @@ For E2E/integration tests that create and delete GitLab projects (for example `b
   - `GITLAB_TOKEN` via the documented `PRIVATE-TOKEN: <token>` HTTP header for GitLab API calls; GitLab explicitly documents this header for PATs/project/group access tokens. [2]
   - `GITLAB_API_URL` for the cluster’s canonical REST endpoint (`https://gitlab.<env>.ameide.io/api/v4`).
 - **Vault policy:** ESO roles (`ameide-vault` SecretStore) must be allowlisted for `secret/data/gitlab/tokens/<env>/*`.
-- **No placeholders:** managed environments must not ship placeholder GitLab API tokens. Tokens are required inputs (seeded via AKV/local and mapped into Vault), and `platform-secrets-smoke` blocks rollouts if `Secret/gitlab-api-credentials` is missing or contains placeholder values.
+- **No placeholders:** managed environments must not ship placeholder GitLab API tokens. Smokes must verify `Secret/gitlab-api-credentials` can authenticate `GET ${GITLAB_API_URL}/user` via `PRIVATE-TOKEN`.
+
+**Environment scoping**
+
+- Baseline service tokens (e.g. Backstage) exist in all environments.
+- The E2E/integration-test writer token exists in **dev/local only** and must not be provisioned in staging/production by default.
 
 ## 4. Operational runbook (token creation)
 
-1. Create a project or group access token in GitLab (UI or API). [3][4]
-2. Copy the token once; GitLab only shows it during creation. [4]
-3. Store the token in the external secret source (preferred) and let `vault-bootstrap` map it into Vault:
-   - Put a flat key like `backstage-gitlab-token` into AKV (or local seed file).
-   - Configure `azure.keyVault.mappedSecrets: [{from: backstage-gitlab-token, to: gitlab/tokens/<env>/backstage}]` so `vault-bootstrap` writes `secret/gitlab/tokens/<env>/backstage` with `value: "<token>"`.
-4. Allow ESO to refresh (default `refreshInterval: 1h`). Verify `ExternalSecret/<service>-gitlab-api-token` reports `Ready=True` and `Secret/gitlab-api-credentials` exists in the target namespace.
-5. Configure the consuming workload to read `GITLAB_TOKEN`/`GITLAB_API_URL`. No in-cluster automation should mint tokens by default; automated issuance would require a privileged bootstrap identity and is tracked separately.
+1. Declare/enable the consumer in GitOps (`foundation-gitlab-api-credentials`) so ESO will render an `ExternalSecret` for the target namespace/secret name.
+2. Ensure the GitLab wrapper chart is configured to mint the corresponding service token and write it into Vault at `secret/gitlab/tokens/<env>/<service>` (key `value`).
+3. Allow ESO to refresh. Verify `ExternalSecret` reports `Ready=True` and `Secret/gitlab-api-credentials` exists in the target namespace.
+4. Verify the token is real by calling `GET ${GITLAB_API_URL}/user` using `PRIVATE-TOKEN: ${GITLAB_TOKEN}` (smokes should do this in managed envs).
+5. Configure the consuming workload to read `GITLAB_TOKEN`/`GITLAB_API_URL`.
 
 ## 5. Scope answers
 
