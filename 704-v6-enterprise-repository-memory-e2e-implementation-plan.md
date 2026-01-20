@@ -65,13 +65,13 @@ Platform + Transformation code progress (UI still pending):
 
 Known remaining work to reach “real end-to-end in-cluster proof”:
 
-- Add an **application integration test (CI/E2E)** that creates a new GitLab project for the test run and registers the platform mapping (repo → provider pointers) as part of the flow (no dependency on pre-seeded projects).
+- Add an **E2E harness** that starts from empty state (creates a new GitLab project per run) and registers the platform mapping (repo → provider pointers) as part of the flow (no dependency on pre-existing projects).
 - The E2E test must run: auth sanity (`GET /user`) → create project (`POST /projects`, preferably `initialize_with_readme=true`) → onboard/mapping → `EnsureChange` → `CreateCommit` → `PublishChange` → validate `ListTree`/`GetContent` at the resulting `main` commit SHA → best-effort cleanup (`DELETE /projects/:id`) to avoid leaks.
 - Move from “shared dev token” to per-service tokens (least privilege) per `backlog/710-gitlab-api-token-contract.md`, including a dedicated writer token for the E2E test:
   - Recommended: a **group access token** scoped to a dedicated group (e.g. `ameide-e2e`) and used with `namespace_id=<group_id>` for project creation.
   - Token needs `api` scope and sufficient permissions in that group to create/delete projects.
   - Deliver integration-test credentials via a distinct Secret (do not reuse `gitlab-api-credentials` that normal services consume).
-- Optional (dev convenience only): seed a sandbox GitLab project + mapping to speed up manual debugging, but tests must still create and clean up their own repositories.
+- Test front doors are strict (per `backlog/537-primitive-testing-discipline.md`): Phase 0/1/2 run under `ameide test` (mocked; no cluster), Phase 3/4 run under `ameide test cluster` (real cluster integration in dev/local only).
 
 ArgoCD smokes are a separate layer:
 
@@ -83,7 +83,7 @@ ArgoCD smokes are a separate layer:
 **GitOps (platform)**
 
 - Done: standardized token delivery (Vault → ExternalSecret → K8s Secret) per `backlog/710-gitlab-api-token-contract.md`.
-- TODO: provision a dedicated integration-test credential (`secretName` isolated from normal services) and ensure it is treated as a required secret input in managed environments (no placeholders).
+- TODO: provision a dedicated integration-test credential (`secretName` isolated from normal services) in **dev/local only** and ensure it is a required secret input there (no placeholders). Staging/production must not provision a writer credential by default.
 - TODO: provide a stable GitLab “E2E group” (e.g. `ameide-e2e`) and document the `namespace_id` used for test project creation.
 
 **Apps (platform/transformation)**
@@ -137,6 +137,10 @@ These are requirements, not “guidelines”:
   - `head` / “proposal” ≈ “what is under review” (MR branch ref, still citeable when resolved to SHA).
   - `baseline_ref` (tag) ≈ “named baseline” (tag resolved to commit SHA).
 - Reference: `backlog/534-mcp-protocol-adapter.md`, `backlog/656-agentic-memory-v6.md`.
+
+9) **E2E harness is the acceptance test**
+- Each increment’s definition of done must include an executable E2E harness checkpoint that starts from empty state (new project) and produces an audit-grade run report (identity + MR + resulting `main` SHA + citations).
+- GitLab analogy: “create project → open MR → merge → browse at commit permalink”, but driven through v6 Domain/Projection seams (not direct UI/GitLab coupling).
 
 ## 1) Transition strategy (avoid “rename legacy protos”)
 
