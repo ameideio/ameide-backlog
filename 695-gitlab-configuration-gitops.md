@@ -47,19 +47,30 @@ GitLab is treated as a **platform-owned subsystem**:
 - Wrapper chart (routes + secrets wiring): `gitops/ameide-gitops/sources/charts/platform/gitlab`
 - Vendored upstream chart: `gitops/ameide-gitops/sources/charts/third_party/gitlab/gitlab/9.6.1` (appVersion `18.6.1`)
 - CE/OSS is explicitly enforced via `gitlab.global.edition=ce` (GitLab chart defaults to EE otherwise).
+- Note: upstream docs use `global.*` because they assume installing the GitLab chart directly. In our wrapper chart, upstream `global.*` is nested under `gitlab.global.*` because the GitLab chart is a dependency named `gitlab`.
 - Ingress disabled; exposure via Gateway API `HTTPRoute`: `gitops/ameide-gitops/sources/charts/platform/gitlab/templates/httproute.yaml`
 - OIDC provider is sourced from Vault via ExternalSecrets: `gitops/ameide-gitops/sources/charts/platform/gitlab/templates/externalsecret.yaml`
 - `gitlab-runner` is disabled in values (no in-cluster runner install by default).
 
 ## Progress (2026-01-19)
 
-- GitLab is now part of the standard GitOps component set (no longer `_optional`).
+- GitLab is a standard GitOps component (always deployed as part of the platform baseline).
 - Added baseline PostSync smoke job checks for GitLab (`platform-gitlab-smoke`) to keep rollout evidence consistent with other platform smokes.
 - Switched GitLab to shared cluster dependencies (GitOps-managed):
   - PostgreSQL: shared CNPG cluster (`postgres-ameide-rw`), GitLab databases managed via `platform-postgres-clusters`.
   - Redis: shared RedisFailover service alias (`redis-master`) using `Secret/redis-auth`.
+
+### External PostgreSQL/Redis configuration (vendor knobs)
+
+This is the vendor-supported posture (“external DB/Redis”) expressed via our wrapper values:
+
+- External Postgres (upstream keys): `postgresql.install=false`, `global.psql.host`, `global.psql.password.secret/key`
+  - Wrapper keys: `gitlab.postgresql.install=false`, plus `gitlab.global.psql.host` and `gitlab.global.psql.password.secret/key`
+- External Redis/Valkey (upstream keys): `redis.install=false`, `global.redis.host`, `global.redis.auth.secret/key`
+  - Wrapper keys: `gitlab.redis.install=false`, plus `gitlab.global.redis.host` and `gitlab.global.redis.auth.secret/key`
+
 - Fixed GitLab UI rendering (“unstyled” pages) by routing the Gateway `HTTPRoute` to **Workhorse** (`webservice` port `8181`) instead of Rails/Puma (`8080`). Verified `/assets/*` returns `200` (CSS/JS served) rather than redirecting to sign-in.
-- Hardened defaults as standard (not optional):
+- Hardened defaults as standard (mandatory):
   - Disabled **public sign-ups** by default.
   - Disabled **usage ping / product usage data** collection by default.
   - Enforced both via Helm values (initial defaults) and via the GitOps bootstrap hook (to apply to existing running instances).
@@ -68,8 +79,10 @@ GitLab is treated as a **platform-owned subsystem**:
 - Switched GitLab object storage to the shared in-namespace MinIO (`data-minio`) and disabled GitLab’s bundled MinIO chart.
   - Credentials now use a dedicated MinIO service user (`gitlab-minio-access-key`, `gitlab-minio-secret-key`), not MinIO root.
 - Standardized in-cluster GitLab API token delivery (Vault → ExternalSecret → `Secret/gitlab-api-credentials`) via `foundation-gitlab-api-credentials` (`backlog/710-gitlab-api-token-contract.md`).
+  - GitLab API tokens are required inputs in managed environments (no placeholder tokens); platform secrets smokes must fail fast on missing/placeholder credentials.
 - OIDC integration is now fully GitOps-managed (no placeholder secrets):
   - Keycloak client `gitlab` is reconciled per environment (redirect URIs match `gitlab.<env>.ameide.io`).
+  - Keycloak operator must watch all namespaces so the `Keycloak/keycloak` CR in each environment namespace is actually reconciled.
   - `client-patcher` extracts the Keycloak-generated secret into Vault key `gitlab-oidc-client-secret`.
   - `ExternalSecret/gitlab-oidc-provider` templates the GitLab OmniAuth provider config into `Secret/gitlab-oidc-provider` key `provider`.
   - Vault bootstrap policy for `keycloak-client-patcher` includes `secret/data/gitlab-*` to allow extraction.
@@ -82,7 +95,7 @@ GitLab is treated as a **platform-owned subsystem**:
 - Rehearse and validate SSH exposure via Gateway TCPRoute in `dev`/`staging` (port `22`, hostname `gitlab.<env>.ameide.io`) and ensure network policies allow the listener end-to-end.
 - Document the admin bootstrap automation posture (Job semantics, evidence, and the remaining break-glass path for emergencies).
 - Promote the shared-secrets vs Vault matrix from “decision” to “explicit secret names + owners” and add drift checks.
-- Replace shared MinIO root credentials with a dedicated GitLab object-store user + scoped policies (and/or move to external object storage per the hybrid posture).
+- Tighten MinIO policy to bucket-scoped least privilege for the GitLab service user + add drift checks (and/or move to external object storage per the hybrid posture).
 
 ## Version posture
 
@@ -125,7 +138,7 @@ Contract:
   - `global.hosts.ssh: gitlab.<env>.ameide.io`
   - `global.shell.port: 22`
 
-Implementation note: requires the experimental Gateway API `TCPRoute` CRD (`tcproutes.gateway.networking.k8s.io`) installed cluster-wide.
+Implementation note: requires Gateway API **Experimental channel** resources, including `TCPRoute` (`apiVersion: gateway.networking.k8s.io/v1alpha2`), installed cluster-wide.
 
 ## Bootstrap alignment (seeded `admin@ameide.io`)
 
@@ -175,7 +188,7 @@ This repo’s standard verification mechanism is **ArgoCD PostSync smoke jobs**,
 
 GitLab should follow the same pattern so we don’t rely on ad-hoc/manual validation.
 
-**Required GitLab smoke coverage (when GitLab is enabled in an environment)**
+**Required GitLab smoke coverage**
 
 1. **ExternalSecrets ready:** `ExternalSecret/gitlab-oidc-provider` is Ready and target Secret exists.
 2. **Workload ready:** core GitLab webservice is rolled out (and responding on the in-cluster service endpoint).
@@ -184,7 +197,6 @@ GitLab should follow the same pattern so we don’t rely on ad-hoc/manual valida
 
 **Policy**
 
-- If GitLab remains an optional workload, keep its smoke component optional as well (enabled/disabled together), to avoid failing the global smoke phases in environments where GitLab is not installed.
 - Prefer “cheap” checks (HTTP + secret readiness) as PostSync hooks; keep full browser login assertions in separate CI verifiers if needed.
 - Ensure smokes catch routing regressions: assert that `HTTPRoute/platform-gitlab` routes to Workhorse (`8181`), otherwise the UI will lose assets/CSS.
 
@@ -219,6 +231,7 @@ Decide and document (matrix) which secrets are:
 - **Vault policy allowlist:** the `keycloak-client-patcher` Vault policy must include `secret/data/gitlab-*` so `gitlab-oidc-client-secret` can be written deterministically.
 - **Globals collision (`registry`):** the repo-wide image registry key is `imageRegistry` (not `registry`) to avoid collisions with vendor charts that define a top-level `registry:` object (e.g., GitLab Container Registry settings).
 - **Production warning (upstream):** default “all-in-cluster” installs are PoC; production requires a cloud-native hybrid posture (external PostgreSQL/Redis/object storage/Gitaly) and careful sizing.
+- **Gitaly production constraint:** Gitaly-in-Kubernetes is not supported for production. Production posture requires external, production-ready Gitaly as part of a Cloud Native Hybrid architecture.
 
 ## Admin bootstrap (CE-safe, pending-approval flow)
 

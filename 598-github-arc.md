@@ -33,7 +33,7 @@ Pinned to chart version **`0.13.1`**.
 ### Runner sets (one per cluster)
 
 - Local runner scale set name: `arc-local`
-- AKS runner scale set name: `arc-aks`
+- AKS runner scale set name: `arc-aks-v2`
 
 ### GitHub routing contract (no workflow defaults)
 
@@ -47,7 +47,32 @@ jobs:
 
 Set `AMEIDE_RUNS_ON` to:
 - `arc-local` to run on local k3d ARC, or
-- `arc-aks` to run on AKS ARC.
+- `arc-aks-v2` to run on AKS ARC.
+
+### Scale-to-zero semantics
+
+- Runner pods are ephemeral and scale to zero when idle (this is controlled by `minRunners: 0` in the runner scale set values).
+- The ARC controller and listener pods are control-plane components and are expected to stay running even when there are zero queued jobs.
+
+### Verification evidence (audit-grade)
+
+**GitHub: prove the job really ran on ARC (not GitHub-hosted)**
+
+- Trigger a run (example: ARC smoke test in `ameideio/ameide-gitops`):
+  - `gh workflow run 218562372 --repo ameideio/ameide-gitops --ref main`
+- Fetch the job metadata and confirm:
+  - `labels` includes `arc-aks-v2`
+  - `runner_name` looks like an ARC ephemeral runner pod name (e.g., `arc-aks-v2-...-runner-...`)
+  - Example query pattern:
+    - `gh api repos/ameideio/ameide-gitops/actions/runs/<RUN_ID>/jobs --jq '.jobs[] | {id,name,conclusion,labels,runner_name}'`
+
+**Kubernetes: prove scale-to-zero**
+
+- While idle:
+  - `kubectl -n arc-runners get pods` should show no runner pods
+  - `kubectl -n arc-runners get ephemeralrunnersets.actions.github.com -o wide` should show `DESIREDREPLICAS=0` and `CURRENTREPLICAS=0`
+- Always-on control plane (expected):
+  - `kubectl -n arc-systems get pods` shows the ARC controller and listener pods
 
 ### Org-scoped runner registration (shared across repos)
 
@@ -58,11 +83,17 @@ This enables a shared runner substrate for multiple repos, but it makes **runner
 
 ### Failure mode: “jobs never start” when runner groups restrict the repo
 
-If the org runner group used by the scale set does not allow a repo, jobs for that repo can sit in `queued` with no runner assigned (even if `runs-on: arc-aks` matches).
+If the org runner group used by the scale set does not allow a repo, jobs for that repo can sit in `queued` with no runner assigned (even if `runs-on: arc-aks-v2` matches).
 
 - Symptom: jobs stay `queued` and ARC never scales up for them.
 - Resolution: allow the repo in the runner group, or deploy a dedicated runner set for that repo.
 - Note: GitHub does not queue literally forever; jobs will fail after GitHub’s max queue time (currently 24h).
+
+### Note: listing runners via GitHub API
+
+- `GET /repos/{owner}/{repo}/actions/runners` lists repo-scoped runners only.
+- Org-scoped runner scale sets show up under `GET /orgs/{org}/actions/runners`, which typically requires org admin / runner visibility permissions.
+- ARC runners are ephemeral; they can register and disappear quickly, so listing endpoints are not reliable evidence for “this job ran on ARC”.
 
 ### Runner image is multi-arch and digest pinned
 
@@ -234,7 +265,7 @@ If a workflow truly requires Docker daemon semantics, run it on GitHub-hosted ru
   - `cluster-github-arc-controller`
   - `cluster-github-arc-runner-set`
 - Namespaces exist: `arc-systems`, `arc-runners`
-- A workflow in `ameideio/ameide-gitops` runs with `runs-on: ${{ vars.AMEIDE_RUNS_ON }}` and succeeds on both `arc-local` and `arc-aks` when the variable is flipped.
+- A workflow in `ameideio/ameide-gitops` runs with `runs-on: ${{ vars.AMEIDE_RUNS_ON }}` and succeeds on both `arc-local` and `arc-aks-v2` when the variable is flipped.
 
 ---
 

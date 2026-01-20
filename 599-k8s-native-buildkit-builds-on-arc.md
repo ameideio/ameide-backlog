@@ -9,6 +9,7 @@
 - GitOps landed and validated on AKS:
   - `ameideio/ameide-gitops#439` (BuildKit StatefulSet recreated as `buildkitd-v2` to apply `64Gi` PVC)
   - `ameideio/ameide-gitops#441` (add read-only AKS inspect script; guard local probe script from cloud)
+  - `ameideio/ameide-gitops#453` (enable BuildKit mTLS over TCP; mount client certs into ARC runners)
 - Backlog docs updates:
   - `ameideio/ameide-backlog#225` (runbook gates + mTLS invariant)
   - `ameideio/ameide-backlog#226` (clarify local vs AKS probe tooling)
@@ -18,8 +19,35 @@
 
 Known gaps / follow-ups:
 
-- **mTLS for remote BuildKit over TCP** is a baseline requirement but not yet implemented.
 - Orphaned legacy PVCs may remain after migrations (requires a GitOps/CI-sanctioned cleanup path; avoid manual deletes).
+
+## Verification evidence (audit-grade)
+
+This is the “hard to fake” evidence bundle we expect when claiming BuildKit-on-ARC is working on AKS.
+
+### 1) GitHub-side proof: job ran on ARC (AKS)
+
+- Pull the job metadata and confirm:
+  - `labels` includes `arc-aks-v2`
+  - `runner_name` looks like an ARC ephemeral runner pod name (e.g., `arc-aks-v2-...-runner-...`)
+- Example query pattern:
+  - `gh api repos/ameideio/ameide-gitops/actions/runs/<RUN_ID>/jobs --jq '.jobs[] | {id,name,conclusion,labels,runner_name}'`
+
+### 2) In-job proof: BuildKit was contacted using TLS flags
+
+- In the ARC smoke workflow job logs, capture the `BuildKit connectivity` step showing:
+  - the printed `AMEIDE_BUILDKIT_ADDR`
+  - the `buildctl` command invocation includes `--tlscacert/--tlscert/--tlskey` and `--tlsservername`
+- This is intentionally evidence-only (do not print secret contents; only file paths and the command line are required).
+
+### 3) Cluster-side proof: mTLS is enforced (negative signal)
+
+When mTLS is correctly enforced on TCP `:1234`, a client without a certificate must not be able to connect.
+
+- Expected failure (no client cert):
+  - `buildctl ... debug workers` fails with `tls: certificate required`
+- Example (read-only, from inside the buildkit pod using the server CA only):
+  - `kubectl -n buildkit exec buildkitd-v2-0 -- buildctl --addr tcp://buildkitd.buildkit.svc.cluster.local:1234 --tlscacert /etc/buildkit/tls/ca.crt --tlsservername buildkitd.buildkit.svc.cluster.local debug workers`
 
 ---
 
@@ -30,7 +58,7 @@ Workflows that build images must be able to run on ARC runners without rewriting
 
 We already rely on BuildKit features (e.g. `RUN --mount=type=secret`) for safe build-time secret handling, so the build strategy must be **BuildKit-compatible**.
 
-**Target model (explicit):** ARC runners (`arc-local` and `arc-aks`) must not rely on Docker-in-Docker; image builds use in-cluster BuildKit (`buildctl` → `buildkitd`).
+**Target model (explicit):** ARC runners (`arc-local` and `arc-aks-v2`) must not rely on Docker-in-Docker; image builds use in-cluster BuildKit (`buildctl` → `buildkitd`).
 
 ---
 
@@ -47,12 +75,17 @@ We already rely on BuildKit features (e.g. `RUN --mount=type=secret`) for safe b
 
 - Runner label: set via GitHub variable `AMEIDE_RUNS_ON` (no workflow defaults)
   - `arc-local` for local k3d ARC
-  - `arc-aks` for AKS ARC
+  - `arc-aks-v2` for AKS ARC
 - BuildKit endpoint variable: `AMEIDE_BUILDKIT_ADDR` (repo/org variable)
   - Default: `tcp://buildkitd.buildkit.svc.cluster.local:1234`
   - Local runner pods also export `AMEIDE_BUILDKIT_ADDR` directly, so ARC workflows can rely on it without hardcoding.
 - BuildKit API safety invariant: **BuildKit over TCP must be protected with mTLS** (NetworkPolicy limits reach, not identity).
-  - Until mTLS is implemented, treat BuildKit as privileged infra and keep it ClusterIP-only with strict NetworkPolicy + namespace isolation.
+  - Implemented via a dedicated CA + cert-manager-issued server/client certs, mounted into runner pods.
+  - Important: the **client cert secret is mounted only into the ARC runner pod**, not into arbitrary “build executor” containers; this is why the mTLS boundary actually reduces the risk of exposing BuildKit over TCP.
+  - Runner pods expose:
+    - `AMEIDE_BUILDKIT_TLS_CA`, `AMEIDE_BUILDKIT_TLS_CERT`, `AMEIDE_BUILDKIT_TLS_KEY`, `AMEIDE_BUILDKIT_TLS_SERVERNAME`
+  - `AMEIDE_BUILDKIT_TLS_SERVERNAME` is required when the TCP address you connect to does not match the server certificate SANs; it forces the hostname/SNI used for verification.
+  - TLS file naming: BuildKit supports both PEM-style names (`ca.pem`/`cert.pem`/`key.pem`) and cert-manager style (`ca.crt`/`tls.crt`/`tls.key`). Our contract uses cert-manager style (as mounted from the Secrets above).
 
 ---
 
@@ -82,7 +115,7 @@ GitOps sources:
 
 - Runner pods export `AMEIDE_BUILDKIT_ADDR=tcp://buildkitd.buildkit.svc.cluster.local:1234` so workflows don’t need to hardcode it.
 - `arc-local` uses a pinned runner image with baseline tools (including `buildctl` and `skopeo`) to avoid per-workflow installer glue.
-- `arc-aks` uses the same runner image family, published multi-arch and pinned by manifest digest.
+- `arc-aks-v2` uses the same runner image family, published multi-arch and pinned by manifest digest.
 
 ### BuildKit security posture
 
@@ -90,6 +123,9 @@ GitOps sources:
 - **Why:** reliable Dockerfile builds while keeping ARC runner pods unprivileged.
 - **If privileged is not acceptable:** choose rootless BuildKit (requires extra kernel/filesystem support like `fuse-overlayfs`) or run privileged BuildKit on a dedicated, tainted node pool with strict admission.
 - **Remote API:** `buildkitd` exposes a gRPC API on TCP (`:1234`); baseline requirement is **mTLS** when using remote builds.
+  - Server cert: `Secret/buildkitd-server-tls` in `buildkit`
+  - Client cert: `Secret/buildkitd-client-tls` in `arc-runners`
+  - cert-manager note: the client `Certificate` must include at least one identity field (e.g., `commonName` or a SAN). We set `commonName` because the client cert does not need DNS SANs.
 
 ### Variable management (avoid hardcoding)
 
@@ -140,7 +176,8 @@ The required posture is therefore:
    - Local k3d smoke check: `scripts/local/test-buildkit.sh` (creates/deletes a probe pod; local-only by default).
    - AKS admin read-only check (does **not** validate runner network path): `scripts/aks/inspect-buildkit.sh`
 4) **Security invariant (mTLS for remote TCP)**
-   - If `AMEIDE_BUILDKIT_ADDR` is `tcp://...:1234` and no client certs are provided, treat it as a policy gap; fix by adding mTLS (don’t “solve” with ad-hoc per-repo wiring).
+   - If `AMEIDE_BUILDKIT_ADDR` is `tcp://...:1234` and no client certs are provided, treat it as a policy gap (don’t “solve” with ad-hoc per-repo wiring).
+   - Expected negative signal when mTLS is correctly enforced: `buildctl ... --tlscacert ... debug workers` fails with `tls: certificate required` unless `--tlscert/--tlskey` are provided.
 5) **Platform support (multi-arch capability)**
    - `buildctl --addr "${AMEIDE_BUILDKIT_ADDR}" debug workers -v` and confirm the required `Platforms:` list (e.g. includes `linux/amd64` and `linux/arm64`)
    - If connected but missing platforms: check `binfmt` DaemonSet and worker config.
