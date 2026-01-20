@@ -56,6 +56,7 @@ Known remaining work to reach “real end-to-end in-cluster proof”:
 - Add a cluster integration test/smoke that is **seedless**: it creates a new GitLab project for the test run and registers the platform mapping (repo → provider pointers) as part of the flow (no dependency on pre-seeded projects).
 - The smoke must run: create project → onboard/mapping → `EnsureChange` → `CreateCommit` → `PublishChange` → validate `ListTree`/`GetContent` at the resulting `main` commit SHA → best-effort cleanup (delete project) to avoid leaks.
 - Move from “shared dev token” to per-service tokens (least privilege) per `backlog/710-gitlab-api-token-contract.md`, including a dedicated writer token for the E2E smoke (`api` scope + permissions to create/delete projects in the target namespace).
+- Optional (dev convenience only): seed a sandbox GitLab project + mapping to speed up manual debugging, but tests must still create and clean up their own repositories.
 
 ## 0) Non‑negotiables (normative; apply to every increment)
 
