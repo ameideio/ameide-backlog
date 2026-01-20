@@ -70,6 +70,13 @@ This backlog item is now **implemented** as a first-class Go CLI command:
 
 Legacy runner scripts have been removed; the canonical entrypoints are the CLI commands above.
 
+Implementation shipped and merged into `ameide` `main` via:
+
+- `ameideio/ameide#582` (canonicalize `ameide test` / `ameide test ci` front doors)
+- `ameideio/ameide#589` (`ameide test e2e` subcommand + Phase 3 split)
+- `ameideio/ameide#584` (devcontainer/Coder toolchain provisioning so `ameide test` is runnable)
+- `ameideio/ameide#590` / `ameideio/ameide#591` (`ameide dev` robustness improvements; adjacent inner-loop ergonomics)
+
 ## Deliverable shape (what the CLI does)
 
 The CLI runs phases in strict order (fail-fast) and exits non-zero on the first failure.

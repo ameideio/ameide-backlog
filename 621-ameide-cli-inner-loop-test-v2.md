@@ -1,9 +1,10 @@
 ---
 title: "621 – ameide inner-loop front doors (v2: 430-aligned)"
-status: draft
+status: historical
 owners:
   - platform
 created: 2026-01-13
+updated: 2026-01-20
 parent: 621-ameide-cli-inner-loop-test.md
 supersedes:
   - 621-ameide-cli-inner-loop-test.md
@@ -27,3 +28,7 @@ Per `backlog/430-unified-test-infrastructure-v2-target.md`:
 - It keeps the “no-brainer” front doors stable (local-only, deterministic).
 - It prevents Phase 2 “integration” from silently becoming “cluster integration”.
 - It makes “diagram must not lie” runtime checks possible without breaking the local contract.
+
+## Implementation status
+
+This v2 posture is now implemented and merged into `ameide` `main` (see `ameideio/ameide#582` and `ameideio/ameide#589`).
