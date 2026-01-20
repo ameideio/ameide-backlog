@@ -42,6 +42,10 @@ These apply to every increment:
 1) **Scope identity is explicit**
 - Target is always `{tenant_id, organization_id, repository_id}`; optional `initiative_id` is additive, never a substitute.
 
+1.1) **No pre-seeded data for increment verification**
+- Exit criteria for every increment must be provable without relying on pre-existing GitLab projects or platform rows.
+- The verification harness must create a fresh GitLab project (with an initial commit, e.g., `initialize_with_readme=true`), onboard/register the platform mapping, run the increment loop, and best-effort cleanup (delete project).
+
 2) **Enterprise Repository is canonical Git**
 - Canonical authored artifacts are Git files in the tenant Enterprise Repository (GitLab): `backlog/694-elements-gitlab-v6.md`.
 
@@ -101,6 +105,10 @@ Each increment is “done” only when there is an observable E2E loop (even if 
 
 **Outcome**
 - Platform app can browse the Enterprise Repository Git tree and open files at a resolved commit SHA; reads return citations.
+
+**Bootstrap (required for exit criteria)**
+- Create a tenant GitLab project for the test run (ensure at least one commit) and onboard/register it as a platform `{tenant_id, organization_id, repository_id}`.
+- Browsing/read APIs operate only on platform `repository_id` (GitLab `project_id` remains an internal pointer).
 
 **Projection**
 - `ListTree`/`GetContent` over Git with `read_context → commit_sha` resolution; return `FILE | DIRECTORY | GITLINK`: `backlog/704-v6-enterprise-repository-memory-e2e-implementation-plan.md`.

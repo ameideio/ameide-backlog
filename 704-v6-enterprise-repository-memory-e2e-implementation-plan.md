@@ -102,6 +102,10 @@ These are requirements, not “guidelines”:
 - Target scope is `{tenant_id, organization_id, repository_id}` (no workspace id for repo browsing).
 - Reference: `backlog/527-transformation-proto-v6.md`, `backlog/496-eda-principles-v6.md`.
 
+1.1) **No pre-seeded data for increment verification**
+- Every increment’s exit criteria must be provable without relying on pre-existing GitLab projects or platform DB rows.
+- Use a seedless harness: create a new GitLab project (ensure at least one commit), onboard/register mapping via platform API, run the increment loop, and best-effort cleanup (delete project).
+
 2) **Hierarchy equals Git tree**
 - Repository browsing hierarchy is the Git file tree (folders + files) at a selected `read_context`.
 - No optional “virtual hierarchy conventions” for Enterprise Repository browsing; if the path exists in Git, it exists in the UI. Folder operations are first-class in UX (implemented as Git path changes).
@@ -251,7 +255,11 @@ Treat these increments as a product ladder (v6): each increment should be demo-a
 - Reference: `backlog/534-mcp-protocol-adapter.md`.
 
 **Exit criteria**
-- Browse → open file works end-to-end for at least one tenant repo; citations include commit SHA + path.
+- Browse → open file works end-to-end using a seedless repo:
+  - create GitLab project (prefer `initialize_with_readme=true` so a tree exists),
+  - onboard/register platform mapping (repo → provider pointers) via platform API,
+  - browse and open at least one path and receive `{commit_sha, path}` citations,
+  - best-effort cleanup (delete project).
 
 **Cross-references**
 - `backlog/701-repository-ui-enterprise-repository-v6.md`
