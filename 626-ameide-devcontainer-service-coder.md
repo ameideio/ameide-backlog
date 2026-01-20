@@ -201,6 +201,12 @@ Update (2026-01-20): GitHub + Azure CLI auth seeding for workspaces (dev-only)
 - Azure CLI (optional; disabled until Azure creds pipeline is wired):
   - Workspaces mount `Secret/azure-auth` at `/var/run/ameide/azure-auth` with keys `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET` (optional `AZURE_SUBSCRIPTION_ID`).
   - Bootstrap runs `az login --service-principal` for both `root` and `vscode` and config lives under `/workspaces/.config/azure/<user>`.
+  - Required Vault keys (each stored as `property: value`):
+    - `coder-workspaces-azure-tenant-id`
+    - `coder-workspaces-azure-client-id`
+    - `coder-workspaces-azure-client-secret`
+    - `coder-workspaces-azure-subscription-id` (optional if you omit it from the ExternalSecret)
+  - If these keys are missing, `ExternalSecret/azure-auth-sync` will stay in `SecretSyncedError` with “Secret does not exist”.
 
 Operational note:
 
