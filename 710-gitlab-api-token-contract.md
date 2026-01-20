@@ -63,7 +63,9 @@ For E2E/integration tests that create and delete GitLab projects (for example `b
   - `GITLAB_API_URL` for the cluster’s canonical REST endpoint (`https://gitlab.<env>.ameide.io/api/v4`).
 - **Vault policy:** ESO roles (`ameide-vault` SecretStore) must be allowlisted for `secret/data/gitlab/tokens/<env>/*`.
 - **No placeholders:** managed environments must not ship placeholder GitLab API tokens. Rollouts must fail if `Secret/gitlab-api-credentials` is missing or contains placeholder values, and GitLab smokes must verify token auth works (`GET /api/v4/user`).
-- **Rotation:** GitLab enforces expirations; rotation requires coordinated consumer restart because most apps read tokens from env vars at startup. Automatic rotation is tracked work; do not revoke old tokens immediately without a cutover mechanism.
+- **Rotation:** GitLab enforces expirations, so tokens must be rotated. Rotation requires coordinated consumer restart because most apps read tokens from env vars at startup.
+  - **Rotation safety:** do not revoke the previous token immediately after writing a new token to Vault. Keep an overlap window and/or gate revocation on a confirmed cutover, otherwise in-cluster consumers can break.
+  - Store rotation metadata (`token_id`, `expires_at`) alongside `value` in Vault so decisions are deterministic and auditable.
 
 **Environment scoping**
 

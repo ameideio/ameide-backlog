@@ -82,7 +82,7 @@ This is the vendor-supported posture (“external DB/Redis”) expressed via our
 - Standardized GitLab API token delivery (Vault → ExternalSecret → `Secret/gitlab-api-credentials`) via `foundation-gitlab-api-credentials` (`backlog/710-gitlab-api-token-contract.md`).
   - Standard platform token (`backstage`) is minted in-cluster as part of the GitLab rollout (PostSync bootstrap Job) and written into Vault under `secret/gitlab/tokens/<env>/backstage` (key `value`).
   - Smokes must fail fast if `Secret/gitlab-api-credentials` is missing/placeholder and must verify token auth works (`GET /api/v4/user` with `PRIVATE-TOKEN`).
-  - Tokens expire; GitLab owns proactive rotation via an in-cluster CronJob that refreshes Vault when nearing expiry.
+  - Tokens expire; GitLab owns proactive rotation via an in-cluster CronJob that refreshes Vault when nearing expiry and keeps a safety overlap for the previous token (env var consumers do not hot-reload Secrets).
 - OIDC integration is now fully GitOps-managed (no placeholder secrets):
   - Keycloak client `gitlab` is reconciled per environment (redirect URIs match `gitlab.<env>.ameide.io`).
   - Keycloak operator must watch all namespaces so the `Keycloak/keycloak` CR in each environment namespace is actually reconciled.
