@@ -2,7 +2,7 @@
 
 > **Status:** Active for shared AKS plus Terraform-managed local clusters. Cloud environments pull wildcard certificates from Let’s Encrypt DNS-01 Issuers (see [438](../438-cert-manager-dns01-azure-workload-identity.md)), while local/offline clusters rely on the self-signed Issuer stack maintained in [444-terraform.md](../444-terraform.md#local-target-safeguards). All flows still defer to cert-manager; certgen remains enabled everywhere.
 
-> **Related**: See [436-envoy-gateway-observability.md](436-envoy-gateway-observability.md) for telemetry configuration using `EnvoyProxy` resource, [417-envoy-route-tracking.md](417-envoy-route-tracking.md) for route inventory, and [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md) for dual ApplicationSet architecture.
+> **Related**: See [436-envoy-gateway-observability.md](436-envoy-gateway-observability.md) for telemetry configuration using `EnvoyProxy` resource, [417-envoy-route-tracking.md](417-envoy-route-tracking.md) for route inventory, [447-waves-v3-cluster-scoped-operators.md](447-waves-v3-cluster-scoped-operators.md) for dual ApplicationSet architecture, and [712-traffic-manager-first-redesign.md](../712-traffic-manager-first-redesign.md) for the edge-first redesign where public TLS terminates at the edge.
 >
 > **Updated 2025-12-16**: Envoy Gateway control-plane runs cluster-shared in `argocd`; EnvoyProxy resources are per-environment in `ameide-{env}`; Envoy data-plane Deployments/Services are created by the controller and live in `argocd`. Control-plane TLS for xDS is managed by Envoy Gateway `certgen` (secrets in `argocd`); external TLS for hostnames is managed by cert-manager (secrets in the environment namespace).
 

@@ -2,6 +2,8 @@
 
 Goal: provision a fresh AKS + platform stack in a new Azure subscription via GitOps (Terraform in CI + ArgoCD), without changing DNS zones/records.
 
+Related: `backlog/712-traffic-manager-first-redesign.md` (target architecture where a persistent edge owns public DNS/TLS, so cluster recreate/canary no longer depends on DNS-01 during bootstrap).
+
 ## Inputs
 
 - Old subscription: `68ba6806-178c-41f1-84ec-d7a839799be1`

@@ -24,6 +24,7 @@
 > | [432-devcontainer-modes-offline-online.md](432-devcontainer-modes-offline-online.md) | Retired dual-mode approach |
 > | [354-devcontainer-tilt.md](354-devcontainer-tilt.md) | Tilt integration (simplified) |
 > | [415-k3d-dev-registry-e2e.md](415-k3d-dev-registry-e2e.md) | Deprecated local registry |
+> | [712-traffic-manager-first-redesign.md](712-traffic-manager-first-redesign.md) | Edge-first traffic manager design (Terraform CI driven) |
 
 ## Overview
 

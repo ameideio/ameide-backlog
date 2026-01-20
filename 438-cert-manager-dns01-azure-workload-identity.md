@@ -24,6 +24,7 @@
 > - [418-secrets-strategy-map.md](418-secrets-strategy-map.md) — secrets posture overview (cert-manager is part of Layer 15)
 > - [436-envoy-gateway-observability.md](436-envoy-gateway-observability.md) — Envoy Gateway telemetry using `EnvoyProxy` resource
 > - [448-cert-manager-workload-identity.md](448-cert-manager-workload-identity.md) — ServiceAccount externalization and multi-identity architecture
+> - [712-traffic-manager-first-redesign.md](712-traffic-manager-first-redesign.md) — Edge-first design where public DNS/TLS lives outside the cluster (DNS-01 remains a supported fallback)
 
 ## Overview
 

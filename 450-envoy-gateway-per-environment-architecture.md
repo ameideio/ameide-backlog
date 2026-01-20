@@ -20,6 +20,7 @@ This document describes the per-environment Envoy Gateway architecture where:
 | [436-envoy-gateway-observability.md](436-envoy-gateway-observability.md) | Telemetry, access logs, Prometheus | Partially superseded |
 | [446-namespace-isolation.md](446-namespace-isolation.md) | Namespace architecture | Current |
 | [438-cert-manager-dns01-azure-workload-identity.md](438-cert-manager-dns01-azure-workload-identity.md) | DNS-01 certificate issuance | Current |
+| [712-traffic-manager-first-redesign.md](712-traffic-manager-first-redesign.md) | Edge-first traffic manager (public DNS/TLS owned outside the cluster) | Proposed |
 | [417-envoy-route-tracking.md](417-envoy-route-tracking.md) | HTTPRoute/GRPCRoute inventory | Current |
 | [459-httproute-ownership.md](459-httproute-ownership.md) | HTTPRoute ownership migration (apps own routes) | Current |
 | [old/115-keycloak-ssl-update.md](old/115-keycloak-ssl-update.md) | Legacy TLS termination docs | Archived |

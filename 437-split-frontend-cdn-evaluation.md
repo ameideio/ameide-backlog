@@ -12,6 +12,8 @@ Evaluate how to align `www-ameide` (marketing) and `www-ameide-platform` (app) w
 * Serve **static marketing content from a static hosting service + CDN** (Azure Static Web Apps or Storage+CDN). ([Microsoft Learn][2])
 * Keep **dynamic, stateful workloads** (platform app, APIs, Keycloak) on **AKS** behind Front Door.
 
+Related: `backlog/712-traffic-manager-first-redesign.md` (extends this into a Terraform-CI-driven “edge-first” contract for cluster canary/cutover and subscription recreate).
+
 ### Final Recommendation (vendor-aligned)
 
 1. **Adopt Azure Front Door in front of AKS for both apps (Option B) as the new default.**

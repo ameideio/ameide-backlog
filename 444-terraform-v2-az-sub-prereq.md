@@ -10,6 +10,8 @@ This document lists the **manual, one-time prerequisites** for deploying the Ame
 
 The intent is that **Terraform owns infra** (cluster, identities, Key Vault, storage, etc.) and **CI owns bootstrap + verification**, while we keep certain “account bootstrap” items manual because they are cross-cutting or sensitive.
 
+Related: `backlog/712-traffic-manager-first-redesign.md` (edge-first design places Front Door + Key Vault for BYOC in the DNS subscription/RG, so public DNS/TLS is stable across cluster recreates).
+
 ---
 
 ## Scope and Assumptions

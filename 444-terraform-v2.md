@@ -14,6 +14,7 @@ Related:
 - `backlog/435-remote-first-development.md` (remote-first workflow)
 - `backlog/519-gitops-fleet-policy-hardening.md` (outputs → globals policy)
 - `backlog/451-secrets-management.md` (secrets flow)
+- `backlog/712-traffic-manager-first-redesign.md` (edge-first traffic manager; Terraform CI drives cutover)
 
 ---
 

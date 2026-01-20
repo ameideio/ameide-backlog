@@ -2,6 +2,8 @@
 
 ## Status: Superseded (Option A: single cert-manager per cluster)
 
+Related: `backlog/712-traffic-manager-first-redesign.md` (edge-first traffic manager reduces cluster dependency on DNS-01 for public ingress; WI remains relevant for direct-to-cluster or origin-certificate use cases).
+
 **Update (2025-12-15)**:
 - Cert-manager is now deployed once per cluster as `cluster-cert-manager` in the `cert-manager` namespace (see `backlog/519-gitops-fleet-policy-hardening.md` section **4.5**).
 - The per-environment `foundation-cert-manager` + `foundation-cert-manager-wi` (“multi-identity per env”) topology is deprecated and removed from the GitOps component set.
