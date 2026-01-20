@@ -280,7 +280,7 @@ Cluster-scoped workloads also need docker credentials. The shared template accep
 
 Some third-party secrets are minted once in a vendor UI/API and are stored directly in Vault (instead of `.env`/AKV), then synced into Kubernetes via ExternalSecrets:
 
-- GitLab API tokens: store as a flat key (e.g., `backstage-gitlab-token`) in the external source, map into Vault (`secret/gitlab/tokens/<env>/backstage`), then sync: `ExternalSecret/backstage-gitlab-api-token` → `Secret/gitlab-api-credentials` (`GITLAB_TOKEN`, `GITLAB_API_URL`) per `backlog/710-gitlab-api-token-contract.md`. Use one token per consumer; writers (including seedless E2E/smokes that create/delete projects) require a dedicated token with `api` scope and appropriate GitLab permissions.
+- GitLab API tokens: store as a flat key (e.g., `backstage-gitlab-token`) in the external source, map into Vault (`secret/gitlab/tokens/<env>/backstage`), then sync: `ExternalSecret/backstage-gitlab-api-token` → `Secret/gitlab-api-credentials` (`GITLAB_TOKEN`, `GITLAB_API_URL`) per `backlog/710-gitlab-api-token-contract.md`. Use one token per consumer; writers (including seedless E2E/integration tests that create/delete projects) require a dedicated token with `api` scope and appropriate GitLab permissions.
 - GitLab object storage (MinIO) service user: Vault keys `gitlab-minio-access-key` + `gitlab-minio-secret-key` are synced into `Secret/minio-service-users` (MinIO provisioning) and used to template `Secret/gitlab-object-storage` (GitLab S3/MinIO connection).
 
 ### Secrets NOT in Azure KV (Cluster-Managed)

@@ -53,10 +53,15 @@ Platform + Transformation code progress (UI still pending):
 
 Known remaining work to reach “real end-to-end in-cluster proof”:
 
-- Add a cluster integration test/smoke that is **seedless**: it creates a new GitLab project for the test run and registers the platform mapping (repo → provider pointers) as part of the flow (no dependency on pre-seeded projects).
-- The smoke must run: create project → onboard/mapping → `EnsureChange` → `CreateCommit` → `PublishChange` → validate `ListTree`/`GetContent` at the resulting `main` commit SHA → best-effort cleanup (delete project) to avoid leaks.
-- Move from “shared dev token” to per-service tokens (least privilege) per `backlog/710-gitlab-api-token-contract.md`, including a dedicated writer token for the E2E smoke (`api` scope + permissions to create/delete projects in the target namespace).
+- Add an **application integration test (CI/E2E)** that is **seedless**: it creates a new GitLab project for the test run and registers the platform mapping (repo → provider pointers) as part of the flow (no dependency on pre-seeded projects).
+- The E2E test must run: create project → onboard/mapping → `EnsureChange` → `CreateCommit` → `PublishChange` → validate `ListTree`/`GetContent` at the resulting `main` commit SHA → best-effort cleanup (delete project) to avoid leaks.
+- Move from “shared dev token” to per-service tokens (least privilege) per `backlog/710-gitlab-api-token-contract.md`, including a dedicated writer token for the E2E test (`api` scope + permissions to create/delete projects in the target namespace).
 - Optional (dev convenience only): seed a sandbox GitLab project + mapping to speed up manual debugging, but tests must still create and clean up their own repositories.
+
+ArgoCD smokes are a separate layer:
+
+- ArgoCD smokes validate **service availability** (routing/HTTP health, required Pods/Services/Secrets present) and must be deterministic and side-effect-free.
+- GitLab repo creation and other mutating workflows belong in **application integration tests**, not ArgoCD smokes.
 
 ## 0) Non‑negotiables (normative; apply to every increment)
 

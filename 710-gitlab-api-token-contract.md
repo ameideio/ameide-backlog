@@ -66,7 +66,7 @@ GitLab tokens have historically been consumed on an ad-hoc basis (e.g., Backstag
 - Document the Vault policy updates and ensure rotation guidance is captured under `backlog/451-secrets-management.md`.
 - Onboard additional consumers by adding them to the per-environment `foundation-gitlab-api-credentials` values files (and writing their Vault tokens).
 - Treat shared “platform” tokens as exceptions; require explicit sign-off and documentation for any multi-service credential.
-- For platform E2E/smokes that must create repositories (seedless tests), provision a dedicated writer token (per service) with `api` scope and permissions to create/delete projects in the target namespace; tests must create and clean up their own GitLab projects rather than depending on pre-seeded data.
+- For platform E2E/integration tests that must create repositories (seedless tests), provision a dedicated writer token (per service) with `api` scope and permissions to create/delete projects in the target namespace; tests must create and clean up their own GitLab projects rather than depending on pre-seeded data.
 
 ## References
 
