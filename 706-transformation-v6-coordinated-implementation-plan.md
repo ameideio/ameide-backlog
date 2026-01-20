@@ -75,6 +75,10 @@ This list is intentionally short: only items that affect coordinated v6 delivery
 
 Each increment is “done” only when there is an observable E2E loop (even if minimal) and the involved backlogs can be updated to mark that increment complete.
 
+**Implementation progress notation (by phase)** (used at the end of each increment):
+- `Provisioning/Onboarding`: seedless repo create + platform mapping registration (no pre-seeded data)
+- `Proto`, `Domain`, `Projection`, `UI`, `Agents/MCP`, `Process`, `GitOps`, `Seedless E2E`
+
 ### Increment 0 — Contract + identity lock (no product UI required)
 
 **Outcome**
@@ -91,6 +95,8 @@ Each increment is “done” only when there is an observable E2E loop (even if 
 - `backlog/704-v6-enterprise-repository-memory-e2e-implementation-plan.md`
 - `backlog/705-transformation-agentic-alignment-v6.md`
 
+**Implementation progress (by phase; 2026-01-20):** Provisioning/Onboarding: not started; Proto: done; Domain: done; Projection: done; UI: n/a; Agents/MCP: n/a; Process: n/a; GitOps: in-progress; Seedless E2E: not started.
+
 ### Increment 1 — Read-only Enterprise Repository (Git tree + citations)
 
 **Outcome**
@@ -104,6 +110,8 @@ Each increment is “done” only when there is an observable E2E loop (even if 
 
 **Memory**
 - Minimal memory is allowed to be “fetch these cited paths” (no semantic search yet) as long as citations are commit-SHA anchored: `backlog/656-agentic-memory-implementation-mvp-v6.md`.
+
+**Implementation progress (by phase; 2026-01-20):** Provisioning/Onboarding: not started; Proto: done; Domain: done; Projection: done; UI: not started; Agents/MCP: n/a; Process: n/a; GitOps: in-progress; Seedless E2E: not started.
 
 ### Increment 2 — Governed write loop (change → commit → publish)
 
@@ -120,6 +128,8 @@ Each increment is “done” only when there is an observable E2E loop (even if 
 - Editor UX is change-based (working branch), not “direct write”; publish is an explicit governed action.
 - Folder operations are real Git operations performed on a change branch (rename/move paths via commit batching; no “empty folders”).
 
+**Implementation progress (by phase; 2026-01-20):** Provisioning/Onboarding: not started; Proto: done; Domain: done; Projection: done; UI: not started; Agents/MCP: n/a; Process: n/a; GitOps: in-progress; Seedless E2E: not started.
+
 ### Increment 3 — Relationships + Memory (derived, projection-owned)
 
 **Outcome**
@@ -131,6 +141,8 @@ Each increment is “done” only when there is an observable E2E loop (even if 
 **UI surface**
 - Relationship/impact views are derived-only and make the derivation rule explicit (no relationship artifacts): `backlog/701-repository-ui-enterprise-repository-v6.md`.
 
+**Implementation progress (by phase; 2026-01-20):** Provisioning/Onboarding: not started; Proto: not started; Domain: n/a; Projection: not started; UI: not started; Agents/MCP: not started; Process: n/a; GitOps: n/a; Seedless E2E: not started.
+
 ### Increment 4 — ProcessDefinitions as files (design-time + deploy posture)
 
 **Outcome**
@@ -141,6 +153,8 @@ Each increment is “done” only when there is an observable E2E loop (even if 
 
 **Process primitive**
 - Process v4 delivery aligns to file-backed ProcessDefinitions and cluster smokes: `backlog/668-transformation-primitive-v4-implementation-plan-v2.md`.
+
+**Implementation progress (by phase; 2026-01-20):** Provisioning/Onboarding: not started; Proto: not started; Domain: n/a; Projection: not started; UI: not started; Agents/MCP: n/a; Process: in-progress (repo-only exists; cluster deploy pending); GitOps: in-progress; Seedless E2E: not started.
 
 ### Increment 5 — Transformation capability E2E (domain + process + agent + projection + UI)
 
@@ -155,6 +169,8 @@ Each increment is “done” only when there is an observable E2E loop (even if 
 
 **UI surface**
 - Kanban/progress is projection-owned; “move card” is an intent that reconciles to projection truth: `backlog/617-transformation-uisurface-wireframes.md`, `backlog/614-kanban-projection-architecture.md`.
+
+**Implementation progress (by phase; 2026-01-20):** Provisioning/Onboarding: not started; Proto: in-progress; Domain: in-progress; Projection: in-progress; UI: not started; Agents/MCP: in-progress; Process: in-progress; GitOps: in-progress; Seedless E2E: not started.
 
 ## 3) How to keep sub-plans aligned (ongoing discipline)
 
