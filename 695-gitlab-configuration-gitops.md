@@ -54,7 +54,7 @@ GitLab is treated as a **platform-owned subsystem**:
 
 ## Progress (2026-01-19)
 
-- GitLab is now part of the standard GitOps component set (no longer `_optional`).
+- GitLab is a standard GitOps component (always deployed as part of the platform baseline).
 - Added baseline PostSync smoke job checks for GitLab (`platform-gitlab-smoke`) to keep rollout evidence consistent with other platform smokes.
 - Switched GitLab to shared cluster dependencies (GitOps-managed):
   - PostgreSQL: shared CNPG cluster (`postgres-ameide-rw`), GitLab databases managed via `platform-postgres-clusters`.
@@ -70,7 +70,7 @@ This is the vendor-supported posture (“external DB/Redis”) expressed via our
   - Wrapper keys: `gitlab.redis.install=false`, plus `gitlab.global.redis.host` and `gitlab.global.redis.auth.secret/key`
 
 - Fixed GitLab UI rendering (“unstyled” pages) by routing the Gateway `HTTPRoute` to **Workhorse** (`webservice` port `8181`) instead of Rails/Puma (`8080`). Verified `/assets/*` returns `200` (CSS/JS served) rather than redirecting to sign-in.
-- Hardened defaults as standard (not optional):
+- Hardened defaults as standard (mandatory):
   - Disabled **public sign-ups** by default.
   - Disabled **usage ping / product usage data** collection by default.
   - Enforced both via Helm values (initial defaults) and via the GitOps bootstrap hook (to apply to existing running instances).
@@ -186,7 +186,7 @@ This repo’s standard verification mechanism is **ArgoCD PostSync smoke jobs**,
 
 GitLab should follow the same pattern so we don’t rely on ad-hoc/manual validation.
 
-**Required GitLab smoke coverage (when GitLab is enabled in an environment)**
+**Required GitLab smoke coverage**
 
 1. **ExternalSecrets ready:** `ExternalSecret/gitlab-oidc-provider` is Ready and target Secret exists.
 2. **Workload ready:** core GitLab webservice is rolled out (and responding on the in-cluster service endpoint).
@@ -195,7 +195,6 @@ GitLab should follow the same pattern so we don’t rely on ad-hoc/manual valida
 
 **Policy**
 
-- If GitLab is ever made optional again, keep its smoke component optional as well (enabled/disabled together), to avoid failing the global smoke phases in environments where GitLab is not installed.
 - Prefer “cheap” checks (HTTP + secret readiness) as PostSync hooks; keep full browser login assertions in separate CI verifiers if needed.
 - Ensure smokes catch routing regressions: assert that `HTTPRoute/platform-gitlab` routes to Workhorse (`8181`), otherwise the UI will lose assets/CSS.
 
