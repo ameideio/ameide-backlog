@@ -27,13 +27,22 @@ GitLab tokens have historically been consumed on an ad-hoc basis (e.g., Backstag
 - Scope each token to read-only / read+write privileges that align with the service role (Reporter, Developer, Maintainer) and only enable the minimum scopes (`read_api` vs. `api`, `write_repository` only when required, etc.). [2]
 - Track the owning service and project/group so rotation stories remain auditable.
 
+### Integration tests (seedless repo creation)
+
+For seedless E2E/integration tests that create and delete GitLab projects (for example `backlog/704-v6-enterprise-repository-memory-e2e-implementation-plan.md`), use a dedicated token that is explicitly allowed to mutate GitLab:
+
+- Prefer a **group access token** scoped to a dedicated group (e.g. `ameide-e2e`) rather than an admin PAT.
+- Use `POST /projects` with `namespace_id=<group_id>` so test projects are created under the dedicated group (not under a personal namespace).
+- Token needs `api` scope and sufficient permissions to create/delete projects in that group.
+- CI must verify the token works via an auth-required call (e.g., `GET ${GITLAB_API_URL}/user` using `PRIVATE-TOKEN`) before running the mutating flow.
+
 ## 3. GitOps delivery contract
 
 - **Source of truth:** Vault KVv2 (`secret/gitlab/tokens/<env>/<service>`, key `value`). In shared cloud environments, populate this key via the existing secret pipeline (AKV/local → `vault-bootstrap` → Vault) using `azure.keyVault.mappedSecrets` when the AKV secret name cannot match the Vault key.
 - **ArgoCD workload:** `foundation-gitlab-api-credentials` (new) renders a configurable set of `ExternalSecret` resources. Each entry:
   - lives in the consuming namespace,
   - points to Vault via `SecretStore/ameide-vault`,
-  - writes a Kubernetes Secret named `gitlab-api-credentials` (overridable) with keys `GITLAB_API_URL` and `GITLAB_TOKEN`,
+  - writes a Kubernetes Secret named `gitlab-api-credentials` (overridable per consumer) with keys `GITLAB_API_URL` and `GITLAB_TOKEN`,
   - emits deterministic labels (`app.kubernetes.io/part-of: platform`, `ameide.io/layer: secrets-certificates`).
   - **must set `spec.target.template.mergePolicy: Merge`** so templated keys (like `GITLAB_API_URL`) do not overwrite fetched keys (like `GITLAB_TOKEN`).
 - **Consumption contract:** workloads mount the Secret and use:
