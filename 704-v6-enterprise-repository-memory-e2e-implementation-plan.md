@@ -43,6 +43,18 @@ This is the cross-primitive, end-to-end (E2E) implementation plan for the v6 pos
 
 The intent is to ship **usable E2E increments**: each increment advances proto seams + Domain/Projection + UI + (where applicable) agents/processes, and has a product-visible “loop” that can be exercised.
 
+## Product ladder framing (v6)
+
+Treat this plan as a product ladder (capability milestones), not a “hardening checklist”.
+
+- **Increment 0:** trust contract — identity, read_context, citations, canonical vs derived.
+- **Increment 1:** Enterprise Repository Explorer — browse canonical artifacts as a Git tree with commit-SHA trust.
+- **Increment 2:** governed architecture change (proposal loop) — draft/propose edits without mutating the published baseline.
+- **Increment 3:** publish + evidence — approve/publish to `main` with audit pointers and SHA-safe merge semantics.
+- **Increment 4:** EA impact + citeable memory — derived backlinks/impact + context retrieval, all citation-grade.
+- **Increment 5:** governance as code — ProcessDefinitions as governed repo artifacts with validate/deploy evidence tied to SHAs.
+- **Increment 6:** operational confidence — golden queries/diffs, rebuildability, and explainability as user-visible trust features.
+
 ## Status (2026-01-20)
 
 Platform + Transformation code progress (UI still pending):
@@ -160,7 +172,10 @@ Treat these increments as a product ladder (v6): each increment should be demo-a
 ### Increment 0 — v6 seam scaffolding (no user-facing change required)
 
 **Product value**
-- “Trust contract”: identity + citation + truth-model are consistent across UI, agents, process, and projections (the “v6 constitution”).
+- “Trust contract”: identity + `read_context` + citations + truth split are consistent across UI, agents, process, and projections (the “v6 constitution”).
+
+**What you can demo**
+- A single v6 contract statement: identity (`{tenant_id, organization_id, repository_id}`), citations (`{repository_id, commit_sha, path[, anchor]}`), and `read_context` selectors mapped to deterministic commit SHA resolution.
 
 **Outcome**
 - New, explicit v6 seams exist (proto + service stubs) without breaking legacy.
@@ -197,6 +212,9 @@ Treat these increments as a product ladder (v6): each increment should be demo-a
 
 **Product value**
 - “Enterprise Repository Explorer”: browse canonical architecture artifacts as Git-backed files, with immutable commit-SHA citations (trust feature, not a developer detail).
+
+**What you can demo**
+- Browse repo → open file → show resolved commit SHA and citation object; share a link/view that clearly states which SHA was read.
 
 **Outcome**
 - A user can browse the repository **as a file tree** at `published` baseline and open files.
@@ -240,6 +258,9 @@ Treat these increments as a product ladder (v6): each increment should be demo-a
 
 **Product value**
 - “Governed Architecture Change (proposal)”: propose edits safely without mutating the published baseline; the unit of change is MR-backed (GitLab MR analogy), and every preview is still citeable to a specific MR head SHA + path.
+
+**What you can demo**
+- Open a file → “Propose change” → edit/save (commit batching) → preview at `head` (MR branch) while `published` remains unchanged.
 
 **Outcome**
 - A user can start a change, edit files, rename/move files/folders, and see the change preview (MR-backed).
@@ -285,6 +306,9 @@ Treat these increments as a product ladder (v6): each increment should be demo-a
 **Product value**
 - “Publishable baseline with evidence”: approvals + publish produce an auditable “this is what we approved” outcome (GitLab merge-to-`main` analogy), with durable pointers to MR/pipeline and the resulting `main` commit SHA.
 
+**What you can demo**
+- Approve → publish → UI shows MR/pipeline pointers + resulting `main` commit SHA; repository at `published` now reflects the new SHA.
+
 **Outcome**
 - Curators approve in the platform UI and publish by merging to `main`.
 - Domain records durable audit pointers and advances “published baseline”.
@@ -328,6 +352,9 @@ Treat these increments as a product ladder (v6): each increment should be demo-a
 **Product value**
 - “EA Impact & Traceability”: derived backlinks/impact and citeable memory retrieval (GitLab derived views / Knowledge Graph analogy) turn canonical files into a navigable, explainable EA system without making the graph authoritative.
 
+**What you can demo**
+- Open an artifact → see derived backlinks (with citations showing where each edge came from) → retrieve context bundle via `memory.get_context` anchored to a commit SHA.
+
 **Outcome**
 - `memory.get_context` returns a context bundle anchored to `published` commit SHA with Git citations.
 - Backlinks/impact graph is available as a derived view from in-file references (mandatory metadata `refs` + in-body references; no relationship CRUD).
@@ -368,6 +395,9 @@ Treat these increments as a product ladder (v6): each increment should be demo-a
 **Product value**
 - “Governance as code”: process definitions are versioned and reviewed as files (analogous to “config as code” patterns like `.gitlab-ci.yml`), then validated/deployed with evidence tied back to the published commit SHA.
 
+**What you can demo**
+- Browse `processes/**/process.bpmn` → propose change → publish → validate/deploy triggers → UI shows deploy status + evidence tied to the published commit SHA.
+
 **Outcome**
 - ProcessDefinitions authored as BPMN files in the Enterprise Repository can be validated/deployed to the selected runtime(s), with evidence tied to Git commits.
 
@@ -403,7 +433,13 @@ Treat these increments as a product ladder (v6): each increment should be demo-a
 
 ---
 
-### Increment 6 — Operational hardening (rebuildability, observability, evaluation)
+### Increment 6 — Operational confidence (rebuildability, explainability, regression safety)
+
+**Product value**
+- Trust at scale: users can rely on derived views and memory because rebuildability, explainability, and regression checks are explicit.
+
+**What you can demo**
+- “Why is this in context?” explanations with citations, baseline diffs, and a full rebuild that produces the same citeable answers for a given commit SHA.
 
 **Outcome**
 - The system is operable and debuggable: indexing is incremental, retrieval is traceable, and the memory loop has regression coverage.
