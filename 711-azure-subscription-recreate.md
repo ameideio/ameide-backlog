@@ -11,14 +11,30 @@ Goal: provision a fresh AKS + platform stack in a new Azure subscription via Git
 ## What “no DNS touch” means here
 
 - Run Terraform with `disable_dns=true` in CI.
-- Terraform will not create/update DNS zones/records.
-- Runtime facts will not publish `dnsManagedIdentityClientId`, so cert-manager uses self-signed issuers (no Azure DNS-01).
+- Terraform will not create/update Azure DNS zones/records.
+- Runtime facts will keep `dnsManagedIdentityClientId` empty, so cert-manager uses self-signed issuers (no Azure DNS-01).
 
-## One-time prerequisites (OIDC)
+Scope note: “DNS” here means *public* Azure DNS zones/records for `ameide.io` and its child zones. This procedure does not aim to preserve or cut over existing DNS, and it should not modify any existing DNS zones/records during initial bring-up.
 
-1. Ensure the GitHub Actions OIDC identity (repo var `AZURE_CLIENT_ID`) has at least:
-   - `Owner` and `User Access Administrator` on the **new** subscription `e4652c74-...`
-2. Ensure it can read the “source” Key Vault configured in repo var `TF_ENV_SECRETS_KEYVAULT_NAME` (for secret sync).
+## One-time prerequisites (OIDC + RBAC)
+
+Assumptions:
+
+- Workflows use GitHub Actions OIDC (`permissions: id-token: write`) with `azure/login` (no stored Azure secrets).
+
+Minimum RBAC (prefer least privilege, scope to resource groups when possible):
+
+1. On the **target** subscription `e4652c74-...`:
+   - `Contributor` to create/update resources.
+   - One of: `User Access Administrator` **or** `Role Based Access Control Administrator` at the scope where Terraform needs to create role assignments (Public IP / Key Vault / Managed Identity role bindings). If you grant `Owner`, do **not** also grant `User Access Administrator` (it’s redundant).
+2. On the **Terraform state backend** (storage account or container in `backend_resource_group`, default `Ameide-TFState`):
+   - Data-plane access via Entra ID: `Storage Blob Data Contributor` (container scope preferred).
+3. Key Vault secret source for seeding:
+   - The CI identity must be able to read secrets from the Key Vault named by repo var `TF_ENV_SECRETS_KEYVAULT_NAME`.
+
+No-DNS guardrail (defense in depth):
+
+- Ensure no principal used during initial bring-up (CI identity, cert-manager identity, any external-dns identity if enabled) has `DNS Zone Contributor` on the real public zones yet. This prevents DNS writes even if a chart/config slips in.
 
 ## 1) Smoke plan (already safe)
 
