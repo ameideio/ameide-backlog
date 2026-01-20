@@ -25,6 +25,12 @@ This backlog aligns the Ameide Platform UI “Repository” experience with the 
 - The UI is the governance/product surface: users browse, edit, propose, approve, and publish changes using the platform.
 - The UI presents repository content as an **Enterprise Repository hierarchy** (folders + files), derived from the Git file tree (no separate canonical workspace tree).
 
+### GitLab product analogies (keep UX intent grounded)
+
+- The repository browser is analogous to GitLab’s repository file browser, except reads/writes are mediated by Projection/Domain (users do not use GitLab directly).
+- “Start change / propose edits / publish” is analogous to GitLab branch + MR + merge, except approvals/policy truth lives in the platform UI/DB.
+- Citations in the UI are analogous to GitLab permalinks (file-at-commit anchors), so reads are reproducible.
+
 ## Normative rules (v6)
 
 These are the non-negotiables this backlog is written to:

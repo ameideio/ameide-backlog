@@ -62,6 +62,8 @@ Minimum viable element reference (implementation-neutral):
 
 This maps to the memory/read discipline (`read_context` + citations) required by projections and agent memory.
 
+GitLab analogy: an audit-grade element reference behaves like a GitLab “permalink” to a blob at a specific commit SHA (with optional in-file anchor), while non-audit preview may use branch/MR refs.
+
 ### 1.3 Relationships are not a canonical CRUD surface
 
 Relationships are authored only as normal references inside element content.

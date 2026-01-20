@@ -52,6 +52,8 @@ Derived hierarchy that renders the repository’s folder/file tree over a reposi
 
 This is the contract the UISurface uses to render the repository UX; it is intentionally not canonical state.
 
+GitLab analogy: this is the platform equivalent of GitLab’s “repository tree at a ref”, except it must return `read_context` + citations for audit-grade reads.
+
 ### 2.2 RelationshipGraphProjection (derived)
 
 Reconstruct a graph from:
@@ -59,6 +61,8 @@ Reconstruct a graph from:
 - normal references inside element content (links/IDs).
 
 Used for backlinks, impact analysis, and agent context expansion.
+
+GitLab analogy: treat this like GitLab’s derived repository views (search/code intelligence/Knowledge Graph). The graph is useful UX, but the source of truth remains repository content at a commit SHA, and every derived edge must be explainable via citations back to concrete file locations.
 
 ### 2.3 ProcessCatalogProjection (derived)
 
