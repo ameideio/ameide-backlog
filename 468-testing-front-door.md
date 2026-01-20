@@ -23,7 +23,7 @@ This mirrors the 430v2 test contract phases in CI (Phase 0/1/2) and writes artif
 
 ## Implementation status
 
-This front door is now implemented as a first-class Go CLI entrypoint and merged into `ameide` `main` (PR: `ameideio/ameide#582`). Deployed-system E2E is split into the explicit CLI subcommand `ameide test e2e` (PR: `ameideio/ameide#589`).
+This front door is now implemented as a first-class Go CLI entrypoint and merged into `ameide` `main` (PR: `ameideio/ameide#582`). Deployed-system verification is now owned by the explicit CLI command `ameide test cluster`, which runs cluster integration (Go `//go:build cluster`) followed by Playwright E2E (runner shipped in PR: `ameideio/ameide#589`).
 
 ## Agent inner loop (one command)
 
@@ -35,13 +35,13 @@ ameide test
 
 This is intentionally **not** the full PR gate and does not do image builds/publishing or GitOps work. It runs **Phase 0/1/2** (contract → unit → integration) and writes artifacts under `artifacts/agent-ci/<timestamp>/`.
 
-Deployed-system E2E runs separately against preview environments:
+Deployed-system verification runs separately against preview environments:
 
 ```bash
-ameide test e2e
+ameide test cluster
 ```
 
-Treat this as Phase 3 in the overall verification story: it is CLI-owned, deterministic, and gates merge via preview environments, but it is intentionally not bundled into the fast Phase 0/1/2 front door.
+Treat this as **Phase 3/4** in the overall verification story: it is CLI-owned, deterministic, and gates merge via preview environments, but it is intentionally not bundled into the fast Phase 0/1/2 front door.
 
 ## Fast paths
 
@@ -53,8 +53,9 @@ The historical “integration pack” model (scripts + `INTEGRATION_MODE`) is **
 
 The v2 contract is:
 - Phase 1 (Unit): local, pure
-- Phase 2 (Integration): local, mocked/stubbed only
-- Deployed-system E2E: preview env ingress URL, Playwright only (not part of the “no-brainer” Phase 0/1/2 front door)
+- Phase 2 (Integration-local): local, mocked/stubbed only
+- Phase 3 (Integration-cluster): cluster-only runtime semantics (not part of the “no-brainer” Phase 0/1/2 front door)
+- Phase 4 (Playwright E2E): preview env ingress URL, Playwright only (not part of the “no-brainer” Phase 0/1/2 front door)
 
 Keep the pack section below for historical context only.
 

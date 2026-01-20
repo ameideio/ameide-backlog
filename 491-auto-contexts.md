@@ -62,7 +62,7 @@ Re-run manually with `bash tools/dev/bootstrap-contexts.sh` if you blow away `~/
 Telepresence context defaults come from `~/.config/ameide/context.env`, which `tools/dev/bootstrap-contexts.sh` writes and `.bashrc` sources automatically. The `ameide` CLI consumes these defaults to run Telepresence connect/intercept as part of:
 
 - `ameide dev inner-loop up|down|verify`
-- `ameide test e2e` (cluster-only Playwright E2E; does not require Telepresence)
+- `ameide test cluster` (cluster-only Playwright E2E; does not require Telepresence)
 - optional Telepresence E2E harness (`ameide dev _inner-loop-test-phase3*`; not part of the default inner loop)
 
 The DevContainer image + `postCreate.sh` ensure Telepresence prerequisites (`iptables` for DNS/routing and `sshfs`) are installed so intercepts work immediately. Operational troubleshooting remains tracked in [492-telepresence.md](492-telepresence.md).

@@ -31,8 +31,8 @@ Deliver a repo front-door that, for a BPMN-authored Process primitive:
 - **Gap (TBD):** multi-tenant mapping rules for deploying tenant-specific process versions without collisions (flagged; not addressed in this plan).
 - 430 test contract is enforced:
   - `ameide test` runs Phase 0/1/2 only (local-only; no cluster/Telepresence).
-  - cluster smokes run via a separate CLI entrypoint (`ameide test smoke`).
-  - Playwright E2E runs via `ameide test e2e` against preview ingress URLs.
+  - cluster smokes run via a separate CLI entrypoint (`ameide test cluster`).
+  - Playwright E2E runs via `ameide test cluster` against preview ingress URLs.
 
 ## Work breakdown (delivery order)
 

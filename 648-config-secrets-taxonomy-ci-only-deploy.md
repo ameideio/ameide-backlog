@@ -167,9 +167,9 @@ Contract:
 - `AMEIDE_PLATFORM_BASE_URL`
   - **Owner/source**: CI/runner contract (not a runtime setting)
   - **Where set today**:
-    - `ameide test e2e` reads `AUTH_URL` from `ConfigMap/www-ameide-platform-config` and passes it to Playwright as `AMEIDE_PLATFORM_BASE_URL` (and verifies it matches the HTTPRoute host).
+    - `ameide test cluster` reads `AUTH_URL` from `ConfigMap/www-ameide-platform-config` and passes it to Playwright as `AMEIDE_PLATFORM_BASE_URL`.
   - **Used by**: Playwright baseURL (`services/www_ameide_platform/playwright.config.ts`)
-  - **RBAC note**: any runner that executes `ameide test e2e` with in-cluster credentials (e.g., from a Coder/Che workspace/task) must have `get` access to `ConfigMap/www-ameide-platform-config` and the persona Secret in the environment namespace; grant this via a predeclared, resourceNames-scoped Role that the workspace identity is allowed to bind.
+  - **RBAC note**: any runner that executes `ameide test cluster` with in-cluster credentials (e.g., from a Coder/Che workspace/task) must have `get` access to `ConfigMap/www-ameide-platform-config` and the persona Secret in the environment namespace; grant this via a predeclared, resourceNames-scoped Role that the workspace identity is allowed to bind.
 
 ## Repository Contract (Single Source of Truth)
 

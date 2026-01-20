@@ -25,7 +25,7 @@ This document updates the v2 Zeebe posture to be **explicitly aligned** with the
 4. **Test contract is 430v2**:
   - `ameide test` runs **Phase 0/1/2 only** (local-only; no cluster/Telepresence).
    - Cluster runtime semantics are validated by a **separate cluster smoke entrypoint** (not Phase 2, not Playwright E2E).
-  - Playwright E2E runs separately via `ameide test e2e` against preview ingress URLs.
+  - Playwright E2E runs separately via `ameide test cluster` against preview ingress URLs.
 
 ## Design-time governed process definitions (v6 alignment)
 

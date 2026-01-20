@@ -31,14 +31,10 @@ Provide a **single, fail-fast, no-flags** CLI entrypoint that an interactive AI 
 
 This is intentionally **not** “full CI”: it is an agentic inner-loop tool that prioritizes **time-to-first-actionable-signal** and **explainable failures**.
 
-CI uses a sibling command that runs the same contract phases without cluster E2E:
+CI uses the same two front doors:
 
-- `ameide test` (Phase 0/1/2 only)
-
-Cluster-only verification runs via separate entrypoints:
-
-- `ameide test smoke` (cluster-only smokes)
-- `ameide test e2e` (cluster-only Playwright E2E)
+- `ameide test` (Phase 0/1/2 only; local-only)
+- `ameide test cluster` (Phase 3/4 only; cluster-only)
 
 ## Cross-references
 
@@ -64,16 +60,18 @@ This backlog item is now **implemented** as a first-class Go CLI command:
 - Go implementation:
   - CLI wiring: `packages/ameide_core_cli/internal/commands/test.go`
   - Orchestrator: `packages/ameide_core_cli/internal/innerloop/run.go`
+  - Phase 0: `packages/ameide_core_cli/internal/innerloop/phase0.go`
   - Phase 1: `packages/ameide_core_cli/internal/innerloop/phase1.go`
   - Phase 2: `packages/ameide_core_cli/internal/innerloop/phase2.go`
-  - Phase 3: `packages/ameide_core_cli/internal/innerloop/phase3.go`
+  - Phase 3: `packages/ameide_core_cli/internal/innerloop/cluster.go`
+  - Phase 4: `packages/ameide_core_cli/internal/innerloop/e2e.go`
 
 Legacy runner scripts have been removed; the canonical entrypoints are the CLI commands above.
 
 Implementation shipped and merged into `ameide` `main` via:
 
-- `ameideio/ameide#582` (canonicalize `ameide test` / `ameide test ci` front doors)
-- `ameideio/ameide#589` (`ameide test e2e` subcommand + Phase 3 split)
+- `ameideio/ameide#582` (canonicalize `ameide test` Phase 0/1/2 front door)
+- `ameideio/ameide#589` (Playwright E2E runner; now Phase 4 of `ameide test cluster`)
 - `ameideio/ameide#584` (devcontainer/Coder toolchain provisioning so `ameide test` is runnable)
 - `ameideio/ameide#590` / `ameideio/ameide#591` (`ameide dev` robustness improvements; adjacent inner-loop ergonomics)
 
@@ -132,14 +130,14 @@ Execution rules (opinionated, fail-fast):
 
 This backlog originally described a Phase 3 Telepresence-based E2E harness. The current 430v2 contract keeps the agent/human front door (`ameide test`) strictly Phase 0/1/2, and runs cluster-only checks separately:
 
-- `ameide test smoke`
-- `ameide test e2e`
+- `ameide test cluster`
+- `ameide test cluster`
 
 Constraints / invariants:
 
 - Cluster-only checks must be explicit, fail-fast, and leave no state behind.
 - Playwright base URL is explicit and deterministic:
-  - `ameide test e2e` reads `AUTH_URL` from `ConfigMap/www-ameide-platform-config` and passes it to Playwright as `AMEIDE_PLATFORM_BASE_URL` (fail-fast); it also verifies it matches the HTTPRoute-derived ingress host.
+  - `ameide test cluster` reads `AUTH_URL` from `ConfigMap/www-ameide-platform-config` and passes it to Playwright as `AMEIDE_PLATFORM_BASE_URL` (fail-fast); it also verifies it matches the HTTPRoute-derived ingress host.
 
 Failure behavior:
 - If any prerequisite is missing, cluster-only checks fail fast with an actionable message and still emit JUnit evidence under the run root.

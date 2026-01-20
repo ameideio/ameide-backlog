@@ -45,18 +45,18 @@ Implementation must stay “DRY and boring” so the CLI does not become a secon
 **Goal:** align CLI entrypoints with 691/430v2/621 without changing test semantics.
 
 Tasks (repo: `ameideio/ameide`)
-- Add `ameide test e2e` subcommand:
+- Add `ameide test cluster` subcommand:
   - Runs Playwright **E2E only** (deployed-system truth).
   - Resolves base URL by reading `AUTH_URL` from `ConfigMap/www-ameide-platform-config` in `AMEIDE_ENV_NAMESPACE`.
   - Reads personas from `Secret/playwright-int-tests-secrets` in `AMEIDE_ENV_NAMESPACE`.
   - Emits mandatory JUnit evidence and redacts secrets from artifacts.
 - Change `ameide test` to run **contract/unit/integration** only (local-only; no Kubernetes).
-- Ensure `ameide test ci` remains **contract/unit/integration** only.
+- Ensure `ameide test` remains **contract/unit/integration** only.
 - Update CLI help text and remove any legacy docs implying E2E is part of `ameide test`.
 
 Acceptance criteria
 - `ameide test` runs with no Kubernetes access.
-- `ameide test e2e` fails fast with a clear error if `AMEIDE_ENV_NAMESPACE` is missing or required objects are not readable.
+- `ameide test cluster` fails fast with a clear error if `AMEIDE_ENV_NAMESPACE` is missing or required objects are not readable.
 
 ---
 
@@ -150,7 +150,7 @@ Implementation notes (Option 1 / sync-mirror, dev)
 - Mirror required env `ConfigMap`/`Secret` objects from host `AMEIDE_ENV_NAMESPACE` into the vCluster so the CLI can read them without host credentials.
 
 Acceptance criteria
-- `ameide test e2e` and `ameide dev` are either fully supported in Che/vCluster, or fail-fast with actionable guidance.
+- `ameide test cluster` and `ameide dev` are either fully supported in Che/vCluster, or fail-fast with actionable guidance.
 
 ---
 
@@ -161,12 +161,12 @@ Acceptance criteria
 Tasks
 - Add a “developer quickstart” doc (location TBD) that shows:
   - `ameide test`
-  - `ameide test e2e`
+  - `ameide test cluster`
   - `ameide dev`
 - Add/update backlog references where older surfaces are described.
 - Run one end-to-end validation:
   - In Coder: `ameide dev` login + hotreload.
-  - In Coder/Che: `ameide test e2e` against dev/preview.
+  - In Coder/Che: `ameide test cluster` against dev/preview.
 
 Acceptance criteria
 - One documented happy path exists for “fast UI loop” and “deployed truth E2E”, with the commands in 691.
