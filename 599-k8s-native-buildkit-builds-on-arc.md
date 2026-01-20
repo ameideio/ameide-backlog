@@ -4,6 +4,23 @@
 **Owner:** Platform DX / CI  
 **Scope:** Enable container image builds on ARC runners (local k3d + AKS) without relying on Docker-in-Docker.
 
+## Implementation status (operational)
+
+- GitOps landed and validated on AKS:
+  - `ameideio/ameide-gitops#439` (BuildKit StatefulSet recreated as `buildkitd-v2` to apply `64Gi` PVC)
+  - `ameideio/ameide-gitops#441` (add read-only AKS inspect script; guard local probe script from cloud)
+- Backlog docs updates:
+  - `ameideio/ameide-backlog#225` (runbook gates + mTLS invariant)
+  - `ameideio/ameide-backlog#226` (clarify local vs AKS probe tooling)
+- Verified signals (AKS):
+  - `Service/buildkitd` has endpoints to a Ready pod selected by `app.kubernetes.io/name=buildkitd`
+  - `buildctl debug workers -v` reports `linux/arm64` and `linux/amd64` platforms
+
+Known gaps / follow-ups:
+
+- **mTLS for remote BuildKit over TCP** is a baseline requirement but not yet implemented.
+- Orphaned legacy PVCs may remain after migrations (requires a GitOps/CI-sanctioned cleanup path; avoid manual deletes).
+
 ---
 
 ## Problem
