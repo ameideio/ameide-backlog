@@ -53,9 +53,31 @@ Platform + Transformation code progress (UI still pending):
 
 Known remaining work to reach “real end-to-end in-cluster proof”:
 
-- Provision (or seed) at least one real GitLab project and its platform DB mapping (repo → git remote/provider pointers).
-- Add a cluster integration test/smoke that calls `EnsureChange` → `CreateCommit` → `PublishChange`, then validates `ListTree`/`GetContent` on the resulting `main` commit SHA.
-- Move from “shared dev token” to per-service tokens (least privilege) per `backlog/710-gitlab-api-token-contract.md`.
+- Add an **application integration test (CI/E2E)** that is **seedless**: it creates a new GitLab project for the test run and registers the platform mapping (repo → provider pointers) as part of the flow (no dependency on pre-seeded projects).
+- The E2E test must run: auth sanity (`GET /user`) → create project (`POST /projects`, preferably `initialize_with_readme=true`) → onboard/mapping → `EnsureChange` → `CreateCommit` → `PublishChange` → validate `ListTree`/`GetContent` at the resulting `main` commit SHA → best-effort cleanup (`DELETE /projects/:id`) to avoid leaks.
+- Move from “shared dev token” to per-service tokens (least privilege) per `backlog/710-gitlab-api-token-contract.md`, including a dedicated writer token for the E2E test:
+  - Recommended: a **group access token** scoped to a dedicated group (e.g. `ameide-e2e`) and used with `namespace_id=<group_id>` for project creation.
+  - Token needs `api` scope and sufficient permissions in that group to create/delete projects.
+  - Deliver integration-test credentials via a distinct Secret (do not reuse `gitlab-api-credentials` that normal services consume).
+- Optional (dev convenience only): seed a sandbox GitLab project + mapping to speed up manual debugging, but tests must still create and clean up their own repositories.
+
+ArgoCD smokes are a separate layer:
+
+- ArgoCD smokes validate **service availability** (routing/HTTP health, required Pods/Services/Secrets present) and must be deterministic and side-effect-free.
+- GitLab repo creation and other mutating workflows belong in **application integration tests**, not ArgoCD smokes.
+
+### Ownership split (GitOps vs apps)
+
+**GitOps (platform)**
+
+- Done: standardized token delivery (Vault → ExternalSecret → K8s Secret) per `backlog/710-gitlab-api-token-contract.md`.
+- TODO: provision a dedicated integration-test credential (`secretName` isolated from normal services) and ensure it is treated as a required secret input in managed environments (no placeholders).
+- TODO: provide a stable GitLab “E2E group” (e.g. `ameide-e2e`) and document the `namespace_id` used for test project creation.
+
+**Apps (platform/transformation)**
+
+- TODO: implement the seedless CI/E2E test flow (create project → onboard/mapping via platform API → governed change/commit/publish → verify reads at SHA → delete project).
+- TODO: ensure repo onboarding/mapping is platform-owned (no tests writing DB rows directly), and expose the minimal API needed for the E2E test.
 
 ## 0) Non‑negotiables (normative; apply to every increment)
 
