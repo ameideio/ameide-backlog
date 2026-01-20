@@ -36,6 +36,12 @@ These are the non-negotiables this backlog is written to:
 - **Hierarchy equals Git tree:** repository navigation is the Git file tree at a selected `read_context`.
 - **Submodules are Git-level:** treat as Git tree `gitlink` entries; do not resolve or flatten into other platform repositories during browsing.
 
+Operational clarifications (v6):
+
+- Truth model (content vs governance vs view truth) and allowed GitLab CE primitives: `backlog/694-elements-gitlab-v6.md`.
+- Projection contract (rebuildable, incremental, citation-grade, eventually consistent): `backlog/656-agentic-memory-v6.md`.
+- “Inline-only relationships” must be implemented so every derived relationship view (backlinks/impact) can show citations back to `{repository_id, commit_sha, path[, anchor]}` and can surface unresolved/broken references deterministically.
+
 ### Primary user journey (happy path)
 
 1) User opens an organization and selects an Enterprise Repository (a single underlying Git repo).

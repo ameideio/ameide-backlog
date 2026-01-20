@@ -26,6 +26,42 @@ This v6 file exists to keep the v6 “Git-backed Enterprise Repository” postur
 - **Relationships are inline-only:** no `relationships/**` folder and no relationship sidecar artifacts.
 - **GitLab CE only:** no Premium/Ultimate dependencies; enforcement uses Community primitives (protected `main`, MR-only, pipeline gating) with governance truth in the platform.
 
+## Truth model (v6: three kinds of truth)
+
+Use this triad consistently to avoid accidentally making projections canonical:
+
+- **Content truth** = Git files + commit graph (immutable anchors are commit SHAs; tags are optional).
+- **Governance truth** = platform-owned state (approvals, attestations, policy outcomes, workflow state, audit pointers).
+- **View truth** = derived projections (indexes/graphs/search/timelines), rebuildable from Git + owner audit pointers, citation-addressable.
+
+This is consistent with the “projection-owned memory” posture in `backlog/656-agentic-memory-v6.md`.
+
+## Inline-only relationships (operational v0)
+
+“Inline-only relationships” is a normative posture, but it must be implementable:
+
+- **What counts as “inline”**: a relationship is authored inside canonical files (Markdown, BPMN, model formats, and optionally structured metadata blocks within those files). There is no separate relationship artifact and no relationship CRUD API.
+- **Directionality**: relationships are declared **single-sided**; backlinks are always derived by projections.
+- **Identity and citations**: a relationship must be resolvable (at read time) to audit-grade citations `{repository_id, commit_sha, path[, anchor]}`. Stable IDs are allowed as a file convention, but projections must always be able to cite concrete file locations at a specific commit SHA.
+- **Rename/move semantics**: rename/move must not silently create false edges. If a reference cannot be resolved at the selected commit SHA, it is surfaced as an explicit “broken/unresolved reference” (and governance/validation decides whether that blocks publication).
+- **Referential integrity**: dangling references are allowed as drafts, but they must be machine-detectable and citation-addressable (so validators and UI can explain what is missing).
+
+## Allowed GitLab CE primitives (in-scope vs out-of-scope)
+
+**In-scope (we do rely on these):**
+
+- Git repositories (projects/groups), branches and tags.
+- Merge Requests as the collaboration substrate (discussion + proposed diffs).
+- GitLab CI pipelines as validation/publishing automation.
+- Protected default branch (`main`), “merge via MR” enforcement, and pipeline gating as configured.
+- GitLab REST APIs as **internal adapters** used by owner/projection primitives (not by UI/agents/processes).
+
+**Out-of-scope (we must not design a dependency on these):**
+
+- GitLab Premium/Ultimate planning surfaces (epics/roadmaps/iterations) as platform UX primitives.
+- Any “GitLab is the governance UI” assumption (governance truth is platform-owned).
+- Paid-tier approval/status-check frameworks as required correctness dependencies (platform policy decides; GitLab enforcement stays CE-grade).
+
 ## Git provider posture (v6)
 
 In the current platform posture, “Git-backed” concretely means:
