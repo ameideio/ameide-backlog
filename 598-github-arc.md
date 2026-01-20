@@ -49,6 +49,11 @@ Set `AMEIDE_RUNS_ON` to:
 - `arc-local` to run on local k3d ARC, or
 - `arc-aks-v2` to run on AKS ARC.
 
+### Scale-to-zero semantics
+
+- Runner pods are ephemeral and scale to zero when idle (this is controlled by `minRunners: 0` in the runner scale set values).
+- The ARC controller and listener pods are control-plane components and are expected to stay running even when there are zero queued jobs.
+
 ### Org-scoped runner registration (shared across repos)
 
 The runner sets are registered to the org via:
