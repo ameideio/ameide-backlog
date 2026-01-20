@@ -36,6 +36,10 @@ Update (2026-01-19): `ameide test smoke` must detect code-server 502 causes
 - Observed failure mode: Coder app proxy returns `502 Bad Gateway` to the VS Code (Web) app due to a non-runnable cached code-server install after node pool churn (see 652 §4.2.1).
 - The CLI “platform smoke” front door must validate reachability (no `502`) and surface a clear remediation path (cache reset + workspace restart), without relying on kubectl access.
 
+Update (2026-01-20): Workspace default auth must be deterministic
+
+- The platform smoke contract assumes new workspaces have default tool auth wired (GitHub CLI, Azure CLI, Coder CLI, Codex CLI/extension); implementation tracked in `backlog/712-coder-workspaces-tasks-azure-workload-identity.md`.
+
 ## 1) Decisions (normative for the CLI surface)
 
 ### 1.1 “No-brainer” means no flags for core verification
