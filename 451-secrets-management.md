@@ -285,6 +285,8 @@ Some third-party secrets are minted once in a vendor UI/API and are stored direc
 
 For token verification, prefer CI/integration tests that prove the token works against an auth-required endpoint (for example `GET ${GITLAB_API_URL}/user` with `PRIVATE-TOKEN`). ArgoCD smokes should remain availability-only and side-effect-free.
 
+**Hard requirement:** managed environments must not carry placeholder GitLab tokens. Treat GitLab API tokens as required inputs (seeded via the external source and mapped into Vault); rollouts must fail fast if the token is missing/invalid.
+
 ### Secrets NOT in Azure KV (Cluster-Managed)
 
 These secrets are generated in-cluster and should NOT be added to `.env` or Azure KV:

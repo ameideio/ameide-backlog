@@ -50,6 +50,7 @@ For seedless E2E/integration tests that create and delete GitLab projects (for e
   - `GITLAB_TOKEN` via the documented `PRIVATE-TOKEN: <token>` HTTP header for GitLab API calls; GitLab explicitly documents this header for PATs/project/group access tokens. [2]
   - `GITLAB_API_URL` for the cluster’s canonical REST endpoint (`https://gitlab.<env>.ameide.io/api/v4`).
 - **Vault policy:** ESO roles (`ameide-vault` SecretStore) must be allowlisted for `secret/data/gitlab/tokens/<env>/*`.
+- **No placeholders:** managed environments must not ship placeholder GitLab API tokens. Tokens are required inputs (seeded via AKV/local and mapped into Vault), and `platform-secrets-smoke` blocks rollouts if `Secret/gitlab-api-credentials` is missing or contains placeholder values.
 
 ## 4. Operational runbook (token creation)
 

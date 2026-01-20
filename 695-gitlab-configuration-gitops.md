@@ -79,6 +79,7 @@ This is the vendor-supported posture (“external DB/Redis”) expressed via our
 - Switched GitLab object storage to the shared in-namespace MinIO (`data-minio`) and disabled GitLab’s bundled MinIO chart.
   - Credentials now use a dedicated MinIO service user (`gitlab-minio-access-key`, `gitlab-minio-secret-key`), not MinIO root.
 - Standardized in-cluster GitLab API token delivery (Vault → ExternalSecret → `Secret/gitlab-api-credentials`) via `foundation-gitlab-api-credentials` (`backlog/710-gitlab-api-token-contract.md`).
+  - GitLab API tokens are required inputs in managed environments (no placeholder tokens); platform secrets smokes must fail fast on missing/placeholder credentials.
 - OIDC integration is now fully GitOps-managed (no placeholder secrets):
   - Keycloak client `gitlab` is reconciled per environment (redirect URIs match `gitlab.<env>.ameide.io`).
   - `client-patcher` extracts the Keycloak-generated secret into Vault key `gitlab-oidc-client-secret`.

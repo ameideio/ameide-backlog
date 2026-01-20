@@ -66,6 +66,19 @@ ArgoCD smokes are a separate layer:
 - ArgoCD smokes validate **service availability** (routing/HTTP health, required Pods/Services/Secrets present) and must be deterministic and side-effect-free.
 - GitLab repo creation and other mutating workflows belong in **application integration tests**, not ArgoCD smokes.
 
+### Ownership split (GitOps vs apps)
+
+**GitOps (platform)**
+
+- Done: standardized token delivery (Vault → ExternalSecret → K8s Secret) per `backlog/710-gitlab-api-token-contract.md`.
+- TODO: provision a dedicated integration-test credential (`secretName` isolated from normal services) and ensure it is treated as a required secret input in managed environments (no placeholders).
+- TODO: provide a stable GitLab “E2E group” (e.g. `ameide-e2e`) and document the `namespace_id` used for test project creation.
+
+**Apps (platform/transformation)**
+
+- TODO: implement the seedless CI/E2E test flow (create project → onboard/mapping via platform API → governed change/commit/publish → verify reads at SHA → delete project).
+- TODO: ensure repo onboarding/mapping is platform-owned (no tests writing DB rows directly), and expose the minimal API needed for the E2E test.
+
 ## 0) Non‑negotiables (normative; apply to every increment)
 
 These are requirements, not “guidelines”:
