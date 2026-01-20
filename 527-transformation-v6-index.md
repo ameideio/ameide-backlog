@@ -10,6 +10,8 @@ related:
   - 496-eda-principles-v6.md
   - 660-transformation-primitive-v4-goals-invariants.md
   - 701-repository-ui-enterprise-repository-v6.md
+  - 705-transformation-agentic-alignment-v6.md
+  - 706-transformation-v6-coordinated-implementation-plan.md
 ---
 
 # 527 Transformation — v6 Index (Git-backed repository substrate)
@@ -27,6 +29,8 @@ This index exists to reduce “version drift” across the Transformation doc se
 - Transformation UISurface posture (repository hierarchy projection): `backlog/527-transformation-uisurface-v6.md`
 - Transformation Projection posture (repository hierarchy projection): `backlog/527-transformation-projection-v6.md`
 - Transformation contract notes (Git-backed elements + derived repository hierarchy): `backlog/527-transformation-proto-v6.md`
+- Cross-suite alignment map (agents + memory + repository UI): `backlog/705-transformation-agentic-alignment-v6.md`
+- Coordinated v6 increments (program ladder across primitives): `backlog/706-transformation-v6-coordinated-implementation-plan.md`
 
 ## Still valid, but interpret through v6
 

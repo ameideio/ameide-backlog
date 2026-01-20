@@ -24,7 +24,7 @@ Primary outcome: the CLI is the **cognitive-load absorber** so agents do not nee
 - how to produce evidence consistently
 - how to avoid leaving behind local/cluster state
 
-This backlog inherits the internal-first model from `backlog/650-agentic-coding-overview.md`.
+This backlog inherits the internal-first model from `backlog/650-agentic-coding-overview-v6.md`.
 
 ## 0.2 Status update (2026-01-17)
 
@@ -259,7 +259,7 @@ Each phase produces JUnit in its phase directory.
 
 ## 9) References
 
-- Internal-first model: `backlog/650-agentic-coding-overview.md`
+- Internal-first model: `backlog/650-agentic-coding-overview-v6.md`
 - Test automation layers: `backlog/653-agentic-coding-test-automation-coder.md`
 - Test taxonomy contract: `backlog/430-unified-test-infrastructure-v2-target.md`
 - Front door history: `backlog/468-testing-front-door.md`

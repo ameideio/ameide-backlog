@@ -30,6 +30,9 @@ related:
   - 695-gitlab-configuration-gitops.md
   - 701-repository-ui-enterprise-repository-v6.md
   - 703-transformation-enterprise-repository-proto-v1.md
+  - 705-transformation-agentic-alignment-v6.md
+  - 706-transformation-v6-coordinated-implementation-plan.md
+  - 710-gitlab-api-token-contract.md
 ---
 
 # 704 — v6 Enterprise Repository + Memory (E2E implementation plan: cross-primitive increments)
