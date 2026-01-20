@@ -4,6 +4,7 @@ status: implemented
 owners:
   - platform
 created: 2026-01-19
+updated: 2026-01-20
 related:
   - 694-elements-gitlab-v6.md
   - 695-gitlab-configuration-gitops.md
@@ -34,6 +35,7 @@ GitLab tokens have historically been consumed on an ad-hoc basis (e.g., Backstag
   - points to Vault via `SecretStore/ameide-vault`,
   - writes a Kubernetes Secret named `gitlab-api-credentials` (overridable) with keys `GITLAB_API_URL` and `GITLAB_TOKEN`,
   - emits deterministic labels (`app.kubernetes.io/part-of: platform`, `ameide.io/layer: secrets-certificates`).
+  - **must set `spec.target.template.mergePolicy: Merge`** so templated keys (like `GITLAB_API_URL`) do not overwrite fetched keys (like `GITLAB_TOKEN`).
 - **Consumption contract:** workloads mount the Secret and use:
   - `GITLAB_TOKEN` via the documented `PRIVATE-TOKEN: <token>` HTTP header for GitLab API calls; GitLab explicitly documents this header for PATs/project/group access tokens. [2]
   - `GITLAB_API_URL` for the cluster’s canonical REST endpoint (`https://gitlab.<env>.ameide.io/api/v4`).
