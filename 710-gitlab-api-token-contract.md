@@ -35,6 +35,7 @@ For E2E/integration tests that create and delete GitLab projects (for example `b
 - Deliver it as a separate Kubernetes Secret (distinct `secretName`) so integration-test credentials do not collide with normal service credentials.
 - Use `POST /projects` with `namespace_id=<group_id>` so test projects are created under the dedicated group (not under a personal namespace).
 - Token needs `api` scope and sufficient permissions to create/delete projects in that group.
+- Default posture: provision this writer token only in `local`/`dev` environments; do not ship a mutating test credential into `production` unless explicitly approved and justified.
 - CI must verify the token works via an auth-required call (e.g., `GET ${GITLAB_API_URL}/user` using `PRIVATE-TOKEN`) before running the mutating flow.
 
 ## 3. GitOps delivery contract

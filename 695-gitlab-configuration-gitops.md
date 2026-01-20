@@ -215,6 +215,7 @@ Decide and document (matrix) which secrets are:
   - GitLab OmniAuth provider Secret rendered from Vault: `Secret/gitlab-oidc-provider` (key `provider`)
   - GitLab API access tokens surfaced via the shared `gitlab-api-credentials` ExternalSecret contract (`backlog/710-gitlab-api-token-contract.md`).
     - Standard token (`backstage`) is minted in-cluster as part of the GitLab rollout and written into Vault (`secret/gitlab/tokens/<env>/backstage`, key `value`).
+    - CI/E2E writer token is provisioned only in `local`/`dev` and delivered as `Secret/gitlab-api-credentials-e2e` in the environment namespace (no mutating test credential in production by default).
 - **Chart-generated** (acceptable to generate, but must be understood and monitored)
   - Initial root password secret (break-glass only)
   - Internal TLS, SSH host keys, and other shared secrets (if we keep ingress disabled, TLS is still relevant for internal components)
