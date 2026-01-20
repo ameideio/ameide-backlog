@@ -201,18 +201,9 @@ Update (2026-01-20): GitHub + Azure CLI auth seeding for workspaces (dev-only)
     - `/root/.config/gh` → `/workspaces/.config/gh/root`
     - `/home/vscode/.config/gh` → `/workspaces/.config/gh/vscode`
   - Git submodule init falls back to this token if `ENVBUILDER_GIT_PASSWORD` is unset.
-- Azure CLI (enabled in dev; requires Azure creds pipeline):
-  - Workspaces mount `Secret/azure-auth` at `/var/run/ameide/azure-auth` with keys `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET` (optional `AZURE_SUBSCRIPTION_ID`).
-  - Bootstrap runs `az login --service-principal` for both `root` and `vscode` and config lives under `/workspaces/.config/azure/<user>`.
-  - To make `az` work in non-interactive contexts (and avoid `AZURE_CONFIG_DIR` drift), bootstrap wires native default paths:
-    - `/root/.azure` → `/workspaces/.config/azure/root`
-    - `/home/vscode/.azure` → `/workspaces/.config/azure/vscode`
-  - Required Vault keys (each stored as `property: value`):
-    - `coder-workspaces-azure-tenant-id`
-    - `coder-workspaces-azure-client-id`
-    - `coder-workspaces-azure-client-secret`
-    - `coder-workspaces-azure-subscription-id` (optional; recommended to omit from the ExternalSecret by default)
-  - If these keys are missing, `ExternalSecret/azure-auth-sync` will stay in `SecretSyncedError` with “Secret does not exist”.
+- Azure CLI (dev posture):
+  - Preferred: Azure Workload Identity (no client secret; uses `AZURE_FEDERATED_TOKEN_FILE` injected by the AKS WI webhook).
+  - Legacy SP secret injection (`Secret/azure-auth`) is deprecated for new work; see `backlog/712-coder-workspaces-tasks-azure-workload-identity.md`.
 
 Operational note:
 

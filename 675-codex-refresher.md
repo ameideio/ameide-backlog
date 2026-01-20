@@ -41,7 +41,7 @@ Before GitOps applies this, **AKV must contain all seed keys for the configured 
 
 - In this repo, slots are configured per environment in `codexAuth.accounts` (GitOps values).
 - CI copies the configured seed keys from the “source Key Vault” into the cluster Key Vault.
-- Slot `2` is treated as optional in CI to support “2 out of 3” provisioning while we ramp up.
+  - Fail-fast posture: missing configured slot seed keys must fail the apply/sync step (no “optional slot” behavior).
 
 ### Design (two secrets per slot)
 

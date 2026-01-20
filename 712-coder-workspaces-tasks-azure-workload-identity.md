@@ -17,7 +17,7 @@ Make **Coder workspaces and Coder tasks** authenticate to Azure via **Azure Work
 
 - `gh` (GitHub CLI) via `Secret/gh-auth` (dev-only)
 - `az` (Azure CLI) via Workload Identity (dev-only)
-- `coder` (Coder CLI) via a scoped token injected from secrets (dev-only)
+- `coder` (Coder CLI) via an in-cluster reconciler that writes `Secret/coder-cli-auth` per workspace namespace (dev-only)
 - `codex` (Codex CLI) via slot secrets (dev-only)
 
 ## 1) Why
@@ -73,6 +73,22 @@ Workspaces/tasks use **dynamic namespaces** (e.g., `ameide-ws-<id>`), so federat
 Preferred mutation path:
 
 - a dedicated CI workflow reconciles federated credentials for active workspace/task namespaces (create missing; optionally prune stale).
+
+### 3.4 Coder CLI auth (workspace default; no manual login)
+
+Goal: new workspaces can run `coder whoami` without running `coder login` interactively and without storing any token values in templates or Terraform state.
+
+Implementation (dev):
+
+- A GitOps-managed CronJob runs in the Coder namespace and reconciles `Secret/coder-cli-auth` into each workspace namespace selected by labels (e.g. `com.coder.resource=true,com.ameide.workspace.env=dev`).
+- For each workspace namespace:
+  - read the workspace UUID from the namespace label `com.coder.workspace.id`
+  - if the existing token is missing/invalid, mint a new Coder API key and write it into `Secret/coder-cli-auth` as `CODER_SESSION_TOKEN`
+- The token is restricted via `allow_list` to:
+  - `user:<admin-user-id>` (required for `coder whoami`)
+  - `workspace:<workspace-id>` (limits blast radius to a single workspace)
+
+Note: this keeps Coder CLI auth purely “in-cluster and per workspace namespace”, avoiding both GitHub Actions secret distribution and “shared global tokens”.
 
 ## 4) Evidence / “Done means”
 
