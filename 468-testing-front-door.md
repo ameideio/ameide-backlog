@@ -2,7 +2,7 @@
 
 **Status:** Active
 **Created:** 2025-12-22
-**Updated:** 2025-12-22
+**Updated:** 2026-01-20
 
 > **Update (2026-01): 430v2 contract**
 >
@@ -20,6 +20,10 @@ ameide test
 ```
 
 This mirrors the 430v2 test contract phases in CI (Phase 0/1/2) and writes artifacts under `artifacts/agent-ci/`.
+
+## Implementation status
+
+This front door is now implemented as a first-class Go CLI entrypoint and merged into `ameide` `main` (PR: `ameideio/ameide#582`). Deployed-system E2E is split into the explicit CLI subcommand `ameide test e2e` (PR: `ameideio/ameide#589`).
 
 ## Agent inner loop (one command)
 
