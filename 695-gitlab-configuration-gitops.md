@@ -82,6 +82,7 @@ This is the vendor-supported posture (“external DB/Redis”) expressed via our
   - GitLab API tokens are required inputs in managed environments (no placeholder tokens); platform secrets smokes must fail fast on missing/placeholder credentials.
 - OIDC integration is now fully GitOps-managed (no placeholder secrets):
   - Keycloak client `gitlab` is reconciled per environment (redirect URIs match `gitlab.<env>.ameide.io`).
+  - Keycloak operator must watch all namespaces so the `Keycloak/keycloak` CR in each environment namespace is actually reconciled.
   - `client-patcher` extracts the Keycloak-generated secret into Vault key `gitlab-oidc-client-secret`.
   - `ExternalSecret/gitlab-oidc-provider` templates the GitLab OmniAuth provider config into `Secret/gitlab-oidc-provider` key `provider`.
   - Vault bootstrap policy for `keycloak-client-patcher` includes `secret/data/gitlab-*` to allow extraction.
