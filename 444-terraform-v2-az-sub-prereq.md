@@ -178,7 +178,9 @@ The Azure apply workflow includes TLS/443/SSO verifiers. They will fail until:
 
 We intentionally do **not** put secret values into Terraform inputs, because they land in `tfstate`.
 
-Instead, CI reads secret values from a “source” Key Vault (`TF_ENV_SECRETS_KEYVAULT_NAME`) and then **copies** them into the cluster Key Vault created by Terraform.
+Instead, a “seed/source” Key Vault (`TF_ENV_SECRETS_KEYVAULT_NAME`) is treated as the root-of-truth for secret *values* (seeded out-of-band).
+
+GitOps then performs the **seed → cluster** copy **in-cluster** (ArgoCD-managed), keeping orchestration out of GitHub Actions.
 
 ### 6.1 Create a globally unique Key Vault name
 Key Vault names are global. `ameide-ci-secrets` may already be taken.
@@ -189,7 +191,10 @@ Key Vault names are global. `ameide-ci-secrets` may already be taken.
 - Grant the CI principal `Key Vault Secrets User` on this vault (read).
 
 Notes:
-- The **cluster** Key Vault is created by Terraform and the Terraform runner identity is granted `Key Vault Secrets Officer` on it automatically (so CI can write secrets post-apply).
+- The **cluster** Key Vault is created by Terraform.
+- Terraform grants the in-cluster `vault-bootstrap` managed identity `Key Vault Secrets Officer` on both:
+  - the seed/source vault (read/write for controlled automation like token rotation)
+  - the cluster vault (write for seed sync; read for vault-bootstrap)
 
 ### 6.2 Populate required secret names (values are org-specific)
 Create secrets (names must match exactly):
@@ -211,6 +216,12 @@ Create secrets (names must match exactly):
 - `coder-bootstrap-admin-username` (seed initial Coder owner; skip `/setup`)
 - `coder-bootstrap-admin-email` (seed initial Coder owner; skip `/setup`)
 - `coder-bootstrap-admin-password` (seed initial Coder owner; skip `/setup`)
+- `coder-bootstrap-token` (one-time seed; used by in-cluster rotator to mint `coder-cli-session-token`)
+- `coder-cli-session-token` (managed by the in-cluster rotator; required for deterministic `coder` CLI in workspaces)
+- `codex-auth-json-b64-0` (base64(auth.json) for Codex slot 0)
+- `codex-auth-json-b64-1` (base64(auth.json) for Codex slot 1)
+- `codex-auth-json-b64-2` (base64(auth.json) for Codex slot 2)
+- `backstage-gitlab-token` (GitLab API token for Backstage integration; mapped into Vault)
 
 ---
 

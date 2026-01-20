@@ -17,7 +17,7 @@ Make **Coder workspaces and Coder tasks** authenticate to Azure via **Azure Work
 
 - `gh` (GitHub CLI) via `Secret/gh-auth` (dev-only)
 - `az` (Azure CLI) via Workload Identity (dev-only)
-- `coder` (Coder CLI) via an in-cluster reconciler that writes `Secret/coder-cli-auth` per workspace namespace (dev-only)
+- `coder` (Coder CLI) via the AKV → Vault → ESO conveyor, with an in-cluster token rotator (dev-only)
 - `codex` (Codex CLI) via slot secrets (dev-only)
 
 ## 1) Why
@@ -51,17 +51,19 @@ Decision for Ameide: **shard across a fixed pool of identities** (“Option B”
 
 ### 3.2 K8s wiring
 
-- GitOps materializes `Secret/coder-workspaces-azure-wi` in the environment namespace (e.g., `ameide-dev`) containing:
-  - `AZURE_CLIENT_IDS_JSON` (JSON array of managed identity client ids; sharded pool)
-  - `AZURE_TENANT_ID`
-- Coder templates read this secret and configure:
+- GitOps materializes non-secret runtime facts for Coder templates:
+  - `ConfigMap/coder-runtime-facts` in the Coder namespace contains:
+    - Azure tenant id
+    - JSON array of sharded managed identity client ids
+  - Coder server exports these as Terraform variables for templates (`TF_VAR_...`).
+- Coder templates use these values to configure:
   - `ServiceAccount` annotation `azure.workload.identity/client-id=<selected-client-id>`
   - Pod label `azure.workload.identity/use=true` (required for the webhook to inject token + env)
 
 Shard selection is deterministic:
 
 - `shardIndex = crc32(<workspace-namespace>) % len(clientIds)`
-- `clientId = clientIds[shardIndex]`
+  - `clientId = clientIds[shardIndex]`
 
 ### 3.3 Azure federated credentials lifecycle
 
@@ -70,25 +72,45 @@ Workspaces/tasks use **dynamic namespaces** (e.g., `ameide-ws-<id>`), so federat
 - issuer: AKS OIDC issuer URL
 - subject: `system:serviceaccount:<workspace-namespace>:workspace`
 
-Preferred mutation path:
+Mutation path (dev-only; GitOps-managed):
 
-- a dedicated CI workflow reconciles federated credentials for active workspace/task namespaces (create missing; optionally prune stale).
+- A CronJob runs **in-cluster** (ArgoCD-managed) under Azure Workload Identity and reconciles federated identity credentials:
+  - create missing
+  - prune stale / relocated (prefix-scoped) to avoid hitting the Entra 20-FIC-per-identity limit
 
-### 3.4 Coder CLI auth (workspace default; no manual login)
+Implementation:
 
-Goal: new workspaces can run `coder whoami` without running `coder login` interactively and without storing any token values in templates or Terraform state.
+- Chart: `sources/charts/foundation/vault-bootstrap`
+- CronJob: `vault-bootstrap-*-coder-ws-fic`
 
-Implementation (dev):
+### 3.4 Seed Key Vault → cluster Key Vault sync (no GitHub workflows)
 
-- A GitOps-managed CronJob runs in the Coder namespace and reconciles `Secret/coder-cli-auth` into each workspace namespace selected by labels (e.g. `com.coder.resource=true,com.ameide.workspace.env=dev`).
-- For each workspace namespace:
-  - read the workspace UUID from the namespace label `com.coder.workspace.id`
-  - if the existing token is missing/invalid, mint a new Coder API key and write it into `Secret/coder-cli-auth` as `CODER_SESSION_TOKEN`
-- The token is restricted via `allow_list` to:
-  - `user:<admin-user-id>` (required for `coder whoami`)
-  - `workspace:<workspace-id>` (limits blast radius to a single workspace)
+We keep a **seed/source Key Vault** as the root-of-truth for secret values (out-of-band seeded), but we no longer rely on GitHub Actions to copy secrets into the cluster Key Vault.
 
-Note: this keeps Coder CLI auth purely “in-cluster and per workspace namespace”, avoiding both GitHub Actions secret distribution and “shared global tokens”.
+Implementation (dev-only; ArgoCD-managed):
+
+- Chart: `sources/charts/foundation/vault-bootstrap`
+- CronJob: `vault-bootstrap-*-keyvault-sync`
+- Copies a **curated allowlist** of secret names from seed AKV → cluster AKV.
+
+### 3.5 Coder CLI auth (workspace default; no manual login)
+
+Goal: new workspaces can run `coder whoami` without running `coder login` interactively and without putting any token values into templates or Terraform state.
+
+Implementation (dev-only; GitOps-managed):
+
+1) Human seeds **one** long-lived `coder-bootstrap-token` into the seed Key Vault (once).
+
+2) A CronJob runs in-cluster and rotates `coder-cli-session-token`:
+
+- Chart: `sources/charts/foundation/vault-bootstrap`
+- CronJob: `vault-bootstrap-*-coder-cli-token-rotator`
+- Reads `coder-bootstrap-token` from Vault (via ESO) and mints `coder-cli-session-token` via the Coder API
+- Writes `coder-cli-session-token` back to the **seed** Key Vault (root-of-truth)
+
+3) Existing conveyor does the rest (no new special cases):
+
+- seed AKV → (CronJob sync) → cluster AKV → (vault-bootstrap) → Vault KV → (ESO) → `Secret/coder-cli-auth` in each workspace namespace.
 
 ## 4) Evidence / “Done means”
 
