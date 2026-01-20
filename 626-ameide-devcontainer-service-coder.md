@@ -338,3 +338,9 @@ Update (2026-01-15): vendor-aligned workspace bootstrap
 
 - Keep `startup_script` minimal and non-fatal; move non-trivial setup into `coder_script` resources (per vendor direction).
 - Remove version knobs for Codex tooling; installs are “latest” and best-effort to avoid blocking workspace readiness.
+
+Update (2026-01-19): Codex VS Code extension crash when `CODEX_HOME` points to a missing directory
+
+- Observed failure mode: the Codex VS Code extension (`openai.chatgpt`) repeatedly crashes on activation; `Codex.log` shows `error loading config: No such file or directory (os error 2)`.
+- Root cause: code-server starts the extension with `CODEX_HOME=/home/vscode/.codex` (even when `HOME=/root`), but the template only materialized Codex config/auth under `/workspaces/.codex`.
+- Required mitigation: templates must ensure `/home/vscode/.codex` exists and mirror `config.toml` (+ `auth.json` when available) into `/home/vscode/.codex` on workspace start. Implemented in `ameideio/ameide-gitops` PR #436 (merge commit `e35f742b1390f67615f4f2f764db8d44da8ebfa8`).

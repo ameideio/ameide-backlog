@@ -33,6 +33,13 @@ Update (2026-01-19): code-server reachability failures after node pool churn
 - Root cause: cached code-server install under `/workspaces/.code-server` persisted on the workspace PVC but was built for a different CPU architecture (e.g., amd64 cache reused on arm64 nodes), causing `Exec format error` and preventing code-server from starting.
 - Required mitigation: templates must detect a non-runnable cached code-server/Node binary and clear the arch-specific cache so the vendor module can reinstall for the current architecture.
 
+Update (2026-01-19): Codex VS Code extension crash in a single workspace (root cause + fix)
+
+- Observed failure mode: the Codex VS Code extension (`openai.chatgpt`) repeatedly crashes on activation; `Codex.log` shows `error loading config: No such file or directory (os error 2)`.
+- Root cause: code-server starts the extension with `CODEX_HOME=/home/vscode/.codex` (even when the server process runs as `root`), but the template only materialized Codex config/auth under `/workspaces/.codex`, so `/home/vscode/.codex/config.toml` was missing.
+- Mitigation: ensure `/home/vscode/.codex` and `/home/vscode/.local/bin` exist, and mirror `config.toml` (+ `auth.json` when available) into `/home/vscode/.codex` on workspace start. Implemented in `ameideio/ameide-gitops` PR #436 (merge commit `e35f742b1390f67615f4f2f764db8d44da8ebfa8`).
+- Note: extension version pinning can persist per-workspace via code-server state (`/workspaces/.code-server/extensions/extensions.json`); the template does not intentionally pin a VSIX/version.
+
 ## 0.1 Primary UX goal: the workspace is “agent-native”
 
 The workspace is not just a “human IDE in the cluster”; it is the place where agents and humans share a single, reproducible dev machine contract.
