@@ -1,11 +1,12 @@
 ---
 title: "704 — v6 Enterprise Repository + Memory (E2E implementation plan: cross-primitive increments)"
-status: draft
+status: in-progress
 owners:
   - platform
   - transformation
   - ui
 created: 2026-01-19
+updated: 2026-01-20
 related:
   - 300-400/329-authz.md
   - 496-eda-principles-v6.md
@@ -41,6 +42,20 @@ This is the cross-primitive, end-to-end (E2E) implementation plan for the v6 pos
 - **Governance truth lives in the platform; GitLab CE provides storage + CI + enforcement primitives**
 
 The intent is to ship **usable E2E increments**: each increment advances proto seams + Domain/Projection + UI + (where applicable) agents/processes, and has a product-visible “loop” that can be exercised.
+
+## Status (2026-01-20)
+
+Platform + Transformation code progress (UI still pending):
+
+- **Enterprise Repository v1 proto seam:** implemented (new services + SDKs).
+- **Increment 0/1/2/3 (Domain+Projection):** implemented in `ameide` (MR-backed change/commit/publish, Git tree reads, citations).
+- **GitOps wiring (710 token contract):** fixed in `ameide-gitops` so `Secret/gitlab-api-credentials` can contain both `GITLAB_API_URL` and `GITLAB_TOKEN`, and Transformation workloads can consume them.
+
+Known remaining work to reach “real end-to-end in-cluster proof”:
+
+- Provision (or seed) at least one real GitLab project and its platform DB mapping (repo → git remote/provider pointers).
+- Add a cluster integration test/smoke that calls `EnsureChange` → `CreateCommit` → `PublishChange`, then validates `ListTree`/`GetContent` on the resulting `main` commit SHA.
+- Move from “shared dev token” to per-service tokens (least privilege) per `backlog/710-gitlab-api-token-contract.md`.
 
 ## 0) Non‑negotiables (normative; apply to every increment)
 

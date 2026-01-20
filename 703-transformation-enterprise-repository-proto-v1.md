@@ -1,10 +1,11 @@
 ---
 title: "703 — Transformation Enterprise Repository Proto (v1 proposal: Git tree browsing + governed Git writes)"
-status: draft
+status: implemented
 owners:
   - transformation
   - platform
 created: 2026-01-19
+updated: 2026-01-20
 related:
   - 496-eda-principles-v6.md
   - 694-elements-gitlab-v6.md
@@ -15,6 +16,13 @@ related:
 # 703 — Transformation Enterprise Repository Proto (v1 proposal: Git tree browsing + governed Git writes)
 
 This proposes a clean v1 proto seam for “Enterprise Repository = Git tree” browsing and governed edits.
+
+## Status (2026-01-20)
+
+This v1 seam is now implemented in the platform codebase and should be treated as the canonical contract for:
+
+- Git tree reads via Projection (path + read_context + SHA citations)
+- Governed writes via Domain (MR-backed `EnsureChange`/`CreateCommit`/`PublishChange`)
 
 ## Normative constraints (must hold)
 
