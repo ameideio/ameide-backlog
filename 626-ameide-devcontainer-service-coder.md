@@ -185,10 +185,22 @@ GitHub access is needed for two distinct purposes:
 2) **Git operations inside the workspace (human workflow)**  
    Developers may use interactive auth (`gh auth login` / device flow) for pushing branches and opening PRs.
 
-Hard rule:
+Hard rules:
 
-- No “cluster-wide bot” GitHub token is mounted by default into human workspaces.
 - Templates must never embed secret values; treat templates as readable by all template users.
+- Workspace GitHub auth must be explicit and deterministic:
+  - For envbuilder cloning, use Coder External Auth (per-user token; see above).
+  - For in-workspace `gh`/`git` UX, use a GitOps-managed Kubernetes Secret mount (dev-only) rather than ad-hoc device-flow logins.
+
+Update (2026-01-20): GitHub + Azure CLI auth seeding for workspaces (dev-only)
+
+- GitHub CLI:
+  - Workspaces mount `Secret/gh-auth` at `/var/run/ameide/gh-auth` (key: `token`).
+  - Bootstrap runs `gh auth login --with-token` for both `root` and `vscode` and config lives under `/workspaces/.config/gh/<user>`.
+  - Git submodule init falls back to this token if `ENVBUILDER_GIT_PASSWORD` is unset.
+- Azure CLI (optional; disabled until Azure creds pipeline is wired):
+  - Workspaces mount `Secret/azure-auth` at `/var/run/ameide/azure-auth` with keys `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET` (optional `AZURE_SUBSCRIPTION_ID`).
+  - Bootstrap runs `az login --service-principal` for both `root` and `vscode` and config lives under `/workspaces/.config/azure/<user>`.
 
 Operational note:
 
