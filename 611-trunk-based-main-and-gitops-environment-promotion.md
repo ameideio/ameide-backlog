@@ -92,7 +92,7 @@ Related backlogs:
 ### Runner switching (simple)
 
 - One variable to switch CI execution substrate per repo:
-  - `AMEIDE_RUNS_ON=arc-aks` (recommended default)
+  - `AMEIDE_RUNS_ON=arc-aks-v2` (recommended default)
   - `AMEIDE_RUNS_ON=arc-local` (developer local cluster)
   - `AMEIDE_RUNS_ON=ubuntu-latest` (GitHub-hosted)
 - Workflows should not hardcode runner selection; the GitHub variable controls routing.

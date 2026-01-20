@@ -178,7 +178,7 @@ Required-check-safe recommendation:
 
 - **Required-check-safe scoping**: `GitOps / Gate` is the single required check and scopes work via a diff-based `changes` job + an always-run gate.
 - **Aggressive cancellation**: PR workflows use `concurrency` with `cancel-in-progress: true` (and workflow-unique groups to avoid cross-workflow cancellation).
-- **Runner routing is GitHub-config-driven**: most CI workflows run on `runs-on: ${{ vars.AMEIDE_RUNS_ON }}` (no workflow defaults), allowing switching between `arc-local` and `arc-aks`.
+- **Runner routing is GitHub-config-driven**: most CI workflows run on `runs-on: ${{ vars.AMEIDE_RUNS_ON }}` (no workflow defaults), allowing switching between `arc-local` and `arc-aks-v2`.
 - **Metrics without `/timing`**: a weekly snapshot workflow exists (`CI Metrics (Weekly)`).
 
 ### Workflows updated to match this pattern

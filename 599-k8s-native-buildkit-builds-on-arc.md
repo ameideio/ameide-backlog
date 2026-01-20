@@ -47,7 +47,7 @@ We already rely on BuildKit features (e.g. `RUN --mount=type=secret`) for safe b
 
 - Runner label: set via GitHub variable `AMEIDE_RUNS_ON` (no workflow defaults)
   - `arc-local` for local k3d ARC
-  - `arc-aks` for AKS ARC
+  - `arc-aks-v2` for AKS ARC
 - BuildKit endpoint variable: `AMEIDE_BUILDKIT_ADDR` (repo/org variable)
   - Default: `tcp://buildkitd.buildkit.svc.cluster.local:1234`
   - Local runner pods also export `AMEIDE_BUILDKIT_ADDR` directly, so ARC workflows can rely on it without hardcoding.
@@ -84,7 +84,7 @@ GitOps sources:
 
 - Runner pods export `AMEIDE_BUILDKIT_ADDR=tcp://buildkitd.buildkit.svc.cluster.local:1234` so workflows don’t need to hardcode it.
 - `arc-local` uses a pinned runner image with baseline tools (including `buildctl` and `skopeo`) to avoid per-workflow installer glue.
-- `arc-aks` uses the same runner image family, published multi-arch and pinned by manifest digest.
+- `arc-aks-v2` uses the same runner image family, published multi-arch and pinned by manifest digest.
 
 ### BuildKit security posture
 
