@@ -20,8 +20,8 @@ Per `backlog/430-unified-test-infrastructure-v2-target.md`:
 
 - `ameide test` runs **Phase 0/1/2 only** (local-only; no Kubernetes/Telepresence).
 - Deployed-system verification is split:
-  - `ameide test e2e`: Playwright-only against the deployed platform URL read from `AUTH_URL` in `ConfigMap/www-ameide-platform-config`.
-  - `ameide test smoke`: cluster-only smokes for runtime semantics (e.g., Zeebe conformance), not part of Phase 2.
+  - `ameide test cluster`: Playwright-only against the deployed platform URL read from `AUTH_URL` in `ConfigMap/www-ameide-platform-config`.
+  - `ameide test cluster`: cluster-only smokes for runtime semantics (e.g., Zeebe conformance), not part of Phase 2.
 
 ## Why this split exists
 

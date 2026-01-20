@@ -24,7 +24,7 @@ The agent-oriented, no-flags verification tool is now:
 
 - `ameide test`
 
-It runs Phase 0/1/2 only (contract → unit → integration; local-only). Deployed-system E2E (Phase 3) runs separately via `ameide test e2e`.
+It runs Phase 0/1/2 only (contract → unit → integration; local-only). Deployed-system E2E (Phase 3) runs separately via `ameide test cluster`.
 
 This status doc still contains pack-based tracking notes for historical context, but “integration packs” are now considered legacy and will be removed/migrated.
 
@@ -218,9 +218,9 @@ Although operators don’t use `INTEGRATION_MODE`, the intent is analogous:
 - `getServerClient()` does not branch on `INTEGRATION_MODE`; runtime always uses the live transport.
 - `tests/scripts/run-playwright-e2e.mjs` enforces backlog 430: **Playwright E2E is cluster-only** and fails fast unless:
   - `INTEGRATION_MODE=cluster`
-  - `AMEIDE_PLATFORM_BASE_URL` is set (absolute URL; set by `ameide test e2e` by reading `AUTH_URL` from `ConfigMap/www-ameide-platform-config`)
+  - `AMEIDE_PLATFORM_BASE_URL` is set (absolute URL; set by `ameide test cluster` by reading `AUTH_URL` from `ConfigMap/www-ameide-platform-config`)
   - `WWW_AMEIDE_PLATFORM_E2E_NAMESPACE` + `WWW_AMEIDE_PLATFORM_E2E_SECRET_NAME` are set (persona secret source)
-- When `ameide test e2e` is run from a Kubernetes-hosted workspace/task (Coder/Che), the execution identity must have read access to `ConfigMap/www-ameide-platform-config` and the persona Secret in the environment namespace; grant this via a predeclared, tightly-scoped Role that workspaces bind to (not by ad-hoc Role creation during provisioning).
+- When `ameide test cluster` is run from a Kubernetes-hosted workspace/task (Coder/Che), the execution identity must have read access to `ConfigMap/www-ameide-platform-config` and the persona Secret in the environment namespace; grant this via a predeclared, tightly-scoped Role that workspaces bind to (not by ad-hoc Role creation during provisioning).
 - Playwright artifacts write to `/artifacts/e2e/*` (junit + report + traces/screenshots/videos) with no fallback paths.
 
 ---

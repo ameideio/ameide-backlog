@@ -18,11 +18,11 @@ This document defines the v4 test plan aligned to `backlog/430-unified-test-infr
   - no Kubernetes access, no Telepresence
 
 - Cluster smokes (separate):
-  - `ameide test smoke` runs `//go:build cluster` suites
+  - `ameide test cluster` runs `//go:build cluster` suites
   - used to validate Zeebe runtime wiring and cross-primitive message routing
 
 - Deployed E2E (preview):
-  - `ameide test e2e` runs Playwright against preview ingress URL
+  - `ameide test cluster` runs Playwright against preview ingress URL
 
 ## Conformance vs capability tests
 

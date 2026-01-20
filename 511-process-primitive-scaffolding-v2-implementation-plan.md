@@ -4,7 +4,7 @@ This document turns `backlog/511-process-primitive-scaffolding-v2.md` and `backl
 
 > **Superseded:** see `backlog/511-process-primitive-scaffolding-v3-implementation-plan.md` (aligns execution + test gates to `backlog/430-unified-test-infrastructure-v2-target.md` and codifies Request → Wait → Resume).
 >
-> **Update (2026-01):** `ameide test` is Phase 0/1/2 only (local-only). Any cluster-only gates described below must run via `ameide test smoke` / `ameide test e2e` (not via the front door).
+> **Update (2026-01):** `ameide test` is Phase 0/1/2 only (local-only). Any cluster-only gates described below must run via `ameide test cluster` / `ameide test cluster` (not via the front door).
 
 ## Goal
 
@@ -78,7 +78,7 @@ Implement an in-cluster test runner that:
 
 ### 5) Front door wiring
 
-Wire the conformance runner into `ameide test smoke` as the cluster-only gate.
+Wire the conformance runner into `ameide test cluster` as the cluster-only gate.
 
 ### 6) Migration / decommission
 
@@ -102,4 +102,4 @@ This plan is “done” when:
 - The conformance suite runs in the dev namespace and reliably proves:
   - deploy → run segments → assert engine semantics,
   - incidents and sequence flows are observable via Orchestration Cluster API.
-- `ameide test smoke` runs these smokes against the dev cluster (cluster-only), while `ameide test` stays Phase 0/1/2 only (local-only).
+- `ameide test cluster` runs these smokes against the dev cluster (cluster-only), while `ameide test` stays Phase 0/1/2 only (local-only).

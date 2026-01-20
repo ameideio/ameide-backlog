@@ -10,7 +10,7 @@ This file is generated for review/traceability. It snapshots the current impleme
 >
 > Current contract:
 > - `ameide test` runs Phase 0/1/2 only (local-only; no Kubernetes/Telepresence)
-> - deployed-system E2E runs via `ameide test e2e` (cluster-only; Playwright-only)
+> - deployed-system E2E runs via `ameide test cluster` (cluster-only; Playwright-only)
 >
 > Treat `backlog/430-unified-test-infrastructure-v2-target.md` as authoritative.
 

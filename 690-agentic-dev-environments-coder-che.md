@@ -33,7 +33,7 @@ Provider choice is a runtime decision; the contract is not.
 
 Common expectations (both providers):
 
-- Same deterministic entrypoints: `ameide test` and `ameide test e2e`.
+- Same deterministic entrypoints: `ameide test` and `ameide test cluster`.
 - Same evidence layout and semantics (JUnit always produced).
 - Same guardrails (unprivileged pods, no Telepresence assumptions).
 - Same credential model (bot Git, Codex slots, no secret embedding in templates).

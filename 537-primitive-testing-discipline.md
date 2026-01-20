@@ -20,7 +20,7 @@
 
 - `ameide primitive scaffold` and `ameide primitive verify` are **mechanical alignment tools** (structure, codegen drift, import policy, no unfinished scaffolds). They are **not** test runners.
 - `ameide test` is the **only in-repo test runner** (Phase 0/1/2 per 430v2; integration uses mocks/stubs; no Kubernetes/Telepresence).
-- `ameide test e2e` is the **deployed-system** test runner against a real target (preview/dev ingress), executed separately from Phase 0/1/2.
+- `ameide test cluster` is the **deployed-system** test runner against a real target (preview/dev ingress), executed separately from Phase 0/1/2.
 - ArgoCD smokes are **the cluster execution venue** for minimal post-sync checks; smoke assertions must remain owned/versioned with the primitive (avoid a second “platform test suite” truth).
 
 ---
@@ -320,7 +320,7 @@ def test_agent_state_not_business_truth():
 
 1. **"No tests found" = FAIL.** Scaffolds always generate tests. If a primitive has no tests, something is wrong.
 2. **Scaffold markers must be replaced.** Any `AMEIDE_SCAFFOLD` marker in a test file causes `ameide primitive verify` to fail.
-3. **CI runs the same commands as `ameide test`.** Tests run only via `ameide test` (Phase 0/1/2) and `ameide test e2e` (deployed target). `ameide primitive verify` remains a mechanical alignment gate.
+3. **CI runs the same commands as `ameide test`.** Tests run only via `ameide test` (Phase 0/1/2) and `ameide test cluster` (deployed target). `ameide primitive verify` remains a mechanical alignment gate.
 
 ### 3.2 Phase Semantics (430v2)
 
@@ -546,7 +546,7 @@ ameide primitive verify --kind domain --name orders
 ameide test
 
 # Run deployed-system E2E (preview/dev ingress)
-ameide test e2e
+ameide test cluster
 ```
 
 `ameide primitive verify --json` should report structural/mechanical checks only (shape, imports, codegen drift, scaffold marker scan), not test execution results.

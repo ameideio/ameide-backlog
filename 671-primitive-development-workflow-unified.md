@@ -122,14 +122,14 @@ Strongly enforceable (deterministic):
 
 Not enforceable as “truth” in core repo:
 - GitOps desired state correctness and Argo routing/smokes (those are GitOps repo + cluster concerns)
-- In-cluster behavior and health (that belongs to Argo smokes and/or `ameide test e2e` against a deployed target)
+- In-cluster behavior and health (that belongs to Argo smokes and/or `ameide test cluster` against a deployed target)
 
 ### Enforced in `ameide test` (core repo CI)
 
 - Phase 0/1/2 in-repo tests only (per 430v2); integration uses mocks/stubs/fakes; no Kubernetes/Telepresence
 - Mandatory JUnit evidence for each phase
 
-### Enforced in `ameide test e2e` (deployed target, CI)
+### Enforced in `ameide test cluster` (deployed target, CI)
 
 - Deployed-system E2E against a real ingress/base URL (preview/dev), executed from CI as a separate layer from Phase 0/1/2
 

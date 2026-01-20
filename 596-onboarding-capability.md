@@ -19,7 +19,7 @@ Onboarding v2: Primitive Decomposition + Non‑Happy Path Hardening + Integratio
 >
 > This doc was originally written in the v1 “integration pack / `INTEGRATION_MODE`” era. Keep those details for historical context, but treat the normative execution contract as:
 > - `ameide test` (Phase 0/1/2: contract → unit → integration; local-only)
-> - `ameide test e2e` (cluster-only Playwright E2E)
+> - `ameide test cluster` (cluster-only Playwright E2E)
 > - no `INTEGRATION_MODE`
 > - no per-suite `run_integration_tests.sh` packs as the canonical path
 

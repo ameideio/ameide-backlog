@@ -15,7 +15,7 @@ Implement 430v2 end-to-end so that:
 
 - Phase 0/1/2 run under `ameide test`
 - Phase 1/2 are local-only and use native tooling (no packs/scripts, no modes)
-- Deployed-system E2E (Phase 3) is cluster-only and Playwright-only, run separately via `ameide test e2e`
+- Deployed-system E2E (Phase 3) is cluster-only and Playwright-only, run separately via `ameide test cluster`
 - JUnit XML is produced for every phase, always (synthetic JUnit on early failure)
 
 Target contract: `backlog/430-unified-test-infrastructure-v2-target.md`
@@ -40,7 +40,7 @@ Update `ameide test` to:
   - Jest integration suite (repo-wide convention)
   - Pytest integration suite (repo-wide convention)
 
-Deployed-system E2E (Phase 3) runs separately via `ameide test e2e` (Playwright only).
+Deployed-system E2E (Phase 3) runs separately via `ameide test cluster` (Playwright only).
 
 Evidence contract:
 - always write JUnit per phase
@@ -91,7 +91,7 @@ After the repo is migrated and CI gates are green:
 ## Acceptance criteria
 
 - `ameide test` runs Phase 0/1/2 with strict ordering and fail-fast.
-- `ameide test e2e` runs Phase 3 as deployed-system E2E (cluster-only; Playwright-only).
+- `ameide test cluster` runs Phase 3 as deployed-system E2E (cluster-only; Playwright-only).
 - All phases emit JUnit XML evidence into a stable artifacts structure.
 - No test requires `INTEGRATION_MODE` to run.
 - No test requires `run_integration_tests.sh` to run in Phase 1/2.
