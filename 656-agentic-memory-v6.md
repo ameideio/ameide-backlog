@@ -50,6 +50,15 @@ This v6 reframes “organizational memory” to match the platform’s Git-backe
 
 This document supersedes `backlog/656-agentic-memory-v1.md` (303-first / elements-first posture) while keeping its intent and safety invariants.
 
+## Projection contract (v6; required)
+
+“Memory” is projection-owned, but that is an explicit contract (not just an implementation detail):
+
+- **Rebuildable:** deleting and rebuilding the projection is always a valid recovery path; correctness cannot depend on projection state.
+- **Incrementally maintainable:** projections may update incrementally (facts, merge events, periodic reconciles), but must remain compatible with full rebuilds.
+- **Citation-grade:** every returned result (search hit, graph edge/backlink, context bundle) must be explainable via citations anchored to a specific `read_context` (commit SHA + path + anchor).
+- **Eventually consistent:** the UI and agents must tolerate lag between publication and projection availability, and must be able to show “what commit SHA this view reflects”.
+
 ## 0) Non-negotiables (still required under v6)
 
 1) **Permission-trimmed retrieval is mandatory.**  

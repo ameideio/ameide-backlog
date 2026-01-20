@@ -56,3 +56,5 @@ Optional anchors:
 5) `evidence:*` → evidence refs (logs/artifacts/links)
 
 The exact representation of these anchors (inline references vs structured metadata) is a convention; the key requirement is that Projection can reconstruct and cite them reproducibly.
+
+Operational note: “inline-only relationships” (including these anchors) are authored inside Git-backed files, not via relationship CRUD. Backlinks/impact/graphs are projection-derived, rebuildable, and citation-grade (see `backlog/694-elements-gitlab-v6.md` and `backlog/656-agentic-memory-v6.md`).

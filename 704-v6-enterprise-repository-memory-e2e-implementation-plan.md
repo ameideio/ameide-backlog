@@ -94,7 +94,7 @@ These are requirements, not “guidelines”:
 
 3) **Relationships are inline-only**
 - Relationships are only inline references inside element content; no relationship sidecar files, no `relationships/**` folder, no relationship CRUD.
-- Graph/backlinks are projection-derived only.
+- Graph/backlinks are projection-derived only, and must be citation-grade (every derived edge/backlink must be explainable via citations back to `{repository_id, commit_sha, path[, anchor]}`).
 - Reference: `backlog/694-elements-gitlab-v6.md`, `backlog/701-repository-ui-enterprise-repository-v6.md`, `backlog/656-agentic-memory-v6.md`.
 
 4) **GitLab CE only**
@@ -117,6 +117,7 @@ These are requirements, not “guidelines”:
 
 8) **Reproducible reads**
 - Every retrieval that influences decisions must include `read_context` plus citations sufficient to reproduce “what was read” (v6: `{repository_id, commit_sha, path[, anchor]}`).
+- This applies equally to “memory” outputs that are not raw file reads (search hits, graph edges/backlinks, context bundles): they remain derived, but must still be citation-addressable.
 - Reference: `backlog/534-mcp-protocol-adapter.md`, `backlog/656-agentic-memory-v6.md`.
 
 ## 1) Transition strategy (avoid “rename legacy protos”)
