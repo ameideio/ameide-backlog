@@ -32,6 +32,7 @@ GitLab tokens have historically been consumed on an ad-hoc basis (e.g., Backstag
 For seedless E2E/integration tests that create and delete GitLab projects (for example `backlog/704-v6-enterprise-repository-memory-e2e-implementation-plan.md`), use a dedicated token that is explicitly allowed to mutate GitLab:
 
 - Prefer a **group access token** scoped to a dedicated group (e.g. `ameide-e2e`) rather than an admin PAT.
+- Deliver it as a separate Kubernetes Secret (distinct `secretName`) so integration-test credentials do not collide with normal service credentials.
 - Use `POST /projects` with `namespace_id=<group_id>` so test projects are created under the dedicated group (not under a personal namespace).
 - Token needs `api` scope and sufficient permissions to create/delete projects in that group.
 - CI must verify the token works via an auth-required call (e.g., `GET ${GITLAB_API_URL}/user` using `PRIVATE-TOKEN`) before running the mutating flow.

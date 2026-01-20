@@ -58,6 +58,7 @@ Known remaining work to reach “real end-to-end in-cluster proof”:
 - Move from “shared dev token” to per-service tokens (least privilege) per `backlog/710-gitlab-api-token-contract.md`, including a dedicated writer token for the E2E test:
   - Recommended: a **group access token** scoped to a dedicated group (e.g. `ameide-e2e`) and used with `namespace_id=<group_id>` for project creation.
   - Token needs `api` scope and sufficient permissions in that group to create/delete projects.
+  - Deliver integration-test credentials via a distinct Secret (do not reuse `gitlab-api-credentials` that normal services consume).
 - Optional (dev convenience only): seed a sandbox GitLab project + mapping to speed up manual debugging, but tests must still create and clean up their own repositories.
 
 ArgoCD smokes are a separate layer:
