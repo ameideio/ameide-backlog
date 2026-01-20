@@ -53,7 +53,7 @@ Platform + Transformation code progress (UI still pending):
 
 Known remaining work to reach “real end-to-end in-cluster proof”:
 
-- Add an **application integration test (CI/E2E)** that is **seedless**: it creates a new GitLab project for the test run and registers the platform mapping (repo → provider pointers) as part of the flow (no dependency on pre-seeded projects).
+- Add an **application integration test (CI/E2E)** that creates a new GitLab project for the test run and registers the platform mapping (repo → provider pointers) as part of the flow (no dependency on pre-seeded projects).
 - The E2E test must run: auth sanity (`GET /user`) → create project (`POST /projects`, preferably `initialize_with_readme=true`) → onboard/mapping → `EnsureChange` → `CreateCommit` → `PublishChange` → validate `ListTree`/`GetContent` at the resulting `main` commit SHA → best-effort cleanup (`DELETE /projects/:id`) to avoid leaks.
 - Move from “shared dev token” to per-service tokens (least privilege) per `backlog/710-gitlab-api-token-contract.md`, including a dedicated writer token for the E2E test:
   - Recommended: a **group access token** scoped to a dedicated group (e.g. `ameide-e2e`) and used with `namespace_id=<group_id>` for project creation.
@@ -76,7 +76,7 @@ ArgoCD smokes are a separate layer:
 
 **Apps (platform/transformation)**
 
-- TODO: implement the seedless CI/E2E test flow (create project → onboard/mapping via platform API → governed change/commit/publish → verify reads at SHA → delete project).
+- TODO: implement the CI/E2E test flow (create project → onboard/mapping via platform API → governed change/commit/publish → verify reads at SHA → delete project).
 - TODO: ensure repo onboarding/mapping is platform-owned (no tests writing DB rows directly), and expose the minimal API needed for the E2E test.
 
 ## 0) Non‑negotiables (normative; apply to every increment)
