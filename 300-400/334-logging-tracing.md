@@ -1,4 +1,6 @@
-# Observability Target State (Grafana + Loki + Tempo)
+# Observability Target State (Grafana + Loki + Tempo) (superseded)
+
+This document is superseded by `backlog/300-400/334-logging-tracing-v3.md` (authoritative).
 
 _Last updated: 2025-11-09_
 
