@@ -33,7 +33,7 @@ Pinned to chart version **`0.13.1`**.
 ### Runner sets (one per cluster)
 
 - Local runner scale set name: `arc-local`
-- AKS runner scale set name: `arc-aks`
+- AKS runner scale set name: `arc-aks-v2`
 
 ### GitHub routing contract (no workflow defaults)
 
@@ -47,7 +47,7 @@ jobs:
 
 Set `AMEIDE_RUNS_ON` to:
 - `arc-local` to run on local k3d ARC, or
-- `arc-aks` to run on AKS ARC.
+- `arc-aks-v2` to run on AKS ARC.
 
 ### Org-scoped runner registration (shared across repos)
 
@@ -58,7 +58,7 @@ This enables a shared runner substrate for multiple repos, but it makes **runner
 
 ### Failure mode: “jobs never start” when runner groups restrict the repo
 
-If the org runner group used by the scale set does not allow a repo, jobs for that repo can sit in `queued` with no runner assigned (even if `runs-on: arc-aks` matches).
+If the org runner group used by the scale set does not allow a repo, jobs for that repo can sit in `queued` with no runner assigned (even if `runs-on: arc-aks-v2` matches).
 
 - Symptom: jobs stay `queued` and ARC never scales up for them.
 - Resolution: allow the repo in the runner group, or deploy a dedicated runner set for that repo.
@@ -234,7 +234,7 @@ If a workflow truly requires Docker daemon semantics, run it on GitHub-hosted ru
   - `cluster-github-arc-controller`
   - `cluster-github-arc-runner-set`
 - Namespaces exist: `arc-systems`, `arc-runners`
-- A workflow in `ameideio/ameide-gitops` runs with `runs-on: ${{ vars.AMEIDE_RUNS_ON }}` and succeeds on both `arc-local` and `arc-aks` when the variable is flipped.
+- A workflow in `ameideio/ameide-gitops` runs with `runs-on: ${{ vars.AMEIDE_RUNS_ON }}` and succeeds on both `arc-local` and `arc-aks-v2` when the variable is flipped.
 
 ---
 
