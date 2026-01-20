@@ -79,8 +79,10 @@ This is the vendor-supported posture (“external DB/Redis”) expressed via our
 - Disabled GitLab chart `upgradeCheck` under ArgoCD to avoid Helm hook failures blocking first installs (GitOps rollouts).
 - Switched GitLab object storage to the shared in-namespace MinIO (`data-minio`) and disabled GitLab’s bundled MinIO chart.
   - Credentials now use a dedicated MinIO service user (`gitlab-minio-access-key`, `gitlab-minio-secret-key`), not MinIO root.
-- Standardized in-cluster GitLab API token delivery (Vault → ExternalSecret → `Secret/gitlab-api-credentials`) via `foundation-gitlab-api-credentials` (`backlog/710-gitlab-api-token-contract.md`).
-  - GitLab API tokens are required inputs in managed environments (no placeholder tokens); platform secrets smokes must fail fast on missing/placeholder credentials.
+- Standardized GitLab API token delivery (Vault → ExternalSecret → `Secret/gitlab-api-credentials`) via `foundation-gitlab-api-credentials` (`backlog/710-gitlab-api-token-contract.md`).
+  - Standard platform token (`backstage`) is minted in-cluster as part of the GitLab rollout (PostSync bootstrap Job) and written into Vault under `secret/gitlab/tokens/<env>/backstage` (key `value`).
+  - Smokes must fail fast if `Secret/gitlab-api-credentials` is missing/placeholder and must verify token auth works (`GET /api/v4/user` with `PRIVATE-TOKEN`).
+  - Tokens expire; GitLab owns proactive rotation via an in-cluster CronJob that refreshes Vault when nearing expiry.
 - OIDC integration is now fully GitOps-managed (no placeholder secrets):
   - Keycloak client `gitlab` is reconciled per environment (redirect URIs match `gitlab.<env>.ameide.io`).
   - Keycloak operator must watch all namespaces so the `Keycloak/keycloak` CR in each environment namespace is actually reconciled.
@@ -194,7 +196,8 @@ GitLab should follow the same pattern so we don’t rely on ad-hoc/manual valida
 1. **ExternalSecrets ready:** `ExternalSecret/gitlab-oidc-provider` is Ready and target Secret exists.
 2. **Workload ready:** core GitLab webservice is rolled out (and responding on the in-cluster service endpoint).
 3. **OIDC wiring sanity:** GitLab responds with an OIDC redirect (or presents the OIDC provider on the sign-in page) consistent with the Keycloak issuer and the environment hostnames.
-4. **No-placeholder secrets:** prevent “placeholder_*” client secrets/redirect URIs from surviving in managed environments (same drift guard philosophy used elsewhere).
+4. **No-placeholder secrets:** prevent “placeholder_*” client secrets/redirect URIs/tokens from surviving in managed environments (same drift guard philosophy used elsewhere).
+5. **API token auth:** `Secret/gitlab-api-credentials` (`GITLAB_TOKEN`) must successfully authenticate (`GET /api/v4/user` with `PRIVATE-TOKEN`).
 
 **Policy**
 
@@ -210,7 +213,8 @@ Decide and document (matrix) which secrets are:
 - **Vault/ExternalSecrets supplied** (authoritative, stable per environment)
   - GitLab OIDC client secret (Keycloak-generated → client-patcher → Vault): `gitlab-oidc-client-secret`
   - GitLab OmniAuth provider Secret rendered from Vault: `Secret/gitlab-oidc-provider` (key `provider`)
-  - GitLab API access tokens surfaced via the shared `gitlab-api-credentials` ExternalSecret contract (`backlog/710-gitlab-api-token-contract.md`)
+  - GitLab API access tokens surfaced via the shared `gitlab-api-credentials` ExternalSecret contract (`backlog/710-gitlab-api-token-contract.md`).
+    - Standard token (`backstage`) is minted in-cluster as part of the GitLab rollout and written into Vault (`secret/gitlab/tokens/<env>/backstage`, key `value`).
 - **Chart-generated** (acceptable to generate, but must be understood and monitored)
   - Initial root password secret (break-glass only)
   - Internal TLS, SSH host keys, and other shared secrets (if we keep ingress disabled, TLS is still relevant for internal components)

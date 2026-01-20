@@ -83,8 +83,13 @@ ArgoCD smokes are a separate layer:
 **GitOps (platform)**
 
 - Done: standardized token delivery (Vault → ExternalSecret → K8s Secret) per `backlog/710-gitlab-api-token-contract.md`.
-- TODO: provision a dedicated integration-test credential (`secretName` isolated from normal services) in **dev/local only** and ensure it is a required secret input there (no placeholders). Staging/production must not provision a writer credential by default.
-- TODO: provide a stable GitLab “E2E group” (e.g. `ameide-e2e`) and document the `namespace_id` used for test project creation.
+- Done: provisioned a dedicated integration-test GitLab writer credential (separate from normal service credentials) via the GitOps GitLab token bootstrap + Vault → ESO delivery:
+  - Vault key: `secret/gitlab/tokens/<env>/transformation-e2e` (key `value`, plus metadata like `token_id`/`expires_at`)
+  - Delivered secrets:
+    - `ameide-dev`: `Secret/gitlab-api-credentials-e2e`
+    - `ameide-local`: `Secret/gitlab-api-credentials-e2e`
+  - Non-goal: provisioning a writer credential in `staging`/`production` by default.
+- Done: GitLab “E2E group” is created/ensured by GitOps bootstrap as `ameide-e2e` (top-level group). The E2E test should resolve `namespace_id` at runtime (by querying the group by full path) rather than hardcoding ids.
 
 **Apps (platform/transformation)**
 

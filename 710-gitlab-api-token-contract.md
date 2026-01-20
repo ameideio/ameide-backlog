@@ -40,7 +40,7 @@ For E2E/integration tests that create and delete GitLab projects (for example `b
 ## 3. GitOps delivery contract
 
 - **Source of truth:** Vault KVv2 (`secret/gitlab/tokens/<env>/<service>`, key `value`).
-- **Issuance + rotation (in-cluster):** tokens are minted by GitLab itself and written into Vault by the GitLab wrapper chart (bootstrap Job + rotation CronJob). Rotation is expiry-aware and revokes the previous token only after the new token is safely written.
+- **Writer (standard platform tokens):** the GitLab workload owns minting/writing its standard service tokens (for example Backstage) and writes them into Vault KV. This keeps “token maintenance” inside the cluster/ArgoCD rather than Terraform/Bicep.
 - **ArgoCD workload:** `foundation-gitlab-api-credentials` (new) renders a configurable set of `ExternalSecret` resources. Each entry:
   - lives in the consuming namespace,
   - points to Vault via `SecretStore/ameide-vault`,
@@ -51,7 +51,8 @@ For E2E/integration tests that create and delete GitLab projects (for example `b
   - `GITLAB_TOKEN` via the documented `PRIVATE-TOKEN: <token>` HTTP header for GitLab API calls; GitLab explicitly documents this header for PATs/project/group access tokens. [2]
   - `GITLAB_API_URL` for the cluster’s canonical REST endpoint (`https://gitlab.<env>.ameide.io/api/v4`).
 - **Vault policy:** ESO roles (`ameide-vault` SecretStore) must be allowlisted for `secret/data/gitlab/tokens/<env>/*`.
-- **No placeholders:** managed environments must not ship placeholder GitLab API tokens. Smokes must verify `Secret/gitlab-api-credentials` can authenticate `GET ${GITLAB_API_URL}/user` via `PRIVATE-TOKEN`.
+- **No placeholders:** managed environments must not ship placeholder GitLab API tokens. Rollouts must fail if `Secret/gitlab-api-credentials` is missing or contains placeholder values, and GitLab smokes must verify token auth works (`GET /api/v4/user`).
+- **Rotation:** GitLab enforces expirations; rotation requires coordinated consumer restart because most apps read tokens from env vars at startup. Automatic rotation is tracked work; do not revoke old tokens immediately without a cutover mechanism.
 
 **Environment scoping**
 
@@ -60,11 +61,11 @@ For E2E/integration tests that create and delete GitLab projects (for example `b
 
 ## 4. Operational runbook (token creation)
 
-1. Declare/enable the consumer in GitOps (`foundation-gitlab-api-credentials`) so ESO will render an `ExternalSecret` for the target namespace/secret name.
-2. Ensure the GitLab wrapper chart is configured to mint the corresponding service token and write it into Vault at `secret/gitlab/tokens/<env>/<service>` (key `value`).
-3. Allow ESO to refresh. Verify `ExternalSecret` reports `Ready=True` and `Secret/gitlab-api-credentials` exists in the target namespace.
-4. Verify the token is real by calling `GET ${GITLAB_API_URL}/user` using `PRIVATE-TOKEN: ${GITLAB_TOKEN}` (smokes should do this in managed envs).
-5. Configure the consuming workload to read `GITLAB_TOKEN`/`GITLAB_API_URL`.
+1. Ensure GitLab is synced and healthy in ArgoCD (`platform-gitlab` + `platform-gitlab-smoke`).
+2. GitLab’s in-cluster token writer mints a least-privilege service token and writes it into Vault under `secret/gitlab/tokens/<env>/<service>` (key `value`, plus `token_id`/`expires_at`).
+3. ESO materializes `Secret/gitlab-api-credentials` (or a consumer-specific secret name) in the consumer namespace.
+4. Smokes verify the token is valid by calling `GET /api/v4/user` with `PRIVATE-TOKEN`.
+5. For integration tests that mutate GitLab, use the dev/local-only writer secret (`gitlab-api-credentials-e2e`) and ensure tests create/cleanup their own projects (seedless).
 
 ## 5. Scope answers
 
