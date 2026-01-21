@@ -46,7 +46,7 @@ GitLab is treated as a **platform-owned subsystem**:
     - Workload: `gitops/ameide-gitops/environments/local/components/platform/developer/gitlab/component.yaml`
     - Smokes: `gitops/ameide-gitops/environments/local/components/platform/developer/gitlab-smoke/component.yaml`
 - Wrapper chart (routes + secrets wiring): `gitops/ameide-gitops/sources/charts/platform/gitlab`
-- Vendored upstream chart: `gitops/ameide-gitops/sources/charts/third_party/gitlab/gitlab/9.6.1` (appVersion `18.6.1`)
+- Vendored upstream chart: `gitops/ameide-gitops/sources/charts/third_party/gitlab/gitlab/9.8.2` (appVersion `18.8.2`)
 - CE/OSS is explicitly enforced via `gitlab.global.edition=ce` (GitLab chart defaults to EE otherwise).
 - Note: upstream docs use `global.*` because they assume installing the GitLab chart directly. In our wrapper chart, upstream `global.*` is nested under `gitlab.global.*` because the GitLab chart is a dependency named `gitlab`.
 - Ingress disabled; exposure via Gateway API `HTTPRoute`: `gitops/ameide-gitops/sources/charts/platform/gitlab/templates/httproute.yaml`
@@ -56,6 +56,7 @@ GitLab is treated as a **platform-owned subsystem**:
 ## Progress (2026-01-19)
 
 - GitLab is a standard GitOps component (always deployed as part of the platform baseline).
+- Upgraded to GitLab `18.8.2` (Helm chart `9.8.2`).
 - Added baseline PostSync smoke job checks for GitLab (`platform-gitlab-smoke`) to keep rollout evidence consistent with other platform smokes.
 - Switched GitLab to shared cluster dependencies (GitOps-managed):
   - PostgreSQL: shared CNPG cluster (`postgres-ameide-rw`), GitLab databases managed via `platform-postgres-clusters`.
@@ -100,9 +101,9 @@ This is the vendor-supported posture (“external DB/Redis”) expressed via our
 
 ## Version posture
 
-- Current pin: GitLab chart `9.6.1` (GitLab appVersion `18.6.1`), as recorded in `gitops/ameide-gitops/sources/charts/third_party/charts.lock.yaml`.
+- Current pin: GitLab chart `9.8.2` (GitLab appVersion `18.8.2`), as recorded in `gitops/ameide-gitops/sources/charts/third_party/charts.lock.yaml`.
 - Rationale: vendored charts are the determinism/default posture; upgrades should be explicit, rehearsed, and tracked (patch → minor) rather than “float to latest”.
-- Next steps: track “why not latest patch/minor” and a planned upgrade path (e.g., `9.6.x` patch bump first, then evaluate `9.7/9.8`).
+- Next steps: upgrade to `18.9.x` once GitLab publishes a matching Helm chart release (chart versions lag GitLab versions; do not “guess” mappings).
 
 ## Hostname convention
 
