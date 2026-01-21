@@ -65,6 +65,8 @@ Custom domains managed:
 - `argocd.ameide.io`
 - `ameide.io` (apex)
 - `platform.ameide.io`
+- `www.ameide.io`
+- `*.dev.ameide.io` and other explicitly-published `{service}.{env}.ameide.io` hostnames (each as a separate custom domain)
 
 Binding and cert source:
 - BYOC is used (Key Vault certificates imported by certbot workflows).
@@ -81,8 +83,15 @@ We deliberately treat apex and subdomains differently:
   - Use **CNAME** to the AFD endpoint hostname (e.g. `ameide-prod-<id>.z02.azurefd.net`).
   - Reason: in practice, apex-style alias records for subdomains created activation ambiguity during the incident; the CNAME path is the most vendor-standard onboarding path for AFD subdomains.
 
+- **Subdomain** `www.ameide.io`:
+  - Use **CNAME** to the same AFD endpoint hostname.
+
 - **Subdomain** `argocd.ameide.io`:
   - Use **CNAME** to the same AFD endpoint hostname.
+
+For `{service}.{env}.ameide.io` hostnames (e.g. `auth.dev.ameide.io`):
+- Publish only an explicit allow-list (no wildcard `*` records pointing to the cluster).
+- Use **Azure DNS Alias A** records targeting the AFD endpoint resource ID (so record type can be updated in-place without switching to CNAME).
 
 ### 1.6 Origin groups, origins, routes (AFD → cluster)
 
@@ -104,6 +113,13 @@ Public sites:
 - Routes:
   - `ameide-io`: bound only to `ameide.io` (`link_to_default_domain=false`)
   - `platform-ameide-io`: bound only to `platform.ameide.io` (`link_to_default_domain=false`)
+  - `www-ameide-io`: bound only to `www.ameide.io` (`link_to_default_domain=false`)
+
+Per-environment services:
+- For each published hostname (e.g. `auth.dev.ameide.io`), AFD has:
+  - a dedicated custom domain
+  - a dedicated origin group/origin setting `originHostHeader` to that hostname
+  - a dedicated route bound only to that hostname
 
 Preview health:
 - Origin group: `ameide-<env>-healthz`
@@ -184,6 +200,14 @@ Fixes we adopted:
 - an explicit force-unlock workflow (`terraform force-unlock` on `azure-edge.tfstate`)
 - “adopt/import” steps in the apply workflow to import pre-existing AFD resources and DNS records
 
+### 3.5 “Not in Front Door” hostnames still work (direct-to-cluster bypass)
+
+If `*.dev.ameide.io` (or any explicit A record) points directly to the cluster ingress Public IP, users can bypass Front Door entirely.
+
+Controls we converged on:
+- DNS: remove wildcard `*` records pointing at the cluster; publish only explicit `{service}.{env}` records.
+- Network: deny direct Internet to the Envoy ingress ports (at least 80/443/8080) and only allow AFD backend + AzureLoadBalancer.
+
 ### 3.5 Let’s Encrypt issuance gotchas
 
 #### Wildcard + explicit subdomain in the same order
@@ -239,4 +263,3 @@ For a broken hostname `X`:
   - Standard is “custom rules only” baseline; managed rule sets require Premium/classic.
 - Make edge wiring cover all public hostnames explicitly:
   - add custom domain + route per public hostname (avoid “catch-all” surprises).
-
