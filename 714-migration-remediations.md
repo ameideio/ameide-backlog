@@ -113,6 +113,9 @@ Serve the discovery document at the path ArgoCD is requesting by rewriting it to
 - Add an exact-path HTTPRoute rule:
   - match: `/api/.well-known/openid-configuration`
   - rewrite → `/api/dex/.well-known/openid-configuration`
+- Normalize trailing-slash variants that were returning 404:
+  - `/api/dex/.well-known/openid-configuration/` → `/api/dex/.well-known/openid-configuration`
+  - `/api/dex/keys/` → `/api/dex/keys`
 - Apply this rule on both listeners:
   - `sectionName: https` (`HTTPRoute/argocd`)
   - `sectionName: origin-http` (`HTTPRoute/argocd-origin`)
