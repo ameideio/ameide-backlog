@@ -142,4 +142,4 @@ Contract alignment:
 
 - The “first admin user exists” must be ensured by a **reconciler CronJob** (P1), because Coder DB can be reset on cluster recreate (see 677).
 - The bootstrap user inputs (`coder-bootstrap-admin-*`) remain sourced from the secrets pipeline (Vault/AKV), not from template parameters.
-
+- Coder associates a login type per user. In SSO-only deployments, the seeding unit must ensure the seeded admin user’s `login_type` is `oidc` (not `password`), otherwise Keycloak login for that identity fails with “Incorrect login type”.

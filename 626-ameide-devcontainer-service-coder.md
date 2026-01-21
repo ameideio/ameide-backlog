@@ -104,7 +104,14 @@ Contract note: this is “application DB bootstrap state” and must follow the 
 Implementation (dev):
 
 - Coder OIDC is configured via `sources/values/env/dev/platform/platform-coder.yaml`.
-- The first admin user is bootstrapped via an Argo hook Job + ExternalSecret in `sources/charts/platform/coder/templates/`.
+- The first user gate is satisfied by a reconciler CronJob (`CronJob/coder-bootstrap-admin`) + ExternalSecret in `sources/charts/platform/coder/templates/`.
+
+Important nuance (login type mismatch)
+
+- Coder stores a **login type per user** (`password`, `oidc`, etc.).
+- If a user exists as `password` and the same email/username is used for OIDC login, Coder fails with:
+  - “Incorrect login type … user has login type password …”
+- `coder server create-admin-user` creates a `password` login type user, so in SSO-only mode we must reconcile the seeded user to `oidc` (GitOps-managed) so Keycloak SSO works immediately.
 
 Update (2026-01-15): templates and “first user” after cluster recreate
 
