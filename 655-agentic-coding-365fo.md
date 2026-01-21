@@ -16,7 +16,7 @@ source_of_truth: false
 > It intentionally deviates from the “execution is in-cluster” *default* because D365FO development is vendor-locked to a Windows dev VM + Visual Studio toolchain.
 >
 > Normative references:
-> - `backlog/650-agentic-coding-overview.md` (model + exception rule)
+> - `backlog/650-agentic-coding-overview-v6.md` (model + exception rule)
 > - `backlog/654-agentic-coding-cli-surface-coder.md` (CLI front doors + profiles)
 
 Below is a **vendor‑doc–aligned spec** for the architecture you described:

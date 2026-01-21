@@ -209,7 +209,7 @@ Rule: env-scoped apps must not create cluster-scoped objects with stable names u
 
 - Any image used by both targets must be published as a **multi-arch manifest list** (amd64 + arm64).
 - GitOps pins **manifest list digests** (not single-arch digests) so both runtimes pull the correct platform.
-- Local may route images via a **local registry** (k3d) or a **GHCR mirror**, but the pinned reference must remain deterministic (digest pinned; no floating tags).
+- Local must pull the same **GHCR digest-pinned** image references as dev/prod. A GHCR mirror is allowed, but **local registries are not a supported dependency** for Argo-managed workflows.
 - CI must detect:
   - missing `:main` channel tags for local/dev automation
   - missing multi-arch manifests

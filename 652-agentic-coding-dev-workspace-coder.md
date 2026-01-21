@@ -20,7 +20,7 @@ Define the human developer experience for agentic coding:
 - A Kubernetes-safe devcontainer contract via **envbuilder**
 - Human-in-the-loop coding with assistants (Codex/Claude) from within the workspace UX
 
-This document inherits all decisions from `backlog/650-agentic-coding-overview.md`.
+This document inherits all decisions from `backlog/650-agentic-coding-overview-v6.md`.
 
 ## 0.2 Status update (2026-01-17)
 
@@ -208,5 +208,5 @@ Non-negotiables:
 
 ## 9) References
 
-- Normative decisions: `backlog/650-agentic-coding-overview.md`
+- Normative decisions: `backlog/650-agentic-coding-overview-v6.md`
 - Coder platform implementation lives in the GitOps repo (submodule): `gitops/ameide-gitops/`

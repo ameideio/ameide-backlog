@@ -22,7 +22,7 @@ Articulate a single “big picture” for **agentic development environments** w
 
 This doc is a narrative map. Normative details remain in:
 
-- Coder-first model: `backlog/650-agentic-coding-overview.md`
+- Coder-first model: `backlog/650-agentic-coding-overview-v6.md`
 - Che provider: `backlog/680-che.md`
 - Test layers: `backlog/653-agentic-coding-test-automation-coder.md`
 - CLI front doors: `backlog/654-agentic-coding-cli-surface-coder.md`
@@ -140,7 +140,7 @@ Additional sharp edges (provider-specific, but recurrent):
 ## 8) Backlog map (where details live)
 
 - Coder model and tasks:
-  - `backlog/650-agentic-coding-overview.md`
+  - `backlog/650-agentic-coding-overview-v6.md`
   - `backlog/651-agentic-coding-ameide-coding-agent.md`
   - `backlog/652-agentic-coding-dev-workspace-coder.md`
   - `backlog/653-agentic-coding-test-automation-coder.md`

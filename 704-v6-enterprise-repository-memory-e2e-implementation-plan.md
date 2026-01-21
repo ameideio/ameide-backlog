@@ -30,6 +30,9 @@ related:
   - 695-gitlab-configuration-gitops.md
   - 701-repository-ui-enterprise-repository-v6.md
   - 703-transformation-enterprise-repository-proto-v1.md
+  - 705-transformation-agentic-alignment-v6.md
+  - 706-transformation-v6-coordinated-implementation-plan.md
+  - 710-gitlab-api-token-contract.md
 ---
 
 # 704 — v6 Enterprise Repository + Memory (E2E implementation plan: cross-primitive increments)
@@ -98,6 +101,10 @@ These are requirements, not “guidelines”:
 1) **Scope identity is always explicit**
 - Target scope is `{tenant_id, organization_id, repository_id}` (no workspace id for repo browsing).
 - Reference: `backlog/527-transformation-proto-v6.md`, `backlog/496-eda-principles-v6.md`.
+
+1.1) **No pre-seeded data for increment verification**
+- Every increment’s exit criteria must be provable without relying on pre-existing GitLab projects or platform DB rows.
+- Use a seedless harness: create a new GitLab project (ensure at least one commit), onboard/register mapping via platform API, run the increment loop, and best-effort cleanup (delete project).
 
 2) **Hierarchy equals Git tree**
 - Repository browsing hierarchy is the Git file tree (folders + files) at a selected `read_context`.
@@ -248,7 +255,11 @@ Treat these increments as a product ladder (v6): each increment should be demo-a
 - Reference: `backlog/534-mcp-protocol-adapter.md`.
 
 **Exit criteria**
-- Browse → open file works end-to-end for at least one tenant repo; citations include commit SHA + path.
+- Browse → open file works end-to-end using a seedless repo:
+  - create GitLab project (prefer `initialize_with_readme=true` so a tree exists),
+  - onboard/register platform mapping (repo → provider pointers) via platform API,
+  - browse and open at least one path and receive `{commit_sha, path}` citations,
+  - best-effort cleanup (delete project).
 
 **Cross-references**
 - `backlog/701-repository-ui-enterprise-repository-v6.md`
