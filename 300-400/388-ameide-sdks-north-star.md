@@ -4,13 +4,13 @@
 **Owner:** Platform DX / SDK maintainers  
 **Updated:** 2025-11-21
 
-See also: backlog/389-ameide-sdk-ameideclient.md, backlog/390-ameide-sdk-versioning.md, backlog/391-resilient-cd-packages-workflow.md, backlog/393-ameide-sdk-import-policy.md, backlog/395-sdk-build-docker-tilt-north-star.md. This doc is the design-level north star for **outer-loop publishing**; 402/403/404 cover inner-loop workspace use of core_proto + AmeideClient for services, and 390/391/395 describe the publish/release workflows.
+See also: backlog/389-ameide-sdk-ameideclient.md, backlog/390-ameide-sdk-versioning.md, backlog/391-resilient-cd-packages-workflow.md, backlog/300-400/393-ameide-sdk-import-policy.md, backlog/395-sdk-build-docker-tilt-north-star.md, backlog/715-v6-contract-spine-doctrine.md. This doc is the design-level north star for **outer-loop publishing**; 402/403/404/408 describe the inner-loop workspace use of **SDK packages** for services, and 390/391/395 describe the publish/release workflows.
 
 ## Intent
 
 Codify a boring, cross-ecosystem release system for the Ameide SDKs and adjacent configuration so every artifact (npm, PyPI, Go modules, GHCR images) can be traced back to the same git SHA and semantic version. This replaces ad-hoc filters and “skip the scary bit” workflows with one canonical playbook for release and dev channels.
 
-**Scope:** This doc is about *publishing* SDK/config artifacts for external consumers and release images (Ring 2). Internal services in the monorepo use workspace `packages/ameide_core_proto` + workspace AmeideClient implementations per backlog/402/403/404; they are not blocked on published SDKs in dev/PR CI.
+**Scope:** This doc is about *publishing* SDK/config artifacts for external consumers and SDK smoke validation jobs. Internal services in the monorepo consume contracts via **workspace SDK packages** (not direct `packages/ameide_core_proto` or direct Buf artifacts) per `backlog/300-400/393-ameide-sdk-import-policy.md` and `backlog/715-v6-contract-spine-doctrine.md`; they are not blocked on published SDKs in dev/PR CI.
 
 ## Target Outcomes
 

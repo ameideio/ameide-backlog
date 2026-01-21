@@ -36,9 +36,11 @@ This gives every Tilt/PNPM subprocess the same Buf auth without re-sourcing `.en
 
 **Ring cheat sheet (see backlog/405-docker-files.md for full examples):**
 
-- Ring 0: Buf + `packages/ameide_core_proto` generate/commit stubs; Docker never runs Buf.
-- Ring 1 (Tilt/PR/dev): Dockerfile.dev copies workspace stubs + workspace SDK code. TS uses `pnpm install --no-frozen-lockfile`; Go uses `GOWORK=auto` + workspace modules; Python uses `uv sync` + editable installs. No registry/BSR required.
-- Ring 2 (cd-service-images/prod): Dockerfile uses stamped locks and published SDK artifacts (`@ameideio/ameide-sdk-ts@$NPM_VERSION`, `ameide-sdk-python==$PYPI_VERSION`, `github.com/ameideio/ameide-sdk-go@<tag>`), with strict installs (`--frozen-lockfile`, `uv sync --frozen`, `GOWORK=off`). Images prove the published SDKs work; they still ultimately trace to the same Buf stubs.
+- Ring 0: `packages/ameide_core_proto` is the schema module; Buf generates language stubs into the SDK package trees. Docker never runs Buf.
+- Ring 1 (Tilt/PR/dev): `Dockerfile.dev` builds from workspace SDK packages (which already contain generated stubs). TS uses `pnpm install --no-frozen-lockfile`; Go uses `GOWORK=auto`; Python uses `uv sync` + editable installs. No registry/BSR stub packages required.
+- Ring 2 (prod/staging images built in-repo): `Dockerfile.release` copies/vendores workspace SDK packages (with generated stubs) and uses strict third-party locks (`--frozen-lockfile`, `uv sync --frozen`, `GOWORK=off` or vendoring). Ring 2 does not install Ameide SDKs from registries.
+
+Published SDK artifacts are used only by the **SDK product track** (out-of-tree smoke validation and external consumers), per `backlog/715-v6-contract-spine-doctrine.md` and `backlog/300-400/393-ameide-sdk-import-policy.md`.
 
 ---
 

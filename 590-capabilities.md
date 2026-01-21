@@ -104,5 +104,7 @@ This gives tooling a stable entry point for:
 - Primitive-level testing discipline is defined by `backlog/537-primitive-testing-discipline.md`.
 - “Front door” test entrypoint is `backlog/468-testing-front-door.md`.
 - Capability-owned test packs are defined in `backlog/591-capabilities-tests.md`.
+- Scenario Slice ladder (product-first, cross-primitive acceptance) is defined by `backlog/714-togaf-scenarios-v6.md`.
+- Contract spine doctrine (SDK-only imports; Kafka + CloudEvents envelope; topic strategy) is defined by `backlog/715-v6-contract-spine-doctrine.md`.
 
 This backlog only adds the missing piece: **repo hierarchy for capabilities** so capability owners have a first-class home for **composition + tests** without reorganizing the primitive runtime substrate.

@@ -17,16 +17,16 @@ created: 2025-11-24
 - Outer loop: `cd-packages` still publishes `@ameideio/ameide-sdk-ts` for external consumers and out-of-tree smoke tests; release images in-repo do not depend on the publish.
 - One AmeideClient contract (389) remains the runtime surface; only the dependency resolution changes.
 - **Same imports, same source** for services: both rings resolve to workspace SDK packages; the published artifact is only used in the SDK product track.
-- Supersedes backlog/393 for Rings 1/2 (dev/Tilt/PR CI/prod images built in-repo). 393 remains relevant for the SDK publish track (external consumers + smoke).
+- Aligns with `backlog/300-400/393-ameide-sdk-import-policy.md` for Rings 1/2 (dev/Tilt/PR CI/prod images built in-repo). `backlog/715-v6-contract-spine-doctrine.md` is the v6 doctrine; this document is an implementation/migration plan.
 
 **File mapping reminder:** `Dockerfile.dev` == Ring 1 (workspace SDK, Tilt/dev containers). `Dockerfile.release` == Ring 2 (workspace SDK copied in, strict third-party locks). SDK publish/smoke uses separate jobs.
 
 ## Scope
 - Services: platform, threads, transformation, workflows, chat, graph, repository, www_ameide, www_ameide_platform.
-- Packages: `@ameide/core-proto`, `@ameideio/ameide-sdk-ts`, shared TS config/telemetry helpers.
+- Packages: `@ameideio/ameide-sdk-ts`, shared TS config/telemetry helpers. (`@ameide/core-proto` is schema/build-pipeline only; runtime services must not import it directly.)
 - CI/Tilt/Docker flows used by the TS services above.
 
-> **Proto naming:** All proto packages referenced here must follow the conventions in [509-proto-naming-conventions.md](509-proto-naming-conventions.md) (root `ameide_core_proto.<context>[.<sub>].v<major>` packages and the intent/fact suffix rules).
+> **Proto naming:** All proto packages referenced here must follow `backlog/509-proto-naming-conventions-v6.md` (`io.ameide.<context>...v<major>` packages; CloudEvents `type` for semantic identity).
 
 ## Non-goals
 - Go/Python migration (covered elsewhere).
@@ -55,7 +55,7 @@ For each service: import protos/clients solely from `@ameideio/ameide-sdk-ts/pro
 ### 3) Dev ergonomics & Tilt
 - Add a single `pnpm proto:ts` (core-proto build) + `pnpm sdk:ts` (SDK build) path to Tilt and devcontainer init so local runs never require registry access.
 - Document inner-loop workflow: edit proto → `pnpm proto:ts` → service typecheck/test; Tilt watch should rebuild protos/SDK on proto changes.
-- Add a fast “proto drift” check that compares working tree `packages/ameide_core_proto/dist` to regenerated output and fails dev/CI if stale.
+- Add a fast “proto drift” check that compares the SDK build inputs/outputs (e.g., `packages/ameide_core_proto/dist` if used by the SDK build pipeline) to regenerated output and fails dev/CI if stale. Services still import the SDK surface only.
 
 ### 4) Publish/release path
 - Keep `cd-packages` responsible for tagging/publishing `@ameideio/ameide-sdk-ts`; run `npm pack` + out-of-tree install smoke tests on the built artifact.
@@ -69,7 +69,7 @@ For each service: import protos/clients solely from `@ameideio/ameide-sdk-ts/pro
 - Service checklist below is all ✅.
 
 ## Status (2025-11-24)
-- Workspace-first path landed: SDK builds from `packages/ameide_core_proto/dist` (no `@buf/...` in pnpm-lock), and TS services import proto barrels from that package with `workspace:*` SDK deps.
+- Workspace-first path landed: the TS SDK build consumes schema inputs (e.g., `packages/ameide_core_proto/dist` as an internal build artifact), and TS services import proto types/clients via `@ameideio/ameide-sdk-ts/proto.js` with `workspace:*` SDK deps.
 - Service Dockerfiles now build against workspace protos/SDK (`pnpm --filter @ameide/core-proto run build` + SDK build) with no registry auth.
 - Remaining: add an explicit policy check that services resolve SDK/proto from the workspace and a proto-drift CI gate; re-run SDK + representative service builds in CI to lock this in.
 - Verification pending: `pnpm -C packages/ameide_sdk_ts test` and a representative service build (e.g., `pnpm -C services/platform build`).

@@ -87,13 +87,13 @@ Buf’s Hosted module (`buf.build/ameideio/ameide`) is the single source of trut
   - Releases: `postgres-clusters` (shared CNPG instance), `keycloak`, `keycloak-realm`, shared identity bootstrap tooling (e.g., admin user/job, base OAuth2 proxy configuration) plus an `auth-smoke` Helm test job that exercises login flows; the layer depends on core operators (including `keycloak-operator`) being reconciled.
   - Tests: `run-helm-layer.sh` / `infra:24-auth` to drive the auth smoke job (realm reconciliation, admin API checks).
 - **Layer 25 – Package registries (retired)**
-  - Removed in February 2026. Shared DNS/config maps for Verdaccio/devpi/Athens are no longer reconciled; Buf’s Managed Mode provides language artifacts directly from BSR.
+  - Removed in February 2026. Shared DNS/config maps for Verdaccio/devpi/Athens are no longer reconciled. v6 services consume contracts via wrapper SDKs; any Buf/BSR usage is confined to the SDK build/publish pipeline (see `backlog/715-v6-contract-spine-doctrine.md` and `backlog/300-400/393-ameide-sdk-import-policy.md`).
 - **Layer 26 – npm (retired)**
-  - Verdaccio and the TypeScript package runner were removed. TypeScript services now install the published Buf SDK packages (`@buf/ameideio_ameide.*`) without in-cluster registries.
+  - Verdaccio and the TypeScript package runner were removed. TypeScript services consume the wrapper SDK surface; they do not depend on in-cluster registries or direct `@buf/*` runtime imports.
 - **Layer 27 – Go packages (retired)**
-  - Athens, the Go module uploader, and the runner Helm test were deleted. Go services import Buf generated modules via `buf.build/gen/go/...` and CI smoke tests resolve them from BSR.
+  - Athens, the Go module uploader, and the runner Helm test were deleted. Go services consume the wrapper SDK surface; direct `buf.build/gen/go/...` runtime imports are legacy (SDK build pipeline only).
 - **Layer 28 – Python packages (retired)**
-  - Devpi and its runner no longer exist; Python services fetch Buf-published wheels (`ameideio-ameide-*`) instead of mirroring into a cluster registry.
+  - Devpi and its runner no longer exist; Python services consume the wrapper SDK surface (no direct Buf wheel consumption at runtime).
 - **Layer 40 – Data plane core**
   - Releases: `redis-failover`, `kafka-cluster`, `clickhouse`, `pgadmin` (and future always-on storage backends). The ClickHouse installation assumes the operator from Layer 20 is already healthy; `needs` now pins it to `clickhouse-operator/clickhouse-operator` so Langfuse/Plausible can rely on a shared data plane without bundling their own ClickHouse bits.
   - Tests: `run-helm-layer.sh` / `infra:40-data-plane` runs the `data-plane-smoke` Helm job (Redis/Kafka/CNPG/ClickHouse readiness + diagnostics).

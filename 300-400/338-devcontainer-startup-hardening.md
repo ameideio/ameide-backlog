@@ -7,6 +7,8 @@
 # DevContainer Startup Hardening _(partially archived)_
 
 > **Update (2026-02-17):** Historic references to Verdaccio/devpi/Athens image imports now apply only to the retired registry stack. Buf Managed Mode removed those steps; preserve the remainder of this backlog for the general bootstrap checklist.
+>
+> **v6 doctrine note:** Runtime services and scenario runners consume contracts via wrapper SDK packages only; direct `@buf/*` / `buf.build/gen/*` usage is confined to the SDK build/publish pipeline (see `backlog/715-v6-contract-spine-doctrine.md` and `backlog/300-400/393-ameide-sdk-import-policy.md`).
 
 **Created:** Nov 2025  
 **Owner:** Platform DX / Developer Experience

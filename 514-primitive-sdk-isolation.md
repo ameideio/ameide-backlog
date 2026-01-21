@@ -44,7 +44,9 @@ This backlog is **normative** for new primitives and for CLI/scaffold behavior. 
   - TypeScript: `@ameideio/ameide-sdk-ts` (and service-specific barrels like `@/lib/sdk/core`).
   - Python: `ameide_sdk_python` packages.
 - **Codegen, not bespoke JSON:** SDKs for Go/TS/Python are the **only** supported way to consume primitives (Transformation domains, Process workers, agents, UISurfaces/portal). There must be no bespoke JSON contracts for cross-primitive traffic at runtime; when JSON is needed, it must be defined in proto and consumed via the generated SDK clients.
-- Tests may import proto types directly where necessary, but production handler/agent/UISurface code relies on SDK clients.
+- Unit tests may import proto types directly where necessary, but:
+  - Capability-level E2E / Scenario Slice runners MUST call primitives via wrapper SDK clients only (per `backlog/715-v6-contract-spine-doctrine.md`).
+  - No test runner may bypass the contract surface by calling internal adapters directly.
 
 ### P2 – Self-contained primitives
 

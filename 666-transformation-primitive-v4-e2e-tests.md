@@ -9,7 +9,10 @@ created: 2026-01-13
 
 # 666 – Transformation Primitive v4 (Test Plan)
 
-This document defines the v4 test plan aligned to `backlog/430-unified-test-infrastructure-v2-target.md`.
+This document defines the v4 test plan aligned to `backlog/430-unified-test-infrastructure-v2-target.md`, and is consistent with:
+
+- `backlog/496-eda-principles-v6.md` (inter-primitive integration posture)
+- `backlog/715-v6-contract-spine-doctrine.md` (proto seams; SDK consumption; Kafka + CloudEvents event plane)
 
 ## Test layers (430-aligned)
 

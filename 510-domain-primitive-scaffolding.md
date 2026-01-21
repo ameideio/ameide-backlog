@@ -215,7 +215,7 @@ Implementers (humans or coding agents) are expected to:
 - Flyway migrations exist under `migrations/` (starting at `migrations/V1__domain_outbox.sql`) and a per-domain migration image exists (`migrations/Dockerfile.*`).  
 - For Scrum‑like domains, events/facts follow the proto contracts (`ScrumDomainFact`, etc.).
 - An **Imports** check passes only when runtime Go code under `primitives/domain/<name>`:
-  - Does **not** import `packages/ameide_core_proto` or `buf.build/gen/go/**` directly (SDK-only rule; tests may import proto types directly).  
+  - Does **not** import `packages/ameide_core_proto` or `buf.build/gen/go/**` directly (SDK-only rule). Unit tests may import proto types directly when needed, but Scenario Slice / capability E2E runners must call primitives via wrapper SDK clients only (per `backlog/715-v6-contract-spine-doctrine.md`).  
   - Does **not** import other primitives’ modules under `github.com/ameideio/ameide/primitives/...` (cross-primitive imports must flow through SDK adapters).  
   - Ensures `internal/handlers/**` contains **no** Watermill/broker imports; broker wiring belongs in dispatcher/adapters.
 

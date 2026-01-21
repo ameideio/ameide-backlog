@@ -1,5 +1,12 @@
 # 357 – Protovalidate Managed Mode Impact Assessment
 
+> **Superseded for v6 service consumption:** v6 converged on **wrapper SDK-only** contract consumption for runtime services and scenario runners (no direct `@buf/*` or `buf.build/gen/*` imports outside the SDK build pipeline). Use:
+> - `backlog/715-v6-contract-spine-doctrine.md` (doctrine: SDK-only; Kafka + CloudEvents)
+> - `backlog/300-400/393-ameide-sdk-import-policy.md` (enforced import rules)
+> - `backlog/410-bsr-native.md` and `backlog/408-workspace-first-ring-2.md` (workspace-first rings)
+>
+> This document is retained as historical context for the earlier “services consume Buf artifacts directly” phase.
+
 ## Purpose
 
 Document how adopting Buf Managed Mode with Protovalidate (backlog 356) reshapes the most recent delivery workstreams, codify the gaps it opens, and itemize the coordination required across SDKs, CI, Tilt, and domain services before we flip the switch.

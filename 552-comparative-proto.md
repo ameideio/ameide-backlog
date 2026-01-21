@@ -4,12 +4,15 @@
 **Audience:** Architecture, platform engineering, API designers, domain teams, SDK maintainers
 **Scope:** Comparative analysis of protobuf contract definitions across Sales, Commerce, Transformation, and SRE domains to identify maturity levels, consistency patterns, code generation readiness, and API design quality.
 
+**v6 alignment note:** this document is a comparative snapshot of *existing* proto surfaces. The v6 doctrine for contract distribution/consumption and the Kafka event plane lives in `backlog/715-v6-contract-spine-doctrine.md` (wrapper SDK-only consumption; Kafka transport with CloudEvents envelope; capability-owned topics with routing/filtering by `ce.type`). Where this analysis describes legacy patterns (e.g., meta-in-proto envelope variants), treat them as migration context, not the v6 target.
+
 **Use with:**
 - Comparative implementations: `backlog/550-comparative-domain.md`
 - Domain-specific proto: `backlog/540-sales-proto.md`, `backlog/523-commerce.md`, `backlog/527-transformation-capability.md`, `backlog/526-sre-capability.md`
 - Integration/EDA principles: `backlog/496-eda-principles-v6.md`, `backlog/496-eda-protobuf-ameide.md`
 - Proto + semantic identity conventions: `backlog/509-proto-naming-conventions-v6.md`
 - Buf tooling: `backlog/365-buf-sdks-v2.md`
+  - Contract spine doctrine: `backlog/715-v6-contract-spine-doctrine.md`
 
 ## Layer header (Application + Technology)
 

@@ -22,10 +22,14 @@
 - **Artifacts & storage:** MinIO for compiled agent artifacts (`services/agents/README.md`), Redis optional in inference-gateway for buffering, Postgres for state across services.
 
 ## 3) SDKs, Contracts, and Clients
-- **Single proto source:** `packages/ameide_core_proto` is the committed schema and generated bundle; services import it for dev/test (`backlog/393-ameide-sdk-import-policy.md`).
+- **Single proto source:** `packages/ameide_core_proto` is the authoritative schema source, but runtime services do **not** import it directly. Services consume contracts via the wrapper SDK surfaces (see `backlog/715-v6-contract-spine-doctrine.md` and `backlog/300-400/393-ameide-sdk-import-policy.md`).
 - **SDK surfaces:** TS (`packages/ameide_sdk_ts`), Go (`packages/ameide_sdk_go` / `github.com/ameideio/ameide-sdk-go`), Python (`packages/ameide_sdk_python`) wrap transports, auth, retries, tracing, and export proto types at runtime.
 - **AmeideClient contract:** Unified option defaults, metadata/auth/timeout/retry/tracing interceptors, request ID injection, and helper factories are defined and tested via manifest (`sdk/manifest/ameide-client.json`, `backlog/389-ameide-sdk-ameideclient.md`). TS/Go/Python implementations now align; integration coverage still evolving.
-- **Import policy guardrails:** Runtime code must consume SDKs; tests may import the proto bundle. Guard scripts enforce no `@ameideio/ameide-sdk-ts/proto.js` imports, forbid Go `replace` hacks, and check lock hygiene (`scripts/policy/run_all.sh`), see `backlog/393-ameide-sdk-import-policy.md`.
+- **Import policy guardrails:** Runtime code must consume SDKs. Unit tests may import proto types when needed, but Scenario Slice / capability E2E runners must call primitives via wrapper SDK clients only (see `backlog/715-v6-contract-spine-doctrine.md`). Policy scripts enforce:
+  - no direct `@buf/*` / `buf.build/gen/*` / `packages/ameide_core_proto/**` imports in runtime code,
+  - TS service proto barrels re-export from `@ameideio/ameide-sdk-ts/proto.js`,
+  - no Go `replace` hacks that bypass the intended SDK resolution,
+  - lock hygiene (`scripts/policy/run_all.sh`), see `backlog/300-400/393-ameide-sdk-import-policy.md`.
 - **Current publish status (evidence from 388/390):** Go SDK tagged `v0.1.0` with GHCR aliases; Python SDK on PyPI (`2.10.1`) but GHCR lacks SemVer tags; TS SDK not on npmjs and GHCR only carries dev/hash; configuration package lacks SemVer tags (`backlog/388-ameide-sdks-north-star.md`, `backlog/390-ameide-sdk-versioning.md`).
 
 ## 4) Frontend & UX Plane
