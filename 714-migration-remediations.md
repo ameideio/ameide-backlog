@@ -46,3 +46,38 @@ Related:
 - `argocd-server` logs stop showing issuer query failures (`Failed to query provider ... /api/dex/.well-known/openid-configuration`).
 - Browser login completes without redirect loops.
 
+---
+
+## 2) Incident: ArgoCD login loop (Dex issuer TLS “unknown authority” in-cluster)
+
+**Date:** 2026-01-21
+
+### Symptoms
+
+- `argocd-server` logs show token verification failures when calling the issuer discovery endpoint:
+  - `tls: failed to verify certificate: x509: certificate signed by unknown authority`
+  - issuer: `https://argocd.ameide.io/api/dex`
+- Browser symptom presents as a login loop (session never stabilizes).
+
+### Root cause
+
+- ArgoCD’s OIDC issuer URL is **public** (`https://argocd.ameide.io/api/dex`), but in-cluster DNS resolution was not stable:
+  - `kube-system/coredns-custom` has a production catch-all rewrite:
+    - `rewrite name regex (.+\\.)?ameide\\.io envoy.ameide-prod.svc.cluster.local`
+  - with Kubernetes resolver defaults (`ndots:5`), clients may attempt search-suffix variants first, so `argocd.ameide.io` could be captured by the catch-all rule even if an exact match rule exists.
+- The in-cluster target (Gateway/Envoy path) presented a cert chain that the client did not trust (self-signed / not in system roots), so issuer discovery failed and ArgoCD rejected the session.
+
+### Remediation (GitOps, permanent)
+
+Make in-cluster resolution of the issuer hostname `argocd.ameide.io` converge on the same endpoint as external clients:
+
+- Add a CoreDNS rewrite that maps `argocd.ameide.io` to the Azure Front Door endpoint hostname (publicly trusted cert).
+- Make the rewrite resilient to resolver search suffixes (`ndots`) so it wins before the catch-all rewrite.
+- Implementation in `ameide-gitops`:
+  - `sources/values/cluster/azure/coredns-config.yaml`
+
+### Expected steady-state verification
+
+- From inside the cluster, `argocd.ameide.io` resolves to Front Door (not `envoy-*` ClusterIPs).
+- From inside the cluster, `curl https://argocd.ameide.io/api/dex/.well-known/openid-configuration` succeeds without `-k`.
+- `argocd-server` logs stop showing `x509: certificate signed by unknown authority` for issuer discovery.
