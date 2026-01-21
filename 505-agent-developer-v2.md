@@ -40,6 +40,8 @@
 
 We standardize Ameide's "agentic coding" into a **Process primitive + Agents + event-driven handover** system:
 
+- Note (naming): role naming is being standardized in `backlog/717-ameide-agents-v6.md`. Treat “Product Owner / Solution Architect / Executor” as legacy labels when reading this doc; the boundaries and safety invariants remain applicable.
+
 - **Agile/TOGAF ADM Process primitive(s) (Temporal-based)** own the **governance lifecycle** (sprint/ADM/PI state machine, timebox tracking, phase gates). They consume **Scrum domain facts** from `scrum.domain.facts.v1`, emit **process facts** on `scrum.process.facts.v1`, and issue **Scrum domain intents** on `scrum.domain.intents.v1`, but do NOT embed agent logic.
 - **Transformation (Domain primitive)** remains the **source of truth** for Scrum artifacts (Product Backlog, Product Backlog Items, Sprints, Sprint Backlogs, Increments).
 - **Agents implement role-specific reasoning** (LangGraph DAGs) and communicate work handovers via events:

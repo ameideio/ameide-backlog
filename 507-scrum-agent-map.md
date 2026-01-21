@@ -22,6 +22,7 @@
 ## Grounding & cross-references
 
 - **Architecture grounding:** Builds on the primitive/integration foundations in `470-ameide-vision.md`, `471-ameide-business-architecture.md`, `472-ameide-information-application.md`, `473-ameide-technology.md`, `475-ameide-domains.md`, `477-primitive-stack.md`, and `496-eda-principles-v6.md`.  
+- **Role naming (v6):** `backlog/717-ameide-agents-v6.md` standardizes naming; treat PO/SA/Coder terminology as legacy labels when reading older agent backlogs.
 - **Stage 1 (Transformation Scrum profile):** Anchors to `300-400/367-1-scrum-transformation.md` and the `transformation_scrum_*` protos in `508-scrum-protos.md` as the Scrum system-of-record.  
 - **Stage 2 (Process primitives):** Uses the runtime seam in `506-scrum-vertical-v2.md` and Process operator semantics from `499-process-operator.md` to place Temporal workflows in the stack.  
 - **Stage 3 (Agents & tooling):** Maps AmeidePO/AmeideSA/AmeideCoder architecture in `505-agent-developer-v2.md` and implementation plan in `505-agent-developer-v2-implementation.md` onto the primitive/operator/CLI patterns in `500-agent-operator.md`, `504-agent-vertical-slice.md`, and the 484a–484f CLI backlogs.
