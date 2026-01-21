@@ -39,6 +39,12 @@ Expose Coder at an environment-qualified host:
 - `coder.staging.ameide.io` (disabled; wired)
 - `coder.ameide.io` or `coder.production.ameide.io` (disabled; wired)
 
+Platform contract (managed clusters):
+
+- `coder.{env}.ameide.io` is **canonical** for both users and workspace agents.
+- Do not “make it work” by relying on cluster-side DNS rewrite for correctness; use DNS-layer split-horizon.
+- Reference: `backlog/716-platform-dns-split-horizon-envoy.md`.
+
 ## 1) Non-negotiable separation of concerns
 
 We keep two execution surfaces intentionally separate:
@@ -100,6 +106,11 @@ Without it, Coder presents `/setup`.
 Decision (dev): **auto-bootstrap** the first admin user so humans go straight to Keycloak SSO without manual setup.
 
 Contract note: this is “application DB bootstrap state” and must follow the seeding contract (failfast + self-heal + evidence): `backlog/713-seeding-contract.md`.
+
+Operational pitfall (observed):
+
+- If the bootstrap user is created as `login_type=password` with the same email that humans later use via OIDC, Coder will reject the OIDC callback with “Incorrect login type”.
+- Avoid designing the platform so humans must “convert login type” manually in the UI; the bootstrap mechanism must be deterministic and GitOps-owned.
 
 Implementation (dev):
 

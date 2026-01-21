@@ -10,6 +10,7 @@ Related:
 - `backlog/437-split-frontend-cdn-evaluation.md`
 - `backlog/711-azure-subscription-recreate.md`
 - `backlog/714-migration-remediations.md`
+- `backlog/716-platform-dns-split-horizon-envoy.md` (DNS-layer split-horizon as the long-term replacement for rewrite-based “split horizon”)
 - `backlog/468-testing-front-door.md` (testing front door; different “front door” concept)
 
 ---
