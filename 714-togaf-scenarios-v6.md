@@ -23,6 +23,7 @@ related:
   - 703-transformation-enterprise-repository-proto-v1.md
   - 704-v6-enterprise-repository-memory-e2e-implementation-plan.md
   - 705-transformation-agentic-alignment-v6.md
+  - 717-ameide-agents-v6.md
   - 710-gitlab-api-token-contract.md
   - 714-togaf-scenarios-v6-00.md
 ---
@@ -88,6 +89,19 @@ Every user-visible claim must be explainable as:
 * “Here’s the file(s), at this repo, at this commit SHA (and anchor).”
 
 That’s not hardening; it’s the **core product trust feature**.
+
+### 2.6.1 Agent-first deliverables (interface-neutral)
+
+Scenario Slices are written **agent-first**:
+
+- Each slice must ship an **agent-usable capability** (architect/developer/human-in-loop).
+- UI and Process are **first-class consumers** of the same contracts; they must not introduce parallel semantics.
+
+Tool interface neutrality:
+
+- In-platform agents should use SDK-backed capability tools/resources.
+- External/devtool consumption can be served via MCP adapters (optional transport binding per `backlog/534-mcp-protocol-adapter.md`).
+- The slice definition must specify **tool semantics**, not a specific transport.
 
 ### 2.7 Element-editor-first UX (no “raw file viewer” as the product surface)
 
@@ -178,6 +192,20 @@ Every slice has the same shape:
   * UX-pass (optional early; mandatory for Tier‑1 slices)
 * **Run report requirements** (evidence spine outputs)
 
+### 3.2 Agentic deliverables template (required for every slice)
+
+Every slice must explicitly state the **incremental agentic capability** delivered by completing that slice, using the same structure each time:
+
+- **Architect agent deliverables**
+  - What new questions the architect agent can answer *directly from Git + projection* at a `read_context`.
+  - What new **derived views** it can explain with “why” evidence (origin citations).
+  - How it supervises the developer’s active work (review tick cadence; escalation rules) per `backlog/717-ameide-agents-v6.md`.
+- **Developer agent deliverables**
+  - What new execution it can perform safely (repo writes, verification front doors, evidence capture).
+  - What new guardrails are enforced (scope/path/policy boundaries; fail-fast behavior).
+- **Human-in-the-loop deliverables**
+  - What new checkpoint(s) exist and how the decision is recorded into the evidence spine.
+
 ---
 
 ## 4. Capability tags (alignment mechanism)
@@ -254,6 +282,19 @@ To avoid “tests without product,” each slice has two pass levels:
 
 * **Contract-pass** (mandatory for all slices): E2E runner passes and produces run report.
 * **UX-pass** (mandatory for Tier‑1 slices, optional early for others): minimal UI workflow smoke aligns with the same contracts and produces the same evidence spine.
+
+### 5.5 Agent DoD (required in every slice)
+
+Every slice must declare and satisfy agent-focused acceptance criteria:
+
+- **Architect agent DoD**
+  - can answer the slice’s primary questions using citeable reads at a resolved `read_context`,
+  - can explain derived results (“why”) using origin citations,
+  - can supervise the developer’s active work via periodic review ticks (`review_interval_minutes`) and either continue/adjust/escalate (`backlog/717-ameide-agents-v6.md`).
+- **Developer agent DoD**
+  - can execute the slice’s change or verification tasks and attach evidence (default front door: `./ameide test` for platform-code work).
+- **Human-in-loop DoD**
+  - there is at least one explicit checkpoint that requires a human decision, recorded into the evidence spine.
 
 ### 5.4 Vendor edge cases and limits (GitLab)
 
