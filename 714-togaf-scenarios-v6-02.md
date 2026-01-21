@@ -75,6 +75,13 @@ To avoid path-based identity drift, each “element file” participating in der
 - `requirements/REQ-001.md` must include a stable ID value `REQ-001`.
 - In v6, IDs are content, not path: moving a file does not change the ID.
 
+**Identity scope and collisions (product rules)**
+- IDs are **repository-unique** at a given `{repository_id, commit_sha}`.
+- If multiple files claim the same `id` at the same commit SHA, Projection must treat the ID as **ambiguous**:
+  - `GetElementById` must fail with an explicit “duplicate id” error and include the candidate citations `{repo, sha, path[, anchor]}`.
+  - UI must surface this as a user-visible error (it is not safe to pick an arbitrary winner).
+- If a file has no stable `id`, it is still readable by **path**, but it is not eligible for `element_id → path` navigation or derived views that require IDs (unless explicitly allowed by a slice).
+
 ### Inline reference grammar (Scenario B MVP)
 
 For Scenario B, pick one simple reference form so Projection can be deterministic:
@@ -86,7 +93,15 @@ For Scenario B, pick one simple reference form so Projection can be deterministi
 
 Notes:
 - This is an MVP grammar for the scenario test harness; it does not preclude supporting additional syntaxes later.
-- Projection must emit `anchor` data that allows UI to show “why linked?” (line, heading, or a stable fragment key).
+- Projection must emit deterministic `anchor` data that allows UI to show “why linked?” and is reproducible on rebuild at `{repository_id, commit_sha, path}`.
+
+**Anchor strategy (Scenario B MVP)**
+- For frontmatter locations: `anchor = "fm:<field>"` (e.g., `fm:id`, `fm:refs[0]`).
+- For body/content tokens: `anchor = "L<line>:C<col>"` (1-based position of the `ref:` token).
+ 
+UI intent:
+- The “why linked?” affordance uses `{commit_sha, path, anchor}` to show the exact origin location (highlight the relevant line/field) at the immutable SHA.
+
 
 ## What to implement by primitive
 
@@ -119,7 +134,9 @@ Notes:
 
 **Edge behavior (must be deterministic)**
 - Missing target ID:
-  - backlinks can still exist (refs found), but targets resolve as “unresolved”; UI must show “broken ref at `<sha>`” with origin citations.
+  - backlinks can still exist (refs found), but targets resolve as “unresolved”; UI must show “Broken reference: <target_id>” with origin citations.
+- Duplicate target ID:
+  - treat as “ambiguous target”; UI must show an explicit error with candidate citations.
 - Rebuildability:
   - Projection can rebuild the backlinks index from Git alone (no canonical relationship store).
 
@@ -141,6 +158,8 @@ Notes:
 - Provide a derived backlinks/impact panel:
   - explicitly labeled **Derived**
   - every entry has a “why linked?” affordance that reveals origin citation (path + anchor + SHA).
+  - broken references are shown explicitly (with origin citations) and are never auto-fixed
+  - ambiguous element IDs are shown explicitly (with candidate citations); users must resolve via a governed change
 - Provide a “citeable context” panel:
   - list of citations returned by memory bundle retrieval
   - copyable as JSON
@@ -161,7 +180,9 @@ Scenario B assumes this becomes the primary “open requirement / open standard�
 
 Deep-link nuance (current platform reality):
 - Direct `/org/:orgId/repo/:repositoryId/element/:elementId` routes currently redirect back to the repo root.
-- Until that is changed, “open in new tab” should use the repo route plus a query param that opens the modal (e.g. `/org/:orgId/repo/:repositoryId?elementId=<elementId>`).
+- Until that is changed, “open in new tab” should use the repo route plus a query param that opens the modal.
+  - For Scenario B, `elementId=<stable_element_id>` is the primary mode (e.g. `elementId=REQ-001`), aligned to v6 element identity.
+  - Also allow `elementPath=<urlencoded path>` as a compatibility escape hatch for “open by path” (still Git-first), but do not treat paths as element identity.
 
 #### Wireframes (ASCII)
 

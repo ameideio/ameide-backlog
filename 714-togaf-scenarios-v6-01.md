@@ -54,6 +54,10 @@ Canonical mapping from `{tenant_id, organization_id, repository_id}` to the vend
 - `remote_id = <gitlab project id or path>` (opaque to UX; policy-level detail)
 - `published_ref = main` (default baseline branch)
 
+**Onboarding note (normative)**
+- Treat “repository onboarding / mapping upsert” as a **single shared platform capability** (admin/bootstrap), not something each Domain invents differently.
+- Domain consumes this mapping for all reads/writes, but onboarding policy and UX should be centralized (one “Repository Onboarding” primitive/service contract).
+
 ### Read context (minimum required in Scenario A)
 
 Projection must support:
@@ -67,7 +71,9 @@ Every tree node and file read must return:
 
 ### Evidence spine (minimum fields for Scenario A)
 
-The platform must be able to produce an audit-grade run/audit record with:
+Use `EvidenceSpineViewModel` from `backlog/714-togaf-scenarios-v6.md` as the shared shape across UI and contract-pass runs.
+
+Scenario A requires (minimum):
 - Identity: `{tenant_id, organization_id, repository_id}`
 - Proposal:
   - `mr_iid`
@@ -91,6 +97,8 @@ The platform must be able to produce an audit-grade run/audit record with:
 
 **Domain commands (minimum)**
 - `UpsertRepositoryGitRemote(scope, provider, remote_id, idempotency_key)`
+  - classify as **platform onboarding** (admin/bootstrap), not part of the everyday change lifecycle
+  - prefer implementing this behind a single shared “Repository Onboarding” service contract, then having the Domain consume the resulting mapping
 - `EnsureChange(scope, idempotency_key)` → returns:
   - `change_id`, `branch_ref`, `mr_iid`, `last_commit_id`
 - `CreateCommit(change_id, actions[], expected_last_commit_id, idempotency_key)` → returns:
@@ -134,6 +142,7 @@ UI is not required for contract-pass initially, but Scenario A’s UX-pass must 
 - Element editor (not a raw file viewer):
   - open “elements” in an editor surface (modal is preferred, aligned to existing routing)
   - still display canonical storage `{path}` + citation `{repo_id, sha, path[, anchor]}` as a trust feature
+  - Scenario A can open by **path** (stable IDs are not required yet); Scenario B introduces ID-based navigation (`element_id → path`) via Projection
 - Change-based editing (not DB CRUD):
   - “Propose change” → Domain `EnsureChange`
   - “Save” → Domain `CreateCommit`
@@ -155,7 +164,9 @@ but `ElementEditorModal` is currently a placeholder. Scenario A requires impleme
 
 Deep-link nuance (current platform reality):
 - Direct `/org/:orgId/repo/:repositoryId/element/:elementId` routes currently redirect back to the repo root.
-- Until that is changed, “open in new tab” should use the repo route plus a query param that opens the modal (e.g. `/org/:orgId/repo/:repositoryId?elementId=<elementId>`).
+- Until that is changed, “open in new tab” should use the repo route plus a query param that opens the modal.
+  - In Scenario A, prefer `elementPath=<urlencoded path>` to avoid implying stable ID semantics too early.
+  - Once Projection supports `element_id → path` resolution (Scenario B), `elementId=<element_id>` becomes the primary addressing mode.
 
 Wireframes below assume `ListPageLayout` + an internal split for tree/list, and an editor modal overlay for element editing.
 
