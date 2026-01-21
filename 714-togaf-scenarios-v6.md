@@ -73,8 +73,8 @@ These apply to every slice.
 
 ### 2.5 GitLab CE substrate only
 
-* GitLab provides: repo storage, MR as proposal unit, pipelines as validation, protected `main` as baseline.
-* Do not depend on paid planning features.
+* Depend only on GitLab **Free-tier compatible** primitives (self-managed “CE/Free” posture): repository storage, Merge Requests as proposal units, pipelines as validation, protected branches, and the public GitLab HTTP APIs for commits/files/tree/compare/merge.
+* Do not depend on paid-tier planning and governance features (e.g., approval rules); keep governance enforcement in platform policy + owner-only writes.
 
 ### 2.6 Audit-grade by default
 
@@ -170,11 +170,13 @@ Every run produces an audit-grade report:
 * **Proposal evidence**:
 
   * MR identifier (iid or equivalent)
-  * proposal head commit SHA (if relevant)
+  * proposal head commit SHA (if relevant; may require waiting for MR diff refs to populate)
   * pipeline pointer (if used)
 * **Publish evidence**:
 
-  * resulting `main` commit SHA (“published baseline”)
+  * target branch (typically `main`)
+  * target head commit SHA (“published baseline”; the audit anchor you show everywhere)
+  * optional: merge/squash commit SHAs (if provided by the vendor)
 * **Citations used/returned**:
 
   * list of `{repository_id, commit_sha, path[, anchor]}` referenced in reads, derived views, memory outputs
@@ -194,6 +196,16 @@ To avoid “tests without product,” each slice has two pass levels:
 
 * **Contract-pass** (mandatory for all slices): E2E runner passes and produces run report.
 * **UX-pass** (mandatory for Tier‑1 slices, optional early for others): minimal UI workflow smoke aligns with the same contracts and produces the same evidence spine.
+
+### 5.4 Vendor edge cases and limits (GitLab)
+
+These are non-negotiable realities the contract-pass runner and the primitives must handle explicitly:
+
+* **Merge-method nuance:** the canonical publish anchor is the **target branch head SHA after publish**; merge/squash commit SHAs are supplemental evidence (project settings may vary).
+* **MR proposal SHA availability:** proposal diff/head fields can populate asynchronously; the runner must retry/backoff when resolving “proposal head SHA.”
+* **Tree/file API error semantics:** missing paths may return `404` (not empty lists); treat this deterministically in contract tests.
+* **Ref semantics:** prove in your environment that the chosen “tree by ref” endpoint supports `ref=<commit_sha>`; if not, define and test a fallback strategy.
+* **Rate/size limits:** commit batching and citeable context bundles must be budget-aware (chunk actions/reads, cache, and backoff); runner should surface throttling/fallbacks in the run report.
 
 ---
 
@@ -245,7 +257,7 @@ As an enterprise architect, I can browse the canonical Enterprise Repository (as
 
 ## DoD
 
-* Contract-pass: scenario runner proves browsing + file read + citations.
+* Contract-pass: scenario runner proves browsing + file read + citations, and handles missing path behavior deterministically.
 * UX-pass: user can browse and open file via UI.
 
 ---
@@ -282,7 +294,11 @@ As an enterprise architect, I can propose and publish an Architecture Vision so 
 * **Domain**: EnsureChange, commit batching, publish with SHA guards, record evidence spine
 * **Projection**: converge reads to new published SHA immediately after publish
 * **UI**: change-based editing UX; publish is explicit governed action
-* **GitOps/token contract**: least privilege consistent with owner-only writes
+* **GitOps/token contract**: least privilege consistent with owner-only writes; tokens must be expiring/rotating (no “forever bot” assumption)
+
+**Vendor notes (GitLab)**
+- Treat the audit anchor as **target branch head SHA after publish** (merge-method agnostic), and record merge/squash SHAs as optional supplemental evidence.
+- If pipeline gating is used, prefer GitLab “auto-merge” semantics; do not depend on deprecated “merge when pipeline succeeds” API parameters.
 
 ## DoD
 
@@ -434,9 +450,12 @@ As a governance board, I can record approvals/waivers/outcomes in the platform a
 ## Primitive responsibilities
 
 * **Platform governance service**: canonical outcome store + policy checks
-* **Domain**: consult governance truth before allowing publish (or publish emits status that governance evaluates)
+* **Domain**: enforce publish gating via a single, explicit contract (either: Domain requires a governance attestation input, or Process gates publish and only calls Domain when allowed)
 * **Projection**: join governance truth with evidence spine in views
 * **UI**: governance timeline/outcomes panel in EA language
+
+**Vendor notes (GitLab)**
+- Do not rely on paid-tier approval rules for enforcement. Any GitLab approvals are advisory only; enforcement lives in platform governance truth + protected branch + owner-only merge identity.
 
 ## DoD
 
@@ -548,8 +567,8 @@ This section fully absorbs `backlog/713-v6-togaf-functional-scenarios-e2e-tests.
 `cap:identity`, `cap:citation`, `cap:repo.onboard`, `cap:repo.read_tree`, `cap:repo.read_file`, `cap:change.ensure`, `cap:change.commit_batch`, `cap:change.publish`, `cap:evidence.spine`
 
 **Primitive contributions (complete target)**
-- **GitLab substrate:** stores the canonical files; MR is the proposal unit; protected `main` is the canonical baseline; pipelines validate; merge commit SHA is the immutable evidence anchor.
-- **Domain (owner-only writes):** creates/owns the “change” abstraction, opens/updates the MR, commits the file changes, publishes (merges) with SHA-safe semantics, and records the evidence spine `{mr_iid, merge_commit_sha(main), citations}`.
+- **GitLab substrate:** stores the canonical files; MR is the proposal unit; protected `main` is the canonical baseline; pipelines validate; publish advances the **target branch head SHA** (merge/squash SHAs are supplemental evidence depending on merge method).
+- **Domain (owner-only writes):** creates/owns the “change” abstraction, opens/updates the MR, commits the file changes, publishes (merges) with SHA-safe semantics, and records the evidence spine `{mr_iid, target_branch, target_head_sha, citations}` (plus optional merge/squash SHAs).
 - **Projection (derived views):** resolves `read_context` → `commit_sha`, serves Git-tree reads (`ListTree`/`GetContent`) strictly from Git, and returns citation-grade content responses.
 - **Process (orchestration only):** optional here; can drive the “publish loop” (draft → review → publish) but must only call Domain commands (no direct git ops).
 - **Agent (proposal/evidence only):** optional here; can draft the vision text and propose it, but must not hold write credentials; it reads via Projection and submits a proposal via Domain.
@@ -646,7 +665,7 @@ This section fully absorbs `backlog/713-v6-togaf-functional-scenarios-e2e-tests.
 Scenario A tags, plus (optionally) `cap:baseline.compare` when diff UX exists
 
 **Primitive contributions (complete target)**
-- **GitLab substrate:** file moves/renames are real Git operations; the Git tree is the hierarchy; MRs record review and diffs; the merge commit SHA is the audit anchor.
+- **GitLab substrate:** file moves/renames are real Git operations; the Git tree is the hierarchy; MRs record review and diffs; the audit anchor is the **target branch head SHA** after publish (merge/squash SHAs supplemental).
 - **Domain (owner-only writes):** applies rename/move operations via commit actions, enforces “no empty folders” (Git-native), publishes via MR merge, and records evidence.
 - **Projection (derived views):** must reflect the Git tree after moves (no synthetic folder model), and must return citations pointing to the new paths at the new SHA; can optionally provide “moved-from” hints as derived metadata (with citations).
 - **Process (orchestration only):** optional; can orchestrate “document restructuring” workflows (split, rename, publish) and require review gates.
