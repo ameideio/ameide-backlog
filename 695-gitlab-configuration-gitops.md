@@ -212,8 +212,10 @@ GitLab should follow the same pattern so we don’t rely on ad-hoc/manual valida
 
 1. **ExternalSecrets ready:** `ExternalSecret/gitlab-oidc-provider` is Ready and target Secret exists.
 2. **Workload ready:** core GitLab webservice is rolled out (and responding on the in-cluster service endpoint).
-3. **OIDC wiring sanity:** GitLab responds with an OIDC redirect (or presents the OIDC provider on the sign-in page) consistent with the Keycloak issuer and the environment hostnames.
-4. **No-placeholder secrets:** prevent “placeholder_*” client secrets/redirect URIs from surviving in managed environments (same drift guard philosophy used elsewhere).
+3. **Route correctness:** Gateway `HTTPRoute/platform-gitlab` routes to **Workhorse** (`8181`), not Rails/Puma (`8080`).
+4. **OIDC wiring sanity:** GitLab responds with an OIDC redirect (or presents the OIDC provider on the sign-in page) consistent with the Keycloak issuer and the environment hostnames.
+5. **No-placeholder secrets:** prevent “placeholder_*” client secrets/redirect URIs from surviving in managed environments (same drift guard philosophy used elsewhere).
+6. **API token sanity:** `Secret/gitlab-api-credentials` contains a non-placeholder token that can authenticate `GET /api/v4/user` (in-cluster) with `PRIVATE-TOKEN`.
 
 **Policy**
 
