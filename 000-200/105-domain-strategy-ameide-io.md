@@ -195,6 +195,12 @@ helmfile -e local sync -l name=gateway
 - ✅ Services need to validate JWT tokens against public issuer URL
 - ❌ Regular pod-to-pod communication (use `*.svc.cluster.local` instead)
 
+**Managed clusters (AKS) policy update (2026-01-21):**
+
+- Do not use cluster-wide CoreDNS rewrites as the correctness mechanism for canonical `*.{env}.ameide.io` hostnames.
+- Use DNS-layer split-horizon (public DNS + private DNS) so pods and humans can use the same canonical hostname without hidden rewrites.
+- Reference: `backlog/716-platform-dns-split-horizon-envoy.md`.
+
 **Preferred approach for pod-to-pod:**
 ```yaml
 # Use cluster-internal DNS for pod-to-pod communication

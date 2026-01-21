@@ -6,6 +6,17 @@
 
 ---
 
+## Update (2026-01-21): rewrites are cluster-scoped, but not the long-term managed-cluster DNS contract
+
+This backlog is still correct about **ownership and scope**: CoreDNS customization in AKS is cluster-scoped and must be owned by a single ArgoCD application.
+
+Platform direction has changed:
+
+- In **managed clusters**, CoreDNS wildcard rewrites are **legacy/exception tooling**, not the “make DNS correct” strategy for canonical hostnames.
+- The long-term platform DNS contract is **split-horizon DNS at the DNS layer** (Terraform-managed public + private DNS), keeping `*.{env}.ameide.io` canonical for both users and pods.
+
+See: `backlog/716-platform-dns-split-horizon-envoy.md`.
+
 ## Why CoreDNS Config is Cluster-Scoped (Not Per-Environment)
 
 ### Vendor Documentation
@@ -151,15 +162,12 @@ kubectl get configmap coredns-custom -n kube-system -o yaml
 ### Check DNS resolution works
 
 ```bash
-# From a pod in the cluster
+# If CoreDNS rewrites are enabled, validate that the configured rewrites resolve.
+# Note: in managed clusters the long-term direction is to remove reliance on rewrites
+# for canonical `*.{env}.ameide.io` correctness; see backlog/716.
 nslookup dev.ameide.io
-# Should resolve to envoy.ameide-dev.svc.cluster.local
-
 nslookup staging.ameide.io
-# Should resolve to envoy.ameide-staging.svc.cluster.local
-
 nslookup ameide.io
-# Should resolve to envoy.ameide-prod.svc.cluster.local
 ```
 
 ---

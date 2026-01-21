@@ -28,6 +28,7 @@ This contract applies to **secrets**, **infra-derived runtime facts**, and **app
 - Cluster recreate -> Coder DB reset incident: `backlog/677-coder-dev-templates-disappeared-after-cluster-recreate.md`
 - Workspaces WI + credential fan-out: `backlog/712-coder-workspaces-tasks-azure-workload-identity.md`
 - Codex auth slots + fan-out: `backlog/613-codex-auth-json-secret.md`
+- Canonical hostnames in-cluster (DNS-layer split-horizon): `backlog/716-platform-dns-split-horizon-envoy.md`
 
 ## Definitions (what “seeding” is)
 
