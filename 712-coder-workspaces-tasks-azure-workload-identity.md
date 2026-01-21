@@ -52,10 +52,12 @@ Decision for Ameide: **shard across a fixed pool of identities** (“Option B”
 ### 3.2 K8s wiring
 
 - GitOps materializes non-secret runtime facts for Coder templates:
-  - `ConfigMap/coder-runtime-facts` in the Coder namespace contains:
-    - Azure tenant id
-    - JSON array of sharded managed identity client ids
-  - Coder server exports these as Terraform variables for templates (`TF_VAR_...`).
+  - `Secret/coder-workspaces-azure-wi` in the environment namespace contains:
+    - `AZURE_TENANT_ID`
+    - `AZURE_CLIENT_IDS_JSON` (JSON array)
+  - Coder server exports these as Terraform variables for templates:
+    - `TF_VAR_azure_workload_identity_tenant_id`
+    - `TF_VAR_azure_workload_identity_client_ids_json`
 - Coder templates use these values to configure:
   - `ServiceAccount` annotation `azure.workload.identity/client-id=<selected-client-id>`
   - Pod label `azure.workload.identity/use=true` (required for the webhook to inject token + env)
@@ -101,16 +103,20 @@ Implementation (dev-only; GitOps-managed):
 
 1) Human seeds **one** long-lived `coder-bootstrap-token` into the seed Key Vault (once).
 
-2) A CronJob runs in-cluster and rotates `coder-cli-session-token`:
+2) `foundation-vault-bootstrap` copies it into Vault KV (standard AKV → Vault flow):
 
-- Chart: `sources/charts/foundation/vault-bootstrap`
-- CronJob: `vault-bootstrap-*-coder-cli-token-rotator`
-- Reads `coder-bootstrap-token` from Vault (via ESO) and mints `coder-cli-session-token` via the Coder API
-- Writes `coder-cli-session-token` back to the **seed** Key Vault (root-of-truth)
+- seed AKV → (CronJob sync) → cluster AKV → (vault-bootstrap) → Vault KV key `coder-bootstrap-token`
 
-3) Existing conveyor does the rest (no new special cases):
+3) `platform-coder` maintains the derived workspace default token in Vault KV:
 
-- seed AKV → (CronJob sync) → cluster AKV → (vault-bootstrap) → Vault KV → (ESO) → `Secret/coder-cli-auth` in each workspace namespace.
+- CronJob: `coder-cli-session-token`
+- Reads `coder-bootstrap-token` (via `Secret/coder-bootstrap-token`, sourced from Vault)
+- Mints/validates `coder-cli-session-token` via the Coder API
+- Writes `coder-cli-session-token` into Vault KV (via Vault Kubernetes auth role `coder-token-writer`)
+
+4) ESO fans out into workspaces:
+
+- Vault KV → `ExternalSecret`/`ClusterExternalSecret` → `Secret/coder-cli-auth` (per workspace namespace)
 
 ## 4) Evidence / “Done means”
 

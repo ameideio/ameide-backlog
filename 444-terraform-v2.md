@@ -199,9 +199,9 @@ Cloud secret values must not be stored in GitHub. CI should source secret values
 
 Terraform may create the vault/identities, but secret *values* should be injected through the CI pipeline (or a separate secure seeding job), not checked into repo state.
 
-Minimum secret set for dev AKS now includes Coder bootstrap + GitHub external auth:
+Minimum secret set for dev AKS now includes Coder bootstrap (and workspace auth bootstrap):
 - `coder-bootstrap-admin-username|email|password` (seed initial Coder owner; skip `/setup`)
-- `coder-github-oauth-client-id|secret` (Coder GitHub External Auth OAuth app)
+- `coder-bootstrap-token` (one-time seed; used by in-cluster reconcilers)
 
 ### Local
 

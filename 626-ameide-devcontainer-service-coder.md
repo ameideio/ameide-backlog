@@ -175,21 +175,14 @@ Define and pin:
 GitHub access is needed for two distinct purposes:
 
 1) **Repo cloning for envbuilder (template build step)**  
-   This must work for private repos without a shared “cluster bot token”.
+   This must work for private repos deterministically (no per-user UI linking, no device flow).
 
-   Decision (Option 1): use **Coder External Auth (GitHub)**:
+   Decision (dev): use **GitOps-managed `Secret/gh-auth`** (bot/PAT token) and keep templates secret-free:
 
-   - Each developer connects GitHub once in the Coder UI (External Auth).
-   - Templates use `coder_external_auth` to obtain a **per-user** GitHub access token.
-   - envbuilder clones via:
+   - Templates mount `Secret/gh-auth` (key `token`) and pass it to envbuilder:
      - `ENVBUILDER_GIT_USERNAME=x-access-token`
-     - `ENVBUILDER_GIT_PASSWORD=<per-user token>`
-
-   Platform requirement:
-
-   - Coder must be configured with a GitHub OAuth app (client id/secret) so External Auth can be used.
-   - In AKS dev this is provided via the standard secret pipeline and materializes as `Secret/coder-external-auth-github`.
-     - Source secret names: `coder-github-oauth-client-id`, `coder-github-oauth-client-secret`.
+     - `ENVBUILDER_GIT_PASSWORD=<Secret/gh-auth.token>`
+   - No Coder External Auth / GitHub OAuth app is required for envbuilder cloning.
 
 2) **Git operations inside the workspace (human workflow)**  
    Developers may use interactive auth (`gh auth login` / device flow) for pushing branches and opening PRs.
@@ -198,8 +191,7 @@ Hard rules:
 
 - Templates must never embed secret values; treat templates as readable by all template users.
 - Workspace GitHub auth must be explicit and deterministic:
-  - For envbuilder cloning, use Coder External Auth (per-user token; see above).
-  - For in-workspace `gh`/`git` UX, use a GitOps-managed Kubernetes Secret mount (dev-only) rather than ad-hoc device-flow logins.
+  - For envbuilder cloning and in-workspace `gh` UX, use `Secret/gh-auth` (dev-only) rather than ad-hoc device-flow logins.
 
 Update (2026-01-20): GitHub + Azure CLI auth seeding for workspaces (dev-only)
 
@@ -215,8 +207,7 @@ Update (2026-01-20): GitHub + Azure CLI auth seeding for workspaces (dev-only)
   - Legacy SP secret injection (`Secret/azure-auth`) is deprecated for new work; see `backlog/712-coder-workspaces-tasks-azure-workload-identity.md`.
 
 Operational note:
-
-- GitHub External Auth is a per-user OAuth authorization stored in the Coder DB; it typically requires a **one-time manual “Connect GitHub”** action per user (including any CI/headless user) and cannot be cleanly pre-seeded.
+ - Device-flow logins are intentionally not part of the “fresh workspace works” contract; keep auth deterministic via the secret pipeline.
 
 References:
 

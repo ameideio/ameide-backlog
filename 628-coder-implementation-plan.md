@@ -97,13 +97,13 @@ Argo CD deploys Coder, but Coder templates are not Kubernetes manifests.
 Define:
 
 - where the Terraform template lives (repo/path)
-- how CI pushes template versions to Coder (Coder CLI/API) and promotes after E2E passes
-- how we keep the template version in sync with the GitOps release (operational runbook)
+- how templates are published/reconciled after DB resets (in-cluster, GitOps-managed)
+- how we keep the template version in sync with Git (reconciler pulls from the GitOps repo)
 
 Update (2026-01-15): make template rehydration reliable after DB resets
 
 - Dev cluster/namespace recreation can yield a fresh CNPG-backed Coder database (templates disappear).
-- Keep a reproducible “rehydrate templates” workflow that can run without manual intervention; avoid short-lived CI session tokens that expire weekly.
+- Make template rehydration a **reconciler CronJob** (in-cluster; no GitHub workflows) so a fresh DB converges automatically.
 - Incident log: `backlog/677-coder-dev-templates-disappeared-after-cluster-recreate.md`.
 
 ## 3) Security model (implementation requirements)
@@ -130,21 +130,12 @@ Requirements:
 - Do not embed secret values in templates (assume templates are readable by all template users).
 - Prefer Keycloak SSO for Coder and runtime secret mounts by Secret name when automation is required.
 
-## 3.3 GitHub private repo access (Option 1: Coder External Auth)
+## 3.3 GitHub private repo access (dev-only: GitOps-managed token)
 
-We use **Coder External Auth (GitHub)** as the source of truth for per-user GitHub tokens:
+We use a GitOps-managed token for deterministic cloning and CLI access in new workspaces:
 
-- Coder server is configured with `CODER_EXTERNAL_AUTH_0_*` (provider id `github`) and a GitHub OAuth app client id/secret.
-- The OAuth app credentials are delivered via Vault → ExternalSecret → `Secret/coder-external-auth-github`.
-- Templates use `data "coder_external_auth" "github"` and pass:
-  - `ENVBUILDER_GIT_USERNAME=x-access-token`
-  - `ENVBUILDER_GIT_PASSWORD=<per-user access token>`
-
-This eliminates the need for per-workspace Vault/ESO resources and avoids a shared bot token inside human workspaces.
-
-Operational note:
-
-- Each user must complete a one-time GitHub authorization in Coder (“External Auth → GitHub → Connect”) so Coder can mint per-user access tokens for envbuilder cloning.
+- Templates mount `Secret/gh-auth` (key: `token`) and pass it to envbuilder as `ENVBUILDER_GIT_PASSWORD`.
+- Workspace bootstrap seeds `gh` configuration from the same secret (no device flow required for the “fresh workspace works” contract).
 
 ## 4) Implementation plan (phased)
 

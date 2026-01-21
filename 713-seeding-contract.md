@@ -143,3 +143,19 @@ Contract alignment:
 - The “first admin user exists” must be ensured by a **reconciler CronJob** (P1), because Coder DB can be reset on cluster recreate (see 677).
 - The bootstrap user inputs (`coder-bootstrap-admin-*`) remain sourced from the secrets pipeline (Vault/AKV), not from template parameters.
 - Coder associates a login type per user. In SSO-only deployments, the seeding unit must ensure the seeded admin user’s `login_type` is `oidc` (not `password`), otherwise Keycloak login for that identity fails with “Incorrect login type”.
+
+## Applying this contract to Coder templates + workspace default auth
+
+Problem class:
+
+- Templates: **service DB state** (authority: Coder DB)
+- Workspace default tool auth: **service-generated secrets** + **infra-derived runtime facts**
+
+Contract alignment (dev):
+
+- Templates must be rehydrated by a **reconciler CronJob** (P1) because a DB reset removes them (see 677). No GitHub workflows as the automation engine.
+- Workspace `coder` CLI auth (`coder-cli-session-token`) must be maintained by a **reconciler CronJob** (P1) that:
+  - reads the required bootstrap input (`coder-bootstrap-token`) from the secrets pipeline
+  - writes the derived token into Vault KV
+  - lets ESO fan out `Secret/coder-cli-auth` into workspace namespaces
+- Workload Identity runtime facts must be present before workspace creation (failfast): missing `TF_VAR_azure_workload_identity_*` inputs must prevent “half-working” workspaces.

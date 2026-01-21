@@ -28,37 +28,32 @@ Root cause
 Contributing factors
 
   - Templates are **not GitOps-native**; they live in Coder DB and require a publisher (CI/CLI) to push them back after a DB reset.
-  - The existing GitHub Actions workflow used a `CODER_SESSION_TOKEN` which had expired (401), and admin tokens were capped to 168h by default.
-  - The template workflow hard-failed on “GitHub External Auth linked” even though we still want to push+promote template versions without running the workspace E2E.
+  - The platform previously relied on out-of-cluster/manual publishing (CI/CLI) and did not have an always-on in-cluster reconciler to rehydrate templates after DB resets.
 
 Resolution (GitOps)
 
-  - Re-enabled GitHub External Auth provider in Coder values (still Keycloak-only login):
-      - `CODER_OAUTH2_GITHUB_DEFAULT_PROVIDER_ENABLE=false` (no GitHub login)
-      - `CODER_EXTERNAL_AUTH_0_*` + `externalAuth.github.enabled=true`
-  - Increased token lifetime defaults for CI in dev:
-      - `CODER_DEFAULT_TOKEN_LIFETIME=8760h`
-      - `CODER_MAX_ADMIN_TOKEN_LIFETIME=8760h` (required because CI token was minted as admin)
-  - Rotated GitHub Actions secret `CODER_SESSION_TOKEN` to a fresh long-lived token.
-  - Made `.github/workflows/coder-devcontainer-e2e.yaml` resilient:
-      - Template push+promote continues even if GitHub External Auth is not linked; workspace E2E is gated on linkage.
+  - Treat template publishing as **seeding** (per `backlog/713-seeding-contract.md`) and make it self-healing.
+  - Add in-cluster reconcilers (ArgoCD-managed):
+    - `CronJob/coder-bootstrap-admin`: ensures “first user exists” and reconciles bootstrap admin `login_type` to `oidc` (avoids `/setup` + “Incorrect login type”).
+    - `CronJob/coder-templates-reconciler`: clones `ameideio/ameide-gitops` using `Secret/gh-auth` and runs `coder templates push` for `ameide-dev` + `ameide-gitops` using `Secret/coder-bootstrap-token`.
+    - `CronJob/coder-cli-session-token`: maintains `coder-cli-session-token` in Vault KV so new workspaces can run `coder whoami` without interactive login.
+  - Keep admin token lifetime caps raised in dev (so `coder-bootstrap-token` can be long-lived and deterministic).
 
 Verification
 
-  - `coder` Postgres DB contains templates:
+  - After reconciliation:
+    - UI no longer shows `/setup` (first user exists).
+    - `coder templates list` contains:
       - `ameide-dev`
       - `ameide-gitops`
-      - `scratch`
-  - The “publish templates” workflow completes successfully and is repeatable via `workflow_dispatch`.
+    - Fresh workspaces can clone private repos and run the default toolchain without manual auth.
 
 Follow-ups (recommended)
 
   - Decide whether dev Coder DB is “ephemeral by design”:
       - If yes: keep the “rehydrate templates via CI” workflow as the documented recovery procedure.
       - If no: add CNPG backups (object storage) and/or adjust reclaim policy (Retain) in the storage layer.
-  - Decide whether template publishing must be Argo-driven (PostSync hook Job) or may remain CI-driven:
-      - CI-driven (current) avoids storing a long-lived Coder token in-cluster and can run on GitHub-hosted runners (independent of ARC health).
-      - Argo-driven implies storing/passing a long-lived Coder admin token via Vault/ESO, and operating a Job with the right egress/auth to publish templates after a DB reset.
+  - Keep template publishing in-cluster (CronJob reconciler) to eliminate the “reset requires manual/CI intervention” class of outages.
 
 Update (2026-01-15): workspace health hardening + orphan cleanup
 
