@@ -101,7 +101,9 @@ Each runtime SHOULD have “contract tests” to prevent drift:
 
 Phase 0 of `ameide test` is the repo gate front door.
 
-Planned: add a static alignment check (`ObservabilityContract334v3`) to prevent drift. It should fail if a service is missing the required helper + propagator install + session correlation (baggage → span attribute + log fields).
+Enforced: `ObservabilityContract334v3` runs in the repo gate and fails if a service is missing the required helper + propagator install + session correlation (baggage → span attribute + log fields).
+
+Implementation lives in `packages/ameide_coding_helpers/verify/` (go test gate).
 
 ## 5) Loki (logs)
 
@@ -112,6 +114,12 @@ Rules:
 - All services MUST emit structured logs (JSON) for request-scoped events.
 - JSON logs MUST include a timestamp, a level, and a message field (key names may vary), plus `ameide_session_id`, `trace_id`, `span_id`.
 - Target state: also attach `ameide_session_id`, `trace_id`, `span_id` as Loki **structured metadata** (when ingestion supports it).
+
+GitOps status (dev/staging/prod):
+
+- Loki has `allow_structured_metadata: true` enabled.
+- Alloy log tailing extracts `ameide_session_id`, `trace_id`, `span_id` from JSON logs and attaches them as structured metadata.
+- OTLP logs (e.g., Envoy Gateway access logs) are received by the OTel Collector and exported to Loki via Loki OTLP HTTP ingestion.
 
 Query model (CLI + Grafana):
 
