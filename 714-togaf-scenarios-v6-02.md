@@ -159,6 +159,10 @@ Also note: the app already has a modal route pattern for opening an “element e
 - `.../repo/:repositoryId/@modal/(.)element/:elementId`
 Scenario B assumes this becomes the primary “open requirement / open standard” surface (editor-first), and that backlinks/impact/memory panels are implemented as **derived** overlays (no relationship CRUD).
 
+Deep-link nuance (current platform reality):
+- Direct `/org/:orgId/repo/:repositoryId/element/:elementId` routes currently redirect back to the repo root.
+- Until that is changed, “open in new tab” should use the repo route plus a query param that opens the modal (e.g. `/org/:orgId/repo/:repositoryId?elementId=<elementId>`).
+
 #### Wireframes (ASCII)
 
 ##### Screen 1 — Derived Requirements index (projection-backed)

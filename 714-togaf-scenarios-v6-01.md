@@ -153,6 +153,10 @@ Also note: the app already has a modal route pattern for opening an “element e
 - `.../repo/:repositoryId/@modal/(.)element/:elementId`
 but `ElementEditorModal` is currently a placeholder. Scenario A requires implementing a real element editor host and re-wiring persistence to v6 Domain commands (not `elementService.updateElement`).
 
+Deep-link nuance (current platform reality):
+- Direct `/org/:orgId/repo/:repositoryId/element/:elementId` routes currently redirect back to the repo root.
+- Until that is changed, “open in new tab” should use the repo route plus a query param that opens the modal (e.g. `/org/:orgId/repo/:repositoryId?elementId=<elementId>`).
+
 Wireframes below assume `ListPageLayout` + an internal split for tree/list, and an editor modal overlay for element editing.
 
 #### Wireframes (ASCII)
