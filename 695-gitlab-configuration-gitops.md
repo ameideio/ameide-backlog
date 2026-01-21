@@ -277,6 +277,7 @@ With `blockAutoCreatedUsers=true`, ad-hoc users are still blocked (pending appro
 
 - Unstyled pages (`/assets/*` redirect to sign-in) were caused by routing to Rails/Puma (`8080`); fixed by routing the `HTTPRoute` to Workhorse (`8181`).
 - OIDC `422` (“Username admin is a reserved name” + “Namespace can't be blank”) can occur after partial resets when an invalid `admin@ameide.io` user exists; the admin reconciler repairs this deterministically (username + namespace).
+- GitLab dashboard `500` after cluster recreate was caused by MinIO rejecting object storage reads with `InvalidAccessKeyId` (GitLab uploads bucket). Root cause was missing MinIO service user state after reset; fixed by adding a GitOps-managed `CronJob/data-minio-users-reconciler` (P1) to continuously reconcile MinIO users/buckets from `Secret/minio-service-users`.
 
 ## Contract checkpoints (what “good” looks like)
 
@@ -294,6 +295,7 @@ GitLab requires S3-compatible object storage for core features (artifacts, LFS, 
 - **GitLab bundled MinIO:** disabled via `gitlab.global.minio.enabled=false` to avoid arm64 image issues and bucket-job drift.
 - **Connection Secret:** `Secret/gitlab-object-storage` is materialized in the GitLab namespace via `ExternalSecret` (wrapper chart template `gitops/ameide-gitops/sources/charts/platform/gitlab/templates/externalsecret-object-storage.yaml`).
   - **Credential source:** Vault keys `gitlab-minio-access-key` + `gitlab-minio-secret-key` (dedicated MinIO service user).
+- **Service users reconciliation (713/P1):** `CronJob/data-minio-users-reconciler` ensures MinIO buckets and service users exist (including `gitlab-storage`), so a fresh cluster/PVC reset converges without manual MinIO console steps.
 - **Buckets:** created by MinIO default bucket bootstrap (`defaultBuckets`) and include:
   - `git-lfs`, `gitlab-artifacts`, `gitlab-uploads`, `gitlab-packages`
   - `gitlab-mr-diffs`, `gitlab-terraform-state`, `gitlab-ci-secure-files`, `gitlab-dependency-proxy`
