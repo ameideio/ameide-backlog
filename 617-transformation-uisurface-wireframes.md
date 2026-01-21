@@ -18,6 +18,7 @@ This backlog defines the **UISurface experience** for Transformation (R2R) as a 
 - `backlog/496-eda-principles-v6.md` (facts vs intents; outbox; idempotency)
 - `backlog/509-proto-naming-conventions-v6.md` (process progress facts identity + minimal vocabulary)
 - `backlog/694-elements-gitlab-v6.md` (Enterprise Repository as GitLab repo; canonical artifacts as files)
+- `backlog/701-repository-ui-enterprise-repository-v6.md` (Repository UI is Git-tree-first; inline-only relationships)
 - `backlog/300-400/327-initiatives-ideas.md` (method-aware UI/UX structure; “sidecar” concept)
 
 ## UX invariants (non‑negotiable)
@@ -31,13 +32,13 @@ This backlog defines the **UISurface experience** for Transformation (R2R) as a 
 
 ## Concepts (as the UI sees them)
 
-- **Repository**: the architecture context for work.
+- **Repository**: the architecture context for work (Enterprise Repository; canonical artifacts are Git files).
 - **Initiative**: a change initiative governed in a repository context (future: Scrum/TOGAF profiles).
 - **Board**: a ProcessDefinition board rendered via the platform Kanban contract; scoped by `{tenant, org, repo, initiative?}` and `board_kind`.
 - **Card**: a stable unit of work (default in process-driven boards: `card_id = process_instance_id`).
 - **Activity**: a user-visible unit of work inside a process instance (triage, coding, verify, release).
 - **Evidence**: links to artifacts/logs/PRs produced by activities (projection-rendered; not embedded streaming).
-- **Artifact**: a file in the Enterprise Repository (Git). Editing an artifact means opening the artifact editor against a repo branch/MR (`backlog/694-elements-gitlab-v6.md`).
+- **Artifact**: a Git file in the Enterprise Repository. Editing an artifact means working on a governed change branch/MR (no direct writes to `main`) (`backlog/694-elements-gitlab-v6.md`, `backlog/701-repository-ui-enterprise-repository-v6.md`).
 - **Sidecar**: a unified right/bottom panel for contextual chat, widgets, and details (`backlog/300-400/327-initiatives-ideas.md`).
 
 ## Landing in the existing Ameide platform app (target)
@@ -59,16 +60,16 @@ Recommended routes:
 - Transformation dashboard (widgets): `/org/:orgId/transformation`
   - widgets: repositories, stats, open initiatives
   - all widgets are projection-backed; no runtime visibility coupling
-- Repository workspace (artifact browser): `/org/:orgId/repo/:repoId`
-  - primary canvas is an artifact browser over repo files (documents, views, artifacts) per `backlog/694-elements-gitlab-v6.md`
-  - canonical editors operate on repo files via branch/MR (see “Artifact editor” below)
+- Enterprise Repository (artifact browser): `/org/:orgId/repo/:repoId`
+  - primary canvas is a Git-tree-first artifact browser over repo files (folders + files) per `backlog/701-repository-ui-enterprise-repository-v6.md`
+  - canonical editors operate on repo files via governed change → commit → publish (branch/MR) per `backlog/694-elements-gitlab-v6.md`
 - Initiatives index (all initiatives): `/org/:orgId/transformation/initiatives`
   - list/table view (not Kanban unless backed by a ProcessDefinition per `backlog/616-kanban-principles.md`)
   - initiatives are bound to repositories; items link into the repository context
-- Initiative workspace (one initiative, in repo context): `/org/:orgId/repo/:repoId/governance/initiative/:initiativeId`
-  - workspace board (board_kind=initiative) + related artifacts browser (elements/relationships/workspace assignments)
+- Initiative (one initiative, in repo context): `/org/:orgId/repo/:repoId/governance/initiative/:initiativeId`
+  - initiative board (board_kind=initiative) + related artifacts view derived from Git files + inline references (no relationship artifacts; no “workspace assignments” write surface)
   - supports navigation into nested sub-initiative boards
-- Change workspace (R2R “change” detail): `/org/:orgId/repo/:repoId/r2r/change/:changeId`
+- Change detail (R2R): `/org/:orgId/repo/:repoId/r2r/change/:changeId`
   - requirement/deliverables/evidence anchors + run controls
 - Optional debug: “timeline” page (projection-only), not runtime UI: `/org/:orgId/repo/:repoId/timeline`
 - Artifact editor (element editor): opened from any list/board by selecting an element
@@ -98,11 +99,11 @@ Purpose: “enter Transformation” and see a dashboard of widgets (repositories
 
 Primary interactions:
 
-- Open repository workspace.
+- Open Enterprise Repository.
 - Open initiatives Kanban index.
-- Open a specific initiative workspace (in repository context).
+- Open a specific initiative (in repository context).
 
-### 1) Repository workspace (artifact browser)
+### 1) Enterprise Repository (artifact browser)
 
 Purpose: browse and edit canonical repository artifacts (repo files; canonical in Git).
 
@@ -116,7 +117,7 @@ Purpose: browse and edit canonical repository artifacts (repo files; canonical i
 │ Elements list                                                                 │
 │ - Requirement.md   (doc)                                                      │
 │ - Architecture view (archimate:view)                                          │
-│ - Deliverables root (folder assignment; not a folder element)                 │
+│ - Deliverables/ (folder)                                                      │
 │                                                                              │
 │ Sidecar (always available): [Chat] [Widgets] [Details]                        │
 └──────────────────────────────────────────────────────────────────────────────┘
@@ -124,8 +125,12 @@ Purpose: browse and edit canonical repository artifacts (repo files; canonical i
 
 Primary interactions:
 
-- Open element → Artifact editor (full-screen, embedded chat).
+- Open file → Artifact editor (full-screen, embedded chat).
 - Navigate to repo-scoped Kanban/timeline/R2R list.
+
+**Normative (v6):**
+- Repository hierarchy is the Git file tree (folders + files). No separate canonical “workspace node tree”.
+- Relationships are inline-only; any relationship/impact views are derived projections (no relationship artifacts).
 
 ### 2) Initiatives index (Kanban across initiatives)
 
@@ -148,9 +153,9 @@ Purpose: see all initiatives (across repositories) as a Kanban and navigate into
 
 Primary interactions:
 
-- Click initiative card → open its workspace in repository context.
+- Click initiative card → open its initiative page in repository context.
 
-### 3) Initiative workspace (Kanban + related artifacts)
+### 3) Initiative (Kanban + related artifacts)
 
 Purpose: the main “work cockpit” for a change initiative in a repository.
 
@@ -177,8 +182,10 @@ Purpose: the main “work cockpit” for a change initiative in a repository.
 
 Artifacts tab behavior:
 
-- Lists all elements related to the initiative (by relationships and/or workspace assignments).
-- Opening an artifact opens the artifact editor (element editor).
+- Lists artifacts relevant to the initiative as derived projection outputs over Git files:
+  - path-scoped files (when initiative scope is defined), and/or
+  - files discovered via inline references/backlinks (relationships are inline-only).
+- Opening an artifact opens the artifact editor (Git-backed; change/commit/publish).
 
 Card badges (projection-derived):
 

@@ -40,7 +40,7 @@ For E2E/integration tests that create and delete GitLab projects (for example `b
 ## 3. GitOps delivery contract
 
 - **Source of truth:** Vault KVv2 (`secret/gitlab/tokens/<env>/<service>`, key `value`).
-- **Issuance + rotation (in-cluster):** tokens are minted by GitLab itself and written into Vault by the GitLab wrapper chart (bootstrap Job + rotation CronJob). Rotation is expiry-aware and revokes the previous token only after the new token is safely written.
+- **Issuance + rotation (in-cluster):** tokens are minted by GitLab itself and written into Vault by the GitLab wrapper chart (reconciler CronJob). Rotation is expiry-aware (near-expiry triggers minting a new token) and records `previous_token_id` in Vault; revocation/cutover must be coordinated with consumer restart semantics (most workloads read env vars at startup).
 - **ArgoCD workload:** `foundation-gitlab-api-credentials` (new) renders a configurable set of `ExternalSecret` resources. Each entry:
   - lives in the consuming namespace,
   - points to Vault via `SecretStore/ameide-vault`,

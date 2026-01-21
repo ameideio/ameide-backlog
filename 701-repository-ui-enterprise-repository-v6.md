@@ -12,6 +12,7 @@ related:
   - 520-primitives-stack-v6.md
   - 496-eda-principles-v6.md
   - 527-transformation-v6-index.md
+  - 706-transformation-v6-coordinated-implementation-plan.md
 ---
 
 # 701 — Repository UI (v6: GitLab-backed Enterprise Repository view)

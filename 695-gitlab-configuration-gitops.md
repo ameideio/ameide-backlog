@@ -162,7 +162,7 @@ GitLab “SSO” is OmniAuth. OpenID Connect sign-in works on CE, but group-base
 
 1. **IdP enforcement (Keycloak):** restrict who can authenticate to the `gitlab` client (operators/services only).
 2. **GitLab safety gate:** keep `blockAutoCreatedUsers=true` so JIT-created users are blocked (pending approval) until explicitly approved.
-3. **Admin bootstrap:** use a **GitOps-managed bootstrap Job** (toolbox + `gitlab-rails runner`) to approve + promote `admin@ameide.io`; do not rely on IdP group→admin mapping.
+3. **Admin bootstrap:** use a **GitOps-managed reconciler CronJob** (toolbox + `gitlab-rails runner`) to ensure `admin@ameide.io` is present, valid, and instance-admin; do not rely on IdP group→admin mapping.
 4. **Provider secret hygiene:** do not store placeholder OmniAuth secrets. Template the provider config Secret from Vault-sourced Keycloak-generated secrets (see “Secrets posture”).
 
 **OIDC provider contract (documented keys)**
@@ -178,6 +178,25 @@ The OmniAuth provider config is stored in `Secret/gitlab-oidc-provider` (referen
 
 - `scripts/gitlab-approve-user.sh` (approve a pending OmniAuth user)
 - `scripts/gitlab-promote-user-admin.sh` (promote a user to instance admin)
+
+### Bootstrap seeding (self-healing, 713-aligned)
+
+GitLab requires “bootstrap state” that is not committed to Git (users, tokens). Per `backlog/713-seeding-contract.md`, these are reconciled continuously so cluster/DB resets converge without manual UI steps:
+
+- `CronJob/platform-gitlab-admin-reconciler` ensures `admin@ameide.io` exists as a valid user:
+  - username is **not** `admin` (reserved) — we use `ameide-admin`
+  - personal namespace exists (required on org-enabled GitLab)
+  - user is confirmed, active, and `admin=true`
+  - instance defaults are enforced (signups disabled, telemetry disabled)
+- `CronJob/platform-gitlab-service-tokens-reconciler` mints/rotates service tokens in GitLab, writes them into Vault, then ESO delivers them to consumers as Kubernetes Secrets (see `backlog/710-gitlab-api-token-contract.md`).
+
+### Incident note: OIDC 422 after cluster recreate
+
+Observed failure mode after cluster recreate / partial bootstrap:
+
+- OIDC callback returned `422` and GitLab UI showed: “Username admin is a reserved name” and “Namespace can’t be blank”.
+- Root cause: `admin@ameide.io` existed as an invalid GitLab user (`username=admin`, `namespace_id=null`) so OmniAuth could not link/update the identity.
+- Fix: the admin reconciler CronJob repairs the user deterministically (`username=ameide-admin`, ensures personal namespace), unblocking OIDC sign-in.
 
 ## ArgoCD smokes alignment
 

@@ -20,7 +20,7 @@ Define a single, consistent testing model that works for:
 - Automation tasks running in ephemeral workspaces
 - Merge gating against deployed preview environments
 
-This document inherits all decisions from `backlog/650-agentic-coding-overview.md`.
+This document inherits all decisions from `backlog/650-agentic-coding-overview-v6.md`.
 
 ## 0.2 Status update (2026-01-17)
 
@@ -185,7 +185,7 @@ The following are deprecated by this model:
 
 ## 9) References
 
-- Normative decisions: `backlog/650-agentic-coding-overview.md`
+- Normative decisions: `backlog/650-agentic-coding-overview-v6.md`
 - Developer environment: `backlog/652-agentic-coding-dev-workspace-coder.md`
 - Automation runtime: `backlog/651-agentic-coding-ameide-coding-agent.md`
 - CLI surface: `backlog/654-agentic-coding-cli-surface-coder.md`

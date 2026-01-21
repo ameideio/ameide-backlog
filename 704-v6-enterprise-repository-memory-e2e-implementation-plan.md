@@ -30,6 +30,9 @@ related:
   - 695-gitlab-configuration-gitops.md
   - 701-repository-ui-enterprise-repository-v6.md
   - 703-transformation-enterprise-repository-proto-v1.md
+  - 705-transformation-agentic-alignment-v6.md
+  - 706-transformation-v6-coordinated-implementation-plan.md
+  - 710-gitlab-api-token-contract.md
 ---
 
 # 704 — v6 Enterprise Repository + Memory (E2E implementation plan: cross-primitive increments)
@@ -68,9 +71,9 @@ Known remaining work to reach “real end-to-end in-cluster proof”:
 - Add an **E2E harness** that starts from empty state (creates a new GitLab project per run) and registers the platform mapping (repo → provider pointers) as part of the flow (no dependency on pre-existing projects).
 - The E2E test must run: auth sanity (`GET /user`) → create project (`POST /projects`, preferably `initialize_with_readme=true`) → onboard/mapping → `EnsureChange` → `CreateCommit` → `PublishChange` → validate `ListTree`/`GetContent` at the resulting `main` commit SHA → best-effort cleanup (`DELETE /projects/:id`) to avoid leaks.
 - Move from “shared dev token” to per-service tokens (least privilege) per `backlog/710-gitlab-api-token-contract.md`, including a dedicated writer token for the E2E test:
-  - Recommended: a **group access token** scoped to a dedicated group (e.g. `ameide-e2e`) and used with `namespace_id=<group_id>` for project creation.
+  - Done (dev/local): a dedicated writer token is delivered as `Secret/gitlab-api-credentials-e2e` (separate from `gitlab-api-credentials` used by normal services).
+  - Target posture: a **group-scoped** writer identity for a dedicated group (e.g. `ameide-e2e`), using `namespace_id=<group_id>` for project creation.
   - Token needs `api` scope and sufficient permissions in that group to create/delete projects.
-  - Deliver integration-test credentials via a distinct Secret (do not reuse `gitlab-api-credentials` that normal services consume).
 - Test front doors are strict (per `backlog/537-primitive-testing-discipline.md`): Phase 0/1/2 run under `ameide test` (mocked; no cluster), Phase 3/4 run under `ameide test cluster` (real cluster integration in dev/local only).
 
 ArgoCD smokes are a separate layer:
@@ -83,8 +86,8 @@ ArgoCD smokes are a separate layer:
 **GitOps (platform)**
 
 - Done: standardized token delivery (Vault → ExternalSecret → K8s Secret) per `backlog/710-gitlab-api-token-contract.md`.
-- TODO: provision a dedicated integration-test credential (`secretName` isolated from normal services) in **dev/local only** and ensure it is a required secret input there (no placeholders). Staging/production must not provision a writer credential by default.
-- TODO: provide a stable GitLab “E2E group” (e.g. `ameide-e2e`) and document the `namespace_id` used for test project creation.
+- Done (dev/local): provisioned a dedicated integration-test credential (`Secret/gitlab-api-credentials-e2e`) isolated from normal services (no placeholders). Staging/production must not provision a writer credential by default.
+- Done (dev/local): provisioned a stable GitLab “E2E group” (`ameide-e2e`). Tests should resolve `namespace_id` at runtime by querying the group by `full_path` rather than hard-coding numeric IDs.
 
 **Apps (platform/transformation)**
 
@@ -98,6 +101,10 @@ These are requirements, not “guidelines”:
 1) **Scope identity is always explicit**
 - Target scope is `{tenant_id, organization_id, repository_id}` (no workspace id for repo browsing).
 - Reference: `backlog/527-transformation-proto-v6.md`, `backlog/496-eda-principles-v6.md`.
+
+1.1) **No pre-seeded data for increment verification**
+- Every increment’s exit criteria must be provable without relying on pre-existing GitLab projects or platform DB rows.
+- Use a seedless harness: create a new GitLab project (ensure at least one commit), onboard/register mapping via platform API, run the increment loop, and best-effort cleanup (delete project).
 
 2) **Hierarchy equals Git tree**
 - Repository browsing hierarchy is the Git file tree (folders + files) at a selected `read_context`.
@@ -248,7 +255,11 @@ Treat these increments as a product ladder (v6): each increment should be demo-a
 - Reference: `backlog/534-mcp-protocol-adapter.md`.
 
 **Exit criteria**
-- Browse → open file works end-to-end for at least one tenant repo; citations include commit SHA + path.
+- Browse → open file works end-to-end using a seedless repo:
+  - create GitLab project (prefer `initialize_with_readme=true` so a tree exists),
+  - onboard/register platform mapping (repo → provider pointers) via platform API,
+  - browse and open at least one path and receive `{commit_sha, path}` citations,
+  - best-effort cleanup (delete project).
 
 **Cross-references**
 - `backlog/701-repository-ui-enterprise-repository-v6.md`

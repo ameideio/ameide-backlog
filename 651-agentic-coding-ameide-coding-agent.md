@@ -19,7 +19,7 @@ Specify the “agentic coding” automation runtime and orchestration:
 - Replace the **527 KEDA/Kafka scaled-job executor pipeline** with **Coder-backed tasks** (ephemeral workspace executions).
 - Replace “custom Temporal compiler / execution glue” with a **Camunda-first orchestration model** for agent runs (BPMN as the automation backbone).
 
-This document inherits all decisions from `backlog/650-agentic-coding-overview.md`.
+This document inherits all decisions from `backlog/650-agentic-coding-overview-v6.md`.
 
 ## 0.1 Primary UX goal: “agents don’t learn the repo”
 
@@ -213,5 +213,5 @@ Deliver at least these BPMN workflows:
 
 ## 9) References
 
-- Normative decisions: `backlog/650-agentic-coding-overview.md`
+- Normative decisions: `backlog/650-agentic-coding-overview-v6.md`
 - Related (to be superseded as defaults): `backlog/527-transformation-agent.md`
