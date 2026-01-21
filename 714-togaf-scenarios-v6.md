@@ -22,6 +22,7 @@ related:
   - 704-v6-enterprise-repository-memory-e2e-implementation-plan.md
   - 705-transformation-agentic-alignment-v6.md
   - 710-gitlab-api-token-contract.md
+  - 714-togaf-scenarios-v6-00.md
 ---
 
 # 714 — v6 Scenario Slices
@@ -182,6 +183,7 @@ Core capability tags:
 * `cap:process.definition_files`
 * `cap:process.deploy_by_sha`
 * `cap:transformation.run_e2e` (process + agent + publish)
+* `cap:plumbing.scaffold` (Slice 0 only; wiring/harness, not a product feature)
 
 Each primitive maintains a “capability support” checklist per tag (small, explicit).
 
@@ -269,6 +271,22 @@ Below is the recommended ladder. Each slice is a **product milestone** and a **c
 * **Tier‑1**: must ship to claim “v6 platform exists.”
 * **Tier‑2**: expands EA utility.
 * **Tier‑3**: portfolio/planning richness.
+
+---
+
+# Slice 0 (Tier‑0): Plumbing + contract harness scaffolding
+
+Slice 0 is an internal enabling slice that scaffolds the plumbing and the contract-pass runner so slices 1+ can focus on behavior.
+
+Details live in `backlog/714-togaf-scenarios-v6-00.md`.
+
+**Capability tags**
+`cap:plumbing.scaffold`, plus `cap:identity`, `cap:citation`, `cap:evidence.spine` and minimal read/onboard tags.
+
+## DoD
+
+* Contract-pass: `ameide test` runs Slice 0 locally and emits a valid `EvidenceSpineViewModel`.
+* UX-pass: N/A (optional UI smoke only).
 
 ---
 
