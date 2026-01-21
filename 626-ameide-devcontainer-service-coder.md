@@ -116,7 +116,9 @@ Important nuance (login type mismatch)
 Update (2026-01-15): templates and “first user” after cluster recreate
 
   - If the dev cluster/namespace is recreated, CNPG PVCs can be recreated and the Coder DB will be fresh (templates/users gone).
-  - Recovery procedure in dev is: ensure first-user bootstrap is enabled, then re-publish templates from Git via the CI workflow `.github/workflows/coder-devcontainer-e2e.yaml`.
+  - Recovery procedure in dev is GitOps-owned and self-healing:
+    - `CronJob/coder-bootstrap-admin` ensures the first admin user exists (and is reconciled to `login_type=oidc`).
+    - `CronJob/coder-templates-reconciler` re-publishes the `ameide-dev` / `ameide-gitops` templates from Git into the fresh Coder DB.
   - Incident log: `backlog/677-coder-dev-templates-disappeared-after-cluster-recreate.md`.
   - Clarification: the in-cluster ArgoCD “platform-smoke” component only validates routing/control-plane health; the platform smoke that proves workspace provisioning and app proxy path is currently owned by the GitHub workflows described in `backlog/653-agentic-coding-test-automation-coder.md`.
 

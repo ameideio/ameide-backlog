@@ -121,6 +121,16 @@ From a freshly created workspace on the active template version:
 - `coder whoami` succeeds without interactive `coder login`
 - `codex --version` works and uses the seeded slot auth
 
+Implementation notes (why this must “wait”, not “check once”)
+
+- In these templates, `gh`/`az` are installed by devcontainer features during envbuilder setup, which can happen **after** the initial Coder bootstrap script starts.
+- Therefore the workspace bootstrap must:
+  - wait (bounded) for `gh` and `az` to appear in `PATH`,
+  - fail-fast if they never appear (misconfigured devcontainer),
+  - then seed auth deterministically from the injected sources:
+    - `Secret/gh-auth` for GitHub
+    - Azure Workload Identity (`AZURE_FEDERATED_TOKEN_FILE`) for Azure CLI
+
 ## 5) Cross references
 
 - `backlog/713-seeding-contract.md` (seeding contract: failfast + self-heal; applies to workspace auth + Coder /setup)

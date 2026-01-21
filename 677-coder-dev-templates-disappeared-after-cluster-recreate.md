@@ -70,3 +70,11 @@ Update (2026-01-15): workspace health hardening + orphan cleanup
   - Storage: switch `/workspaces` from `emptyDir` to a per-workspace `managed-csi-premium` PVC (`16Gi`) so stop/start and pod reschedules keep the repo + editor caches.
   - Added a break-glass GitHub workflow to delete orphaned Coder workspace namespaces when Coder state diverges from cluster resources:
     - `.github/workflows/aks-delete-orphan-coder-namespace.yaml`
+
+Update (2026-01-21): remove CI as the recovery engine (GitOps-only)
+
+  - Template rehydration is now handled in-cluster:
+    - `CronJob/coder-templates-reconciler` pushes templates from Git into the Coder DB and retries until they are visible.
+  - First-user bootstrap is self-healing and SSO-aligned:
+    - `CronJob/coder-bootstrap-admin` ensures the bootstrap user exists and reconciles it to `login_type=oidc` to avoid “Incorrect login type … password”.
+  - Resulting contract: after a cluster/namespace recreate (fresh DB), ArgoCD reconciliation + these CronJobs converge the Coder control plane back to “dashboard usable” without manual `/setup` or CI token rotation.

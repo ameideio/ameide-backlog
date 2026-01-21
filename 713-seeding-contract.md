@@ -142,6 +142,28 @@ Contract alignment:
 
 - The “first admin user exists” must be ensured by a **reconciler CronJob** (P1), because Coder DB can be reset on cluster recreate (see 677).
 - The bootstrap user inputs (`coder-bootstrap-admin-*`) remain sourced from the secrets pipeline (Vault/AKV), not from template parameters.
+
+## Applying this contract to workspace tool auth (gh/az/coder/codex)
+
+Problem class: **External/third-party secrets** + **infra-derived runtime facts** + **tool bootstrap state**.
+
+Contract alignment:
+
+- Auth wiring must not be “best effort”. Missing prerequisites must fail clearly (C1), including:
+  - `Secret/gh-auth` missing or empty (dev-only)
+  - Workload Identity injection missing (`AZURE_FEDERATED_TOKEN_FILE`)
+  - Codex slot status/auth missing when Codex is required for the template/profile
+- Tool state must be persisted on the workspace PVC (`/workspaces`) instead of ephemeral `$HOME` (C3).
+- Automation that maintains “fresh” credentials must be a reconciler (P1) and leave evidence (C4).
+
+## Applying this contract to Codex slot auth (rotating secrets)
+
+Problem class: **External/third-party secrets** with token rotation.
+
+Contract alignment:
+
+- Seed auth (`codex-auth-json-b64-<slot>`) is source-of-truth, but consumers should prefer rotating auth (`codex-auth-json-b64-rotating-<slot>`) maintained by an in-cluster reconciler CronJob (P1).
+- If a slot becomes unusable (e.g., refresh token reuse), the failure must surface via status evidence (`Secret/codex-account-status-<slot>`) and must not silently disappear (C4).
 - Coder associates a login type per user. In SSO-only deployments, the seeding unit must ensure the seeded admin user’s `login_type` is `oidc` (not `password`), otherwise Keycloak login for that identity fails with “Incorrect login type”.
 
 ## Applying this contract to GitLab (CE)
