@@ -97,6 +97,13 @@ Each runtime SHOULD have “contract tests” to prevent drift:
 - given an inbound request with baggage, the server span has `ameide.session_id`
 - a log emitted under that request context includes `ameide_session_id`, `trace_id`, `span_id`
 
+### 4.2 Enforcement (repo gate)
+
+The repo includes a static alignment check to prevent drift:
+
+- `ameide verify --repo-only` runs `ObservabilityContract334v3` (repo-wide).
+- It fails if a service is missing the required helper + propagator install + session correlation (baggage → span attribute + log fields).
+
 ## 5) Loki (logs)
 
 Rules:
