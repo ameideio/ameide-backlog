@@ -177,3 +177,26 @@ Contract alignment (implementation in `ameide-gitops`):
 - **C5 Clean wiring**
   - Managed environments do not depend on Terraform to maintain GitLab runtime secrets/tokens; Terraform may bootstrap infra, but in-cluster reconcilers maintain service-generated secrets.
   - Local dev may explicitly opt into generating a bootstrap admin password (disposable clusters), but this must be an explicit local-only override (no silent fallback in managed clusters).
+
+## Applying this contract to MinIO (service users + buckets)
+
+Problem class: **Service bootstrap state** (MinIO identity + bucket state can disappear on cluster/PVC resets).
+
+Contract alignment (implementation in `ameide-gitops`):
+
+- **P1 Reconciler CronJob (required)**
+  - `CronJob/data-minio-users-reconciler`:
+    - Ensures MinIO buckets exist (from `MINIO_DEFAULT_BUCKETS`) and that service users defined in `Secret/minio-service-users` exist and are enabled.
+    - This is required because GitLab and other workloads depend on service-user credentials (not MinIO root) and will hard-fail if the MinIO user database resets.
+
+- **C1 Failfast on required inputs**
+  - The reconciler fails if MinIO is not reachable for admin operations or if required secrets are missing (`Secret/minio-root-credentials`, `Secret/minio-service-users`).
+
+- **C2 Idempotent, safe re-run**
+  - “Already exists” is success; reconciler only creates missing buckets/users and re-attaches desired policies (no secret material in logs).
+
+- **C3 Self-healing after resets**
+  - After cluster recreate / PVC loss, the reconciler restores MinIO runtime state without manual MinIO console steps.
+
+- **C4 Observable evidence**
+  - CronJob/Job status and logs provide short-lived evidence; failures surface clearly in ArgoCD (and in `kubectl get jobs`).
