@@ -131,14 +131,131 @@ UI is not required for contract-pass initially, but Scenario A’s UX-pass must 
 **UI responsibilities**
 - Git-tree-first repository browser:
   - show “Published @ <resolved_sha>”
-- File viewer:
-  - show commit SHA + path (and optionally the full citation object)
+- Element editor (not a raw file viewer):
+  - open “elements” in an editor surface (modal is preferred, aligned to existing routing)
+  - still display canonical storage `{path}` + citation `{repo_id, sha, path[, anchor]}` as a trust feature
 - Change-based editing (not DB CRUD):
   - “Propose change” → Domain `EnsureChange`
   - “Save” → Domain `CreateCommit`
   - “Publish” → Domain `PublishChange`
 - Evidence display:
   - show MR id + `target_head_sha` after publish
+
+#### UI placement (aligned to the current platform app)
+
+The current platform app already uses `/org/:orgId/repo/:repositoryId/*` as the “Enterprise Repository” scope and renders pages with `ListPageLayout` (two-column main + optional right activity panel). This scenario adds a **canonical Git** surface inside that scope:
+
+- `GET /org/:orgId/repo/:repositoryId` currently acts like “Repository home” (today: ArchiMate views).
+- Add a repository-local nav (or repo-local tabs) that includes a **Canonical (Git)** entry, e.g.:
+  - `/org/:orgId/repo/:repositoryId/canonical` (or `/git`, `/browse`)
+
+Also note: the app already has a modal route pattern for opening an “element editor”:
+- `.../repo/:repositoryId/@modal/(.)element/:elementId`
+but `ElementEditorModal` is currently a placeholder. Scenario A requires implementing a real element editor host and re-wiring persistence to v6 Domain commands (not `elementService.updateElement`).
+
+Wireframes below assume `ListPageLayout` + an internal split for tree/list, and an editor modal overlay for element editing.
+
+#### Wireframes (ASCII)
+
+##### Screen 1 — Canonical repository browser (published baseline)
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ Header (existing): Org switcher • Tabs • Search • User                        │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ PageHeader: Enterprise Repository                                             │
+│  Repo: <repository_id>   Read: [Published ▼]   Resolved: main @ <sha>         │
+│  Actions: [Copy citation] [Open in GitLab] [Propose change]                   │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ Main (ListPageLayout)                              Activity panel (optional)  │
+│ ┌──────────── Tree (Git) ────────────┐  ┌───────── File list ──────────────┐ │
+│ │ /                                  │  │ architecture/                     │ │
+│ │  architecture/                     │  │  - vision.md        (open)        │ │
+│ │   > vision.md                      │  │  - statement-of-work.md (open)    │ │
+│ │  requirements/                     │  │ README.md                           │ │
+│ │  ...                               │  └───────────────────────────────────┘ │
+│ └────────────────────────────────────┘                                         │
+│                                                                               │
+│ Activity panel suggestion (RepositorySidebar-like):                             │
+│ - “About / Stats / Recent activity” (derived from commits + projection)         │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+Behavior notes:
+- The “Resolved: main @ `<sha>`” line is the **trust feature**: it is always explicit and copyable.
+- `Read: Published` resolves to **target branch head SHA** (merge-method agnostic).
+- Missing paths are handled deterministically (GitLab may return `404` for tree paths; UI shows “Not found at `<sha>`”).
+
+##### Screen 2 — Element editor modal (citation-grade read; view mode)
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ (Modal) Element editor                                                       │
+│ Element: Architecture Vision  (kind: Document)                                │
+│ Storage: architecture/vision.md                                               │
+│ Read: Published @ <sha>                                                       │
+│ Citation: {repository_id, commit_sha:<sha>, path:"architecture/vision.md"}    │
+│ Actions: [Copy citation] [History] [Propose change] [Open in GitLab]          │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ Tabs: [Document] [Properties] [Derived] [Evidence]                            │
+│                                                                              │
+│ Document (read-only)                                                         │
+│  # Architecture Vision                                                       │
+│  ...                                                                          │
+│                                                                              │
+│ Derived/Properties tabs are view-only overlays (projection-backed)            │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+##### Screen 3 — Propose change (change-based editing inside the element editor)
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ (Modal) Element editor — Draft (proposal)                                     │
+│ Change: <change_id>    MR: !<iid>    Source: <branch_ref> → Target: main      │
+│ Actions: [Save draft] [View MR] [Publish]                                     │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ Tabs: [Document] [Properties] [Derived] [Evidence]                            │
+│                                                                              │
+│ Document (editable)                                                          │
+│  # Architecture Vision                                                       │
+│  ...                                                                          │
+│                                                                              │
+│ Draft banner                                                                  │
+│  - This is a proposal in MR !<iid>                                            │
+│  - Save draft → Domain `CreateCommit(actions[])`                              │
+│  - Publish → Domain `PublishChange(expected_mr_head_sha)`                     │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+Behavior notes:
+- `Propose change` calls Domain `EnsureChange` and returns `{change_id, mr_iid, branch_ref}` immediately.
+- `Save draft` can create one commit per save, or batch multiple file edits per commit; chunking is allowed but must preserve citations.
+- The editor is “element-first” UX, but persistence is Git-first: edits become **file actions** on a change branch (no canonical DB authoring surface).
+
+##### Screen 4 — Publish confirmation (evidence spine)
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ Published                                                                      │
+│ Target branch: main                                                            │
+│ Published baseline SHA (anchor): <target_head_sha>                             │
+│ MR: !<iid>  (supplemental: merge_commit_sha / squash_commit_sha if present)    │
+│ Actions: [Open published baseline] [Copy run report]                           │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ Run report (audit-grade)                                                       │
+│ - identity: {tenant_id, organization_id, repository_id}                        │
+│ - publish: {target_branch:"main", target_head_sha:"..."}                       │
+│ - citations:                                                                    │
+│   - {repo, <target_head_sha>, "architecture/vision.md"}                        │
+│   - {repo, <target_head_sha>, "architecture/statement-of-work.md"}             │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+Failure/edge-case UX (must be explicit and fail-fast):
+- **Publish SHA mismatch** (MR head advanced): show “Publish blocked: proposal changed” and require explicit refresh/retry (no silent rebase).
+- **MR diff refs async**: UI may need to “wait until proposal SHA is available” before enabling publish evidence checks.
+- **Pipeline gating**: if used, use GitLab “auto-merge” wording (not deprecated “merge when pipeline succeeds”) and surface pipeline status in the change header.
 
 ### Agent (optional; proposal/evidence only)
 
