@@ -15,6 +15,8 @@ related:
   - 496-eda-principles-v6.md
   - 520-primitives-stack-v6.md
   - 537-primitive-testing-discipline.md
+  - 590-capabilities.md
+  - 591-capabilities-tests.md
   - 656-agentic-memory-v6.md
   - 694-elements-gitlab-v6.md
   - 701-repository-ui-enterprise-repository-v6.md
@@ -22,6 +24,7 @@ related:
   - 704-v6-enterprise-repository-memory-e2e-implementation-plan.md
   - 705-transformation-agentic-alignment-v6.md
   - 710-gitlab-api-token-contract.md
+  - 714-togaf-scenarios-v6-00.md
 ---
 
 # 714 — v6 Scenario Slices
@@ -121,6 +124,25 @@ To keep “element-editor-first UX” compatible with **Git-first canonical arti
 
 Every **derived fact** shown to a user (backlink, impact, coverage, compare summary, memory/context item) must carry one or more citations to `{repository_id, commit_sha, path[, anchor]}` that explain exactly where it came from.
 
+### 2.11 EDA alignment (inter-primitive contracts)
+
+This spec is intentionally **product-first**, but its cross-primitive seams must remain aligned to the v6 Integration/EDA standard `backlog/496-eda-principles-v6.md`.
+
+Mapping:
+
+* Domain APIs in these slices are **Commands** (typically RPC) addressed to the **Owner** (owner-only writes).
+  * Every command must be **idempotent** (`idempotency_key`) and must propagate correlation/causation metadata.
+* If async is needed, callers send **Intents** (message form) to the owner; owners still perform the canonical write.
+* Owners emit **Facts** only **after commit** (DB outbox or Git outbox-equivalent).
+  * For Git-backed publish, “commit” means “publish succeeded and the owner durably recorded audit pointers (MR id, target head SHA, etc.)” before fact emission.
+* Projection/Memory outputs are **derived read models**:
+  * they can consume owner facts to update incrementally,
+  * and must remain rebuildable from canonical Git + recorded audit pointers.
+* When the event plane is used (cluster Phase 3/4), facts/intents must use:
+  * CloudEvents envelope + Protobuf payloads,
+  * `io.ameide.*` type naming as defined in 496.
+  Local `ameide test` runs may use in-process fakes, but must preserve the same **contract shapes** so cluster wiring is a deployment detail, not a redesign.
+
 ---
 
 ## 3. What a Scenario Slice is
@@ -182,6 +204,7 @@ Core capability tags:
 * `cap:process.definition_files`
 * `cap:process.deploy_by_sha`
 * `cap:transformation.run_e2e` (process + agent + publish)
+* `cap:plumbing.scaffold` (Slice 0 only; wiring/harness, not a product feature)
 
 Each primitive maintains a “capability support” checklist per tag (small, explicit).
 
@@ -260,6 +283,16 @@ Supported read contexts (v6 minimum):
 * `version_ref(commit_sha)`:
   * resolves to the provided SHA; used for audit replay and time travel
 
+### 5.6 Capability-owned tests (590/591)
+
+Per `backlog/590-capabilities.md`, **capabilities own vertical slice tests** (cross-primitive flows) and primitives own kind invariants.
+
+Implications for 714:
+
+* Treat the 714 slice/scenario runners as **capability-owned tests** (the “Transformation” capability).
+* Place and evolve the runnable tests under the repo’s `capabilities/` boundary (e.g., `capabilities/transformation/...`) so ownership is clear and CI orchestration can run “capability X tests” without hunting across primitive folders.
+* The `ameide test` entrypoint is the front door that orchestrates these capability-owned packs; `ameide test cluster` later swaps fakes for real wiring without changing test intent.
+
 ## 6. The Scenario Slice Ladder (superseding 706 increments + 713 scenarios)
 
 Below is the recommended ladder. Each slice is a **product milestone** and a **cross-primitive implementation target**.
@@ -269,6 +302,22 @@ Below is the recommended ladder. Each slice is a **product milestone** and a **c
 * **Tier‑1**: must ship to claim “v6 platform exists.”
 * **Tier‑2**: expands EA utility.
 * **Tier‑3**: portfolio/planning richness.
+
+---
+
+# Slice 0 (Tier‑0): Plumbing + contract harness scaffolding
+
+Slice 0 is an internal enabling slice that scaffolds the plumbing and the contract-pass runner so slices 1+ can focus on behavior.
+
+Details live in `backlog/714-togaf-scenarios-v6-00.md`.
+
+**Capability tags**
+`cap:plumbing.scaffold`, plus `cap:identity`, `cap:citation`, `cap:evidence.spine` and minimal read/onboard tags.
+
+## DoD
+
+* Contract-pass: `ameide test` runs Slice 0 locally and emits a valid `EvidenceSpineViewModel`.
+* UX-pass: N/A (optional UI smoke only).
 
 ---
 
