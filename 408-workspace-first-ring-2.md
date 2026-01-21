@@ -9,6 +9,7 @@ created: 2025-11-27
 ## Intent
 
 - Keep 407's objective: single proto surface via SDK (TS/Go/Python), no services or images import workspace `ameide_core_proto` or dist bundles directly.
+- v6 doctrine: services and scenario runners consume wrapper SDK packages only (no direct Buf-generated imports outside the SDK build pipeline), per `backlog/715-v6-contract-spine-doctrine.md` and `backlog/300-400/393-ameide-sdk-import-policy.md`.
 - Buf emits all stubs (including buf/validate) directly into the SDK trees.
 - Ring 1 and Ring 2 stay workspace-first by using SDK code from the repo (not registries); Ring 2 adds stricter locking for third-party deps. Service-image workflow now selects Dockerfile.dev on dev branch and Dockerfile.release on main/tags.
 - Published SDKs are only for external consumers and out-of-tree smoke/validation jobs.

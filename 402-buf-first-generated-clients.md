@@ -20,7 +20,7 @@ You can absolutely have that **and** keep Ameide SDKs as products. It just means
 
 Naming note for this repo: every `Dockerfile.dev` implements Ring 1 (workspace-first dev/Tilt images), while the `Dockerfile.release` files implement Ring 2 (workspace SDKs, strict third-party locks; no Ameide packages pulled from registries). The SDK publish/smoke path is separate from these rings.
 
-Related: backlog/388 (SDKs as products), backlog/390 (tag authority), backlog/393 (old import policy; superseded for Ring 1 by this doc + 403/404/405).
+Related: backlog/388 (SDKs as products), backlog/390 (tag authority), `backlog/300-400/393-ameide-sdk-import-policy.md` (enforced import policy), `backlog/408-workspace-first-ring-2.md` (workspace-first rings), and `backlog/715-v6-contract-spine-doctrine.md` (v6 doctrine: wrapper SDK-only consumption).
 
 Below is how I’d shape that, in terms of architecture and what to tweak in the existing docs.
 
@@ -109,7 +109,7 @@ So Go gets the same story as TS:
 
 > **Workspace AmeideClient + local stubs for dev/CI; tagged `ameide-sdk-go` for external consumers and release tests.**
 
-Buf’s Option A (`go get buf.build/gen/go/...`) still applies as the underlying stub source; the only difference is *where* you add the AmeideClient layer and who is forced to use the published module.
+Buf’s Option A (`go get buf.build/gen/go/...`) may still exist as an underlying **SDK build** stub source, but v6 does not permit runtime services to import Buf-generated artifacts directly. The only supported surface for services and scenario runners is the wrapper SDK layer (per `backlog/715-v6-contract-spine-doctrine.md` and `backlog/300-400/393-ameide-sdk-import-policy.md`).
 
 ---
 

@@ -21,10 +21,11 @@ Canonical references for the current model:
 - `backlog/408-workspace-first-ring-2.md`
 - `backlog/410-bsr-native.md` (BSR-native SDKs; bundled stubs; SDK-only service surface)
 - `backlog/300-400/393-ameide-sdk-import-policy.md` (enforced policy surface)
+- `backlog/715-v6-contract-spine-doctrine.md` (v6 doctrine: wrapper SDK-only consumption; Kafka + CloudEvents event plane)
 
 ## Historical context (what this doc was aiming for)
 
-**Intent (historical):** Buf is the single source of truth. All languages ship parity SDKs published to Ameide registries, and every service consumes those SDKs at runtime (no intra-repo stubs or replaces). Dev/test can read the committed proto bundle from the shared package; runtime never does.
+**Intent (historical):** Buf is the single source of truth. All languages ship parity SDKs published to Ameide registries, and every service consumes those SDKs at runtime (no intra-repo stubs or replaces). Unit tests may import proto types when needed, but runtime services and scenario runners must consume wrapper SDK surfaces only (see `backlog/715-v6-contract-spine-doctrine.md` and `backlog/300-400/393-ameide-sdk-import-policy.md`).
 
 ## Principles
 - **Buf-centric**: One managed Buf module defines APIs; no service owns bespoke protos.

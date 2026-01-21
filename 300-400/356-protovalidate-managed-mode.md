@@ -2,6 +2,13 @@
 
 # 356 – Buf Managed Mode Migration
 
+> **Superseded for v6 service consumption:** v6 converged on **wrapper SDK-only** contract consumption for runtime services and scenario runners (no direct `@buf/*` or `buf.build/gen/*` imports outside the SDK build pipeline). Use:
+> - `backlog/715-v6-contract-spine-doctrine.md` (doctrine: SDK-only; Kafka + CloudEvents)
+> - `backlog/300-400/393-ameide-sdk-import-policy.md` (enforced import rules)
+> - `backlog/410-bsr-native.md` and `backlog/408-workspace-first-ring-2.md` (workspace-first rings)
+>
+> This document is retained as historical context from the earlier “services consume Buf artifacts directly” phase.
+
 ## Goal
 
 Adopt Buf’s “Managed Mode” and Generated SDK workflows across the stack so every
@@ -273,6 +280,11 @@ module, without vendored code or custom install scripts.
   or is direct Buf consumption acceptable for prod environments?
 - How do we describe versioning once Buf is the source of truth (semver tags vs.
   timestamped pseudo-versions) so downstream automation can pin releases?
+
+**v6 resolution (715):**
+
+- Keep wrapper SDKs as the only supported import surface for services and scenario runners.
+- Direct Buf artifact consumption by runtime services is not permitted; Buf/BSR is confined to the SDK build/publish pipeline.
 
 ## Risks & Mitigations
 

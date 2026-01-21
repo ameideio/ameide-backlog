@@ -1,6 +1,11 @@
 # SDK Proto Dependency Hardening _(needs refresh)_
 
-> **Update (2026-02-17):** Verdaccio/devpi/Athens references describe a retired architecture. Buf Managed Mode now supplies all SDKs; consult backlog/356 for up-to-date distribution guidance.
+> **Update (v6):** Verdaccio/devpi/Athens references describe a retired architecture. v6 contract consumption is defined by:
+> - `backlog/715-v6-contract-spine-doctrine.md` (wrapper SDK-only consumption; Kafka + CloudEvents)
+> - `backlog/300-400/393-ameide-sdk-import-policy.md` (enforced import rules)
+> - `backlog/410-bsr-native.md` and `backlog/408-workspace-first-ring-2.md` (workspace-first rings; no service imports of `@buf/*` / `buf.build/gen/*`)
+>
+> Statements below that describe services consuming Buf artifacts directly or requiring published SDKs for internal builds are historical.
 
 **Created:** Jan 8, 2026  
 **Owners:** Platform DX / Core SDK
