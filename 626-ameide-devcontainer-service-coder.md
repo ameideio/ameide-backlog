@@ -99,6 +99,8 @@ Without it, Coder presents `/setup`.
 
 Decision (dev): **auto-bootstrap** the first admin user so humans go straight to Keycloak SSO without manual setup.
 
+Contract note: this is “application DB bootstrap state” and must follow the seeding contract (failfast + self-heal + evidence): `backlog/713-seeding-contract.md`.
+
 Implementation (dev):
 
 - Coder OIDC is configured via `sources/values/env/dev/platform/platform-coder.yaml`.

@@ -123,6 +123,7 @@ From a freshly created workspace on the active template version:
 
 ## 5) Cross references
 
+- `backlog/713-seeding-contract.md` (seeding contract: failfast + self-heal; applies to workspace auth + Coder /setup)
 - `backlog/626-ameide-devcontainer-service-coder.md` (workspace tool auth + persistence model)
 - `backlog/654-agentic-coding-cli-surface-coder.md` (platform smoke + workspace/toolchain contracts)
 - `backlog/651-agentic-coding-ameide-coding-agent.md` (Coder tasks execution plane)
