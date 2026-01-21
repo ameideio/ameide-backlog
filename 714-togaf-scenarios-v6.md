@@ -84,6 +84,15 @@ Every user-visible claim must be explainable as:
 
 That’s not hardening; it’s the **core product trust feature**.
 
+### 2.7 Element-editor-first UX (no “raw file viewer” as the product surface)
+
+* Artifacts are opened and edited through an **Element Editor** surface (modal preferred), not a standalone “file viewer page.”
+* The Element Editor must still make the underlying canonical storage explicit:
+  * storage path (e.g. `architecture/vision.md`)
+  * read context and resolved commit SHA (e.g. `Published @ <sha>`)
+  * citation object `{repository_id, commit_sha, path[, anchor]}`
+* Editing is **change-based** and persists via the v6 write loop (Domain commands), not DB CRUD.
+
 ---
 
 ## 3. What a Scenario Slice is
@@ -240,7 +249,7 @@ As an enterprise architect, I can browse the canonical Enterprise Repository (as
 
 1. Onboard an Enterprise Repository into the platform
 2. Browse Git tree at `published` read context
-3. Open a file and see resolved commit SHA + citation
+3. Open an artifact in the **Element Editor** and see resolved commit SHA + citation
 
 ## Repo artifacts (minimum)
 
@@ -251,14 +260,14 @@ As an enterprise architect, I can browse the canonical Enterprise Repository (as
 
 * **Domain**: onboard repository mapping (or platform service does mapping, but Domain remains the canonical identity gate)
 * **Projection**: resolve `read_context → commit_sha`, list tree, read file, return citations
-* **UI**: repository screen (Git-tree hierarchy), show resolved SHA everywhere
+* **UI**: repository screen (Git-tree hierarchy), open artifacts via the Element Editor; show resolved SHA everywhere
 * **Memory**: optional, but if present: “fetch cited paths” bundle
 * **GitLab substrate**: project exists with at least one commit
 
 ## DoD
 
 * Contract-pass: scenario runner proves browsing + file read + citations, and handles missing path behavior deterministically.
-* UX-pass: user can browse and open file via UI.
+* UX-pass: user can browse and open an artifact via the Element Editor.
 
 ---
 
