@@ -122,6 +122,25 @@ To keep “element-editor-first UX” compatible with **Git-first canonical arti
 
 Every **derived fact** shown to a user (backlink, impact, coverage, compare summary, memory/context item) must carry one or more citations to `{repository_id, commit_sha, path[, anchor]}` that explain exactly where it came from.
 
+### 2.11 EDA alignment (inter-primitive contracts)
+
+This spec is intentionally **product-first**, but its cross-primitive seams must remain aligned to the v6 Integration/EDA standard `backlog/496-eda-principles-v6.md`.
+
+Mapping:
+
+* Domain APIs in these slices are **Commands** (typically RPC) addressed to the **Owner** (owner-only writes).
+  * Every command must be **idempotent** (`idempotency_key`) and must propagate correlation/causation metadata.
+* If async is needed, callers send **Intents** (message form) to the owner; owners still perform the canonical write.
+* Owners emit **Facts** only **after commit** (DB outbox or Git outbox-equivalent).
+  * For Git-backed publish, “commit” means “publish succeeded and the owner durably recorded audit pointers (MR id, target head SHA, etc.)” before fact emission.
+* Projection/Memory outputs are **derived read models**:
+  * they can consume owner facts to update incrementally,
+  * and must remain rebuildable from canonical Git + recorded audit pointers.
+* When the event plane is used (cluster Phase 3/4), facts/intents must use:
+  * CloudEvents envelope + Protobuf payloads,
+  * `io.ameide.*` type naming as defined in 496.
+  Local `ameide test` runs may use in-process fakes, but must preserve the same **contract shapes** so cluster wiring is a deployment detail, not a redesign.
+
 ---
 
 ## 3. What a Scenario Slice is

@@ -33,6 +33,19 @@ Goal: specify, in concrete terms, what must be implemented across primitives to 
 - Backlinks/impact are **projection-only** (rebuildable), and every derived edge is citation-grade.
 - Memory/context is **projection-owned** and returns only citeable bundles.
 
+## EDA alignment (496)
+
+Scenario B reinforces the “owner facts → derived projections” posture from `backlog/496-eda-principles-v6.md`:
+
+* Canonical writes still flow through the Domain’s command surface (owner-only writes).
+* Projection is a **derived read model**:
+  * it may update incrementally by consuming owner facts (e.g., “change published” with audit pointers),
+  * and it must always be rebuildable from canonical Git at a commit SHA + recorded audit pointers.
+* Memory is not an owner and does not emit facts; it is a query surface over derived data (citeable context bundles).
+* Broken/ambiguous references are a normal outcome of derived indexing:
+  * surface them deterministically with origin citations,
+  * and resolve them only via a governed change (Domain command), never via “projection writes”.
+
 ## Minimal repo artifacts
 
 Scenario B uses these canonical file paths:

@@ -33,6 +33,18 @@ Goal: specify, in concrete terms, what must be implemented across primitives to 
 - **Audit anchor is merge-method agnostic**: the canonical publish anchor is **target branch head SHA after publish** (merge/squash SHAs are supplemental).
 - **Reads are citation-grade**: every read response is anchored to `{repository_id, commit_sha, path[, anchor]}`.
 
+## EDA alignment (496)
+
+Scenario A is a concrete application of `backlog/496-eda-principles-v6.md`:
+
+* `EnsureChange`, `CreateCommit`, `PublishChange` are **Commands** addressed to the Domain (the Owner).
+  * They must be idempotent (idempotency keys) and must propagate correlation/causation metadata across calls.
+* The Domain emits **Facts** only after commit:
+  * After publish succeeds and the Domain durably records audit pointers (MR id, `target_head_sha`, optional merge/squash SHAs), it may emit a `ChangePublished` fact.
+  * Projections consume that fact (or the recorded audit pointers) to converge derived views.
+* Projection is a **derived read model**:
+  * it can update incrementally from facts, but must remain rebuildable from Git + audit pointers (no canonical relationship/state store).
+
 ## Minimal repo artifacts
 
 Scenario A uses these canonical file paths:

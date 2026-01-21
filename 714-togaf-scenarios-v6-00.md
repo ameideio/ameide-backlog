@@ -34,6 +34,26 @@ Slice 0 is **not** a user capability and does not try to “ship product value�
 * The Evidence Spine is a **shared view model** (not “test-only output”).
 * The Element Editor surface exists as a shell (optional), but persistence is not implemented here.
 
+## EDA alignment (496)
+
+Slice 0 scaffolds the plumbing so later slices can adopt the full evented posture from `backlog/496-eda-principles-v6.md` without refactoring.
+
+In Slice 0 (local-only):
+
+* Prefer RPC-like calls between primitives to prove the seams (Commands/Queries).
+* Still treat interactions using 496 terms:
+  * Domain endpoints are **Commands** (even if they are “no-op” in Slice 0).
+  * Process/Agent can issue Commands (or Intents later) but never write canonical state directly.
+  * Projection/Memory are **derived read models**.
+* Even in fakes, preserve the required *metadata disciplines*:
+  * idempotency keys on commands where relevant,
+  * correlation/causation metadata propagation (at least in request context / logs).
+
+In later cluster phases:
+
+* Owners emit **Facts** only after commit (outbox / outbox-equivalent).
+* Facts/intents move over Kafka using CloudEvents + Protobuf and `io.ameide.*` types per 496.
+
 ## Non-goals
 
 * No GitLab required (local-only fakes are allowed and expected).
