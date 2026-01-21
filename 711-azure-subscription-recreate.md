@@ -2,6 +2,9 @@
 
 Goal: provision a fresh AKS + platform stack in a new Azure subscription via GitOps (Terraform in CI + ArgoCD), without changing DNS zones/records.
 
+Related:
+- `backlog/715-azure-front-door-edge-stack.md` (edge-first wiring and Front Door pitfalls)
+
 ## Inputs
 
 - Old subscription: `68ba6806-178c-41f1-84ec-d7a839799be1`
