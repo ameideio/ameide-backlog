@@ -12,7 +12,7 @@
 > | [464-chart-folder-alignment.md](464-chart-folder-alignment.md) | Chart locations for vault-*, external-secrets |
 > | [426-keycloak-config-map.md](426-keycloak-config-map.md) | OIDC client secrets pattern (§3.2) |
 >
-> **Related**: [444-terraform.md](444-terraform.md), [449-per-environment-infrastructure.md](449-per-environment-infrastructure.md), [450-argocd-service-issues-inventory.md](450-argocd-service-issues-inventory.md), [452-vault-rbac-isolation.md](452-vault-rbac-isolation.md), [462-secrets-origin-classification.md](462-secrets-origin-classification.md), [695-gitlab-configuration-gitops.md](695-gitlab-configuration-gitops.md), [710-gitlab-api-token-contract.md](710-gitlab-api-token-contract.md)
+> **Related**: [444-terraform.md](444-terraform.md), [449-per-environment-infrastructure.md](449-per-environment-infrastructure.md), [450-argocd-service-issues-inventory.md](450-argocd-service-issues-inventory.md), [452-vault-rbac-isolation.md](452-vault-rbac-isolation.md), [462-secrets-origin-classification.md](462-secrets-origin-classification.md), [695-gitlab-configuration-gitops.md](695-gitlab-configuration-gitops.md), [710-gitlab-api-token-contract.md](710-gitlab-api-token-contract.md), [713-seeding-contract.md](713-seeding-contract.md)
 
 ---
 
@@ -22,12 +22,12 @@ This document describes the end-to-end secrets flow from developer `.env` files 
 
 > **Scope Clarification:** This document covers **external/third-party secrets only**—secrets that originate outside the cluster (API keys, registry tokens, DNS credentials). These flow: `.env` → Azure KV → vault-bootstrap → Vault → ExternalSecrets → K8s.
 >
-> **Cluster-managed secrets** follow different authority models and are NOT covered here:
+> **Cluster-managed / service-generated / application-bootstrap secrets** follow different authority models and are NOT covered here:
 > - **Database credentials** (CNPG-owned) → See [412-cnpg-owned-postgres-greds.md](412-cnpg-owned-postgres-greds.md)
 > - **OIDC client secrets** (Keycloak-generated, client-patcher extracted) → See [426-keycloak-config-map.md §3.2](426-keycloak-config-map.md)
 > - **Helm-generated secrets** (MinIO, Grafana admin) → See [462-secrets-origin-classification.md](462-secrets-origin-classification.md)
 >
-> For the complete secrets authority taxonomy, see [462-secrets-origin-classification.md](462-secrets-origin-classification.md).
+> For the complete secrets authority taxonomy, see [462-secrets-origin-classification.md](462-secrets-origin-classification.md). For the platform-wide “seeding” contract (failfast, deterministic, self-healing), see [713-seeding-contract.md](713-seeding-contract.md).
 
 ---
 

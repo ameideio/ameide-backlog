@@ -74,16 +74,16 @@ This is the vendor-supported posture (“external DB/Redis”) expressed via our
 - Hardened defaults as standard (mandatory):
   - Disabled **public sign-ups** by default.
   - Disabled **usage ping / product usage data** collection by default.
-  - Enforced both via Helm values (initial defaults) and via the GitOps bootstrap hook (to apply to existing running instances).
+  - Enforced both via Helm values (initial defaults) and via the GitLab admin reconciler CronJob (to apply to existing running instances).
 - Fixed hostname assembly footgun by removing the `global.hosts.gitlab.name: gitlab` override so the chart assembles `gitlab.<domain>`.
 - Disabled GitLab chart `upgradeCheck` under ArgoCD to avoid Helm hook failures blocking first installs (GitOps rollouts).
 - Switched GitLab object storage to the shared in-namespace MinIO (`data-minio`) and disabled GitLab’s bundled MinIO chart.
   - Credentials now use a dedicated MinIO service user (`gitlab-minio-access-key`, `gitlab-minio-secret-key`), not MinIO root.
 - Standardized GitLab API token delivery (Vault → ExternalSecret → `Secret/gitlab-api-credentials`) via `foundation-gitlab-api-credentials` (`backlog/710-gitlab-api-token-contract.md`).
-  - Tokens are minted in-cluster by `platform-gitlab` (PostSync hook `platform-gitlab-bootstrap-service-tokens`) and written into Vault KV under `secret/gitlab/tokens/<env>/<service>` (keys: `value`, `token_id`, `expires_at`).
+  - Tokens are minted/rotated in-cluster by `platform-gitlab` as a P1 reconciler (`CronJob/platform-gitlab-service-tokens-reconciler`) and written into Vault KV under `secret/gitlab/tokens/<env>/<service>` (keys: `value`, `token_id`, `expires_at`, plus rotation metadata).
   - Standard platform token (`backstage`) is delivered as `Secret/gitlab-api-credentials`; dev/local also deliver a writer token as `Secret/gitlab-api-credentials-e2e`.
   - Smokes must fail fast if `Secret/gitlab-api-credentials` is missing/placeholder and must verify token auth works (`GET /api/v4/user` with `PRIVATE-TOKEN`).
-  - Tokens expire (GitLab enforces expiry); safe rotation requires coordinated consumer restart (tracked work).
+  - Tokens expire (GitLab enforces expiry); rotation keeps an overlap window (do not immediately revoke the previous token) to avoid breaking consumers while ESO refreshes and workloads roll.
 - OIDC integration is now fully GitOps-managed (no placeholder secrets):
   - Keycloak client `gitlab` is reconciled per environment (redirect URIs match `gitlab.<env>.ameide.io`).
   - Keycloak operator must watch all namespaces so the `Keycloak/keycloak` CR in each environment namespace is actually reconciled.
@@ -97,7 +97,7 @@ This is the vendor-supported posture (“external DB/Redis”) expressed via our
 
 - Keep GitLab Container Registry disabled until object storage credentials are least-privilege and routing/TLS are explicitly defined.
 - Rehearse and validate SSH exposure via Gateway TCPRoute in `dev`/`staging` (port `22`, hostname `gitlab.<env>.ameide.io`) and ensure network policies allow the listener end-to-end.
-- Document the admin bootstrap automation posture (Job semantics, evidence, and the remaining break-glass path for emergencies).
+- Document the admin bootstrap automation posture (CronJob semantics, evidence, and the remaining break-glass path for emergencies).
 - Promote the shared-secrets vs Vault matrix from “decision” to “explicit secret names + owners” and add drift checks.
 - Tighten MinIO policy to bucket-scoped least privilege for the GitLab service user + add drift checks (and/or move to external object storage per the hybrid posture).
 
@@ -165,7 +165,7 @@ GitLab “SSO” is OmniAuth. OpenID Connect sign-in works on CE, but group-base
 
 1. **IdP enforcement (Keycloak):** restrict who can authenticate to the `gitlab` client (operators/services only).
 2. **GitLab safety gate:** keep `blockAutoCreatedUsers=true` so JIT-created users are blocked (pending approval) until explicitly approved.
-3. **Admin bootstrap:** use a **GitOps-managed bootstrap Job** (toolbox + `gitlab-rails runner`) to approve + promote `admin@ameide.io`; do not rely on IdP group→admin mapping.
+3. **Admin bootstrap:** use a **GitOps-managed reconciler CronJob** (toolbox + `gitlab-rails runner`) to ensure `admin@ameide.io` exists, is active, and is instance admin; do not rely on IdP group→admin mapping.
 4. **Provider secret hygiene:** do not store placeholder OmniAuth secrets. Template the provider config Secret from Vault-sourced Keycloak-generated secrets (see “Secrets posture”).
 
 **OIDC provider contract (documented keys)**
@@ -215,11 +215,11 @@ Decide and document (matrix) which secrets are:
   - GitLab OIDC client secret (Keycloak-generated → client-patcher → Vault): `gitlab-oidc-client-secret`
   - GitLab OmniAuth provider Secret rendered from Vault: `Secret/gitlab-oidc-provider` (key `provider`)
   - GitLab API access tokens surfaced via the shared `gitlab-api-credentials` ExternalSecret contract (`backlog/710-gitlab-api-token-contract.md`).
-    - Tokens are minted in-cluster by `platform-gitlab` (PostSync hook `platform-gitlab-bootstrap-service-tokens`) and written into Vault KV under `secret/gitlab/tokens/<env>/<service>` (keys: `value`, `token_id`, `expires_at`).
+    - Tokens are minted/rotated in-cluster by `platform-gitlab` as a **P1 reconciler** (see `backlog/713-seeding-contract.md`): `CronJob/platform-gitlab-service-tokens-reconciler`, and written into Vault KV under `secret/gitlab/tokens/<env>/<service>` (keys: `value`, `token_id`, `expires_at`, plus rotation metadata).
     - Standard token (`backstage`) is always provisioned and delivered as `Secret/gitlab-api-credentials`.
     - CI/E2E writer token is provisioned only in `local`/`dev` and delivered as `Secret/gitlab-api-credentials-e2e` in the environment namespace (no mutating test credential in production by default).
     - Vault write permissions are granted via `vault-bootstrap` (`gitlabTokenWriter.enabled=true`) which creates the `gitlab-token-writer` Kubernetes-auth role for `ServiceAccount/platform-gitlab-token-writer`.
-    - Rotation note: GitLab requires expirations for PATs; safe rotation requires coordinated consumer restart (tracked as follow-up work).
+    - Rotation note: GitLab requires expirations for PATs; rotation uses an **overlap model** (do not immediately revoke the previous token) to avoid breaking consumers while ESO refreshes and workloads roll. (Consumers should be restart-on-secret-change via reloader.)
 - **Chart-generated** (acceptable to generate, but must be understood and monitored)
   - Initial root password secret (break-glass only)
   - Internal TLS, SSH host keys, and other shared secrets (if we keep ingress disabled, TLS is still relevant for internal components)
@@ -252,13 +252,13 @@ With `blockAutoCreatedUsers=true`, the CE-safe posture is:
 
 **Standard posture (fully automated, GitOps-managed)**
 
-- A PostSync bootstrap Job ensures `admin@ameide.io` exists, is **active**, and is **instance admin**.
-- The Job runs via `gitlab-toolbox` + `gitlab-rails runner` (do **not** rely on `POST /api/v4/session`, which returns `404` on GitLab `18.6.x`).
+- A P1 reconciler CronJob ensures `admin@ameide.io` exists, is **active**, and is **instance admin**: `CronJob/platform-gitlab-admin-reconciler` (see `backlog/713-seeding-contract.md`).
+- The reconciler runs via `gitlab-toolbox` + `gitlab-rails runner` (do **not** rely on `POST /api/v4/session`, which returns `404` on GitLab `18.6.x`).
 - Reserved-name footgun: GitLab reserves username `admin`. Bootstrap must use a non-reserved username (e.g., `ameide-admin`) and ensure the user has a personal namespace (`namespace_id`), otherwise OIDC sign-in fails with `422` (“Username admin is a reserved name”, “Namespace can't be blank”).
 - The local bootstrap password is Vault-sourced (stable per environment):
   - Vault key: `gitlab-bootstrap-admin-password` (generated if absent)
   - Materialized Secret: `Secret/gitlab-bootstrap-admin` (key `password`)
-- The Job also enforces baseline instance settings (so “standard configuration” is actually applied):
+- The reconciler also enforces baseline instance settings (so “standard configuration” is actually applied):
   - Disable public sign-ups
   - Disable usage ping / product usage data collection
 

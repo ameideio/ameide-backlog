@@ -84,6 +84,7 @@ ArgoCD smokes are a separate layer:
 
 - Done: standardized token delivery (Vault → ExternalSecret → K8s Secret) per `backlog/710-gitlab-api-token-contract.md`.
 - Done: provisioned a dedicated integration-test GitLab writer credential (separate from normal service credentials) via the GitOps GitLab token bootstrap + Vault → ESO delivery:
+  - Token minting/rotation is owned by GitOps as a P1 reconciler (`CronJob/platform-gitlab-service-tokens-reconciler`; see `backlog/713-seeding-contract.md`).
   - Vault key: `secret/gitlab/tokens/<env>/transformation-e2e` (key `value`, plus metadata like `token_id`/`expires_at`)
   - Delivered secrets:
     - `ameide-dev`: `Secret/gitlab-api-credentials-e2e`

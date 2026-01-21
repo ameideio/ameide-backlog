@@ -50,7 +50,8 @@ For E2E/integration tests that create and delete GitLab projects (for example `b
 ## 3. GitOps delivery contract
 
 - **Source of truth:** Vault KVv2 (`secret/gitlab/tokens/<env>/<service>`, key `value`).
-- **Writer (standard platform tokens):** the GitLab workload owns minting/writing its standard service tokens (for example Backstage) and writes them into Vault KV. This keeps “token maintenance” inside the cluster/ArgoCD rather than Terraform/Bicep.
+- **Writer (standard platform tokens):** the GitLab workload owns minting/rotation/writing its standard service tokens (for example Backstage) and writes them into Vault KV via a **P1 reconciler CronJob** (see `backlog/713-seeding-contract.md`). This keeps “token maintenance” inside the cluster/ArgoCD rather than Terraform/Bicep.
+  - Implementation anchor: `CronJob/platform-gitlab-service-tokens-reconciler` (GitOps repo `sources/charts/platform/gitlab/templates/cronjob-service-tokens-reconciler.yaml`).
 - **ArgoCD workload:** `foundation-gitlab-api-credentials` (new) renders a configurable set of `ExternalSecret` resources. Each entry:
   - lives in the consuming namespace,
   - points to Vault via `SecretStore/ameide-vault`,
@@ -64,8 +65,9 @@ For E2E/integration tests that create and delete GitLab projects (for example `b
 - **Vault policy:** ESO roles (`ameide-vault` SecretStore) must be allowlisted for `secret/data/gitlab/tokens/<env>/*`.
 - **No placeholders:** managed environments must not ship placeholder GitLab API tokens. Rollouts must fail if `Secret/gitlab-api-credentials` is missing or contains placeholder values, and GitLab smokes must verify token auth works (`GET /api/v4/user`).
 - **Rotation:** GitLab enforces expirations, so tokens must be rotated. Rotation requires coordinated consumer restart because most apps read tokens from env vars at startup.
-  - **Rotation safety:** do not revoke the previous token immediately after writing a new token to Vault. Keep an overlap window and/or gate revocation on a confirmed cutover, otherwise in-cluster consumers can break.
-  - Store rotation metadata (`token_id`, `expires_at`) alongside `value` in Vault so decisions are deterministic and auditable.
+  - **Rotation safety (required):** do not revoke the previous token immediately after writing a new token to Vault. Use an overlap model so existing Pods continue working until reloader/rollouts pick up the new Secret.
+  - Store rotation metadata (`token_id`, `expires_at`, plus overlap metadata) alongside `value` in Vault so decisions are deterministic and auditable.
+  - Use short ESO refresh for these token secrets so the new token materializes quickly (platform default is `refreshInterval: 5m` in `foundation-gitlab-api-credentials`).
 
 **Environment scoping**
 

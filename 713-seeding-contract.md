@@ -24,6 +24,8 @@ This contract applies to **secrets**, **infra-derived runtime facts**, and **app
 
 - Secrets architecture: `backlog/451-secrets-management.md`
 - Secret authority taxonomy: `backlog/462-secrets-origin-classification.md`
+- GitLab GitOps configuration tracking: `backlog/695-gitlab-configuration-gitops.md`
+- GitLab API token contract: `backlog/710-gitlab-api-token-contract.md`
 - Coder first-user requirement (/setup): `backlog/626-ameide-devcontainer-service-coder.md`
 - Cluster recreate -> Coder DB reset incident: `backlog/677-coder-dev-templates-disappeared-after-cluster-recreate.md`
 - Workspaces WI + credential fan-out: `backlog/712-coder-workspaces-tasks-azure-workload-identity.md`
@@ -114,7 +116,7 @@ Requirements:
 Examples in repo:
 
 - `platform/dev-data` seed job requires `job.runId`
-- GitLab bootstrap includes `ameide.io/run-id`
+- (Legacy) Some older seed hook Jobs used `ameide.io/run-id`; prefer migrating long-lived seeders to P1 reconcilers.
 
 ### P3) Operator-managed (no custom seeding)
 
@@ -143,3 +145,12 @@ Contract alignment:
 - The “first admin user exists” must be ensured by a **reconciler CronJob** (P1), because Coder DB can be reset on cluster recreate (see 677).
 - The bootstrap user inputs (`coder-bootstrap-admin-*`) remain sourced from the secrets pipeline (Vault/AKV), not from template parameters.
 
+## Applying this contract to GitLab (CE)
+
+Problem class: **Application DB bootstrap state** + **service-generated credentials**.
+
+Contract alignment:
+
+- **Admin bootstrap (P1):** a reconciler CronJob ensures the platform admin identity exists, is active, and can complete SSO setup without manual UI steps (`CronJob/platform-gitlab-admin-reconciler`; see `backlog/695-gitlab-configuration-gitops.md`).
+- **Service token maintenance (P1):** a reconciler CronJob mints/rotates GitLab API tokens and writes them into Vault (`CronJob/platform-gitlab-service-tokens-reconciler`; see `backlog/710-gitlab-api-token-contract.md`).
+- **Delivery (ESO):** `foundation-gitlab-api-credentials` materializes `Secret/gitlab-api-credentials` (and dev/local `Secret/gitlab-api-credentials-e2e`) from Vault via ExternalSecrets, and platform smokes verify token auth (`GET /api/v4/user`) so placeholders cannot silently pass.
