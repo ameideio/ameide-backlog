@@ -1,6 +1,6 @@
 # Observability Contract – v3 (OpenTelemetry + Grafana Loki/Tempo)
 
-Status as of **2026-01-20**.
+Status as of **2026-01-21**.
 
 This document is **authoritative** and supersedes:
 
@@ -50,7 +50,10 @@ Proto-first still applies — but protos are for **payload contracts**, while pr
 Requirements:
 
 - Any service-level “request context” proto should include a `session_id` field (if it carries other request identifiers like `tenant_id`, `user_id`, `request_id`).
-- Event envelopes (EDA) should also carry `session_id` for offline correlation.
+- For async/event-plane messages, `session_id` MUST be present in message metadata:
+  - Kafka: message headers/metadata
+  - CloudEvents: a CloudEvents extension attribute (in headers, per binding)
+  - Payload MAY also include `session_id` when it is part of business semantics, but MUST NOT become a “meta-in-proto envelope” substitute (see `backlog/715-v6-contract-spine-doctrine.md`).
 
 Mapping:
 
@@ -75,8 +78,8 @@ For every outbound request/RPC:
 
 For async messaging / event buses:
 
-- producers MUST propagate `ameide.session_id` in message headers/metadata AND include `session_id` in the envelope payload (when an envelope exists).
-- consumers MUST copy the session id (header/envelope) onto spans/logs exactly as for HTTP/RPC.
+- producers MUST propagate `ameide.session_id` in message headers/metadata (CloudEvents extension attribute when using CloudEvents).
+- consumers MUST copy the session id (from header/metadata) onto spans/logs exactly as for HTTP/RPC.
 
 ### 4.1 “No hand-rolled telemetry” rule
 

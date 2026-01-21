@@ -40,3 +40,7 @@ This posture is now implemented as first-class CLI front doors:
 
 - `ameideio/ameide#582`: Phase 0/1/2 (`ameide test`) front door
 - `ameideio/ameide#589`: Playwright E2E runner (now executed as Phase 5 of `ameide test cluster`)
+
+## CI note (private submodules)
+
+CI runners that execute `ameide test` MUST be able to checkout repo submodules. If any submodule is private, CI MUST use a GitHub token with access to those repos (e.g., via `GIT_AUTH_TOKEN` in workflow checkouts).
