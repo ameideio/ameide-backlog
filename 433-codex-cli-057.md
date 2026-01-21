@@ -18,6 +18,7 @@ Historical note (2026-01-15): best-effort latest (no pin)
   2. Fetch the 0.87.0 artifact from the GitHub release [rust-v0.87.0](https://github.com/openai/codex/releases/tag/rust-v0.87.0).
   3. Expand it into `~/.local/share/codex-cli/0.87.0/codex` and point `~/.local/bin/codex` at that binary.
 - `~/.codex/config.toml` now explicitly sets `model = "gpt-5-codex"` with `model_reasoning_effort = "high"` so every CLI invocation consistently targets the desired back-end model.
+- Web search is supported but not always enabled by default; see `backlog/718-codex-cli-web-search-internals.md` for the canonical enablement knobs (`--search` / `web_search="live"`).
 - Note: This pin governs the codex binary used by shell sessions and automation in the DevContainer. The VS Code Codex extension ships its own CLI; set **Settings → Extensions → Codex → Codex: CLI Path** to `~/.local/bin/codex` (or the explicit version path) if the IDE agent itself must run the pinned version.
 - This pin exists to keep **all code-execution environments** deterministic: interactive devcontainers, CI, and any platform-run execution images that invoke Codex CLI. Where a coding agent currently uses a `develop_in_container` compatibility tool, it SHOULD still inherit this pin; the canonical direction is WorkRequest-driven runner execution with a pinned toolchain (see `backlog/527-transformation-capability.md` and `backlog/505-agent-developer-v2.md`).
 
