@@ -71,9 +71,9 @@ Known remaining work to reach “real end-to-end in-cluster proof”:
 - Add an **E2E harness** that starts from empty state (creates a new GitLab project per run) and registers the platform mapping (repo → provider pointers) as part of the flow (no dependency on pre-existing projects).
 - The E2E test must run: auth sanity (`GET /user`) → create project (`POST /projects`, preferably `initialize_with_readme=true`) → onboard/mapping → `EnsureChange` → `CreateCommit` → `PublishChange` → validate `ListTree`/`GetContent` at the resulting `main` commit SHA → best-effort cleanup (`DELETE /projects/:id`) to avoid leaks.
 - Move from “shared dev token” to per-service tokens (least privilege) per `backlog/710-gitlab-api-token-contract.md`, including a dedicated writer token for the E2E test:
-  - Recommended: a **group access token** scoped to a dedicated group (e.g. `ameide-e2e`) and used with `namespace_id=<group_id>` for project creation.
+  - Done (dev/local): a dedicated writer token is delivered as `Secret/gitlab-api-credentials-e2e` (separate from `gitlab-api-credentials` used by normal services).
+  - Target posture: a **group-scoped** writer identity for a dedicated group (e.g. `ameide-e2e`), using `namespace_id=<group_id>` for project creation.
   - Token needs `api` scope and sufficient permissions in that group to create/delete projects.
-  - Deliver integration-test credentials via a distinct Secret (do not reuse `gitlab-api-credentials` that normal services consume).
 - Test front doors are strict (per `backlog/537-primitive-testing-discipline.md`): Phase 0/1/2 run under `ameide test` (mocked; no cluster), Phase 3/4 run under `ameide test cluster` (real cluster integration in dev/local only).
 
 ArgoCD smokes are a separate layer:
@@ -86,8 +86,8 @@ ArgoCD smokes are a separate layer:
 **GitOps (platform)**
 
 - Done: standardized token delivery (Vault → ExternalSecret → K8s Secret) per `backlog/710-gitlab-api-token-contract.md`.
-- TODO: provision a dedicated integration-test credential (`secretName` isolated from normal services) in **dev/local only** and ensure it is a required secret input there (no placeholders). Staging/production must not provision a writer credential by default.
-- TODO: provide a stable GitLab “E2E group” (e.g. `ameide-e2e`) and document the `namespace_id` used for test project creation.
+- Done (dev/local): provisioned a dedicated integration-test credential (`Secret/gitlab-api-credentials-e2e`) isolated from normal services (no placeholders). Staging/production must not provision a writer credential by default.
+- Done (dev/local): provisioned a stable GitLab “E2E group” (`ameide-e2e`). Tests should resolve `namespace_id` at runtime by querying the group by `full_path` rather than hard-coding numeric IDs.
 
 **Apps (platform/transformation)**
 
