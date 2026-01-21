@@ -131,3 +131,36 @@ HTTPRoute rewrites were added to normalize some nonstandard discovery/JWKS path 
 - `argocd-server` logs stop emitting `failed to query provider ... 404 Not Found` and `invalid session: failed to verify the token`.
 - Automated check passes:
   - `infra/scripts/verify-argocd-sso.sh --azure` prints `OK   [azure] ArgoCD SSO logged in as: admin@ameide.io`.
+
+---
+
+## 4) Incident: `platform.ameide.io` serves `CN=*.azureedge.net` + AFD 404 (custom domain not activating)
+
+**Date:** 2026-01-21
+
+### Symptoms
+
+- `https://ameide.io/` works and serves the Let’s Encrypt cert (BYOC via Key Vault).
+- `https://platform.ameide.io/` resolves to the same Front Door endpoint host, but:
+  - TLS presents `CN=*.azureedge.net` (default Front Door cert)
+  - Front Door serves the generic 404 page (“We weren’t able to find your Azure Front Door Service configuration”)
+
+### Root cause (most likely)
+
+- The BYOC certificate imported into Key Vault was issued only for:
+  - `ameide.io`
+  - `*.ameide.io` (wildcard)
+- Azure Front Door’s custom-domain binding / secret validation appears to require an **explicit SAN match** for subdomains in some cases (wildcard SAN is not treated as sufficient for binding/activation).
+  - Evidence: the Front Door secret’s `subjectAlternativeNames` contained `ameide.io` and `*.ameide.io` but not `platform.ameide.io`, and only `ameide.io` activated.
+
+### Remediation (GitOps, permanent)
+
+- Certbot automation now issues the public edge certificate with explicit SANs:
+  - `ameide.io`, `platform.ameide.io`, and `*.ameide.io`
+- Implementation in `ameide-gitops`:
+  - `.github/workflows/certbot-azure-keyvault-renew.yaml`
+
+### Expected steady-state verification
+
+- `openssl s_client -connect <afd-endpoint>:443 -servername platform.ameide.io` presents the Let’s Encrypt cert (not `*.azureedge.net`).
+- `curl -I https://platform.ameide.io/` returns a non-AFD-generic response and reaches the origin route.
