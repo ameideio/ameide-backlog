@@ -81,3 +81,48 @@ Make in-cluster resolution of the issuer hostname `argocd.ameide.io` converge on
 - From inside the cluster, `argocd.ameide.io` resolves to Front Door (not `envoy-*` ClusterIPs).
 - From inside the cluster, `curl https://argocd.ameide.io/api/dex/.well-known/openid-configuration` succeeds without `-k`.
 - `argocd-server` logs stop showing `x509: certificate signed by unknown authority` for issuer discovery.
+
+---
+
+## 3) Incident: ArgoCD login loop (Dex issuer discovery 404 due to `/api/.well-known` path)
+
+**Date:** 2026-01-21
+
+### Symptoms
+
+- ArgoCD UI loads, but API calls return 401 and the UI “bounces” back to login.
+- Browser console shows:
+  - `401 (Unauthorized)` on `/api/v1/applications`, `/api/v1/clusters`
+  - `invalid session: failed to verify the token`
+- `argocd-server` logs show repeated:
+  - `Failed to verify token ... failed to query provider "https://argocd.ameide.io/api/dex": 404 Not Found`
+
+### Root cause
+
+- The issuer is configured as: `https://argocd.ameide.io/api/dex`.
+- ArgoCD’s OIDC discovery client requests the `.well-known` document at:
+  - `https://argocd.ameide.io/api/.well-known/openid-configuration` (**404**)
+  - while the actual Dex well-known endpoint is:
+    - `https://argocd.ameide.io/api/dex/.well-known/openid-configuration` (**200**)
+- Because discovery fails with 404, ArgoCD cannot verify tokens and invalidates the session.
+
+### Remediation (GitOps, permanent)
+
+Serve the discovery document at the path ArgoCD is requesting by rewriting it to the Dex endpoint:
+
+- Add an exact-path HTTPRoute rule:
+  - match: `/api/.well-known/openid-configuration`
+  - rewrite → `/api/dex/.well-known/openid-configuration`
+- Apply this rule on both listeners:
+  - `sectionName: https` (`HTTPRoute/argocd`)
+  - `sectionName: origin-http` (`HTTPRoute/argocd-origin`)
+- Implementation in `ameide-gitops`:
+  - `sources/charts/cluster/gateway/templates/httproute-argocd.yaml`
+  - `sources/charts/cluster/gateway/templates/httproute-argocd-origin.yaml`
+
+### Expected steady-state verification
+
+- From inside the cluster:
+  - `wget https://argocd.ameide.io/api/.well-known/openid-configuration` returns 200.
+- `argocd-server` logs stop emitting `failed to query provider ... 404 Not Found`.
+- ArgoCD UI login persists (no redirect loop) and API calls stop returning 401 due to “invalid session”.
