@@ -168,3 +168,22 @@ HTTPRoute rewrites were added to normalize some nonstandard discovery/JWKS path 
 
 - `openssl s_client -connect <afd-endpoint>:443 -servername platform.ameide.io` presents the Let’s Encrypt cert (not `*.azureedge.net`).
 - `curl -I https://platform.ameide.io/` returns a non-AFD-generic response and reaches the origin route.
+
+---
+
+## 5) Remediation: Terraform state adoption/import (DNS + identities) to restore deterministic applies
+
+**Date:** 2026-01-21
+
+### Why this mattered
+
+During the migration we had pre-existing Azure resources (especially DNS recordsets) that were **not in Terraform state**, causing apply failures like “already exists” and leaving us unable to converge changes through CI.
+
+### Remediation
+
+- Use `.github/workflows/terraform-azure-adopt.yaml` (`workflow_dispatch`, confirm `adopt-azure`) to import known-existing resources into the `azure.tfstate` backend before applying changes.
+- Fix a failure mode where the adopt job aborted under `set -euo pipefail` when the `apps` nodepool state entry did not exist yet.
+
+### Evidence
+
+- Successful adopt/import + plan run on branch `fix/split-horizon-private-dns-ignore-disable-dns`: GitHub Actions run `21218845045`.

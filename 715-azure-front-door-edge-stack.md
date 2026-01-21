@@ -243,6 +243,18 @@ During the incident, split-horizon rewrites caused issuer discovery/keys fetch t
 
 The full remediation timeline is captured in `backlog/714-migration-remediations.md`.
 
+### 3.7 Azure DNS alias scale limit (A-alias → single AFD endpoint)
+
+**Symptom:** Terraform DNS apply fails with an Azure DNS error about exceeding the maximum aliases to a single target resource.
+
+**Meaning:** Azure DNS alias `A` records have a documented cap on how many recordsets can point at the same Azure resource. If we publish every `{service}.{env}.ameide.io` as an alias `A` record targeting a single AFD endpoint resource ID, we eventually hit that cap.
+
+**Mitigation we converged on (AFD Standard-compatible):**
+- Use **separate AFD endpoints per environment** (dev/staging/prod) so each endpoint stays below the alias-per-target ceiling.
+
+**Long-term direction (preferred):**
+- Use **CNAME** for subdomains wherever possible (scales without alias-per-target limits), and reserve alias `A` for apex-only cases that cannot be CNAMEs.
+
 ---
 
 ## 4) Troubleshooting checklist (fastest path)
@@ -274,3 +286,11 @@ For a broken hostname `X`:
   - Standard is “custom rules only” baseline; managed rule sets require Premium/classic.
 - Make edge wiring cover all public hostnames explicitly:
   - add custom domain + route per public hostname (avoid “catch-all” surprises).
+
+---
+
+## 6) Change log (operational)
+
+- 2026-01-21: Fixed `Terraform Azure Adopt` to tolerate missing `apps` nodepool state during import (avoids `set -euo pipefail` abort before imports run).
+- 2026-01-21: Successful adopt/import run on branch `fix/split-horizon-private-dns-ignore-disable-dns`: GitHub Actions run `21218845045`.
+- 2026-01-21: PR checks green after adopt fix: `Terraform Azure Plan` run `21218808431` and `Terraform Azure Edge Plan` run `21218809529`.
