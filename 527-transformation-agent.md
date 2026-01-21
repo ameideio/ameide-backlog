@@ -3,6 +3,8 @@
 **Status:** Draft (agent scaffold implemented; role definitions/tools pending)  
 **Parent:** [527-transformation-capability.md](527-transformation-capability.md)
 
+Note (naming): role naming is being standardized in `backlog/717-ameide-agents-v6.md`. Treat “Product Owner / Solution Architect / Executor” and “AmeidePO/AmeideSA/AmeideCoder” as legacy labels in this spec.
+
 > Update (2026-01): the execution substrate described in the 527 suite (WorkRequests executed via KEDA-scaled Kubernetes Jobs) is superseded as the platform default by:
 > - `backlog/651-agentic-coding-ameide-coding-agent.md` (Coder-backed tasks + Camunda orchestration)
 > - `backlog/654-agentic-coding-cli-surface-coder.md` (CLI front doors and profiles)

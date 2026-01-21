@@ -13,6 +13,7 @@ related:
   - 714-togaf-scenarios-v6.md
   - 704-v6-enterprise-repository-memory-e2e-implementation-plan.md
   - 656-agentic-memory-v6.md
+  - 717-ameide-agents-v6.md
   - 710-gitlab-api-token-contract.md
 ---
 

@@ -17,6 +17,7 @@ related:
   - 603-image-pull-policy.md
   - 623-kargo-gitops-promotion.md
   - 656-agentic-memory-v6.md
+  - 717-ameide-agents-v6.md
   - 694-elements-gitlab-v6.md
   - 701-repository-ui-enterprise-repository-v6.md
 ---

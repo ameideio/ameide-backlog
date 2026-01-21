@@ -17,6 +17,7 @@ related:
   - 527-transformation-projection-v6.md
   - 527-transformation-proto-v6.md
   - 527-transformation-agent.md
+  - 717-ameide-agents-v6.md
   - 657-transformation-domain-clean-target-v2.md
   - 694-elements-gitlab-v6.md
   - 695-gitlab-configuration-gitops.md
@@ -115,6 +116,9 @@ Alignment rule:
 
 - Executor (and any “coding agent”) uses the **DevX execution substrate** (Coder tasks + CLI front doors) to do work and produce evidence.
 - Canonical writes still go through the **owning Domain** (owner-only writes), and “publish” still advances a governed baseline in the Enterprise Repository.
+
+Note (naming):
+- Role naming is being standardized in `backlog/717-ameide-agents-v6.md`. Treat “Product Owner / Solution Architect / Executor” as legacy labels when reading older backlogs.
 
 ### 2.2 “Solution Architect” agent ≠ “coding agent”
 
