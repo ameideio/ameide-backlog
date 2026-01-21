@@ -93,6 +93,16 @@ That’s not hardening; it’s the **core product trust feature**.
   * citation object `{repository_id, commit_sha, path[, anchor]}`
 * Editing is **change-based** and persists via the v6 write loop (Domain commands), not DB CRUD.
 
+### 2.8 UI composition naming (Next.js components)
+
+When this spec shows ASCII wireframes, it uses the platform’s component names for consistency:
+
+* Page shell: `<HeaderClient />`, `<NavTabs />`
+* List pages: `<ListPageLayout />` with `<PageHeader />` and optional `activityPanel`
+* Element editor (modal): `<ElementEditorModal />` wrapping `<EditorModalChrome />`
+* Element editor body: `<Tabs />` / `<TabsList />` / `<TabsTrigger />` + `<EditorPluginHost />`
+* Element editor assistant: `<RightSidebarTabs />` containing `<ModalChatPanel />` plus `<ModalChatFooter />`
+
 ---
 
 ## 3. What a Scenario Slice is
