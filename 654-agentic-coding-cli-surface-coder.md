@@ -42,6 +42,10 @@ Update (2026-01-20): Workspace default auth must be deterministic
 - Coder CLI auth is now treated as a **seed AKV → cluster AKV → Vault → ESO** secret (`Secret/coder-cli-auth` per workspace namespace), with an in-cluster rotator that keeps `coder-cli-session-token` fresh in the seed Key Vault.
 - Seeding contract baseline (failfast + self-heal + evidence): `backlog/713-seeding-contract.md`.
 
+Update (2026-01-21): fail-fast workspace bootstrap + persistent editor state
+
+- Workspace bootstrap waits (bounded) for `gh`/`az` binaries (installed via devcontainer features) before seeding auth; missing binaries become a visible bootstrap failure instead of a silent skip.
+- code-server user-data/config is pinned to the workspace PVC (`/workspaces/.code-server/*`) so extension installs and editor state survive pod reschedules.
 ## 1) Decisions (normative for the CLI surface)
 
 ### 1.1 “No-brainer” means no flags for core verification
