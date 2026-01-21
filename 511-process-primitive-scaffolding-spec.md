@@ -121,7 +121,7 @@ Instead, compilation is an internal step invoked by:
 * `ameide primitive scaffold --kind process ...` (writes generated outputs), and
 * `ameide primitive verify --kind process --name <name> --mode repo` (compares generated outputs; no writes).
 
-Note: `ameide verify` is the workspace-wide gate (repo-wide + all primitives).
+Note: Phase 0 of `ameide test` is the workspace-wide gate (repo-wide + all primitives).
 
 The compiler behavior is:
 

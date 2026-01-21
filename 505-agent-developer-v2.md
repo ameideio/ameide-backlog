@@ -349,7 +349,7 @@ AmeideCoder MUST return, on completion:
 | C2: Workspace prep | repoUrl + baseRef | worktree + branch | git clone/checkout |
 | C3: Guardrails | repo + Dev Brief | plan + risks | **Ameide CLI** (internal) |
 | C4: Edit implementation | plan | code changes | Claude/Codex CLI + file ops |
-| C5: Verify | code changes | pass/fail evidence | build/test/lint + Ameide verify |
+| C5: Verify | code changes | pass/fail evidence | build/test/lint + `ameide test` |
 | C6: Package result | evidence | commit + PR | git + provider API |
 | C7: Respond | PR + evidence | work facts (+ optional A2A artifacts) | publish outcomes; stream if enabled |
 
