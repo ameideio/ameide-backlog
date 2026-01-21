@@ -33,6 +33,20 @@ Goal: specify, in concrete terms, what must be implemented across primitives to 
 - **Audit anchor is merge-method agnostic**: the canonical publish anchor is **target branch head SHA after publish** (merge/squash SHAs are supplemental).
 - **Reads are citation-grade**: every read response is anchored to `{repository_id, commit_sha, path[, anchor]}`.
 
+## Agentic deliverables (Scenario A)
+
+Scenario A must ship clear agent-side value in addition to the UI/process path.
+
+- **Architect agent deliverables**
+  - Can draft and/or review `architecture/vision.md` and `architecture/statement-of-work.md` as proposals anchored to a resolved `read_context`.
+  - Can verify “what is published” by retrieving citeable reads at `Published @ <sha>` and producing a citeable review summary for humans.
+  - Can supervise an active developer publish run via periodic review ticks (`review_interval_minutes` per `backlog/717-ameide-agents-v6.md`) by checking: diff state, evidence (`./ameide test` where applicable), and publish anchor (`target_head_sha`).
+- **Developer agent deliverables**
+  - Can execute the governed write loop (Domain commands) to create/update/publish a change and attach evidence to the evidence spine.
+  - Can run the verification front doors required by the slice before publish and return evidence (tests/logs).
+- **Human-in-the-loop deliverables**
+  - There is a required approval checkpoint before publish, and the decision is recorded into the evidence spine (who/when/what was approved).
+
 ## EDA alignment (496)
 
 Scenario A is a concrete application of `backlog/496-eda-principles-v6.md`:

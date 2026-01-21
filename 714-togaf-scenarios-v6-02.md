@@ -34,6 +34,22 @@ Goal: specify, in concrete terms, what must be implemented across primitives to 
 - Backlinks/impact are **projection-only** (rebuildable), and every derived edge is citation-grade.
 - Memory/context is **projection-owned** and returns only citeable bundles.
 
+## Agentic deliverables (Scenario B)
+
+Scenario B is where agentic “graph reasoning over Git” becomes real: the platform must return deterministic, citeable graph answers at a commit SHA, suitable for architect supervision and human review.
+
+- **Architect agent deliverables**
+  - Can answer “what depends on REQ-001?” by calling derived backlink/impact queries and returning origin-cited results (“why linked?”).
+  - Can produce a citeable context bundle for `REQ-001` (and its immediate neighbors) that is reproducible at the resolved `read_context`.
+  - Can supervise a developer working on requirements/standards by verifying that:
+    - derived edges are explainable via origin citations,
+    - broken/ambiguous references are surfaced (not auto-fixed),
+    - and evidence is attached for any proposed remediation change.
+- **Developer agent deliverables**
+  - Can implement remediations as governed changes (fix broken refs, resolve duplicate IDs) and attach evidence; never “fix” derived views directly.
+- **Human-in-the-loop deliverables**
+  - Ambiguous ID and broken reference cases always produce an explicit human decision point (“choose canonical ID / fix reference”) recorded as evidence.
+
 ## EDA alignment (496)
 
 Scenario B reinforces the “owner facts → derived projections” posture from `backlog/496-eda-principles-v6.md`:

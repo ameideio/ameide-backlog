@@ -34,6 +34,19 @@ Slice 0 is **not** a user capability and does not try to “ship product value�
 * The Evidence Spine is a **shared view model** (not “test-only output”).
 * The Element Editor surface exists as a shell (optional), but persistence is not implemented here.
 
+## Agentic deliverables (Slice 0)
+
+Slice 0 is still “plumbing”, but it must already be usable by agents as an execution substrate:
+
+- **Architect agent deliverables**
+  - Can retrieve a citeable context bundle for a selected artifact at a resolved `read_context`.
+  - Can produce a citeable proposal that references returned citations (no uncited claims).
+  - Can supervise a developer run at a very low fidelity: the harness can emit at least one “review tick” record into the evidence spine (even if the tick is a stub that only verifies “evidence exists”).
+- **Developer agent deliverables**
+  - Can run the minimal verification front door used by the harness and attach the results to evidence (even if the command is a stub in Slice 0).
+- **Human-in-the-loop deliverables**
+  - The runner exposes one explicit “stop/continue” decision point (even if simulated in the harness) and records it as evidence.
+
 ## EDA alignment (496)
 
 Slice 0 scaffolds the plumbing so later slices can adopt the full evented posture from `backlog/496-eda-principles-v6.md` without refactoring.
