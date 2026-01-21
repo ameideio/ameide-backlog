@@ -4,7 +4,7 @@ status: active
 owners:
   - platform
 created: 2026-01-13
-updated: 2026-01-20
+updated: 2026-01-21
 parent: 621-ameide-cli-inner-loop-test.md
 supersedes:
   - 621-ameide-cli-inner-loop-test.md
@@ -25,6 +25,8 @@ Per `backlog/430-unified-test-infrastructure-v2-target.md`:
 - `ameide test cluster` runs **Phase 4/5 only** (cluster-only verification; requires Kubernetes):
   - Phase 4: integration-cluster (cluster smokes / runtime semantics; `//go:build cluster`)
   - Phase 5: Playwright E2E against the deployed platform URL read from `AUTH_URL` in `ConfigMap/www-ameide-platform-config`.
+
+Phase 0 is the single deterministic preflight gate (toolchain + repo invariants + doctrine checks); there is no separate `doctor`/`verify` front door.
 
 ## Why this split exists
 

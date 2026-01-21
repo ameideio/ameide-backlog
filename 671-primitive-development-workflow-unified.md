@@ -37,12 +37,12 @@ Owns:
 - SDKs and generated-only artifacts
 - Primitive runtime code (`primitives/<kind>/<name>/...`)
 - Operators and CRD schemas
-- `ameide` CLI (scaffold/verify/guardrails)
+- `ameide` CLI (scaffold/test/guardrails)
 
 Produces:
 - Published images (digest-pinned) via CI
 
-Enforces (via `ameide primitive verify` + CI gates):
+Enforces (via Phase 0 of `ameide test` + CI gates):
 - deterministic generation drift checks
 - import policy (SDK-only, no cross-primitive runtime imports)
 - mechanical scaffold alignment (expected files/paths/config, no scaffold placeholders)
@@ -77,7 +77,7 @@ Enforces (via GitOps Gate + Argo smokes):
 
 4. Run `ameide primitive scaffold --kind <kind> --name <name> ...` to create the implementation skeleton.
 5. Implement the primitive until `ameide test` is GREEN (Phase 0/1/2 in-repo only; integration uses mocks/stubs; no cluster/telepresence).
-6. Run `ameide primitive verify --kind <kind> --name <name> --json` and fix all failures (structure, imports, codegen drift, required files, etc.).
+6. Run `ameide test` and fix all failures (Phase 0 contract gate + Phase 1/2 tests).
 
 **Policy references:** `backlog/514-primitive-sdk-isolation.md`, `backlog/537-primitive-testing-discipline.md`, `backlog/430-unified-test-infrastructure-v2-target.md`
 
@@ -111,7 +111,7 @@ Enforces (via GitOps Gate + Argo smokes):
 
 ## What is enforced where
 
-### Enforced in `ameide primitive verify` (core repo)
+### Enforced in Phase 0 of `ameide test` (core repo)
 
 Strongly enforceable (deterministic):
 - Codegen drift (regen-diff semantics)
@@ -148,7 +148,7 @@ Not enforceable as “truth” in core repo:
 
 For a primitive change to be “done”:
 
-- Core repo CI passes (generation + tests + verify gates)
+- Core repo CI passes (generation + Phase 0 contract gates + tests)
 - Image digest is published
 - GitOps wiring PR merged (or already existed)
 - Env enablement PR merged (dev)
@@ -161,7 +161,7 @@ For a primitive change to be “done”:
 - TDD outer loop and repo-aligned primitive work: `backlog/520-primitives-stack-v2-tdd.md`
 - CLI orchestration boundaries: `backlog/521d-external-generation-improvements.md`
 - SDK-only and isolation rules: `backlog/514-primitive-sdk-isolation.md`
-- Testing discipline and verify expectations: `backlog/537-primitive-testing-discipline.md`
+- Testing discipline and Phase 0 expectations: `backlog/537-primitive-testing-discipline.md`
 - Capability DAG (how to parallelize work): `backlog/533-capability-implementation-playbook.md`
 - Promotion mechanics: `backlog/611-trunk-based-main-and-gitops-environment-promotion.md`
 - Image policy: `backlog/602-image-pull-policy.md`, `backlog/603-image-pull-policy.md`

@@ -12,10 +12,10 @@ This playbook is intentionally **capability-agnostic**. Capability docs define s
 
 ## Implementation progress (repo)
 
-- [x] Proven end-to-end on at least one capability slice (SRE): `buf lint` + `buf breaking` + codegen freshness + GitOps component checks exercised via `ameide primitive verify`.
+- [x] Proven end-to-end on at least one capability slice (SRE): `buf lint` + `buf breaking` + codegen freshness via Phase 0 of `ameide test`, plus GitOps component checks via the `ameide-gitops` GitOps gate.
 - [x] CI/guardrails feedback loop validated: verification failures drove structural fixes (monorepo `buf breaking` `--against` ref, codegen mapping for `google/api/field_behavior.proto`, process/domain shape checks).
 - [ ] Convert this playbook into a machine-executable workflow spec (LangGraph; and/or platform-only Temporal where appropriate) with stable node IDs and structured outputs.
-- [ ] Add a “per-node verification command” appendix (exact `ameide primitive verify` invocations per node, plus expected failure classes).
+- [ ] Add a “per-node verification command” appendix (exact `ameide test` / `ameide test cluster` invocations per node, plus expected failure classes).
 
 ## Clarifications requested (next steps)
 
@@ -188,14 +188,8 @@ Note: Node 3F (Scaffold Integration) and Node 7C (Implement Integration) follow 
 - `backlog/415-implementation-verification.md`, `backlog/448-per-environment-service-verification.md` (verification context)
 
 **Actions**
-- Run `ameide primitive verify` for each implemented primitive:
-  - Domain: `--checks naming,eda,imports,tests`
-  - Process: `--checks naming,shape,tests`
-  - Projection: `--checks naming,imports,tests`
-  - Integration: `--checks naming,imports,tests`
-  - UISurface: `--checks naming,tests`
-  - Agent: `--checks naming,imports,tests`
-- Confirm no RED scaffold tests remain (any `AMEIDE_SCAFFOLD` markers cause `ameide primitive verify` to fail).
+- Run `ameide test` (Phase 0/1/2; local-only; deterministic). Phase 0 enforces toolchain preflight, scaffold marker removal (`AMEIDE_SCAFFOLD`), codegen freshness, and doctrine checks.
+- Run `ameide test cluster` when cluster-only checks are required for the capability slice (Phase 3/4).
 - Run `buf lint` and `buf breaking` on proto changes.
 - Run regen-diff to ensure generated outputs are committed.
 - Validate GitOps wiring via the GitOps repo PR workflows (670) and the `ameide-gitops` GitOps gate (no local `--include-gitops` canonical path). See `backlog/670-gitops-authoritative-write-path-for-scaffolding.md`.
@@ -207,6 +201,6 @@ Note: Node 3F (Scaffold Integration) and Node 7C (Implement Integration) follow 
 - GitOps manifests are valid and deployable.
 
 **Exit criteria**
-- `ameide primitive verify` passes for all primitives in the capability.
+- `ameide test` passes (and `ameide test cluster` when applicable).
 - CI gates pass (tests, lint, breaking, regen-diff).
 - Capability is ready for deployment to target environment.

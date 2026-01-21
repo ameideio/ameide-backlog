@@ -407,7 +407,7 @@ Platform engineering MUST provide:
 
 ## 11. CLI / Operator enforcement (MUST)
 
-The platform CLI (`ameide primitive verify`) MUST validate at minimum:
+The platform gates (Phase 0 of `ameide test`, plus cluster smokes/tests) MUST validate at minimum:
 
 **CloudEvents conformance**
 

@@ -208,7 +208,7 @@ Implementers (humans or coding agents) are expected to:
 
 ## 5. Verification expectations
 
-`ameide primitive verify --kind domain --name <name>` is expected to enforce:
+Phase 0 of `ameide test` is expected to enforce:
 
 - Presence of `internal/ports/outbox.go` and `internal/adapters/postgres/outbox.go`.  
 - Presence of dispatcher code under `internal/dispatcher/` and `cmd/dispatcher/`.  
