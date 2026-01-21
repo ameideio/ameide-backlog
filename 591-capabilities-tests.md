@@ -8,7 +8,7 @@
 >
 > 430v2 removes `INTEGRATION_MODE` and per-component `run_integration_tests.sh` packs as the canonical execution path. This document keeps the old “pack” language for historical context but should be read through the v2 lens:
 > - Phase 2 Integration is local-only and mocked/stubbed.
-> - Phase 3 E2E is cluster-only and Playwright-only.
+> - Phase 5 Playwright E2E is cluster-only.
 
 ---
 
@@ -64,7 +64,7 @@ This mirrors the v2 “integration classification” convention described in `ba
 Capability integration tests must follow the **same v2 contract** as the rest of the repo:
 
 - Phase 2 (Integration) is **local-only** and must be mocked/stubbed (no cluster).
-- Phase 3 (E2E) is **cluster-only** and Playwright-only (if applicable).
+- Phase 5 (Playwright E2E) is **cluster-only** (if applicable).
 - Output JUnit evidence via the orchestrator contract.
 
 Reference: `backlog/430-unified-test-infrastructure-v2-target.md`.
@@ -121,9 +121,9 @@ In Phase 2 (Integration), capability tests should:
 
 This is how we keep capability tests fast and CI-friendly for pre-merge.
 
-### 5.2 E2E (Phase 3; cluster-only, Playwright-only)
+### 5.2 E2E (Phase 5; cluster-only, Playwright-only)
 
-Cluster validation for capabilities is owned by Phase 3 E2E under the 430v2 contract:
+Cluster validation for capabilities is owned by Phase 5 Playwright E2E under the 430v2 contract:
 
 - Cluster-only
 - Playwright-only

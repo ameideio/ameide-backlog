@@ -12,7 +12,7 @@
 > In particular, 430v2 removes:
 > - `INTEGRATION_MODE`
 > - per-component `run_integration_tests.sh` packs as the canonical path
-> - “integration in cluster” (cluster interaction is Phase 3 E2E only)
+> - “integration in cluster” (cluster interaction happens only under Phase 4/5 via `ameide test cluster`)
 
 > **Unified workflow:** See `backlog/671-primitive-development-workflow-unified.md` for the end-to-end primitive workflow and where each enforcement happens (core repo verify vs GitOps gate vs Argo smokes).
 
@@ -329,10 +329,11 @@ Strict phases, clearly defined:
 | Phase | Environment | Allowed dependencies | Use case |
 |------:|-------------|----------------------|----------|
 | **1: Unit** | Local | pure mocks only | fastest feedback; no I/O |
-| **2: Integration** | Local | mocks/stubs/in-memory fakes only | boundary tests without cluster |
-| **3: E2E** | Cluster | real environment only; Playwright only | user journeys / real ingress |
+| **2: Integration-local** | Local | mocks/stubs/in-memory doubles only | boundary tests without cluster |
+| **4: Integration-cluster** | Cluster | real cluster dependencies only | runtime semantics / cluster smokes |
+| **5: Playwright E2E** | Cluster | real environment only; Playwright only | user journeys / real ingress |
 
-**Important:** Phase 1 and Phase 2 must not touch Kubernetes, Tilt, or Telepresence. Cluster interaction is Phase 3 only.
+**Important:** Phase 1 and Phase 2 must not touch Kubernetes, Tilt, or Telepresence. Cluster interaction happens only in Phase 4/5 via `ameide test cluster`.
 
 ### 3.3 Verify Behavior
 
@@ -443,7 +444,7 @@ func TestWorkflowDeterminismPolicy(t *testing.T) {
 //go:build integration
 
 func TestWorkflowIntegration(t *testing.T) {
-    // Exercise workflow seams against deterministic fakes/mocks (no cluster, no local infra).
+    // Exercise workflow seams against deterministic stubs/mocks (no cluster, no local infra).
     // ...
 }
 ```
@@ -455,15 +456,13 @@ func TestWorkflowIntegration(t *testing.T) {
 import pytest
 from unittest.mock import MagicMock
 from langgraph.checkpoint.memory import MemorySaver
-from langchain_core.language_models.fake import GenericFakeChatModel
 
 @pytest.fixture
 def agent_with_memory():
     checkpointer = MemorySaver()
-    fake_llm = GenericFakeChatModel(messages=[
-        AIMessage(content="Test response")
-    ])
-    return create_agent(llm=fake_llm, checkpointer=checkpointer)
+    llm_stub = MagicMock()
+    llm_stub.invoke.return_value = AIMessage(content="Test response")
+    return create_agent(llm=llm_stub, checkpointer=checkpointer)
 
 async def test_thread_id_required(agent_with_memory):
     with pytest.raises(ValueError, match="thread_id is required"):
@@ -689,7 +688,7 @@ This section documents gaps between this spec (537) and the current CLI implemen
 - `Codegen` check validates generated output freshness (TS via temp-tree generation+diff; Go/Python via proto vs generated-file timestamps).
 
 **Still needed (to make tests “meaningful”, not just present):**
-- **430v2 phase alignment**: remove `INTEGRATION_MODE` / pack-script assumptions; classify tests as Unit (Phase 1), Integration-local (Phase 2), or E2E-cluster (Phase 3).
+- **430v2 phase alignment**: remove `INTEGRATION_MODE` / pack-script assumptions; classify tests as Unit (Phase 1), Integration-local (Phase 2), Integration-cluster (Phase 4), or Playwright E2E (Phase 5).
 - **Per-primitive invariants** (tests + optional verify checks):
   - Process: determinism policy (static) + idempotency behaviors (Temporal testsuite).
   - Domain/Process: envelope metadata tests (tenant/idempotency/trace context).

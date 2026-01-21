@@ -407,7 +407,7 @@ When multiple identity sources are configured, the following precedence applies:
 **Test Contract Alignment (430v2)**
 
 - Phase 1 (Unit) and Phase 2 (Integration) are local-only (no cluster tooling).
-- Playwright is **Phase 3 only** and **cluster-only by design**: it must target a real environment (Keycloak + platform + seeded personas) and must fail fast when required env/secrets are missing.
+- Playwright is **Phase 5 only** and **cluster-only by design**: it must target a real environment (Keycloak + platform + seeded personas) and must fail fast when required env/secrets are missing.
 
 **Additional Work Completed (Beyond Initial Phase 1 Tasks)**
 
@@ -540,7 +540,7 @@ Verified Phase 1 implementation status against requirements defined in this back
 **Findings**:
 - ✅ `onboarding-flow.spec.ts`: Full wizard journey
 - ✅ `new-user-redirect.spec.ts`: Middleware redirect behavior
-- ✅ Cluster-only E2E (Phase 3; Playwright)
+- ✅ Cluster-only E2E (Phase 5; Playwright)
 - ✅ Covers: tenant bootstrap, org creation, redirect, post-onboarding access
 
 ### Audit Action Items

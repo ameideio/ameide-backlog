@@ -34,7 +34,7 @@ This is intentionally **not** “full CI”: it is an agentic inner-loop tool th
 CI uses the same two front doors:
 
 - `ameide test` (Phase 0/1/2 only; local-only)
-- `ameide test cluster` (Phase 3/4 only; cluster-only)
+- `ameide test cluster` (Phase 4/5 only; cluster-only)
 
 ## Cross-references
 
@@ -63,8 +63,8 @@ This backlog item is now **implemented** as a first-class Go CLI command:
   - Phase 0: `packages/ameide_core_cli/internal/innerloop/phase0.go`
   - Phase 1: `packages/ameide_core_cli/internal/innerloop/phase1.go`
   - Phase 2: `packages/ameide_core_cli/internal/innerloop/phase2.go`
-  - Phase 3: `packages/ameide_core_cli/internal/innerloop/cluster.go`
-  - Phase 4: `packages/ameide_core_cli/internal/innerloop/e2e.go`
+  - Phase 4: `packages/ameide_core_cli/internal/innerloop/cluster.go`
+  - Phase 5: `packages/ameide_core_cli/internal/innerloop/e2e.go`
 
 Legacy runner scripts have been removed; the canonical entrypoints are the CLI commands above.
 
@@ -115,7 +115,7 @@ Canonical tasks (toolchains directly):
 
 ### Phase 2 — Integration tests (local mocked/stubbed only)
 
-**Goal:** run local-only integration tests that exercise boundaries against mocks/stubs/in-memory fakes.
+**Goal:** run local-only integration tests that exercise boundaries against mocks/stubs/in-memory doubles.
 
 Execution rules (opinionated, fail-fast):
 
@@ -126,9 +126,9 @@ Execution rules (opinionated, fail-fast):
   - **Jest/TS:** repo-wide selection for `__tests__/integration/**` via Jest config
   - **Pytest/Python:** `@pytest.mark.integration` selection via pytest config
 
-### Phase 3 — Cluster-only verification (separate commands; not part of `ameide test`)
+### Phase 4/5 — Cluster-only verification (separate commands; not part of `ameide test`)
 
-This backlog originally described a Phase 3 Telepresence-based E2E harness. The current 430v2 contract keeps the agent/human front door (`ameide test`) strictly Phase 0/1/2, and runs cluster-only checks separately:
+This backlog originally described a Telepresence-based E2E harness. The current 430v2 contract keeps the agent/human front door (`ameide test`) strictly Phase 0/1/2, and runs cluster-only checks separately:
 
 - `ameide test cluster`
 - `ameide test cluster`

@@ -119,7 +119,7 @@ Mostly stub implementation with only SearchIncidents functional (in-memory filte
 
 **Test Coverage (Excellent):**
 - **308 LOC of test code** for ~1,100 LOC implementation (28% ratio)
-- **Unit Tests:** 8 test functions with fake store mocks
+- **Unit Tests:** 8 test functions with in-memory store mocks
   - TestListOpportunities, TestGetPipelineSummary, TestListApprovalWorkItems
   - TestGetOpportunityView, TestListQuotes, TestGetQuoteView
 - **Integration Tests:** 3 test functions with sqlmock
@@ -127,7 +127,7 @@ Mostly stub implementation with only SearchIncidents functional (in-memory filte
   - TestListOpportunities_PaginatesByID (pagination logic)
   - TestGetQuoteView_ReturnsLineItems (complex multi-query assertions)
 - **Test Infrastructure:**
-  - Fake store implementing `Store` interface
+  - In-memory store implementing `Store` interface
   - `testContext()` helper for RequestContext generation
   - `RequireIntegrationMode()` for mock/cluster mode support
   - Integration test runner: `run_integration_tests.sh`
@@ -388,7 +388,7 @@ Stubbed: Fleet health, alerts, runbooks, SLOs, patterns
 **Test Coverage (Partial):**
 - **67 LOC** of test code for 71 LOC implementation (94% ratio, but implementation is stubs)
 - **Unit Test:** 1 test function
-  - `TestSearchIncidents_FiltersByQuery` - Tests actual search logic with fake domain
+  - `TestSearchIncidents_FiltersByQuery` - Tests actual search logic with mock domain
 - **Test Infrastructure:**
   - `fakeIncidentDomain` mock implementing `IncidentServiceClient`
   - No tests for 14 stub methods
@@ -540,7 +540,7 @@ Stubbed: Fleet health, alerts, runbooks, SLOs, patterns
 
 3. **Test Architecture:**
    - Interface-based store design
-   - Fake store for unit tests
+   - In-memory store for unit tests
    - sqlmock for integration tests
    - Integration mode support (mock/cluster)
 

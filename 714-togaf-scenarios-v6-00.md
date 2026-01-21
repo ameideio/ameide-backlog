@@ -29,8 +29,8 @@ Slice 0 is **not** a user capability and does not try to “ship product value�
 ## What Slice 0 proves (v6 posture, minimal)
 
 * Identity plumbing is consistent across all calls/events/logs: `{tenant_id, organization_id, repository_id}`.
-* `read_context` exists and resolves to a deterministic commit SHA in the local runner (fake store).
-* All reads and derived outputs are citation-grade (even in fakes): `{repository_id, commit_sha, path[, anchor]}`.
+* `read_context` exists and resolves to a deterministic commit SHA in the local runner (in-memory repo store).
+* All reads and derived outputs are citation-grade (even with in-process mocks): `{repository_id, commit_sha, path[, anchor]}`.
 * The Evidence Spine is a **shared view model** (not “test-only output”).
 * The Element Editor surface exists as a shell (optional), but persistence is not implemented here.
 
@@ -45,7 +45,7 @@ In Slice 0 (local-only):
   * Domain endpoints are **Commands** (even if they are “no-op” in Slice 0).
   * Process/Agent can issue Commands (or Intents later) but never write canonical state directly.
   * Projection/Memory are **derived read models**.
-* Even in fakes, preserve the required *metadata disciplines*:
+* Even in local mocks, preserve the required *metadata disciplines*:
   * idempotency keys on commands where relevant,
   * correlation/causation metadata propagation (at least in request context / logs).
 
@@ -56,10 +56,10 @@ In later cluster phases:
 
 ## Non-goals
 
-* No GitLab required (local-only fakes are allowed and expected).
+* No GitLab required (local-only mocks are allowed and expected).
 * No real MR/publish workflow (that is Slice 2 / Scenario A).
 * No derived backlinks/impact parsing (that is Slice 3 / Scenario B).
-* No cluster integration (that is `ameide test cluster` in Phase 3/4).
+* No cluster integration (that is `ameide test cluster` in Phase 4/5).
 
 ## Capability tags
 
@@ -69,7 +69,7 @@ Slice 0 covers:
 * `cap:citation`
 * `cap:evidence.spine`
 * `cap:repo.onboard` (local-only mapping; enough to exercise the contract)
-* `cap:repo.read_tree` / `cap:repo.read_file` (fake repo store, not GitLab)
+* `cap:repo.read_tree` / `cap:repo.read_file` (in-memory repo store, not GitLab)
 
 And introduces an internal enabling tag used only to coordinate scaffolding:
 
@@ -95,7 +95,7 @@ Slice 0 must scaffold not only “scenario runners”, but also the **capability
 Minimum:
 * A single onboarding contract exists and can be called by the runner:
   * `UpsertRepositoryMapping(identity, provider, remote_id, published_ref)`
-* For Slice 0, `remote_id` can be a fake identifier into an in-memory repo store.
+* For Slice 0, `remote_id` can be a local-only identifier into an in-memory repo store.
 
 ### Domain primitive (stubbed write boundary)
 
@@ -107,7 +107,7 @@ Minimum:
 * For Slice 0, Domain may expose only a “no-op” command used by the runner:
   * `Domain.Ping(identity)` → returns `{ok:true}` (or equivalent)
 
-### Projection primitive (read surface using a fake repo store)
+### Projection primitive (read surface using an in-memory repo store)
 
 Minimum:
 * Projection process/service starts and can be called.
@@ -146,7 +146,7 @@ Minimum:
 
 Slice 0 does not require UI, but if we include a smoke-level surface it should be:
 
-* A repository page shell (`<ListPageLayout />`) that can render a fake tree.
+* A repository page shell (`<ListPageLayout />`) that can render a repo tree.
 * An element editor shell (`<ElementEditorModal />` + `<EditorModalChrome />` + `<RightSidebarTabs />`) that can render:
   * `Storage: <path>`
   * `Read: <context> @ <sha>`
@@ -160,7 +160,7 @@ Runner entry:
 
 Steps:
 1. Create identity `{tenant_id, organization_id, repository_id}`.
-2. Onboard mapping to a fake provider/repo store.
+2. Onboard mapping to an in-memory provider/repo store.
 3. Projection resolves `published` → `resolved.commit_sha`.
 4. Projection lists root tree and reads one file.
 5. Memory returns a citeable context bundle for that file (optional excerpt).

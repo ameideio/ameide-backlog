@@ -51,8 +51,8 @@ These commands:
 0) **Phase 0: Contract** (local only; vendor-driven discovery)
 1) **Phase 1: Unit** (local, pure)
 2) **Phase 2: Integration-local** (local, mocked/stubbed only)
-3) **Phase 3: Integration-cluster** (cluster-only; runtime semantics)
-4) **Phase 4: Playwright E2E** (cluster-only; deployed target)
+4) **Phase 4: Integration-cluster** (cluster-only; runtime semantics)
+5) **Phase 5: Playwright E2E** (cluster-only; deployed target)
 
 Invariants:
 - Phases 0/1/2 **must not** interact with Kubernetes or Telepresence.
@@ -82,11 +82,11 @@ Cluster verification is executed via a separate CLI entrypoint:
 ### Integration-local (Phase 2)
 
 - Local only.
-- Tests boundaries (serialization, adapters, client/server seams) against **mocks/stubs/in-memory fakes**.
+- Tests boundaries (serialization, adapters, client/server seams) against **mocks/stubs/in-memory doubles**.
 - No Kubernetes / Telepresence.
 - **No environment-driven branching** inside tests (“mode”). A test either belongs in Phase 2 or it does not exist.
 
-### Integration-cluster (Phase 3)
+### Integration-cluster (Phase 4)
 
 - Cluster-only.
 - Owned by Go cluster suites (e.g. Zeebe conformance) selected via `//go:build cluster`.
@@ -112,7 +112,7 @@ The contract intentionally avoids “tooling zoo”, so classification must be p
   - Phase 2 runs `go test -tags=integration ./...`
 - Integration-cluster: opt-in via build tags:
   - cluster tests must include `//go:build cluster`
-  - Phase 3 runs `go test -tags=cluster ...` over discovered cluster packages
+  - Phase 4 runs `go test -tags=cluster ...` over discovered cluster packages
 
 ### TypeScript (Jest)
 

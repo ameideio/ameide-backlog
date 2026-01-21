@@ -164,7 +164,7 @@ Four process primitives (Sales, Commerce, Transformation, SRE) exist at varying 
 - **Full ingress router:** Signal-based routing with validation
 - **Incident lifecycle management:** Created → Resolved → Closed state tracking
 - **W3C trace context support:** Full distributed tracing integration
-- **Comprehensive tests:** Router unit tests with fake Temporal clients
+- **Comprehensive tests:** Router unit tests with mock Temporal clients
 - **12-hour workflow timeout:** Appropriate for incident response SLAs
 
 **Implementation Details:**

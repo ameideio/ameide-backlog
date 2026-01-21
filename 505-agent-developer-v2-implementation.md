@@ -71,7 +71,7 @@ Legend: 🟢 complete · 🟡 in progress · 🔴 not started
    - Ensure `tenant_id`, `process_scope`, `timebox_id` are set.
 4. **Integration with Transformation**
    - Ensure workflows **only** interact with Transformation via the bus contracts in 506-v2/508: emit Scrum domain intents on `scrum.domain.intents.v1` (e.g., `StartSprintRequested`, `EndSprintRequested`, `CommitSprintBacklogRequested`, `RecordProductBacklogItemDoneRequested`, `RecordIncrementRequested`) and react to Scrum domain facts on `scrum.domain.facts.v1` (e.g., `SprintStarted`, `SprintBacklogCommitted`, `ProductBacklogItemDoneRecorded`, `IncrementUpdated`). **AmeidePO** remains responsible for issuing these intents; Process workflows observe the resulting domain facts to complete.
-   - Provide sample integration tests (Temporal + fake Transformation service).
+   - Provide sample integration tests (Temporal + mock Transformation service).
 
 *Acceptance criteria*
 - E2E test: simulate `SprintBacklogCommitted` → Process workflow → `SprintBacklogReadyForExecution` and `SprintBacklogItemReadyForWork` events emitted with correct payload.

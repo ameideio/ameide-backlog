@@ -35,12 +35,12 @@ This backlog defines the **target state** for all automated tests in the codebas
 The agent-focused “no-brainer” verification front doors are now:
 
 - `ameide test` (Phase 0/1/2: contract → unit → integration; local-only)
-- `ameide test cluster` (Phase 3: deployed-system E2E; cluster-only; Playwright-only)
+- `ameide test cluster` (Phase 4/5: cluster integration → Playwright; requires Kubernetes)
 
 430v2 tightens this further:
 - no `INTEGRATION_MODE`
 - no per-component runner scripts (`run_integration_tests.sh`) as the canonical path
-- cluster interaction is Phase 3 (E2E) only
+- cluster interaction happens only under Phase 4/5 (via `ameide test cluster`)
 
 > ⚠️ **Remote-first reminder:** Wherever this backlog mentions a “cluster” profile or k3d-based execution, substitute the shared AKS namespace (`ameide-dev`) reached via Telepresence per [435-remote-first-development.md](435-remote-first-development.md).
 

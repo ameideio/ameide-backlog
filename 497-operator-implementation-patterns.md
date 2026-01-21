@@ -290,7 +290,7 @@ For Ameide: these metrics are how CLI / SREs will see "Domain operator is flappi
 
 Kubebuilder book recommends:
 
-* **Unit tests** for reconcile logic using fake client
+* **Unit tests** for reconcile logic using mock client
 * **envtest** for more integrated tests against a local API server
 * Don't bother trying to test informers/queues directly; controller-runtime abstracts them
 

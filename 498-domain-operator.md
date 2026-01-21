@@ -140,7 +140,7 @@ Reference implementation: [497 §10.3](497-operator-implementation-patterns.md#1
 
 | Task | Description | Acceptance Criteria |
 |------|-------------|---------------------|
-| **Unit tests** | Test reconcile logic with fake client | `go test ./...` passes |
+| **Unit tests** | Test reconcile logic with mock client | `go test ./...` passes |
 | **envtest tests** | Integration tests with local API server | Tests create/reconcile/delete Domain |
 | **E2E tests** | Full cluster tests in CI | Domain→Deployment→Pod→healthy in real cluster |
 | **CLI verify integration** | `ameide primitive verify` checks Domain status | CLI reports Domain health correctly |

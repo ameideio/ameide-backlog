@@ -243,7 +243,7 @@ type AgentStatus struct {
 
 | Task | Description | Acceptance Criteria |
 |------|-------------|---------------------|
-| **Unit tests** | Fake clients for all external services | Tests pass without real services |
+| **Unit tests** | Mock clients for all external services | Tests pass without real services |
 | **envtest tests** | Create Agent, verify Deployment | Integration tests pass |
 | **Policy tests** | Test riskTier/tool policy combinations | Policy violations caught |
 | **CLI integration** | `ameide primitive verify` checks Agent | CLI reports Agent health |

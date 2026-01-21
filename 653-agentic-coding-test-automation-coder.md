@@ -25,7 +25,7 @@ This document inherits all decisions from `backlog/650-agentic-coding-overview-v
 ## 0.2 Status update (2026-01-17)
 
 - Coder control plane + provisioners are healthy; recent workspaces are provisioning successfully.
-- Phase 3 workspace routing RBAC is now bootstrap-managed (predeclared roles + bind-only delegation) to avoid RBAC escalation failures during Terraform applies.
+- Cluster-only verification routing RBAC is now bootstrap-managed (predeclared roles + bind-only delegation) to avoid RBAC escalation failures during Terraform applies.
 - Known non-blocker: `coder show` “containers” warnings can occur in envbuilder-based workspaces because `docker` is intentionally not present.
 
 Update (2026-01-19): platform smoke must catch code-server cached-arch failures
@@ -141,12 +141,12 @@ Requirements:
 - Playwright runs against the preview base URL(s).
 - E2E results become the merge gate signal.
 
-Decision: Phase 3 exists as a CLI-owned command surface:
+Decision: Cluster-only verification exists as a CLI-owned command surface (Phase 4/5):
 
-- `ameide test cluster` runs Playwright against the deployed preview URL (Phase 3)
-- Phase 3 is intentionally not bundled into the “no-brainer” Phase 0/1/2 front door so it remains fast and universally runnable
+- `ameide test cluster` runs cluster integration + Playwright against the deployed preview URL (Phase 4/5)
+- Phase 4/5 is intentionally not bundled into the “no-brainer” Phase 0/1/2 front door so it remains fast and universally runnable
 
-Note: non-Kubernetes domains may define a different Phase 3 target (not an Argo preview environment). For D365FO, Phase 3 is defined in `backlog/655-agentic-coding-365fo.md`.
+Note: non-Kubernetes domains may define a different cluster verification target (not an Argo preview environment). For D365FO, cluster-only verification is defined in `backlog/655-agentic-coding-365fo.md`.
 
 ### 4.4 Layer 4 — automation tasks (repeatable helpers)
 
@@ -180,7 +180,7 @@ Tasks complement the system by making repeatability cheap:
 The following are deprecated by this model:
 
 - Telepresence-based E2E execution for agent inner-loop verification (`backlog/621-ameide-cli-inner-loop-test.md` as currently written).
-- Telepresence-based E2E execution as an agent default; Phase 3 E2E is owned by `ameide test cluster` (cluster-only; Playwright-only).
+- Telepresence-based E2E execution as an agent default; Phase 5 Playwright E2E is owned by `ameide test cluster` (cluster-only).
 - Telepresence verification backlogs as platform requirements (e.g., `backlog/492-telepresence-verification.md`).
 
 ## 9) References

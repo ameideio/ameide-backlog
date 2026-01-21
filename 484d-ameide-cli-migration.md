@@ -109,7 +109,7 @@ ameide primitive gitops scaffold --kind <kind> --name <name> --version v0 --json
 ameide primitive scaffold --include-test-harness --json
 # Adds:
 #   - __mocks__/ directory with client stubs
-#   - Minimal stub/fake wiring to support Phase 2 integration tests (still in-repo; no cluster)
+#   - Minimal stub/mock wiring to support Phase 2 integration tests (still in-repo; no cluster)
 ```
 
 **Both remain optional flags**, not defaults.
