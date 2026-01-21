@@ -10,6 +10,7 @@ supersedes:
 related:
   - 496-eda-principles-v6.md
   - 520-primitives-stack-v6.md
+  - 715-v6-contract-spine-doctrine.md
 ---
 
 # 509 – Proto Naming & Semantic Identity Conventions (v6: `io.ameide.*`)
@@ -30,7 +31,13 @@ Do not introduce `com.ameide.*` semantic identities in new work.
 RPC services, message payloads, and (where applicable) stable semantic identities are defined in protobuf and enforced by tooling.
 
 3) **Delivery plane is not the contract.**  
-Kafka topics and partitions are operational; semantic identity is the contract. Defaults may map `topic == ce.type`, but v6 does not require it as a hard rule.
+Kafka topics and partitions are operational; semantic identity is the contract (CloudEvents `type`).
+
+Default topic strategy (v6; see `backlog/715-v6-contract-spine-doctrine.md`):
+
+- Topics are capability-owned topic families (e.g., `io.ameide.<capability>.events`) and may carry multiple event types.
+- Consumers route/filter by CloudEvents `type`.
+- The pattern `topic == ce.type` is exception-only (throughput/retention/ACL isolation).
 
 ## 1) Proto packages (convention)
 
@@ -69,4 +76,3 @@ Allowed topic strategies:
 - **Topic families** (operational grouping) where explicitly justified, with `ce.type` remaining the semantic identity.
 
 In either case, consumers must treat `ce.id` as the idempotency key and tolerate replays.
-

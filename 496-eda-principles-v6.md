@@ -9,6 +9,9 @@ supersedes:
   - 496-eda-principles-v4.md
   - 496-eda-principles-v3.md
   - 496-eda-principles-v2.md
+related:
+  - 509-proto-naming-conventions-v6.md
+  - 715-v6-contract-spine-doctrine.md
 ---
 
 # 496 – Integration & EDA Principles (v6: `io.ameide.*`, owner-writes, contract-first, hybrid messaging)
@@ -60,6 +63,7 @@ GitLab analogy: treat “commit” like “the MR was merged and there is an imm
 
 - Public APIs and event payloads are defined in Protobuf.
 - Compatibility is governed at the schema boundary (Buf + CI gates), not by convention.
+- SDK consumption and event-plane doctrine is defined in `backlog/715-v6-contract-spine-doctrine.md` (wrapper SDK-only imports; Kafka + CloudEvents envelope).
 
 ### 1.4 Idempotency is mandatory
 
@@ -109,6 +113,8 @@ Kafka remains the standard event plane in Kubernetes:
 - CloudEvents v1.0 envelope for metadata,
 - Protobuf payloads for schema and codegen,
 - Kafka (Strimzi) for transport/durability (topics + consumer groups).
+
+Topic strategy default (v6): capability-owned topic families with consumers routing/filtering by CloudEvents `type` (see `backlog/715-v6-contract-spine-doctrine.md`).
 
 This standard is intentionally not “Kafka only”: RPC is allowed where it is the right tool, as long as the semantics in §1 hold and interfaces remain proto-governed (i.e., schema and compatibility are governed by Protobuf, regardless of transport).
 

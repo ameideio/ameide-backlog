@@ -4,7 +4,7 @@
 **Audience:** Platform/GitOps, runtime owners (Domain/Process/Projection/Integration/Agent), operators  
 **Scope:** A single place to track **all Kafka topics used by Ameide**, split into:
 
-1) **Semantic identities** (facts/intents) — contract-first, proto-governed per `backlog/496-eda-principles-v6.md` and `backlog/509-proto-naming-conventions-v6.md` (CloudEvents `type` is the contract; topics are delivery).  
+1) **Semantic identities** (facts/intents) — contract-first, proto-governed per `backlog/496-eda-principles-v6.md`, `backlog/509-proto-naming-conventions-v6.md`, and `backlog/715-v6-contract-spine-doctrine.md` (CloudEvents `type` is the contract; topics are delivery).  
 2) **Execution queues** (work queues / KEDA scale targets) — operational topics used to trigger Jobs based on lag.
 
 This backlog is the *fleet-level index*. Capability-specific deep dives (e.g., WorkRequests queues) should link from here.
@@ -16,7 +16,9 @@ Kafka topic names are operational and must remain stable across environments.
 **Contract surface (normative):**
 
 - CloudEvents `type` is the semantic identity of the message (`io.ameide.*`), per `backlog/496-eda-principles-v6.md`.
-- Topic naming may use `topic == ce.type` (simple default), or topic families (operational grouping), but topics are not the contract.
+- Topic strategy is owned by `backlog/715-v6-contract-spine-doctrine.md`:
+  - Default: capability-owned topic families (e.g., `io.ameide.<capability>.events`) with consumers routing/filtering by `ce.type`.
+  - Exception-only: `topic == ce.type` (throughput/retention/ACL isolation).
 
 - **Legacy contract topic families** (historical; do not treat as the contract under v6):
   - `<capability>.<class>.<kind>.v<major>`
@@ -46,7 +48,7 @@ Capability inventories:
 
 These are not necessarily provisioned as Strimzi `KafkaTopic` objects yet.
 
-Under v6, the **semantic identities** (CloudEvents `type`) define runtime seams; topics may map `topic == ce.type` or group multiple types under topic families.
+Under v6, the **semantic identities** (CloudEvents `type`) define runtime seams; the default is capability-owned topic families with consumers filtering by `ce.type` (see `backlog/715-v6-contract-spine-doctrine.md`).
 
 Transformation (527) examples:
 
