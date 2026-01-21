@@ -23,6 +23,7 @@ related:
   - 651-agentic-coding-ameide-coding-agent.md
   - 654-agentic-coding-cli-surface-coder.md
   - 656-agentic-memory-v6.md
+  - 718-codex-cli-web-search-internals.md
   - 701-repository-ui-enterprise-repository-v6.md
   - 705-transformation-agentic-alignment-v6.md
   - 714-togaf-scenarios-v6.md
@@ -108,6 +109,7 @@ Codex CLI is used in two distinct modes:
 1) **Research + verification (Architect roles)**
 - Purpose: resolve open questions, validate against vendor documentation / industry standards, and run verification commands.
 - Output: a reviewable plan/proposal and evidence/citations (including external citations when applicable).
+- If web search is required for the task, enable it explicitly; see `backlog/718-codex-cli-web-search-internals.md`.
 
 2) **Development execution (AmeideDeveloper)**
 - Purpose: implement changes in a repo checkout and produce PR + evidence.
@@ -133,4 +135,3 @@ This taxonomy is “adopted” when:
 - new agent work uses the architect/developer role names above,
 - older docs cross-reference this mapping and stop introducing new PO/SA/Executor terminology,
 - Agent primitive implementations and tests follow LangGraph invariants per `backlog/537-primitive-testing-discipline.md`.
-

@@ -7,6 +7,7 @@ created: 2026-01-18
 related:
   - 656-agentic-memory-v6.md
   - 656-agentic-memory-implementation-v6.md
+  - 718-codex-cli-web-search-internals.md
   - 509-proto-naming-conventions-v6.md
   - 496-eda-principles-v6.md
 ---
