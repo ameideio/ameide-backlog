@@ -253,34 +253,28 @@ Decide and document (matrix) which secrets are:
 - **Production warning (upstream):** default “all-in-cluster” installs are PoC; production requires a cloud-native hybrid posture (external PostgreSQL/Redis/object storage/Gitaly) and careful sizing.
 - **Gitaly production constraint:** Gitaly-in-Kubernetes is not supported for production. Production posture requires external, production-ready Gitaly as part of a Cloud Native Hybrid architecture.
 
-## Admin bootstrap (CE-safe, pending-approval flow)
+## Admin seeding (CE-safe, deterministic; 713-aligned)
 
-With `blockAutoCreatedUsers=true`, the CE-safe posture is:
-
-1. Operator signs in via OIDC → GitLab JIT-creates the user in **pending approval** state.
-2. Platform approves/promotes only the intended operator identity (`admin@ameide.io`).
+With `blockAutoCreatedUsers=true`, ad-hoc users are still blocked (pending approval) by default. Separately, the platform must ensure a deterministic admin identity exists and remains valid after resets.
 
 **Standard posture (fully automated, GitOps-managed)**
 
-- A PostSync bootstrap Job ensures `admin@ameide.io` exists, is **active**, and is **instance admin**.
-- The Job runs via `gitlab-toolbox` + `gitlab-rails runner` (do **not** rely on `POST /api/v4/session`, which returns `404` on GitLab `18.6.x`).
-- The local bootstrap password is Vault-sourced (stable per environment):
-  - Vault key: `gitlab-bootstrap-admin-password` (generated if absent)
-  - Materialized Secret: `Secret/gitlab-bootstrap-admin` (key `password`)
-- The Job also enforces baseline instance settings (so “standard configuration” is actually applied):
+- `CronJob/platform-gitlab-admin-reconciler` ensures `admin@ameide.io` exists, is **active**, has a **personal namespace**, and is **instance admin** (CE-safe; no reliance on IdP group→admin mapping).
+- Runs via `gitlab-toolbox` + `gitlab-rails runner` (do **not** rely on `POST /api/v4/session`, which returns `404` on GitLab `18.6.x`).
+- **Failfast:** in managed environments, the bootstrap admin password must be present (Vault → ExternalSecret → `Secret/gitlab-bootstrap-admin` key `password`); the reconciler refuses to auto-generate credentials.
+- Also enforces baseline instance settings so “standard configuration” is actually applied:
   - Disable public sign-ups
   - Disable usage ping / product usage data collection
 
-**Break-glass helpers (repo scripts)**
+**Break-glass helpers (repo scripts; emergency only)**
 
 - `scripts/gitlab-approve-user.sh` (approve a pending OmniAuth user)
 - `scripts/gitlab-promote-user-admin.sh` (promote a user to instance admin)
 
-**Incident note (2026-01-19, dev)**
+**Incident notes**
 
-- `admin@ameide.io` was approved/promoted via `gitlab-rails runner` executed in `Deployment/platform-gitlab-toolbox` to unblock SSO while the bootstrap hook was being corrected.
-- Root cause was an ENTRYPOINT override in the bootstrap Job that produced an invalid `database.yml` (`host: localhost`). The Job now uses `args` (not `command`) so GitLab’s toolbox entrypoint renders config correctly.
-- A separate incident caused unstyled pages (`/assets/*` redirect to sign-in) due to routing to port `8080`; resolved by routing the `HTTPRoute` to Workhorse (`8181`).
+- Unstyled pages (`/assets/*` redirect to sign-in) were caused by routing to Rails/Puma (`8080`); fixed by routing the `HTTPRoute` to Workhorse (`8181`).
+- OIDC `422` (“Username admin is a reserved name” + “Namespace can't be blank”) can occur after partial resets when an invalid `admin@ameide.io` user exists; the admin reconciler repairs this deterministically (username + namespace).
 
 ## Contract checkpoints (what “good” looks like)
 
