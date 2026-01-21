@@ -39,6 +39,14 @@ We keep **AFD Standard** (no Private Link origins). This means:
 - public traffic still goes: DNS → AFD → **public origin** (hardened by NSG/service-tag rules)
 - split-horizon improves pod correctness (pods don’t need AFD), but it does **not** eliminate the public origin requirement
 
+### Azure Private DNS behavior (authoritative; no public fallback)
+
+When a private DNS zone (e.g. `dev.ameide.io`) is linked to the AKS VNet, it becomes authoritative for that zone **inside** the VNet. There is no automatic “fall through to public DNS” for names that are missing from the private zone.
+
+Implication:
+- split-horizon must be treated as a governed DNS plane: if a name is expected to resolve for pods, it must be present (directly or via wildcard).
+- this design intentionally uses a wildcard record (`*.{env}.ameide.io`) so pods do not hit NXDOMAIN for new service hostnames; instead they resolve to Envoy and either route successfully or fail with an explicit 4xx at the gateway layer.
+
 ### TLS constraint
 
 Pods still connect to `https://{service}.{env}.ameide.io`, so Envoy must present a certificate valid for the canonical hostname set (typically `*.{env}.ameide.io`) and workloads must trust that CA.
@@ -97,4 +105,3 @@ If the pod path fails:
 This replaces “CoreDNS rewrite is the correctness mechanism” in managed clusters:
 - CoreDNS rewrite remains acceptable as a narrow, temporary debugging tool
 - but should not be relied on for canonical hostnames in shared cloud environments
-
