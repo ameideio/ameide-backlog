@@ -15,6 +15,8 @@ related:
   - 496-eda-principles-v6.md
   - 520-primitives-stack-v6.md
   - 537-primitive-testing-discipline.md
+  - 590-capabilities.md
+  - 591-capabilities-tests.md
   - 656-agentic-memory-v6.md
   - 694-elements-gitlab-v6.md
   - 701-repository-ui-enterprise-repository-v6.md
@@ -280,6 +282,16 @@ Supported read contexts (v6 minimum):
   * note: MR diff/head fields may populate asynchronously; the runner must retry/backoff when resolving `proposal_head_sha`
 * `version_ref(commit_sha)`:
   * resolves to the provided SHA; used for audit replay and time travel
+
+### 5.6 Capability-owned tests (590/591)
+
+Per `backlog/590-capabilities.md`, **capabilities own vertical slice tests** (cross-primitive flows) and primitives own kind invariants.
+
+Implications for 714:
+
+* Treat the 714 slice/scenario runners as **capability-owned tests** (the “Transformation” capability).
+* Place and evolve the runnable tests under the repo’s `capabilities/` boundary (e.g., `capabilities/transformation/...`) so ownership is clear and CI orchestration can run “capability X tests” without hunting across primitive folders.
+* The `ameide test` entrypoint is the front door that orchestrates these capability-owned packs; `ameide test cluster` later swaps fakes for real wiring without changing test intent.
 
 ## 6. The Scenario Slice Ladder (superseding 706 increments + 713 scenarios)
 

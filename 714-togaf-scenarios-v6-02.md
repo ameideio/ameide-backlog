@@ -46,6 +46,10 @@ Scenario B reinforces the “owner facts → derived projections” posture from
   * surface them deterministically with origin citations,
   * and resolve them only via a governed change (Domain command), never via “projection writes”.
 
+## Capability test placement (590/591)
+
+Scenario B’s contract-pass test is a cross-primitive flow (Domain publish → Projection derive → Memory bundle) and should live as a **capability-owned test** under the repo’s `capabilities/` boundary (per `backlog/590-capabilities.md`), alongside Scenario A’s tests.
+
 ## Minimal repo artifacts
 
 Scenario B uses these canonical file paths:

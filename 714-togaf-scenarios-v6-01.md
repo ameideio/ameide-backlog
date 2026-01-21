@@ -45,6 +45,15 @@ Scenario A is a concrete application of `backlog/496-eda-principles-v6.md`:
 * Projection is a **derived read model**:
   * it can update incrementally from facts, but must remain rebuildable from Git + audit pointers (no canonical relationship/state store).
 
+## Capability test placement (590/591)
+
+Scenario A’s contract-pass test should be treated as a **capability-owned vertical slice test** (Transformation capability), not a primitive-owned invariant test.
+
+Place it under the repo’s `capabilities/` composition boundary (per `backlog/590-capabilities.md`), typically under something like:
+
+* `capabilities/transformation/__tests__/integration/` (target state), or
+* `capabilities/transformation/features/enterprise_repository/integration/` (common current pattern).
+
 ## Minimal repo artifacts
 
 Scenario A uses these canonical file paths:

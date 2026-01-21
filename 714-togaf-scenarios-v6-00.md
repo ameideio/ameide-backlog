@@ -75,6 +75,19 @@ And introduces an internal enabling tag used only to coordinate scaffolding:
 
 * `cap:plumbing.scaffold` (service wiring + harness; not a product feature)
 
+## Capability-level test scaffolding (590/591)
+
+Slice 0 must scaffold not only “scenario runners”, but also the **capability-owned test pack shape** so later slices land tests in the right place:
+
+* Tests live under the repo’s `capabilities/` composition boundary (per `backlog/590-capabilities.md`), not scattered across primitive-kind folders.
+* Slice 0 should introduce (or validate the existence of) a Transformation capability test pack folder (exact naming may vary by repo evolution), e.g.:
+  * `capabilities/transformation/__tests__/integration/` (target state from 590), or
+  * `capabilities/transformation/features/.../integration/` (current common pattern in this repo)
+* Slice 0 DoD includes at least one runnable “plumbing test” in that pack that:
+  * exercises the Slice 0 harness end-to-end (Domain/Projection/Memory/Process/Agent stubs),
+  * produces an `EvidenceSpineViewModel`,
+  * and fails fast on missing identity/citation discipline.
+
 ## What to implement by primitive (scaffolding only)
 
 ### Repository onboarding (platform capability)
