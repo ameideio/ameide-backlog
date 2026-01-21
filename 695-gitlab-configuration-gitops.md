@@ -80,9 +80,10 @@ This is the vendor-supported posture (“external DB/Redis”) expressed via our
 - Switched GitLab object storage to the shared in-namespace MinIO (`data-minio`) and disabled GitLab’s bundled MinIO chart.
   - Credentials now use a dedicated MinIO service user (`gitlab-minio-access-key`, `gitlab-minio-secret-key`), not MinIO root.
 - Standardized GitLab API token delivery (Vault → ExternalSecret → `Secret/gitlab-api-credentials`) via `foundation-gitlab-api-credentials` (`backlog/710-gitlab-api-token-contract.md`).
-  - Standard platform token (`backstage`) is minted in-cluster as part of the GitLab rollout (PostSync bootstrap Job) and written into Vault under `secret/gitlab/tokens/<env>/backstage` (key `value`).
+  - Tokens are minted in-cluster by `platform-gitlab` (PostSync hook `platform-gitlab-bootstrap-service-tokens`) and written into Vault KV under `secret/gitlab/tokens/<env>/<service>` (keys: `value`, `token_id`, `expires_at`).
+  - Standard platform token (`backstage`) is delivered as `Secret/gitlab-api-credentials`; dev/local also deliver a writer token as `Secret/gitlab-api-credentials-e2e`.
   - Smokes must fail fast if `Secret/gitlab-api-credentials` is missing/placeholder and must verify token auth works (`GET /api/v4/user` with `PRIVATE-TOKEN`).
-  - Tokens expire; GitLab owns proactive rotation via an in-cluster CronJob that refreshes Vault when nearing expiry and keeps a safety overlap for the previous token (env var consumers do not hot-reload Secrets).
+  - Tokens expire (GitLab enforces expiry); safe rotation requires coordinated consumer restart (tracked work).
 - OIDC integration is now fully GitOps-managed (no placeholder secrets):
   - Keycloak client `gitlab` is reconciled per environment (redirect URIs match `gitlab.<env>.ameide.io`).
   - Keycloak operator must watch all namespaces so the `Keycloak/keycloak` CR in each environment namespace is actually reconciled.
@@ -214,9 +215,11 @@ Decide and document (matrix) which secrets are:
   - GitLab OIDC client secret (Keycloak-generated → client-patcher → Vault): `gitlab-oidc-client-secret`
   - GitLab OmniAuth provider Secret rendered from Vault: `Secret/gitlab-oidc-provider` (key `provider`)
   - GitLab API access tokens surfaced via the shared `gitlab-api-credentials` ExternalSecret contract (`backlog/710-gitlab-api-token-contract.md`).
-    - Standard token (`backstage`) is minted in-cluster as part of the GitLab rollout and written into Vault (`secret/gitlab/tokens/<env>/backstage`, key `value`).
+    - Tokens are minted in-cluster by `platform-gitlab` (PostSync hook `platform-gitlab-bootstrap-service-tokens`) and written into Vault KV under `secret/gitlab/tokens/<env>/<service>` (keys: `value`, `token_id`, `expires_at`).
+    - Standard token (`backstage`) is always provisioned and delivered as `Secret/gitlab-api-credentials`.
     - CI/E2E writer token is provisioned only in `local`/`dev` and delivered as `Secret/gitlab-api-credentials-e2e` in the environment namespace (no mutating test credential in production by default).
-    - Implementation note: tokens are currently minted as dedicated service-user PATs via `gitlab-rails runner` (toolbox), constrained by scopes + group membership, and rotated proactively.
+    - Vault write permissions are granted via `vault-bootstrap` (`gitlabTokenWriter.enabled=true`) which creates the `gitlab-token-writer` Kubernetes-auth role for `ServiceAccount/platform-gitlab-token-writer`.
+    - Rotation note: GitLab requires expirations for PATs; safe rotation requires coordinated consumer restart (tracked as follow-up work).
 - **Chart-generated** (acceptable to generate, but must be understood and monitored)
   - Initial root password secret (break-glass only)
   - Internal TLS, SSH host keys, and other shared secrets (if we keep ingress disabled, TLS is still relevant for internal components)
@@ -251,6 +254,7 @@ With `blockAutoCreatedUsers=true`, the CE-safe posture is:
 
 - A PostSync bootstrap Job ensures `admin@ameide.io` exists, is **active**, and is **instance admin**.
 - The Job runs via `gitlab-toolbox` + `gitlab-rails runner` (do **not** rely on `POST /api/v4/session`, which returns `404` on GitLab `18.6.x`).
+- Reserved-name footgun: GitLab reserves username `admin`. Bootstrap must use a non-reserved username (e.g., `ameide-admin`) and ensure the user has a personal namespace (`namespace_id`), otherwise OIDC sign-in fails with `422` (“Username admin is a reserved name”, “Namespace can't be blank”).
 - The local bootstrap password is Vault-sourced (stable per environment):
   - Vault key: `gitlab-bootstrap-admin-password` (generated if absent)
   - Materialized Secret: `Secret/gitlab-bootstrap-admin` (key `password`)
