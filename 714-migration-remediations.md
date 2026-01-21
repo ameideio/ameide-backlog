@@ -4,7 +4,7 @@ This backlog item tracks **concrete remediations applied during the Azure subscr
 
 Related:
 - `backlog/711-azure-subscription-recreate.md`
-- `backlog/712-traffic-manager-first-redesign.md`
+- `backlog/715-azure-front-door-edge-stack.md`
 - `backlog/454-coredns-cluster-scoped.md` (CoreDNS rewrite mechanism)
 - `backlog/450-argocd-service-issues-inventory.md` (historical ArgoCD/gateway failure modes)
 
