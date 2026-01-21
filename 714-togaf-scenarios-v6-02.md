@@ -29,7 +29,7 @@ Goal: specify, in concrete terms, what must be implemented across primitives to 
 
 **What this scenario proves (v6 posture)**
 - Requirements are **canonical files** (Git content truth), not DB rows.
-- Relationships are **inline-only references** inside authored files.
+- Relationships are **inline-only references** inside authored files (either in content/body, or in file metadata/frontmatter).
 - Backlinks/impact are **projection-only** (rebuildable), and every derived edge is citation-grade.
 - Memory/context is **projection-owned** and returns only citeable bundles.
 

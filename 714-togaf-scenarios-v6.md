@@ -63,7 +63,9 @@ These apply to every slice.
 
 ### 2.3 Inline-only relationships
 
-* Relationships exist only as inline references **inside authored files**.
+* Relationships exist only as inline references **inside authored files**:
+  * in the **content** (body), and/or
+  * in **file metadata** (e.g., YAML frontmatter).
 * No relationship CRUD; no relationship sidecar store. Projection may index edges/backlinks but **never becomes canonical**.
 
 ### 2.4 Owner-only writes
