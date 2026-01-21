@@ -44,9 +44,12 @@ CI workflows:
 - Force-unlock (break-glass): `.github/workflows/terraform-azure-edge-force-unlock.yaml`
 
 Certificate automation (Let’s Encrypt → Key Vault cert objects):
-- Wildcard (apex + wildcard): `.github/workflows/certbot-azure-keyvault-renew.yaml` → KV cert name `ameide-io`
-- Platform explicit host: `.github/workflows/certbot-platform-cert-to-edge-kv.yaml` → KV cert name `platform-ameide-io`
-- ArgoCD explicit host (historical): `.github/workflows/certbot-argocd-cert-to-edge-kv.yaml` → KV cert name `argocd-ameide-io`
+- Public wildcard (`ameide.io` + `*.ameide.io`): `.github/workflows/certbot-azure-keyvault-renew.yaml` → KV cert name `ameide-io`
+- Public explicit host: `.github/workflows/certbot-platform-cert-to-edge-kv.yaml` → KV cert name `platform-ameide-io`
+- Public explicit host: `.github/workflows/certbot-www-cert-to-edge-kv.yaml` → KV cert name `www-ameide-io`
+- Environment wildcard (`dev.ameide.io` + `*.dev.ameide.io`): `.github/workflows/certbot-dev-wildcard-cert-to-edge-kv.yaml` → KV cert name `dev-ameide-io`
+- Environment wildcard (`staging.ameide.io` + `*.staging.ameide.io`): `.github/workflows/certbot-staging-wildcard-cert-to-edge-kv.yaml` → KV cert name `staging-ameide-io`
+- ArgoCD explicit host (optional): `.github/workflows/certbot-argocd-cert-to-edge-kv.yaml` → KV cert name `argocd-ameide-io`
 
 ### 1.3 AFD profile and endpoints
 
@@ -66,7 +69,8 @@ Custom domains managed:
 - `ameide.io` (apex)
 - `platform.ameide.io`
 - `www.ameide.io`
-- `*.dev.ameide.io` and other explicitly-published `{service}.{env}.ameide.io` hostnames (each as a separate custom domain)
+- `{service}.{env}.ameide.io` hostnames are published via an explicit allow-list (each hostname is a separate AFD custom domain)
+  - We use wildcard **certificates** per env (e.g. `dev.ameide.io` + `*.dev.ameide.io`) to avoid per-service certificate management.
 
 Binding and cert source:
 - BYOC is used (Key Vault certificates imported by certbot workflows).
@@ -92,6 +96,12 @@ We deliberately treat apex and subdomains differently:
 For `{service}.{env}.ameide.io` hostnames (e.g. `auth.dev.ameide.io`):
 - Publish only an explicit allow-list (no wildcard `*` records pointing to the cluster).
 - Use **Azure DNS Alias A** records targeting the AFD endpoint resource ID (so record type can be updated in-place without switching to CNAME).
+
+Current allow-list (kept aligned between `infra/terraform/azure` and `infra/terraform/azure-edge`):
+- `dev.<zone>`: `alertmanager`, `api`, `auth`, `backstage`, `camunda`, `che`, `coder`, `codex-broker`, `evals`, `grafana`, `gitlab`, `identity`, `inference`, `k8s-dashboard`, `loki`, `metrics`, `modeler`, `modeler-ws`, `pgadmin`, `platform-dev-che-devcluster`, `platform`, `plausible`, `prometheus`, `telemetry`, `tempo`, `temporal`, `www`
+- `staging.<zone>`: `alertmanager`, `api`, `auth`, `backstage`, `camunda`, `codex-broker`, `evals`, `grafana`, `gitlab`, `inference`, `k8s-dashboard`, `modeler`, `pgadmin`, `platform`, `plausible`, `prometheus`, `temporal`, `www`
+- `<zone>` (prod): `alertmanager`, `api`, `auth`, `backstage`, `camunda`, `codex-broker`, `evals`, `grafana`, `gitlab`, `inference`, `k8s-dashboard`, `loki`, `metrics`, `modeler`, `pgadmin`, `plausible`, `prometheus`, `telemetry`, `tempo`, `temporal`
+  - `platform.<zone>` and `www.<zone>` are managed separately (dedicated AFD custom domains + certificates).
 
 ### 1.6 Origin groups, origins, routes (AFD → cluster)
 
