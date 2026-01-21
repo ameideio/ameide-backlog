@@ -105,6 +105,22 @@ When this spec shows ASCII wireframes, it uses the platform’s component names 
 * Element editor body: `<Tabs />` / `<TabsList />` / `<TabsTrigger />` + `<EditorPluginHost />`
 * Element editor assistant: `<RightSidebarTabs />` containing `<ModalChatPanel />` plus `<ModalChatFooter />`
 
+### 2.9 Element identity contract (normative)
+
+To keep “element-editor-first UX” compatible with **Git-first canonical artifacts** (and to prevent accidental DB‑first authoring), v6 defines:
+
+* An **element** is a **Git-authored artifact** (a file at a specific commit SHA) that carries a **stable element ID** in its content (typically YAML frontmatter).
+* The Element Editor is addressed by **identity + read context**, not by DB primary key:
+  * open intent: `{tenant_id, organization_id, repository_id, read_context, element_id}`
+  * resolution: Projection resolves `element_id` at `read_context` to `{commit_sha, path}` and returns the canonical citation `{repository_id, commit_sha, path[, anchor]}`
+* IDs are **repository-unique** at a given commit SHA:
+  * duplicate IDs at a given `{repository_id, commit_sha}` are a **hard error** for derived views (and must surface in UX as “ambiguous element id” with citations)
+  * missing IDs mean the file is still readable, but it is **not eligible** for ID-based navigation/derived views unless the slice explicitly allows it
+
+### 2.10 Derived explainability rule (normative)
+
+Every **derived fact** shown to a user (backlink, impact, coverage, compare summary, memory/context item) must carry one or more citations to `{repository_id, commit_sha, path[, anchor]}` that explain exactly where it came from.
+
 ---
 
 ## 3. What a Scenario Slice is
@@ -184,32 +200,30 @@ Both modes must produce the **same run report schema** so product value is consi
 
 ### 5.2 Run report schema (evidence spine)
 
-Every run produces an audit-grade report:
+Every run produces an audit-grade **Evidence Spine**. This is both:
 
-* **Identity**: `{tenant_id, organization_id, repository_id}`
-* **Repository mapping**: internal pointer (opaque), never shown as canonical
-* **Proposal evidence**:
+* the contract-pass run report output, and
+* a first-class, reusable UI view model (Change detail, Governance record, Process instance, Audit replay).
 
-  * MR identifier (iid or equivalent)
-  * proposal head commit SHA (if relevant; may require waiting for MR diff refs to populate)
-  * pipeline pointer (if used)
-* **Publish evidence**:
+#### `EvidenceSpineViewModel` (minimum)
 
-  * target branch (typically `main`)
-  * target head commit SHA (“published baseline”; the audit anchor you show everywhere)
-  * optional: merge/squash commit SHAs (if provided by the vendor)
-* **Citations used/returned**:
-
-  * list of `{repository_id, commit_sha, path[, anchor]}` referenced in reads, derived views, memory outputs
-* **Governance evidence** (if applicable):
-
-  * approvals/outcome records IDs + linkage to MR + published SHA
-* **Derived view evidence** (if applicable):
-
-  * backlink/impact query results + origin citations
-* **Summary**:
-
-  * “What capability was demonstrated?” in EA language (one paragraph)
+* `identity`: `{tenant_id, organization_id, repository_id}`
+* `repository`:
+  * `provider`: `gitlab`
+  * `remote_id`: opaque vendor identifier (never canonical to UX)
+  * `published_ref`: usually `main`
+* `proposal` (when applicable):
+  * `mr_iid`
+  * `proposal_head_sha` (resolved deterministically; may require waiting for MR diff refs to populate)
+  * optional: `pipeline`: `{id?, status?, web_url?}`
+* `publish` (when applicable):
+  * `target_branch`: usually `main`
+  * `target_head_sha`: the canonical audit anchor (“Published baseline SHA”)
+  * optional: `merge_commit_sha`, `squash_commit_sha` (supplemental evidence; merge method varies)
+* `citations`: list of `{repository_id, commit_sha, path[, anchor]}` used/returned during the run (reads, derived views, memory outputs)
+* `derived` (when applicable): backlink/impact/compare results (each item must include origin citations)
+* `governance` (when applicable): outcomes/waivers/approvals linked to proposal + published baseline
+* `summary`: one paragraph in EA language (“what capability was demonstrated?”)
 
 ### 5.3 Definition of Done levels
 
@@ -229,6 +243,22 @@ These are non-negotiable realities the contract-pass runner and the primitives m
 * **Rate/size limits:** commit batching and citeable context bundles must be budget-aware (chunk actions/reads, cache, and backoff); runner should surface throttling/fallbacks in the run report.
 
 ---
+
+### 5.5 Read contexts (normative)
+
+Read contexts are the product-language way to say “what Git revision am I looking at?” and must resolve deterministically to a **commit SHA**.
+
+Supported read contexts (v6 minimum):
+
+* `published`:
+  * resolves to `published_sha = HEAD(published_ref)` where `published_ref` is the configured baseline branch (typically `main`)
+  * the canonical **audit anchor** is `publish.target_head_sha` (the branch head **after** publish), not “merge commit”
+* `proposal(mr_iid)` / `proposal(change_id)`:
+  * resolves to a **snapshot SHA** for the proposal head (GitLab MR head)
+  * deterministic rule: the system must resolve once, record `proposal_head_sha` in the Evidence Spine, and use that SHA for all subsequent “proposal” reads in that review session (to avoid drift if new commits are pushed)
+  * note: MR diff/head fields may populate asynchronously; the runner must retry/backoff when resolving `proposal_head_sha`
+* `version_ref(commit_sha)`:
+  * resolves to the provided SHA; used for audit replay and time travel
 
 ## 6. The Scenario Slice Ladder (superseding 706 increments + 713 scenarios)
 
@@ -270,7 +300,7 @@ As an enterprise architect, I can browse the canonical Enterprise Repository (as
 
 ## Primitive responsibilities
 
-* **Domain**: onboard repository mapping (or platform service does mapping, but Domain remains the canonical identity gate)
+* **Domain**: consumes repository onboarding/mapping as a single shared platform contract; Domain remains the canonical identity gate for all operations
 * **Projection**: resolve `read_context → commit_sha`, list tree, read file, return citations
 * **UI**: repository screen (Git-tree hierarchy), open artifacts via the Element Editor; show resolved SHA everywhere
 * **Memory**: optional, but if present: “fetch cited paths” bundle
@@ -549,18 +579,42 @@ Because Slices 3–4 depend on it, this is part of the spec (not optional).
 
 ### 7.1 Stable identity in files
 
-Every “element” file that participates in derived views must contain a stable ID (e.g., frontmatter `id:` or equivalent).
+Every “element” file that participates in derived views must contain a stable ID in its content.
+
+v6 MVP canon:
+* YAML frontmatter includes `id: <ELEMENT_ID>` (repository-unique at a given commit SHA)
+* the Element Editor can open by `element_id` only when Projection can resolve `id → path` at the requested read context
+* duplicate IDs at a given `{repository_id, commit_sha}` are a **hard error** for derived views and must be surfaced in UX (with citations)
 
 ### 7.2 Inline reference grammar
 
-Inline references must be parseable and citeable (including anchor where possible).
-Examples (illustrative only; choose one canon):
+Inline references must be parseable, deterministic, and citeable (including origin anchor where possible).
 
-* `ref:REQ-001`
-* `ref:{id}`
-* or Markdown links with a structured target
+v6 MVP canon (Scenario B and beyond):
+* In YAML frontmatter (metadata):
+  * `refs:` is a list of element IDs, e.g. `refs: ["REQ-001", "P-001"]`
+* In body/content:
+  * tokens of the form `ref: <ELEMENT_ID>` are treated as references
 
-### 7.3 Rename/move semantics
+Constraints:
+* Relationships must remain **inline-only** (content/body or file metadata/frontmatter); there is no relationship CRUD surface and no relationship sidecar store.
+* References must be resolved at a specific `{repository_id, commit_sha}`; “current” resolution is always via a read context → SHA first.
+
+### 7.3 Anchor scheme (origin citations)
+
+Every extracted reference must include an origin anchor that is reproducible on rebuild at `{repository_id, commit_sha, path}`.
+
+v6 MVP rule:
+* For frontmatter references: `anchor = "fm:<field>"` (e.g., `fm:refs[0]`)
+* For body/content references: `anchor = "L<line>:C<col>"` (1-based position of the `ref:` token)
+
+### 7.4 Broken reference policy
+
+* Broken references must surface deterministically in derived views and UX:
+  * show “Broken reference: `<target_id>`” with the **origin citation** (`{repo, sha, path, anchor}`)
+  * optional: show derived suggestions (non-canonical), but **never auto-fix** without a governed change (Domain write loop)
+
+### 7.5 Rename/move semantics
 
 * Citations are immutable: `{sha, path}` refers to what existed *there* at *that* SHA.
 * After moves, new citations point to new paths at new SHAs; projections may optionally derive “moved-from” hints but must cite sources.
@@ -902,6 +956,7 @@ Scenario F tags, plus rebuildability requirements (projection)
 * This spec does not define performance/security/operability test suites (tracked separately).
 * This spec does not mandate a specific file schema; it mandates **stable IDs + parseable references + citations**.
 * This spec does not require agents/process in Tier‑1 slices except where explicitly stated.
+* This spec does not make GitLab planning objects (issues/epics/milestones/roadmaps) the product backbone; v6 planning/governance semantics live in platform truth + Git-authored artifacts.
 
 ---
 
