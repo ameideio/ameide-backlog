@@ -155,10 +155,14 @@ HTTPRoute rewrites were added to normalize some nonstandard discovery/JWKS path 
 
 ### Remediation (GitOps, permanent)
 
-- Certbot automation now issues the public edge certificate with explicit SANs:
-  - `ameide.io`, `platform.ameide.io`, and `*.ameide.io`
-- Implementation in `ameide-gitops`:
-  - `.github/workflows/certbot-azure-keyvault-renew.yaml`
+- Attempted to re-issue the wildcard cert with an explicit `platform.ameide.io` SAN, but Let’s Encrypt rejects this as redundant when `*.ameide.io` is present in the same order.
+- Final approach:
+  - Keep the wildcard cert as `ameide.io` + `*.ameide.io` (covers the broad set of subdomains).
+  - Mint a **separate**, explicit single-host cert for `platform.ameide.io`.
+  - Bind `platform.ameide.io` to a dedicated Front Door secret backed by that platform cert.
+- Implementation:
+  - `ameide-gitops`: `.github/workflows/certbot-platform-cert-to-edge-kv.yaml` (mints/imports Key Vault cert `platform-ameide-io`)
+  - `ameide-gitops`: `infra/terraform/azure-edge/main.tf` (platform custom domain uses the dedicated secret)
 
 ### Expected steady-state verification
 
