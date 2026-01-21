@@ -48,7 +48,7 @@ What is implemented in code today (Dec 2025):
     - records a release element linked via `ref:release`,
     - creates and promotes a governance baseline.
 - WorkRequest orchestration path exists end-to-end in repo-mode tests (Domain + executor + process facts). Note: v0 used an ingress router to signal domain facts into workflows; v1 target is to wait inside Activities and keep broker facts projection-only (no internal EDA control flow).
-- Cluster validation is E2E-only under `backlog/430-unified-test-infrastructure-v2-target.md` (Phase 3; Playwright) and assumes deployed dispatcher/executor/ingress/projection + Temporal wiring.
+- Cluster validation is Playwright-only under `backlog/430-unified-test-infrastructure-v2-target.md` (Phase 5; `ameide test cluster`) and assumes deployed dispatcher/executor/ingress/projection + Temporal wiring.
 
 What remains intentionally pending (target state):
 

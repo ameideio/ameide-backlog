@@ -138,10 +138,10 @@ Mapping:
 * Projection/Memory outputs are **derived read models**:
   * they can consume owner facts to update incrementally,
   * and must remain rebuildable from canonical Git + recorded audit pointers.
-* When the event plane is used (cluster Phase 3/4), facts/intents must use:
+* When the event plane is used (cluster Phase 4/5), facts/intents must use:
   * CloudEvents envelope + Protobuf payloads,
   * `io.ameide.*` type naming as defined in 496.
-  Local `ameide test` runs may use in-process fakes, but must preserve the same **contract shapes** so cluster wiring is a deployment detail, not a redesign.
+  Local `ameide test` runs may use in-process mocks, but must preserve the same **contract shapes** so cluster wiring is a deployment detail, not a redesign.
 
 ---
 
@@ -216,8 +216,8 @@ Each primitive maintains a “capability support” checklist per tag (small, ex
 
 Scenarios are defined once, but can run through two contracts only (per `backlog/537-primitive-testing-discipline.md`):
 
-* **`ameide test` (Phase 0/1/2)**: local-only, self-contained runs using in-process fakes where needed (e.g. Fake GitLab HTTP API), no cluster dependencies.
-* **`ameide test cluster` (Phase 3/4)**: real dev/local cluster integration (real GitLab + real cluster plumbing) when the cluster is available.
+* **`ameide test` (Phase 0/1/2)**: local-only, self-contained runs using in-process mocks where needed (e.g. an in-memory GitLab HTTP API), no cluster dependencies.
+* **`ameide test cluster` (Phase 4/5)**: real dev/local cluster integration (real GitLab + real cluster plumbing) when the cluster is available.
 
 Both modes must produce the **same run report schema** so product value is consistent.
 
@@ -291,7 +291,7 @@ Implications for 714:
 
 * Treat the 714 slice/scenario runners as **capability-owned tests** (the “Transformation” capability).
 * Place and evolve the runnable tests under the repo’s `capabilities/` boundary (e.g., `capabilities/transformation/...`) so ownership is clear and CI orchestration can run “capability X tests” without hunting across primitive folders.
-* The `ameide test` entrypoint is the front door that orchestrates these capability-owned packs; `ameide test cluster` later swaps fakes for real wiring without changing test intent.
+* The `ameide test` entrypoint is the front door that orchestrates these capability-owned packs; `ameide test cluster` later swaps mocks for real wiring without changing test intent.
 
 ## 6. The Scenario Slice Ladder (superseding 706 increments + 713 scenarios)
 

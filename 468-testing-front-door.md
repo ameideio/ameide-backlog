@@ -41,7 +41,7 @@ Deployed-system verification runs separately against preview environments:
 ameide test cluster
 ```
 
-Treat this as **Phase 3/4** in the overall verification story: it is CLI-owned, deterministic, and gates merge via preview environments, but it is intentionally not bundled into the fast Phase 0/1/2 front door.
+Treat this as **Phase 4/5** in the overall verification story: it is CLI-owned, deterministic, and gates merge via preview environments, but it is intentionally not bundled into the fast Phase 0/1/2 front door.
 
 ## Fast paths
 
@@ -54,8 +54,8 @@ The historical “integration pack” model (scripts + `INTEGRATION_MODE`) is **
 The v2 contract is:
 - Phase 1 (Unit): local, pure
 - Phase 2 (Integration-local): local, mocked/stubbed only
-- Phase 3 (Integration-cluster): cluster-only runtime semantics (not part of the “no-brainer” Phase 0/1/2 front door)
-- Phase 4 (Playwright E2E): preview env ingress URL, Playwright only (not part of the “no-brainer” Phase 0/1/2 front door)
+- Phase 4 (Integration-cluster): cluster-only runtime semantics (not part of the “no-brainer” Phase 0/1/2 front door)
+- Phase 5 (Playwright E2E): preview env ingress URL, Playwright only (not part of the “no-brainer” Phase 0/1/2 front door)
 
 Keep the pack section below for historical context only.
 

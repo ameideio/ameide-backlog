@@ -74,7 +74,7 @@ Known remaining work to reach “real end-to-end in-cluster proof”:
   - Done (dev/local): a dedicated writer token is delivered as `Secret/gitlab-api-credentials-e2e` (separate from `gitlab-api-credentials` used by normal services).
   - Target posture: a **group-scoped** writer identity for a dedicated group (e.g. `ameide-e2e`), using `namespace_id=<group_id>` for project creation.
   - Token needs `api` scope and sufficient permissions in that group to create/delete projects.
-- Test front doors are strict (per `backlog/537-primitive-testing-discipline.md`): Phase 0/1/2 run under `ameide test` (mocked; no cluster), Phase 3/4 run under `ameide test cluster` (real cluster integration in dev/local only).
+- Test front doors are strict (per `backlog/537-primitive-testing-discipline.md`): Phase 0/1/2 run under `ameide test` (local/mocked; no cluster), Phase 4/5 run under `ameide test cluster` (real cluster integration in dev/local only).
 
 ArgoCD smokes are a separate layer:
 

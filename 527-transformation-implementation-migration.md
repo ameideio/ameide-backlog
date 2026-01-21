@@ -71,7 +71,7 @@ v1 “success” is a **workflow-driven** and **testable** slice (not a UI demo)
 
 4) **End-to-end tests exist and are runnable** per `backlog/430-unified-test-infrastructure-v2-target.md`:
    - unit + integration tests cover Domain/Process/Runner seams (idempotency, fact-after-persist, ack-after-durable-outcome),
-   - cluster validation is E2E-only (Phase 3) under the repo contract,
+  - cluster validation runs only under Phase 4/5 (via `ameide test cluster`) under the repo contract,
    - both Scrum and TOGAF ADM scenarios have coverage at the “process requests work → evidence recorded → process continues” seam,
    - UI harness verification runs are included where applicable (edge-routable service changes).
 
@@ -95,7 +95,7 @@ This section is a lightweight status tracker against the work packages below.
 - [x] WP-B (CODE) Process ingress consumes Kafka domain facts (`PROCESS_INGRESS_SOURCE=kafka://`) and signals workflows (Temporal signals; deploy/wiring is a GitOps concern).
 - [x] WP-B (CODE) Domain dispatcher publishes outbox topics to Kafka by default (no topic prefix filter).
 - [ ] WP-B (SECURITY, 657): Domain + Projection gRPC services enforce authN/authZ at the boundary (no “trust internal callers” posture).
-- [x] WP-B (TEST) Capability tests exist (`capabilities/transformation/__tests__/integration`) with Phase 2 local integration coverage for the WorkRequest seam and Phase 3 E2E (Playwright) coverage where applicable.
+- [x] WP-B (TEST) Capability tests exist (`capabilities/transformation/__tests__/integration`) with Phase 2 local integration coverage for the WorkRequest seam and Phase 5 Playwright coverage where applicable.
 - [x] WP-B (TEST) Test contract alignment: follow `backlog/430-unified-test-infrastructure-v2-target.md` (no `INTEGRATION_MODE`; JUnit evidence; cluster interaction only in E2E).
 - [x] WP-B (CODE) UI harness verification suite exists (`transformation.verify.ui_harness.gateway_overlay.v1`) and is requested as `action_kind=verify` (no special E2E action kind); runner proves routing via Gateway API overlay marker and records `/artifacts/e2e/*`.
 - [ ] WP-B (CLUSTER) Cluster end-to-end depends on deployed wiring (dispatcher → broker → executor → domain facts → ingress → Temporal → projection). Code + tests assume those components exist and are reachable; environment health/config may still block execution.

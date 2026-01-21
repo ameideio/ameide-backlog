@@ -23,7 +23,7 @@ Known gaps / follow-ups:
 
 ## Verification evidence (audit-grade)
 
-This is the “hard to fake” evidence bundle we expect when claiming BuildKit-on-ARC is working on AKS.
+This is the “hard to mock” evidence bundle we expect when claiming BuildKit-on-ARC is working on AKS.
 
 ### 1) GitHub-side proof: job ran on ARC (AKS)
 

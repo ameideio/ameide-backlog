@@ -342,7 +342,7 @@ These are headless and assert on durable state/facts/projections (not “pods ex
 | --- | --- | --- |
 | Domain persistence | real DB (ephemeral) | real DB |
 | Process runtime | Temporal test env (in-process) | real Temporal |
-| Identity integration (Keycloak) | fake adapter with scripted outcomes (success/mismatch/not-found/timeout) | real Keycloak |
+| Identity integration (Keycloak) | mock adapter with scripted outcomes (success/mismatch/not-found/timeout) | real Keycloak |
 | Projections | real (in-process) | real (deployed) |
 | UI | not required | optional |
 

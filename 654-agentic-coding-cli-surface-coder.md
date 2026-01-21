@@ -28,7 +28,7 @@ This backlog inherits the internal-first model from `backlog/650-agentic-coding-
 
 ## 0.2 Status update (2026-01-17)
 
-- Coder workspace Phase 3 “innerloop routing” RBAC is now bootstrap-managed (predeclared roles + bind-only delegation) so workspace provisioning does not trip RBAC privilege-escalation guardrails.
+- Coder workspace cluster-only verification (“ameide test cluster”) routing RBAC is now bootstrap-managed (predeclared roles + bind-only delegation) so workspace provisioning does not trip RBAC privilege-escalation guardrails.
 - `ameide test cluster` (Playwright) requires read access to the platform config and persona secrets; in Kubernetes-hosted workspaces/tasks this should be granted by binding a predeclared, narrowly-scoped env-reader role (not by creating ad-hoc Roles from workspace Terraform).
 
 Update (2026-01-19): `ameide test cluster` must detect code-server 502 causes
@@ -53,14 +53,14 @@ The core verification entrypoints accept **no flags** (besides `--help`) and are
 - evidence is always produced
 - cleanup is guaranteed
 
-### 1.1.1 Phase 3 is part of the CLI surface (but not part of the Phase 0/1/2 front door)
+### 1.1.1 Phase 4/5 is part of the CLI surface (but not part of the Phase 0/1/2 front door)
 
-Phase 3 (E2E) is part of the CLI surface as a **separate, explicit command**:
+Cluster-only verification is part of the CLI surface as a **separate, explicit command**:
 
 - Phase 0/1/2 front door: fast, local-only verification (no cluster, no privileged capabilities)
-- Phase 3: Playwright E2E against a **deployed target URL** (preview environment truth)
+- Phase 4/5: cluster integration + Playwright E2E against a **deployed target URL** (preview environment truth)
 
-This keeps the “no-brainer” front door fast and universally runnable (including in Coder workspaces and tasks) while still providing a deterministic, CLI-owned Phase 3.
+This keeps the “no-brainer” front door fast and universally runnable (including in Coder workspaces and tasks) while still providing deterministic, CLI-owned cluster verification (Phase 4/5).
 
 ### 1.2 The CLI defines test front doors; vendor tools are implementation details
 
@@ -112,7 +112,7 @@ The CLI must assume it is being run under a profile’s instruction scope (agent
 Current command groups include:
 
 - `ameide test` (Phase 0/1/2)
-- `ameide test cluster` (Phase 3/4: Go integration-cluster + Playwright E2E; reads base URL from `ConfigMap/www-ameide-platform-config`)
+- `ameide test cluster` (Phase 4/5: Go integration-cluster + Playwright E2E; reads base URL from `ConfigMap/www-ameide-platform-config`)
 - `ameide doctor` (preflight deterministic requirements)
 - `ameide dev` (human inner-loop utilities; currently partial/legacy, see §6.7 target posture)
 
@@ -128,7 +128,7 @@ Current drift vs internal-first model:
 The CLI surface is organized by intent:
 
 - **`ameide test`**: no-brainer verification front door (Phase 0/1/2) for agents and humans
-- **`ameide test cluster`**: cluster-only verification front door (Phase 3/4: integration-cluster + Playwright E2E) against a deployed preview environment
+- **`ameide test cluster`**: cluster-only verification front door (Phase 4/5: integration-cluster + Playwright E2E) against a deployed preview environment
 - **`ameide doctor`**: toolchain and environment preflight (deterministic readiness)
 
 Notes:
@@ -143,8 +143,8 @@ Notes:
    - never touches cluster networking, Telepresence, or privileged capabilities
 
 2. `ameide test cluster`
-   - runs Phase 3: Go integration-cluster suites (`//go:build cluster`)
-   - runs Phase 4: Playwright E2E against a deployed target (preview env truth)
+   - runs Phase 4: Go integration-cluster suites (`//go:build cluster`)
+   - runs Phase 5: Playwright E2E against a deployed target (preview env truth)
    - is intentionally not part of the Phase 0/1/2 front door
 
 ### 5.3 Profile-aware guardrails (defense in depth)
@@ -191,7 +191,7 @@ The template-scoped `AGENTS.md` defines additional instructions for the agent, b
 
 ### 6.4 CI deployed-system truth (preview env)
 
-- `ameide test cluster` against preview base URL(s) (Phase 3)
+- `ameide test cluster` against preview base URL(s) (Phase 4/5)
 
 ### 6.5 Platform smoke (Coder/template)
 
@@ -207,7 +207,7 @@ For vendor-locked domains (D365FO), the CLI still presents the same front doors,
 Expected behavior for the `365fo` profile:
 
 - `ameide test` (Phase 0/1/2) calls the FO tool surface (MCP bridge → VM executor) for verification and emits JUnit evidence in the workspace/task run root.
-- `ameide test cluster` (Phase 3) validates the full chain (Coder task → VM executor → git push → workspace mirror verification), as specified in `backlog/655-agentic-coding-365fo.md`.
+- `ameide test cluster` (Phase 4/5) validates the full chain (Coder task → VM executor → git push → workspace mirror verification), as specified in `backlog/655-agentic-coding-365fo.md`.
 
 ### 6.7 Developer diagnostics (power tools; human inner loop)
 

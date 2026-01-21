@@ -346,7 +346,7 @@ If included in Scenario A:
 ### Mode A — `ameide test` (local-only)
 
 Implementation expectations:
-- Use in-process fakes where needed (e.g., Fake GitLab HTTP API), but keep the same Domain/Projection adapters and contracts.
+- Use in-process mocks where needed (e.g., an in-memory GitLab HTTP API), but keep the same Domain/Projection adapters and contracts.
 
 **Steps**
 1. Onboard repository mapping.

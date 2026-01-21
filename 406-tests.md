@@ -59,7 +59,7 @@
    * Define `TEST_ENV` (`local|ci|dev|staging|prod|cluster`) and `TEST_PROFILE` (`repo|cluster`). Export `INTEGRATION_MODE=$TEST_PROFILE` (no aliases) for all packs.
    * Add tiny helpers per language (TS, Py, Go) to read the env/profile once and derive endpoints/mocks. Example: `getTestConfig()` returning `{ env, profile }` for TS; `pytest` fixture that exposes the same; Go package for shared integration helpers.
    * Update `run_integration_tests.sh` scripts to source the helper, enforce required env vars per profile, and pass `TEST_ENV`/`TEST_PROFILE` through to Jest/pytest/go test.
-   * Make every integration/e2e pack runnable in **both** profiles. For suites that currently exit early in mock mode, add mock fixtures (e.g., Playwright `page.route()` intercepts, Python stub servers, Go in-memory Connect stubs) so “mock” means “run against Tilt/k3d with fake upstreams” instead of “skip outright”.
+   * Make every integration/e2e pack runnable in **both** profiles. For suites that currently exit early in mock mode, add mock fixtures (e.g., Playwright `page.route()` intercepts, Python stub servers, Go in-memory Connect stubs) so “mock” means “run against Tilt/k3d with mocked upstreams” instead of “skip outright”.
 
 3. **Layout + naming normalization**
 

@@ -73,7 +73,7 @@ Use this checklist whenever you create a net-new service under `services/` or `s
    - **Integration (Phase 2):** local mocked/stubbed only; no cluster tooling; no “mode” variables.
      - Go: use `//go:build integration` for Phase 2-only tests.
      - TS/Py: select integration tests via standard runner config (no per-component scripts).
-   - **E2E (Phase 3):** cluster-only; Playwright-only (when applicable).
+   - **E2E (Phase 5):** cluster-only; Playwright-only (when applicable).
 
 7. **GitOps deployment**
    - Create Helm chart (or reuse existing) under `charts/`.

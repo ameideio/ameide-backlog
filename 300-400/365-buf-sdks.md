@@ -41,7 +41,7 @@ Even after adopting Buf Managed Mode, most services still import generated stubs
 - The `ameide-sdk` package mirrors TS features: `SDKOptions` (now with `request_id_provider`), interceptors for metadata/auth/timeout, lazy channel creation, and request context helpers. A new retry wrapper (`ameide_sdk/retry.py`) wraps unary stubs so retry logic actually executes; the old retry interceptor has been removed to avoid double-interceptor recursion.
 - Metadata interceptors respect pre-existing `x-request-id` headers, timeout interceptors clamp deadlines, and the client composes metadata, auth, timeout, and retry layers before exposing service stubs.
 - Protobuf shims (`ameide_core_proto/__init__.py`, `buf/validate/validate_pb2.py`) allow local tests without installing Buf wheels.
-- Dec 2026 update: `AmeideClient` exposes the `AgentsService` stub alongside every other Buf service, and a unit test asserts all accessors exist. Integration tests now run exclusively against the live Envoy endpoint and refuse to start unless the secrets mandated by backlog/362 (`INTEGRATION_*`, `INTEGRATION_GRPC_ADDRESS`/`NEXT_CORE_GRPC_URL`) are present, eliminating the old fake-server path.
+- Dec 2026 update: `AmeideClient` exposes the `AgentsService` stub alongside every other Buf service, and a unit test asserts all accessors exist. Integration tests now run exclusively against the live Envoy endpoint and refuse to start unless the secrets mandated by backlog/362 (`INTEGRATION_*`, `INTEGRATION_GRPC_ADDRESS`/`NEXT_CORE_GRPC_URL`) are present, eliminating the old mock-server path.
 - Tests: unit tests cover metadata/auth/timeout interceptors plus the retry wrapper; integration t
 [... output truncated to fit 10240 bytes ...]
 

@@ -186,7 +186,7 @@ type UISurfaceStatus struct {
 
 | Task | Description | Acceptance Criteria |
 |------|-------------|---------------------|
-| **Unit tests** | Fake Keycloak client, fake k8s client | Tests pass without real services |
+| **Unit tests** | Mock Keycloak client, mock k8s client | Tests pass without real services |
 | **envtest tests** | Create UISurface, verify HTTPRoute | Integration tests pass |
 | **E2E tests** | Full cluster with Gateway + Keycloak | App accessible via HTTPS |
 | **CLI integration** | `ameide primitive verify` checks UISurface | CLI reports UISurface health |

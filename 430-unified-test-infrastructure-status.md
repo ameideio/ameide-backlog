@@ -24,7 +24,7 @@ The agent-oriented, no-flags verification tool is now:
 
 - `ameide test`
 
-It runs Phase 0/1/2 only (contract → unit → integration; local-only). Deployed-system E2E (Phase 3) runs separately via `ameide test cluster`.
+It runs Phase 0/1/2 only (contract → unit → integration; local-only). Cluster-only verification (Phase 4/5: cluster integration → Playwright) runs separately via `ameide test cluster`.
 
 This status doc still contains pack-based tracking notes for historical context, but “integration packs” are now considered legacy and will be removed/migrated.
 

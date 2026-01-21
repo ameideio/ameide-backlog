@@ -39,10 +39,10 @@ Completed in core repo (not yet deployed):
   - `primitives/agent/transformation-delivery-v4` (Coder Task),
   - `primitives/agent/transformation-acceptance-v4` (LLM one-shot).
 - Repo-only contract test exists: `primitives/process/transformation_v4/internal/tests/contract_repo_test.go`.
-- Repo-only domain + projection wiring contract exists (Fake infra, real primitives):
+- Repo-only domain + projection wiring contract exists (in-memory infra, real primitives):
   - `go test -tags=integration ./primitives/domain/transformation/internal/tests -count=1`
   - this proves outbox→dispatcher headers, inbox dedupe, and replay safety without Kafka/Zeebe.
-- Shared local test utilities live in `packages/ameide_testkit_go/*` (embedded Postgres, SQL migrations, fake Kafka log).
+- Shared local test utilities live in `packages/ameide_testkit_go/*` (embedded Postgres, SQL migrations, in-memory Kafka log).
 
 Pending / blocked by cluster readiness:
 - Kafka→Zeebe ingress microservice and deployed wiring.

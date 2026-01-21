@@ -552,7 +552,7 @@ Current contract:
 - Use `ameide dev inner-loop verify` to validate Telepresence + header-filtered intercept routing.
 - Use `ameide dev inner-loop up/down` for cluster-only UI hot reload.
 - Use `ameide test` for strict phase gating with JUnit evidence (Phase 0 → 2).
-- Use `ameide test cluster` for deployed-system E2E (Phase 3).
+- Use `ameide test cluster` for cluster-only verification (Phase 4/5).
 
 ### Domain rename ([434](434-unified-environment-naming.md))
 

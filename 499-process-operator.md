@@ -205,7 +205,7 @@ Any references to ProcessDefinitions in the `Process` spec are treated as **opaq
 
 | Task | Description | Acceptance Criteria |
 |------|-------------|---------------------|
-| **Unit tests** | Fake Transformation client, fake k8s client | Tests pass without real services |
+| **Unit tests** | Mock Transformation client, mock k8s client | Tests pass without real services |
 | **envtest tests** | Create Process, verify Deployment | Integration tests pass |
 | **Temporal test server** | E2E with embedded Temporal | Workflows actually execute |
 | **CLI integration** | `ameide primitive verify` checks Process | CLI reports Process health |
