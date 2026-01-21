@@ -115,7 +115,35 @@ Codex CLI is used in two distinct modes:
 - Purpose: implement changes in a repo checkout and produce PR + evidence.
 - Verification must use the CLI front doors (`backlog/654-agentic-coding-cli-surface-coder.md`), with `./ameide test` as the default end-to-end check.
 
-## 3) v6 stack alignment (don’t mix concerns)
+## 3) Supervision cadence (architect oversight of developer execution)
+
+We standardize a supervision loop:
+
+- An Ameide architect agent (Enterprise/Solution/Technical) oversees the AmeideDeveloper’s active work and periodically verifies it.
+- “AmeideCoder” / “coder” references in older docs map to **AmeideDeveloper** (`§1.2`).
+
+### 3.1 Purpose
+
+- Catch drift early (wrong direction, missing evidence, policy violations).
+- Keep humans in the loop by surfacing checkpoints regularly, not only at the end.
+
+### 3.2 Mechanism (normative shape)
+
+- The architect agent runs a **review tick** every `review_interval_minutes` (configurable).
+- Each tick reviews the developer’s current outputs:
+  - diff/patch state (what changed, where),
+  - verification evidence (latest `./ameide test` run + failures),
+  - citations and scope alignment where applicable (Transformation/Enterprise Repository work),
+  - guardrails (forbidden paths, missing required evidence).
+- The tick produces one of:
+  - **continue** (no action required),
+  - **adjust** (send constraints / plan correction to the developer agent),
+  - **stop + escalate** (request human decision when risk tier/policy requires it).
+
+Implementation note:
+- The cadence should be implemented as a Process timer/schedule or an agent-side loop, but it must remain observable (facts/evidence) and configurable via AgentDefinition config.
+
+## 4) v6 stack alignment (don’t mix concerns)
 
 This role taxonomy applies across the three stacks described in `backlog/705-transformation-agentic-alignment-v6.md`:
 
@@ -123,13 +151,13 @@ This role taxonomy applies across the three stacks described in `backlog/705-tra
 - **Enterprise Repository + Memory**: Git-backed canonical files; derived backlinks/impact/memory are projection-owned and citeable.
 - **DevX agentic coding (platform codebase)**: developers implement changes in the Ameide codebase and return PR + evidence.
 
-## 4) Scenario mapping (TOGAF-ish)
+## 5) Scenario mapping (TOGAF-ish)
 
 The “architect” user in Scenario Slice B (“Requirements + derived backlinks/impact + citeable context”) maps to the architect roles here:
 - Scenario B reference: `backlog/714-togaf-scenarios-v6-02.md`.
 - Requirement: derived views must explain “why linked?” via origin citations `{repo, sha, path, anchor}`.
 
-## 5) Definition of done (for this doc)
+## 6) Definition of done (for this doc)
 
 This taxonomy is “adopted” when:
 - new agent work uses the architect/developer role names above,
