@@ -39,6 +39,8 @@ Update (2026-01-19): `ameide test cluster` must detect code-server 502 causes
 Update (2026-01-20): Workspace default auth must be deterministic
 
 - The platform smoke contract assumes new workspaces have default tool auth wired (GitHub CLI, Azure CLI, Coder CLI, Codex CLI/extension); implementation tracked in `backlog/712-coder-workspaces-tasks-azure-workload-identity.md`.
+- Coder CLI auth is now treated as a **seed AKV → cluster AKV → Vault → ESO** secret (`Secret/coder-cli-auth` per workspace namespace), with an in-cluster rotator that keeps `coder-cli-session-token` fresh in the seed Key Vault.
+- Seeding contract baseline (failfast + self-heal + evidence): `backlog/713-seeding-contract.md`.
 
 ## 1) Decisions (normative for the CLI surface)
 

@@ -17,7 +17,7 @@ Make **Coder workspaces and Coder tasks** authenticate to Azure via **Azure Work
 
 - `gh` (GitHub CLI) via `Secret/gh-auth` (dev-only)
 - `az` (Azure CLI) via Workload Identity (dev-only)
-- `coder` (Coder CLI) via a scoped token injected from secrets (dev-only)
+- `coder` (Coder CLI) via the AKV → Vault → ESO conveyor, with an in-cluster token rotator (dev-only)
 - `codex` (Codex CLI) via slot secrets (dev-only)
 
 ## 1) Why
@@ -51,17 +51,19 @@ Decision for Ameide: **shard across a fixed pool of identities** (“Option B”
 
 ### 3.2 K8s wiring
 
-- GitOps materializes `Secret/coder-workspaces-azure-wi` in the environment namespace (e.g., `ameide-dev`) containing:
-  - `AZURE_CLIENT_IDS_JSON` (JSON array of managed identity client ids; sharded pool)
-  - `AZURE_TENANT_ID`
-- Coder templates read this secret and configure:
+- GitOps materializes non-secret runtime facts for Coder templates:
+  - `ConfigMap/coder-runtime-facts` in the Coder namespace contains:
+    - Azure tenant id
+    - JSON array of sharded managed identity client ids
+  - Coder server exports these as Terraform variables for templates (`TF_VAR_...`).
+- Coder templates use these values to configure:
   - `ServiceAccount` annotation `azure.workload.identity/client-id=<selected-client-id>`
   - Pod label `azure.workload.identity/use=true` (required for the webhook to inject token + env)
 
 Shard selection is deterministic:
 
 - `shardIndex = crc32(<workspace-namespace>) % len(clientIds)`
-- `clientId = clientIds[shardIndex]`
+  - `clientId = clientIds[shardIndex]`
 
 ### 3.3 Azure federated credentials lifecycle
 
@@ -70,9 +72,45 @@ Workspaces/tasks use **dynamic namespaces** (e.g., `ameide-ws-<id>`), so federat
 - issuer: AKS OIDC issuer URL
 - subject: `system:serviceaccount:<workspace-namespace>:workspace`
 
-Preferred mutation path:
+Mutation path (dev-only; GitOps-managed):
 
-- a dedicated CI workflow reconciles federated credentials for active workspace/task namespaces (create missing; optionally prune stale).
+- A CronJob runs **in-cluster** (ArgoCD-managed) under Azure Workload Identity and reconciles federated identity credentials:
+  - create missing
+  - prune stale / relocated (prefix-scoped) to avoid hitting the Entra 20-FIC-per-identity limit
+
+Implementation:
+
+- Chart: `sources/charts/foundation/vault-bootstrap`
+- CronJob: `vault-bootstrap-*-coder-ws-fic`
+
+### 3.4 Seed Key Vault → cluster Key Vault sync (no GitHub workflows)
+
+We keep a **seed/source Key Vault** as the root-of-truth for secret values (out-of-band seeded), but we no longer rely on GitHub Actions to copy secrets into the cluster Key Vault.
+
+Implementation (dev-only; ArgoCD-managed):
+
+- Chart: `sources/charts/foundation/vault-bootstrap`
+- CronJob: `vault-bootstrap-*-keyvault-sync`
+- Copies a **curated allowlist** of secret names from seed AKV → cluster AKV.
+
+### 3.5 Coder CLI auth (workspace default; no manual login)
+
+Goal: new workspaces can run `coder whoami` without running `coder login` interactively and without putting any token values into templates or Terraform state.
+
+Implementation (dev-only; GitOps-managed):
+
+1) Human seeds **one** long-lived `coder-bootstrap-token` into the seed Key Vault (once).
+
+2) A CronJob runs in-cluster and rotates `coder-cli-session-token`:
+
+- Chart: `sources/charts/foundation/vault-bootstrap`
+- CronJob: `vault-bootstrap-*-coder-cli-token-rotator`
+- Reads `coder-bootstrap-token` from Vault (via ESO) and mints `coder-cli-session-token` via the Coder API
+- Writes `coder-cli-session-token` back to the **seed** Key Vault (root-of-truth)
+
+3) Existing conveyor does the rest (no new special cases):
+
+- seed AKV → (CronJob sync) → cluster AKV → (vault-bootstrap) → Vault KV → (ESO) → `Secret/coder-cli-auth` in each workspace namespace.
 
 ## 4) Evidence / “Done means”
 
@@ -85,6 +123,7 @@ From a freshly created workspace on the active template version:
 
 ## 5) Cross references
 
+- `backlog/713-seeding-contract.md` (seeding contract: failfast + self-heal; applies to workspace auth + Coder /setup)
 - `backlog/626-ameide-devcontainer-service-coder.md` (workspace tool auth + persistence model)
 - `backlog/654-agentic-coding-cli-surface-coder.md` (platform smoke + workspace/toolchain contracts)
 - `backlog/651-agentic-coding-ameide-coding-agent.md` (Coder tasks execution plane)
