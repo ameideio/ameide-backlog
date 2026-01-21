@@ -172,9 +172,10 @@ All primitives and capability services MUST consume **generated SDK artifacts**,
 
 This is the normative consumption model.
 
-**Interpretation (to avoid a false dichotomy)**
-- “SDK artifacts” includes Buf-generated language packages as well as Ameide wrapper SDKs.
-- The non-negotiable is: services do not run ad-hoc proto generation or import raw `.proto` compilation outputs; they consume a single generated surface governed by the core proto pipeline.
+**Default (v6)**
+- Primitives and scenario runners MUST import **Ameide wrapper SDK packages only**.
+- Direct consumption of Buf-generated artifacts is not permitted outside the SDK build pipeline.
+- SDKs MUST re-export generated message/stub types verbatim and may add only thin transport/envelope helpers.
 
 ### 7.2 What an SDK is allowed to contain
 
@@ -272,11 +273,12 @@ These are the product story; the contracts must support them.
 Kafka topic naming should not become the semantic identity (that’s `ce.type`).
 Topic strategy can evolve, but the envelope and type identity remain stable.
 
-**Normative guidance:**
+**Default (v6)**
 
-* Topics are capability-owned (e.g., `io.ameide.<capability>.events`)
-* Routing is done by `ce.type`
-* Consumers filter by `ce.type` as needed
+* Topics are capability-owned (e.g., `io.ameide.<capability>.events`) and may carry multiple event types.
+* Consumers route/filter by CloudEvents `ce.type`.
+
+The pattern `topic == ce.type` is **not** the default and requires an explicit exception for operational reasons (e.g., very high throughput, retention isolation, ACL isolation).
 
 This avoids “topic sprawl as API design” while keeping operational control.
 
@@ -289,7 +291,7 @@ This avoids “topic sprawl as API design” while keeping operational control.
 Mark as legacy/migration-only:
 
 * “meta-in-proto event envelope” patterns
-* “services importing proto directly” (bypassing SDKs)
+* “services importing proto directly” (including direct Buf-generated imports; bypassing wrapper SDKs)
 * duplicate identity/citation message definitions
 
 ### 12.2 Introduce platform core primitives and migrate usage
