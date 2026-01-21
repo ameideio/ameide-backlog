@@ -165,14 +165,19 @@ Wireframes below assume `ListPageLayout` + an internal split for tree/list, and 
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│ Header (existing): Org switcher • Tabs • Search • User                        │
+│ <HeaderClient /> (existing)                                                   │
+│  - <ScopeTrail /> • <NavTabs /> • Search • User                                │
 ├──────────────────────────────────────────────────────────────────────────────┤
-│ PageHeader: Enterprise Repository                                             │
+│ <ListPageLayout title="Enterprise Repository" showActivityPanel={true}>       │
+│   <PageHeader                                                                │
+│     title="Enterprise Repository"                                             │
+│     description="Canonical Git-backed artifacts at a resolved commit SHA."    │
+│     actions={[Copy citation] [Open in GitLab] [Propose change]}               │
+│   />                                                                         │
 │  Repo: <repository_id>   Read: [Published ▼]   Resolved: main @ <sha>         │
-│  Actions: [Copy citation] [Open in GitLab] [Propose change]                   │
 ├──────────────────────────────────────────────────────────────────────────────┤
-│ Main (ListPageLayout)                              Activity panel (optional)  │
-│ ┌──────────── Tree (Git) ────────────┐  ┌───────── File list ──────────────┐ │
+│ Main (ListPageLayout children)                  activityPanel={<RepositorySidebar />} │
+│ ┌──────────── Tree (Git) ────────────┐  ┌───────── File list (Git) ────────┐ │
 │ │ /                                  │  │ architecture/                     │ │
 │ │  architecture/                     │  │  - vision.md        (open)        │ │
 │ │   > vision.md                      │  │  - statement-of-work.md (open)    │ │
@@ -182,6 +187,7 @@ Wireframes below assume `ListPageLayout` + an internal split for tree/list, and 
 │                                                                               │
 │ Activity panel suggestion (RepositorySidebar-like):                             │
 │ - “About / Stats / Recent activity” (derived from commits + projection)         │
+│ </ListPageLayout>                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -190,45 +196,52 @@ Behavior notes:
 - `Read: Published` resolves to **target branch head SHA** (merge-method agnostic).
 - Missing paths are handled deterministically (GitLab may return `404` for tree paths; UI shows “Not found at `<sha>`”).
 
-##### Screen 2 — Element editor modal (citation-grade read; view mode)
+##### Screen 2 — Element editor modal (citation-grade read; view mode + chat sidebar)
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│ (Modal) Element editor                                                       │
-│ Element: Architecture Vision  (kind: Document)                                │
-│ Storage: architecture/vision.md                                               │
-│ Read: Published @ <sha>                                                       │
-│ Citation: {repository_id, commit_sha:<sha>, path:"architecture/vision.md"}    │
-│ Actions: [Copy citation] [History] [Propose change] [Open in GitLab]          │
-├──────────────────────────────────────────────────────────────────────────────┤
-│ Tabs: [Document] [Properties] [Derived] [Evidence]                            │
+│ <ElementEditorModal /> (Radix <Dialog />)                                     │
+│  ┌──────────────────── <EditorModalChrome /> ─────────────────────────────┐  │
+│  │ title="Architecture Vision"   kindBadge="document"                      │  │
+│  │ actions: [Open in new tab] [Fullscreen] [Close]                         │  │
+│  └─────────────────────────────────────────────────────────────────────────┘  │
+│  Storage: architecture/vision.md                                              │
+│  Read: Published @ <sha>                                                      │
+│  Citation: {repository_id, commit_sha:<sha>, path:"architecture/vision.md"}   │
 │                                                                              │
-│ Document (read-only)                                                         │
-│  # Architecture Vision                                                       │
-│  ...                                                                          │
-│                                                                              │
-│ Derived/Properties tabs are view-only overlays (projection-backed)            │
+│  ┌────────────────────────────── main ───────────────────────────────┬──────┐ │
+│  │ <Tabs> <TabsList> <TabsTrigger>                                    │      │ │
+│  │  [Document] [Properties] [Derived] [Evidence]                      │      │ │
+│  │                                                                   <RightSidebarTabs> │
+│  │ <EditorPluginHost /> (mocked in current shell)                     │ <ModalChatPanel /> │
+│  │  - Document (read-only)                                            │  "Element assistant" │
+│  │  - Properties/Derived/Evidence are overlays                         │  (messages area)     │
+│  │                                                                    </RightSidebarTabs> │
+│  └────────────────────────────────────────────────────────────────────┴──────┘ │
+│  <ModalChatFooter /> (toggle chat / starters; bottom bar)                      │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-##### Screen 3 — Propose change (change-based editing inside the element editor)
+##### Screen 3 — Propose change (change-based editing inside the element editor + chat sidebar)
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│ (Modal) Element editor — Draft (proposal)                                     │
-│ Change: <change_id>    MR: !<iid>    Source: <branch_ref> → Target: main      │
-│ Actions: [Save draft] [View MR] [Publish]                                     │
-├──────────────────────────────────────────────────────────────────────────────┤
-│ Tabs: [Document] [Properties] [Derived] [Evidence]                            │
+│ <ElementEditorModal />                                                        │
+│  ┌──────────────────── <EditorModalChrome /> ─────────────────────────────┐  │
+│  │ title="Architecture Vision"   subtitle="Draft (proposal)"              │  │
+│  │ actions: [View MR] [Publish] [Fullscreen] [Close]                      │  │
+│  └─────────────────────────────────────────────────────────────────────────┘  │
+│  Draft banner: Change <change_id> • MR !<iid> • <branch_ref> → main            │
 │                                                                              │
-│ Document (editable)                                                          │
-│  # Architecture Vision                                                       │
-│  ...                                                                          │
-│                                                                              │
-│ Draft banner                                                                  │
-│  - This is a proposal in MR !<iid>                                            │
-│  - Save draft → Domain `CreateCommit(actions[])`                              │
-│  - Publish → Domain `PublishChange(expected_mr_head_sha)`                     │
+│  ┌────────────────────────────── main ───────────────────────────────┬──────┐ │
+│  │ <Tabs> ... [Document] [Properties] [Derived] [Evidence]            │      │ │
+│  │                                                                    │      │ │
+│  │ <EditorPluginHost /> (future: Document plugin)                     │ <ModalChatPanel /> │
+│  │  - editing the document content                                    │  assistant context   │
+│  │  - Save draft → Domain `CreateCommit(actions[])`                    │  Q&A / impact notes  │
+│  │                                                                    │                      │
+│  └────────────────────────────────────────────────────────────────────┴──────┘ │
+│  <ModalChatFooter />  (ask assistant; opens sidebar)                           │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 

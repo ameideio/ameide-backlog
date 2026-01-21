@@ -169,11 +169,14 @@ Deep-link nuance (current platform reality):
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│ PageHeader: Requirements (Derived)                                             │
-│ Repo: <repository_id>   Read: [Published ▼]   Resolved: main @ <sha>          │
-│ Actions: [Rebuild projection] [Copy run report]                               │
+│ <ListPageLayout title="Requirements (Derived)" showActivityPanel={true}>      │
+│   <PageHeader                                                                 │
+│     title="Requirements (Derived)"                                            │
+│     actions={[Rebuild projection] [Copy run report]}                          │
+│   />                                                                          │
+│   Repo: <repository_id>   Read: [Published ▼]   Resolved: main @ <sha>         │
 ├──────────────────────────────────────────────────────────────────────────────┤
-│ Main (ListPageLayout)                              Activity panel             │
+│ Main (ListPageLayout children)                  activityPanel={<RepositorySidebar />} │
 │ ┌──────────────────────── Requirements ─────────────────────────────────────┐ │
 │ │ ID       Title                     Path                                   │ │
 │ │ REQ-001  Unified repo contract      requirements/REQ-001.md     [Open]    │ │
@@ -183,53 +186,58 @@ Deep-link nuance (current platform reality):
 │ Activity panel suggestion:                                                    │
 │ - “Derived view” explanation + citations policy                               │
 │ - last projection build time, commit SHA indexed                              │
+│ </ListPageLayout>                                                             │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-##### Screen 2 — Requirement detail (element editor + derived impact)
+##### Screen 2 — Requirement detail (element editor + derived impact + chat sidebar)
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│ (Modal) Element editor                                                         │
-│ Element: Requirement REQ-001  (kind: Document)                                 │
-│ Storage: requirements/REQ-001.md                                               │
-│ Read: Published @ <sha>                                                        │
-│ Citation: {repo, <sha>, "requirements/REQ-001.md"}                             │
-│ Actions: [Copy citation] [Propose change]                                      │
-├──────────────────────────────────────────────────────────────────────────────┤
-│ Tabs: [Document] [Properties] [Derived] [Evidence]                             │
+│ <ElementEditorModal />                                                         │
+│  ┌──────────────────── <EditorModalChrome /> ─────────────────────────────┐   │
+│  │ title="Requirement REQ-001"   kindBadge="document"                      │   │
+│  │ actions: [Propose change] [Fullscreen] [Close]                           │   │
+│  └─────────────────────────────────────────────────────────────────────────┘   │
+│  Storage: requirements/REQ-001.md                                               │
+│  Read: Published @ <sha>                                                        │
+│  Citation: {repo, <sha>, "requirements/REQ-001.md"}                             │
 │                                                                              │
-│ Document (canonical content)                         Right panel (Derived)    │
-│ ┌───────────────────────────────────────────────────┐ ┌─────────────────────┐ │
-│ │ # Requirement REQ-001                              │ │ Derived Backlinks   │ │
-│ │ id: REQ-001                                        │ │  - standard-a.md    │ │
-│ │ ...                                                │ │    why linked?      │ │
-│ └───────────────────────────────────────────────────┘ │    origin:          │ │
-│                                                       │     {repo,<sha>,     │ │
-│                                                       │      "architecture/…",│ │
-│                                                       │      anchor:"…" }     │ │
-│                                                       ├─────────────────────┤ │
-│                                                       │ Citeable Context     │ │
-│                                                       │  - {repo,<sha>,path} │ │
-│                                                       │  - ...               │ │
-│                                                       └─────────────────────┘ │
+│  ┌────────────────────────────── main ───────────────────────────────┬──────┐ │
+│  │ <Tabs> ... [Document] [Properties] [Derived] [Evidence]            │      │ │
+│  │                                                                    │      │ │
+│  │ <EditorPluginHost /> (future: Document plugin)                     │ <ModalChatPanel /> │
+│  │  Document tab shows canonical content                              │  assistant Q&A       │
+│  │                                                                    │                      │
+│  │  Derived tab (projection-backed):                                   │                      │
+│  │   - Derived Backlinks: standard-a.md                                │                      │
+│  │     "why linked?" → origin citation {repo,<sha>,path,anchor}        │                      │
+│  │   - Citeable Context bundle (memory)                                │                      │
+│  │                                                                    │                      │
+│  └────────────────────────────────────────────────────────────────────┴──────┘ │
+│  <ModalChatFooter /> (toggle chat / starters)                                   │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-##### Screen 3 — Propose change (authoring inline refs; still file edits)
+##### Screen 3 — Propose change (authoring inline refs inside the element editor)
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│ Propose change                                                                │
-│ Change: <change_id>   MR: !<iid>   Source: <branch_ref> → Target: main        │
-├──────────────────────────────────────────────────────────────────────────────┤
-│ Editor: architecture/standards/standard-a.md                                  │
-│                                                                               │
-│  Standard A                                                                   │
-│  ...                                                                          │
-│  ref: REQ-001                                                                 │
-│                                                                               │
-│ Actions: [Save draft] [Publish]                                               │
+│ <ElementEditorModal />                                                        │
+│  <EditorModalChrome title="Standard A" subtitle="Draft (proposal)" />         │
+│  Draft banner: Change <change_id> • MR !<iid> • <branch_ref> → main            │
+│                                                                              │
+│  <Tabs> [Document] ...                                                        │
+│                                                                              │
+│  Document editor content includes inline reference authored in-file:          │
+│   ref: REQ-001                                                                │
+│                                                                              │
+│  Actions: [Save draft] [Publish]                                              │
+│   - Save draft → Domain `CreateCommit(actions[])`                             │
+│   - Publish → Domain `PublishChange(expected_mr_head_sha)`                    │
+│                                                                              │
+│  RightSidebarTabs: <ModalChatPanel /> (optional)                              │
+│  Footer: <ModalChatFooter />                                                  │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
