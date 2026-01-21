@@ -99,33 +99,35 @@ Make in-cluster resolution of the issuer hostname `argocd.ameide.io` converge on
 
 ### Root cause
 
-- The issuer is configured as: `https://argocd.ameide.io/api/dex`.
-- ArgoCD’s OIDC discovery client requests the `.well-known` document at:
-  - `https://argocd.ameide.io/api/.well-known/openid-configuration` (**404**)
-  - while the actual Dex well-known endpoint is:
-    - `https://argocd.ameide.io/api/dex/.well-known/openid-configuration` (**200**)
-- Because discovery fails with 404, ArgoCD cannot verify tokens and invalidates the session.
+- Dex is served at a non-root base path:
+  - in-cluster: `https://argocd-dex-server:5556/api/dex/*` returns 200
+  - in-cluster: `https://argocd-dex-server:5556/*` returns 404
+- However, ArgoCD was configured to talk to Dex at the root:
+  - `ConfigMap/argocd-cmd-params-cm`: `server.dex.server=https://argocd-dex-server:5556`
+- During session verification, ArgoCD initializes an OIDC provider for issuer `https://argocd.ameide.io/api/dex` and must fetch discovery + JWKS. With `server.dex.server` pointing at the wrong base, provider init/lookup produced 404s, so ArgoCD rejected the session:
+  - `invalid session: failed to verify the token`
 
 ### Remediation (GitOps, permanent)
 
-Serve the discovery document at the path ArgoCD is requesting by rewriting it to the Dex endpoint:
+Make ArgoCD use the Dex server at the correct base path by setting the effective cmd param:
 
-- Add an exact-path HTTPRoute rule:
-  - match: `/api/.well-known/openid-configuration`
-  - rewrite → `/api/dex/.well-known/openid-configuration`
-- Normalize trailing-slash variants that were returning 404:
-  - `/api/dex/.well-known/openid-configuration/` → `/api/dex/.well-known/openid-configuration`
-  - `/api/dex/keys/` → `/api/dex/keys`
-- Apply this rule on both listeners:
-  - `sectionName: https` (`HTTPRoute/argocd`)
-  - `sectionName: origin-http` (`HTTPRoute/argocd-origin`)
+- Set `configs.params.server.dex.server=https://argocd-dex-server:5556/api/dex` in the **effective** `configs.params` block (the only block that the Helm chart renders into `argocd-cmd-params-cm`).
 - Implementation in `ameide-gitops`:
-  - `sources/charts/cluster/gateway/templates/httproute-argocd.yaml`
-  - `sources/charts/cluster/gateway/templates/httproute-argocd-origin.yaml`
+  - `sources/values/common/argocd.yaml`
+- Deploy via CI:
+  - `Terraform Azure Apply + Verify` workflow (which runs `bootstrap/bootstrap.sh --install-argo` to Helm-upgrade ArgoCD)
+
+### Note (mitigation / compatibility)
+
+HTTPRoute rewrites were added to normalize some nonstandard discovery/JWKS path variants observed during the incident. With the cmd-params fix in place, these should no longer be required for ArgoCD itself; consider removing them once traffic confirms no dependencies remain.
 
 ### Expected steady-state verification
 
+- `ConfigMap/argocd-cmd-params-cm` contains:
+  - `server.dex.server=https://argocd-dex-server:5556/api/dex`
 - From inside the cluster:
-  - `wget https://argocd.ameide.io/api/.well-known/openid-configuration` returns 200.
-- `argocd-server` logs stop emitting `failed to query provider ... 404 Not Found`.
-- ArgoCD UI login persists (no redirect loop) and API calls stop returning 401 due to “invalid session”.
+  - `curl -k https://argocd-dex-server:5556/api/dex/.well-known/openid-configuration` returns 200
+  - `curl -k https://argocd-dex-server:5556/.well-known/openid-configuration` returns 404
+- `argocd-server` logs stop emitting `failed to query provider ... 404 Not Found` and `invalid session: failed to verify the token`.
+- Automated check passes:
+  - `infra/scripts/verify-argocd-sso.sh --azure` prints `OK   [azure] ArgoCD SSO logged in as: admin@ameide.io`.
