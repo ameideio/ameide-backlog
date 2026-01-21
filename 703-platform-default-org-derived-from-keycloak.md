@@ -44,8 +44,8 @@ GitOps applied a stopgap to keep production SSO verification green by emitting t
 
 If we adopt Keycloak’s Organizations feature, we should lean on its documented scope/claim semantics rather than inventing new claims:
 
-- Use an “all orgs” membership scope (e.g. `organization:*`) to obtain the full membership list without forcing selection at login.
-- Only use an “active org” scope (e.g. `organization` / `organization:<alias>`) if we explicitly want Keycloak to drive org selection during authentication.
+- Request the `organizations` client scope (plural) as configured/allowed on the client (OIDC scopes are explicit names; Keycloak does not support wildcard scope patterns like `organization:*`).
+- Drive “active org” selection at the application layer (post-login) and persist it in the session; do not encode org selection into synthetic scope tokens.
 
 The important invariant remains: **no implicit selection when multiple orgs exist**.
 
@@ -89,6 +89,7 @@ Once the application no longer requires it:
 ## Incident reference (why this exists)
 
 - 2026-01-19: production SSO verify failed due to missing default-org env var; GitOps stopgap PR added env injection to restore green. This backlog item defines the exit plan to remove that stopgap.
+- 2026-01-21: dev `www-ameide-platform` auth loop triggered by GitOps injecting an invalid Keycloak scope (`organization:*`); fix is to align requested scopes to `organizations` and reject `*` in scope strings.
 
 ---
 
