@@ -29,7 +29,7 @@ The suite is a repo-owned guardrail:
 
 - Repo verification compiles BPMN and fails on drift:
   - `ameide primitive verify --kind process --name <name> --mode repo`
-  - `ameide verify` runs the workspace-wide gate (repo-wide + all primitives).
+  - Phase 0 of `ameide test` runs the workspace-wide gate (repo-wide + all primitives).
 
 ## What is tested (v1 semantics)
 

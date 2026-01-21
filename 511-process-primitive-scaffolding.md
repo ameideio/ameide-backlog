@@ -93,7 +93,7 @@ The “happy path” for Process primitives is the existing `ameide primitive` l
 - `ameide primitive plan --kind process --name <name>`: suggests required files/tests and highlights drift.
 - `ameide primitive scaffold --kind process --name <name>`: creates/refreshes the repo skeleton.
 - `ameide primitive verify --kind process --name <name> --mode repo`: enforces repo guardrails (shape, compile freshness, conventions).
-- `ameide verify`: workspace-wide gate (repo-wide + all primitives).
+- Phase 0 of `ameide test`: workspace-wide gate (repo-wide + all primitives).
 - Publish images via CI to GHCR; GitOps consumes digest-pinned refs.
 
 The BPMN→Temporal runner compiler work (v1) fits into this structure by making BPMN lint/compile part of the Process “repo mode” guardrails and the Process scaffold refresh loop. See `backlog/511-process-primitive-scaffolding-refactoring.md`.

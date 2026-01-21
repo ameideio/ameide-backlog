@@ -30,7 +30,7 @@ ameide (single binary)
 
 ```text
 packages/ameide_coding_helpers (deterministic library)
-├─ Actions: doctor|scaffold|generate|verify
+├─ Actions: doctor|scaffold|generate|verify (repo gate)
 └─ Report: ToolExecutionReport (proto), evidence-first
 
 ameide (CLI)
@@ -43,7 +43,7 @@ ameide (CLI)
 - `ameide doctor` (preflight identity + required tool availability)
 - `ameide scaffold` (repo-owned skeletons)
 - `ameide generate` (wrapper for `buf generate` using repo templates)
-- `ameide verify` (policy gate definition; same checks locally and in CI)
+- `ameide test` (policy gate definition in Phase 0; same checks locally and in CI)
 
 ## Cross-references
 

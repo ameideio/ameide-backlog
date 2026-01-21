@@ -99,10 +99,9 @@ Each runtime SHOULD have “contract tests” to prevent drift:
 
 ### 4.2 Enforcement (repo gate)
 
-The repo includes a static alignment check to prevent drift:
+Phase 0 of `ameide test` is the repo gate front door.
 
-- `ameide verify --repo-only` runs `ObservabilityContract334v3` (repo-wide).
-- It fails if a service is missing the required helper + propagator install + session correlation (baggage → span attribute + log fields).
+Planned: add a static alignment check (`ObservabilityContract334v3`) to prevent drift. It should fail if a service is missing the required helper + propagator install + session correlation (baggage → span attribute + log fields).
 
 ## 5) Loki (logs)
 

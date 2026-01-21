@@ -96,10 +96,10 @@ The doc also calls out vendor recommendations (HashiCorp and Big Bang) so review
 
 #### CLI Verification (Implemented)
 
-The core repository now includes a lightweight secret guardrail verifier:
+The core repository enforces a lightweight secret guardrail as part of Phase 0 of the repo-wide front door:
 
 ```bash
-ameide dev verify --repo-root .
+ameide test
 ```
 
 What it enforces today:

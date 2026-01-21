@@ -143,7 +143,7 @@ GitOps deploys two Deployments referencing the same image digest with different 
 This work is intentionally designed to fit the existing CLI lifecycle under `ameide primitive`:
 
 - `ameide primitive scaffold --kind process …` remains the canonical “create/refresh the Process skeleton” entrypoint.
-- Primitive-level repo verification uses `ameide primitive verify --kind process --name <name> --mode repo`. Workspace-wide verification uses `ameide verify`.
+- Primitive-level repo verification uses `ameide primitive verify --kind process --name <name> --mode repo`. Workspace-wide verification is Phase 0 of `ameide test`.
 - `ameide primitive drift --kind process …` can detect “BPMN changed but generated code wasn’t regenerated”.
 - Publish images via CI to GHCR; GitOps consumes digest-pinned refs.
 

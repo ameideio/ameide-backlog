@@ -209,15 +209,19 @@ source "tools/integration-runner/junit-path.sh"
 JUNIT_PATH="$(resolve_junit_path service-name)"
 ```
 
-### CLI Enforcement (Implemented)
+### CLI Enforcement (v2, implemented)
 
-The repository now enforces the runner contract via:
+The v2 test contract is enforced by Phase 0 of the repo-wide front door:
 
 ```bash
-ameide dev verify --repo-root .
+ameide test
 ```
 
-The verifier applies to both:
+Phase 0 fails on legacy integration-pack surfaces (`INTEGRATION_MODE`, `run_integration_tests.sh`, `tools/integration-runner`, etc.), with an optional temporary allowlist in `.ameide/test-contract-allowlist.txt`.
+
+### Legacy pack verifier (v1, historical)
+
+The legacy verifier applied to both:
 
 - `services/<service>/__tests__/integration/` integration packs
 - `primitives/<kind>/<name>/tests/` integration packs

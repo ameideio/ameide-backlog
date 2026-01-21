@@ -50,14 +50,14 @@ Invokers
 
 ## Current implementation (what exists today)
 
-- `packages/ameide_coding_helpers/guardrails` exists and is the canonical home for running Buf guardrails (used by `ameide verify`).
+- `packages/ameide_coding_helpers/guardrails` exists and is the canonical home for running Buf guardrails (used by Phase 0 of `ameide test`).
 - `packages/ameide_coding_helpers/doctor` exists and powers `ameide doctor` (fast preflight for toolchain + repo invariants).
 - `packages/ameide_coding_helpers/verify` exists and is the canonical home for the repo-wide gate (Buf + codegen drift + 362 + 430).
 - `packages/ameide_coding_helpers/generate` exists and is the canonical home for SDK generation/sync + docs generation.
 - `packages/ameide_coding_helpers/scaffold` exists and is the canonical home for deterministic repo scaffolding (currently: Integration MCP adapter primitive).
 - The CLI surfaces these as first-class commands:
   - `ameide doctor` (human/agent/process preflight; supports `--json`)
-  - `ameide verify` (repo + primitives gate; invokes coding-helpers verify/guardrails)
+  - `ameide test` (repo + primitives gate in Phase 0; invokes coding-helpers verify/guardrails, then runs Phase 1/2 tests)
   - `ameide generate sdk|docs` (repo-local generation; deterministic; supports `--json`)
   - `ameide scaffold integration mcp-adapter` (deterministic scaffold; supports `--dry-run` and `--json`)
 
