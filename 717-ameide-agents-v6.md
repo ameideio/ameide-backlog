@@ -143,7 +143,7 @@ We standardize a supervision loop:
 Implementation note:
 - The cadence should be implemented as a Process timer/schedule or an agent-side loop, but it must remain observable (facts/evidence) and configurable via AgentDefinition config.
 
-## 3) v6 stack alignment (don’t mix concerns)
+## 4) v6 stack alignment (don’t mix concerns)
 
 This role taxonomy applies across the three stacks described in `backlog/705-transformation-agentic-alignment-v6.md`:
 
@@ -151,13 +151,13 @@ This role taxonomy applies across the three stacks described in `backlog/705-tra
 - **Enterprise Repository + Memory**: Git-backed canonical files; derived backlinks/impact/memory are projection-owned and citeable.
 - **DevX agentic coding (platform codebase)**: developers implement changes in the Ameide codebase and return PR + evidence.
 
-## 4) Scenario mapping (TOGAF-ish)
+## 5) Scenario mapping (TOGAF-ish)
 
 The “architect” user in Scenario Slice B (“Requirements + derived backlinks/impact + citeable context”) maps to the architect roles here:
 - Scenario B reference: `backlog/714-togaf-scenarios-v6-02.md`.
 - Requirement: derived views must explain “why linked?” via origin citations `{repo, sha, path, anchor}`.
 
-## 5) Definition of done (for this doc)
+## 6) Definition of done (for this doc)
 
 This taxonomy is “adopted” when:
 - new agent work uses the architect/developer role names above,

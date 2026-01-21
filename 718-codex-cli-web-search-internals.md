@@ -87,7 +87,7 @@ Key function:
 Key function:
 - `codex-rs/core/src/client.rs`: `build_responses_headers(...)`
   - `web_search_mode == Disabled` → header `"false"`
-  - otherwise → header `"true"`
+  - otherwise (including `None`) → header `"true"`
 
 Important: “eligible header true” does not, by itself, mean the tool is exposed; the tool is exposed only when the tool spec is registered (step 2).
 
@@ -133,3 +133,26 @@ Developers use Codex CLI as a development tool, but all repo verification remain
 - Web search is tool-mediated; the model decides when to call it and is subject to model/tool limits (e.g., per-call query limits).
 - Cached mode may not satisfy tasks that require fetching fresh vendor documentation.
 
+## 6) Accuracy review (feedback incorporated)
+
+This section embeds a review pass against upstream Codex sources (tag `rust-v0.87.0`) and clarifies minor wording issues.
+
+### ✅ Confirmed correct
+
+| Section | Claim | Evidence (upstream) |
+|---|---|---|
+| 1.1 | `codex --search` enables web search | `codex-rs/cli/src/main.rs`: `--search` maps to `web_search="live"` |
+| 1.2 | Config values: `"live"`, `"cached"`, `"disabled"` | `codex-rs/core/config.schema.json`: `WebSearchMode` enum |
+| 1.3 | Profile overrides global | `codex-rs/core/src/config/mod.rs`: `config_profile.web_search.or(config_toml.web_search)` |
+| 2.1 | `resolve_web_search_mode()` exists in config | `codex-rs/core/src/config/mod.rs`: `resolve_web_search_mode(...)` |
+| 2.2 | Tool spec registration logic | `codex-rs/core/src/tools/spec.rs`: `match config.web_search_mode { Live/Cached/... }` |
+| 2.3 | Header `x-oai-web-search-eligible` | `codex-rs/core/src/client.rs`: `build_responses_headers(...)` |
+| 3.1 | `features.web_search_request=true` resolves to Live mode | `codex-rs/core/src/config/mod.rs`: `Feature::WebSearchRequest => WebSearchMode::Live` |
+| 3.2 | `[tools] web_search` / `web_search_request` aliases | `codex-rs/core/src/config/mod.rs`: `ToolsToml` alias mapping |
+
+### ⚠️ Clarifications
+
+| Section | Issue | Correction |
+|---|---|---|
+| 2.2 | “Tool spec builder” naming | The code uses a “builder + `push_spec(...)` pattern” in `codex-rs/core/src/tools/spec.rs` (no special named builder function for web search). |
+| 2.3 | Header meaning | The header is `"true"` even when `web_search_mode` is `None`; this header indicates eligibility, not that the `web_search` tool was registered. |
