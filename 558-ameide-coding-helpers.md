@@ -1,6 +1,6 @@
 # 558 — Ameide Coding Helpers (Deterministic Tooling Package)
 
-**Status:** Done (doctor|verify|generate|scaffold implemented)  
+**Status:** Done (verify|generate|scaffold implemented; doctor folded into Phase 0)  
 **Audience:** CLI implementers, agent/tool implementers, Transformation Process teams  
 **Scope:** Add a shared deterministic tooling package (consumable by humans, agents, and process activities) and move toward a proto-first report contract.
 
@@ -31,7 +31,7 @@ ameide (CLI)
 
 ```text
 packages/ameide_coding_helpers
-├─ Actions: doctor|scaffold|generate|verify
+├─ Actions: scaffold|generate|verify
 └─ Reports: proto-first, evidence-first
 
 Invokers
@@ -51,12 +51,10 @@ Invokers
 ## Current implementation (what exists today)
 
 - `packages/ameide_coding_helpers/guardrails` exists and is the canonical home for running Buf guardrails (used by Phase 0 of `ameide test`).
-- `packages/ameide_coding_helpers/doctor` exists and powers `ameide doctor` (fast preflight for toolchain + repo invariants).
-- `packages/ameide_coding_helpers/verify` exists and is the canonical home for the repo-wide gate (Buf + codegen drift + 362 + 430).
+- `packages/ameide_coding_helpers/verify` exists and is the canonical home for the repo-wide gate (toolchain preflight + codegen drift + 362 + 430 + v6 doctrine checks).
 - `packages/ameide_coding_helpers/generate` exists and is the canonical home for SDK generation/sync + docs generation.
 - `packages/ameide_coding_helpers/scaffold` exists and is the canonical home for deterministic repo scaffolding (currently: Integration MCP adapter primitive).
 - The CLI surfaces these as first-class commands:
-  - `ameide doctor` (human/agent/process preflight; supports `--json`)
   - `ameide test` (repo + primitives gate in Phase 0; invokes coding-helpers verify/guardrails, then runs Phase 1/2 tests)
   - `ameide generate sdk|docs` (repo-local generation; deterministic; supports `--json`)
   - `ameide scaffold integration mcp-adapter` (deterministic scaffold; supports `--dry-run` and `--json`)

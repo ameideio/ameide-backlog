@@ -14,6 +14,12 @@
 > **Update (2026-01): testing contract is 430v2**
 >
 > Treat `backlog/430-unified-test-infrastructure-v2-target.md` as the normative repo contract for test phases and JUnit evidence. Legacy “integration packs / `INTEGRATION_MODE` / `run_integration_tests.sh`” content should be considered historical only.
+>
+> **Update (2026-01): verification front doors**
+>
+> `ameide primitive verify` and `ameide doctor` are removed. Verification runs only via:
+> - `ameide test` (Phase 0/1/2; local-only)
+> - `ameide test cluster` (Phase 3/4; cluster-only)
 
 ## Grounding & contract alignment
 
@@ -42,9 +48,11 @@ ameide primitive plan --kind domain --name orders \
 # IMPACT: What consumers would be affected
 ameide primitive impact --proto-path <path> --json
 
-# VERIFY: Run tests/checks
-ameide primitive verify --kind domain --name orders --json
-ameide primitive verify --all --proto-path <path> --json
+# VERIFY (local): Run Phase 0/1/2
+ameide test
+
+# VERIFY (cluster, when applicable): Run Phase 3/4
+ameide test cluster
 
 # SCAFFOLD (optional, conservative): Generate empty skeletons
 ameide primitive scaffold --kind domain --name orders --lang go --dry-run --json
@@ -175,7 +183,7 @@ Example output:
 
 ### 3.3 Event Reliability Checks (EDA)
 
-`verify` enforces EDA reliability principles from [472 §3.3](472-ameide-information-application.md) and [496-eda-principles-v2.md](496-eda-principles-v2.md):
+Phase 0 of `ameide test` enforces deterministic, local-only EDA guardrails from [472 §3.3](472-ameide-information-application.md) and [496-eda-principles-v2.md](496-eda-principles-v2.md):
 
 | Check | Rule | Severity |
 |-------|------|----------|
@@ -190,7 +198,7 @@ Example output:
 Example output:
 
 ```bash
-$ ameide primitive verify domain/sales
+$ ameide test
 ✓ Command/Query naming discipline
 ✓ Event emission coverage (8/8 commands emit events)
 ✓ Outbox pattern wiring
@@ -205,17 +213,17 @@ $ ameide primitive verify domain/sales
 
 ## 4. Agentic Verification in the Development Process
 
-Principle verification is **not just a CI gate**—it's an integral part of the agentic development workflow. AI agents MUST run `verify` checks throughout their development cycle, not just before commit.
+Principle verification is **not just a CI gate**—it's an integral part of the agentic development workflow. AI agents MUST run `ameide test` throughout their development cycle, not just before commit.
 
 ### 4.1 When Agents Run Verification
 
 | Development Phase | Verification Action | Purpose |
 |-------------------|---------------------|---------|
-| **Before implementation** | `verify --check naming` | Validate proto RPC names follow business verb conventions |
-| **After each handler** | `verify --check eda` | Ensure outbox wiring, event emission, idempotency |
-| **After adding events** | `verify --check schema` | Validate Buf compatibility, event metadata |
-| **Before PR** | `verify --all` | Full verification including security checks |
-| **On consumer changes** | `verify --cascade` | Verify all affected downstream primitives |
+| **Before implementation** | `ameide test` | Fail fast on contract/toolchain/codegen/doctrine violations |
+| **After each handler** | `ameide test` | Keep Phase 0/1/2 green incrementally |
+| **After adding events/protos** | `ameide test` | Ensure Buf/codegen/doctrine gates stay green |
+| **Before PR** | `ameide test` and `ameide test cluster` (when applicable) | Local gate + deployed-system gate |
+| **On consumer changes** | `ameide primitive impact` then `ameide test` | Identify cascade scope, then rerun the gate |
 
 ### 4.2 Agentic Verification Loop
 
@@ -225,7 +233,7 @@ Principle verification is **not just a CI gate**—it's an integral part of the 
 │     └─ Agent implements handler/consumer                        │
 │                                                                 │
 │  2. VERIFY IMMEDIATELY                                          │
-│     └─ ameide primitive verify --kind domain --name orders      │
+│     └─ ameide test                                              │
 │     └─ Agent reads structured JSON output                       │
 │                                                                 │
 │  3. INTERPRET VIOLATIONS                                        │
@@ -238,22 +246,22 @@ Principle verification is **not just a CI gate**—it's an integral part of the 
 │     └─ If architectural: agent flags for design review          │
 │                                                                 │
 │  5. CONTINUE ONLY WHEN GREEN                                    │
-│     └─ Agent does not proceed to next task until verify passes  │
+│     └─ Agent does not proceed to next task until `ameide test` passes │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**Key invariant**: Agents treat `verify` output as **actionable feedback**, not just pass/fail gates. When verification fails, the agent:
+**Key invariant**: Agents treat Phase 0/1/2 output as **actionable feedback**, not just pass/fail gates. When verification fails, the agent:
 
 1. Reads the structured JSON output
 2. Identifies the specific violation (file, line, rule)
 3. Looks up the referenced documentation (e.g., "see 472 §3.3.2")
 4. Applies the documented pattern to fix the issue
-5. Re-runs verification to confirm the fix
+5. Re-runs `ameide test` to confirm the fix
 
 ### 4.3 Example Agent Reasoning
 
 ```
-verify output:
+ameide test output:
 {
   "idempotency_guard": {
     "status": "WARN",
@@ -282,7 +290,7 @@ Agent reasoning:
 
 When used as part of a capability delivery workflow (`backlog/533-capability-implementation-playbook.md`), CLI outputs should be consumable as “gate checks”:
 
-- `ameide primitive verify --json` should include a clear, machine-readable “gate ready” summary (e.g., “Gate B failed: buf lint/build errors”).
+- `ameide test` and `ameide test cluster` should produce a clear, machine-readable summary via JUnit + deterministic logs (see `artifacts/agent-ci/<timestamp>/summary.txt`).
 - `ameide primitive prompt` should support emitting a per-kind checklist aligned to playbook nodes (Domain/Process/Projection/Integration/UISurface/Agent), rather than only a generic onboarding prompt.
 
 ---
@@ -464,7 +472,7 @@ buf breaking --against .git#branch=main packages/ameide_core_proto
 
 ```bash
 buf generate
-ameide primitive verify --check sdk-freshness --json
+ameide test
 ```
 
 **Step 4.3: Implementation (TDD Loop)**
@@ -510,25 +518,24 @@ ameide primitive plan --kind domain --name orders --json
 **Concrete sequence:**
 
 ```bash
-# Step 1: RED - Write failing test
-ameide primitive verify --kind domain --name orders --test orders.cancel_order.success --json
-# Expected: {"status": "FAIL", "reason": "CancelOrder not implemented"}
+# Step 1: RED - run the smallest possible test (language-native filtering)
+go test ./primitives/domain/orders/... -run TestCancelOrder -count=1
 
-# Step 2: GREEN - Implement minimal code
-# Agent implements CancelOrder handler
-ameide primitive verify --kind domain --name orders --test orders.cancel_order.success --json
-# Expected: {"status": "PASS"}
+# Step 2: GREEN - implement minimal code, rerun the same test
+go test ./primitives/domain/orders/... -run TestCancelOrder -count=1
 
-# Step 3: REFACTOR (if needed)
-# Step 4: NEXT - Move to next test
+# Step 3: keep the repo-wide gate green
+ameide test
 ```
 
 **Step 4.4: Cascade Verification**
 
-After the primitive is green, verify all consumers:
+After the primitive is green, scope consumers and rerun the gate:
 
 ```bash
-ameide primitive verify --all --proto-path ameide_core_proto/transformation/v1/transformation_service.proto --json
+ameide primitive impact --proto-path packages/ameide_core_proto/src/ameide_core_proto/transformation/v1/transformation_service.proto --json
+ameide test
+ameide test cluster  # when applicable
 ```
 
 ### 5.6 Phase 5: Human UAT
@@ -560,8 +567,8 @@ Before merge, human verifies implementation meets requirements. Agent presents f
 | **Observe** | Gather state | `describe`, `drift` | None |
 | **Reason** | Research, plan | `impact`, `plan` | None |
 | **Review Gate** | Present findings | — | **Approval required** |
-| **Act** | Implement, test | `verify`, `scaffold` | None |
-| **UAT** | Present results | `verify --all` | **Acceptance required** |
+| **Act** | Implement, test | `ameide test` (and `ameide test cluster` when applicable) | None |
+| **UAT** | Present results | `ameide test cluster` | **Acceptance required** |
 
 ---
 
@@ -596,34 +603,17 @@ ameide primitive impact --proto-path packages/ameide_core_proto/src/ameide_core_
 buf breaking packages/ameide_core_proto --against .git#branch=main
 ```
 
-If breaking changes detected, `ameide primitive verify` will fail unless:
-- The change is intentional AND
-- All consumers are updated in the same PR
+Breaking changes are blocked by `buf breaking` in CI unless you intentionally version the surface (new `v2` package/service/event type) and migrate consumers.
 
 ### 6.3 Cascade Verification
 
 ```bash
 buf generate                          # Regenerates all SDKs
-ameide primitive verify --all --json  # Verify ALL affected primitives
+ameide test                           # Phase 0/1/2 gate (local-only)
+ameide test cluster                   # Phase 3/4 gate (when applicable)
 ```
 
-**Output:**
-```json
-{
-  "summary": "fail",
-  "proto_change": {
-    "path": "ameide_core_proto/transformation/v1/transformation_service.proto",
-    "breaking": false,
-    "changes": ["added field Order.priority", "added rpc CancelOrder"]
-  },
-  "consumer_results": [
-    {"name": "orders", "kind": "DOMAIN", "status": "PASS", "tests": 12},
-    {"name": "l2o", "kind": "PROCESS", "status": "FAIL", "tests": 8, "failed": 2},
-    {"name": "www_platform", "kind": "UISURFACE", "status": "PASS", "tests": 5}
-  ],
-  "next_steps": ["Fix l2o process to handle CancelOrder"]
-}
-```
+Outputs: logs + JUnit evidence under `artifacts/agent-ci/<timestamp>/` (see `summary.txt`).
 
 ### 6.4 Proto Modification Flow
 
@@ -632,7 +622,7 @@ ameide primitive verify --all --json  # Verify ALL affected primitives
 2. ameide primitive impact → list consumers
 3. Agent modifies proto
 4. buf generate → regenerate SDKs
-5. ameide primitive verify --all → test ALL consumers
+5. ameide test → run Phase 0/1/2 gate
 6. Agent fixes any failures in consumers
 7. Repeat until all consumers green
 8. Agent commits (proto + SDK + all consumer fixes in one PR)

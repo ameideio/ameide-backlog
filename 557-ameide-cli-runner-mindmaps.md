@@ -6,7 +6,7 @@
 
 > **Deprecation notice:** This backlog is superseded by `backlog/558-ameide-coding-helpers.md`, which moves deterministic tooling into a shared package and returns the CLI toward a proto-based platform client posture.
 
-Implementation note: the extraction has started — `packages/ameide_coding_helpers/*` exists and `ameide doctor` is now implemented as a first-class CLI command.
+Implementation note: the extraction has started — `packages/ameide_coding_helpers/*` exists and toolchain/repo preflight is now enforced in Phase 0 of `ameide test`.
 
 ## Target posture (what “runner-first” means)
 
@@ -40,7 +40,7 @@ ameide (CLI)
 
 ## Target UX (opinionated)
 
-- `ameide doctor` (preflight identity + required tool availability)
+- Phase 0 of `ameide test` (preflight identity + required tool availability)
 - `ameide scaffold` (repo-owned skeletons)
 - `ameide generate` (wrapper for `buf generate` using repo templates)
 - `ameide test` (policy gate definition in Phase 0; same checks locally and in CI)

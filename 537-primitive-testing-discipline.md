@@ -14,11 +14,11 @@
 > - per-component `run_integration_tests.sh` packs as the canonical path
 > - “integration in cluster” (cluster interaction happens only under Phase 4/5 via `ameide test cluster`)
 
-> **Unified workflow:** See `backlog/671-primitive-development-workflow-unified.md` for the end-to-end primitive workflow and where each enforcement happens (core repo verify vs GitOps gate vs Argo smokes).
+> **Unified workflow:** See `backlog/671-primitive-development-workflow-unified.md` for the end-to-end primitive workflow and where each enforcement happens (Phase 0 contract gate vs GitOps gate vs Argo smokes).
 
 ## Responsibility split (non-negotiable)
 
-- `ameide primitive scaffold` and `ameide primitive verify` are **mechanical alignment tools** (structure, codegen drift, import policy, no unfinished scaffolds). They are **not** test runners.
+- `ameide primitive` subcommands are **design-time tools** (describe/drift/plan/impact/scaffold/prompt/publish). They are **not** test runners.
 - `ameide test` is the **only in-repo test runner** (Phase 0/1/2 per 430v2; integration uses mocks/stubs; no Kubernetes/Telepresence).
 - `ameide test cluster` is the **deployed-system** test runner against a real target (preview/dev ingress), executed separately from Phase 0/1/2.
 - ArgoCD smokes are **the cluster execution venue** for minimal post-sync checks; smoke assertions must remain owned/versioned with the primitive (avoid a second “platform test suite” truth).
@@ -77,7 +77,7 @@ All primitive scaffolds generate **intentionally failing tests** (RED). This ens
 
 ### Universal Scaffold Marker
 
-All scaffold tests include the string `AMEIDE_SCAFFOLD` in their failure message. This marker is language-agnostic and is checked mechanically by `ameide primitive verify` (without running tests); leaving markers in place fails verification by default.
+All scaffold tests include the string `AMEIDE_SCAFFOLD` in their failure message. This marker is language-agnostic and is checked mechanically in **Phase 0** of `ameide test` (without running tests); leaving markers in place fails Phase 0 by default.
 
 **Go (Domain / Process / Projection / Integration):**
 
@@ -112,8 +112,8 @@ test("server responds to /healthz", async () => {
 
 1. **Scaffold** → Tests are generated in RED state with `AMEIDE_SCAFFOLD` marker
 2. **Implement** → Replace scaffold failures with real assertions, remove marker
-3. **Verify** → `ameide primitive verify` passes (mechanical alignment; does not run tests)
-4. **Test** → `ameide test` passes (Phase 0/1/2 per 430v2; in-repo only)
+3. **Test (local gate)** → `ameide test` passes (Phase 0/1/2 per 430v2; in-repo only)
+4. **Test (cluster gate, when applicable)** → `ameide test cluster` passes (Phase 3/4; cluster-only)
 5. **Refactor** → Improve implementation while keeping tests green
 
 ---
@@ -129,7 +129,7 @@ Each primitive type has specific invariants that tests must verify. These go bey
 | Handler returns correct response | Unit test per RPC | `internal/tests/<rpc>_test.go` |
 | Outbox receives correct events | Mock `EventOutbox`, assert `Insert()` calls | `internal/tests/<rpc>_test.go` |
 | Event envelope metadata complete | Assert `OutboxEvent` has tenant_id, idempotency key, trace context | `internal/tests/<rpc>_test.go` |
-| No broker imports in handlers | Import policy check (verify command) | CI |
+| No broker imports in handlers | Import policy check (Phase 0 doctrine gate) | CI |
 | Aggregate version tracking | Assert version increments on state changes | `internal/tests/<aggregate>_test.go` |
 
 **Required Test Files:**
@@ -319,21 +319,21 @@ def test_agent_state_not_business_truth():
 ### 3.1 Non-Negotiable Rules
 
 1. **"No tests found" = FAIL.** Scaffolds always generate tests. If a primitive has no tests, something is wrong.
-2. **Scaffold markers must be replaced.** Any `AMEIDE_SCAFFOLD` marker in a test file causes `ameide primitive verify` to fail.
-3. **CI runs the same commands as `ameide test`.** Tests run only via `ameide test` (Phase 0/1/2) and `ameide test cluster` (deployed target). `ameide primitive verify` remains a mechanical alignment gate.
+2. **Scaffold markers must be replaced.** Any `AMEIDE_SCAFFOLD` marker in a test file causes Phase 0 of `ameide test` to fail.
+3. **CI runs the same front doors as developers.** Tests run only via `ameide test` (Phase 0/1/2) and `ameide test cluster` (Phase 3/4).
 
 ### 3.2 Phase Semantics (430v2)
 
 Strict phases, clearly defined:
+| Phase | Front door | Environment | Allowed dependencies | Use case |
+|------:|------------|-------------|----------------------|----------|
+| **0: Contract** | `ameide test` | Local | discovery/compile-only | fail fast; deterministic |
+| **1: Unit** | `ameide test` | Local | pure mocks only | fastest feedback; no I/O |
+| **2: Integration-local** | `ameide test` | Local | mocks/stubs/in-memory fakes only | boundary tests without cluster |
+| **3: Integration-cluster** | `ameide test cluster` | Cluster | real environment only | deployed semantics/smokes |
+| **4: Playwright E2E** | `ameide test cluster` | Cluster | Playwright only | user journeys / real ingress |
 
-| Phase | Environment | Allowed dependencies | Use case |
-|------:|-------------|----------------------|----------|
-| **1: Unit** | Local | pure mocks only | fastest feedback; no I/O |
-| **2: Integration-local** | Local | mocks/stubs/in-memory doubles only | boundary tests without cluster |
-| **4: Integration-cluster** | Cluster | real cluster dependencies only | runtime semantics / cluster smokes |
-| **5: Playwright E2E** | Cluster | real environment only; Playwright only | user journeys / real ingress |
-
-**Important:** Phase 1 and Phase 2 must not touch Kubernetes, Tilt, or Telepresence. Cluster interaction happens only in Phase 4/5 via `ameide test cluster`.
+**Important:** Phases 0/1/2 must not touch Kubernetes, Tilt, or Telepresence. Cluster interaction lives in `ameide test cluster` (Phase 3/4).
 
 ### 3.3 Verify Behavior
 
@@ -346,16 +346,16 @@ ameide test
 | All tests pass | **PASS** |
 | Tests exist but some fail | **FAIL** |
 | No tests found | **FAIL** (not WARN) |
-| `AMEIDE_SCAFFOLD` marker present | **FAIL** (also fails `ameide primitive verify`) |
+| `AMEIDE_SCAFFOLD` marker present | **FAIL** (Phase 0 contract gate) |
 
 ### 3.4 CI Workflow Integration
 
 ```yaml
-- name: Verify Primitive Structure (mechanical)
-  run: ameide primitive verify --all
-
-- name: Run In-Repo Tests (Phase 0/1/2)
+- name: Run in-repo verification (Phase 0/1/2)
   run: ameide test
+
+- name: Run cluster-only verification (Phase 3/4)
+  run: ameide test cluster
 ```
 
 ---
@@ -533,22 +533,17 @@ describe("Server", () => {
 
 ---
 
-## 5. Verification Command Integration
+## 5. Verification Front Doors
 
-`ameide primitive verify` is a mechanical alignment gate. Tests run via `ameide test`:
+`ameide test` is the local-only verification front door. It includes Phase 0 mechanical alignment (toolchain, repo invariants, scaffold marker scan, codegen freshness, doctrine checks) plus Phase 1/2 tests.
 
 ```bash
-# Verify structural alignment (no tests executed)
-ameide primitive verify --kind domain --name orders
-
-# Run in-repo tests (Phase 0/1/2)
+# Run in-repo verification (Phase 0/1/2)
 ameide test
 
-# Run deployed-system E2E (preview/dev ingress)
+# Run cluster-only verification (Phase 3/4; preview/dev ingress)
 ameide test cluster
 ```
-
-`ameide primitive verify --json` should report structural/mechanical checks only (shape, imports, codegen drift, scaffold marker scan), not test execution results.
 
 ---
 
@@ -594,7 +589,7 @@ func TestEventEnvelopeMetadata(t *testing.T) {
 - `AMEIDE_SCAFFOLD` universal marker in scaffold test failures
 - `go test` / `pytest` / `npm test` in CI for primitives
 - `ameide test` runs language-appropriate tests and fails when no tests exist
-- Scaffold markers fail `ameide primitive verify` by default (any test file containing `AMEIDE_SCAFFOLD`)
+- Scaffold markers fail Phase 0 of `ameide test` by default (any test file containing `AMEIDE_SCAFFOLD`)
 - `Codegen` drift gate (fails if generated outputs are stale)
 
 ### Pending
@@ -684,7 +679,7 @@ This section documents gaps between this spec (537) and the current CLI implemen
 
 **Implemented (CLI gate is real):**
 - Universal `AMEIDE_SCAFFOLD` marker in scaffold test failures (Go/Python/Node).
-- Scaffold markers fail `ameide primitive verify` by default (any test file containing `AMEIDE_SCAFFOLD`).
+- Scaffold markers fail Phase 0 of `ameide test` by default (any test file containing `AMEIDE_SCAFFOLD`).
 - `Codegen` check validates generated output freshness (TS via temp-tree generation+diff; Go/Python via proto vs generated-file timestamps).
 
 **Still needed (to make tests “meaningful”, not just present):**
@@ -728,7 +723,7 @@ This is the **ideal**, checklist-driven refactor set to bring the repo in line w
 
 ### 10.2 Verification Behavior (phase discipline enforcement)
 
-- [ ] `ameide primitive verify` must remain mechanical:
+- [ ] Phase 0 of `ameide test` must remain mechanical:
   - [ ] FAIL when any test file contains `AMEIDE_SCAFFOLD`.
   - [ ] MUST NOT execute tests.
 - [ ] `ameide test` must:

@@ -2,7 +2,7 @@
 
 **Status:** Active
 **Created:** 2025-12-22
-**Updated:** 2026-01-20
+**Updated:** 2026-01-21
 
 > **Update (2026-01): 430v2 contract**
 >
@@ -24,6 +24,8 @@ This mirrors the 430v2 test contract phases in CI (Phase 0/1/2) and writes artif
 ## Implementation status
 
 This front door is now implemented as a first-class Go CLI entrypoint and merged into `ameide` `main` (PR: `ameideio/ameide#582`). Deployed-system verification is now owned by the explicit CLI command `ameide test cluster`, which runs cluster integration (Go `//go:build cluster`) followed by Playwright E2E (runner shipped in PR: `ameideio/ameide#589`).
+
+Phase 0 of `ameide test` is now the single place for deterministic repo preflight (toolchain readiness, codegen freshness, doctrine checks). Historical helper commands like `ameide doctor` and `ameide primitive verify` are removed in favor of the front doors above.
 
 ## Agent inner loop (one command)
 

@@ -24,7 +24,7 @@ The CLI operates across **two logical repositories** (which may be consolidated 
 
 | Repo | Contains | CLI Focus |
 |------|----------|-----------|
-| **Core repo** | Code, proto, SDKs, operators, CRD *schemas* | `describe`, `drift`, `verify`, `scaffold` (code) |
+| **Core repo** | Code, proto, SDKs, operators, CRD *schemas* | `ameide test`, `ameide test cluster`, and `ameide primitive` (describe/drift/plan/impact/scaffold/prompt/publish) |
 | **GitOps repo** | CRD *instances*, environment values, ApplicationSets | trigger CI scaffolding workflow (670), promotion PRs, GitOps gate validation |
 
 **Key distinction:**
@@ -53,9 +53,6 @@ ameide primitive describe --json
 
 # Separate repos
 ameide primitive describe --repo-root ~/ameide-core --gitops-root ~/ameide-gitops --json
-
-# GitOps-only operations
-ameide primitive verify --gitops-root ~/ameide-gitops --check gitops-only --json
 ```
 
 ---
@@ -141,19 +138,12 @@ ameide-gitops/  # or gitops/ subdirectory in monorepo
 
 The CLI aligns with the unified test infrastructure defined in `backlog/430-unified-test-infrastructure-v2-target.md`.
 
-### 4.1 Verify Modes
+### 4.1 Test Front Doors
 
-`ameide primitive verify` supports two modes:
+Per 430v2, the only verification front doors are:
 
-| Mode | Flag | Behavior |
-|------|------|----------|
-| `mock` | `--mode mock` (default) | In-memory stubs, fast, local |
-| `cluster` | `--mode cluster` | Real Kubernetes services via Telepresence |
-
-```bash
-# Fast local check (default)
-ameide primitive verify --kind domain --name orders --json
-```
+- `ameide test` (Phase 0/1/2; local-only; deterministic; no Kubernetes/Telepresence)
+- `ameide test cluster` (Phase 3/4; cluster-only; requires Kubernetes; includes Playwright)
 
 ### 4.2 Scaffolded Test Structure
 
@@ -169,17 +159,11 @@ primitives/domain/{name}/
 
 ### 4.4 Verify Output Formats
 
-Verify emits both JSON and JUnit:
-
-```bash
-ameide primitive verify --kind domain --name orders --json
-# stdout: VerifyResult JSON
-# artifacts/{name}/junit.xml: JUnit XML for CI
-```
+`ameide test` and `ameide test cluster` emit deterministic logs and JUnit under `artifacts/agent-ci/<timestamp>/`.
 
 ### 4.5 Fail Fast
 
-Per 430v2, verify must:
+Per 430v2, the front doors must:
 - Exit non-zero immediately on any failure
 - Never skip tests silently
 - Never fallback to defaults for required inputs

@@ -121,7 +121,7 @@ sources/values/_shared/apps/uisurface-<name>-<version>-smoke.yaml               
 
 ## 3. Verification expectations
 
-`ameide primitive verify --kind uisurface --name <name>` is expected to check:
+Phase 0 of `ameide test` is expected to check:
 
 - Presence of `src/server/server.ts` and `src/server/routes/**`.  
 - `src/proto/index.ts` imports from SDK (`@ameideio/ameide-sdk-ts`), not `@ameide/core-proto`, in line with `SDK_USAGE.md`.  

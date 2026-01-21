@@ -116,8 +116,7 @@ The CLI must assume it is being run under a profile’s instruction scope (agent
 Current command groups include:
 
 - `ameide test` (Phase 0/1/2)
-- `ameide test cluster` (Phase 4/5: Go integration-cluster + Playwright E2E; reads base URL from `ConfigMap/www-ameide-platform-config`)
-- `ameide doctor` (preflight deterministic requirements)
+- `ameide test cluster` (Phase 3/4: Go integration-cluster + Playwright E2E; reads base URL from `ConfigMap/www-ameide-platform-config`)
 - `ameide dev` (human inner-loop utilities; currently partial/legacy, see §6.7 target posture)
 
 Current drift vs internal-first model:
@@ -132,8 +131,7 @@ Current drift vs internal-first model:
 The CLI surface is organized by intent:
 
 - **`ameide test`**: no-brainer verification front door (Phase 0/1/2) for agents and humans
-- **`ameide test cluster`**: cluster-only verification front door (Phase 4/5: integration-cluster + Playwright E2E) against a deployed preview environment
-- **`ameide doctor`**: toolchain and environment preflight (deterministic readiness)
+- **`ameide test cluster`**: cluster-only verification front door (Phase 3/4: integration-cluster + Playwright E2E) against a deployed preview environment
 
 Notes:
 
@@ -147,8 +145,8 @@ Notes:
    - never touches cluster networking, Telepresence, or privileged capabilities
 
 2. `ameide test cluster`
-   - runs Phase 4: Go integration-cluster suites (`//go:build cluster`)
-   - runs Phase 5: Playwright E2E against a deployed target (preview env truth)
+   - runs Phase 3: Go integration-cluster suites (`//go:build cluster`)
+   - runs Phase 4: Playwright E2E against a deployed target (preview env truth)
    - is intentionally not part of the Phase 0/1/2 front door
 
 ### 5.3 Profile-aware guardrails (defense in depth)
@@ -185,7 +183,7 @@ The template-scoped `AGENTS.md` defines additional instructions for the agent, b
 
 ### 6.2 Agent execution (Coder task; code profile)
 
-- preflight: `ameide doctor --strict` (power tool; may be called by orchestrator)
+- preflight: Phase 0 of `ameide test` (toolchain + repo invariants; deterministic)
 - verification: `ameide test`
 - output: evidence bundle + PR URL (if the task is “patch”)
 

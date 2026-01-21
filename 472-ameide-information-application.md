@@ -542,7 +542,7 @@ This is the standard pattern for implementing a Domain primitive.
 3. **Queries are read-only** and never have side effects
 4. **Only Domain primitives write to DB**; Process/Agent/UISurface call Domain APIs
 
-**Proto enforcement** (validated in CI via Buf lint/breaking + naming rules; `ameide primitive verify` may wrap these checks locally):
+**Proto enforcement** (validated in CI via Buf lint/breaking + naming rules; Phase 0 of `ameide test` enforces local, deterministic guardrails):
 - Domain/Process services: Allowed prefixes include `Create/Place/Cancel/Approve/Reject/Assign/Submit/Start/Complete/Archive/...`
 - Forbidden generics: `Update/Set/Delete/Patch/Modify` (too vague, doesn't express business intent)
 - Exception: `Delete` is acceptable for hard-delete semantics when business intent is clear (e.g., `DeleteDraftOrder`)
