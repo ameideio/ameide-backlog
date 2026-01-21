@@ -143,3 +143,37 @@ Contract alignment:
 - The “first admin user exists” must be ensured by a **reconciler CronJob** (P1), because Coder DB can be reset on cluster recreate (see 677).
 - The bootstrap user inputs (`coder-bootstrap-admin-*`) remain sourced from the secrets pipeline (Vault/AKV), not from template parameters.
 - Coder associates a login type per user. In SSO-only deployments, the seeding unit must ensure the seeded admin user’s `login_type` is `oidc` (not `password`), otherwise Keycloak login for that identity fails with “Incorrect login type”.
+
+## Applying this contract to GitLab (CE)
+
+Problem classes:
+
+- **Application DB bootstrap state:** ensure a deterministic platform admin identity exists and can sign in via OIDC after cluster/DB resets.
+- **Service-generated secrets:** GitLab-minted API tokens for in-cluster consumers (GitLab → Vault → ESO → Kubernetes Secret).
+
+Contract alignment (implementation in `ameide-gitops`):
+
+- **P1 Reconciler CronJobs (required)**
+  - `CronJob/platform-gitlab-admin-reconciler`:
+    - Ensures `admin@ameide.io` exists as a valid GitLab user (username is not reserved; personal namespace exists; user is active/confirmed; `admin=true`).
+    - Enforces instance defaults (signups disabled; usage ping/product usage data disabled).
+  - `CronJob/platform-gitlab-service-tokens-reconciler`:
+    - Mints/rotates per-service GitLab API tokens in GitLab, writes them into Vault, and relies on External Secrets Operator to materialize them into in-cluster Secrets for consumers.
+
+- **C1 Failfast on required inputs**
+  - Admin reconciler fails if the bootstrap admin password is missing/unreadable in managed environments (no auto-generation).
+  - Token reconciler fails if prerequisites are missing (bootstrap admin missing/not admin, Vault login fails, invalid token scopes, etc.).
+
+- **C2 Idempotent, safe re-run**
+  - “Already exists” is success; jobs reconcile drift deterministically instead of deleting/recreating objects.
+  - Token rotation is expiry-aware and re-runnable.
+
+- **C3 Self-healing after resets**
+  - If GitLab DB state resets (or namespaces/users/tokens disappear), the reconciler CronJobs restore the required state without manual UI steps.
+
+- **C4 Observable evidence**
+  - CronJobs keep short history and retain Job evidence long enough for debugging (no immediate TTL cleanup).
+
+- **C5 Clean wiring**
+  - Managed environments do not depend on Terraform to maintain GitLab runtime secrets/tokens; Terraform may bootstrap infra, but in-cluster reconcilers maintain service-generated secrets.
+  - Local dev may explicitly opt into generating a bootstrap admin password (disposable clusters), but this must be an explicit local-only override (no silent fallback in managed clusters).
