@@ -243,6 +243,13 @@ Minimum UX flow:
 
 * **UI integration:** asserts UI uses Process/Domain/Projection/Agent SDKs and does not import GitLab SDK packages or internal GitLab adapter packages.
 * **UI smoke:** end-to-end through the flow with local harness provider.
+* **Playwright e2e (cluster, descriptive)**
+
+  * Start the `arch.publish_vision` workflow and complete a full publish path through Process (never direct Domain publish).
+  * Draft (manual or agent-assisted) `architecture/vision.md`, `architecture/statement-of-work.md`, and `requirements/REQ-TRAVEL-001.md`.
+  * Verify the publish results screen shows the Evidence Spine anchor: MR iid + `target_head_sha`.
+  * Verify `published` now resolves to `target_head_sha` by re-opening the three files and confirming their citations reference the same SHA.
+  * Negative: attempt to publish with stale MR head SHA fails deterministically and does not “half publish.”
 
 ---
 

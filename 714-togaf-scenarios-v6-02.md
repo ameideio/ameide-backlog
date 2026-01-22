@@ -307,6 +307,16 @@ Minimum UI routes/components (aligned with Scenario B):
 * **UI integration:** requirement index loads from Projection; no GitLab calls.
 * **UI e2e smoke:** open REQ-TRAVEL-001 → backlinks visible → “why linked?” opens cited location.
 * **UI negative:** duplicate ID error UI renders candidate citations; broken ref UI renders origin citations.
+* **Playwright e2e (cluster, descriptive)**
+
+  * Open the derived requirements index and confirm it comes from Projection (and shows the resolved SHA).
+  * Open `REQ-TRAVEL-001` by element id and verify:
+
+    * canonical file citation `{repo, sha, path[, anchor]}` is shown,
+    * backlinks/impact panel renders at least one backlink,
+    * “why linked?” reveals an origin snippet anchored to an immutable SHA.
+  * Negative: trigger a broken ref (`ref: REQ-404`) and confirm UI surfaces “Broken reference” with origin citations.
+  * Negative: trigger duplicate id (`id: REQ-TRAVEL-001` in two files at same SHA) and confirm UI shows ambiguity with candidate citations (no arbitrary winner).
 
 ---
 

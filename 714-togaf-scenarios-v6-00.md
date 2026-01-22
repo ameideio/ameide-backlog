@@ -286,6 +286,12 @@ This is consistent with the Slice 0 “repo tree + element editor shell” conce
 * **UI e2e smoke (local)**
 
   * Onboard → browse → open file → ask agent produces proposal
+* **Playwright e2e (cluster, descriptive)**
+
+  * Open the repository page and confirm `Published @ <sha>` is shown.
+  * Browse the root tree, open `requirements/REQ-TRAVEL-001.md`, and verify the citation block `{repo_id, sha, path}` uses the resolved published SHA.
+  * Start the `repo.explore` process and request an agent proposal; the UI must render proposal text plus citations (no uncited claims).
+  * Negative: missing path yields an explicit NotFound-style UI error (no silent empty content).
 
 ---
 

@@ -338,6 +338,18 @@ Minimum screens:
 * **UI smoke:** create/view WP → execute → see deliveries after publish.
 * **UI integration:** “Deliveries” view renders Domain Evidence Spine data by reference; UI does not invent an evidence schema.
 * **Boundary test:** UI never imports GitLab clients.
+* **Playwright e2e (cluster, descriptive)**
+
+  * Create or open `WP-001` and confirm the UI renders:
+
+    * Implements: `REQ-TRAVEL-001` derived from refs (with “why linked?” origins),
+    * Deliveries: derived from Projection trace and linked back to Domain Evidence Spine references.
+  * Run `wp.execute` and verify:
+
+    * process state progression is visible,
+    * agent plan and delivery summary are rendered with citations,
+    * publish occurs via Process → Domain and yields a new `target_head_sha`.
+  * Negative: if Evidence Spine has no `declared_work_item_ids=["WP-001"]`, the UI must show “no deliveries recorded” (no heuristic guessing).
 
 ---
 

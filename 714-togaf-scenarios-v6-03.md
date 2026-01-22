@@ -261,6 +261,18 @@ Minimum UX flow:
 * **UI integration:** publish path never calls Domain.PublishChange; only Process endpoint.
 * **UI smoke:** shows both contexts and their resolved SHAs; renders added backlink row with “why linked?” origin citation.
 * **UI negative:** publish disabled until approval + impact preview exist (reflecting Process state).
+* **Playwright e2e (cluster, descriptive)**
+
+  * Open the review UI for `REQ-TRAVEL-001` and verify the context switcher shows:
+
+    * Published @ sha_A (resolved)
+    * Proposal @ sha_head (resolved)
+  * Verify the impact/backlinks panel renders a deterministic diff (added/removed) and each row can open “why linked?” origin snippets.
+  * Verify Publish is disabled until:
+
+    * an agent impact preview packet exists, and
+    * at least one approval is recorded in Process state.
+  * Verify Publish goes through Process (not direct Domain publish) and results in a new published anchor (`target_head_sha`) that matches subsequent `published` reads.
 
 ---
 

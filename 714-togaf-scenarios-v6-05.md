@@ -217,6 +217,15 @@ One capability-owned integration test proves, from empty state:
 
 * **UI smoke:** open a view and render nodes/edges from the view file.
 * **UI negative:** invalid relationship shows a deterministic validation failure (from Domain/Process/Projection seams).
+* **Playwright e2e (cluster, descriptive)**
+
+  * Browse by scheme/type (registry-driven navigation) and open `REQ-TRAVEL-001` as `togaf.requirement`.
+  * Verify type-driven widgets render for requirements (e.g., Derived/Impact, Evidence/Trace, Governance/Validation) and all derived rows include citations.
+  * Open an ArchiMate view that includes a Requirement element linked to `REQ-TRAVEL-001` and verify:
+
+    * view membership edges render deterministically,
+    * layout comes from the same Git file (no sidecar),
+    * metamodel/view-membership validation failures surface as first-class outcomes.
 
 ---
 
