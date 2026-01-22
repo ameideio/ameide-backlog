@@ -1267,7 +1267,7 @@ Apps still reconciling (may self-heal once P0 fixed):
 
 **Root Cause**: Per the Argo CD operator manual (`docs/operator-manual/server-commands/argocd-application-controller.md`), the application controller stores managed-resource diffs in a one-hour cache (`--app-state-cache-expiration`, default `1h0m0s`). With ~200 apps reconciling every three minutes, entries naturally expire every hour and the next reconciliation logs an error when the cache miss occurs—even though the controller immediately recomputes the diff and continues.
 
-**Fix Applied**: Extended the cache TTL to six hours by setting `controller.env[ARGOCD_APP_STATE_CACHE_EXPIRATION]=6h` in `sources/values/common/argocd.yaml`. Helm installs or the GitOps bootstrap (`ameide-gitops/bootstrap/bootstrap.sh`) now render the updated environment variable so the controller retains app-state cache entries between hourly polls.
+**Fix Applied**: Extended the cache TTL to six hours by setting `controller.env[ARGOCD_APP_STATE_CACHE_EXPIRATION]=6h` in `sources/values/common/argocd.yaml`. Helm installs or the GitOps bootstrap (`ameide-gitops/bootstrap/argocd-bootstrap.sh`) now render the updated environment variable so the controller retains app-state cache entries between hourly polls.
 
 **Validation**:
 1. `helm upgrade --install argocd ... -f sources/values/common/argocd.yaml` (or rerun bootstrap) to roll out the new env var.

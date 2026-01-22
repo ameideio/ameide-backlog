@@ -8,7 +8,7 @@ Goal: retire every `infra/kubernetes/helmfiles/*.yaml` release from the **runtim
 
 This document captures the target Git layout, ApplicationSet strategy, and a migration checklist so we can fence Helmfile into that rendering-only role once the v5 GitOps setup is complete.
 
-> **Bootstrap reference:** Execution steps that previously called `tools/bootstrap/bootstrap-v2.sh` now map to `ameideio/ameide-gitops: bootstrap/bootstrap.sh`. DevContainers in `ameideio/ameide` use `tools/dev/bootstrap-contexts.sh` solely to configure kubectl/Telepresence/argocd against the shared AKS cluster per [435-remote-first-development.md](435-remote-first-development.md).
+> **Bootstrap reference:** Execution steps that previously called `tools/bootstrap/bootstrap-v2.sh` now map to `ameideio/ameide-gitops: bootstrap/argocd-bootstrap.sh`. DevContainers in `ameideio/ameide` use `tools/dev/bootstrap-contexts.sh` solely to configure kubectl/Telepresence/argocd against the shared AKS cluster per [435-remote-first-development.md](435-remote-first-development.md).
 
 ---
 
@@ -132,7 +132,7 @@ For each helmfile (track status as we migrate):
 
 | Helmfile | Action | Status (2025-11-12) |
 | --- | --- | --- |
-| `00-argocd` | Already replaced by bootstrap manifest. Keep Helmfile for `helm template`, but mark it “render-only” and never apply. | ✅ handled historically by `tools/bootstrap/bootstrap-v2.sh` (now `ameide-gitops/bootstrap/bootstrap.sh`), which runs automatically from the GitOps bootstrap |
+| `00-argocd` | Already replaced by bootstrap manifest. Keep Helmfile for `helm template`, but mark it “render-only” and never apply. | ✅ handled historically by `tools/bootstrap/bootstrap-v2.sh` (now `ameide-gitops/bootstrap/argocd-bootstrap.sh`), which runs automatically from the GitOps bootstrap |
 | `10-bootstrap` | Convert namespace chart + smoke jobs into components (`foundation/namespaces`, `foundation/bootstrap-smoke`). Keep Helmfile as rendering input. | ✅ migrated → `foundation-dev` ApplicationSet (`wave00` / `wave05`) |
 | `12-crds` | Components per CRD package (`foundation/crds/*`). Helmfile retained for rendering. | ✅ migrated → `foundation/crds/gateway-api` + `foundation/crds/prometheus-operator` (wave10) |
 | `15-secrets-certificates` | `foundation/certificates`, `foundation/secrets`. Helmfile retained for rendering only. | ✅ cert-manager + External Secrets operators + Vault/secret-store bundles + smoke job migrated (waves 15–21) |

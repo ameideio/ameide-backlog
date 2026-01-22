@@ -100,7 +100,7 @@ k3d cluster create --config k3d-ameide.yaml
 
 # 5. Bootstrap GitOps (recommended, idempotent)
 # Gateway API CRDs, Envoy Gateway, cert-manager, and all platform routing are installed by Argo CD.
-./bootstrap/bootstrap.sh --config bootstrap/configs/local.yaml --install-argo --apply-root-apps --wait-tiers
+./bootstrap/argocd-bootstrap.sh --config bootstrap/configs/local.yaml --install-argo --apply-root-apps --wait-tiers
 
 # Verify the controller is installed (control-plane runs in `argocd`)
 kubectl wait --for=condition=Available -n argocd deployment/envoy-gateway --timeout=60s
@@ -490,7 +490,7 @@ up: ## Start cluster and platform
 	@k3d cluster create ameide --config k3d-config.yaml
 
 	@echo "Bootstrapping GitOps (installs Gateway API, Envoy Gateway, cert-manager, platform)..."
-	@./bootstrap/bootstrap.sh --config bootstrap/configs/local.yaml --install-argo --apply-root-apps --wait-tiers
+	@./bootstrap/argocd-bootstrap.sh --config bootstrap/configs/local.yaml --install-argo --apply-root-apps --wait-tiers
 
 down: ## Stop cluster
 	@k3d cluster delete ameide

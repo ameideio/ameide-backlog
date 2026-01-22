@@ -2,12 +2,12 @@ Below is a vendor‑docs‑aligned way to wire **Dev Containers** (VS Code / Dev
 
 > **UI performance:** See `backlog/681-argocd-ui-performance.md` for tuning notes with ~400 Applications.
 
-> **Bootstrap location:** The CLI previously referenced here as `tools/bootstrap/bootstrap-v2.sh` now resides in the `ameideio/ameide-gitops` repository (`bootstrap/bootstrap.sh`). Developer bootstrap inside `ameideio/ameide` is limited to `.devcontainer/postCreate.sh` plus `tools/dev/bootstrap-contexts.sh`, which connect the DevContainer to the shared AKS cluster per [435-remote-first-development.md](435-remote-first-development.md). Treat the k3d/bootstrap instructions below as historical context unless you are working inside the GitOps repo.
+> **Bootstrap location:** The CLI previously referenced here as `tools/bootstrap/bootstrap-v2.sh` now resides in the `ameideio/ameide-gitops` repository (`bootstrap/argocd-bootstrap.sh`). Developer bootstrap inside `ameideio/ameide` is limited to `.devcontainer/postCreate.sh` plus `tools/dev/bootstrap-contexts.sh`, which connect the DevContainer to the shared AKS cluster per [435-remote-first-development.md](435-remote-first-development.md). Treat the k3d/bootstrap instructions below as historical context unless you are working inside the GitOps repo.
 
 * **`ameide`** – the main app source (we’ll put the Dev Container and `Tiltfile` here).
 * **`ameide-gitops`** – the GitOps repo Argo CD will watch.
 
-_Current status:_ the repo now follows this vendor workflow. _Migration plan:_ not applicable. _Status checkpoints:_ `.devcontainer/postCreate.sh` (which historically shelled into `tools/bootstrap/bootstrap-v2.sh` before the bootstrap CLI moved to `ameide-gitops/bootstrap/bootstrap.sh`) loads `.env`, installs k3d/Tilt/argocd CLI, applies Argo CD manifests, registers repo credentials, runs `kubectl port-forward`, and logs everything to `/home/vscode/.devcontainer-bootstrap.log`.
+_Current status:_ the repo now follows this vendor workflow. _Migration plan:_ not applicable. _Status checkpoints:_ `.devcontainer/postCreate.sh` (which historically shelled into `tools/bootstrap/bootstrap-v2.sh` before the bootstrap CLI moved to `ameide-gitops/bootstrap/argocd-bootstrap.sh`) loads `.env`, installs k3d/Tilt/argocd CLI, applies Argo CD manifests, registers repo credentials, runs `kubectl port-forward`, and logs everything to `/home/vscode/.devcontainer-bootstrap.log`.
 
 ---
 
@@ -64,7 +64,7 @@ Create **`.devcontainer/devcontainer.json`** in `ameide`:
 
 > `mounts`, `features`, and lifecycle commands are first‑class Dev Container spec properties. ([Dev Containers][6])
 
-_Current status:_ the repo now follows this vendor workflow. _Migration plan:_ not applicable. _Status checkpoints:_ `.devcontainer/postCreate.sh` used to call `k3d registry create` / `k3d cluster create` indirectly via `tools/bootstrap/bootstrap-v2.sh`; those steps now live in the GitOps bootstrap (`ameide-gitops/bootstrap/bootstrap.sh`). Inspect `/home/vscode/.devcontainer-bootstrap.log` for the latest legacy run. Tilt builds run against this cluster (`allow_k8s_contexts('k3d-ameide')` in the new `Tiltfile`).
+_Current status:_ the repo now follows this vendor workflow. _Migration plan:_ not applicable. _Status checkpoints:_ `.devcontainer/postCreate.sh` used to call `k3d registry create` / `k3d cluster create` indirectly via `tools/bootstrap/bootstrap-v2.sh`; those steps now live in the GitOps bootstrap (`ameide-gitops/bootstrap/argocd-bootstrap.sh`). Inspect `/home/vscode/.devcontainer-bootstrap.log` for the latest legacy run. Tilt builds run against this cluster (`allow_k8s_contexts('k3d-ameide')` in the new `Tiltfile`).
 
 **`.devcontainer/Dockerfile`** (minimal base that uses the spec + apt tools as needed):
 

@@ -1,6 +1,6 @@
 # 415 – k3d dev registry end-to-end flow (implementation notes)
 
-> ⚠️ **Deprecated workflow:** These notes cover the legacy k3d dev registry. The supported approach is now remote-first AKS + Telepresence (backlog/435). Keep this file for archival purposes only. References to `tools/bootstrap/bootstrap-v2.sh` map to the GitOps bootstrap currently located at `ameide-gitops/bootstrap/bootstrap.sh`.
+> ⚠️ **Deprecated workflow:** These notes cover the legacy k3d dev registry. The supported approach is now remote-first AKS + Telepresence (backlog/435). Keep this file for archival purposes only. References to `tools/bootstrap/bootstrap-v2.sh` map to the GitOps bootstrap currently located at `ameide-gitops/bootstrap/argocd-bootstrap.sh`.
 
 ## Objectives
 - Single dev registry endpoint: `k3d-ameide.localhost:5001/ameide`, used by builders, GitOps values, and cluster pulls.
@@ -9,7 +9,7 @@
 - Image naming uses hyphens across the fleet (`agents-runtime`, `www-ameide`, `www-ameide-platform`, etc.); avoid underscore repos to match GitOps values and containerd pulls.
 
 ## Bootstrap mechanics
-- Entry point: `ameide-gitops/bootstrap/bootstrap.sh --config bootstrap/configs/dev.yaml` (legacy references may still mention `tools/bootstrap/bootstrap-v2.sh` inside `ameide-core`).
+- Entry point: `ameide-gitops/bootstrap/argocd-bootstrap.sh --config bootstrap/configs/dev.yaml` (legacy references may still mention `tools/bootstrap/bootstrap-v2.sh` inside `ameide-core`).
 - Defaults:
   - `K3D_REGISTRY_PORT=5001`
   - `BUILD_IMAGES=1` (unless `--skip-build-images`)

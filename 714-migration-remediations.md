@@ -115,7 +115,7 @@ Make ArgoCD use the Dex server at the correct base path by setting the effective
 - Implementation in `ameide-gitops`:
   - `sources/values/common/argocd.yaml`
 - Deploy via CI:
-  - `Terraform Azure Apply + Verify` workflow (which runs `bootstrap/bootstrap.sh --install-argo` to Helm-upgrade ArgoCD)
+  - `Terraform Azure Apply + Verify` workflow (which runs `bootstrap/argocd-bootstrap.sh --install-argo` to Helm-upgrade ArgoCD)
 
 ### Note (mitigation / compatibility)
 

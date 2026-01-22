@@ -238,7 +238,7 @@ ameide-gitops/
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│ bootstrap/bootstrap.sh                                           │
+│ bootstrap/argocd-bootstrap.sh                                    │
 │   --config bootstrap/configs/<env>.yaml                          │
 │   --bicep-outputs artifacts/bicep-outputs/<env>.json             │
 │   --install-argo                                                 │
@@ -508,7 +508,7 @@ export GITHUB_TOKEN=<your-token>
 ./scripts/deploy-managed-app.sh staging
 
 # 5. Bootstrap GitOps
-./bootstrap/bootstrap.sh \
+./bootstrap/argocd-bootstrap.sh \
   --config bootstrap/configs/staging.yaml \
   --bicep-outputs artifacts/bicep-outputs/staging.json \
   --install-argo \

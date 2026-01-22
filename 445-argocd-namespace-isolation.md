@@ -175,7 +175,7 @@ When environments are scaled down (e.g., dev at night):
 ### Disaster Recovery
 
 If ArgoCD namespace is deleted:
-1. Re-run `bootstrap/bootstrap.sh --install-argo --apply-root-apps`
+1. Re-run `bootstrap/argocd-bootstrap.sh --install-argo --apply-root-apps`
 2. ArgoCD self-heals by syncing `argocd-config` Application
 3. Cert-manager and TLS are restored automatically
 

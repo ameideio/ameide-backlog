@@ -57,7 +57,7 @@ DevContainers are a **developer execution substrate** (interactive loop). Platfo
 
 Remote-first means two purpose-built bootstraps:
 
-- **GitOps bootstrap (`ameideio/ameide-gitops: bootstrap/bootstrap.sh`)** – Installs Argo CD, applies the RollingSync ApplicationSet, and wires repo/registry secrets for every environment (k3d, dev AKS, staging, prod). Platform engineering and CI/CD invoke this script whenever a cluster needs to converge to the desired GitOps state.
+- **GitOps bootstrap (`ameideio/ameide-gitops: bootstrap/argocd-bootstrap.sh`)** – Installs Argo CD, applies the RollingSync ApplicationSet, and wires repo/registry secrets for every environment (k3d, dev AKS, staging, prod). Platform engineering and CI/CD invoke this script whenever a cluster needs to converge to the desired GitOps state.
 - **Developer bootstrap (`ameide/tools/dev/bootstrap-contexts.sh`)** – Runs automatically from `.devcontainer/postCreate.sh`, refreshing AKS credentials, normalizing `kubectl` contexts, writing Telepresence defaults, and logging the `argocd` CLI into the shared control plane via a managed port-forward. It assumes the GitOps bootstrap has already converged the cluster.
 
 Docs that still reference `tools/bootstrap/bootstrap-v2.sh` refer to the GitOps bootstrap’s historical location; defer to the sections above for current ownership.

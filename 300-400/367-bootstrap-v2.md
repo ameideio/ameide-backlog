@@ -4,7 +4,7 @@
 >
 > As part of [435-remote-first-development.md](435-remote-first-development.md), the bootstrap CLI
 > and library have been moved to the `ameideio/ameide-gitops` repository:
-> - `tools/bootstrap/bootstrap-v2.sh` → `ameide-gitops/bootstrap/bootstrap.sh`
+> - `tools/bootstrap/bootstrap-v2.sh` → `ameide-gitops/bootstrap/argocd-bootstrap.sh`
 > - `tools/bootstrap/lib/*` → `ameide-gitops/bootstrap/lib/*`
 > - `infra/environments/*/bootstrap.yaml` → `ameide-gitops/bootstrap/configs/*.yaml`
 >
@@ -21,12 +21,12 @@
 We now operate **two complementary bootstrap flows**:
 
 1. **GitOps / cluster bootstrap (this document, now housed in `ameideio/ameide-gitops`).**
-   `ameide-gitops/bootstrap/bootstrap.sh` installs Argo CD, seeds repo/registry secrets, applies the RollingSync ApplicationSet, and validates cluster health for every environment (k3d, dev AKS, staging, prod). This is the script CI/CD and platform operators run after Bicep provisions an AKS cluster, and it remains the canonical path for converging GitOps resources.
+   `ameide-gitops/bootstrap/argocd-bootstrap.sh` installs Argo CD, seeds repo/registry secrets, applies the RollingSync ApplicationSet, and validates cluster health for every environment (k3d, dev AKS, staging, prod). This is the script CI/CD and platform operators run after Bicep provisions an AKS cluster, and it remains the canonical path for converging GitOps resources.
 
 2. **Developer bootstrap (lives in `ameideio/ameide`).**
    The application repo focuses on inner-loop ergonomics: `.devcontainer/postCreate.sh` prepares the container (deps + tooling), and `tools/dev/bootstrap-contexts.sh` refreshes AKS credentials, sets predictable `kubectl` contexts, writes Telepresence defaults, and logs the `argocd` CLI into the shared control plane via a managed port-forward. Bootstrap is typically run manually because `az login --use-device-code` is interactive (or automatically when `AMEIDE_AUTO_BOOTSTRAP=1`). This bootstrap never installs Argo or Helm charts; it simply prepares a DevContainer session to talk to the already-bootstrapped remote cluster.
 
-Whenever the docs below mention `tools/bootstrap/bootstrap-v2.sh`, substitute the new location (`ameide-gitops/bootstrap/bootstrap.sh`). For developer onboarding instructions, see `backlog/491-auto-contexts.md` and `backlog/435-remote-first-development.md`.
+Whenever the docs below mention `tools/bootstrap/bootstrap-v2.sh`, substitute the new location (`ameide-gitops/bootstrap/argocd-bootstrap.sh`). For developer onboarding instructions, see `backlog/491-auto-contexts.md` and `backlog/435-remote-first-development.md`.
 
 ## 1. Problem statement
 

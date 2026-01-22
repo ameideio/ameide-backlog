@@ -142,19 +142,19 @@ Set any of the above before invoking `deploy.sh azure` to target alternate infra
 deploy.sh azure
     ├── terraform -chdir=infra/terraform/azure apply
     │   └── Creates: AKS, KeyVault, DNS, managed identities
-    └── bootstrap/bootstrap.sh
+    └── bootstrap/argocd-bootstrap.sh
         └── Installs: ArgoCD + ApplicationSet
 
 deploy.sh azure-bicep
     ├── az deployment group create (Bicep)
     │   └── Creates: Same resources via ARM
-    └── bootstrap/bootstrap.sh (or Bicep deployment script)
+    └── bootstrap/argocd-bootstrap.sh (or Bicep deployment script)
 
 deploy.sh local
     ├── docker network create ameide-network (if not exists)
     ├── terraform -chdir=infra/terraform/local apply
     │   └── Creates: k3d cluster via moio/k3d provider
-    └── bootstrap/bootstrap.sh
+    └── bootstrap/argocd-bootstrap.sh
         ├── Seeds `vault-bootstrap-local-secrets` via `infra/scripts/seed-local-secrets.sh`
         ├── Installs: ArgoCD + ApplicationSet (same as cloud)
         └── Starts ArgoCD port-forward + prints admin credentials
@@ -387,7 +387,7 @@ Location: `infra/scripts/deploy.sh`
 The script orchestrates:
 1. Terraform/Bicep infrastructure provisioning
 2. AKS credential retrieval
-3. ArgoCD bootstrap via `bootstrap/bootstrap.sh --install-argo --apply-root-apps`
+3. ArgoCD bootstrap via `bootstrap/argocd-bootstrap.sh --install-argo --apply-root-apps`
 
 ## Migration from Bicep
 

@@ -3,7 +3,7 @@
 **Date:** 2025-11-29
 **Status:** ✅ LARGELY IMPLEMENTED with minor gaps
 
-> ⚠️ **Legacy scope:** This report verifies the old k3d-based dev registry workflow. Remote-first development now targets the shared AKS cluster (see [435-remote-first-development.md](435-remote-first-development.md)), so treat the findings below as historical documentation rather than the current dev path. The current GitOps image policy deploys digest-pinned refs and drives rollouts via Git PR write-back (see `backlog/602-image-pull-policy.md` / `backlog/603-image-pull-policy.md`). The bootstrap CLI referenced here as `tools/bootstrap/bootstrap-v2.sh` now lives in the `ameide-gitops` repository (`bootstrap/bootstrap.sh`); retain the original paths below only for provenance.
+> ⚠️ **Legacy scope:** This report verifies the old k3d-based dev registry workflow. Remote-first development now targets the shared AKS cluster (see [435-remote-first-development.md](435-remote-first-development.md)), so treat the findings below as historical documentation rather than the current dev path. The current GitOps image policy deploys digest-pinned refs and drives rollouts via Git PR write-back (see `backlog/602-image-pull-policy.md` / `backlog/603-image-pull-policy.md`). The bootstrap CLI referenced here as `tools/bootstrap/bootstrap-v2.sh` now lives in the `ameide-gitops` repository (`bootstrap/argocd-bootstrap.sh`); retain the original paths below only for provenance.
 
 Implementation playbook note: `backlog/533-capability-implementation-playbook.md` references this report as verification context for capability implementation workflows.
 

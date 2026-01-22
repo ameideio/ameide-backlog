@@ -1,6 +1,6 @@
 # backlog/375 – RollingSync wave redesign
 
-> **Bootstrap location:** This backlog still references the legacy `tools/bootstrap/bootstrap-v2.sh` helper for rerunning RollingSync in dev. That CLI now lives in `ameide-gitops/bootstrap/bootstrap.sh`; when operating from the application repo (`ameideio/ameide`), use the GitOps bootstrap for cluster convergence and `tools/dev/bootstrap-contexts.sh` only for developer context setup.
+> **Bootstrap location:** This backlog still references the legacy `tools/bootstrap/bootstrap-v2.sh` helper for rerunning RollingSync in dev. That CLI now lives in `ameide-gitops/bootstrap/argocd-bootstrap.sh`; when operating from the application repo (`ameideio/ameide`), use the GitOps bootstrap for cluster convergence and `tools/dev/bootstrap-contexts.sh` only for developer context setup.
 
 ## 1. Why revisit waves now?
 RollingSync was introduced while Helmfile layers still defined our world. We mirrored those layers (foundation/data/platform/apps) even though dependencies like “Keycloak needs Postgres” made the tier boundaries fuzzy—Postgres lives in the platform tier purely because Keycloak depends on it. As the stack grew, that layer-centric layout left us with (historical snapshot _before_ this redesign):
@@ -292,7 +292,7 @@ The `root` kustomization (`environments/dev/argocd/applications/root/`) lists th
 
 ### 5.1 Dev verification checklist
 1. **Inventory + lint:** `./wave_lint.sh` fails fast if a component is missing its `rolloutPhase` label. `.devcontainer/postCreate.sh` now runs the JSON variant automatically (unless `DEVCONTAINER_SKIP_WAVE_VALIDATION=1`) so missing labels stop bootstrap immediately.
-2. **Re-run bootstrap (preferred):** `../ameide-gitops/bootstrap/bootstrap.sh --config bootstrap/configs/dev.yaml --reset-k3d --show-admin-password --port-forward`. This reapplies repo credentials, recreates the parent `ameide` Application (if missing), and ensures the RollingSync ApplicationSet picks up the updated spec in a clean state.
+2. **Re-run bootstrap (preferred):** `../ameide-gitops/bootstrap/argocd-bootstrap.sh --config bootstrap/configs/dev.yaml --reset-k3d --show-admin-password --port-forward`. This reapplies repo credentials, recreates the parent `ameide` Application (if missing), and ensures the RollingSync ApplicationSet picks up the updated spec in a clean state.
 3. **Trigger RollingSync manually (fallback):**
    ```bash
    argocd app sync foundation-dev --server localhost:8443 --plaintext --retry-strategy backoff

@@ -43,7 +43,7 @@ We have **one shared AKS cluster (`ameide`)** with separate namespaces per envir
 | `argocd` CLI  | `argocd.local-pf`  | Port-forward fallback (`127.0.0.1:8443`)   |
 | Telepresence  | (n/a)              | Telepresence is for shared clusters         |
 
-> **Note:** This backlog covers the **developer bootstrap** that lives in `ameideio/ameide` (`tools/dev/bootstrap-contexts.sh`). The cluster-wide GitOps bootstrap continues to live in `ameideio/ameide-gitops: bootstrap/bootstrap.sh` per [435-remote-first-development.md](435-remote-first-development.md); that script installs Argo CD and applies ApplicationSets, whereas this one just ensures DevContainer sessions have working contexts against the already-bootstrapped AKS environments.
+> **Note:** This backlog covers the **developer bootstrap** that lives in `ameideio/ameide` (`tools/dev/bootstrap-contexts.sh`). The cluster-wide GitOps bootstrap continues to live in `ameideio/ameide-gitops: bootstrap/argocd-bootstrap.sh` per [435-remote-first-development.md](435-remote-first-development.md); that script installs Argo CD and applies ApplicationSets, whereas this one just ensures DevContainer sessions have working contexts against the already-bootstrapped AKS environments.
 
 ## Automation plan
 

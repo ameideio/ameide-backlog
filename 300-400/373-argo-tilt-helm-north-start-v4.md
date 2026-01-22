@@ -7,7 +7,7 @@
 > - **No local k3d cluster** – All development targets shared AKS dev cluster
 > - **Telepresence intercepts** – Replace Tilt Helm resource swapping with traffic routing
 > - **ArgoCD in AKS** – Single Argo instance manages all environments (dev/staging/prod)
-> - **Bootstrap CLI relocated** – The GitOps/bootstrap script moved from `tools/bootstrap/bootstrap-v2.sh` to `ameide-gitops/bootstrap/bootstrap.sh`; DevContainers now only run `tools/dev/bootstrap-contexts.sh` to connect to the shared cluster.
+> - **Bootstrap CLI relocated** – The GitOps/bootstrap script moved from `tools/bootstrap/bootstrap-v2.sh` to `ameide-gitops/bootstrap/argocd-bootstrap.sh`; DevContainers now only run `tools/dev/bootstrap-contexts.sh` to connect to the shared cluster.
 >
 > The `-tilt` release isolation pattern from this backlog is preserved in the new architecture.
 > See [435-remote-first-development.md](435-remote-first-development.md) for the current approach.
@@ -64,7 +64,7 @@ Changes to the Argo dev registry (e.g., `k3d-ameide.localhost:5001/ameide`) do n
 
 To keep the developer experience crystal clear, v4 formalizes a two-phase workflow:
 
-1. **Bootstrap = prod.** Opening the devcontainer must converge the entire cluster via Argo before Tilt is even considered. `.devcontainer/postCreate.sh` used to call `tools/bootstrap/bootstrap-v2.sh` with the defaults we rely on (`--reset-k3d --show-admin-password --port-forward`) when the bootstrap CLI lived in this repo; that flow now exists only as `ameide-gitops/bootstrap/bootstrap.sh`, applying the root `ameide` Application and its RollingSync ApplicationSet with the exact same charts + value files that staging/production use, so the baseline dev cluster mirrors prod bit-for-bit.
+1. **Bootstrap = prod.** Opening the devcontainer must converge the entire cluster via Argo before Tilt is even considered. `.devcontainer/postCreate.sh` used to call `tools/bootstrap/bootstrap-v2.sh` with the defaults we rely on (`--reset-k3d --show-admin-password --port-forward`) when the bootstrap CLI lived in this repo; that flow now exists only as `ameide-gitops/bootstrap/argocd-bootstrap.sh`, applying the root `ameide` Application and its RollingSync ApplicationSet with the exact same charts + value files that staging/production use, so the baseline dev cluster mirrors prod bit-for-bit.
 2. **Tilt = optional overlay.** When hot reload is needed, developers run `tilt up` *after* the Argo baseline exists. Tilt only overrides `image.repository`/`image.tag` via live builds; every other Helm value stays identical to prod. Auto-sync/self-heal are disabled on the apps tier (the ApplicationSet patch overwrites `syncPolicy` and drops the `automated` block), so Argo will not revert Tilt edits until you manually “Sync” the Application.
 
 This sequencing keeps configuration parity airtight (no dev-only manifests, no Tilt-specific values) while still unlocking inner-loop speed when desired.
