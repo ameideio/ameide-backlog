@@ -1,6 +1,6 @@
 # Increment 3 — Proposal vs Published governance gate with impact preview
 
-This increment corresponds to the “principle change with blast radius visibility” idea (what your earlier scenario set called **Scenario C**), built on top of:
+This increment corresponds to the “governed change with blast radius visibility” idea (what your earlier scenario set called **Scenario C**), built on top of:
 
 * governed publish + audit anchor rules from Scenario A (MR is the proposal unit; canonical publish anchor is **target branch head SHA after publish**) 
 * derived backlinks + “why linked?” origin citations from Scenario B (inline-only refs, projection-owned, deterministic broken/duplicate behavior) 
@@ -19,7 +19,7 @@ Scenario B explicitly notes proposal-head reads are not required there but shoul
 
 ### User story (human and agent equally important)
 
-* **As governance (human)**, I can review a proposed change to a principle and see a **derived blast radius** (what standards/artifacts reference it) **for both Published and Proposal**, approve it, and publish it—without bypassing the governed publish loop.
+* **As governance (human)**, I can review a proposed change to a travelling requirement (`REQ-TRAVEL-001`) and see a **derived blast radius** (what artifacts reference it) **for both Published and Proposal**, approve it, and publish it—without bypassing the governed publish loop.
 * **As an agent**, I can generate an “impact preview” evidence packet comparing Published vs Proposal, using only citeable outputs (no uncited facts), and attach it to the governance review.
 
 ### Capability-level testing objective (contract-pass, vertical slice)
@@ -29,18 +29,20 @@ A **capability-owned integration test** proves from empty state:
 1. **Baseline publish (Published A)**
    Domain publishes two canonical artifacts (governed MR loop):
 
-   * `principles/P-001.md` (stable ID `P-001`)
-   * `architecture/standards/standard-a.md` containing `ref: P-001` 
+   * `requirements/REQ-TRAVEL-001.md` as a typed TOGAF item (YAML frontmatter required): `id: REQ-TRAVEL-001`, `scheme: togaf`, `type: togaf.requirement`
+   * `architecture/standards/standard-a.md` as a typed TOGAF item (YAML frontmatter required) that references `REQ-TRAVEL-001`:
+     * preferred: frontmatter `links:` entries with `target_id: REQ-TRAVEL-001`
+     * compatibility: inline `ref: REQ-TRAVEL-001`
      Capture `published_sha_A` (the `target_head_sha` from Domain evidence). 
 
 2. **Open proposal (MR) and modify blast radius (Proposal head)**
    Domain creates a proposal (EnsureChange/CreateCommit) that:
 
-   * edits `principles/P-001.md` (content change)
-   * adds `architecture/standards/standard-b.md` containing `ref: P-001` (blast radius expands) 
+   * edits `requirements/REQ-TRAVEL-001.md` (content change)
+   * adds `architecture/standards/standard-b.md` (typed TOGAF item) referencing `REQ-TRAVEL-001` (blast radius expands) 
 
 3. **Projection supports dual context queries**
-   Projection can answer backlinks/impact for `P-001` at:
+   Projection can answer backlinks/impact for `REQ-TRAVEL-001` at:
 
    * `read_context = published` → returns **1** backlink (standard-a) with origin citations
    * `read_context = proposal(change_id | mr_iid)` → returns **2** backlinks (standard-a + standard-b) with origin citations
@@ -72,6 +74,13 @@ A **capability-owned integration test** proves from empty state:
 * Publish fails fast if MR head SHA changed since approval snapshot (Domain SHA guard remains authoritative). 
 * CQRS rule: UI/Agent/Process read via **Projection**; Domain is **command-only** at the platform seam.
 * UI/Agent/Process/Projection do not call GitLab APIs directly; only Domain uses `gitlab.com/gitlab-org/api/client-go`.
+
+## Travelling requirement overlay (all increments)
+
+Increment 3 exercises the governance gate against the travelling requirement itself:
+
+* Subject id: `REQ-TRAVEL-001`
+* Impact preview compares Published vs Proposal backlinks for `REQ-TRAVEL-001` with origin citations.
 
 ---
 
@@ -133,7 +142,7 @@ A **capability-owned integration test** proves from empty state:
 #### Projection individual tests
 
 * **Unit:** `ListBacklinks(..., proposal_ref)` resolves to the correct proposal head SHA (via consumed Domain facts).
-* **Unit:** `ListBacklinks(P-001, published)` and `ListBacklinks(P-001, proposal)` differ deterministically when proposal adds/removes refs.
+* **Unit:** `ListBacklinks(REQ-TRAVEL-001, published)` and `ListBacklinks(REQ-TRAVEL-001, proposal)` differ deterministically when proposal adds/removes refs.
 * **Unit:** `CompareBacklinks` returns correct added backlink (standard-b) with origin citations.
 * **Rebuildability:** indexing the same SHA twice yields identical answers.
 
@@ -146,9 +155,19 @@ A **capability-owned integration test** proves from empty state:
 1. Own a durable **governance review gate** that is explicitly non-bypassable.
 2. Orchestrate “impact preview → approval → publish” while never writing canonical Git state itself.
 
+#### Why Process is first-class here (beyond GitLab guardrails)
+
+GitLab can protect `main` and require approvals/pipelines to merge, but it cannot express or enforce Ameide’s platform-specific governance prerequisites across **all channels** (UISurface + MCP + any future client), such as:
+
+* “Impact preview packet exists” (Agent-produced evidence attached to the review)
+* “Approval is recorded for the exact `proposal_head_sha` being published” (approval snapshot)
+* timers/escalations and resumability of the review workflow (durable state machine)
+
+Increment 3 requires Process so governance is not “whatever the UI did” and not bypassable by calling Domain commands directly.
+
 #### Build
 
-A persisted workflow `principle.change_review` (or general `governance.review_gate`) with minimum states:
+A persisted workflow `req.change_review` (or general `governance.review_gate`) with minimum states:
 
 1. `STARTED`
 2. `DRAFT_READY` (change exists: `change_id`, MR iid known)
@@ -179,7 +198,7 @@ Rules:
 
 #### Increment 3 goals
 
-1. Produce an **impact preview evidence packet** comparing Published vs Proposal for a target item (P-001).
+1. Produce an **impact preview evidence packet** comparing Published vs Proposal for a target item (`REQ-TRAVEL-001`).
 2. Memory remains an Agent workflow concern: store citeable bundles and the produced packet.
 
 #### Build
@@ -222,9 +241,9 @@ Rules:
 
 Minimum UX flow:
 
-* “Open Principle P‑001”
+* “Open Requirement REQ‑TRAVEL‑001”
 * “Start change” → Domain.EnsureChange
-* Editor view (proposal) for P‑001
+* Editor view (proposal) for REQ‑TRAVEL‑001
 * Review screen:
 
   * context switcher: Published @ sha_A vs Proposal @ sha_head
@@ -242,6 +261,18 @@ Minimum UX flow:
 * **UI integration:** publish path never calls Domain.PublishChange; only Process endpoint.
 * **UI smoke:** shows both contexts and their resolved SHAs; renders added backlink row with “why linked?” origin citation.
 * **UI negative:** publish disabled until approval + impact preview exist (reflecting Process state).
+* **Playwright e2e (cluster, descriptive)**
+
+  * Open the review UI for `REQ-TRAVEL-001` and verify the context switcher shows:
+
+    * Published @ sha_A (resolved)
+    * Proposal @ sha_head (resolved)
+  * Verify the impact/backlinks panel renders a deterministic diff (added/removed) and each row can open “why linked?” origin snippets.
+  * Verify Publish is disabled until:
+
+    * an agent impact preview packet exists, and
+    * at least one approval is recorded in Process state.
+  * Verify Publish goes through Process (not direct Domain publish) and results in a new published anchor (`target_head_sha`) that matches subsequent `published` reads.
 
 ---
 
@@ -252,7 +283,9 @@ Minimum UX flow:
 1. Add the Domain facts required to resolve and read proposal head SHAs without making GitLab an API surface.
 2. Expose protocol adapters: **an MCP server (Integration primitive)** where:
    * MCP reads route to Projection queries (impact preview, governance status, citeable diffs),
-   * MCP writes route to Domain commands (and publish remains non-bypassable via Domain validation against Projection state).
+   * MCP writes route to Domain/Process commands, with **publish remaining non-bypassable**:
+     * `EnsureChange/CreateCommit` can be invoked via Domain commands (under grants),
+     * `PublishChange` remains callable only by the **Process principal** (and/or requires gate satisfaction validated via Projection state).
 
 #### Build
 

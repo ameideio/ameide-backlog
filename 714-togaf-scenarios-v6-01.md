@@ -12,7 +12,8 @@ This increment takes the Slice‑0 wiring and makes a **real governed publish lo
 
   * `architecture/vision.md`
   * `architecture/statement-of-work.md`
-    as canonical baseline content, via MR-backed governance, and I can see the published baseline SHA and evidence. 
+  * `requirements/REQ-TRAVEL-001.md`
+    as canonical baseline content via MR-backed governance, where each file is a typed item with YAML frontmatter (minimum: `id`, `scheme: togaf`, and a TOGAF `type` key). I can see the canonical `main@sha` anchor and evidence. 
 * **As an agent**, I can help draft the two documents from citeable repository context and submit a proposal through the platform seams; I cannot publish or write directly.
 
 ## Capability-level testing objective
@@ -41,7 +42,7 @@ Scenario A must ship clear agent-side value in addition to the UI/process path.
 4. Process coordinates Domain commands to:
 
    * `EnsureChange` (MR created or reused)
-   * `CreateCommit` (writes the two files)
+   * `CreateCommit` (writes the three files as typed TOGAF items with YAML frontmatter; Vision/SOW both reference `REQ-TRAVEL-001` via frontmatter `links:` and/or inline `ref:` tokens)
    * `PublishChange` (merges to main with SHA-safety) 
 5. Domain produces an **EvidenceSpineViewModel** with **minimum Scenario A fields**, especially:
 
@@ -56,6 +57,13 @@ Scenario A must ship clear agent-side value in addition to the UI/process path.
 * No direct writes to `main` are possible (Domain enforces MR-backed publish). 
 * CQRS rule: UI/Agent/Process read via **Projection**; Domain is **command-only** at the platform seam.
 * UI/Agent/Process/Projection do not call GitLab directly; only Domain may call `gitlab.com/gitlab-org/api/client-go` (no wrappers), and GitLab types never cross the proto seam.
+
+## Travelling requirement overlay (all increments)
+
+Increment 1 formally “births” the travelling requirement in the governed publish loop:
+
+* `requirements/REQ-TRAVEL-001.md` is published alongside Vision/SOW.
+* `architecture/vision.md` and `architecture/statement-of-work.md` each include an explicit reference to `REQ-TRAVEL-001` (so Projection backlinks can explain the hop deterministically in later increments).
 
 ---
 
@@ -92,6 +100,7 @@ Scenario A must ship clear agent-side value in addition to the UI/process path.
 * Never write to `main` directly; always branch+MR. 
 * Publish must be SHA-safe; mismatch → explicit error. 
 * Evidence Spine canonical publish anchor = **target branch head SHA after publish** (`target_head_sha`). 
+* Artifact policy (Increment 1): `architecture/vision.md` and `architecture/statement-of-work.md` must be typed items with YAML frontmatter including at least `id`, `scheme: togaf`, and `type: togaf.*`.
 * GitLab SDK usage is confined to Domain internals (pin a single major version; currently v1); no GitLab client types leak across platform contracts.
 
 ### Domain tests (individual)
@@ -139,6 +148,14 @@ Scenario A must ship clear agent-side value in addition to the UI/process path.
 
 * Own the durable “publish vision” orchestration so the publish loop is not just a UI script.
 * Coordinate by issuing commands to Domain and (optionally) requesting agent assistance, without writing canonical state itself. 
+
+### Why Process is first-class here (beyond GitLab guardrails)
+
+GitLab can guard a merge (protected `main`, approvals, required pipelines), but Increment 1 also needs a **platform-owned, durable workflow** that:
+
+* is consistent across UISurface and MCP clients (not “whatever the UI clicked”),
+* coordinates “draft → change → commit → publish” as a resumable state machine (restart-safe),
+* captures governance decision metadata (who approved what) in Process state, while Domain remains the sole writer of canonical Git and the Domain-owned Evidence Spine remains the authoritative publish audit record.
 
 ### Build (Increment 1)
 
@@ -226,6 +243,13 @@ Minimum UX flow:
 
 * **UI integration:** asserts UI uses Process/Domain/Projection/Agent SDKs and does not import GitLab SDK packages or internal GitLab adapter packages.
 * **UI smoke:** end-to-end through the flow with local harness provider.
+* **Playwright e2e (cluster, descriptive)**
+
+  * Start the `arch.publish_vision` workflow and complete a full publish path through Process (never direct Domain publish).
+  * Draft (manual or agent-assisted) `architecture/vision.md`, `architecture/statement-of-work.md`, and `requirements/REQ-TRAVEL-001.md`.
+  * Verify the publish results screen shows the Evidence Spine anchor: MR iid + `target_head_sha`.
+  * Verify `published` now resolves to `target_head_sha` by re-opening the three files and confirming their citations reference the same SHA.
+  * Negative: attempt to publish with stale MR head SHA fails deterministically and does not “half publish.”
 
 ---
 
