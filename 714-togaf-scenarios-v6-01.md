@@ -1,37 +1,23 @@
----
-title: "714 — v6 Scenario Slices v6-01 (Scenario A: Governed Publish of Architecture Vision)"
-status: draft
-owners:
-  - platform
-  - transformation
-  - repository
-  - ui
-created: 2026-01-21
-updated: 2026-01-21
-related:
-  - 714-togaf-scenarios-v6.md
-  - 703-transformation-enterprise-repository-proto-v1.md
-  - 704-v6-enterprise-repository-memory-e2e-implementation-plan.md
-  - 710-gitlab-api-token-contract.md
+## Increment 1 — Governed publish of Architecture Vision
+
+This increment takes the Slice‑0 wiring and makes a **real governed publish loop**: **propose → commit → publish → read back at published SHA**, with an **audit‑grade Evidence Spine** owned by Domain. It is essentially “Scenario A,” but rewritten to satisfy your updated doctrine: **no optionals** and **all six primitives must advance**.  
+
 ---
 
-# 714 v6-01 — Scenario A implementation consolidation
+# 1) Capability user story and capability-level testing objective
 
-This document is an implementer-oriented consolidation for **Scenario A** from `backlog/714-togaf-scenarios-v6.md`.
+## User story
 
-Goal: specify, in concrete terms, what must be implemented across primitives to make Scenario A **real**, **GitLab‑aligned**, and **audit-grade**.
+* **As a human (enterprise architect)**, I can draft and publish:
 
-## Scenario A (recap)
+  * `architecture/vision.md`
+  * `architecture/statement-of-work.md`
+    as canonical baseline content, via MR-backed governance, and I can see the published baseline SHA and evidence. 
+* **As an agent**, I can help draft the two documents from citeable repository context and submit a proposal through the platform seams; I cannot publish or write directly.
 
-**User story**
-- As an enterprise architect, I can propose and publish an Architecture Vision (and Statement of Architecture Work) so it becomes the canonical baseline, citeable by commit SHA.
+## Capability-level testing objective
 
-**What this scenario proves (v6 posture)**
-- **Git is canonical**: authored artifacts are files at immutable commit SHAs.
-- **MR is the proposal unit**: all canonical changes flow through a Merge Request.
-- **Owner-only writes**: only the owning Domain performs canonical git operations.
-- **Audit anchor is merge-method agnostic**: the canonical publish anchor is **target branch head SHA after publish** (merge/squash SHAs are supplemental).
-- **Reads are citation-grade**: every read response is anchored to `{repository_id, commit_sha, path[, anchor]}`.
+A single **capability-owned contract-pass test** (Transformation capability; Phase 0/1/2 local, with a later Phase 4/5 cluster variant) proves, from empty state:
 
 ## Agentic deliverables (Scenario A)
 
@@ -49,343 +35,230 @@ Scenario A must ship clear agent-side value in addition to the UI/process path.
 
 ## EDA alignment (496)
 
-Scenario A is a concrete application of `backlog/496-eda-principles-v6.md`:
+1. Onboard repository mapping for `{tenant_id, organization_id, repository_id}`. 
+2. Start a durable process instance `arch.publish_vision` (or equivalent).
+3. Agent produces a citeable draft proposal (citations only; no uncited “facts”).
+4. Process coordinates Domain commands to:
 
-* `EnsureChange`, `CreateCommit`, `PublishChange` are **Commands** addressed to the Domain (the Owner).
-  * They must be idempotent (idempotency keys) and must propagate correlation/causation metadata across calls.
-* The Domain emits **Facts** only after commit:
-  * After publish succeeds and the Domain durably records audit pointers (MR id, `target_head_sha`, optional merge/squash SHAs), it may emit a `ChangePublished` fact.
-  * Projections consume that fact (or the recorded audit pointers) to converge derived views.
-* Projection is a **derived read model**:
-  * it can update incrementally from facts, but must remain rebuildable from Git + audit pointers (no canonical relationship/state store).
+   * `EnsureChange` (MR created or reused)
+   * `CreateCommit` (writes the two files)
+   * `PublishChange` (merges to main with SHA-safety) 
+5. Domain produces an **EvidenceSpineViewModel** with **minimum Scenario A fields**, especially:
 
-## Capability test placement (590/591)
+   * MR iid
+   * **target branch head SHA after publish** (`target_head_sha`) as the canonical anchor 
+6. Projection resolves `published` to the new `target_head_sha` and can read back both files with citations `{repository_id, commit_sha, path[, anchor]}`. 
+7. UISurface demonstrates the same flow end-to-end (human draft path + “use agent draft” path) without bypassing ownership.
 
-Scenario A’s contract-pass test should be treated as a **capability-owned vertical slice test** (Transformation capability), not a primitive-owned invariant test.
+### Required negative assertions (in the same test pack)
 
-Place it under the repo’s `capabilities/` composition boundary (per `backlog/590-capabilities.md`), typically under something like:
+* Publish fails fast if `expected_mr_head_sha` is stale (MR advanced). 
+* No direct writes to `main` are possible (Domain enforces MR-backed publish; the GitLab substrate adapter does not expose direct `main` writes). 
+* CQRS rule: UI/Agent/Process read via **Projection**; Domain is **command-only** at the platform seam.
+* UI/Agent/Process/Projection do not call GitLab directly; only Domain may call `gitlab.com/gitlab-org/api/client-go` (no wrappers), and GitLab types never cross the proto seam.
 
-* `capabilities/transformation/__tests__/integration/` (target state), or
-* `capabilities/transformation/features/enterprise_repository/integration/` (common current pattern).
+---
 
-## Minimal repo artifacts
+# 2) Primitive-by-primitive goals, build, and tests
 
-Scenario A uses these canonical file paths:
-- `architecture/vision.md`
-- `architecture/statement-of-work.md`
+## Domain
 
-## Contracts and data shapes
+### Increment 1 goals
 
-### Identity (required everywhere)
+* Own canonical write boundary and **MR-backed publish lifecycle**.
+* Emit/record the **Domain-owned Evidence Spine** for a publish (others must only render/consume it). 
 
-- `{tenant_id, organization_id, repository_id}`
+### Build (Increment 1)
 
-These identifiers must be carried through request contexts, events/facts, logs, and the run report.
+**Commands (minimum)**
 
-### Repository mapping (required)
+* `EnsureChange(scope, idempotency_key)` → `{change_id, branch_ref, mr_iid, last_commit_id}`
+* `CreateCommit(change_id, actions[], expected_last_commit_id, idempotency_key)` → `{head_commit_sha, last_commit_id}`
+* `PublishChange(change_id, expected_mr_head_sha)` → `{target_branch, target_head_sha, ...supplemental}`
 
-Canonical mapping from `{tenant_id, organization_id, repository_id}` to the vendor remote:
-- `provider = gitlab`
-- `remote_id = <gitlab project id or path>` (opaque to UX; policy-level detail)
-- `published_ref = main` (default baseline branch)
+**GitLab substrate integration (implementation detail; not a platform contract)**
 
-**Onboarding note (normative)**
-- Treat “repository onboarding / mapping upsert” as a **single shared platform capability** (admin/bootstrap), not something each Domain invents differently.
-- Domain consumes this mapping for all reads/writes, but onboarding policy and UX should be centralized (one “Repository Onboarding” primitive/service contract).
+* Required operations for Scenario A:
 
-### Read context (minimum required in Scenario A)
+  * get default branch head SHA
+  * create branch
+  * find-or-create merge request
+  * create commit (with expected head guard)
+  * accept/merge merge request (with expected head guard)
+* Implementation uses `gitlab.com/gitlab-org/api/client-go` (v1.x) directly in Domain internals (no wrapper clients; no GitLab types in Domain contracts).
 
-Projection must support:
-- `published` → resolves to a deterministic `resolved.commit_sha` for `target_branch` (typically `main`)
-- `version_ref.commit_sha` → explicit historical reads for verification/replay
+**Invariants**
 
-### Citations (minimum)
+* Never write to `main` directly; always branch+MR. 
+* Publish must be SHA-safe; mismatch → explicit error. 
+* Evidence Spine canonical publish anchor = **target branch head SHA after publish** (`target_head_sha`). 
+* GitLab SDK usage is confined to Domain internals (pinned to `gitlab.com/gitlab-org/api/client-go` v1.x); no GitLab client types leak across platform contracts.
 
-Every tree node and file read must return:
-- `{repository_id, commit_sha, path[, anchor]}`
+### Domain tests (individual)
 
-### Evidence spine (minimum fields for Scenario A)
+* **Unit:** idempotent `EnsureChange` returns same MR for same idempotency key.
+* **Unit:** `PublishChange` rejects stale `expected_mr_head_sha` (fail fast).
+* **Unit:** EvidenceSpineViewModel includes required fields for Scenario A:
 
-Use `EvidenceSpineViewModel` from `backlog/714-togaf-scenarios-v6.md` as the shared shape across UI and contract-pass runs.
+  * identity
+  * `mr_iid`
+  * `target_branch`
+  * `target_head_sha` (required)
+  * citations of verification reads at `target_head_sha` (if Domain includes them) 
+* **Static boundary:** UISurface/Agent/Process/Projection do not import `gitlab.com/gitlab-org/api/client-go` (Domain may); GitLab types never cross proto contracts.
 
-Scenario A requires (minimum):
-- Identity: `{tenant_id, organization_id, repository_id}`
-- Proposal:
-  - `mr_iid`
-  - `proposal_head_sha` (best-effort; may require retry/backoff if MR diff fields are async)
-- Publish:
-  - `target_branch` (usually `main`)
-  - `target_head_sha` (**required**, the canonical publish anchor)
-  - optional: `merge_commit_sha`, `squash_commit_sha` (supplemental evidence; may vary by merge method)
-- Citations:
-  - citeable reads performed during verification (`GetContent` results anchored to `target_head_sha`)
+---
 
-## What to implement by primitive
+## Projection
 
-### Domain primitive (canonical writes + publish evidence)
+### Increment 1 goals
 
-**Domain responsibilities**
-- Own the write boundary: only Domain is configured with GitLab write credentials.
-- Implement governed change lifecycle: **EnsureChange → Commit batch → Publish**.
-- Enforce concurrency via SHA guards (`expected_last_commit_id`, `expected_mr_head_sha`).
-- Emit/record evidence spine on publish.
+* Own canonical reads at an immutable SHA and converge to the new canonical `main@sha` after publish.
+* Serve canonical reads from derived state built from Domain facts (outbox→Kafka), not by calling GitLab.
 
-**Domain commands (minimum)**
-- `UpsertRepositoryGitRemote(scope, provider, remote_id, idempotency_key)`
-  - classify as **platform onboarding** (admin/bootstrap), not part of the everyday change lifecycle
-  - prefer implementing this behind a single shared “Repository Onboarding” service contract, then having the Domain consume the resulting mapping
-- `EnsureChange(scope, idempotency_key)` → returns:
-  - `change_id`, `branch_ref`, `mr_iid`, `last_commit_id`
-- `CreateCommit(change_id, actions[], expected_last_commit_id, idempotency_key)` → returns:
-  - `head_commit_sha`, `last_commit_id`
-- `PublishChange(change_id, expected_mr_head_sha)` → returns:
-  - publish evidence (must include `target_head_sha`)
+### Build (Increment 1)
 
-**Domain invariants to enforce**
-- Never write directly to `main`; always propose via branch+MR.
-- Publish must be SHA-safe: reject if the MR head does not match the expected SHA.
-- Fail fast (no compatibility shims): mismatch → explicit error.
-
-**Domain events/facts (minimum)**
-- `RepositoryGitRemoteUpserted`
-- `ChangePublished` (must include: `mr_iid`, `target_branch`, `target_head_sha`, and citations for changed paths)
-
-### Projection primitive (reads + citation-grade responses)
-
-**Projection responsibilities**
-- Resolve `read_context` → `resolved.commit_sha` deterministically.
-- Serve Git-tree reads strictly from Git (no synthetic hierarchy).
-- Return citations on every node and file.
-- Handle vendor edge cases deterministically:
-  - missing path may be `404` (not empty list)
-  - ref semantics must support commit SHA for tree/file reads in the target environment (or define a tested fallback)
-
-**Projection query surface (minimum)**
-- `ListTree(scope, read_context, path)` → nodes + `read_context.resolved.commit_sha` + citations
-- `GetContent(scope, read_context, path)` → bytes + `read_context.resolved.commit_sha` + citation
+* `ListTree(scope, read_context, path)` → nodes + citations
+* `GetContent(scope, read_context, path)` → bytes/text + citation
 
 **Convergence rule**
-After publish, `published` must resolve to the new `target_head_sha` (avoid stale caches).
 
-### UI surface (UX-pass, minimal but real)
+* After Domain publishes, `published` must resolve to the new `target_head_sha` (no stale cache). 
 
-UI is not required for contract-pass initially, but Scenario A’s UX-pass must reflect the same contracts.
+### Projection tests (individual)
 
-**UI responsibilities**
-- Git-tree-first repository browser:
-  - show “Published @ <resolved_sha>”
-- Element editor (not a raw file viewer):
-  - open “elements” in an editor surface (modal is preferred, aligned to existing routing)
-  - still display canonical storage `{path}` + citation `{repo_id, sha, path[, anchor]}` as a trust feature
-  - Scenario A can open by **path** (stable IDs are not required yet); Scenario B introduces ID-based navigation (`element_id → path`) via Projection
-- Change-based editing (not DB CRUD):
-  - “Propose change” → Domain `EnsureChange`
-  - “Save” → Domain `CreateCommit`
-  - “Publish” → Domain `PublishChange`
-- Evidence display:
-  - show MR id + `target_head_sha` after publish
+* **Unit:** after a publish fact is applied, resolving `published` yields exactly the new `target_head_sha`.
+* **Unit:** reading `architecture/vision.md` at `target_head_sha` returns the new content and citation `{repo_id, target_head_sha, path}` (served from derived state).
+* **Unit:** deterministic NotFound semantics for missing paths (explicit error, no “empty content”). 
 
-#### UI placement (aligned to the current platform app)
+---
 
-The current platform app already uses `/org/:orgId/repo/:repositoryId/*` as the “Enterprise Repository” scope and renders pages with `ListPageLayout` (two-column main + optional right activity panel). This scenario adds a **canonical Git** surface inside that scope:
+## Process
 
-- `GET /org/:orgId/repo/:repositoryId` currently acts like “Repository home” (today: ArchiMate views).
-- Add a repository-local nav (or repo-local tabs) that includes a **Canonical (Git)** entry, e.g.:
-  - `/org/:orgId/repo/:repositoryId/canonical` (or `/git`, `/browse`)
+### Increment 1 goals
 
-Also note: the app already has a modal route pattern for opening an “element editor”:
-- `.../repo/:repositoryId/@modal/(.)element/:elementId`
-but `ElementEditorModal` is currently a placeholder. Scenario A requires implementing a real element editor host and re-wiring persistence to v6 Domain commands (not `elementService.updateElement`).
+* Own the durable “publish vision” orchestration so the publish loop is not just a UI script.
+* Coordinate by issuing commands to Domain and (optionally) requesting agent assistance, without writing canonical state itself. 
 
-Deep-link nuance (current platform reality):
-- Direct `/org/:orgId/repo/:repositoryId/element/:elementId` routes currently redirect back to the repo root.
-- Until that is changed, “open in new tab” should use the repo route plus a query param that opens the modal.
-  - In Scenario A, prefer `elementPath=<urlencoded path>` to avoid implying stable ID semantics too early.
-  - Once Projection supports `element_id → path` resolution (Scenario B), `elementId=<element_id>` becomes the primary addressing mode.
+### Build (Increment 1)
 
-Wireframes below assume `ListPageLayout` + an internal split for tree/list, and an editor modal overlay for element editing.
+A persisted workflow `arch.publish_vision` (minimal states are fine, but durable):
 
-#### Wireframes (ASCII)
+1. `STARTED`
+2. `DRAFT_READY` (manual draft or agent draft attached)
+3. `CHANGE_OPENED` (Domain EnsureChange done)
+4. `COMMITTED` (Domain CreateCommit done)
+5. `PUBLISH_REQUESTED`
+6. `PUBLISHED` (Domain PublishChange returned `target_head_sha`)
+7. `FAILED` (with explicit error code)
 
-##### Screen 1 — Canonical repository browser (published baseline)
+**Hard rule**
 
-```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ <HeaderClient /> (existing)                                                   │
-│  - <ScopeTrail /> • <NavTabs /> • Search • User                                │
-├──────────────────────────────────────────────────────────────────────────────┤
-│ <ListPageLayout title="Enterprise Repository" showActivityPanel={true}>       │
-│   <PageHeader                                                                │
-│     title="Enterprise Repository"                                             │
-│     description="Canonical Git-backed artifacts at a resolved commit SHA."    │
-│     actions={[Copy citation] [Open in GitLab] [Propose change]}               │
-│   />                                                                         │
-│  Repo: <repository_id>   Read: [Published ▼]   Resolved: main @ <sha>         │
-├──────────────────────────────────────────────────────────────────────────────┤
-│ Main (ListPageLayout children)                  activityPanel={<RepositorySidebar />} │
-│ ┌──────────── Tree (Git) ────────────┐  ┌───────── File list (Git) ────────┐ │
-│ │ /                                  │  │ architecture/                     │ │
-│ │  architecture/                     │  │  - vision.md        (open)        │ │
-│ │   > vision.md                      │  │  - statement-of-work.md (open)    │ │
-│ │  requirements/                     │  │ README.md                           │ │
-│ │  ...                               │  └───────────────────────────────────┘ │
-│ └────────────────────────────────────┘                                         │
-│                                                                               │
-│ Activity panel suggestion (RepositorySidebar-like):                             │
-│ - “About / Stats / Recent activity” (derived from commits + projection)         │
-│ </ListPageLayout>                                                              │
-└──────────────────────────────────────────────────────────────────────────────┘
-```
+* Process issues **commands** to Domain; it does not call GitLab directly and does not write Git. 
 
-Behavior notes:
-- The “Resolved: main @ `<sha>`” line is the **trust feature**: it is always explicit and copyable.
-- `Read: Published` resolves to **target branch head SHA** (merge-method agnostic).
-- Missing paths are handled deterministically (GitLab may return `404` for tree paths; UI shows “Not found at `<sha>`”).
+### Process tests (individual)
 
-##### Screen 2 — Element editor modal (citation-grade read; view mode + chat sidebar)
+* **Unit:** workflow can resume after restart mid-way (durability).
+* **Unit:** process never calls GitLab adapters directly (can be enforced by dependency injection boundary).
+* **Unit:** process cannot transition to `PUBLISHED` without receiving Domain publish response containing `target_head_sha`.
 
-```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ <ElementEditorModal /> (Radix <Dialog />)                                     │
-│  ┌──────────────────── <EditorModalChrome /> ─────────────────────────────┐  │
-│  │ title="Architecture Vision"   kindBadge="document"                      │  │
-│  │ actions: [Open in new tab] [Fullscreen] [Close]                         │  │
-│  └─────────────────────────────────────────────────────────────────────────┘  │
-│  Storage: architecture/vision.md                                              │
-│  Read: Published @ <sha>                                                      │
-│  Citation: {repository_id, commit_sha:<sha>, path:"architecture/vision.md"}   │
-│                                                                              │
-│  ┌────────────────────────────── main ───────────────────────────────┬──────┐ │
-│  │ <Tabs> <TabsList> <TabsTrigger>                                    │      │ │
-│  │  [Document] [Properties] [Derived] [Evidence]                      │      │ │
-│  │                                                                   <RightSidebarTabs> │
-│  │ <EditorPluginHost /> (mocked in current shell)                     │ <ModalChatPanel /> │
-│  │  - Document (read-only)                                            │  "Element assistant" │
-│  │  - Properties/Derived/Evidence are overlays                         │  (messages area)     │
-│  │                                                                    </RightSidebarTabs> │
-│  └────────────────────────────────────────────────────────────────────┴──────┘ │
-│  <ModalChatFooter /> (toggle chat / starters; bottom bar)                      │
-└──────────────────────────────────────────────────────────────────────────────┘
-```
+---
 
-##### Screen 3 — Propose change (change-based editing inside the element editor + chat sidebar)
+## Agent
 
-```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ <ElementEditorModal />                                                        │
-│  ┌──────────────────── <EditorModalChrome /> ─────────────────────────────┐  │
-│  │ title="Architecture Vision"   subtitle="Draft (proposal)"              │  │
-│  │ actions: [View MR] [Publish] [Fullscreen] [Close]                      │  │
-│  └─────────────────────────────────────────────────────────────────────────┘  │
-│  Draft banner: Change <change_id> • MR !<iid> • <branch_ref> → main            │
-│                                                                              │
-│  ┌────────────────────────────── main ───────────────────────────────┬──────┐ │
-│  │ <Tabs> ... [Document] [Properties] [Derived] [Evidence]            │      │ │
-│  │                                                                    │      │ │
-│  │ <EditorPluginHost /> (future: Document plugin)                     │ <ModalChatPanel /> │
-│  │  - editing the document content                                    │  assistant context   │
-│  │  - Save draft → Domain `CreateCommit(actions[])`                    │  Q&A / impact notes  │
-│  │                                                                    │                      │
-│  └────────────────────────────────────────────────────────────────────┴──────┘ │
-│  <ModalChatFooter />  (ask assistant; opens sidebar)                           │
-└──────────────────────────────────────────────────────────────────────────────┘
-```
+### Increment 1 goals
 
-Behavior notes:
-- `Propose change` calls Domain `EnsureChange` and returns `{change_id, mr_iid, branch_ref}` immediately.
-- `Save draft` can create one commit per save, or batch multiple file edits per commit; chunking is allowed but must preserve citations.
-- The editor is “element-first” UX, but persistence is Git-first: edits become **file actions** on a change branch (no canonical DB authoring surface).
+* Produce a citeable draft for the vision + statement-of-work, and submit it as a proposal into the workflow.
+* Maintain **Memory as agent workflow state**: store citations used + rationale; never store uncited platform truth.
 
-##### Screen 4 — Publish confirmation (evidence spine)
+### Build (Increment 1)
 
-```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ Published                                                                      │
-│ Target branch: main                                                            │
-│ Published baseline SHA (anchor): <target_head_sha>                             │
-│ MR: !<iid>  (supplemental: merge_commit_sha / squash_commit_sha if present)    │
-│ Actions: [Open published baseline] [Copy run report]                           │
-├──────────────────────────────────────────────────────────────────────────────┤
-│ Run report (audit-grade)                                                       │
-│ - identity: {tenant_id, organization_id, repository_id}                        │
-│ - publish: {target_branch:"main", target_head_sha:"..."}                       │
-│ - citations:                                                                    │
-│   - {repo, <target_head_sha>, "architecture/vision.md"}                        │
-│   - {repo, <target_head_sha>, "architecture/statement-of-work.md"}             │
-└──────────────────────────────────────────────────────────────────────────────┘
-```
+* `Agent.DraftArchitectureVision(scope, read_context, inputs)`:
 
-Failure/edge-case UX (must be explicit and fail-fast):
-- **Publish SHA mismatch** (MR head advanced): show “Publish blocked: proposal changed” and require explicit refresh/retry (no silent rebase).
-- **MR diff refs async**: UI may need to “wait until proposal SHA is available” before enabling publish evidence checks.
-- **Pipeline gating**: if used, use GitLab “auto-merge” wording (not deprecated “merge when pipeline succeeds”) and surface pipeline status in the change header.
+  * Fetches citeable context via Projection calls (through SDKs)
+  * Produces:
 
-### Agent (optional; proposal/evidence only)
+    * `vision_md` text + citations_used
+    * `statement_of_work_md` text + citations_used
+* Agent “memory” store (internal to Agent primitive):
 
-If included in Scenario A:
-- Reads via Projection only (citations).
-- Produces draft text / summaries with citations.
-- Submits proposals via Domain commands (never direct GitLab writes).
+  * `Memory.append(run_id, {citations, notes, outputs})`
+  * Strict “cite-only” output policy
 
-### Process (optional; orchestration only)
+### Agent tests (individual)
 
-If included in Scenario A:
-- Orchestrates the sequence (EnsureChange → Commit → Publish) by calling Domain commands.
-- Must not perform git operations directly.
+* **Unit:** output contains only citeable claims (every paragraph references at least one citation, or the agent must explicitly mark it as “assumption” and still cite why it assumed).
+* **Unit:** agent cannot call Domain publish/write endpoints directly (it must submit to Process or request Domain through an explicit seam).
+* **Unit:** memory entries store citations + notes; reject attempts to store arbitrary “facts.”
 
-## GitLab substrate mapping (implementation detail)
+---
 
-### Reads (projection)
-- List tree: `GET /projects/:id/repository/tree?ref=<sha>&path=<...>`
-- Read file content: `GET /projects/:id/repository/files/:file_path/raw?ref=<sha>`
+## UISurface
 
-### Writes (domain)
-- Create branch: `POST /projects/:id/repository/branches?branch=<...>&ref=main`
-- Find MR by source branch: `GET /projects/:id/merge_requests?state=opened&source_branch=<...>&target_branch=main`
-- Create MR: `POST /projects/:id/merge_requests`
-- Create commit with actions[]: `POST /projects/:id/repository/commits` (supports `create`, `update`, `move`, `delete`)
-- Merge MR with SHA guard: `PUT /projects/:id/merge_requests/:iid/merge` with `sha=<expected_head>`
+### Increment 1 goals
 
-### Merge method nuance (must be reflected in evidence)
-- Record `target_head_sha` (post-merge `main` head) as canonical.
-- Record merge/squash SHAs only as supplemental fields.
+* Provide a human UX for the same governed publish loop:
 
-### Rate/size limits (must be planned for early)
-- Commit batching must chunk actions/commits under vendor size limits.
-- “Citeable context bundles” must chunk reads and apply cache/backoff.
-- Runner must surface throttling/fallbacks in the run report (so evidence remains explainable).
+  * draft (manual or agent-assisted)
+  * review
+  * publish
+  * view evidence spine (Domain-owned)
+* UI must invoke **only** Domain/Projection/Process/Agent seams; never GitLab directly. 
 
-## Contract-pass E2E test (Scenario A)
+### Build (Increment 1)
 
-### Mode A — `ameide test` (local-only)
+Minimum UX flow:
 
-Implementation expectations:
-- Use in-process mocks where needed (e.g., an in-memory GitLab HTTP API), but keep the same Domain/Projection adapters and contracts.
+1. “Start Architecture Vision publish” (starts Process)
+2. Choose draft mode:
 
-**Steps**
-1. Onboard repository mapping.
-2. EnsureChange → obtain `{change_id, branch_ref, mr_iid, last_commit_id}`.
-3. CreateCommit (batched actions) → write both files.
-4. PublishChange with `expected_mr_head_sha`.
-5. Read back from `published` via Projection and assert:
-   - `read_context.resolved.commit_sha == target_head_sha`
-   - content matches expected edits
-   - citations match `{repository_id, target_head_sha, path}`
-6. Assert evidence spine includes:
-   - `mr_iid`, `target_branch`, `target_head_sha`
+   * Manual editor for the two files **OR**
+   * “Generate draft with agent” (calls Agent, displays content + citations)
+3. “Submit draft” (Process advances; Process calls Domain EnsureChange/CreateCommit)
+4. “Publish” (Process calls Domain PublishChange)
+5. “Published” screen:
 
-**Negative assertions (vendor-aligned)**
-- Missing path is handled deterministically (e.g., `404` → NotFound).
-- Stale `expected_mr_head_sha` fails publish fast.
+   * shows `target_head_sha` (canonical anchor)
+   * shows MR iid
+   * shows citations for verification reads at `target_head_sha` 
 
-### Mode B — `ameide test cluster` (real integration)
+### UISurface tests (individual)
 
-Implementation expectations (when cluster is available):
-- Use real GitLab and real token posture (dev/local only) and verify the same run report schema.
+* **UI integration:** asserts UI uses Process/Domain/Projection/Agent SDKs and does not import GitLab SDK packages or internal GitLab adapter packages.
+* **UI smoke:** end-to-end through the flow with local harness provider.
 
-## Non-goals (Scenario A)
+---
 
-- Derived backlinks/impact/memory (covered in later slices/scenarios).
-- Governance outcomes (Slice 6).
-- Process definition files and deployment (Slice 7).
-- Full transformation run (Slice 8).
+## Integration — external protocol adapters and imports/exports
+
+### Increment 1 goals
+
+1. Extend outward-facing protocols: **an MCP server (Integration primitive) that exposes Projection queries to coding agents** (and routes commands to Domain/Process seams without bypassing governance).
+2. Keep protocol adapters semantics-free: forward to Domain/Projection/Process/Agent seams; do not embed business logic.
+3. Enforce substrate hygiene: GitLab remains a substrate behind internal adapters; no direct GitLab access outside the adapter boundary.
+
+### Build (Increment 1)
+
+Extend the MCP server tool surface (Integration primitive exposing Projection queries to coding agents) (minimum):
+
+* `repo.ensure_change(...)` → Domain.EnsureChange
+* `repo.create_commit(...)` → Domain.CreateCommit
+* `repo.publish_change(...)` → Domain.PublishChange
+* `repo.get_evidence(...)` → Domain.GetEvidence (Domain-owned EvidenceSpineViewModel)
+
+### Integration tests (individual)
+
+* **Unit:** MCP tools (Integration primitive exposing Projection queries to coding agents) route to Domain/Projection/Process and preserve deterministic errors.
+* **Static boundary:** only Domain imports `gitlab.com/gitlab-org/api/client-go`; only Integration imports MCP protocol libs (Integration primitive exposing Projection queries to coding agents).
+
+---
+
+# 3) Increment 1 deliverables checklist
+
+Increment 1 is complete only when:
+
+* ✅ One capability-level contract-pass test demonstrates Scenario A end-to-end across all primitives. 
+* ✅ Each primitive has at least one new behavior + one primitive test (non-null progress).
+* ✅ Evidence Spine is produced by Domain and consumed by UI/Process/Agent without competing schemas. 
+* ✅ GitLab adapter boundary is enforced (static import rule + wiring test).
+* ✅ Both human and agent paths are exercised (manual draft path + agent draft path).

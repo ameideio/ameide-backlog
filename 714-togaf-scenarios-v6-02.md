@@ -1,38 +1,25 @@
----
-title: "714 — v6 Scenario Slices v6-02 (Scenario B: Requirements + derived backlinks/impact + citeable context)"
-status: draft
-owners:
-  - platform
-  - transformation
-  - repository
-  - ui
-  - agents
-created: 2026-01-21
-updated: 2026-01-21
-related:
-  - 714-togaf-scenarios-v6.md
-  - 704-v6-enterprise-repository-memory-e2e-implementation-plan.md
-  - 656-agentic-memory-v6.md
-  - 717-ameide-agents-v6.md
-  - 710-gitlab-api-token-contract.md
+# Increment 2 — Requirements and derived backlinks with explainable “why linked”
+
+This increment implements **Scenario B** end‑to‑end, but aligned to your **six primitives** (no separate “Memory primitive”). It delivers the first real **EA knowledge graph derivation**: stable IDs + inline refs → **derived backlinks/impact** with **origin citations** and deterministic edge cases (broken refs, duplicate IDs). 
+
+It builds directly on Increment 1’s governed publish loop and Evidence Spine semantics (MR is proposal unit; canonical publish anchor is the **target branch head SHA after publish**). 
+
 ---
 
-# 714 v6-02 — Scenario B implementation consolidation
+## 1) Capability user story and capability-level testing objective
 
-This document is an implementer-oriented consolidation for **Scenario B** from `backlog/714-togaf-scenarios-v6.md`.
+### User story
 
-Goal: specify, in concrete terms, what must be implemented across primitives to make Scenario B **real**, **Git-first**, and **explainable** (derived views with citations).
+* **As a human (architect)**, I can create a requirement (`REQ-001`) and a standard that references it, publish both through governed changes, and then open `REQ-001` and see:
 
-## Scenario B (recap)
+  * a **Derived Backlinks/Impact** panel (what depends on this requirement)
+  * a **“why linked?”** affordance showing the precise origin location of each ref
+  * deterministic handling for broken/ambiguous cases (not silent) 
+* **As an agent**, I can answer “what depends on REQ-001?” and produce a citeable impact summary by calling Projection queries and reading cited snippets; I cannot create relationships in a DB (because there is no canonical relationship store), and I cannot write without Domain.
 
-**User story**
-- As an architect, I can add requirements in the repository and later navigate “what depends on this requirement” via derived backlinks, without relationship CRUD.
+### Capability-level testing objective (contract-pass)
 
-**What this scenario proves (v6 posture)**
-- Requirements are **canonical files** (Git content truth), not DB rows.
-- Relationships are **inline-only references** inside authored files (either in content/body, or in file metadata/frontmatter).
-- Backlinks/impact are **projection-only** (rebuildable), and every derived edge is citation-grade.
-- Memory/context is **projection-owned** and returns only citeable bundles.
+One **capability-owned integration test pack** proves from empty state:
 
 ## Agentic deliverables (Scenario B)
 
@@ -52,283 +39,287 @@ Scenario B is where agentic “graph reasoning over Git” becomes real: the pla
 
 ## EDA alignment (496)
 
-Scenario B reinforces the “owner facts → derived projections” posture from `backlog/496-eda-principles-v6.md`:
+1. Onboard mapping for `{tenant_id, organization_id, repository_id}`.
+2. Publish two artifacts via **Domain** governed write loop:
 
-* Canonical writes still flow through the Domain’s command surface (owner-only writes).
-* Projection is a **derived read model**:
-  * it may update incrementally by consuming owner facts (e.g., “change published” with audit pointers),
-  * and it must always be rebuildable from canonical Git at a commit SHA + recorded audit pointers.
-* Memory is not an owner and does not emit facts; it is a query surface over derived data (citeable context bundles).
-* Broken/ambiguous references are a normal outcome of derived indexing:
-  * surface them deterministically with origin citations,
-  * and resolve them only via a governed change (Domain command), never via “projection writes”.
+   * `requirements/REQ-001.md` containing a stable ID `REQ-001`
+   * `architecture/standards/standard-a.md` containing an inline reference `ref: REQ-001` 
+3. Projection resolves `published → resolved.commit_sha` and indexes the published baseline.
+4. Projection answers:
 
-## Capability test placement (590/591)
+   * `GetElementById("REQ-001")` returns a single path + citation (or deterministic “duplicate id” error if applicable).
+   * `ListBacklinks("REQ-001")` returns at least one backlink (standard-a) and every edge includes an **origin citation** (where the `ref:` token lived). 
+5. Process instance exists for the intake flow (durable orchestration state recorded).
+6. Agent produces an “impact summary” that is strictly citeable (citations refer back to the origin citations + target content).
+7. UISurface can:
 
-Scenario B’s contract-pass test is a cross-primitive flow (Domain publish → Projection derive → Memory bundle) and should live as a **capability-owned test** under the repo’s `capabilities/` boundary (per `backlog/590-capabilities.md`), alongside Scenario A’s tests.
+   * browse derived requirements index
+   * open `REQ-001`
+   * show backlinks + “why linked?” reveal
+   * show “Broken ref” / “Duplicate ID” errors explicitly when those cases are triggered 
+8. Integration exposes the same derived views via protocol adapter: **an MCP server (Integration primitive) that exposes Projection queries to coding agents**, without embedding semantics.
 
-## Minimal repo artifacts
+#### Required negative cases (same increment, same test pack)
 
-Scenario B uses these canonical file paths:
-- `requirements/REQ-001.md` (must contain a stable ID)
-- `architecture/standards/standard-a.md` (must reference `REQ-001` inline)
+* **Broken ref:** a file contains `ref: REQ-404` but no element claims `id: REQ-404` → Projection returns backlinks with target marked unresolved and origin citations; UI shows “Broken reference” deterministically. 
+* **Duplicate ID:** two files claim `id: REQ-001` at the same SHA → `GetElementById` fails with explicit “duplicate id” error and includes candidate citations; UI does not pick a winner. 
 
-## Contracts and data shapes
+> Note on “Memory”: Scenario B describes “Memory/context” as projection-owned and citeable. 
+> Under your six-primitive model, we implement **context bundle retrieval as a Projection query**, and treat “memory” as **Agent workflow storage of citeable bundles** (no separate primitive, no uncited facts).
 
-### Identity (required everywhere)
+---
 
-- `{tenant_id, organization_id, repository_id}`
+## 2) Primitive-by-primitive goals, what to build, and what to test
 
-### Repository mapping (required)
+Below: every primitive advances (variable scope, never null).
 
-Canonical mapping from `{tenant_id, organization_id, repository_id}` to the vendor remote:
-- `provider = gitlab`
-- `remote_id = <gitlab project id or path>` (opaque to UX)
-- `published_ref = main`
+---
 
-### Read context (minimum required in Scenario B)
+## Domain — governed writes + publish-time artifact policy
 
-Projection must support:
-- `published` → resolves to `resolved.commit_sha` for `target_branch` (typically `main`)
-- `version_ref.commit_sha` → historical reads for audit replay
+### Increment 2 goals
 
-Scenario B does not require proposal-head reads (that is Scenario C), but the data model should not prevent it.
+1. Domain continues to be the **only canonical writer** (MR-backed publish).
+2. Domain enforces minimum authoring policy for participating EA artifacts:
 
-### Citations (minimum)
+   * stable IDs required for eligible “EA item” files
+   * (optional in the doc; **mandatory in this increment**) because we need deterministic graph semantics. 
+3. Domain continues to be the **only owner of Evidence Spine**; Projection/Process/UI/Agent do not invent their own “evidence schema.”
 
-All read and derived outputs must be anchored to citations:
-- File/tree reads: `{repository_id, commit_sha, path[, anchor]}`
-- Derived edges must include **origin citations** that point to where the reference text lived:
-  - `origin: {repository_id, commit_sha, path, anchor}`
+### Build
 
-### Stable identity in files (minimum)
+* Extend publish workflow (from Increment 1) with an artifact validation step:
 
-To avoid path-based identity drift, each “element file” participating in derived views must carry a stable ID in its content.
+  * On `CreateCommit` or `PublishChange` (choose one consistently), validate:
 
-**Scenario B MVP rule**
-- `requirements/REQ-001.md` must include a stable ID value `REQ-001`.
-- In v6, IDs are content, not path: moving a file does not change the ID.
+    * if path is under `requirements/**` then it must contain stable ID field (per Scenario B MVP rule)
+    * if path is under `architecture/standards/**` then stable ID is recommended, but at minimum refs are parseable (you can enforce IDs here too if you want uniformity)
+* Evidence Spine enrichment:
 
-**Identity scope and collisions (product rules)**
-- IDs are **repository-unique** at a given `{repository_id, commit_sha}`.
-- If multiple files claim the same `id` at the same commit SHA, Projection must treat the ID as **ambiguous**:
-  - `GetElementById` must fail with an explicit “duplicate id” error and include the candidate citations `{repo, sha, path[, anchor]}`.
-  - UI must surface this as a user-visible error (it is not safe to pick an arbitrary winner).
-- If a file has no stable `id`, it is still readable by **path**, but it is not eligible for `element_id → path` navigation or derived views that require IDs (unless explicitly allowed by a slice).
+  * include `changed_paths[]` and the `target_head_sha` for each publish
+  * do not add any derived backlinks/graph results (those belong to Projection) 
 
-### Inline reference grammar (Scenario B MVP)
+### Domain individual tests
 
-For Scenario B, pick one simple reference form so Projection can be deterministic:
+* **Unit:** publish rejects `requirements/REQ-001.md` if stable ID missing (explicit error, deterministic).
+* **Unit:** publish accepts `requirements/REQ-001.md` when ID present and well-formed.
+* **Unit:** EvidenceSpineViewModel remains Domain-owned and contains:
 
-- The requirement declares an ID in frontmatter:
-  - `id: REQ-001`
-- A referencing file includes an inline token:
-  - `ref: REQ-001`
+  * identity
+  * MR iid
+  * `target_head_sha`
+  * changed paths list
+* **Boundary/static:** UISurface/Agent/Process/Projection do not import `gitlab.com/gitlab-org/api/client-go` (Domain may); GitLab types never cross proto contracts.
 
-Notes:
-- This is an MVP grammar for the scenario test harness; it does not preclude supporting additional syntaxes later.
-- Projection must emit deterministic `anchor` data that allows UI to show “why linked?” and is reproducible on rebuild at `{repository_id, commit_sha, path}`.
+---
 
-**Anchor strategy (Scenario B MVP)**
-- For frontmatter locations: `anchor = "fm:<field>"` (e.g., `fm:id`, `fm:refs[0]`).
-- For body/content tokens: `anchor = "L<line>:C<col>"` (1-based position of the `ref:` token).
- 
-UI intent:
-- The “why linked?” affordance uses `{commit_sha, path, anchor}` to show the exact origin location (highlight the relevant line/field) at the immutable SHA.
+## Projection — derived ID index + backlinks + “why linked” anchors (from Domain facts)
 
+### Increment 2 goals
 
-## What to implement by primitive
+1. Projection owns:
 
-### Domain primitive (canonical writes + optional publish validation)
+   * canonical reads at SHA
+   * derived, rebuildable read models (ID index, backlinks index) 
+   * canonical+derived reads are served from projection state derived from Domain facts (outbox→Kafka); Projection does not call GitLab.
+2. Derived edges are **explainable**:
 
-**Domain responsibilities**
-- Same write boundary as Scenario A: owner-only writes via MR.
-- Optional but recommended for Scenario B: **publish validation** that rejects element files missing stable IDs (fail fast).
+   * every backlink includes an **origin citation** (path + anchor at the immutable SHA)
+3. Edge cases are deterministic:
 
-**Domain commands**
-- Reuse Scenario A write loop: `EnsureChange → CreateCommit(actions[]) → PublishChange`.
-- Optional validation hooks:
-  - `ValidateArtifacts(change_id)` (can be implemented as part of PublishChange or CI validation).
+   * missing target IDs yield “unresolved reference” outcomes (with origin citations)
+   * duplicate IDs yield explicit ambiguous errors (with candidate citations) 
 
-### Projection primitive (derived backlinks/impact; rebuildable index)
+### Build
 
-**Projection responsibilities**
-- Parse authored files at a specific commit SHA (typically published baseline) and extract:
-  - element stable IDs (from file content)
-  - inline references (from file content)
-- Build a rebuildable index for:
-  - `id → {path, citation}`
-  - backlinks: `target_id → [{source_path, origin_citation, ref_kind}]`
-- Provide deterministic query answers for a given `{repository_id, commit_sha}`.
+Minimum derived model, exactly per Scenario B:
 
-**Projection query surface (minimum)**
-- `GetElementById(scope, read_context, element_id)` → `{path, citation}`
-- `ListBacklinks(scope, read_context, target_element_id)` → backlinks with origin citations
-- `GetContextBundle(scope, read_context, target_element_id, limits…)` → citeable list of `{citation, excerpt?}`
+* **Stable identity extraction**
 
-**Edge behavior (must be deterministic)**
-- Missing target ID:
-  - backlinks can still exist (refs found), but targets resolve as “unresolved”; UI must show “Broken reference: <target_id>” with origin citations.
-- Duplicate target ID:
-  - treat as “ambiguous target”; UI must show an explicit error with candidate citations.
-- Rebuildability:
-  - Projection can rebuild the backlinks index from Git alone (no canonical relationship store).
+  * Parse `id: REQ-001` from frontmatter/metadata section in `requirements/REQ-001.md` 
+  * Index: `element_id → {path, citation}` (citation anchored to `{repo_id, sha, path[, anchor]}`)
 
-### Memory primitive (projection-owned citeable context)
+* **Inline reference extraction (MVP grammar)**
 
-**Memory responsibilities (Scenario B)**
-- No “semantic memory” required.
-- Implement “context retrieval” strictly as a projection query that returns a citeable bundle.
+  * Parse `ref: REQ-001` tokens in body/content
+  * Emit an origin anchor:
 
-**Memory output contract**
-- Returns only citations + optional excerpts derived from the cited artifacts at the same `resolved.commit_sha`.
-- Never returns uncited “facts”.
+    * `fm:<field>` for frontmatter locations
+    * `L<line>:C<col>` for body token positions (Scenario B MVP anchor strategy) 
 
-### UI surface (UX-pass; derived panels with explainability)
+* **Backlinks index**
 
-**UI responsibilities**
-- Show requirements as Git-authored artifacts:
-  - requirements open in the element editor (Document editor); the canonical file path + citation is still visible.
-- Provide a derived backlinks/impact panel:
-  - explicitly labeled **Derived**
-  - every entry has a “why linked?” affordance that reveals origin citation (path + anchor + SHA).
-  - broken references are shown explicitly (with origin citations) and are never auto-fixed
-  - ambiguous element IDs are shown explicitly (with candidate citations); users must resolve via a governed change
-- Provide a “citeable context” panel:
-  - list of citations returned by memory bundle retrieval
-  - copyable as JSON
+  * `target_id → [ {source_path, origin_citation, ref_kind} ]`
+  * Rebuildable from Git at SHA
 
-#### UI placement (aligned to the current platform app)
+* **Query surface (minimum)**
 
-The platform already scopes “Enterprise Repository” under `/org/:orgId/repo/:repositoryId/*` and uses `ListPageLayout`.
+  * `GetElementById(scope, read_context, element_id)`
+  * `ListBacklinks(scope, read_context, target_element_id)`
+  * Optional but useful for UI/agent: `GetOriginSnippet(scope, read_context, origin_citation)` (returns a small excerpt around the anchor)
 
-Scenario B assumes Scenario A already introduced a canonical Git surface (e.g. `/canonical`).
+### Projection individual tests
 
-For Scenario B, add **derived views** alongside canonical browsing:
-- `/org/:orgId/repo/:repositoryId/derived/requirements` (index)
-- `/org/:orgId/repo/:repositoryId/canonical?path=requirements/REQ-001.md` (canonical view)
+* **Unit:** `GetElementById("REQ-001")` returns path + citation at published SHA.
+* **Unit:** duplicate ID at same SHA → explicit “duplicate id” error with candidate citations (no arbitrary winner). 
+* **Unit:** `ListBacklinks("REQ-001")` returns `standard-a.md` and includes origin citations (anchor points to the ref token).
+* **Unit:** broken ref behavior is deterministic and surfaced as unresolved target, not silently ignored. 
+* **Rebuildability:** indexing twice at same SHA yields identical backlinks output.
 
-Also note: the app already has a modal route pattern for opening an “element editor”:
-- `.../repo/:repositoryId/@modal/(.)element/:elementId`
-Scenario B assumes this becomes the primary “open requirement / open standard” surface (editor-first), and that backlinks/impact/memory panels are implemented as **derived** overlays (no relationship CRUD).
+---
 
-Deep-link nuance (current platform reality):
-- Direct `/org/:orgId/repo/:repositoryId/element/:elementId` routes currently redirect back to the repo root.
-- Until that is changed, “open in new tab” should use the repo route plus a query param that opens the modal.
-  - For Scenario B, `elementId=<stable_element_id>` is the primary mode (e.g. `elementId=REQ-001`), aligned to v6 element identity.
-  - Also allow `elementPath=<urlencoded path>` as a compatibility escape hatch for “open by path” (still Git-first), but do not treat paths as element identity.
+## Process — requirement intake orchestration (durable, non-writing)
 
-#### Wireframes (ASCII)
+### Increment 2 goals
 
-##### Screen 1 — Derived Requirements index (projection-backed)
+1. Process owns a durable workflow for “requirement intake + publish + derive”.
+2. Process does not write canonical artifacts; it coordinates by:
 
-```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ <ListPageLayout title="Requirements (Derived)" showActivityPanel={true}>      │
-│   <PageHeader                                                                 │
-│     title="Requirements (Derived)"                                            │
-│     actions={[Rebuild projection] [Copy run report]}                          │
-│   />                                                                          │
-│   Repo: <repository_id>   Read: [Published ▼]   Resolved: main @ <sha>         │
-├──────────────────────────────────────────────────────────────────────────────┤
-│ Main (ListPageLayout children)                  activityPanel={<RepositorySidebar />} │
-│ ┌──────────────────────── Requirements ─────────────────────────────────────┐ │
-│ │ ID       Title                     Path                                   │ │
-│ │ REQ-001  Unified repo contract      requirements/REQ-001.md     [Open]    │ │
-│ │ REQ-002  ...                        requirements/REQ-002.md     [Open]    │ │
-│ └──────────────────────────────────────────────────────────────────────────┘ │
-│                                                                              │
-│ Activity panel suggestion:                                                    │
-│ - “Derived view” explanation + citations policy                               │
-│ - last projection build time, commit SHA indexed                              │
-│ </ListPageLayout>                                                             │
-└──────────────────────────────────────────────────────────────────────────────┘
-```
+   * invoking Domain commands
+   * invoking Projection rebuild/index commands (if you model “index now” as a command) or waiting for post-commit facts later.
 
-##### Screen 2 — Requirement detail (element editor + derived impact + chat sidebar)
+### Build
 
-```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ <ElementEditorModal />                                                         │
-│  ┌──────────────────── <EditorModalChrome /> ─────────────────────────────┐   │
-│  │ title="Requirement REQ-001"   kindBadge="document"                      │   │
-│  │ actions: [Propose change] [Fullscreen] [Close]                           │   │
-│  └─────────────────────────────────────────────────────────────────────────┘   │
-│  Storage: requirements/REQ-001.md                                               │
-│  Read: Published @ <sha>                                                        │
-│  Citation: {repo, <sha>, "requirements/REQ-001.md"}                             │
-│                                                                              │
-│  ┌────────────────────────────── main ───────────────────────────────┬──────┐ │
-│  │ <Tabs> ... [Document] [Properties] [Derived] [Evidence]            │      │ │
-│  │                                                                    │      │ │
-│  │ <EditorPluginHost /> (future: Document plugin)                     │ <ModalChatPanel /> │
-│  │  Document tab shows canonical content                              │  assistant Q&A       │
-│  │                                                                    │                      │
-│  │  Derived tab (projection-backed):                                   │                      │
-│  │   - Derived Backlinks: standard-a.md                                │                      │
-│  │     "why linked?" → origin citation {repo,<sha>,path,anchor}        │                      │
-│  │   - Citeable Context bundle (memory)                                │                      │
-│  │                                                                    │                      │
-│  └────────────────────────────────────────────────────────────────────┴──────┘ │
-│  <ModalChatFooter /> (toggle chat / starters)                                   │
-└──────────────────────────────────────────────────────────────────────────────┘
-```
+A minimal durable process `req.intake` (and a second one `standard.update`, or one combined flow), with states like:
 
-##### Screen 3 — Propose change (authoring inline refs inside the element editor)
+1. `STARTED`
+2. `DRAFT_READY` (human or agent draft attached)
+3. `CHANGE_OPENED` (Domain EnsureChange done)
+4. `COMMITTED` (Domain CreateCommit done)
+5. `PUBLISHED` (Domain PublishChange done; `target_head_sha` recorded)
+6. `INDEXED` (Projection confirms index built for `target_head_sha`)
+7. `DONE`
 
-```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ <ElementEditorModal />                                                        │
-│  <EditorModalChrome title="Standard A" subtitle="Draft (proposal)" />         │
-│  Draft banner: Change <change_id> • MR !<iid> • <branch_ref> → main            │
-│                                                                              │
-│  <Tabs> [Document] ...                                                        │
-│                                                                              │
-│  Document editor content includes inline reference authored in-file:          │
-│   ref: REQ-001                                                                │
-│                                                                              │
-│  Actions: [Save draft] [Publish]                                              │
-│   - Save draft → Domain `CreateCommit(actions[])`                             │
-│   - Publish → Domain `PublishChange(expected_mr_head_sha)`                    │
-│                                                                              │
-│  RightSidebarTabs: <ModalChatPanel /> (optional)                              │
-│  Footer: <ModalChatFooter />                                                  │
-└──────────────────────────────────────────────────────────────────────────────┘
-```
+### Process individual tests
 
-Key UX constraint:
-- UI may assist users in inserting a reference (autocomplete), but the result must be an **inline token in the file**, not a DB relationship.
+* **Unit:** workflow persists and resumes (durability) mid-flight.
+* **Unit:** process cannot advance to `INDEXED` without Projection acknowledging the indexed SHA equals Domain’s `target_head_sha`.
+* **Boundary:** process cannot access GitLab adapters; it can only call Domain/Projection seams.
 
-## Contract-pass E2E test (Scenario B)
+---
 
-### Mode A — `ameide test` (local-only)
+## Agent — citeable impact summary + workflow memory
 
-Implementation expectations:
-- Use in-process mocks where needed (e.g., an in-memory GitLab HTTP API), but keep the same Domain/Projection adapters and contracts.
+### Increment 2 goals
 
-**Steps**
-1. Onboard repository mapping.
-2. Publish two files via Domain write loop:
-   - `requirements/REQ-001.md` (contains stable `id: REQ-001`)
-   - `architecture/standards/standard-a.md` (contains `ref: REQ-001`)
-3. Projection indexes the published baseline SHA (explicit call or implicit on publish event).
-4. Assert derived backlinks:
-   - `ListBacklinks(target_element_id="REQ-001")` returns at least `standard-a.md`
-   - every backlink includes an origin citation `{repo, <sha>, path, anchor}`
-5. Assert memory/context:
-   - `GetContextBundle(target_element_id="REQ-001")` returns only citations at the same `<sha>`
-6. Negative assertions:
-   - missing target ID produces deterministic “unresolved” behavior (with origin citation)
-   - requirement without stable ID is rejected (if publish validation is enabled)
+1. Agent can answer impact questions (“what depends on REQ-001?”) by:
 
-### Mode B — `ameide test cluster` (real integration)
+   * calling Projection backlinks
+   * reading cited content snippets
+   * producing a citeable answer
+2. Memory is treated as Agent workflow concern:
 
-Implementation expectations (when cluster is available):
-- Use real GitLab and real token posture (dev/local only), and verify the same run report schema.
+   * store the context bundle citations used to produce the output
+   * never store uncited “facts”
 
-## Non-goals (Scenario B)
+### Build
 
-- Proposal-head vs published comparison (Scenario C / v6-03).
-- Governance outcomes enforcement (Slice 6).
-- Process definitions and deployment (Slice 7).
-- Full transformation run (Slice 8).
+* `Agent.ExplainImpact(scope, read_context, target_element_id)`:
+
+  1. call `Projection.ListBacklinks(target_element_id)`
+  2. optionally call `Projection.GetContent`/`GetOriginSnippet` for each backlink origin
+  3. produce `impact_summary {text, citations_used}`
+
+* Agent memory store records:
+
+  * selected citations
+  * the final output + citations
+
+### Agent individual tests
+
+* **Unit:** output includes citations used; reject/flag any claim without citations.
+* **Unit:** agent can handle “broken refs” deterministically (reports “Unresolved: REQ-404” with origin citations).
+* **Unit:** agent can handle “duplicate id” deterministically (reports ambiguity and includes candidate citations; does not pick one).
+
+---
+
+## UISurface — derived requirements UX + “why linked” explainability
+
+### Increment 2 goals
+
+1. UI makes “Derived vs Canonical” explicit:
+
+   * Derived requirements list is projection-backed
+   * Canonical editor opens the Git file at SHA
+2. UI supports “open by element ID” (REQ-001), not path identity.
+3. UI provides:
+
+   * backlinks/impact panel
+   * “why linked?” reveal (origin citation anchors)
+   * explicit broken ref and duplicate ID experiences 
+
+### Build
+
+Minimum UI routes/components (aligned with Scenario B):
+
+* **Derived Requirements index**
+
+  * list `REQ-*` from Projection ID index
+  * shows resolved SHA
+* **Requirement detail modal/editor**
+
+  * shows canonical file path + citation
+  * derived backlinks panel:
+
+    * each backlink row has “why linked?” opening the origin anchor
+  * show deterministic error panels for:
+
+    * duplicate ID
+    * broken ref 
+
+### UISurface individual tests
+
+* **UI integration:** requirement index loads from Projection; no GitLab calls.
+* **UI e2e smoke:** open REQ-001 → backlinks visible → “why linked?” opens cited location.
+* **UI negative:** duplicate ID error UI renders candidate citations; broken ref UI renders origin citations.
+
+---
+
+## Integration — protocol tools + substrate isolation
+
+### Increment 2 goals
+
+1. Integration extends outward-facing protocols (MCP server = Integration primitive exposing Projection queries to coding agents) so vendor agents can access:
+
+   * resolve id
+   * backlinks
+   * open origin snippet
+2. Integration remains semantics-free:
+
+   * it forwards to Projection/Domain; it doesn’t implement graph logic or ID rules.
+3. GitLab remains a vendor substrate accessed by Domain internals (no direct GitLab access from UISurface/Agent/Process/Projection).
+
+### Build
+
+* Extend MCP server tool surface (Integration primitive exposing Projection queries to coding agents) (minimum):
+
+  * `ea.resolve_id(element_id, read_context)`
+  * `ea.backlinks(element_id, read_context)`
+  * `ea.open_origin(origin_citation, read_context)`
+* Ensure all tools return citeable outputs (citations unchanged from Projection).
+
+### Integration individual tests
+
+* **Unit:** MCP tools (Integration primitive exposing Projection queries to coding agents) route to Projection and return deterministic outputs (including errors for duplicate IDs).
+* **Boundary/static:** UISurface/Agent/Process/Projection do not import `gitlab.com/gitlab-org/api/client-go`; only Domain imports GitLab clients; only Integration imports MCP protocol libs (Integration primitive exposing Projection queries to coding agents).
+
+---
+
+## Increment 2 “Done means done”
+
+Increment 2 is complete only when:
+
+* ✅ One capability-level contract-pass test demonstrates:
+
+  * two publishes through Domain
+  * Projection derived backlinks with origin citations
+  * Agent impact summary is citeable
+  * UI shows derived backlinks + “why linked?”
+  * Integration exposes tools for vendor agents
+* ✅ Each primitive has at least one new behavior + at least one primitive-owned test.
+* ✅ No competing evidence spine schemas exist outside Domain.
+* ✅ No relationship CRUD exists; all relationships are inline refs and derived backlinks. 
+
+---
+
+If you reply “next”, I’ll do **Increment 3**: “Proposal vs Published” review gate (impact preview across SHAs + human approval + process gate + agent-produced evidence packet), keeping the same structure and making sure **every primitive advances** again.

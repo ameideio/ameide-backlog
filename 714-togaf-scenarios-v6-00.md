@@ -1,38 +1,39 @@
+# Increment 0 — Onboard and Explore Baseline
+
+## Outcome
+
+A human and an agent can **onboard a repository into a tenant scope**, resolve `published` to a deterministic commit SHA, browse the Git tree, open citeable content, start a process instance, and produce an agent proposal that is strictly citation-backed—while enforcing the boundaries (no GitLab access from UISurface/Agent/Process; owner-only writes via Domain; reads via Projection).
+
+This is “Slice 0” made **non-optional across all six primitives** (UI and Agent included) and with **Memory moved into Agent workflow**, while keeping the contract-pass scaffolding posture. 
+
+## GitLab adapter standard (applies to all increments)
+
+* **Single GitLab Go client:** `gitlab.com/gitlab-org/api/client-go` (pinned to v1.x).
+* **No wrapper clients:** Domain implementation code may call `client-go` services directly (the SDK *is* the adapter).
+* **No leaking types:** GitLab client types never cross platform contracts (proto/SDK/view models).
+* **Testing posture:**
+  * **Primitive unit tests:** use `gitlab.com/gitlab-org/api/client-go/testing` (gomock) to validate handler logic without HTTP.
+  * **Capability/integration tests:** use gomock-based GitLab **mocks** (vendor `client-go/testing` or equivalent) and deterministic outbox→projection apply; no real GitLab dependency.
+
 ---
-title: "714 — v6 Scenario Slices v6-00 (Slice 0: Plumbing + contract harness scaffolding)"
-status: draft
-owners:
-  - platform
-  - transformation
-  - repository
-  - ui
-  - agents
-created: 2026-01-21
-updated: 2026-01-21
-related:
-  - 714-togaf-scenarios-v6.md
-  - 537-primitive-testing-discipline.md
-  - 694-elements-gitlab-v6.md
-  - 710-gitlab-api-token-contract.md
----
 
-# 714 v6-00 — Slice 0 scaffolding (plumbing + contract harness)
+## Implementation progress (as of 2026-01-22)
 
-Slice 0 exists to make the v6 program **implementable**: it scaffolds the plumbing and the contract harness so subsequent slices can add behavior without re-litigating wiring, identity propagation, or evidence/report shapes.
+* ✅ Enterprise Repository Domain command seam implemented for Inc 0 scaffolding (Git remote mapping + change/commit/publish flows) using `client-go` directly.
+* ✅ Enterprise Repository Projection query seam implemented (`ListTree`, `GetContent`) including `published` → resolved SHA.
+* ✅ Platform repository page wired to proto seams for “Published @ SHA” + tree + file open (no direct GitLab routes).
+* ✅ Capability integration coverage added for v6 scenario `0/OnboardExploreBaseline`.
+* ✅ Primitive unit tests added using `gitlab.com/gitlab-org/api/client-go/testing` (Domain + Projection).
+* ⏳ Docs target state (CQRS + outbox-derived reads): Projection must stop calling GitLab and serve reads purely from Domain facts (Kafka/outbox).
 
-Slice 0 is **not** a user capability and does not try to “ship product value” directly. Its output is:
+## 1) Capability user story and capability-level testing objective
 
-* a runnable **contract-pass** runner in `ameide test` (Phase 0/1/2),
-* a skeleton set of services/primitives that can be invoked end-to-end,
-* a valid `EvidenceSpineViewModel` emitted on every run (even if fields are empty where not applicable).
+### User story (human + agent, equally important)
 
-## What Slice 0 proves (v6 posture, minimal)
+* **As a human (architect)**, I can onboard a repository, browse the canonical tree at `Published @ <sha>`, open a file, and see its citation.
+* **As an agent** (via the platform Agent seam), I can retrieve a citeable context bundle for that same file and generate a short proposal/summary that contains **only citeable statements**.
 
-* Identity plumbing is consistent across all calls/events/logs: `{tenant_id, organization_id, repository_id}`.
-* `read_context` exists and resolves to a deterministic commit SHA in the local runner (in-memory repo store).
-* All reads and derived outputs are citation-grade (even with in-process mocks): `{repository_id, commit_sha, path[, anchor]}`.
-* The Evidence Spine is a **shared view model** (not “test-only output”).
-* The Element Editor surface exists as a shell (optional), but persistence is not implemented here.
+### Capability-level testing objective (contract-pass)
 
 ## Agentic deliverables (Slice 0)
 
@@ -49,144 +50,302 @@ Slice 0 is still “plumbing”, but it must already be usable by agents as an e
 
 ## EDA alignment (496)
 
-Slice 0 scaffolds the plumbing so later slices can adopt the full evented posture from `backlog/496-eda-principles-v6.md` without refactoring.
+A single **capability-owned integration test** (run by `ameide test`, Phase 0/1/2) proves from empty state:
 
-In Slice 0 (local-only):
+1. **Identity creation**: `{tenant_id, organization_id, repository_id}` is used everywhere.
+2. **Onboarding**: Domain records a repo mapping for this identity (local/in-memory provider is acceptable for Inc 0).
+3. **Read context resolution**: Projection resolves `published` to a deterministic `resolved.commit_sha`. 
+4. **Canonical reads**: Projection lists tree + reads one file; responses include citations `{repository_id, commit_sha, path[, anchor]}`. 
+5. **Process instance**: Process starts a durable process instance `repo.explore` (or equivalent) and returns `process_instance_id`. 
+6. **Agent proposal**: Agent consumes Projection-provided citeable context and produces a proposal with citations (no uncited facts). 
+7. **Run report**: An `EvidenceSpineViewModel` is emitted for the run using the **Domain-owned schema** (fields not applicable in Inc 0 may be empty). 
 
-* Prefer RPC-like calls between primitives to prove the seams (Commands/Queries).
-* Still treat interactions using 496 terms:
-  * Domain endpoints are **Commands** (even if they are “no-op” in Slice 0).
-  * Process/Agent can issue Commands (or Intents later) but never write canonical state directly.
-  * Projection/Memory are **derived read models**.
-* Even in local mocks, preserve the required *metadata disciplines*:
-  * idempotency keys on commands where relevant,
-  * correlation/causation metadata propagation (at least in request context / logs).
+**Negative assertions (must pass):**
 
-In later cluster phases:
+* UI/Agent/Process/Projection do not call GitLab directly; only Domain calls `client-go`, and GitLab types never cross the proto seam.
+* Missing path yields a deterministic error outcome (no silent empty lists). 
 
-* Owners emit **Facts** only after commit (outbox / outbox-equivalent).
-* Facts/intents move over Kafka using CloudEvents + Protobuf and `io.ameide.*` types per 496.
+### Placement
 
-## Non-goals
+* The test lives under the **capability composition boundary** (as Slice 0 already mandates) and exercises all primitives end-to-end. 
 
-* No GitLab required (local-only mocks are allowed and expected).
-* No real MR/publish workflow (that is Slice 2 / Scenario A).
-* No derived backlinks/impact parsing (that is Slice 3 / Scenario B).
-* No cluster integration (that is `ameide test cluster` in Phase 4/5).
+---
 
-## Capability tags
+## 2) Primitive-by-primitive plan (build + individual tests)
 
-Slice 0 covers:
+Below, “build” means “new code/API/behavior introduced by Increment 0”, and “primitive tests” are what each primitive must prove independently.
 
-* `cap:identity`
-* `cap:citation`
-* `cap:evidence.spine`
-* `cap:repo.onboard` (local-only mapping; enough to exercise the contract)
-* `cap:repo.read_tree` / `cap:repo.read_file` (in-memory repo store, not GitLab)
+---
 
-And introduces an internal enabling tag used only to coordinate scaffolding:
+## Domain — canonical mapping + boundary + evidence schema presence
 
-* `cap:plumbing.scaffold` (service wiring + harness; not a product feature)
+### Increment 0 goals
 
-## Capability-level test scaffolding (590/591)
+1. Domain owns the **canonical repository mapping** (platform truth for which vendor remote a repository_id points to).
+2. Domain enforces the **owner-only write boundary at interfaces** (nobody supplies vendor credentials; Domain is the only place that could ever hold them). 
+3. Domain **owns the EvidenceSpine schema** (as a contract type), even if Inc 0 populates only identity/mapping/citations summary.
 
-Slice 0 must scaffold not only “scenario runners”, but also the **capability-owned test pack shape** so later slices land tests in the right place:
+### Build (Increment 0)
 
-* Tests live under the repo’s `capabilities/` composition boundary (per `backlog/590-capabilities.md`), not scattered across primitive-kind folders.
-* Slice 0 should introduce (or validate the existence of) a Transformation capability test pack folder (exact naming may vary by repo evolution), e.g.:
-  * `capabilities/transformation/__tests__/integration/` (target state from 590), or
-  * `capabilities/transformation/features/.../integration/` (current common pattern in this repo)
-* Slice 0 DoD includes at least one runnable “plumbing test” in that pack that:
-  * exercises the Slice 0 harness end-to-end (Domain/Projection/Memory/Process/Agent stubs),
-  * produces an `EvidenceSpineViewModel`,
-  * and fails fast on missing identity/citation discipline.
+* **Command:** `UpsertRepositoryGitRemote(scope, provider, remote_id|remote_path)`
+* **Query:** `GetRepositoryGitRemote(scope, provider)` (or equivalent)
+* **Evidence shape availability:** `EvidenceSpineViewModel` type is available in Domain contracts; Domain can emit a minimal instance for run reports.
 
-## What to implement by primitive (scaffolding only)
+### Domain individual tests
 
-### Repository onboarding (platform capability)
+* **Unit test: mapping round-trip**
 
-Minimum:
-* A single onboarding contract exists and can be called by the runner:
-  * `UpsertRepositoryMapping(identity, provider, remote_id, published_ref)`
-* For Slice 0, `remote_id` can be a local-only identifier into an in-memory repo store.
+  * Upsert mapping → Get mapping returns same data (scope + provider + remote_id|remote_path)
+  * Identity must match exactly.
+* **Unit test: credential boundary**
 
-### Domain primitive (stubbed write boundary)
+  * Any command that attempts to include vendor credentials in its payload is rejected (compile-time or runtime validation).
+* **Contract test: EvidenceSpineViewModel minimal emission**
 
-Minimum:
-* Domain process/service starts and can be called.
-* Domain enforces the credential boundary at the interface level:
-  * callers do not provide vendor credentials
-  * Domain would be the only holder of write credentials later (out of scope here)
-* For Slice 0, Domain may expose only a “no-op” command used by the runner:
-  * `Domain.Ping(identity)` → returns `{ok:true}` (or equivalent)
+  * For a read-only run, EvidenceSpineViewModel contains:
 
-### Projection primitive (read surface using an in-memory repo store)
+    * identity
+    * repository mapping reference
+    * citations list (passed-through)
+    * summary string
+  * “publish/proposal” fields may be empty in Inc 0, but schema is stable (important for later increments). 
 
-Minimum:
-* Projection process/service starts and can be called.
-* Provide:
-  * `ResolveReadContext(identity, read_context)` → `resolved.commit_sha`
-  * `ListTree(identity, read_context, path)` → nodes + citations
-  * `GetContent(identity, read_context, path)` → bytes + citation
+---
+
+## Projection — derived read models from Domain facts (outbox→Kafka)
+
+### Increment 0 goals
+
+1. Projection is the **only owner of read APIs** at the platform seam (CQRS).
+2. Projection reconstructs the read models by consuming **Domain facts** (outbox→Kafka), not by calling GitLab.
+3. Every read is **citation-grade**.
+
+### Build (Increment 0)
+
+* **Query:** `ListTree(scope, read_context, path)` → nodes + citations
+* **Query:** `GetContent(scope, read_context, path)` → bytes/text + citation
+* **Implementation detail:** Projection serves these reads from **its derived state** built from Domain facts (commit actions, publish anchors, etc.). Projection does not call GitLab.
 * Deterministic errors:
-  * missing path results in a single explicit error outcome (mirrors GitLab 404 semantics)
 
-### Memory primitive (projection-owned context retrieval stub)
-
-Minimum:
-* Memory process/service starts and can be called.
-* Provide:
-  * `GetContextBundle(identity, read_context, selector, limits)` → citations (+ optional excerpts)
-* Memory returns **only** citeable outputs (no uncited facts).
-
-### Process primitive (orchestration stub)
-
-Minimum:
-* Process runtime (or a stub service) starts and can be called.
-* Provide:
-  * `StartProcess(identity, process_key, inputs)` → `process_instance_id`
-* For Slice 0, it may not execute anything; it exists to prove wiring and identity propagation.
-
-### Agent primitive (proposal/evidence stub)
-
-Minimum:
-* Agent entrypoint exists and can be called.
-* Provide:
-  * `Agent.Propose(identity, goal, context_bundle)` → citeable “proposal” output (text + citations)
-* Agent must not write; it can only produce proposal/evidence.
-
-### UI (optional in Slice 0)
-
-Slice 0 does not require UI, but if we include a smoke-level surface it should be:
-
-* A repository page shell (`<ListPageLayout />`) that can render a repo tree.
-* An element editor shell (`<ElementEditorModal />` + `<EditorModalChrome />` + `<RightSidebarTabs />`) that can render:
-  * `Storage: <path>`
-  * `Read: <context> @ <sha>`
-  * `Citation: {repository_id, commit_sha, path}`
-* Persistence actions (“Save draft” / “Publish”) are hidden or disabled.
-
-## Contract-pass runner (DoD)
-
-Runner entry:
-* `ameide test` includes Slice 0 as a runnable scenario.
-
-Steps:
-1. Create identity `{tenant_id, organization_id, repository_id}`.
-2. Onboard mapping to an in-memory provider/repo store.
-3. Projection resolves `published` → `resolved.commit_sha`.
-4. Projection lists root tree and reads one file.
-5. Memory returns a citeable context bundle for that file (optional excerpt).
-6. Process stub starts and returns an instance id (no execution required).
-7. Agent stub returns a citeable proposal string referencing the context bundle citations.
-8. Emit `EvidenceSpineViewModel`:
-   * must include `identity`, `repository` mapping, `citations`, and `summary`.
-   * proposal/publish fields may be absent/empty in Slice 0.
-
-Assertions:
-* Every response includes identity (directly or via request context).
-* Every read/context item is citeable to `{repository_id, commit_sha, path[, anchor]}`.
-* Errors are deterministic for:
-  * unknown repository mapping
+  * unknown mapping
   * unknown path
-  * invalid read context
+  * invalid read_context 
+
+> Note: Inc 0 can keep citations at `{repo_id, sha, path[, anchor]}` exactly as Slice 0 currently specifies. Line-range anchors can arrive later (but don’t break this shape). 
+
+### Projection individual tests
+
+* **Unit test: apply Domain facts**
+
+  * Given a minimal fact stream (mapping + published SHA + one file upsert), the derived read model can list the tree and return file content.
+* **Unit test: list tree**
+
+  * Root listing returns deterministic nodes and node kinds.
+* **Unit test: get content**
+
+  * Returns content + citation `{repository_id, resolved_sha, path}`.
+* **Unit test: deterministic 404 semantics**
+
+  * Missing path → explicit NotFound error outcome (not empty file content).
+* **Unit test: rebuildability (Inc 0 local)**
+
+  * Re-resolve same SHA and re-read same file → identical results.
+
+---
+
+## Process — durable orchestration skeleton with identity and correlation
+
+### Increment 0 goals
+
+1. Process exists as a durable orchestration primitive; it can start a process instance and persist minimal state. 
+2. Process can coordinate via commands/events later; in Inc 0 it must at least prove:
+
+   * identity propagation
+   * correlation metadata presence
+   * stable instance id return
+
+### Build (Increment 0)
+
+* **Command:** `StartProcess(scope, process_key, inputs)` → `process_instance_id`
+
+  * Use a single key for Inc 0: `repo.explore` (or similar).
+* Optional (but still Inc 0 scope): `GetProcessInstance(process_instance_id)`.
+
+### Process individual tests
+
+* **Unit test: start persists instance**
+
+  * StartProcess returns id; GetProcessInstance returns status `RUNNING|STARTED`.
+* **Unit test: identity propagation**
+
+  * Instance record includes `{tenant, org, repo}`.
+* **Unit test: idempotency/correlation metadata**
+
+  * If StartProcess takes `idempotency_key`, repeated calls produce deterministic outcomes (either same instance id or explicit AlreadyStarted).
+
+---
+
+## Agent — cite-only proposal + Memory as workflow concern
+
+### Increment 0 goals
+
+1. Agent can consume citeable context bundles (from Projection) and produce a **proposal/evidence artifact** that is citation-backed. 
+2. “Memory” exists inside Agent as workflow state:
+
+   * store what was read (citations)
+   * store what was produced (proposal + citations)
+   * never store uncited “facts” as platform truth.
+
+### Build (Increment 0)
+
+* **Command-like entrypoint:** `Agent.Propose(scope, goal, context_bundle)` → `proposal {text, citations_used}` 
+* **Agent memory store (internal):**
+
+  * `Memory.append(run_id, {citations, notes})`
+  * `Memory.list(run_id)` (optional, used for debugging/tests)
+* A strict “cite-only” policy:
+
+  * Proposal must include citations or be rejected (you can start with a simple rule like “if any factual claim sentence exists, it must reference at least one citation”).
+
+### Agent individual tests
+
+* **Unit test: cite-only enforcement**
+
+  * Given empty context_bundle → proposal is either rejected or returns only “I don’t have sources,” with zero factual claims.
+* **Unit test: proposal contains citations**
+
+  * Given one cited file excerpt → proposal must echo citations_used.
+* **Unit test: memory only stores citations**
+
+  * Attempt to store “fact-only memory” fails schema validation (only citations + agent notes allowed).
+
+---
+
+## UISurface — minimal human workflow, no bypass
+
+### Increment 0 goals
+
+1. UI is **not optional**: it must let a human onboard + browse baseline + open file.
+2. UI must call:
+
+   * Domain for onboarding/mapping
+   * Projection for reads
+   * Process to start a process instance
+   * Agent to request a proposal
+3. UI must never call GitLab directly (GitLab adapter boundary).
+
+### Build (Increment 0)
+
+A minimal “Repository Explore” surface:
+
+* **Repository Onboarding panel**
+
+  * Inputs: provider (gitlab), remote_id or remote_path
+  * Calls Domain.UpsertRepositoryGitRemote
+* **Repository Browser**
+
+  * Shows `Published @ <resolved_sha>`
+  * Tree browse + file open
+  * Displays citation block `{repo_id, sha, path[, anchor]}`
+* **Action: Start Explore**
+
+  * Calls Process.StartProcess(`repo.explore`)
+* **Action: Ask Agent**
+
+  * Calls Projection to assemble a context bundle for the open file (or calls Agent with citations + excerpt), then calls Agent.Propose
+  * Displays proposal + citations
+
+This is consistent with the Slice 0 “repo tree + element editor shell” concept, except now it is **mandatory**, not optional. 
+
+### UISurface individual tests
+
+* **UI integration test: calls correct seams**
+
+  * Mock Domain/Projection/Process/Agent SDKs
+  * Assert UI never imports GitLab SDK packages nor calls GitLab endpoints.
+* **UI e2e smoke (local)**
+
+  * Onboard → browse → open file → ask agent produces proposal
+
+---
+
+## Integration — external protocol adapters and imports/exports
+
+### Increment 0 goals
+
+1. Provide at least one external protocol adapter now: **an MCP server (Integration primitive) that exposes Projection queries to vendor coding agents**.
+2. Keep protocol adapters semantics-free: forward to Domain/Projection/Process/Agent; do not re-implement business logic.
+3. Enforce vendor substrate hygiene: GitLab remains a substrate; no direct GitLab access from UISurface/Agent/Process.
+
+### Build (Increment 0)
+
+* **MCP Adapter (Integration primitive exposing Projection queries to coding agents) (minimal)**
+
+  * Expose read-only tools that call Projection queries:
+
+    * `repo.list_tree(scope, read_context, path)`
+    * `repo.get_content(scope, read_context, path)`
+  * Pattern (apply everywhere): **MCP server = Integration primitive that exposes Projection queries to coding agents; it never calls GitLab and never invents semantics.**
+  * This lets vendor agents connect immediately without you building an agent CLI.
+
+### Integration individual tests
+
+* **Unit test: MCP tool routing (Integration primitive exposing Projection queries to coding agents)**
+
+  * MCP (Integration primitive) `repo.get_content` routes to Projection.GetContent and returns citations unchanged.
+* **Static boundary test (Phase 0 gate)**
+
+  * A repo-wide check that disallows importing `gitlab.com/gitlab-org/api/client-go` from UISurface/Agent/Process/Projection layers (only Domain may import it), and disallows importing MCP protocol libs (Integration primitive) outside Integration.
+  * This is one of the highest leverage “no drift” protections you can add in Inc 0.
+
+---
+
+# Increment 0 contract-pass scenario definition
+
+This is the single “vertical slice” scenario executed by `ameide test` (Phase 0/1/2), aligned to your existing Slice 0 runner steps but updated to “no optionals” and “Memory=Agent workflow.” 
+
+### Scenario steps
+
+1. Create identity `{tenant_id, organization_id, repository_id}`.
+2. Domain: `UpsertRepositoryGitRemote(identity, provider=gitlab, remote_id=<mockProjectId|path>)`.
+3. Projection: `ListTree(identity, published, "/")` → response includes `read_context.resolved.commit_sha = resolved_sha`.
+4. Projection: `GetContent(identity, published, "README.md")` (or a known file) → citation includes `{repo_id, resolved_sha, path}`.
+5. Process: `StartProcess(identity, "repo.explore", inputs={resolved_sha, path})` → `process_instance_id`.
+6. Agent:
+
+   * Build `context_bundle` from Projection response (citation + excerpt).
+   * `Agent.Propose(identity, goal="Summarize README", context_bundle)` → proposal + citations.
+7. Emit run report using **Domain-owned EvidenceSpineViewModel schema**:
+
+   * includes identity
+   * mapping
+   * resolved_sha
+   * citations
+   * process_instance_id
+   * proposal summary (and citations used)
+   * publish fields empty (Inc 0)
+
+### Assertions
+
+* Every call carries identity (directly or via request context).
+* Every content-bearing output is citeable to `{repo_id, resolved_sha, path[, anchor]}`. 
+* UI smoke test passes for the same scenario (can run separately but is mandatory for Inc 0 deliverable).
+* MCP call test (Integration primitive exposing Projection queries to coding agents) passes for `repo.get_content` and returns the same citation.
+  * MCP is an Integration primitive that exposes Projection queries to coding agents.
+
+---
+
+# Increment 0 “Done means done” checklist
+
+**For Inc 0 to be complete:**
+
+* ✅ 1 capability-level contract-pass test proving the end-to-end slice (all primitives touched)
+* ✅ Each primitive has:
+
+  * at least one new API/behavior,
+  * at least one primitive-owned test that proves it
+* ✅ UI can onboard + browse + open + ask agent (even if minimal)
+* ✅ GitLab adapter boundary enforced by at least one static check
+* ✅ EvidenceSpineViewModel schema exists as Domain-owned and is used in the run report (no competing schemas) 
+
+---
