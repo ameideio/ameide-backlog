@@ -37,7 +37,8 @@ Below is a **re-imagined, coordinated incremental ladder** that treats your **si
 * **Agent reasons and proposes** under grants/risk tiers; **Memory is an agent workflow concern** (Agent uses Projection for citeable context; Memory never becomes a platform truth store).
 * **UISurface is the human product**, calling the same seams as Agent/Process.
 * **Integration owns adapters** for external exchange (MCP server = Integration primitive exposing Projection queries to coding agents; imports/exports; etc.) and never owns business semantics.
-* **GitLab client standard:** Domain internals use `gitlab.com/gitlab-org/api/client-go` (pinned to v1.x), and GitLab client types MUST NOT leak across platform contracts.
+* **GitLab client standard:** Domain internals use `gitlab.com/gitlab-org/api/client-go` (pin a single major version; currently v1), and GitLab client types MUST NOT leak across platform contracts.
+* **MCP direction:** MCP reads route to **Projection** queries; MCP writes route to **Domain** commands.
 
 This ladder is compatible with the shape/discipline you already codified in 714 Slice 0/Scenario A/Scenario B: contract-pass harness, identity/read_context/citations, MR-based publish, derived backlinks with “why linked,” etc.   
 
@@ -63,13 +64,14 @@ This ladder is compatible with the shape/discipline you already codified in 714 
 3. **CQRS: Domain commands, Projection queries**
 
 * Platform rule: clients (UI/Agent/Process) perform **reads only via Projection**.
-* Domain is **command-only** at the platform seam; Domain may read GitLab internally to execute commands and emit facts.
+* Domain is **command-only** at the platform seam; Domain reads **only** from Projection when it must validate preconditions (e.g., “approval recorded”), and reads GitLab internally to execute commands and emit facts.
 * Projection reconstructs read models (canonical repository browse/open + derived IDs/backlinks/graphs/search) by consuming **Domain facts** from Kafka/outbox.
 * Derived outputs are **rebuildable** and **citeable**.
 
 4. **Evidence Spine is Domain-owned**
 
 * The Evidence Spine is Domain’s internal audit record for governed changes/publishes.
+* The Evidence Spine schema is also used as a generic “run evidence envelope”; publish runs have additional required fields (e.g., `mr_iid`, `target_head_sha`).
 * Other primitives **must not define competing “evidence spine” schemas**; they render/consume Domain’s view model.
 
 5. **Process orchestrates, never writes canonical**
@@ -104,7 +106,7 @@ Tool interface neutrality:
 
 * MCP server (Integration primitive exposing Projection queries to coding agents), imports/exports, vendor APIs all live here.
 * GitLab is a canonical-storage substrate and is accessed by **Domain internals** only (never directly by UI/Agent/Process/Projection).
-* Integration does not define business semantics; it exposes substrate operations behind internal interfaces.
+* Integration does not define business semantics; it exposes **protocol surfaces** (e.g., MCP) that call platform seams.
 * Pattern (apply everywhere): **MCP server = Integration primitive that exposes Projection queries to coding agents; it never calls GitLab and never invents semantics.**
 
 ## Objectives
@@ -177,7 +179,7 @@ A single contract-pass scenario proves, from **empty state**:
 * ✅ Platform UI can browse Canonical (`main@sha`) and open files through proto seams (no direct GitLab routes).
 * ✅ Capability test coverage exists for `0/OnboardExploreBaseline`.
 * ⏳ Process/Agent portions of Increment 0 are not yet wired end-to-end in the same capability test.
-* ⏳ Target-state refactor pending: Projection should serve reads from Domain facts (Kafka/outbox) and stop calling GitLab directly.
+* ⏳ Target-state refactor pending: Projection should serve reads from Domain facts (Kafka/outbox) (no GitLab calls).
 
 ## 2) Primitive goals, build items, and primitive-level tests
 
@@ -190,12 +192,12 @@ A single contract-pass scenario proves, from **empty state**:
 **Build**
 
 * `UpsertRepositoryGitRemote(scope, provider=gitlab, remote_id|remote_path)`
-* `Domain.GetEvidence(run_id|scope)` returns EvidenceSpineViewModel skeleton
+* Emit EvidenceSpine facts (Domain-owned schema; Projection serves queries)
 
 **Test**
 
 * Unit: rejects any write command that includes vendor credentials (boundary enforcement)
-* Unit: emits EvidenceSpineViewModel with identity + mapping (even if empty proposal/publish fields)
+* Unit: emits EvidenceSpine facts with identity + mapping (even if empty proposal/publish fields)
 
 ### Projection
 
@@ -254,7 +256,7 @@ A single contract-pass scenario proves, from **empty state**:
 
 * Repository page:
 
-  * show “Published @ <sha>”
+  * show “Canonical main @ <sha>” (i.e., `read_context=published`)
   * tree browse and file open (opens the element editor)
   * show citation block
 
@@ -405,7 +407,7 @@ Every slice must declare and satisfy agent-focused acceptance criteria:
 
 **Test**
 
-* UI: publish flow uses Domain only; evidence displayed is Domain’s EvidenceSpineViewModel
+* UI: publish flow uses Domain commands; evidence displayed uses the Domain-owned EvidenceSpine schema
 
 ### Integration
 
@@ -413,12 +415,13 @@ Every slice must declare and satisfy agent-focused acceptance criteria:
 
 * No new deliverables (must remain compatible):
 
-  * GitLab operations are implemented inside Domain/Projection as internal adapters (not an Integration primitive).
+  * GitLab operations are implemented inside Domain internals (not an Integration primitive).
+  * MCP reads route to Projection; MCP writes route to Domain.
   * Integration focuses on external exchange surfaces (MCP server = Integration primitive exposing Projection queries to coding agents) when/if required.
 
 **Test**
 
-* Unit: token scope least privilege; adapter enforces “no main direct writes”
+* Unit: token scope least privilege; Domain enforces “no main direct writes”
 
 ---
 
@@ -644,12 +647,11 @@ From empty state:
 
   * one code location
   * one GitOps manifest
-  * optionally one BPMN/DMN asset
 * Projection derives:
 
   * WP ↔ changed paths
-  * code symbol neighborhood (at least minimal: file spans + defs/refs)
   * GitOps resource identity (kind/name/namespace) for touched manifests
+  * (deferred) code symbol neighborhood and BPMN/DMN element graphs (not required for Increment 4)
 * Process runs “work package execution” orchestration, capturing validation trace pointer
 * UI shows “Delivered by” derived panel; Agent produces delivery summary with citations
 
@@ -675,9 +677,8 @@ From empty state:
 * Extend derived models:
 
   * `TOUCHES`: commit/publish → paths
-  * code symbol extraction (start with 1 language, but make pluginable)
   * GitOps manifest parsing to resource IDs
-  * optional BPMN element extraction for “what process changed”
+  * (deferred) code symbol extraction and BPMN/DMN element extraction (not required for Increment 4)
 
 **Test**
 

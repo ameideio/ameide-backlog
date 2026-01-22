@@ -286,7 +286,7 @@ Minimum UI routes/components (aligned with Scenario B):
    * open origin snippet
 2. Integration remains semantics-free:
 
-   * it forwards to Projection/Domain; it doesn’t implement graph logic or ID rules.
+   * it forwards reads to Projection queries (and writes, when present in other increments, to Domain commands); it doesn’t implement graph logic or ID rules.
 3. GitLab remains a vendor substrate accessed by Domain internals (no direct GitLab access from UISurface/Agent/Process/Projection).
 
 ### Build

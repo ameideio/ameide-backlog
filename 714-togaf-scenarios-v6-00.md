@@ -8,7 +8,7 @@ This is “Slice 0” made **non-optional across all six primitives** (UI and Ag
 
 ## GitLab adapter standard (applies to all increments)
 
-* **Single GitLab Go client:** `gitlab.com/gitlab-org/api/client-go` (pinned to v1.x).
+* **Single GitLab Go client:** `gitlab.com/gitlab-org/api/client-go` (pin a single major version; currently v1).
 * **No wrapper clients:** Domain implementation code may call `client-go` services directly (the SDK *is* the adapter).
 * **No leaking types:** GitLab client types never cross platform contracts (proto/SDK/view models).
 * **Testing posture:**
@@ -21,7 +21,7 @@ This is “Slice 0” made **non-optional across all six primitives** (UI and Ag
 
 * ✅ Enterprise Repository Domain command seam implemented for Inc 0 scaffolding (Git remote mapping + change/commit/publish flows) using `client-go` directly.
 * ✅ Enterprise Repository Projection query seam implemented (`ListTree`, `GetContent`) including `published` → resolved SHA.
-* ✅ Platform repository page wired to proto seams for “Published @ SHA” + tree + file open (no direct GitLab routes).
+* ✅ Platform repository page wired to proto seams for “Canonical (main@sha)” + tree + file open (no direct GitLab routes).
 * ✅ Capability integration coverage added for v6 scenario `0/OnboardExploreBaseline`.
 * ✅ Primitive unit tests added using `gitlab.com/gitlab-org/api/client-go/testing` (Domain + Projection).
 * ⏳ Docs target state (CQRS + outbox-derived reads): Projection must stop calling GitLab and serve reads purely from Domain facts (Kafka/outbox).
@@ -30,7 +30,7 @@ This is “Slice 0” made **non-optional across all six primitives** (UI and Ag
 
 ### User story (human + agent, equally important)
 
-* **As a human (architect)**, I can onboard a repository, browse the canonical tree at `Published @ <sha>`, open a file, and see its citation.
+* **As a human (architect)**, I can onboard a repository, browse the canonical tree at `Canonical main@<sha>` (i.e., `read_context=published`), open a file, and see its citation.
 * **As an agent** (via the platform Agent seam), I can retrieve a citeable context bundle for that same file and generate a short proposal/summary that contains **only citeable statements**.
 
 ### Capability-level testing objective (contract-pass)
@@ -58,7 +58,7 @@ A single **capability-owned integration test** (run by `ameide test`, Phase 0/1/
 4. **Canonical reads**: Projection lists tree + reads one file; responses include citations `{repository_id, commit_sha, path[, anchor]}`. 
 5. **Process instance**: Process starts a durable process instance `repo.explore` (or equivalent) and returns `process_instance_id`. 
 6. **Agent proposal**: Agent consumes Projection-provided citeable context and produces a proposal with citations (no uncited facts). 
-7. **Run report**: An `EvidenceSpineViewModel` is emitted for the run using the **Domain-owned schema** (fields not applicable in Inc 0 may be empty). 
+7. **Run report**: Projection serves an `EvidenceSpineViewModel` for the run using the **Domain-owned schema** (fields not applicable in Inc 0 may be empty). 
 
 **Negative assertions (must pass):**
 
@@ -88,8 +88,7 @@ Below, “build” means “new code/API/behavior introduced by Increment 0”, 
 ### Build (Increment 0)
 
 * **Command:** `UpsertRepositoryGitRemote(scope, provider, remote_id|remote_path)`
-* **Query:** `GetRepositoryGitRemote(scope, provider)` (or equivalent)
-* **Evidence shape availability:** `EvidenceSpineViewModel` type is available in Domain contracts; Domain can emit a minimal instance for run reports.
+* **Evidence shape availability:** `EvidenceSpineViewModel` type is available in Domain contracts; Domain emits EvidenceSpine facts (outbox) for runs.
 
 ### Domain individual tests
 
@@ -100,9 +99,9 @@ Below, “build” means “new code/API/behavior introduced by Increment 0”, 
 * **Unit test: credential boundary**
 
   * Any command that attempts to include vendor credentials in its payload is rejected (compile-time or runtime validation).
-* **Contract test: EvidenceSpineViewModel minimal emission**
+* **Contract test: EvidenceSpine facts minimal emission**
 
-  * For a read-only run, EvidenceSpineViewModel contains:
+  * For a read-only run, Domain emits EvidenceSpine facts containing:
 
     * identity
     * repository mapping reference
@@ -124,6 +123,8 @@ Below, “build” means “new code/API/behavior introduced by Increment 0”, 
 
 * **Query:** `ListTree(scope, read_context, path)` → nodes + citations
 * **Query:** `GetContent(scope, read_context, path)` → bytes/text + citation
+* **Query:** `GetRepositoryGitRemote(scope, provider)` (or equivalent)
+* **Query:** `GetEvidence(run_id|scope)` returns EvidenceSpineViewModel (Domain-owned schema) from derived state
 * **Implementation detail:** Projection serves these reads from **its derived state** built from Domain facts (commit actions, publish anchors, etc.). Projection does not call GitLab.
 * Deterministic errors:
 
@@ -315,7 +316,7 @@ This is the single “vertical slice” scenario executed by `ameide test` (Phas
 
    * Build `context_bundle` from Projection response (citation + excerpt).
    * `Agent.Propose(identity, goal="Summarize README", context_bundle)` → proposal + citations.
-7. Emit run report using **Domain-owned EvidenceSpineViewModel schema**:
+7. Projection: `GetEvidence(identity, run_id|scope)` returns the run report using the **Domain-owned EvidenceSpineViewModel schema**:
 
    * includes identity
    * mapping
