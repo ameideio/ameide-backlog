@@ -28,67 +28,62 @@ related:
   - 714-togaf-scenarios-v6-00.md
 ---
 
-# 714 — v6 Scenario Slices
+Below is a **re-imagined, coordinated incremental ladder** that treats your **six primitives as equal** and ensures **every increment advances every primitive** (variable depth is OK, but never “null”). It also bakes in your constraints:
 
-## 1. Purpose
+* **Git/GitLab is a vendor substrate** (accessed by Domain internals via `gitlab.com/gitlab-org/api/client-go`; no wrappers), never a canonical platform API surface.
+* **Domain owns canonical writes** (owner-only writes) and is the **only** owner of the **Evidence Spine** record/schema.
+* **Projection owns all platform reads** and is **purely derived** (rebuildable, citeable) by consuming **Domain facts** (Kafka/outbox). Projection does not call GitLab.
+* **Process orchestrates** (durable gates/timers) and must not become a writer.
+* **Agent reasons and proposes** under grants/risk tiers; **Memory is an agent workflow concern** (Agent uses Projection for citeable context; Memory never becomes a platform truth store).
+* **UISurface is the human product**, calling the same seams as Agent/Process.
+* **Integration owns adapters** for external exchange (MCP server = Integration primitive exposing Projection queries to coding agents; imports/exports; etc.) and never owns business semantics.
+* **GitLab client standard:** Domain internals use `gitlab.com/gitlab-org/api/client-go` (pinned to v1.x), and GitLab client types MUST NOT leak across platform contracts.
 
-This document defines a **single approach** that replaces both:
-
-* the “coordination ladder” intent (historically 706), and
-* **713** (TOGAF-ish functional scenarios / E2E tests)
-
-by introducing **Scenario Slices**: *real-life, user-valued journeys* that are also the **incremental implementation plan** and the **incremental test plan**.
-
-A Scenario Slice is:
-
-* a **product capability** you can demonstrate to real users,
-* implemented by **all required primitives together** (Domain / Projection / Repo substrate / Process / Agents / UI),
-* validated by a **cross-primitive E2E test** that produces an **audit-grade run report**,
-* constrained by v6 invariants (Git-first, owner-only writes, inline-only relationships, derived-only views, GitLab CE only).
-
-This turns “increment planning” and “scenario testing” into the same thing.
+This ladder is compatible with the shape/discipline you already codified in 714 Slice 0/Scenario A/Scenario B: contract-pass harness, identity/read_context/citations, MR-based publish, derived backlinks with “why linked,” etc.   
 
 ---
 
-## 2. Principles (v6 invariants, product-oriented)
+# Recap: platform principles and objectives
 
-These apply to every slice.
+## Principles
 
-### 2.1 Canonical truth split
+1. **Git-first canonical truth**
 
-* **Content truth** is Git: authored artifacts are files at an immutable **commit SHA**.
-* **Governance truth** is platform DB: approvals, outcomes, waivers, process state.
-* **View truth** is projection: graphs/backlinks/search/memory are **derived**, rebuildable, citation-grade.
+* Canonical artifacts are Git files at immutable SHAs (baseline truth = commit SHA).
+* GitLab is a storage/collaboration substrate, not a platform semantic surface.
+* Vocabulary:
+  * **Canonical** = `main` (the `main@sha` baseline).
+  * **Transformation initiative** = branch (an `initiative_branch@sha`, typically wrapped by an MR).
 
-### 2.2 Git-tree-first UX
+2. **Owner-only writes**
 
-* Repository navigation hierarchy is the **Git tree at a specific commit SHA**, not a synthetic workspace tree.
-* “EA views” (catalogs, matrices, roadmaps, impacts) are **derived overlays**.
+* Only **Domain** performs canonical writes (MR/branch/commit/merge) and holds write credentials.
+* Everyone else requests writes via Domain commands.
 
-### 2.3 Inline-only relationships
+3. **CQRS: Domain commands, Projection queries**
 
-* Relationships exist only as inline references **inside authored files**:
-  * in the **content** (body), and/or
-  * in **file metadata** (e.g., YAML frontmatter).
-* No relationship CRUD; no relationship sidecar store. Projection may index edges/backlinks but **never becomes canonical**.
+* Platform rule: clients (UI/Agent/Process) perform **reads only via Projection**.
+* Domain is **command-only** at the platform seam; Domain may read GitLab internally to execute commands and emit facts.
+* Projection reconstructs read models (canonical repository browse/open + derived IDs/backlinks/graphs/search) by consuming **Domain facts** from Kafka/outbox.
+* Derived outputs are **rebuildable** and **citeable**.
 
-### 2.4 Owner-only writes
+4. **Evidence Spine is Domain-owned**
 
-* Only the owning **Domain** performs canonical writes (branch/MR/commit/merge).
-* Agents/Process/UI never hold GitLab write credentials; they express intent via Domain commands.
+* The Evidence Spine is Domain’s internal audit record for governed changes/publishes.
+* Other primitives **must not define competing “evidence spine” schemas**; they render/consume Domain’s view model.
 
-### 2.5 GitLab CE substrate only
+5. **Process orchestrates, never writes canonical**
 
-* Depend only on GitLab **Free-tier compatible** primitives (self-managed “CE/Free” posture): repository storage, Merge Requests as proposal units, pipelines as validation, protected branches, and the public GitLab HTTP APIs for commits/files/tree/compare/merge.
-* Do not depend on paid-tier planning and governance features (e.g., approval rules); keep governance enforcement in platform policy + owner-only writes.
+* Process coordinates long-running workflows (gates, timers, approvals) through commands and events; it never becomes “a writer.”
 
-### 2.6 Audit-grade by default
+6. **Agent proposes, under grants**
 
-Every user-visible claim must be explainable as:
+* Agent produces proposals/evidence, requests actions via Domain/Process seams, and operates under grants/risk tiers.
+* **Memory is an Agent workflow concern**: memory stores/recalls *citeable* context bundles and decisions, but it never becomes canonical truth.
 
-* “Here’s the file(s), at this repo, at this commit SHA (and anchor).”
+7. **UISurface is first-class**
 
-That’s not hardening; it’s the **core product trust feature**.
+* Human UX is non-optional: browse/edit/review/approve all must exist, even if minimal early.
 
 ### 2.6.1 Agent-first deliverables (interface-neutral)
 
@@ -105,92 +100,43 @@ Tool interface neutrality:
 
 ### 2.7 Element-editor-first UX (no “raw file viewer” as the product surface)
 
-* Artifacts are opened and edited through an **Element Editor** surface (modal preferred), not a standalone “file viewer page.”
-* The Element Editor must still make the underlying canonical storage explicit:
-  * storage path (e.g. `architecture/vision.md`)
-  * read context and resolved commit SHA (e.g. `Published @ <sha>`)
-  * citation object `{repository_id, commit_sha, path[, anchor]}`
-* Editing is **change-based** and persists via the v6 write loop (Domain commands), not DB CRUD.
+8. **Integration is adapters only**
 
-### 2.8 UI composition naming (Next.js components)
+* MCP server (Integration primitive exposing Projection queries to coding agents), imports/exports, vendor APIs all live here.
+* GitLab is a canonical-storage substrate and is accessed by **Domain internals** only (never directly by UI/Agent/Process/Projection).
+* Integration does not define business semantics; it exposes substrate operations behind internal interfaces.
+* Pattern (apply everywhere): **MCP server = Integration primitive that exposes Projection queries to coding agents; it never calls GitLab and never invents semantics.**
 
-When this spec shows ASCII wireframes, it uses the platform’s component names for consistency:
+## Objectives
 
-* Page shell: `<HeaderClient />`, `<NavTabs />`
-* List pages: `<ListPageLayout />` with `<PageHeader />` and optional `activityPanel`
-* Element editor (modal): `<ElementEditorModal />` wrapping `<EditorModalChrome />`
-* Element editor body: `<Tabs />` / `<TabsList />` / `<TabsTrigger />` + `<EditorPluginHost />`
-* Element editor assistant: `<RightSidebarTabs />` containing `<ModalChatPanel />` plus `<ModalChatFooter />`
+* Deliver incremental end-to-end capability where **humans and agents both succeed**.
+* Every increment has:
 
-### 2.9 Element identity contract (normative)
+  * **one capability-level user story**
+  * **one capability-level contract-pass test** (seedless; fresh repo mapping, deterministic outputs)
+  * **primitive-level tests** proving each primitive’s contribution
+* Maintain strict boundaries so you don’t drift into:
 
-To keep “element-editor-first UX” compatible with **Git-first canonical artifacts** (and to prevent accidental DB‑first authoring), v6 defines:
-
-* An **element** is a **Git-authored artifact** (a file at a specific commit SHA) that carries a **stable element ID** in its content (typically YAML frontmatter).
-* The Element Editor is addressed by **identity + read context**, not by DB primary key:
-  * open intent: `{tenant_id, organization_id, repository_id, read_context, element_id}`
-  * resolution: Projection resolves `element_id` at `read_context` to `{commit_sha, path}` and returns the canonical citation `{repository_id, commit_sha, path[, anchor]}`
-* IDs are **repository-unique** at a given commit SHA:
-  * duplicate IDs at a given `{repository_id, commit_sha}` are a **hard error** for derived views (and must surface in UX as “ambiguous element id” with citations)
-  * missing IDs mean the file is still readable, but it is **not eligible** for ID-based navigation/derived views unless the slice explicitly allows it
-
-### 2.10 Derived explainability rule (normative)
-
-Every **derived fact** shown to a user (backlink, impact, coverage, compare summary, memory/context item) must carry one or more citations to `{repository_id, commit_sha, path[, anchor]}` that explain exactly where it came from.
-
-### 2.11 EDA alignment (inter-primitive contracts)
-
-This spec is intentionally **product-first**, but its cross-primitive seams must remain aligned to the v6 Integration/EDA standard `backlog/496-eda-principles-v6.md`.
-
-Mapping:
-
-* Domain APIs in these slices are **Commands** (typically RPC) addressed to the **Owner** (owner-only writes).
-  * Every command must be **idempotent** (`idempotency_key`) and must propagate correlation/causation metadata.
-* If async is needed, callers send **Intents** (message form) to the owner; owners still perform the canonical write.
-* Owners emit **Facts** only **after commit** (DB outbox or Git outbox-equivalent).
-  * For Git-backed publish, “commit” means “publish succeeded and the owner durably recorded audit pointers (MR id, target head SHA, etc.)” before fact emission.
-* Projection/Memory outputs are **derived read models**:
-  * they can consume owner facts to update incrementally,
-  * and must remain rebuildable from canonical Git + recorded audit pointers.
-* When the event plane is used (cluster Phase 4/5), facts/intents must use:
-  * CloudEvents envelope + Protobuf payloads,
-  * `io.ameide.*` type naming as defined in 496.
-  Local `ameide test` runs may use in-process mocks, but must preserve the same **contract shapes** so cluster wiring is a deployment detail, not a redesign.
+  * “GitLab API becomes a platform API”
+  * “Projection writes truth”
+  * “Process writes truth”
+  * “Agent invents uncited facts”
+  * “UI bypasses Domain/Projection”
 
 ---
 
-## 3. What a Scenario Slice is
+# Program ladder overview
 
-Each slice is a **vertical slice** that must deliver:
+Each increment is a **vertical slice**: Domain + Projection + Process + Agent + UISurface + Integration all advance.
 
-1. **User value** (a real TOGAF-ish capability),
-2. **A minimal usable UX surface** (even if thin),
-3. **A cross-primitive E2E runner** that exercises the same contracts the UX uses,
-4. **An evidence spine** (run report) tying together: identity → proposal → publish → citations → governance outcomes (if applicable).
+1. **Increment 0 — Onboard + Explore (Baseline read)**
+2. **Increment 1 — Governed Change + Publish (Evidence Spine real)**
+3. **Increment 2 — Typed EA Items + Derived Backlinks (Explainable traceability)**
+4. **Increment 3 — Proposal vs Published Review Gate (Impact preview + approvals)**
+5. **Increment 4 — Work Package delivery trace (EA ↔ code ↔ GitOps ↔ process assets)**
+6. **Increment 5 — Vendor reference adoption (BPC) + Fit/Gap + Baseline compare**
 
-### 3.1 Slice definition template
-
-Every slice has the same shape:
-
-* **Name**
-* **Primary user story** (EA language)
-* **Value proposition** (what becomes possible, who benefits)
-* **Journey** (baseline → proposal → review → publish → derived views)
-* **Repo artifacts** (paths + minimal content requirements)
-* **Primitive responsibilities**
-
-  * GitLab substrate
-  * Domain
-  * Projection
-  * UI
-  * Memory (projection-owned derived view)
-  * Process (optional)
-  * Agent (optional)
-* **Definition of Done**
-
-  * Contract-pass (API-level E2E)
-  * UX-pass (optional early; mandatory for Tier‑1 slices)
-* **Run report requirements** (evidence spine outputs)
+This ladder intentionally “absorbs” your 714 scaffolding + Scenario A + Scenario B, but makes **UI/Agent/Process/Integration non-optional** in every increment.   
 
 ### 3.2 Agentic deliverables template (required for every slice)
 
@@ -208,80 +154,195 @@ Every slice must explicitly state the **incremental agentic capability** deliver
 
 ---
 
-## 4. Capability tags (alignment mechanism)
+# Increment 0 — Onboard + Explore baseline
 
-Instead of referencing “Inc 3 / Inc 4” etc., every slice declares **capability tags**. These tags are stable even if slice ordering changes.
+## 1) Capability user story
 
-Core capability tags:
+“As a human (architect) and as an agent, we can onboard a repository into a tenant scope and **browse/open citeable content at the Canonical (`main@sha`) baseline**.”
 
-* `cap:identity`
-* `cap:citation`
-* `cap:repo.onboard`
-* `cap:repo.read_tree`
-* `cap:repo.read_file`
-* `cap:change.ensure`
-* `cap:change.commit_batch`
-* `cap:change.publish`
-* `cap:evidence.spine`
-* `cap:proposal.read_context` (MR head / proposal SHA)
-* `cap:derived.backlinks`
-* `cap:derived.impact`
-* `cap:memory.citeable_context`
-* `cap:baseline.compare`
-* `cap:governance.outcome`
-* `cap:process.definition_files`
-* `cap:process.deploy_by_sha`
-* `cap:transformation.run_e2e` (process + agent + publish)
-* `cap:plumbing.scaffold` (Slice 0 only; wiring/harness, not a product feature)
+## Capability-level testing objective
 
-Each primitive maintains a “capability support” checklist per tag (small, explicit).
+A single contract-pass scenario proves, from **empty state**:
+
+* repo mapping created for `{tenant_id, org_id, repo_id}`
+* `read_context=published` resolves to a deterministic SHA
+* browse tree + open one file returns citeable content
+* Process run starts (no-op orchestration is fine, but durable instance id must exist)
+* Agent produces a short proposal/summary that includes **only citeable references**
+* Domain emits an **EvidenceSpineViewModel** (fields may be sparse here, but schema is consistent) 
+
+**Implementation status (as of 2026-01-22)**
+
+* ✅ Domain + Projection seams exist for Enterprise Repository (Git remote mapping; `ListTree`/`GetContent` with `published` → resolved SHA).
+* ✅ Platform UI can browse Canonical (`main@sha`) and open files through proto seams (no direct GitLab routes).
+* ✅ Capability test coverage exists for `0/OnboardExploreBaseline`.
+* ⏳ Process/Agent portions of Increment 0 are not yet wired end-to-end in the same capability test.
+* ⏳ Target-state refactor pending: Projection should serve reads from Domain facts (Kafka/outbox) and stop calling GitLab directly.
+
+## 2) Primitive goals, build items, and primitive-level tests
+
+### Domain
+
+**Goal**
+
+* Own onboarding and the “audit surface” shape from day one.
+
+**Build**
+
+* `UpsertRepositoryGitRemote(scope, provider=gitlab, remote_id|remote_path)`
+* `Domain.GetEvidence(run_id|scope)` returns EvidenceSpineViewModel skeleton
+
+**Test**
+
+* Unit: rejects any write command that includes vendor credentials (boundary enforcement)
+* Unit: emits EvidenceSpineViewModel with identity + mapping (even if empty proposal/publish fields)
+
+### Projection
+
+**Goal**
+
+* Canonical read plane at resolved SHA with citations.
+
+**Build**
+
+* `ListTree(scope, read_context, path)` (response includes `read_context.resolved.commit_sha`)
+* `GetContent(scope, read_context, path)` returns citeable content `{repo_id, sha, path[, anchor]}` (line-range anchors can come later)
+
+**Test**
+
+* Unit: deterministic NotFound behavior for missing path
+* Unit: citations always include resolved sha and path
+
+### Process
+
+**Goal**
+
+* Orchestration shell exists and carries identity/correlation.
+
+**Build**
+
+* `StartProcess(scope, process_key="repo.explore", inputs)` → `process_instance_id`
+* Minimal persisted process state (even if no actions yet)
+
+**Test**
+
+* Unit: starting a process records correlation metadata and scope identity
+
+### Agent
+
+**Goal**
+
+* Agent can consume citeable context and produce citeable proposals. Memory exists as workflow state, not platform truth.
+
+**Build**
+
+* `Agent.Propose(scope, goal, context_bundle)` where `context_bundle` is Projection-derived citations/excerpts
+* Memory store: store `{citations, rationale}` for the run (no uncited facts)
+
+**Test**
+
+* Unit: fails if proposal contains statements without citations (enforce “cite-only” discipline)
+* Unit: memory entries are only (citations + agent notes), never “facts”
+
+### UISurface
+
+**Goal**
+
+* Human can browse and open content at Canonical (`main@sha`) baseline (non-optional).
+
+**Build**
+
+* Repository page:
+
+  * show “Published @ <sha>”
+  * tree browse and file open (opens the element editor)
+  * show citation block
+
+* Element editor (modal) — **target-state shell + composition** (reused by all increments)
+
+  ```text
+  Route (Next.js modal):
+    /org/{orgId}/repo/{repositoryId}/element/{elementId}
+      ↳ app/(app)/org/[orgId]/repo/[repositoryId]/@modal/(.)element/[elementId]/page.tsx
+          ├─ <ElementRouteBootstrap elementId />
+          └─ <ElementEditorModal />
+
+  <ElementEditorModal />
+    └─ <Dialog open={isOpen} onOpenChange=...>
+        └─ <DialogPortal>
+            ├─ <DialogOverlay />
+            └─ <DialogPrimitive.Content data-testid="editor-modal">
+                └─ <ElementEditorRoot elementId isFullscreen ...>
+                    └─ <EditorModalChrome title subtitle kindBadge actions>
+                        └─ Layout (flex)
+                            ├─ Main (left)
+                            │   ├─ Tabs: Document | Properties | Derived | Evidence
+                            │   ├─ <EditorPluginHost elementId activeTab />
+                            │   └─ <ModalChatFooter />
+                            └─ Right sidebar (desktop)
+                                └─ <RightSidebarTabs>
+                                    └─ <ModalChatPanel elementId />
+  ```
+
+  ```text
+  Target-state wiring (GitLab-backed Enterprise Repository; no DB element CRUD):
+    - Canonical writes (initiative branch/MR to main)      → Domain (EnterpriseRepositoryCommand: EnsureChange/CreateCommit/PublishChange) → GitLab (client-go)
+    - All reads (canonical + derived)                      → Projection (EnterpriseRepositoryQuery + derived views; derived from Domain facts via Kafka/outbox; no GitLab)
+  ```
+
+**Test**
+
+* UI integration test: UI reads via Projection seams only (canonical + derived) (no GitLab direct calls)
+
+### Integration
+
+**Goal**
+
+* Centralize all vendor adapters and protocol adapters.
+
+**Build**
+
+* `MCPAdapter` (MCP server = Integration primitive exposing Projection queries to coding agents) (optional protocol, but **adapter presence is non-optional**): expose at least read tools backed by Projection
+
+**Test**
+
+* Unit: MCP tool calls (Integration primitive exposing Projection queries to coding agents) map to internal Projection APIs
 
 ---
 
-## 5. Test runner spec (product E2E, not “hardening”)
+# Increment 1 — Governed change + publish (Evidence Spine real)
 
-### 5.1 Two front doors, one scenario definition
+This is your Scenario A in “every primitive participates” form. 
 
-Scenarios are defined once, but can run through two contracts only (per `backlog/537-primitive-testing-discipline.md`):
+## 1) Capability user story
 
-* **`ameide test` (Phase 0/1/2)**: local-only, self-contained runs using in-process mocks where needed (e.g. an in-memory GitLab HTTP API), no cluster dependencies.
-* **`ameide test cluster` (Phase 4/5)**: real dev/local cluster integration (real GitLab + real cluster plumbing) when the cluster is available.
+“As an architect (human) and as an agent, we can **propose and publish** an Architecture Vision as Canonical (`main@sha`) content, with audit-grade evidence anchored to the **target head SHA after publish**.”
 
-Both modes must produce the **same run report schema** so product value is consistent.
+## Capability-level testing objective
 
-### 5.2 Run report schema (evidence spine)
+From empty repo:
 
-Every run produces an audit-grade **Evidence Spine**. This is both:
+* Domain creates MR proposal, commits changes to:
 
-* the contract-pass run report output, and
-* a first-class, reusable UI view model (Change detail, Governance record, Process instance, Audit replay).
+  * `architecture/vision.md`
+  * `architecture/statement-of-work.md`
+* Domain publishes (merges) with SHA guards
+* Projection reads `published` and resolves to new `target_head_sha`
+* EvidenceSpineViewModel contains minimum publish fields (MR iid, proposal head SHA best-effort, target head SHA required) 
 
-#### `EvidenceSpineViewModel` (minimum)
+## 2) Primitive goals, build items, and primitive-level tests
 
-* `identity`: `{tenant_id, organization_id, repository_id}`
-* `repository`:
-  * `provider`: `gitlab`
-  * `remote_id`: opaque vendor identifier (never canonical to UX)
-  * `published_ref`: usually `main`
-* `proposal` (when applicable):
-  * `mr_iid`
-  * `proposal_head_sha` (resolved deterministically; may require waiting for MR diff refs to populate)
-  * optional: `pipeline`: `{id?, status?, web_url?}`
-* `publish` (when applicable):
-  * `target_branch`: usually `main`
-  * `target_head_sha`: the canonical audit anchor (“Published baseline SHA”)
-  * optional: `merge_commit_sha`, `squash_commit_sha` (supplemental evidence; merge method varies)
-* `citations`: list of `{repository_id, commit_sha, path[, anchor]}` used/returned during the run (reads, derived views, memory outputs)
-* `derived` (when applicable): backlink/impact/compare results (each item must include origin citations)
-* `governance` (when applicable): outcomes/waivers/approvals linked to proposal + published baseline
-* `summary`: one paragraph in EA language (“what capability was demonstrated?”)
+### Domain
 
-### 5.3 Definition of Done levels
+**Build**
 
-To avoid “tests without product,” each slice has two pass levels:
+* `EnsureChange → CreateCommit(actions[]) → PublishChange(expected_mr_head_sha)`
+* Record Evidence Spine (canonical anchor = `target_head_sha`) 
 
-* **Contract-pass** (mandatory for all slices): E2E runner passes and produces run report.
-* **UX-pass** (mandatory for Tier‑1 slices, optional early for others): minimal UI workflow smoke aligns with the same contracts and produces the same evidence spine.
+**Test**
+
+* Unit: publish fails fast on SHA mismatch
+* Unit: evidence spine always records `target_head_sha` even if merge/squash SHA differs
 
 ### 5.5 Agent DoD (required in every slice)
 
@@ -296,764 +357,507 @@ Every slice must declare and satisfy agent-focused acceptance criteria:
 - **Human-in-loop DoD**
   - there is at least one explicit checkpoint that requires a human decision, recorded into the evidence spine.
 
-### 5.4 Vendor edge cases and limits (GitLab)
+### Projection
 
-These are non-negotiable realities the contract-pass runner and the primitives must handle explicitly:
+**Build**
 
-* **Merge-method nuance:** the canonical publish anchor is the **target branch head SHA after publish**; merge/squash commit SHAs are supplemental evidence (project settings may vary).
-* **MR proposal SHA availability:** proposal diff/head fields can populate asynchronously; the runner must retry/backoff when resolving “proposal head SHA.”
-* **Tree/file API error semantics:** missing paths may return `404` (not empty lists); treat this deterministically in contract tests.
-* **Ref semantics:** prove in your environment that the chosen “tree by ref” endpoint supports `ref=<commit_sha>`; if not, define and test a fallback strategy.
-* **Rate/size limits:** commit batching and citeable context bundles must be budget-aware (chunk actions/reads, cache, and backoff); runner should surface throttling/fallbacks in the run report.
+* Strong convergence rule: after publish, `published` resolves to `target_head_sha` (no stale cache)
+* Reads are citeable at that SHA
 
----
+**Test**
 
-### 5.5 Read contexts (normative)
+* Unit: published ref resolution updates deterministically after publish
 
-Read contexts are the product-language way to say “what Git revision am I looking at?” and must resolve deterministically to a **commit SHA**.
+### Process
 
-Supported read contexts (v6 minimum):
+**Build**
 
-* `published`:
-  * resolves to `published_sha = HEAD(published_ref)` where `published_ref` is the configured baseline branch (typically `main`)
-  * the canonical **audit anchor** is `publish.target_head_sha` (the branch head **after** publish), not “merge commit”
-* `proposal(mr_iid)` / `proposal(change_id)`:
-  * resolves to a **snapshot SHA** for the proposal head (GitLab MR head)
-  * deterministic rule: the system must resolve once, record `proposal_head_sha` in the Evidence Spine, and use that SHA for all subsequent “proposal” reads in that review session (to avoid drift if new commits are pushed)
-  * note: MR diff/head fields may populate asynchronously; the runner must retry/backoff when resolving `proposal_head_sha`
-* `version_ref(commit_sha)`:
-  * resolves to the provided SHA; used for audit replay and time travel
+* Process `arch.publish_vision` orchestrates:
 
-### 5.6 Capability-owned tests (590/591)
+  * request draft (human/agent)
+  * call Domain commands
+  * wait for validation signal (even if basic)
+  * then publish
 
-Per `backlog/590-capabilities.md`, **capabilities own vertical slice tests** (cross-primitive flows) and primitives own kind invariants.
+**Test**
 
-Implications for 714:
+* Unit: process never calls GitLab; only Domain/Projection
 
-* Treat the 714 slice/scenario runners as **capability-owned tests** (the “Transformation” capability).
-* Place and evolve the runnable tests under the repo’s `capabilities/` boundary (e.g., `capabilities/transformation/...`) so ownership is clear and CI orchestration can run “capability X tests” without hunting across primitive folders.
-* The `ameide test` entrypoint is the front door that orchestrates these capability-owned packs; `ameide test cluster` later swaps mocks for real wiring without changing test intent.
+### Agent
 
-## 6. The Scenario Slice Ladder (superseding 706 increments + 713 scenarios)
+**Build**
 
-Below is the recommended ladder. Each slice is a **product milestone** and a **cross-primitive implementation target**.
+* Agent can draft vision text and propose a change (no write creds)
+* Memory stores “what citations were used to draft”
 
-### Tiering
+**Test**
 
-* **Tier‑1**: must ship to claim “v6 platform exists.”
-* **Tier‑2**: expands EA utility.
-* **Tier‑3**: portfolio/planning richness.
+* Unit: agent can propose file edits but cannot publish; must request Domain/Process
 
----
+### UISurface
 
-# Slice 0 (Tier‑0): Plumbing + contract harness scaffolding
+**Build**
 
-Slice 0 is an internal enabling slice that scaffolds the plumbing and the contract-pass runner so slices 1+ can focus on behavior.
+* “Propose change” UX (MR-backed)
+* “Save draft” -> Domain CreateCommit
+* “Publish” -> Domain PublishChange
+* Evidence view: show MR + target_head_sha 
 
-Details live in `backlog/714-togaf-scenarios-v6-00.md`.
+**Test**
 
-**Capability tags**
-`cap:plumbing.scaffold`, plus `cap:identity`, `cap:citation`, `cap:evidence.spine` and minimal read/onboard tags.
+* UI: publish flow uses Domain only; evidence displayed is Domain’s EvidenceSpineViewModel
 
-## DoD
+### Integration
 
-* Contract-pass: `ameide test` runs Slice 0 locally and emits a valid `EvidenceSpineViewModel`.
-* UX-pass: N/A (optional UI smoke only).
+**Build**
 
----
+* No new deliverables (must remain compatible):
 
-# Slice 1 (Tier‑1): Canonical Architecture Repository Portal
+  * GitLab operations are implemented inside Domain/Projection as internal adapters (not an Integration primitive).
+  * Integration focuses on external exchange surfaces (MCP server = Integration primitive exposing Projection queries to coding agents) when/if required.
 
-**Capability tags**
-`cap:identity`, `cap:citation`, `cap:repo.onboard`, `cap:repo.read_tree`, `cap:repo.read_file`
+**Test**
 
-## User story
-
-As an enterprise architect, I can browse the canonical Enterprise Repository (as stored in Git) and open artifacts at an immutable baseline so I can trust what I’m reading.
-
-## Value proposition
-
-* Replaces “EA docs drift” with a **canonical architecture repository** experience.
-* Establishes the platform as the *place to read architecture truth*.
-* Enables “shareable, immutable references” (by SHA) as a trust feature.
-
-## Journey
-
-1. Onboard an Enterprise Repository into the platform
-2. Browse Git tree at `published` read context
-3. Open an artifact in the **Element Editor** and see resolved commit SHA + citation
-
-## Repo artifacts (minimum)
-
-* `architecture/vision.md` (can be simple placeholder)
-* `README.md`
-
-## Primitive responsibilities
-
-* **Domain**: consumes repository onboarding/mapping as a single shared platform contract; Domain remains the canonical identity gate for all operations
-* **Projection**: resolve `read_context → commit_sha`, list tree, read file, return citations
-* **UI**: repository screen (Git-tree hierarchy), open artifacts via the Element Editor; show resolved SHA everywhere
-* **Memory**: optional, but if present: “fetch cited paths” bundle
-* **GitLab substrate**: project exists with at least one commit
-
-## DoD
-
-* Contract-pass: scenario runner proves browsing + file read + citations, and handles missing path behavior deterministically.
-* UX-pass: user can browse and open an artifact via the Element Editor.
+* Unit: token scope least privilege; adapter enforces “no main direct writes”
 
 ---
 
-# Slice 2 (Tier‑1): Governed Publish of Architecture Vision
+# Increment 2 — Typed EA items + derived backlinks (explainable traceability)
 
-**Capability tags**
-`cap:change.ensure`, `cap:change.commit_batch`, `cap:change.publish`, `cap:evidence.spine`, plus Slice 1 tags
+This is Scenario B generalized and made non-optional across all primitives. 
 
-## User story
+## 1) Capability user story
 
-As an enterprise architect, I can propose and publish an Architecture Vision so it becomes the canonical baseline, with evidence.
+“As a human and agent, we can create a requirement and later navigate **derived impact/backlinks with ‘why linked’ evidence**, without relationship CRUD.”
 
-## Value proposition
+## Capability-level testing objective
 
-* Architecture changes become **governed**, reviewable, auditable.
-* This is the core “EA-as-code” differentiator: **publish is explicit** and leaves evidence.
+From empty state:
 
-## Journey
+* Publish `requirements/REQ-001.md` with stable ID
+* Publish `architecture/standards/standard-a.md` referencing `REQ-001`
+* Projection builds ID index + backlinks and returns origin citations
+* UI shows backlinks and “why linked?” highlight
+* Agent answers “what depends on REQ-001?” with citations only 
 
-1. Browse baseline (Slice 1)
-2. Propose change (creates change/MR)
-3. Edit two files (vision + statement of work)
-4. Publish → baseline advances to a new `main` SHA
-5. UI shows evidence spine (MR + published SHA)
+## 2) Primitive goals, build items, and primitive-level tests
 
-## Repo artifacts
+### Domain
 
-* `architecture/vision.md`
-* `architecture/statement-of-work.md`
+**Build**
 
-## Primitive responsibilities
+* Add publish-time validation hook (reject EA files missing stable ID if they’re in a governed EA path set)
+* Evidence spine includes list of changed paths + target_head_sha
 
-* **Domain**: EnsureChange, commit batching, publish with SHA guards, record evidence spine
-* **Projection**: converge reads to new published SHA immediately after publish
-* **UI**: change-based editing UX; publish is explicit governed action
-* **GitOps/token contract**: least privilege consistent with owner-only writes; tokens must be expiring/rotating (no “forever bot” assumption)
+**Test**
 
-**Vendor notes (GitLab)**
-- Treat the audit anchor as **target branch head SHA after publish** (merge-method agnostic), and record merge/squash SHAs as optional supplemental evidence.
-- If pipeline gating is used, prefer GitLab “auto-merge” semantics; do not depend on deprecated “merge when pipeline succeeds” API parameters.
+* Unit: publish rejects missing stable IDs for eligible EA items (policy-driven)
 
-## DoD
+### Projection
 
-* Contract-pass: E2E publish loop + evidence spine recorded.
-* UX-pass: “Propose → Publish” visible and understandable in EA language.
+**Build**
 
----
+* Parse stable IDs and inline ref grammar MVP (`ref: REQ-001`) 
+* Index:
 
-# Slice 3 (Tier‑1): Derived Backlinks & Impact with Explainability
+  * `id -> path` (duplicate IDs produce deterministic “ambiguous” error)
+  * backlinks with origin citation `{repo, sha, path, anchor}`
 
-**Capability tags**
-`cap:derived.backlinks`, `cap:derived.impact`, `cap:memory.citeable_context`, plus Slice 2 tags
+**Test**
 
-## User story
+* Unit: duplicate ID detection produces deterministic error + candidate citations
+* Unit: “why linked” anchor is stable across rebuild at same sha
 
-As an architect, I can navigate “what references this?” and “what is impacted?” without relationship CRUD, and every derived link explains itself via citations.
+### Process
 
-## Value proposition
+**Build**
 
-* Turns static repo artifacts into a navigable EA knowledge system.
-* Enables governance quality: reviewers can see blast radius and traceability.
+* Process `req.intake`:
 
-## Journey
+  * draft requirement (human/agent)
+  * publish via Domain
+  * trigger projection rebuild (via command/event; projection remains rebuildable)
 
-1. Publish two artifacts with inline references (e.g., standard referencing a requirement)
-2. Open requirement → see derived backlinks panel
-3. Ask memory/assistant: “What depends on REQ‑001?” → citeable context returned
+**Test**
 
-## Repo artifacts
+* Unit: process orchestration uses commands and observes facts; no writes outside Domain
 
-* `requirements/REQ-001.md` (must contain stable id)
-* `architecture/standards/standard-a.md` (inline reference to REQ‑001)
+### Agent
 
-## Primitive responsibilities
+**Build**
 
-* **Projection**: parse inline reference grammar, build backlink index, return origin citations
-* **UI**: derived panels (“Impact / Backlinks”) explicitly derived + show “why linked?” citations
-* **Memory**: retrieval returns citeable bundles only (no uncited facts)
-* **Domain**: enforce “stable id present” rule on publish (optional but recommended)
+* Agent “impact explainer” tool:
 
-## DoD
+  * calls Projection backlinks
+  * returns citeable summary
+* Memory stores the context bundle used and the produced answer.
 
-* Contract-pass: backlink query returns edges with origin citations.
-* UX-pass: backlink/impact panel visible and drillable.
+**Test**
 
----
+* Unit: agent output must include backlinks origin citations (no uncited claims)
 
-# Slice 4 (Tier‑1): Proposal vs Published Review (MR head blast radius)
+### UISurface
 
-**Capability tags**
-`cap:proposal.read_context`, plus Slice 3 tags
+**Build**
 
-## User story
+* Requirement detail view:
 
-As governance, I can see the blast radius of a principle/standard change **before publishing**, comparing proposal (MR head) vs published baseline.
+  * canonical content tab (path + citation visible)
+  * derived backlinks tab with “why linked” and broken/ambiguous surfaced explicitly 
 
-## Value proposition
+**Test**
 
-* This is the EA equivalent of “review diff + impact,” but EA-first:
+* UI: “why linked” opens cited location (anchor/line highlight) at immutable SHA
 
-  * “If we change Principle P‑001, what standards/patterns are affected?”
-* Makes governance faster and safer.
+### Integration
 
-## Journey
+**Build**
 
-1. Publish baseline containing P‑001 and a referencing standard
-2. Propose change to P‑001 (MR head)
-3. View backlinks/impact at:
+* MCP server expands (Integration primitive exposing Projection queries to coding agents):
 
-   * published baseline SHA
-   * proposal head SHA
-4. Optionally attach “impact summary” evidence to the governance record
+  * `resolve_id`
+  * `list_backlinks`
+  * `open_origin` (why-linked snippet)
+* Still calls Projection APIs; Integration contains protocol, not semantics.
 
-## Repo artifacts
+**Test**
 
-* `principles/P-001.md`
-* `architecture/standards/standard-a.md` referencing P‑001
-
-## Primitive responsibilities
-
-* **Domain**: expose proposal read context (MR head SHA) deterministically
-* **Projection**: support derived queries at arbitrary SHAs (published + proposal)
-* **UI**: explicit selector: “Published vs Proposal”; show resolved SHAs
-* **Agent** (optional): generate citeable impact summary (no direct writes)
-
-## DoD
-
-* Contract-pass: backlink results differ/align correctly per SHA.
-* UX-pass: reviewer can switch contexts and understand what they’re seeing.
+* Unit: MCP tool outputs (Integration primitive exposing Projection queries to coding agents) are strictly citeable; no data invented in Integration
 
 ---
 
-# Slice 5 (Tier‑2): Baseline Compare (Gap analysis: as‑is vs to‑be)
+# Increment 3 — Proposal vs published review gate (impact preview + approvals)
 
-**Capability tags**
-`cap:baseline.compare`, plus Slice 2 tags
+## 1) Capability user story
 
-## User story
+“As governance (human) and as an agent assistant, we can review a proposal vs Canonical (`main@sha`), see blast radius, approve, and publish—without bypassing Domain.”
 
-As an architect, I can compare two baselines and see what changed, with citations to both commits.
+## Capability-level testing objective
 
-## Value proposition
+From empty state:
 
-* Enables TOGAF-ish gap assessment and change narratives:
+* Publish Canonical (`main`) with `principles/P-001.md` and one referencing artifact
+* Create proposal MR changing P-001
+* Projection can answer impact for:
 
-  * “What changed between approved baseline A and proposed baseline B?”
-* Immediate EA utility even with file-level diffs.
+  * published SHA
+  * proposal head SHA
+* Process enforces gate:
 
-## Journey
+  * cannot publish until impact preview exists and approval recorded
+* Domain publishes and EvidenceSpineViewModel records the publish anchor
 
-1. Publish baseline A (record SHA A)
-2. Publish baseline B (record SHA B)
-3. Compare A vs B → show file-level changes + optional summaries, all citeable
+## 2) Primitive goals, build items, and primitive-level tests
 
-## Primitive responsibilities
+### Domain
 
-* **Projection**: compare helper that outputs (adds/modifies/deletes) with citations to both SHAs
-* **UI**: baseline compare screen (EA language: “As‑Is vs To‑Be”)
-* **Agent** (optional): citeable diff summary
+**Build**
 
-## DoD
+* Add `ReadContext` support for “proposal head” (either by change_id or MR iid resolved internally)
+* Publish still SHA-guarded; Evidence Spine remains the single source for audit record
 
-* Contract-pass: compare output reproducible and citeable.
-* UX-pass: user can select two baselines and understand what changed.
+**Test**
 
----
+* Unit: `PublishChange` refuses if proposal head advanced since approval snapshot
 
-# Slice 6 (Tier‑2): Governance Outcomes as Platform Truth (tied to Git evidence)
+### Projection
 
-**Capability tags**
-`cap:governance.outcome`, plus Slice 2 + 4 tags
+**Build**
 
-## User story
+* Projection read APIs accept `read_context` that can address:
+  * `published` (canonical `main@sha`)
+  * explicit commit SHA
+  * `proposal_ref` (initiative / MR head)
+* Backlinks/impact computed at arbitrary SHA (published or proposal), derived from Domain facts (Kafka/outbox).
 
-As a governance board, I can record approvals/waivers/outcomes in the platform and tie them to the MR and published baseline SHA.
+**Test**
 
-## Value proposition
+* Unit: impact answers differ by SHA deterministically when content differs
 
-* Separates “what is approved” (platform governance truth) from “what exists in Git” (content truth).
-* Removes reliance on paid GitLab features for governance planning.
+### Process
 
-## Journey
+**Build**
 
-1. Proposal exists (MR)
-2. Board records outcome (approve/waive/request changes) in platform
-3. Publish is allowed/blocked based on governance truth
-4. Outcome is visible in EA language, linked to MR + published SHA
+* `governance.review_gate`:
 
-## Primitive responsibilities
+  * request impact preview (Agent)
+  * collect approval (UI)
+  * then authorize publish (Domain)
 
-* **Platform governance service**: canonical outcome store + policy checks
-* **Domain**: enforce publish gating via a single, explicit contract (either: Domain requires a governance attestation input, or Process gates publish and only calls Domain when allowed)
-* **Projection**: join governance truth with evidence spine in views
-* **UI**: governance timeline/outcomes panel in EA language
+**Test**
 
-**Vendor notes (GitLab)**
-- Do not rely on paid-tier approval rules for enforcement. Any GitLab approvals are advisory only; enforcement lives in platform governance truth + protected branch + owner-only merge identity.
+* Unit: process state machine persists and can resume after restart (durable orchestration)
 
-## DoD
+### Agent
 
-* Contract-pass: governance outcome linked to MR + published SHA.
-* UX-pass: board can record and later audit outcomes.
+**Build**
 
----
+* Agent generates “impact preview” packet:
 
-# Slice 7 (Tier‑3): ProcessDefinitions as governed files, deployed by SHA
+  * cites origin edges/snippets
+  * includes deltas between published and proposal contexts
+* Memory stores both contexts and citations used.
 
-**Capability tags**
-`cap:process.definition_files`, `cap:process.deploy_by_sha`, plus Slice 2 tags
+**Test**
 
-## User story
+* Unit: impact preview output is entirely citation-backed
 
-As a platform operator / governance designer, I can version governance/transformation processes as repo artifacts and deploy them deterministically, tied to commit SHA.
+### UISurface
 
-## Value proposition
+**Build**
 
-* “Governance as code” becomes real: processes are reviewed, published, and auditable.
-* Enables repeatable transformation workflows.
+* Review screen:
 
-## Journey
+  * “Published vs Proposal” context selector
+  * impact preview panel (from Agent output)
+  * approval button (records decision into Process/governance state, not into Git)
 
-1. Propose change adding/updating BPMN under `processes/...`
-2. Publish baseline
-3. Process runtime deploys definition tied to published SHA
-4. UI shows “process active at SHA”
+**Test**
 
-## DoD
+* UI: approval cannot directly publish; it advances Process which then calls Domain
 
-* Contract-pass: deploy record references commit SHA and process key.
-* UX-pass: user can see which process version is active.
+### Integration
 
----
+**Build**
 
-# Slice 8 (Tier‑3, but strategic): Transformation Run E2E (process + agent + publish + evidence)
+* MCP server exposes “impact preview” tool as read (Integration primitive exposing Projection queries to coding agents)
 
-**Capability tags**
-`cap:transformation.run_e2e`, plus Slice 2 + 3 + 6 + 7 tags
+**Test**
 
-## User story
-
-As a transformation lead, I can run a transformation that produces governed changes in the Enterprise Repository, with progress and evidence visible in the platform.
-
-## Value proposition
-
-* The platform doesn’t just store architecture; it **executes transformation work** safely.
-* Produces a complete evidence spine: initiative → process → agent → MR → publish SHA → impact.
-
-## Journey
-
-1. Start transformation initiative (platform)
-2. Process runs and assigns work to executor agent
-3. Agent reads context via Projection/Memory (citations)
-4. Agent proposes change via Domain (no direct git)
-5. Publish occurs after governance checks
-6. UI shows status + evidence + derived impact
-
-## DoD
-
-* Contract-pass: full run report links process instance + MR + published SHA + citations.
-* UX-pass: minimal transformation screen showing progress and evidence.
+* Unit: Integration does not interpret approvals; it just fetches substrate signals
 
 ---
 
-## 7. Reference grammar and stable identity (must be specified early)
+# Increment 4 — Work package delivery trace (EA ↔ code ↔ GitOps ↔ process assets)
 
-Because Slices 3–4 depend on it, this is part of the spec (not optional).
+## 1) Capability user story
 
-### 7.1 Stable identity in files
+“As a planner and delivery team, we can turn a requirement into a work package, implement changes in code/GitOps/process assets, and see traceability and validation evidence.”
 
-Every “element” file that participates in derived views must contain a stable ID in its content.
+## Capability-level testing objective
 
-v6 MVP canon:
-* YAML frontmatter includes `id: <ELEMENT_ID>` (repository-unique at a given commit SHA)
-* the Element Editor can open by `element_id` only when Projection can resolve `id → path` at the requested read context
-* duplicate IDs at a given `{repository_id, commit_sha}` are a **hard error** for derived views and must be surfaced in UX (with citations)
+From empty state:
 
-### 7.2 Inline reference grammar
+* Publish `REQ-001`
+* Publish `WP-001` referencing `REQ-001`
+* Make a delivery change that touches:
 
-Inline references must be parseable, deterministic, and citeable (including origin anchor where possible).
+  * one code location
+  * one GitOps manifest
+  * optionally one BPMN/DMN asset
+* Projection derives:
 
-v6 MVP canon (Scenario B and beyond):
-* In YAML frontmatter (metadata):
-  * `refs:` is a list of element IDs, e.g. `refs: ["REQ-001", "P-001"]`
-* In body/content:
-  * tokens of the form `ref: <ELEMENT_ID>` are treated as references
+  * WP ↔ changed paths
+  * code symbol neighborhood (at least minimal: file spans + defs/refs)
+  * GitOps resource identity (kind/name/namespace) for touched manifests
+* Process runs “work package execution” orchestration, capturing validation trace pointer
+* UI shows “Delivered by” derived panel; Agent produces delivery summary with citations
 
-Constraints:
-* Relationships must remain **inline-only** (content/body or file metadata/frontmatter); there is no relationship CRUD surface and no relationship sidecar store.
-* References must be resolved at a specific `{repository_id, commit_sha}`; “current” resolution is always via a read context → SHA first.
+## 2) Primitive goals, build items, and primitive-level tests
 
-### 7.3 Anchor scheme (origin citations)
+### Domain
 
-Every extracted reference must include an origin anchor that is reproducible on rebuild at `{repository_id, commit_sha, path}`.
+**Build**
 
-v6 MVP rule:
-* For frontmatter references: `anchor = "fm:<field>"` (e.g., `fm:refs[0]`)
-* For body/content references: `anchor = "L<line>:C<col>"` (1-based position of the `ref:` token)
+* Evidence Spine enriched (still Domain-owned) with:
 
-### 7.4 Broken reference policy
+  * pipeline pointer or validation trace ref (not a competing schema elsewhere)
+  * changed paths list
 
-* Broken references must surface deterministically in derived views and UX:
-  * show “Broken reference: `<target_id>`” with the **origin citation** (`{repo, sha, path, anchor}`)
-  * optional: show derived suggestions (non-canonical), but **never auto-fix** without a governed change (Domain write loop)
+**Test**
 
-### 7.5 Rename/move semantics
+* Unit: evidence spine always ties validation evidence to the same `target_head_sha`
 
-* Citations are immutable: `{sha, path}` refers to what existed *there* at *that* SHA.
-* After moves, new citations point to new paths at new SHAs; projections may optionally derive “moved-from” hints but must cite sources.
+### Projection
+
+**Build**
+
+* Extend derived models:
+
+  * `TOUCHES`: commit/publish → paths
+  * code symbol extraction (start with 1 language, but make pluginable)
+  * GitOps manifest parsing to resource IDs
+  * optional BPMN element extraction for “what process changed”
+
+**Test**
+
+* Unit: derived code symbols/manifest resources are rebuildable from Git at SHA
+* Unit: trace view returns origin citations to the exact files/sections
+
+### Process
+
+**Build**
+
+* `wp.execute` orchestration:
+
+  * ensure WP exists and is approved to start
+  * wait for publish evidence spine
+  * record “execution complete” state with pointers to Domain evidence
+
+**Test**
+
+* Unit: cannot mark “done” without a Domain evidence spine publish anchor
+
+### Agent
+
+**Build**
+
+* Agent “delivery summarizer”:
+
+  * uses Projection trace queries
+  * produces citeable summary (changed code snippets + manifest snippets)
+* Memory stores citations used.
+
+**Test**
+
+* Unit: summary includes citations to code/manifest line ranges or anchors
+
+### UISurface
+
+**Build**
+
+* Work Package page:
+
+  * “Implements REQ-001” (derived)
+  * “Delivered by: commits/paths/resources” (derived)
+  * “Evidence” tab shows Domain Evidence Spine (no UI-owned schema)
+
+**Test**
+
+* UI: all traceability panels are explicitly labeled “Derived” and include “why” citations
+
+### Integration
+
+**Build**
+
+* Add adapters as needed for:
+
+  * pipeline/test report retrieval (read-only)
+  * MCP server tools for trace queries (Integration primitive exposing Projection queries to coding agents) (so vendor agents can ask “what does WP-001 touch?”)
+
+**Test**
+
+* Unit: pipeline retrieval is adapter-only; business meaning is interpreted in Projection/Domain, not Integration
 
 ---
 
-## 8. Scenario catalog (absorbed from 713)
+# Increment 5 — Vendor reference adoption (BPC) + fit/gap + baseline compare
 
-This section fully absorbs `backlog/713-v6-togaf-functional-scenarios-e2e-tests.md` by preserving the TOGAF-ish scenarios and expressing each scenario as:
+## 1) Capability user story
 
-- a **product-visible journey**,
-- a **slice coverage** list (what ladder slices it exercises), and
-- the **cross-primitive contract-pass test** (plus optional UX-pass expectations).
+“As enterprise architecture, we can ingest/update the Microsoft BPC catalog as Git content, overlay our architecture, run fit/gap, and see impact of vendor updates.”
 
-### Scenario A — Architecture Vision becomes a canonical baseline (ADM Phase A)
+## Capability-level testing objective
 
-**User story**
-- As an enterprise architect, I can propose and publish an Architecture Vision (and Statement of Architecture Work) so it becomes the canonical baseline, citeable by commit SHA.
+From empty state:
 
-**Slice coverage**
-- Slice 2 (Governed publish)
-- Slice 1 (Repository portal)
+* Publish BPC release A subset into `reference/microsoft/bpc/...`
+* Publish overlays that reference BPC nodes (requirements/work packages)
+* Publish BPC release B subset (changed nodes)
+* Projection computes:
 
-**Capability tags**
-`cap:identity`, `cap:citation`, `cap:repo.onboard`, `cap:repo.read_tree`, `cap:repo.read_file`, `cap:change.ensure`, `cap:change.commit_batch`, `cap:change.publish`, `cap:evidence.spine`
+  * BPC hierarchy
+  * diff between releases A and B (by SHA)
+  * impact on overlays (“which of our items reference changed/deprecated nodes”)
+* Process orchestrates “adopt vendor release” gate
+* Agent produces citeable change summary + suggested follow-up work packages
+* UI shows BPC browser + compare + approval workflow
 
-**Primitive contributions (complete target)**
-- **GitLab substrate:** stores the canonical files; MR is the proposal unit; protected `main` is the canonical baseline; pipelines validate; publish advances the **target branch head SHA** (merge/squash SHAs are supplemental evidence depending on merge method).
-- **Domain (owner-only writes):** creates/owns the “change” abstraction, opens/updates the MR, commits the file changes, publishes (merges) with SHA-safe semantics, and records the evidence spine `{mr_iid, target_branch, target_head_sha, citations}` (plus optional merge/squash SHAs).
-- **Projection (derived views):** resolves `read_context` → `commit_sha`, serves Git-tree reads (`ListTree`/`GetContent`) strictly from Git, and returns citation-grade content responses.
-- **Process (orchestration only):** optional here; can drive the “publish loop” (draft → review → publish) but must only call Domain commands (no direct git ops).
-- **Agent (proposal/evidence only):** optional here; can draft the vision text and propose it, but must not hold write credentials; it reads via Projection and submits a proposal via Domain.
-- **UI surface (EA-first UX):** provides “browse canonical baseline” + “propose change” + “publish” UX and must show commit SHA/citations and evidence spine in the user journey.
+## 2) Primitive goals, build items, and primitive-level tests
 
-**Contract-pass E2E test**
-1. Onboard mapping.
-2. Propose change (MR) that adds/edits:
-   - `architecture/vision.md`
-   - `architecture/statement-of-work.md`
-3. Publish (merge to `main`) with SHA-safe semantics.
-4. Read back from `published` and assert:
-   - `read_context.resolved.commit_sha` equals the new `main` SHA.
-   - file reads return citations anchored to that SHA + path.
-   - audit pointers exist (MR + resulting `main` SHA).
+### Domain
 
-### Scenario B — Requirements capture with traceability hooks (Stakeholder concerns → requirements)
+**Build**
 
-**User story**
-- As an architect, I can add requirements in the repository and later navigate “what depends on this requirement” via derived backlinks, without relationship CRUD.
+* Governed publish for vendor catalog updates (MR-based) with evidence spine.
+* Optional baseline tags are allowed, but canonical anchor remains SHA.
 
-**Slice coverage**
-- Slice 3 (Derived backlinks/impact)
-- Slice 2 (Governed publish)
+**Test**
 
-**Capability tags**
-`cap:derived.backlinks`, `cap:derived.impact`, `cap:memory.citeable_context`, plus Scenario A tags
+* Unit: adoption publish produces evidence spine with target_head_sha + changed paths
 
-**Primitive contributions (complete target)**
-- **GitLab substrate:** requirements and referencing artifacts are authored as files; MRs propose changes; the commit graph provides “what was true” at any SHA.
-- **Domain (owner-only writes):** ensures requirement/standard files are created/updated via MR-backed publish; enforces canonical authoring rules (e.g., stable IDs present) at write time where appropriate.
-- **Projection (derived views):** parses inline references to build a rebuildable backlinks/impact index; every derived edge must carry an origin citation `{commit_sha, path[, anchor]}` (analogous to GitLab’s “derived knowledge graph” posture: index from repos, never canonicalize).
-- **Process (orchestration only):** optional here; can orchestrate “requirements intake” steps (capture → validate → publish), but cannot write artifacts directly.
-- **Agent (proposal/evidence only):** optional here; can help draft requirements, suggest ref updates, or produce an “impact summary” for reviewers; must cite sources and must not create relationships in a DB.
-- **UI surface:** shows requirement detail with “Derived impact/backlinks” panels that are explicitly derived (no relationship CRUD), and provides “why is this linked?” via citations.
+### Projection
 
-**Contract-pass E2E test**
-1. Onboard mapping.
-2. Publish two artifacts:
-   - `requirements/REQ-001.md` (contains a stable id and at least one inline ref)
-   - `architecture/standards/standard-a.md` (references `REQ-001` inline)
-3. Run projection indexing for `published` SHA.
-4. Query backlinks/impact for `requirements/REQ-001.md` and assert:
-   - at least one backlink exists (from `standard-a.md`),
-   - every derived edge includes origin citations to `{commit_sha, path[, anchor]}`,
-   - broken refs (if introduced) are surfaced deterministically.
-5. Call `memory.get_context` for `REQ-001` and assert:
-   - context bundle items are all citeable (no non-cited “memory facts”),
-   - `read_context.resolved.commit_sha` matches `published`.
+**Build**
 
-### Scenario C — Principles change with blast radius visibility (Principles → standards/patterns)
+* BPC node index + hierarchy derivation
+* Baseline compare between two SHAs:
 
-**User story**
-- As governance, I can change an architecture principle and see what standards and artifacts reference it before publishing.
+  * file-level and (where possible) node-level diffs
+* Impact analysis: overlays referencing changed BPC nodes
 
-**Slice coverage**
-- Slice 4 (Proposal vs published review)
-- Slice 3 (Derived backlinks/impact)
+**Test**
 
-**Capability tags**
-`cap:proposal.read_context`, plus Scenario B tags
+* Unit: diff and impact are deterministic per SHA and rebuildable
 
-**Primitive contributions (complete target)**
-- **GitLab substrate:** proposal lives in an MR (reviewable discussion, diffs, pipeline results); baseline lives in `main` at a commit SHA.
-- **Domain (owner-only writes):** creates/updates principle artifacts via MR; ensures the proposal view is addressable and publish is SHA-safe.
-- **Projection (derived views):** supports querying backlinks for both `published` (baseline) and “proposal head” contexts by SHA; produces deterministic results per SHA.
-- **Process (orchestration only):** can implement a governance gate (“principle change review”) that uses projection-derived blast radius as evidence.
-- **Agent (proposal/evidence only):** can generate an impact summary and propose mitigations (e.g., “update these standards”), but must only suggest/propose changes via Domain.
-- **UI surface:** makes “proposal vs published” explicit and lets reviewers inspect derived blast radius at both SHAs (analogous to GitLab MR view vs default branch view).
+### Process
 
-**Contract-pass E2E test**
-1. Onboard mapping.
-2. Publish initial artifacts:
-   - `principles/P-001.md`
-   - `architecture/standards/standard-a.md` referencing `P-001`
-3. Propose change updating `P-001` (proposal head view).
-4. Query backlinks for `P-001` at:
-   - `published` (baseline)
-   - proposal head (MR head SHA)
-5. Assert:
-   - both views are citeable and have distinct `resolved.commit_sha` if content changed,
-   - backlink results are consistent with the repo content at each SHA.
+**Build**
 
-### Scenario D — Architecture Definition Document evolves under MR governance (ADD)
+* `bpc.adopt_release` orchestration:
 
-**User story**
-- As an architect, I can evolve the ADD via proposals and publish with evidence so auditors can pin “what the ADD said” at a baseline SHA.
+  * ingest → diff → request agent summary → approval → publish
 
-**Slice coverage**
-- Slice 2 (Governed publish)
-- Slice 1 (Repository portal)
+**Test**
 
-**Capability tags**
-Scenario A tags, plus (optionally) `cap:baseline.compare` when diff UX exists
+* Unit: process gate requires agent summary artifact + human approval before Domain publish
 
-**Primitive contributions (complete target)**
-- **GitLab substrate:** file moves/renames are real Git operations; the Git tree is the hierarchy; MRs record review and diffs; the audit anchor is the **target branch head SHA** after publish (merge/squash SHAs supplemental).
-- **Domain (owner-only writes):** applies rename/move operations via commit actions, enforces “no empty folders” (Git-native), publishes via MR merge, and records evidence.
-- **Projection (derived views):** must reflect the Git tree after moves (no synthetic folder model), and must return citations pointing to the new paths at the new SHA; can optionally provide “moved-from” hints as derived metadata (with citations).
-- **Process (orchestration only):** optional; can orchestrate “document restructuring” workflows (split, rename, publish) and require review gates.
-- **Agent (proposal/evidence only):** optional; can propose a restructure plan and produce a “mapping” from old → new sections as evidence, but all canonical edits still go via Domain.
-- **UI surface:** shows Git-tree navigation; supports move/rename in the change editor as Git operations; surfaces evidence (MR + SHAs) for auditors.
+### Agent
 
-**Contract-pass E2E test**
-1. Onboard mapping.
-2. Publish initial `add/architecture-definition.md`.
-3. Propose change with edits and at least one rename/move (e.g., split into `add/sections/*.md`).
-4. Publish.
-5. Assert:
-   - `published` resolves to new `main` SHA,
-   - moved paths are reflected in Git tree,
-   - citations point to the new paths at the new SHA (no “synthetic folders”).
+**Build**
 
-### Scenario E — ABB/SBB coverage: “requirements satisfied by building blocks”
+* “Vendor update analyst”:
 
-**User story**
-- As a domain architect, I can declare building blocks and reference requirements so the platform can derive coverage views without a canonical relationship store.
+  * summarises what changed
+  * identifies impacted overlays
+  * proposes follow-up work packages with citations
+* Memory stores citations and decision context.
 
-**Slice coverage**
-- Slice 3 (Derived backlinks/impact)
+**Test**
 
-**Capability tags**
-Scenario B tags
+* Unit: suggested work packages include citeable origins (what changed and where)
 
-**Primitive contributions (complete target)**
-- **GitLab substrate:** building blocks and requirements are authored as files; publish is MR-backed; history provides audit.
-- **Domain (owner-only writes):** enforces canonical element authoring patterns (stable IDs in files) and publishes updates safely.
-- **Projection (derived views):** computes coverage/backlinks (REQ ← ABB ← SBB) as a rebuildable index; traversal must be bounded and every edge must cite its origin.
-- **Process (orchestration only):** optional; can run a “coverage check” workflow (e.g., ensure every requirement is referenced by at least one ABB) and attach results as evidence.
-- **Agent (proposal/evidence only):** optional; can suggest missing links or missing building blocks, but must propose changes via Domain; can generate a citeable “coverage report” for review.
-- **UI surface:** presents “coverage” as a derived view (catalog/matrix/graph-like UX) with drill-down citations, and never offers relationship CRUD as canonical truth.
+### UISurface
 
-**Contract-pass E2E test**
-1. Onboard mapping.
-2. Publish:
-   - `requirements/REQ-001.md`
-   - `building-blocks/ABB-001.md` referencing `REQ-001` inline
-   - `building-blocks/SBB-001.md` referencing `ABB-001` inline
-3. Query derived view:
-   - backlinks for `REQ-001` returns `ABB-001` (and transitively `SBB-001` if traversal is supported)
-4. Assert:
-   - traversal is bounded and citeable,
-   - each edge includes an origin citation.
+**Build**
 
-### Scenario F — Gap analysis via baseline compare (as-is vs to-be)
+* BPC catalog UI:
 
-**User story**
-- As an architect, I can compare two baselines and see what changed, with all changes citeable to the underlying commits.
+  * browse hierarchy
+  * compare baselines (A vs B)
+  * show impacted overlays
+  * approve adoption workflow
 
-**Slice coverage**
-- Slice 5 (Baseline compare)
+**Test**
 
-**Capability tags**
-`cap:baseline.compare`, plus Scenario A tags
+* UI: every compare/impact row is backed by citations to both SHAs
 
-**Primitive contributions (complete target)**
-- **GitLab substrate:** baselines are Git refs (commit SHAs and/or tags); compare is fundamentally Git diff semantics.
-- **Domain (owner-only writes):** optional here; may create/publish the “to-be” baseline; must record baseline identities (if tags are created, do it via the owning Domain policy).
-- **Projection (derived views):** provides baseline resolution and diff results (file-level and optionally semantic summaries) as derived views; all comparisons must cite both SHAs.
-- **Process (orchestration only):** optional; can run an “ADM gap assessment” process that consumes baseline diffs and produces an evidence artifact (still stored in Git via Domain).
-- **Agent (proposal/evidence only):** optional; can summarize diffs and propose follow-up changes; summaries must include citations to changed artifacts/SHAs.
-- **UI surface:** provides “compare baselines” UX and makes ref resolution explicit (tag → SHA) and citeable (like GitLab “compare branches/tags” UX, but EA-first).
+### Integration
 
-**Contract-pass E2E test**
-1. Onboard mapping.
-2. Publish baseline A (capture `sha_a`).
-3. Publish baseline B with edits and new artifacts (capture `sha_b`).
-4. Run a baseline diff query and assert:
-   - the diff is Git-native (file additions/modifications/deletions),
-   - any rendered diff output includes citations to `{sha_a, path}` and `{sha_b, path}`.
+**Build**
 
-### Scenario G — Opportunities & Solutions: Work Packages deliver building blocks
+* Import adapter for Excel/CSV into normalized Git-friendly files (still Integration = adapters; normalization rules belong to Projection/Domain policies)
+* MCP server tools for BPC navigation and impact (Integration primitive exposing Projection queries to coding agents)
 
-**User story**
-- As a planner, I can create work packages that reference the building blocks they deliver, and reviewers can see the impact/traceability before publish.
+**Test**
 
-**Slice coverage**
-- Slice 3 (Derived backlinks/impact)
-- Slice 4 (Proposal vs published review)
-
-**Capability tags**
-Scenario C tags
-
-**Primitive contributions (complete target)**
-- **GitLab substrate:** work packages are Git-authored artifacts; MRs are the governance proposal unit.
-- **Domain (owner-only writes):** publishes WP artifacts and changes; ensures proposal head is addressable by SHA for review.
-- **Projection (derived views):** derives “delivers” relationships from inline refs; supports proposal vs published queries; returns citations for every derived relationship.
-- **Process (orchestration only):** can implement a planning workflow (create WP → review → publish) and can require “impact preview” evidence from Projection before publish.
-- **Agent (proposal/evidence only):** can propose updating the WP delivered set and can generate an impact/evidence summary; cannot write directly.
-- **UI surface:** supports “proposal review” with impact preview panels; publish advances baseline and UI reads converge to `published` SHA.
-
-**Contract-pass E2E test**
-1. Onboard mapping.
-2. Publish:
-   - `building-blocks/ABB-001.md`
-   - `work-packages/WP-001.md` referencing `ABB-001` inline
-3. Propose update to `WP-001` to add/remove delivered items.
-4. Query backlinks/impact for `ABB-001` at proposal head and assert:
-   - derived references update with the proposal head SHA,
-   - publish advances the canonical baseline and the derived view converges.
-
-### Scenario H — Transition Architectures / Plateaus as pinned baselines
-
-**User story**
-- As a program architect, I can pin a plateau and later compare it to another plateau to understand changes, all anchored to SHAs/tags.
-
-**Slice coverage**
-- Slice 5 (Baseline compare) with baseline refs/tags
-
-**Capability tags**
-Scenario F tags
-
-**Primitive contributions (complete target)**
-- **GitLab substrate:** plateau baselines are Git refs (tags or recorded SHAs) and must be immutable; compare is Git-native.
-- **Domain (owner-only writes):** is the policy gate for creating plateau refs (if tags are used) and for publishing artifacts that define a plateau.
-- **Projection (derived views):** resolves plateau refs → SHAs, provides compare outputs and any derived “what changed” summaries with citations.
-- **Process (orchestration only):** can orchestrate plateau governance (proposal → board review → tag/pin) and record evidence of “why this plateau exists”.
-- **Agent (proposal/evidence only):** can draft plateau notes, propose tagging, and generate a citeable change summary between plateaus.
-- **UI surface:** shows plateau selection/compare with explicit ref resolution, and must never treat “plateau metadata” as canonical unless stored in Git or governance DB with evidence.
-
-**Contract-pass E2E test**
-1. Onboard mapping.
-2. Publish plateau “TA-2026Q1” (either a tag or a recorded commit SHA).
-3. Publish plateau “TA-2026Q2”.
-4. Compare the two baselines and assert:
-   - both baselines resolve to immutable SHAs,
-   - the comparison output is citeable and reproducible.
-
-### Scenario I — Governance gate outcome is platform truth, tied to Git evidence
-
-**User story**
-- As a governance board, I can record approvals/outcomes in the platform and tie them to the MR + resulting baseline SHA, without relying on paid GitLab features.
-
-**Slice coverage**
-- Slice 6 (Governance outcomes)
-
-**Capability tags**
-`cap:governance.outcome`, plus Scenario C tags
-
-**Primitive contributions (complete target)**
-- **GitLab substrate:** provides CE-available primitives (protected `main`, MR review/discussion, pipelines); do not depend on paid-tier planning features.
-- **Domain (owner-only writes):** publishes canonical artifacts via MR; emits/records audit pointers tying governance outcomes to MR + resulting `main` SHA.
-- **Projection (derived views):** joins governance truth (platform DB) with content truth (Git) into a projection-friendly view (evidence spine), without making projections canonical.
-- **Process (orchestration only):** is the primary home for gates; it should enforce “no publish without required approvals” by calling Domain and checking governance DB state (not by bypassing it).
-- **Agent (proposal/evidence only):** can prepare evidence packets (impact summaries, check results) and attach them to the governance record; must cite all sources.
-- **UI surface:** presents governance outcomes and the evidence spine in EA language (“approved”, “waived”, “compliant”), and links back to MR + SHA.
-
-**Contract-pass E2E test**
-1. Onboard mapping.
-2. Propose change (MR).
-3. Record platform approvals (governance truth) referencing the change.
-4. Publish.
-5. Assert:
-   - governance outcome is queryable and references MR + resulting `main` SHA,
-   - GitLab enforcement used is CE-compatible (protected `main`, MR-only merges, pipeline gating as configured).
-
-### Scenario J — “What was true then?” (audit replay by SHA)
-
-**User story**
-- As an auditor, I can replay exactly what the platform showed at a point in time.
-
-**Slice coverage**
-- Slice 1–5 progressively, plus projection rebuildability requirements
-
-**Capability tags**
-Scenario F tags, plus rebuildability requirements (projection)
-
-**Primitive contributions (complete target)**
-- **GitLab substrate:** the commit graph is the immutable timeline; any claim must be anchored to SHAs/tags.
-- **Domain (owner-only writes):** records the evidence spine for publishes so “what happened” can be replayed, and ensures publish semantics are deterministic.
-- **Projection (derived views):** guarantees rebuildability and determinism: rebuilding the same projection for the same commit SHA yields the same answers; derived results always cite origins.
-- **Process (orchestration only):** optional; can provide “audit replay” workflows (select SHA → rebuild projection → generate report) but must not invent truth.
-- **Agent (proposal/evidence only):** optional; can narrate a replay report (“what changed and why”) but must include citations and must not introduce non-cited facts.
-- **UI surface:** provides a “time travel” read context selector (baseline/tag/SHA) and makes the resolved SHA explicit everywhere.
-
-**Contract-pass E2E test**
-1. Onboard mapping.
-2. Publish two commits; record `sha_1` and `sha_2`.
-3. Query `GetContent` and backlinks at `sha_1` and assert:
-   - all outputs are citeable to `sha_1`,
-   - rebuilding projections for `sha_1` yields the same answers (golden snapshot).
+* Unit: importer produces deterministic outputs; does not inject semantics (just transforms source to files)
 
 ---
 
-## 9. How this supersedes 713
+# Global “no-optionals” Definition of Done per increment
 
-* All TOGAF-ish scenarios and their cross-primitive E2E tests are now defined in this document (Section 8).
-* `backlog/713-v6-togaf-functional-scenarios-e2e-tests.md` becomes a short pointer to this document.
+Every increment is “Done” only if:
 
----
+1. **Capability-level contract-pass test exists** under `capabilities/<cap>/__tests__/integration/…` (as you already set up in Slice 0 discipline). 
+2. **Each primitive has at least one new behavior + one primitive-level test** proving it.
+3. **UI and Agent are both exercised** in the capability test:
 
-## 10. Operational guidance: how teams work with this spec
+   * UI path: at least one UI-level flow (smoke integration) that calls the same seams
+   * Agent path: at least one agent invocation producing citeable output
+4. **Integration is never bypassed**:
 
-1. For each slice, each primitive team adds a small “slice implementation checklist” to its own backlog.
-2. A slice is “shippable” only when:
+  * no GitLab REST calls from Projection/UI/Agent directly (Domain only)
+5. **Evidence spine is Domain-owned**:
 
-   * Contract-pass is green in CI (mock mode),
-   * Contract-pass is green in cluster mode,
-   * UX-pass is complete for Tier‑1 slices.
-3. Every slice demo must include:
-
-   * the user journey,
-   * the evidence spine output,
-   * one “why should I trust this?” explanation using citations.
-
----
-
-## 11. Non-goals (explicit)
-
-* This spec does not define performance/security/operability test suites (tracked separately).
-* This spec does not mandate a specific file schema; it mandates **stable IDs + parseable references + citations**.
-* This spec does not require agents/process in Tier‑1 slices except where explicitly stated.
-* This spec does not make GitLab planning objects (issues/epics/milestones/roadmaps) the product backbone; v6 planning/governance semantics live in platform truth + Git-authored artifacts.
-
----
-
-### Summary
-
-**Scenario Slices** give you:
-
-* the realism and EA language of 713,
-* the coordinated incremental delivery intent of 706,
-* but in a single ladder that is **product-first**, **incrementally implementable**, and **provable end-to-end** without violating v6 invariants.
+   * any “report/run output” uses Domain’s EvidenceSpineViewModel; other primitives never invent a competing schema. 
