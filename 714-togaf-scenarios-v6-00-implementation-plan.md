@@ -227,7 +227,7 @@ Increment 0 should add at least one UI integration test that:
 * runs locally without GitLab,
 * calls a platform server route,
 * asserts the route uses ConnectRPC clients to Projection (not GitLab),
-* asserts returned payload includes `Published @ <sha>` and citations.
+* asserts returned payload includes `Canonical main@<sha>` (i.e., `read_context=published`) and citations.
 
 Substrate should be the same deterministic mock GitLab + in-process primitive services used by the Go capability tests.
 

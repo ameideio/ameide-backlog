@@ -25,7 +25,7 @@ Scenario A must ship clear agent-side value in addition to the UI/process path.
 
 - **Architect agent deliverables**
   - Can draft and/or review `architecture/vision.md` and `architecture/statement-of-work.md` as proposals anchored to a resolved `read_context`.
-  - Can verify “what is published” by retrieving citeable reads at `Published @ <sha>` and producing a citeable review summary for humans.
+  - Can verify Canonical `main@sha` by retrieving citeable reads at `read_context=published` and producing a citeable review summary for humans.
   - Can supervise an active developer publish run via periodic review ticks (`review_interval_minutes` per `backlog/717-ameide-agents-v6.md`) by checking: diff state, evidence (`./ameide test` where applicable), and publish anchor (`target_head_sha`).
 - **Developer agent deliverables**
   - Can execute the governed write loop (Domain commands) to create/update/publish a change and attach evidence to the evidence spine.
@@ -53,7 +53,7 @@ Scenario A must ship clear agent-side value in addition to the UI/process path.
 ### Required negative assertions (in the same test pack)
 
 * Publish fails fast if `expected_mr_head_sha` is stale (MR advanced). 
-* No direct writes to `main` are possible (Domain enforces MR-backed publish; the GitLab substrate adapter does not expose direct `main` writes). 
+* No direct writes to `main` are possible (Domain enforces MR-backed publish). 
 * CQRS rule: UI/Agent/Process read via **Projection**; Domain is **command-only** at the platform seam.
 * UI/Agent/Process/Projection do not call GitLab directly; only Domain may call `gitlab.com/gitlab-org/api/client-go` (no wrappers), and GitLab types never cross the proto seam.
 
@@ -85,14 +85,14 @@ Scenario A must ship clear agent-side value in addition to the UI/process path.
   * find-or-create merge request
   * create commit (with expected head guard)
   * accept/merge merge request (with expected head guard)
-* Implementation uses `gitlab.com/gitlab-org/api/client-go` (v1.x) directly in Domain internals (no wrapper clients; no GitLab types in Domain contracts).
+* Implementation uses `gitlab.com/gitlab-org/api/client-go` (pin a single major version; currently v1) directly in Domain internals (no wrapper clients; no GitLab types in Domain contracts).
 
 **Invariants**
 
 * Never write to `main` directly; always branch+MR. 
 * Publish must be SHA-safe; mismatch → explicit error. 
 * Evidence Spine canonical publish anchor = **target branch head SHA after publish** (`target_head_sha`). 
-* GitLab SDK usage is confined to Domain internals (pinned to `gitlab.com/gitlab-org/api/client-go` v1.x); no GitLab client types leak across platform contracts.
+* GitLab SDK usage is confined to Domain internals (pin a single major version; currently v1); no GitLab client types leak across platform contracts.
 
 ### Domain tests (individual)
 
@@ -233,22 +233,35 @@ Minimum UX flow:
 
 ### Increment 1 goals
 
-1. Extend outward-facing protocols: **an MCP server (Integration primitive) that exposes Projection queries to coding agents** (and routes commands to Domain/Process seams without bypassing governance).
-2. Keep protocol adapters semantics-free: forward to Domain/Projection/Process/Agent seams; do not embed business logic.
-3. Enforce substrate hygiene: GitLab remains a substrate behind internal adapters; no direct GitLab access outside the adapter boundary.
+1. Extend outward-facing protocols: **an MCP server (Integration primitive)** that exposes platform seams to coding agents.
+2. Keep protocol adapters semantics-free:
+   * MCP **reads** route to **Projection** queries.
+   * MCP **writes** route to **Domain** commands.
+3. Enforce substrate hygiene: GitLab remains a substrate behind Domain internals; no direct GitLab access from UISurface/Agent/Process/Projection/Integration.
 
 ### Build (Increment 1)
 
-Extend the MCP server tool surface (Integration primitive exposing Projection queries to coding agents) (minimum):
+Extend the MCP server tool surface (Integration primitive) with explicit CQRS direction:
+
+**Reads (MCP → Projection queries)**
+
+* `repo.list_tree(...)` → Projection.ListTree
+* `repo.get_content(...)` → Projection.GetContent
+* `repo.get_evidence(...)` → Projection.GetEvidence (Domain-owned EvidenceSpineViewModel, materialized by Projection)
+
+**Writes (MCP → Domain commands)**
 
 * `repo.ensure_change(...)` → Domain.EnsureChange
 * `repo.create_commit(...)` → Domain.CreateCommit
 * `repo.publish_change(...)` → Domain.PublishChange
-* `repo.get_evidence(...)` → Domain.GetEvidence (Domain-owned EvidenceSpineViewModel)
+
+Write governance rule:
+
+* `repo.publish_change` is not a bypass: Domain must validate required preconditions (e.g., “approval recorded for process_instance_id”) by reading Projection state.
 
 ### Integration tests (individual)
 
-* **Unit:** MCP tools (Integration primitive exposing Projection queries to coding agents) route to Domain/Projection/Process and preserve deterministic errors.
+* **Unit:** MCP tools route reads to Projection and writes to Domain, and preserve deterministic errors.
 * **Static boundary:** only Domain imports `gitlab.com/gitlab-org/api/client-go`; only Integration imports MCP protocol libs (Integration primitive exposing Projection queries to coding agents).
 
 ---
@@ -260,5 +273,5 @@ Increment 1 is complete only when:
 * ✅ One capability-level contract-pass test demonstrates Scenario A end-to-end across all primitives. 
 * ✅ Each primitive has at least one new behavior + one primitive test (non-null progress).
 * ✅ Evidence Spine is produced by Domain and consumed by UI/Process/Agent without competing schemas. 
-* ✅ GitLab adapter boundary is enforced (static import rule + wiring test).
+* ✅ GitLab boundary is enforced (Domain-only GitLab access; static import rule + wiring test).
 * ✅ Both human and agent paths are exercised (manual draft path + agent draft path).

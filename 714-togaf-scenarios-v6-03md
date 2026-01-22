@@ -250,7 +250,9 @@ Minimum UX flow:
 #### Increment 3 goals
 
 1. Add the Domain facts required to resolve and read proposal head SHAs without making GitLab an API surface.
-2. Expose protocol adapters: **an MCP server (Integration primitive) that exposes Projection queries to coding agents** and calls Projection/Process/Agent seams (never vendor APIs directly).
+2. Expose protocol adapters: **an MCP server (Integration primitive)** where:
+   * MCP reads route to Projection queries (impact preview, governance status, citeable diffs),
+   * MCP writes route to Domain commands (and publish remains non-bypassable via Domain validation against Projection state).
 
 #### Build
 
@@ -259,10 +261,10 @@ Minimum UX flow:
   * `get_mr_head_sha(remote_id, mr_iid)` (used by Projection read_context resolution)
   * `read_file_at_sha(remote_id, sha, path)`
 * Ensure **only Domain** talks to GitLab REST; Projection is fed from Domain facts (Kafka/outbox).
-* Extend MCP server tool set (Integration primitive exposing Projection queries to coding agents) (non-semantic passthrough):
+* Extend MCP server tool set (non-semantic passthrough):
 
   * `impact_preview(target_id, published|proposal_ref)` routing to Projection/Agent
-  * `governance.status(process_instance_id)` routing to Process
+  * `governance.status(process_instance_id)` routing to Projection (materialized from Process facts)
 
 #### Integration individual tests
 
