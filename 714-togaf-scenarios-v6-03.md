@@ -75,6 +75,13 @@ A **capability-owned integration test** proves from empty state:
 * CQRS rule: UI/Agent/Process read via **Projection**; Domain is **command-only** at the platform seam.
 * UI/Agent/Process/Projection do not call GitLab APIs directly; only Domain uses `gitlab.com/gitlab-org/api/client-go`.
 
+## Travelling requirement overlay (all increments)
+
+Increment 3 exercises the governance gate against the travelling requirement itself:
+
+* Subject id: `REQ-TRAVEL-001`
+* Impact preview compares Published vs Proposal backlinks for `REQ-TRAVEL-001` with origin citations.
+
 ---
 
 ## 2) Primitive-by-primitive goals, what to build, and what to test
