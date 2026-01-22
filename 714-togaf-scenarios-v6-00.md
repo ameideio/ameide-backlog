@@ -12,8 +12,16 @@ This is “Slice 0” made **non-optional across all six primitives** (UI and Ag
 * **No wrapper clients:** Domain implementation code may call `client-go` services directly (the SDK *is* the adapter).
 * **No leaking types:** GitLab client types never cross platform contracts (proto/SDK/view models).
 * **Testing posture:**
-  * **Primitive unit tests:** use `gitlab.com/gitlab-org/api/client-go/testing` (gomock) to validate handler logic without HTTP.
+  * **Primitive unit tests:** Domain uses `gitlab.com/gitlab-org/api/client-go/testing` (gomock) to validate handler logic without HTTP; Projection tests validate outbox→derived apply (no GitLab client imports).
   * **Capability/integration tests:** use gomock-based GitLab **mocks** (vendor `client-go/testing` or equivalent) and deterministic outbox→projection apply; no real GitLab dependency.
+
+## Validator standard (applies to all increments)
+
+Define exactly one deterministic typed-item validator (library + CLI) and reuse it in:
+
+* local developer hook (best-effort)
+* CI merge request job (hard gate)
+* Domain `PublishChange` (authoritative; Domain always re-validates)
 
 ---
 
@@ -23,8 +31,8 @@ This is “Slice 0” made **non-optional across all six primitives** (UI and Ag
 * ✅ Enterprise Repository Projection query seam implemented (`ListTree`, `GetContent`) including `published` → resolved SHA.
 * ✅ Platform repository page wired to proto seams for “Canonical (main@sha)” + tree + file open (no direct GitLab routes).
 * ✅ Capability integration coverage added for v6 scenario `0/OnboardExploreBaseline`.
-* ✅ Primitive unit tests added using `gitlab.com/gitlab-org/api/client-go/testing` (Domain + Projection).
-* ⏳ Docs target state (CQRS + outbox-derived reads): Projection must stop calling GitLab and serve reads purely from Domain facts (Kafka/outbox).
+* ✅ Domain primitive unit tests added using `gitlab.com/gitlab-org/api/client-go/testing` (gomock).
+* ⚠️ Current deviation (implementation): Projection read seams still call GitLab; target state is derived reads from Domain facts only (Kafka/outbox).
 
 ## 1) Capability user story and capability-level testing objective
 
@@ -55,7 +63,7 @@ A single **capability-owned integration test** (run by `ameide test`, Phase 0/1/
 1. **Identity creation**: `{tenant_id, organization_id, repository_id}` is used everywhere.
 2. **Onboarding**: Domain records a repo mapping for this identity (local/in-memory provider is acceptable for Inc 0).
 3. **Read context resolution**: Projection resolves `published` to a deterministic `resolved.commit_sha`. 
-4. **Canonical reads**: Projection lists tree + reads one file; responses include citations `{repository_id, commit_sha, path[, anchor]}`. 
+4. **Canonical reads**: Projection lists tree + reads `requirements/REQ-TRAVEL-001.md` (typed item with YAML frontmatter `id: REQ-TRAVEL-001`, `scheme: togaf`, `type: togaf.requirement`); responses include citations `{repository_id, commit_sha, path[, anchor]}`. 
 5. **Process instance**: Process starts a durable process instance `repo.explore` (or equivalent) and returns `process_instance_id`. 
 6. **Agent proposal**: Agent consumes Projection-provided citeable context and produces a proposal with citations (no uncited facts). 
 7. **Run report**: Projection serves an `EvidenceSpineViewModel` for the run using the **Domain-owned schema** (fields not applicable in Inc 0 may be empty). 
@@ -64,6 +72,13 @@ A single **capability-owned integration test** (run by `ameide test`, Phase 0/1/
 
 * UI/Agent/Process/Projection do not call GitLab directly; only Domain calls `client-go`, and GitLab types never cross the proto seam.
 * Missing path yields a deterministic error outcome (no silent empty lists). 
+
+## Travelling requirement overlay (all increments)
+
+All v6 increments use one stable requirement id to make end-to-end traceability mechanically hard to break:
+
+* `REQ-TRAVEL-001` (typed item) exists at `published@sha` from Increment 0 onward.
+* Increment 0’s explored/opened artifact is `requirements/REQ-TRAVEL-001.md` (not a generic README).
 
 ### Placement
 
@@ -164,6 +179,10 @@ Below, “build” means “new code/API/behavior introduced by Increment 0”, 
    * identity propagation
    * correlation metadata presence
    * stable instance id return
+
+### Why Process is first-class even in Increment 0
+
+Increment 0 establishes the platform’s **durable run handle** (`process_instance_id`) so later increments can make governance and publish flows non-bypassable and restart-safe across UISurface + MCP clients. This is not something GitLab provides for the platform: GitLab governs merges, but the platform still needs a resumable workflow instance to coordinate multi-step actions (agent evidence → approvals → publish) and to expose progress/status as a first-class, queryable view.
 
 ### Build (Increment 0)
 

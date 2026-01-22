@@ -118,7 +118,8 @@ Because Projection serves reads from derived state (not live GitLab), define and
 
 ### 3.4 Dependency hygiene
 
-* Pin `gitlab.com/gitlab-org/api/client-go` as a **direct** dependency in both Domain and Projection modules to avoid workspace drift.
+* Pin `gitlab.com/gitlab-org/api/client-go` as a **direct** dependency in **Domain only** (Domain is the only layer allowed to import GitLab clients).
+* If you need workspace-level pinning, enforce it via tooling/workspace policy (e.g., a shared `tools` module or CI checks), not by importing GitLab client types into Projection (including tests).
 
 ---
 

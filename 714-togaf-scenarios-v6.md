@@ -8,7 +8,7 @@ owners:
   - repository
   - agents
 created: 2026-01-21
-updated: 2026-01-21
+updated: 2026-01-22
 supersedes:
   - 713-v6-togaf-functional-scenarios-e2e-tests.md
 related:
@@ -26,6 +26,7 @@ related:
   - 717-ameide-agents-v6.md
   - 710-gitlab-api-token-contract.md
   - 714-togaf-scenarios-v6-00.md
+  - 714-togaf-scenarios-v6-05.md
 ---
 
 Below is a **re-imagined, coordinated incremental ladder** that treats your **six primitives as equal** and ensures **every increment advances every primitive** (variable depth is OK, but never “null”). It also bakes in your constraints:
@@ -55,6 +56,17 @@ This ladder is compatible with the shape/discipline you already codified in 714 
 * Vocabulary:
   * **Canonical** = `main` (the `main@sha` baseline).
   * **Transformation initiative** = branch (an `initiative_branch@sha`, typically wrapped by an MR).
+* Relationship authoring is intentionally hybrid (Git-first + agent-friendly):
+  * inline links/refs are allowed (prefer frontmatter `links:`; body `ref:` may remain as compatibility input),
+  * path-based links are allowed as locators for agents (`target_path`), but stable identity is still `id`,
+  * ArchiMate/BPMN relationships can be first-class items (`archimate.relationship`, `bpmn.relationship`) when the relationship itself carries attributes and must satisfy metamodel rules.
+* “Things” the platform validates/indexes as EA knowledge are typed items (YAML frontmatter with `id`, `scheme`, `type`). Implementation artifacts (code/config/GitOps manifests) may remain untyped and are linked/traceable via `target_path` plus citations at `{repo, sha}`.
+
+### Travelling requirement overlay (Inc 0 → Inc 5)
+
+All increments reuse one stable requirement id so the trace story accumulates instead of resetting each slice:
+
+* `REQ-TRAVEL-001` is referenced explicitly in every increment’s capability test narrative.
 
 2. **Owner-only writes**
 
@@ -68,6 +80,27 @@ This ladder is compatible with the shape/discipline you already codified in 714 
 * Projection reconstructs read models (canonical repository browse/open + derived IDs/backlinks/graphs/search) by consuming **Domain facts** from Kafka/outbox.
 * Derived outputs are **rebuildable** and **citeable**.
 
+### Enterprise Repository fact types (496 `io.ameide.*` naming)
+
+Lock down the semantic identities (CloudEvents `type` strings) used for Enterprise Repository propagation, per `backlog/496-eda-principles-v6.md` (`io.ameide.<context>.fact.<name>.v<major>`).
+
+**Owner facts (Domain; emitted only after commit):**
+
+* `io.ameide.transformation.fact.enterprise_repository.repo_mapping_upserted.v1`
+* `io.ameide.transformation.fact.enterprise_repository.change_committed.v1`
+* `io.ameide.transformation.fact.enterprise_repository.change_published.v1`
+* `io.ameide.transformation.fact.enterprise_repository.validation_failed.v1` (only if modeled as a durable audit outcome recorded by Domain)
+
+**Derived facts (Projection; optional):**
+
+* `io.ameide.transformation.fact.enterprise_repository.typed_item_indexed.v1`
+
+**Emission rule (Git-backed outbox-equivalent):**
+
+* Facts are emitted only after the Git outcome is durable and auditable:
+  * `change_committed` after the commit SHA is created and Domain has durably recorded the audit pointer(s),
+  * `change_published` after MR merge (or squash) is complete and Domain has recorded the publish anchor (`target_head_sha`) and other required audit pointers.
+
 4. **Evidence Spine is Domain-owned**
 
 * The Evidence Spine is Domain’s internal audit record for governed changes/publishes.
@@ -77,6 +110,8 @@ This ladder is compatible with the shape/discipline you already codified in 714 
 5. **Process orchestrates, never writes canonical**
 
 * Process coordinates long-running workflows (gates, timers, approvals) through commands and events; it never becomes “a writer.”
+* GitLab guardrails can block a merge, but Process guardrails are what make governance **platform-owned and non-bypassable across channels** (UISurface + MCP): Process holds the durable state machine (restart-safe) and records approvals/evidence packets; Domain commands can validate required gate state by reading Projection views.
+* Process is therefore “earned” in scenarios where the platform requires prerequisites GitLab cannot natively enforce in your semantics (e.g., “impact preview packet exists”, “approval snapshot is tied to the exact proposal head SHA”, timeouts/escalations).
 
 6. **Agent proposes, under grants**
 
@@ -136,7 +171,7 @@ Each increment is a **vertical slice**: Domain + Projection + Process + Agent + 
 3. **Increment 2 — Typed EA Items + Derived Backlinks (Explainable traceability)**
 4. **Increment 3 — Proposal vs Published Review Gate (Impact preview + approvals)**
 5. **Increment 4 — Work Package delivery trace (EA ↔ code ↔ GitOps ↔ process assets)**
-6. **Increment 5 — Vendor reference adoption (BPC) + Fit/Gap + Baseline compare**
+6. **Increment 5 — Schemes + metamodel validation (TOGAF/ArchiMate/BPMN/Markdown) + no-sidecar views**
 
 This ladder intentionally “absorbs” your 714 scaffolding + Scenario A + Scenario B, but makes **UI/Agent/Process/Integration non-optional** in every increment.   
 
@@ -437,11 +472,11 @@ This is Scenario B generalized and made non-optional across all primitives.
 
 From empty state:
 
-* Publish `requirements/REQ-001.md` with stable ID
-* Publish `architecture/standards/standard-a.md` referencing `REQ-001`
+* Publish `requirements/REQ-TRAVEL-001.md` with stable ID
+* Publish `architecture/standards/standard-a.md` referencing `REQ-TRAVEL-001`
 * Projection builds ID index + backlinks and returns origin citations
 * UI shows backlinks and “why linked?” highlight
-* Agent answers “what depends on REQ-001?” with citations only 
+* Agent answers “what depends on REQ-TRAVEL-001?” with citations only 
 
 ## 2) Primitive goals, build items, and primitive-level tests
 
@@ -460,7 +495,7 @@ From empty state:
 
 **Build**
 
-* Parse stable IDs and inline ref grammar MVP (`ref: REQ-001`) 
+* Parse stable IDs and inline ref grammar MVP (`ref: <ID>`, e.g. `ref: REQ-TRAVEL-001`) 
 * Index:
 
   * `id -> path` (duplicate IDs produce deterministic “ambiguous” error)
@@ -641,8 +676,8 @@ From empty state:
 
 From empty state:
 
-* Publish `REQ-001`
-* Publish `WP-001` referencing `REQ-001`
+* Publish `REQ-TRAVEL-001`
+* Publish `WP-001` referencing `REQ-TRAVEL-001`
 * Make a delivery change that touches:
 
   * one code location
@@ -719,7 +754,7 @@ From empty state:
 
 * Work Package page:
 
-  * “Implements REQ-001” (derived)
+  * “Implements REQ-TRAVEL-001” (derived)
   * “Delivered by: commits/paths/resources” (derived)
   * “Evidence” tab shows Domain Evidence Spine (no UI-owned schema)
 
@@ -742,27 +777,39 @@ From empty state:
 
 ---
 
-# Increment 5 — Vendor reference adoption (BPC) + fit/gap + baseline compare
+# Increment 5 — Schemes + metamodel validation (TOGAF/ArchiMate/BPMN/Markdown) + no-sidecar views
 
 ## 1) Capability user story
 
-“As enterprise architecture, we can ingest/update the Microsoft BPC catalog as Git content, overlay our architecture, run fit/gap, and see impact of vendor updates.”
+“As enterprise architecture, we can author and govern TOGAF artifacts and model ArchiMate/BPMN as Git-first items (elements + relationships + views), with deterministic schema + metamodel validation gated on commit/MR, and with citeable, rebuildable derived graphs for navigation and impact.”
 
 ## Capability-level testing objective
 
 From empty state:
 
-* Publish BPC release A subset into `reference/microsoft/bpc/...`
-* Publish overlays that reference BPC nodes (requirements/work packages)
-* Publish BPC release B subset (changed nodes)
-* Projection computes:
+* Publish a minimal registry for schemes/types/rules (Git-authored, governed publish):
 
-  * BPC hierarchy
-  * diff between releases A and B (by SHA)
-  * impact on overlays (“which of our items reference changed/deprecated nodes”)
-* Process orchestrates “adopt vendor release” gate
-* Agent produces citeable change summary + suggested follow-up work packages
-* UI shows BPC browser + compare + approval workflow
+  * schemes: `markdown`, `togaf`, `archimate`, `bpmn`
+  * types: at least one per scheme
+  * rules: at least one metamodel rule set (ArchiMate or BPMN)
+* Publish a minimal ArchiMate model as three item kinds (Git files with YAML frontmatter; no sidecars):
+
+  * `archimate.element` (element with `element_kind`)
+  * `archimate.relationship` (relationship with `rel_kind`, `from`, `to`, and optional attributes)
+  * `archimate.view` (view with membership + layout stored in-file)
+* Projection derives and serves:
+
+  * a typed item index (`id → {scheme,type,path,citation}`)
+  * a graph view across inline links + relationship-items with origin citations
+  * impact/backlinks that include “why linked?” origin citations
+* Domain enforces deterministic validation gates on publish:
+
+  * YAML frontmatter parse
+  * required fields present (`id`, `scheme`, `type`)
+  * metamodel constraint checks for ArchiMate/BPMN relationship-items (and view membership must reference existing ids)
+* Process orchestrates a review gate for “model change publish” (impact preview + approval + publish).
+* Agent produces a citeable “model change impact preview” (what elements/relationships/views were added/removed/affected) and attaches it to the Process instance.
+* UISurface can browse items by scheme/type, open an element/relationship/view, render a view diagram (from in-file layout), and show validation errors deterministically when violated.
 
 ## 2) Primitive goals, build items, and primitive-level tests
 
@@ -770,79 +817,97 @@ From empty state:
 
 **Build**
 
-* Governed publish for vendor catalog updates (MR-based) with evidence spine.
-* Optional baseline tags are allowed, but canonical anchor remains SHA.
+* Governed publish for registry + model items (MR-based) with evidence spine.
+* Validation on publish (commit/MR gate) for:
+
+  * frontmatter parse and required fields
+  * scheme/type existence in registry
+  * ArchiMate/BPMN relationship-item endpoint validity (type constraints) and metamodel constraints (rule set)
+  * view membership references must exist at the `proposal_head_sha` being published
+* Evidence spine includes `changed_paths[]`, `target_head_sha`, and (optionally) declared item ids touched (still Domain-owned).
 
 **Test**
 
-* Unit: adoption publish produces evidence spine with target_head_sha + changed paths
+* Unit: publish rejects invalid frontmatter (deterministic error).
+* Unit: publish rejects invalid ArchiMate/BPMN relationship-items (deterministic metamodel error).
+* Unit: publish produces evidence spine with `target_head_sha` + `changed_paths[]`.
 
 ### Projection
 
 **Build**
 
-* BPC node index + hierarchy derivation
-* Baseline compare between two SHAs:
+* Typed item index:
 
-  * file-level and (where possible) node-level diffs
-* Impact analysis: overlays referencing changed BPC nodes
+  * `id → {scheme, type, path, citation}`
+  * deterministic “duplicate id” errors
+* Derived graph across:
+
+  * inline links (frontmatter `links:` and/or body `ref:` compatibility)
+  * relationship-items (e.g., `archimate.relationship`, `bpmn.relationship`)
+  * view membership edges (e.g., `archimate.view` includes elements/relationships; layout is data, not a sidecar)
+* Impact/backlinks queries with origin citations (why linked).
 
 **Test**
 
-* Unit: diff and impact are deterministic per SHA and rebuildable
+* Unit: duplicate id and broken ref behaviors remain deterministic and citeable.
+* Unit: relationship-items produce edges with metamodel validation outcomes surfaced (valid/invalid with reasons).
+* Unit: view membership references resolve or fail deterministically.
+* Rebuildability: indexing the same SHA yields identical derived graphs and impact results.
 
 ### Process
 
 **Build**
 
-* `bpc.adopt_release` orchestration:
+* `model.change_review` orchestration:
 
-  * ingest → diff → request agent summary → approval → publish
+  * draft → validation preview → request agent impact preview → approval → publish
 
 **Test**
 
-* Unit: process gate requires agent summary artifact + human approval before Domain publish
+* Unit: process gate requires agent impact preview + human approval before Domain publish.
 
 ### Agent
 
 **Build**
 
-* “Vendor update analyst”:
+* “Model change analyst”:
 
-  * summarises what changed
-  * identifies impacted overlays
-  * proposes follow-up work packages with citations
-* Memory stores citations and decision context.
+  * validates the proposal context (reads via Projection) and explains failures citeably
+  * summarizes what changed in the model (elements/relationships/views) with citations
+  * produces impact preview packets for Process review (citations only)
 
 **Test**
 
-* Unit: suggested work packages include citeable origins (what changed and where)
+* Unit: impact preview contains only citeable claims and includes “why linked?” origin citations.
 
 ### UISurface
 
 **Build**
 
-* BPC catalog UI:
+* Type-driven UI surfaces:
 
-  * browse hierarchy
-  * compare baselines (A vs B)
-  * show impacted overlays
-  * approve adoption workflow
+  * browse by scheme/type (TOGAF/ArchiMate/BPMN/Markdown)
+  * open item (element/relationship/view) and show frontmatter-backed widgets
+  * view renderer reads layout from the view item (no sidecars)
+  * show validation errors as first-class outcomes (not hidden)
 
 **Test**
 
-* UI: every compare/impact row is backed by citations to both SHAs
+* UI: model open/render/impact outputs are citeable and anchored to `main@sha` (or proposal head SHA for review flows).
 
 ### Integration
 
 **Build**
 
-* Import adapter for Excel/CSV into normalized Git-friendly files (still Integration = adapters; normalization rules belong to Projection/Domain policies)
-* MCP server tools for BPC navigation and impact (Integration primitive exposing Projection queries to coding agents)
+* MCP server tools for model navigation and impact (Integration primitive exposing Projection queries to coding agents), e.g.:
+
+  * `item.get(id|path, read_context)`
+  * `graph.impact(id, read_context)`
+  * `view.get(id, read_context)`
 
 **Test**
 
-* Unit: importer produces deterministic outputs; does not inject semantics (just transforms source to files)
+* Unit: MCP tools are pass-through to Projection/Domain seams (no invented semantics), and outputs remain citeable.
 
 ---
 

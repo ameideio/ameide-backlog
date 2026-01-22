@@ -5,7 +5,7 @@ owners:
   - transformation
   - platform
 created: 2026-01-19
-updated: 2026-01-20
+updated: 2026-01-22
 related:
   - 496-eda-principles-v6.md
   - 694-elements-gitlab-v6.md
@@ -136,6 +136,26 @@ The Domain records durable audit pointers, minimally:
 - optional tag
 
 Only after durable recording does the Domain emit facts.
+
+## Facts (CloudEvents `type`) emitted by the Enterprise Repository owner (Domain)
+
+Per `backlog/496-eda-principles-v6.md`, fact semantic identities are normative (`io.ameide.<context>.fact.<name>.v<major>`). For this seam, lock the initial fact types (names only; payloads remain protobuf-governed):
+
+**Owner facts (Domain):**
+
+* `io.ameide.transformation.fact.enterprise_repository.repo_mapping_upserted.v1`
+* `io.ameide.transformation.fact.enterprise_repository.change_committed.v1`
+* `io.ameide.transformation.fact.enterprise_repository.change_published.v1`
+* `io.ameide.transformation.fact.enterprise_repository.validation_failed.v1` (only if modeled as a durable audit outcome recorded by Domain)
+
+**Derived facts (Projection; optional):**
+
+* `io.ameide.transformation.fact.enterprise_repository.typed_item_indexed.v1`
+
+Emission rules:
+
+* Emit facts only after the corresponding Git outcome is durable and Domain has recorded the audit pointers it will rely on (MR IID, commit SHA(s), pipeline id/status if applicable).
+* Emit `change_published` only after the publish anchor (`target_head_sha`) is recorded (Git-backed outbox-equivalent).
 
 ## Migration posture
 

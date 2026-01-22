@@ -22,7 +22,7 @@ This increment builds directly on:
 
 ### User story (human and agent equally important)
 
-* **As a human (planner/architect)**, I can create a Work Package `WP-001` that references Requirement `REQ-001`, publish it, then execute the work package by publishing code + GitOps changes through the governed publish loop, and finally see “what this work package delivered” with citations and evidence.
+* **As a human (planner/architect)**, I can create a Work Package `WP-001` that references Requirement `REQ-TRAVEL-001`, publish it, then execute the work package by publishing code + GitOps changes through the governed publish loop, and finally see “what this work package delivered” with citations and evidence.
 * **As an agent**, I can:
 
   1. propose an implementation plan for `WP-001` grounded in citeable repository context, and
@@ -34,11 +34,20 @@ One capability-owned integration test proves, from empty state:
 
 1. **Publish planning artifacts (governed)**
 
-   * Publish `requirements/REQ-001.md` with stable `id: REQ-001` (Scenario B rule). 
-   * Publish `work-packages/WP-001.md` with stable `id: WP-001` and inline refs:
+   * Publish `requirements/REQ-TRAVEL-001.md` as a typed item (YAML frontmatter required):
 
-     * `ref: REQ-001` (WP implements requirement)
-     * optional `refs:` list for BPC later (not required yet)
+     * `id: REQ-TRAVEL-001`
+     * `scheme: togaf`
+     * `type: togaf.requirement`
+   * Publish `work-packages/WP-001.md` as a typed item (YAML frontmatter required):
+
+     * `id: WP-001`
+     * `scheme: togaf`
+     * `type: togaf.work_package`
+   * `WP-001` declares relationships in frontmatter `links:` (preferred) and/or inline `ref:` tokens (compatibility):
+
+     * requirement linkage: `target_id: REQ-TRAVEL-001`
+     * implementation linkage: `target_path: src/example.py` and/or `target_path: gitops/app.yaml` (path-based links for agent navigation; these targets are not required to be typed items)
 
 2. **Execute a governed delivery change associated with the work package**
 
@@ -72,9 +81,16 @@ One capability-owned integration test proves, from empty state:
 
    * WP detail screen shows:
 
-     * Implements: `REQ-001` (derived from inline refs)
+     * Implements: `REQ-TRAVEL-001` (derived from inline refs)
      * Deliveries: list of publishes tied to `WP-001` (from Domain evidence spine, rendered; not reinvented)
      * Delivered artifacts/resources: derived from Projection trace, with “why included” citations
+
+## Travelling requirement overlay (all increments)
+
+Increment 4 is where the travelling requirement first gains a deterministic delivery trail:
+
+* `WP-001` links to `REQ-TRAVEL-001`.
+* Delivery publishes declare `WP-001` in Domain Evidence Spine (`declared_work_item_ids`) so Projection can derive requirement→work→delivery without heuristics.
 
 6. **Agent produces a citeable delivery summary**
 
@@ -147,7 +163,7 @@ Projection adds three derived indexes (all rebuildable):
 1. **EA index enhancements**
 
    * Treat `work-packages/**` as eligible “element files” with stable IDs (same collision rules as Scenario B). 
-   * Parse inline refs in `WP-001.md` to find `REQ-001` (already have ref parser from Inc 2).
+   * Parse inline refs in `WP-001.md` to find `REQ-TRAVEL-001` (already have ref parser from Inc 2).
 
 2. **Delivery evidence join**
 
@@ -174,11 +190,16 @@ Projection adds three derived indexes (all rebuildable):
     * `evidence_ref` (mr_iid + target_head_sha)
     * `changed_paths[]` with citations at `target_head_sha`
     * `gitops_resources[]` with citations (if applicable)
+* `GetRequirementTrace(scope, read_context, "REQ-TRAVEL-001")` (composed; no heuristics) →
+
+  * `work_packages[]` that implement the requirement (from derived refs)
+  * `deliveries[]` joined via Domain Evidence Spine (via the work packages’ declared associations)
 
 #### Projection tests
 
 * **Unit:** WP ↔ REQ derived edge exists from inline refs and is deterministic. 
 * **Unit:** given a Domain evidence spine record that declares `WP-001` and changed paths, `GetWorkPackageTrace(WP-001)` returns the publish in deliveries.
+* **Unit:** `GetRequirementTrace(REQ-TRAVEL-001)` includes `WP-001` and the same deliveries (no scan-based inference; composed joins only).
 * **Unit:** GitOps manifest parsing returns expected resource identity with an origin citation.
 * **Rebuildability:** rebuilding the trace for the same `target_head_sha` yields identical outputs.
 * **Negative:** if no Domain evidence declares `WP-001`, trace returns “no deliveries recorded” (no heuristic inference yet).
@@ -195,6 +216,16 @@ Projection adds three derived indexes (all rebuildable):
    * governed changes (Domain)
    * projection convergence (Projection)
 2. Ensure “Done” for a work package execution is tied to **Domain’s publish evidence** (not UI state).
+
+#### Why Process is first-class here (beyond GitLab guardrails)
+
+GitLab can tell you “the MR merged”, but Increment 4 needs a platform-owned definition of “delivered” that spans multiple primitives:
+
+* Domain: a governed publish happened and produced a canonical anchor `target_head_sha`
+* Projection: derived trace for that `target_head_sha` exists (e.g., deliveries + changed paths + GitOps resource identities)
+* Agent/UI: the execution plan and delivery summary are attached/rendered against the same run
+
+Process is the only place that can durably coordinate those steps, enforce ordering, and remain restart-safe.
 
 #### Build
 
